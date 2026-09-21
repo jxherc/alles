@@ -14,9 +14,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TARGET = REPO_ROOT / "static" / "kokuen.css"
-DEFAULT_LINTER = Path("/Users/jxh/kokuen/scripts/lint_ui_rules.py")
 EXPECTED_COUNTS = {"nested-boundary": 72, "small-type": 123}
-EXPECTED_DIGEST = "6f2ffd6b9ce1f9886d4a1c5844397dc3ed4ca8d1b71e875668691a50a3ce217c"
+EXPECTED_DIGEST = "1b7668e9b7b8492d57229e7b18609db23a35dade70b43a0ec83fd205ccb4aaa5"
 CONTROL_WORDS = re.compile(
     r"(?:button|input|textarea|search|choice|switch|option|trigger|select|tab|action)",
     re.IGNORECASE,
@@ -25,7 +24,15 @@ CONTROL_WORDS = re.compile(
 
 def canonical_linter() -> Path:
     override = os.environ.get("KOKUEN_LINTER")
-    return Path(override).expanduser() if override else DEFAULT_LINTER
+    if override:
+        return Path(override).expanduser()
+    candidates = (
+        REPO_ROOT.parent / "kokuen" / "scripts" / "lint_ui_rules.py",
+        Path.home() / ".agents" / "skills" / "kokuen" / "scripts" / "lint_ui_rules.py",
+        Path.home() / ".codex" / "skills" / "kokuen" / "scripts" / "lint_ui_rules.py",
+        Path.home() / "kokuen" / "scripts" / "lint_ui_rules.py",
+    )
+    return next((path for path in candidates if path.is_file()), candidates[0])
 
 
 def lint_findings() -> list[dict[str, object]]:

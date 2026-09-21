@@ -56,13 +56,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 631
+                "line": 635
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 989
+                "line": 993
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -98,19 +98,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
-                "line": 232
+                "line": 229
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
-                "line": 237
+                "line": 234
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
-                "line": 252
+                "line": 249
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -122,13 +122,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 511
+                "line": 514
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 804
+                "line": 807
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_legacy_text_contrast.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -265,13 +271,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 631
+                "line": 635
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 989
+                "line": 993
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -307,19 +313,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
-                "line": 232
+                "line": 229
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
-                "line": 237
+                "line": 234
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
-                "line": 252
+                "line": 249
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -331,13 +337,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 511
+                "line": 514
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 804
+                "line": 807
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_legacy_text_contrast.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -556,31 +568,31 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
-                "line": 228
+                "line": 225
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 519
+                "line": 522
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 521
+                "line": 524
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 533
+                "line": 536
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 809
+                "line": 812
               }
             ]
           },
@@ -615,31 +627,31 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
-                "line": 228
+                "line": 225
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 519
+                "line": 522
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 521
+                "line": 524
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 533
+                "line": 536
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 809
+                "line": 812
               }
             ]
           },
@@ -946,25 +958,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 632
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_afterlife_aide_shell.py",
-                "kind": "existing-test-control-reference",
-                "line": 633
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_afterlife_aide_shell.py",
-                "kind": "existing-test-control-reference",
-                "line": 634
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_afterlife_aide_shell.py",
-                "kind": "existing-test-control-reference",
                 "line": 636
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_afterlife_aide_shell.py",
+                "kind": "existing-test-control-reference",
+                "line": 637
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_afterlife_aide_shell.py",
+                "kind": "existing-test-control-reference",
+                "line": 638
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_afterlife_aide_shell.py",
+                "kind": "existing-test-control-reference",
+                "line": 640
               }
             ]
           },
@@ -1001,25 +1013,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 632
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_afterlife_aide_shell.py",
-                "kind": "existing-test-control-reference",
-                "line": 633
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_afterlife_aide_shell.py",
-                "kind": "existing-test-control-reference",
-                "line": 634
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_afterlife_aide_shell.py",
-                "kind": "existing-test-control-reference",
                 "line": 636
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_afterlife_aide_shell.py",
+                "kind": "existing-test-control-reference",
+                "line": 637
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_afterlife_aide_shell.py",
+                "kind": "existing-test-control-reference",
+                "line": 638
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_afterlife_aide_shell.py",
+                "kind": "existing-test-control-reference",
+                "line": 640
               }
             ]
           },
@@ -2020,7 +2032,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 359
+                "line": 362
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -2073,7 +2085,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 359
+                "line": 362
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -2444,7 +2456,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 439
+                "line": 442
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -2545,7 +2557,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 439
+                "line": 442
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -3163,13 +3175,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 951
+                "line": 955
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 1006
+                "line": 1010
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -3228,13 +3240,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 951
+                "line": 955
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 1006
+                "line": 1010
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -4311,43 +4323,43 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 506
+                "line": 509
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 568
+                "line": 571
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 616
+                "line": 619
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 618
+                "line": 621
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 627
+                "line": 630
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 629
+                "line": 632
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 850
+                "line": 853
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -4390,6 +4402,12 @@
                 "file": "tests/pw_phase10_performance.py",
                 "kind": "existing-test-control-reference",
                 "line": 96
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shared_switch_geometry.py",
+                "kind": "existing-test-control-reference",
+                "line": 76
               }
             ]
           },
@@ -4466,43 +4484,43 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 506
+                "line": 509
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 568
+                "line": 571
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 616
+                "line": 619
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 618
+                "line": 621
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 627
+                "line": 630
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 629
+                "line": 632
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 850
+                "line": 853
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -4545,6 +4563,12 @@
                 "file": "tests/pw_phase10_performance.py",
                 "kind": "existing-test-control-reference",
                 "line": 96
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shared_switch_geometry.py",
+                "kind": "existing-test-control-reference",
+                "line": 76
               }
             ]
           },
@@ -5734,7 +5758,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 748
+                "line": 751
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shared_switch_geometry.py",
+                "kind": "existing-test-control-reference",
+                "line": 83
               }
             ]
           },
@@ -5763,7 +5793,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 748
+                "line": 751
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shared_switch_geometry.py",
+                "kind": "existing-test-control-reference",
+                "line": 83
               }
             ]
           },
@@ -6837,7 +6873,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/js/andromeda_phase4.test.mjs",
                 "kind": "existing-test-control-reference",
-                "line": 575
+                "line": 576
               }
             ]
           },
@@ -6866,7 +6902,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/js/andromeda_phase4.test.mjs",
                 "kind": "existing-test-control-reference",
-                "line": 575
+                "line": 576
               }
             ]
           },
@@ -8366,13 +8402,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 748
+                "line": 751
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_andromeda_settings.py",
                 "kind": "existing-test-control-reference",
                 "line": 115
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shared_switch_geometry.py",
+                "kind": "existing-test-control-reference",
+                "line": 83
               }
             ]
           },
@@ -8407,13 +8449,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 748
+                "line": 751
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_andromeda_settings.py",
                 "kind": "existing-test-control-reference",
                 "line": 115
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shared_switch_geometry.py",
+                "kind": "existing-test-control-reference",
+                "line": 83
               }
             ]
           },
@@ -10792,7 +10840,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/js/andromeda_phase4.test.mjs",
                 "kind": "existing-test-control-reference",
-                "line": 604
+                "line": 605
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -10817,6 +10865,12 @@
                 "file": "tests/pw_phase6_andromeda_settings.py",
                 "kind": "existing-test-control-reference",
                 "line": 135
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shared_switch_geometry.py",
+                "kind": "existing-test-control-reference",
+                "line": 85
               }
             ]
           },
@@ -10851,7 +10905,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/js/andromeda_phase4.test.mjs",
                 "kind": "existing-test-control-reference",
-                "line": 604
+                "line": 605
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -10876,6 +10930,12 @@
                 "file": "tests/pw_phase6_andromeda_settings.py",
                 "kind": "existing-test-control-reference",
                 "line": 135
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shared_switch_geometry.py",
+                "kind": "existing-test-control-reference",
+                "line": 85
               }
             ]
           },
@@ -11019,7 +11079,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/js/andromeda_phase4.test.mjs",
                 "kind": "existing-test-control-reference",
-                "line": 576
+                "line": 577
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -11060,7 +11120,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/js/andromeda_phase4.test.mjs",
                 "kind": "existing-test-control-reference",
-                "line": 576
+                "line": 577
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -25352,7 +25412,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 464
+                "line": 467
               }
             ]
           },
@@ -25485,7 +25545,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 467
+                "line": 470
               }
             ]
           },
@@ -25520,7 +25580,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 467
+                "line": 470
               }
             ]
           },
@@ -31139,13 +31199,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_docs.py",
                 "kind": "existing-test-control-reference",
-                "line": 419
+                "line": 411
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_docs.py",
                 "kind": "existing-test-control-reference",
-                "line": 425
+                "line": 417
               }
             ]
           },
@@ -31174,13 +31234,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_docs.py",
                 "kind": "existing-test-control-reference",
-                "line": 419
+                "line": 411
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_docs.py",
                 "kind": "existing-test-control-reference",
-                "line": 425
+                "line": 417
               }
             ]
           },
@@ -31329,19 +31389,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 908
+                "line": 911
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 915
+                "line": 918
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_docs.py",
                 "kind": "existing-test-control-reference",
-                "line": 496
+                "line": 488
               }
             ]
           },
@@ -31382,19 +31442,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 908
+                "line": 911
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 915
+                "line": 918
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_docs.py",
                 "kind": "existing-test-control-reference",
-                "line": 496
+                "line": 488
               }
             ]
           },
@@ -35630,7 +35690,7 @@
     {
       "accessibility": {
         "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
-        "name": "Travel Mode \u2014 hide vaults not marked travel-safe",
+        "name": "Travel Mode: hide vaults not marked travel-safe",
         "relationships": {},
         "role": "native button"
       },
@@ -35724,7 +35784,7 @@
       "kind": "action",
       "label": {
         "source": "title",
-        "value": "Travel Mode \u2014 hide vaults not marked travel-safe"
+        "value": "Travel Mode: hide vaults not marked travel-safe"
       },
       "path": {
         "api": [],
@@ -36831,7 +36891,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_finance_vault_server.py",
                 "kind": "existing-test-control-reference",
-                "line": 196
+                "line": 197
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -36928,7 +36988,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_finance_vault_server.py",
                 "kind": "existing-test-control-reference",
-                "line": 196
+                "line": 197
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -37129,7 +37189,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_finance_vault_server.py",
                 "kind": "existing-test-control-reference",
-                "line": 197
+                "line": 198
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -37188,7 +37248,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_finance_vault_server.py",
                 "kind": "existing-test-control-reference",
-                "line": 197
+                "line": 198
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -40625,13 +40685,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 203
+                "line": 206
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 207
+                "line": 210
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -40710,13 +40770,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 203
+                "line": 206
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 207
+                "line": 210
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -46577,7 +46637,7 @@
     {
       "accessibility": {
         "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
-        "name": "smart search \u2014 find by content",
+        "name": "smart search: find by content",
         "relationships": {},
         "role": "native button"
       },
@@ -46657,7 +46717,7 @@
       "kind": "action",
       "label": {
         "source": "title",
-        "value": "smart search \u2014 find by content"
+        "value": "smart search: find by content"
       },
       "path": {
         "api": [],
@@ -49971,31 +50031,31 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 645
+                "line": 649
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 654
+                "line": 658
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 691
+                "line": 695
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 694
+                "line": 698
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 1003
+                "line": 1007
               }
             ]
           },
@@ -50036,31 +50096,31 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 645
+                "line": 649
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 654
+                "line": 658
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 691
+                "line": 695
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 694
+                "line": 698
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 1003
+                "line": 1007
               }
             ]
           },
@@ -50210,25 +50270,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 656
+                "line": 660
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 658
+                "line": 662
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 667
+                "line": 671
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 677
+                "line": 681
               }
             ]
           },
@@ -50269,25 +50329,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 656
+                "line": 660
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 658
+                "line": 662
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 667
+                "line": 671
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 677
+                "line": 681
               }
             ]
           },
@@ -50928,25 +50988,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 828
+                "line": 832
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 855
+                "line": 859
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 857
+                "line": 861
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 1000
+                "line": 1004
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -51030,25 +51090,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 253
+                "line": 256
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 284
+                "line": 287
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 429
+                "line": 432
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 436
+                "line": 439
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -51235,25 +51295,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 828
+                "line": 832
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 855
+                "line": 859
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 857
+                "line": 861
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 1000
+                "line": 1004
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -51337,25 +51397,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 253
+                "line": 256
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 284
+                "line": 287
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 429
+                "line": 432
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 436
+                "line": 439
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -51542,25 +51602,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 828
+                "line": 832
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 855
+                "line": 859
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 857
+                "line": 861
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 1000
+                "line": 1004
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -51644,25 +51704,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 253
+                "line": 256
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 284
+                "line": 287
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 429
+                "line": 432
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 436
+                "line": 439
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -52065,7 +52125,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 844
+                "line": 848
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -52112,7 +52172,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 844
+                "line": 848
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -52280,85 +52340,85 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 721
+                "line": 725
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 729
+                "line": 733
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 730
+                "line": 734
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 745
+                "line": 749
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 747
+                "line": 751
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 748
+                "line": 752
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 758
+                "line": 762
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 760
+                "line": 764
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 761
+                "line": 765
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 771
+                "line": 775
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 985
+                "line": 989
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 992
+                "line": 996
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 339
+                "line": 342
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 341
+                "line": 344
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -52429,85 +52489,85 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 721
+                "line": 725
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 729
+                "line": 733
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 730
+                "line": 734
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 745
+                "line": 749
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 747
+                "line": 751
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 748
+                "line": 752
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 758
+                "line": 762
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 760
+                "line": 764
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 761
+                "line": 765
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 771
+                "line": 775
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 985
+                "line": 989
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 992
+                "line": 996
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 339
+                "line": 342
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 341
+                "line": 344
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -52882,25 +52942,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 774
+                "line": 778
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 798
+                "line": 802
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 826
+                "line": 830
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 993
+                "line": 997
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -52977,25 +53037,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 774
+                "line": 778
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 798
+                "line": 802
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 826
+                "line": 830
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 993
+                "line": 997
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53650,7 +53710,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 832
+                "line": 836
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53709,7 +53769,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 832
+                "line": 836
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53880,7 +53940,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 829
+                "line": 833
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53975,7 +54035,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 829
+                "line": 833
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -54073,7 +54133,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 829
+                "line": 833
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -54171,7 +54231,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 829
+                "line": 833
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -54560,7 +54620,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 975
+                "line": 979
               }
             ]
           },
@@ -54589,7 +54649,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 975
+                "line": 979
               }
             ]
           },
@@ -54724,7 +54784,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 977
+                "line": 981
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -54765,7 +54825,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
-                "line": 977
+                "line": 981
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -56326,13 +56386,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 572
+                "line": 575
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 655
+                "line": 658
               }
             ]
           },
@@ -56465,25 +56525,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 610
+                "line": 613
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 625
+                "line": 628
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 668
+                "line": 671
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 858
+                "line": 861
               }
             ]
           },
@@ -56518,25 +56578,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 610
+                "line": 613
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 625
+                "line": 628
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 668
+                "line": 671
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 858
+                "line": 861
               }
             ]
           },
@@ -105761,7 +105821,7 @@
     {
       "accessibility": {
         "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
-        "name": "settings \u00d7 general & appearance general home appearance aide & chat behavior chat defaults search voice personas background checks intelligence models & providers models memory & instructions memory recall connections & mcp connections & tools api & shortcuts privacy & security privacy & password notifications & language language & region rules & delivery server, backups & data about & credits backup & restore home Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear. loading preferences\u2026 structure Move sections into the order you scan them. Hide anything that is not useful every day. needs youapprovals, failed work, and delivery prompts \u00b7 always visible \u2191\u2193 scheduleevents, tasks, reminders, renewals, and habits \u2191\u2193 in progressactive background Aide work \u2191\u2193 briefsrecent finished Aide summaries \u2191\u2193 pinned appsthe app destinations selected below \u2191\u2193 density This changes vertical spacing only. It never removes details. comfortablemore room between sections compactmore of the day at once pinned apps Choose and order the app destinations shown on Home. planagenda, board, calendar, tasks, and reminders\u2191\u2193 inboxmail and contacts\u2191\u2193 docsdocuments, notes, and journal\u2191\u2193 fileslocal and remote storage plus gallery\u2191\u2193 librarybooks, saved reading, and news\u2191\u2193 healthmeasurements and habits\u2191\u2193 financemoney and subscriptions\u2191\u2193 vaultpasswords and protected secrets\u2191\u2193 serverservices, search, backups, and activity\u2191\u2193 home outline5 sections The greeting and capture bar stay fixed. This is the order below them. needs youapprovals and recovery prompts scheduleevents and priorities in progressactive Aide work briefsrecent summaries pinned appsplan \u00b7 docs \u00b7 files no unsaved changesSaving updates Home for every browser using this Alles server. reset defaultssave home model defaults choose one default for each kind of work. you can still change the model for a single chat or run. loading model choices\u2026 save defaults model endpoints refresh all Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits. + add endpoint OpenAI Anthropic DeepSeek Kimi Groq Gemini xAI (Grok) Mistral Perplexity OpenRouter Together Fireworks Cohere Ollama name base url provider authentication api key provider adapter manual models comma-separated add + probe models vision-capable models (comma-separated, optional) connect Gemini with Google OAuth Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow. client ID client secret Google Cloud project ID open Google authorization local serving checking Ollama... pull any model pull refresh start Ollama openai-compatible api base url: http://localhost:8001/v1 model id format: EndpointName/model-id chat defaults aide uses the right tools automatically and can still answer normal questions. context window (messages) features streaming thinking show model reasoning blocks as they stream artifacts render HTML, SVG and code in a side panel auto-compact context summarize old messages when context fills up save owner instructions tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules. save instructions memory extract from chat incognito chats never read or save memory. owner instructions stay separate from the memories below. memory policy ask before saving suggested memories off ask auto use relevant memory in chatsavailable only while memory is set to ask or auto general remember saved to memory undo pause export clear all web search primary provider test tavily api key brave search api key searxng base url google pse api key search engine cx id serper api key fallback provider results per query andromeda normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent. normal resultsshow web results below the overview ai overviewbuild a claim-by-claim answer from fetched evidence independent fact-checkuse the separate verifier after freshness-sensitive answers fact-check policy default model band light standard strong auto test auto model profile your name \u2014 aide greets you by it username \u2014 synced across your apps chat bar reset all welcome messageshow the empty chat welcome screen compact modetighter spacing throughout the UI font size microphonevoice input button sidebar views docs tasks calendar ai gallery memory secrets contacts gallery privacy sensitive blurblur emails, keys and secrets in aide replies text-only emojisstrip emoji glyphs from aide replies incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them. password require passwordlock alles behind your password current password new password verify password \u2014 enter it again change password default theme mode dark light accent color \u2014 the highlight used everywhere reset presets & customization speech-to-text (STT) provider microphone language (optional) text-to-speech (TTS) auto-play TTSspeak AI replies automatically provider voice speed openai api key required for whisper api and openai tts save voice settings personas name system prompt starter message \u2014 prefilled into the composer when you pick this persona (optional) pinned model temperature auto precise \u00b7 0creative \u00b7 2 runs as auto chat only agent accent \u00b7 re-themes the app while this persona is active default persona add persona cancel knowledge files \u2014 this assistant answers from these add \ud83d\udd17 share this assistant cookbook (custom slash commands) name description prompt template add command Jarvis on Discord not connected loading connection\u2026 Discord bot token encrypted and never shown again connect Jarvis create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work. Jarvisnot paired pair one ownersend pair CODE in a DM to Jarvis. the code expires after 10 minutes. new pairing code approved private channel ids one numeric id per line; owner messages only save channels revoke owner quiet hourshold finished notices; questions still come through from to time zone save disconnect Jarvis agent stack refresh context filesread AGENTS.md from the working dir shell sandboxrun shell inside docker (needs docker installed) computer usescreenshot + click/type tools (needs pyautogui) sub-agentsallow spawn_agent + parallel delegation extra approved file roots read-only; one existing folder per line save approved roots permission rules fine-grained control over what the agent does without asking \u2014 layered over the mode, last matching rule wins. tool + path accept globs (* ?); a plain path is a \"contains\" match. e.g. allow git_status, ask on git_commit, deny write_file on .env. add rule mcp servers one-click presets name command remote server and private values transport remote url environment http headers private values are encrypted on disk and never shown again. add server macOS integration connections service name token connect github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected. alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed. rotate credential key re-encrypts saved credentials, then safely retires the old key. api tokens generate access read write models agent secrets connections admin choose only what this token needs. admin includes every permission. webhooks name url add webhook shortcuts search sidebar settings new chat send focus input stop generating openai-compatible api expose Aide's models via the OpenAI API spec. base url: http://localhost:8001/v1 model id format: EndpointName/model-id language & region Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent. loading settings\u2026 interface language Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest. EnglishEnglishreviewed Fran\u00e7aisFrenchunavailable Espa\u00f1olSpanishunavailable \u7b80\u4f53\u4e2d\u6587Simplified Chineseunavailable \u7e41\u9ad4\u4e2d\u6587Traditional Chineseunavailable \u65e5\u672c\u8a9eJapaneseunavailable \ud55c\uad6d\uc5b4Koreanunavailable \u0627\u0644\u0639\u0631\u0628\u064a\u0629Arabicunavailable regional formats Automatic values follow this browser. An override changes formatting, not the interface language. regiondetecting this browser\u2026 automatic timezonedetecting this browser\u2026 automatic clockDoes not change stored event times. automatic 24 hour 12 hour first day of weekCalendar layout only. automatic monday sunday currencyUsed for locale-sensitive money display. automatic no unsaved changes save language & region live previewen alles home needs your attention settings saved alles/data \u00b7 14:30 directionleft to right regionautomatic timezoneautomatic currencyautomatic about & credits See what Alles includes, connects to, and learned from. loading credits\u2026 release credits search credits all code data companions inspiration loading manifest\u2026 Select a credit to inspect its source and local notice state. automation rules when this happens, do that. rules run in the background \u2014 everything is checked within ~30 seconds. cancel add rule delivery channels the \"send to discord / telegram\" actions use these. paste a discord webhook url and/or a telegram bot token + chat id. setup checking setup\u2026 resume setup export downloads an encrypted .alles-backup containing the selected local data and a verified manifest. download encrypted backup download recovery key save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost. restore select a ZIP to verify and stage. your live data stays unchanged until you stop Alles and run the shown CLI command. choose backup file choose separate recovery key (optional) no separate key selected webdav backup send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles. https url username password use an app password when your WebDAV service supports one. connect and save disconnect checking connection\u2026 last successful backup: never last verified: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore s3 backup manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects. the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles. https endpoint region existing bucket prefix (optional) addressing style access-key id secret-access key enter both credentials together. leaving both blank keeps the saved pair. connect and save disconnect checking connection\u2026 last successful backup: never last verified upload read-back: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore personal recall let aide search your own notes, journal, mail, contacts, saved articles and books. the vault is never indexed; the journal honours its lock. answering sends matched snippets to your chosen model - use a local model for fully offline recall. enable recall index mail notes journal contacts read-later books reindex now clear index background checks aide checks your day on a schedule and drops short advisory cards into the home today strip - overdue tasks, renewals, habits and the like. it never acts on its own; you click through. off by default since it runs the model on a timer (it spends tokens). hit \"run now\" to try it. enable background checks tasks & reminders subscriptions calendar & day-events habits reading health money (budget & low balance) important mail (flagged / vip) journal (stale nudge) run every hours quiet hours to send push for urgentweb-push high-priority cards (needs notifications on) run now intelligence aide can learn from how you use alles - find cross-domain insights, build a model of your preferences, and weave both into its answers. the learning passes spend tokens so they are off by default; the inject + suggestion switches are cheap and on. see what it finds in the brain page. cross-domain insightsa periodic pass that finds patterns across your data (spends tokens) inject insights into aide learn about you (user model)distill durable facts from your behavior (spends tokens) inject what it learned into aide composer suggestionspredicted next-step chips above the message box session contextkeep aide aware of the current topic across turns generate insights distill now",
+        "name": "settings \u00d7 general & appearance general home appearance aide & chat behavior chat defaults search voice personas background checks intelligence models & providers models memory & instructions memory recall connections & mcp connections & tools api & shortcuts privacy & security privacy & password notifications & language language & region rules & delivery server, backups & data about & credits backup & restore home Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear. loading preferences\u2026 structure Move sections into the order you scan them. Hide anything that is not useful every day. needs youapprovals, failed work, and delivery prompts \u00b7 always visible \u2191\u2193 scheduleevents, tasks, reminders, renewals, and habits \u2191\u2193 in progressactive background Aide work \u2191\u2193 briefsrecent finished Aide summaries \u2191\u2193 pinned appsthe app destinations selected below \u2191\u2193 density This changes vertical spacing only. It never removes details. comfortablemore room between sections compactmore of the day at once pinned apps Choose and order the app destinations shown on Home. planagenda, board, calendar, tasks, and reminders\u2191\u2193 inboxmail and contacts\u2191\u2193 docsdocuments, notes, and journal\u2191\u2193 fileslocal and remote storage plus gallery\u2191\u2193 librarybooks, saved reading, and news\u2191\u2193 healthmeasurements and habits\u2191\u2193 financemoney and subscriptions\u2191\u2193 vaultpasswords and protected secrets\u2191\u2193 serverservices, search, backups, and activity\u2191\u2193 home outline5 sections The greeting and capture bar stay fixed. This is the order below them. needs youapprovals and recovery prompts scheduleevents and priorities in progressactive Aide work briefsrecent summaries pinned appsplan \u00b7 docs \u00b7 files no unsaved changesSaving updates Home for every browser using this Alles server. reset defaultssave home model defaults choose one default for each kind of work. you can still change the model for a single chat or run. loading model choices\u2026 save defaults model endpoints refresh all Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits. + add endpoint OpenAI Anthropic DeepSeek Kimi Groq Gemini xAI (Grok) Mistral Perplexity OpenRouter Together Fireworks Cohere Ollama name base url provider authentication api key provider adapter manual models comma-separated add + probe models vision-capable models (comma-separated, optional) connect Gemini with Google OAuth Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow. client ID client secret Google Cloud project ID open Google authorization local serving checking Ollama... pull any model pull refresh start Ollama openai-compatible api base url: http://localhost:8001/v1 model id format: EndpointName/model-id chat defaults aide uses the right tools automatically and can still answer normal questions. context window (messages) features streaming thinking show model reasoning blocks as they stream artifacts render HTML, SVG and code in a side panel auto-compact context summarize old messages when context fills up save owner instructions tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules. save instructions memory extract from chat incognito chats never read or save memory. owner instructions stay separate from the memories below. memory policy ask before saving suggested memories off ask auto use relevant memory in chatsavailable only while memory is set to ask or auto general remember saved to memory undo pause export clear all web search primary provider test tavily api key brave search api key searxng base url google pse api key search engine cx id serper api key fallback provider results per query andromeda normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent. normal resultsshow web results below the overview ai overviewbuild a claim-by-claim answer from fetched evidence independent fact-checkuse the separate verifier after freshness-sensitive answers fact-check policy default model band light standard strong auto test auto model profile your name : aide greets you by it username : synced across your apps chat bar reset all welcome messageshow the empty chat welcome screen compact modetighter spacing throughout the UI font size microphonevoice input button sidebar views docs tasks calendar ai gallery memory secrets contacts gallery privacy sensitive blurblur emails, keys and secrets in aide replies text-only emojisstrip emoji glyphs from aide replies incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them. password require passwordlock alles behind your password current password new password verify password : enter it again change password default theme mode dark light accent color : the highlight used everywhere reset presets & customization speech-to-text (STT) provider microphone language (optional) text-to-speech (TTS) auto-play TTSspeak AI replies automatically provider voice speed openai api key required for whisper api and openai tts save voice settings personas name system prompt starter message : prefilled into the composer when you pick this persona (optional) pinned model temperature auto precise \u00b7 0creative \u00b7 2 runs as auto chat only agent accent \u00b7 re-themes the app while this persona is active default persona add persona cancel knowledge files : this assistant answers from these add \ud83d\udd17 share this assistant cookbook (custom slash commands) name description prompt template add command Jarvis on Discord not connected loading connection\u2026 Discord bot token encrypted and never shown again connect Jarvis create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work. Jarvisnot paired pair one ownersend pair CODE in a DM to Jarvis. the code expires after 10 minutes. new pairing code approved private channel ids one numeric id per line; owner messages only save channels revoke owner quiet hourshold finished notices; questions still come through from to time zone save disconnect Jarvis agent stack refresh context filesread AGENTS.md from the working dir shell sandboxrun shell inside docker (needs docker installed) computer usescreenshot + click/type tools (needs pyautogui) sub-agentsallow spawn_agent + parallel delegation extra approved file roots read-only; one existing folder per line save approved roots permission rules fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (* ?); a plain path is a \"contains\" match. e.g. allow git_status, ask on git_commit, deny write_file on .env. add rule mcp servers one-click presets name command remote server and private values transport remote url environment http headers private values are encrypted on disk and never shown again. add server macOS integration connections service name token connect github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected. alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed. rotate credential key re-encrypts saved credentials, then safely retires the old key. api tokens generate access read write models agent secrets connections admin choose only what this token needs. admin includes every permission. webhooks name url add webhook shortcuts search sidebar settings new chat send focus input stop generating openai-compatible api expose Aide's models via the OpenAI API spec. base url: http://localhost:8001/v1 model id format: EndpointName/model-id language & region Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent. loading settings\u2026 interface language Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest. EnglishEnglishreviewed Fran\u00e7aisFrenchunavailable Espa\u00f1olSpanishunavailable \u7b80\u4f53\u4e2d\u6587Simplified Chineseunavailable \u7e41\u9ad4\u4e2d\u6587Traditional Chineseunavailable \u65e5\u672c\u8a9eJapaneseunavailable \ud55c\uad6d\uc5b4Koreanunavailable \u0627\u0644\u0639\u0631\u0628\u064a\u0629Arabicunavailable regional formats Automatic values follow this browser. An override changes formatting, not the interface language. regiondetecting this browser\u2026 automatic timezonedetecting this browser\u2026 automatic clockDoes not change stored event times. automatic 24 hour 12 hour first day of weekCalendar layout only. automatic monday sunday currencyUsed for locale-sensitive money display. automatic no unsaved changes save language & region live previewen alles home needs your attention settings saved alles/data \u00b7 14:30 directionleft to right regionautomatic timezoneautomatic currencyautomatic about & credits See what Alles includes, connects to, and learned from. loading credits\u2026 release credits search credits all code data companions inspiration loading manifest\u2026 Select a credit to inspect its source and local notice state. automation rules when this happens, do that. rules run in the background. everything is checked within ~30 seconds. cancel add rule delivery channels the \"send to discord / telegram\" actions use these. paste a discord webhook url and/or a telegram bot token + chat id. setup checking setup\u2026 resume setup export downloads an encrypted .alles-backup containing the selected local data and a verified manifest. download encrypted backup download recovery key save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost. restore select a ZIP to verify and stage. your live data stays unchanged until you stop Alles and run the shown CLI command. choose backup file choose separate recovery key (optional) no separate key selected webdav backup send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles. https url username password use an app password when your WebDAV service supports one. connect and save disconnect checking connection\u2026 last successful backup: never last verified: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore s3 backup manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects. the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles. https endpoint region existing bucket prefix (optional) addressing style access-key id secret-access key enter both credentials together. leaving both blank keeps the saved pair. connect and save disconnect checking connection\u2026 last successful backup: never last verified upload read-back: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore personal recall let aide search your own notes, journal, mail, contacts, saved articles and books. the vault is never indexed; the journal honours its lock. answering sends matched snippets to your chosen model - use a local model for fully offline recall. enable recall index mail notes journal contacts read-later books reindex now clear index background checks aide checks your day on a schedule and drops short advisory cards into the home today strip - overdue tasks, renewals, habits and the like. it never acts on its own; you click through. off by default since it runs the model on a timer (it spends tokens). hit \"run now\" to try it. enable background checks tasks & reminders subscriptions calendar & day-events habits reading health money (budget & low balance) important mail (flagged / vip) journal (stale nudge) run every hours quiet hours to send push for urgentweb-push high-priority cards (needs notifications on) run now intelligence aide can learn from how you use alles - find cross-domain insights, build a model of your preferences, and weave both into its answers. the learning passes spend tokens so they are off by default; the inject + suggestion switches are cheap and on. see what it finds in the brain page. cross-domain insightsa periodic pass that finds patterns across your data (spends tokens) inject insights into aide learn about you (user model)distill durable facts from your behavior (spends tokens) inject what it learned into aide composer suggestionspredicted next-step chips above the message box session contextkeep aide aware of the current topic across turns generate insights distill now",
         "relationships": {},
         "role": "native div"
       },
@@ -105791,11 +105851,11 @@
         "discoverability": "no-matched-source-authority",
         "value": "no direct-id listener, inline handler, or native authority matched by static source extraction"
       },
-      "id": "static.351a7c30debc",
+      "id": "static.b90b4dacb89d",
       "kind": "action",
       "label": {
         "source": "text",
-        "value": "settings \u00d7 general & appearance general home appearance aide & chat behavior chat defaults search voice personas background checks intelligence models & providers models memory & instructions memory recall connections & mcp connections & tools api & shortcuts privacy & security privacy & password notifications & language language & region rules & delivery server, backups & data about & credits backup & restore home Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear. loading preferences\u2026 structure Move sections into the order you scan them. Hide anything that is not useful every day. needs youapprovals, failed work, and delivery prompts \u00b7 always visible \u2191\u2193 scheduleevents, tasks, reminders, renewals, and habits \u2191\u2193 in progressactive background Aide work \u2191\u2193 briefsrecent finished Aide summaries \u2191\u2193 pinned appsthe app destinations selected below \u2191\u2193 density This changes vertical spacing only. It never removes details. comfortablemore room between sections compactmore of the day at once pinned apps Choose and order the app destinations shown on Home. planagenda, board, calendar, tasks, and reminders\u2191\u2193 inboxmail and contacts\u2191\u2193 docsdocuments, notes, and journal\u2191\u2193 fileslocal and remote storage plus gallery\u2191\u2193 librarybooks, saved reading, and news\u2191\u2193 healthmeasurements and habits\u2191\u2193 financemoney and subscriptions\u2191\u2193 vaultpasswords and protected secrets\u2191\u2193 serverservices, search, backups, and activity\u2191\u2193 home outline5 sections The greeting and capture bar stay fixed. This is the order below them. needs youapprovals and recovery prompts scheduleevents and priorities in progressactive Aide work briefsrecent summaries pinned appsplan \u00b7 docs \u00b7 files no unsaved changesSaving updates Home for every browser using this Alles server. reset defaultssave home model defaults choose one default for each kind of work. you can still change the model for a single chat or run. loading model choices\u2026 save defaults model endpoints refresh all Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits. + add endpoint OpenAI Anthropic DeepSeek Kimi Groq Gemini xAI (Grok) Mistral Perplexity OpenRouter Together Fireworks Cohere Ollama name base url provider authentication api key provider adapter manual models comma-separated add + probe models vision-capable models (comma-separated, optional) connect Gemini with Google OAuth Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow. client ID client secret Google Cloud project ID open Google authorization local serving checking Ollama... pull any model pull refresh start Ollama openai-compatible api base url: http://localhost:8001/v1 model id format: EndpointName/model-id chat defaults aide uses the right tools automatically and can still answer normal questions. context window (messages) features streaming thinking show model reasoning blocks as they stream artifacts render HTML, SVG and code in a side panel auto-compact context summarize old messages when context fills up save owner instructions tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules. save instructions memory extract from chat incognito chats never read or save memory. owner instructions stay separate from the memories below. memory policy ask before saving suggested memories off ask auto use relevant memory in chatsavailable only while memory is set to ask or auto general remember saved to memory undo pause export clear all web search primary provider test tavily api key brave search api key searxng base url google pse api key search engine cx id serper api key fallback provider results per query andromeda normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent. normal resultsshow web results below the overview ai overviewbuild a claim-by-claim answer from fetched evidence independent fact-checkuse the separate verifier after freshness-sensitive answers fact-check policy default model band light standard strong auto test auto model profile your name \u2014 aide greets you by it username \u2014 synced across your apps chat bar reset all welcome messageshow the empty chat welcome screen compact modetighter spacing throughout the UI font size microphonevoice input button sidebar views docs tasks calendar ai gallery memory secrets contacts gallery privacy sensitive blurblur emails, keys and secrets in aide replies text-only emojisstrip emoji glyphs from aide replies incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them. password require passwordlock alles behind your password current password new password verify password \u2014 enter it again change password default theme mode dark light accent color \u2014 the highlight used everywhere reset presets & customization speech-to-text (STT) provider microphone language (optional) text-to-speech (TTS) auto-play TTSspeak AI replies automatically provider voice speed openai api key required for whisper api and openai tts save voice settings personas name system prompt starter message \u2014 prefilled into the composer when you pick this persona (optional) pinned model temperature auto precise \u00b7 0creative \u00b7 2 runs as auto chat only agent accent \u00b7 re-themes the app while this persona is active default persona add persona cancel knowledge files \u2014 this assistant answers from these add \ud83d\udd17 share this assistant cookbook (custom slash commands) name description prompt template add command Jarvis on Discord not connected loading connection\u2026 Discord bot token encrypted and never shown again connect Jarvis create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work. Jarvisnot paired pair one ownersend pair CODE in a DM to Jarvis. the code expires after 10 minutes. new pairing code approved private channel ids one numeric id per line; owner messages only save channels revoke owner quiet hourshold finished notices; questions still come through from to time zone save disconnect Jarvis agent stack refresh context filesread AGENTS.md from the working dir shell sandboxrun shell inside docker (needs docker installed) computer usescreenshot + click/type tools (needs pyautogui) sub-agentsallow spawn_agent + parallel delegation extra approved file roots read-only; one existing folder per line save approved roots permission rules fine-grained control over what the agent does without asking \u2014 layered over the mode, last matching rule wins. tool + path accept globs (* ?); a plain path is a \"contains\" match. e.g. allow git_status, ask on git_commit, deny write_file on .env. add rule mcp servers one-click presets name command remote server and private values transport remote url environment http headers private values are encrypted on disk and never shown again. add server macOS integration connections service name token connect github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected. alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed. rotate credential key re-encrypts saved credentials, then safely retires the old key. api tokens generate access read write models agent secrets connections admin choose only what this token needs. admin includes every permission. webhooks name url add webhook shortcuts search sidebar settings new chat send focus input stop generating openai-compatible api expose Aide's models via the OpenAI API spec. base url: http://localhost:8001/v1 model id format: EndpointName/model-id language & region Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent. loading settings\u2026 interface language Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest. EnglishEnglishreviewed Fran\u00e7aisFrenchunavailable Espa\u00f1olSpanishunavailable \u7b80\u4f53\u4e2d\u6587Simplified Chineseunavailable \u7e41\u9ad4\u4e2d\u6587Traditional Chineseunavailable \u65e5\u672c\u8a9eJapaneseunavailable \ud55c\uad6d\uc5b4Koreanunavailable \u0627\u0644\u0639\u0631\u0628\u064a\u0629Arabicunavailable regional formats Automatic values follow this browser. An override changes formatting, not the interface language. regiondetecting this browser\u2026 automatic timezonedetecting this browser\u2026 automatic clockDoes not change stored event times. automatic 24 hour 12 hour first day of weekCalendar layout only. automatic monday sunday currencyUsed for locale-sensitive money display. automatic no unsaved changes save language & region live previewen alles home needs your attention settings saved alles/data \u00b7 14:30 directionleft to right regionautomatic timezoneautomatic currencyautomatic about & credits See what Alles includes, connects to, and learned from. loading credits\u2026 release credits search credits all code data companions inspiration loading manifest\u2026 Select a credit to inspect its source and local notice state. automation rules when this happens, do that. rules run in the background \u2014 everything is checked within ~30 seconds. cancel add rule delivery channels the \"send to discord / telegram\" actions use these. paste a discord webhook url and/or a telegram bot token + chat id. setup checking setup\u2026 resume setup export downloads an encrypted .alles-backup containing the selected local data and a verified manifest. download encrypted backup download recovery key save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost. restore select a ZIP to verify and stage. your live data stays unchanged until you stop Alles and run the shown CLI command. choose backup file choose separate recovery key (optional) no separate key selected webdav backup send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles. https url username password use an app password when your WebDAV service supports one. connect and save disconnect checking connection\u2026 last successful backup: never last verified: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore s3 backup manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects. the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles. https endpoint region existing bucket prefix (optional) addressing style access-key id secret-access key enter both credentials together. leaving both blank keeps the saved pair. connect and save disconnect checking connection\u2026 last successful backup: never last verified upload read-back: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore personal recall let aide search your own notes, journal, mail, contacts, saved articles and books. the vault is never indexed; the journal honours its lock. answering sends matched snippets to your chosen model - use a local model for fully offline recall. enable recall index mail notes journal contacts read-later books reindex now clear index background checks aide checks your day on a schedule and drops short advisory cards into the home today strip - overdue tasks, renewals, habits and the like. it never acts on its own; you click through. off by default since it runs the model on a timer (it spends tokens). hit \"run now\" to try it. enable background checks tasks & reminders subscriptions calendar & day-events habits reading health money (budget & low balance) important mail (flagged / vip) journal (stale nudge) run every hours quiet hours to send push for urgentweb-push high-priority cards (needs notifications on) run now intelligence aide can learn from how you use alles - find cross-domain insights, build a model of your preferences, and weave both into its answers. the learning passes spend tokens so they are off by default; the inject + suggestion switches are cheap and on. see what it finds in the brain page. cross-domain insightsa periodic pass that finds patterns across your data (spends tokens) inject insights into aide learn about you (user model)distill durable facts from your behavior (spends tokens) inject what it learned into aide composer suggestionspredicted next-step chips above the message box session contextkeep aide aware of the current topic across turns generate insights distill now"
+        "value": "settings \u00d7 general & appearance general home appearance aide & chat behavior chat defaults search voice personas background checks intelligence models & providers models memory & instructions memory recall connections & mcp connections & tools api & shortcuts privacy & security privacy & password notifications & language language & region rules & delivery server, backups & data about & credits backup & restore home Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear. loading preferences\u2026 structure Move sections into the order you scan them. Hide anything that is not useful every day. needs youapprovals, failed work, and delivery prompts \u00b7 always visible \u2191\u2193 scheduleevents, tasks, reminders, renewals, and habits \u2191\u2193 in progressactive background Aide work \u2191\u2193 briefsrecent finished Aide summaries \u2191\u2193 pinned appsthe app destinations selected below \u2191\u2193 density This changes vertical spacing only. It never removes details. comfortablemore room between sections compactmore of the day at once pinned apps Choose and order the app destinations shown on Home. planagenda, board, calendar, tasks, and reminders\u2191\u2193 inboxmail and contacts\u2191\u2193 docsdocuments, notes, and journal\u2191\u2193 fileslocal and remote storage plus gallery\u2191\u2193 librarybooks, saved reading, and news\u2191\u2193 healthmeasurements and habits\u2191\u2193 financemoney and subscriptions\u2191\u2193 vaultpasswords and protected secrets\u2191\u2193 serverservices, search, backups, and activity\u2191\u2193 home outline5 sections The greeting and capture bar stay fixed. This is the order below them. needs youapprovals and recovery prompts scheduleevents and priorities in progressactive Aide work briefsrecent summaries pinned appsplan \u00b7 docs \u00b7 files no unsaved changesSaving updates Home for every browser using this Alles server. reset defaultssave home model defaults choose one default for each kind of work. you can still change the model for a single chat or run. loading model choices\u2026 save defaults model endpoints refresh all Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits. + add endpoint OpenAI Anthropic DeepSeek Kimi Groq Gemini xAI (Grok) Mistral Perplexity OpenRouter Together Fireworks Cohere Ollama name base url provider authentication api key provider adapter manual models comma-separated add + probe models vision-capable models (comma-separated, optional) connect Gemini with Google OAuth Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow. client ID client secret Google Cloud project ID open Google authorization local serving checking Ollama... pull any model pull refresh start Ollama openai-compatible api base url: http://localhost:8001/v1 model id format: EndpointName/model-id chat defaults aide uses the right tools automatically and can still answer normal questions. context window (messages) features streaming thinking show model reasoning blocks as they stream artifacts render HTML, SVG and code in a side panel auto-compact context summarize old messages when context fills up save owner instructions tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules. save instructions memory extract from chat incognito chats never read or save memory. owner instructions stay separate from the memories below. memory policy ask before saving suggested memories off ask auto use relevant memory in chatsavailable only while memory is set to ask or auto general remember saved to memory undo pause export clear all web search primary provider test tavily api key brave search api key searxng base url google pse api key search engine cx id serper api key fallback provider results per query andromeda normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent. normal resultsshow web results below the overview ai overviewbuild a claim-by-claim answer from fetched evidence independent fact-checkuse the separate verifier after freshness-sensitive answers fact-check policy default model band light standard strong auto test auto model profile your name : aide greets you by it username : synced across your apps chat bar reset all welcome messageshow the empty chat welcome screen compact modetighter spacing throughout the UI font size microphonevoice input button sidebar views docs tasks calendar ai gallery memory secrets contacts gallery privacy sensitive blurblur emails, keys and secrets in aide replies text-only emojisstrip emoji glyphs from aide replies incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them. password require passwordlock alles behind your password current password new password verify password : enter it again change password default theme mode dark light accent color : the highlight used everywhere reset presets & customization speech-to-text (STT) provider microphone language (optional) text-to-speech (TTS) auto-play TTSspeak AI replies automatically provider voice speed openai api key required for whisper api and openai tts save voice settings personas name system prompt starter message : prefilled into the composer when you pick this persona (optional) pinned model temperature auto precise \u00b7 0creative \u00b7 2 runs as auto chat only agent accent \u00b7 re-themes the app while this persona is active default persona add persona cancel knowledge files : this assistant answers from these add \ud83d\udd17 share this assistant cookbook (custom slash commands) name description prompt template add command Jarvis on Discord not connected loading connection\u2026 Discord bot token encrypted and never shown again connect Jarvis create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work. Jarvisnot paired pair one ownersend pair CODE in a DM to Jarvis. the code expires after 10 minutes. new pairing code approved private channel ids one numeric id per line; owner messages only save channels revoke owner quiet hourshold finished notices; questions still come through from to time zone save disconnect Jarvis agent stack refresh context filesread AGENTS.md from the working dir shell sandboxrun shell inside docker (needs docker installed) computer usescreenshot + click/type tools (needs pyautogui) sub-agentsallow spawn_agent + parallel delegation extra approved file roots read-only; one existing folder per line save approved roots permission rules fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (* ?); a plain path is a \"contains\" match. e.g. allow git_status, ask on git_commit, deny write_file on .env. add rule mcp servers one-click presets name command remote server and private values transport remote url environment http headers private values are encrypted on disk and never shown again. add server macOS integration connections service name token connect github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected. alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed. rotate credential key re-encrypts saved credentials, then safely retires the old key. api tokens generate access read write models agent secrets connections admin choose only what this token needs. admin includes every permission. webhooks name url add webhook shortcuts search sidebar settings new chat send focus input stop generating openai-compatible api expose Aide's models via the OpenAI API spec. base url: http://localhost:8001/v1 model id format: EndpointName/model-id language & region Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent. loading settings\u2026 interface language Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest. EnglishEnglishreviewed Fran\u00e7aisFrenchunavailable Espa\u00f1olSpanishunavailable \u7b80\u4f53\u4e2d\u6587Simplified Chineseunavailable \u7e41\u9ad4\u4e2d\u6587Traditional Chineseunavailable \u65e5\u672c\u8a9eJapaneseunavailable \ud55c\uad6d\uc5b4Koreanunavailable \u0627\u0644\u0639\u0631\u0628\u064a\u0629Arabicunavailable regional formats Automatic values follow this browser. An override changes formatting, not the interface language. regiondetecting this browser\u2026 automatic timezonedetecting this browser\u2026 automatic clockDoes not change stored event times. automatic 24 hour 12 hour first day of weekCalendar layout only. automatic monday sunday currencyUsed for locale-sensitive money display. automatic no unsaved changes save language & region live previewen alles home needs your attention settings saved alles/data \u00b7 14:30 directionleft to right regionautomatic timezoneautomatic currencyautomatic about & credits See what Alles includes, connects to, and learned from. loading credits\u2026 release credits search credits all code data companions inspiration loading manifest\u2026 Select a credit to inspect its source and local notice state. automation rules when this happens, do that. rules run in the background. everything is checked within ~30 seconds. cancel add rule delivery channels the \"send to discord / telegram\" actions use these. paste a discord webhook url and/or a telegram bot token + chat id. setup checking setup\u2026 resume setup export downloads an encrypted .alles-backup containing the selected local data and a verified manifest. download encrypted backup download recovery key save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost. restore select a ZIP to verify and stage. your live data stays unchanged until you stop Alles and run the shown CLI command. choose backup file choose separate recovery key (optional) no separate key selected webdav backup send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles. https url username password use an app password when your WebDAV service supports one. connect and save disconnect checking connection\u2026 last successful backup: never last verified: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore s3 backup manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects. the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles. https endpoint region existing bucket prefix (optional) addressing style access-key id secret-access key enter both credentials together. leaving both blank keeps the saved pair. connect and save disconnect checking connection\u2026 last successful backup: never last verified upload read-back: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore personal recall let aide search your own notes, journal, mail, contacts, saved articles and books. the vault is never indexed; the journal honours its lock. answering sends matched snippets to your chosen model - use a local model for fully offline recall. enable recall index mail notes journal contacts read-later books reindex now clear index background checks aide checks your day on a schedule and drops short advisory cards into the home today strip - overdue tasks, renewals, habits and the like. it never acts on its own; you click through. off by default since it runs the model on a timer (it spends tokens). hit \"run now\" to try it. enable background checks tasks & reminders subscriptions calendar & day-events habits reading health money (budget & low balance) important mail (flagged / vip) journal (stale nudge) run every hours quiet hours to send push for urgentweb-push high-priority cards (needs notifications on) run now intelligence aide can learn from how you use alles - find cross-domain insights, build a model of your preferences, and weave both into its answers. the learning passes spend tokens so they are off by default; the inject + suggestion switches are cheap and on. see what it finds in the brain page. cross-domain insightsa periodic pass that finds patterns across your data (spends tokens) inject insights into aide learn about you (user model)distill durable facts from your behavior (spends tokens) inject what it learned into aide composer suggestionspredicted next-step chips above the message box session contextkeep aide aware of the current topic across turns generate insights distill now"
       },
       "path": {
         "api": [],
@@ -112203,7 +112263,7 @@
             "source": {
               "file": "static/js/andromeda.js",
               "kind": "control-source",
-              "line": 1521
+              "line": 1520
             },
             "status": "source-only",
             "tests": []
@@ -112211,7 +112271,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/andromeda.js:1520 addManagedSearxngAction"
+            "value": "static/js/andromeda.js:1519 addManagedSearxngAction"
           },
           "keys": [],
           "modality": "pointer",
@@ -112225,7 +112285,7 @@
             "source": {
               "file": "static/js/andromeda.js",
               "kind": "control-source",
-              "line": 1521
+              "line": 1520
             },
             "status": "source-only",
             "tests": []
@@ -112233,7 +112293,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/andromeda.js:1520 addManagedSearxngAction"
+            "value": "static/js/andromeda.js:1519 addManagedSearxngAction"
           },
           "keys": [
             "Enter",
@@ -112271,7 +112331,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/andromeda.js:1520 addManagedSearxngAction"
+        "value": "static/js/andromeda.js:1519 addManagedSearxngAction"
       },
       "id": "dynamic.6cb58b8f5e6b",
       "kind": "action",
@@ -112282,7 +112342,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/andromeda.js:1520 addManagedSearxngAction"
+          "static/js/andromeda.js:1519 addManagedSearxngAction"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -112323,9 +112383,9 @@
         "source": {
           "column": null,
           "file": "static/js/andromeda.js",
-          "line": 1521
+          "line": 1520
         },
-        "source_selector": "static/js/andromeda.js:1521:4",
+        "source_selector": "static/js/andromeda.js:1520:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -160964,19 +161024,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 928
+                "line": 931
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
-                "line": 934
+                "line": 937
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_docs.py",
                 "kind": "existing-test-control-reference",
-                "line": 412
+                "line": 404
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -202324,7 +202384,7 @@
         "discoverability": "nearest-enclosing-function",
         "value": "static/js/read.js:174 _renderReader"
       },
-      "id": "dynamic.194615f47317",
+      "id": "dynamic.cf417bedac2e",
       "kind": "link",
       "label": {
         "source": "text",
@@ -202335,7 +202395,7 @@
         "client_functions": [
           "static/js/read.js:174 _renderReader"
         ],
-        "external_destination": "${esc(it.url)}",
+        "external_destination": "${_safeUrl(it.url)}",
         "server_owner": "not-declared-in-template-source"
       },
       "recovery": {
@@ -202450,7 +202510,7 @@
         "discoverability": "nearest-enclosing-function",
         "value": "static/js/read.js:174 _renderReader"
       },
-      "id": "dynamic.d3555e986fd8",
+      "id": "dynamic.1d55d6fc42c3",
       "kind": "link",
       "label": {
         "source": "text",
@@ -202461,7 +202521,7 @@
         "client_functions": [
           "static/js/read.js:174 _renderReader"
         ],
-        "external_destination": "${esc(it.url)}",
+        "external_destination": "${_safeUrl(it.url)}",
         "server_owner": "not-declared-in-template-source"
       },
       "recovery": {
@@ -209309,7 +209369,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "no override \u2014 use your theme accent",
+        "name": "no override: use your theme accent",
         "relationships": {},
         "role": "native button"
       },
@@ -209390,11 +209450,11 @@
         "discoverability": "nearest-enclosing-function",
         "value": "static/js/settings.js:3238 _buildPersonaAccents"
       },
-      "id": "dynamic.7185dec8c363",
+      "id": "dynamic.a704909e7ea1",
       "kind": "action",
       "label": {
         "source": "title",
-        "value": "no override \u2014 use your theme accent"
+        "value": "no override: use your theme accent"
       },
       "path": {
         "api": [],
@@ -211287,7 +211347,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "HMAC-SHA256 signing key \u2014 verify the X-Alles-Signature header with this",
+        "name": "HMAC-SHA256 signing key: verify the X-Alles-Signature header with this",
         "relationships": {},
         "role": "native code"
       },
@@ -211321,11 +211381,11 @@
         "discoverability": "inline",
         "value": "onclick=navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()"
       },
-      "id": "dynamic.f98cd3cc36a1",
+      "id": "dynamic.05fb34e03d56",
       "kind": "action",
       "label": {
         "source": "title",
-        "value": "HMAC-SHA256 signing key \u2014 verify the X-Alles-Signature header with this"
+        "value": "HMAC-SHA256 signing key: verify the X-Alles-Signature header with this"
       },
       "path": {
         "api": [
@@ -219004,7 +219064,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "one line \u2014 what it does",
+        "name": "one line: what it does",
         "relationships": {},
         "role": "native input"
       },
@@ -219064,7 +219124,7 @@
       "kind": "field",
       "label": {
         "source": "placeholder",
-        "value": "one line \u2014 what it does"
+        "value": "one line: what it does"
       },
       "path": {
         "api": [],
@@ -220507,7 +220567,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "no matching charge in the last 2 cycles \u2014 click to review / cancel",
+        "name": "no matching charge in the last 2 cycles. click to review / cancel",
         "relationships": {},
         "role": "native button"
       },
@@ -220587,11 +220647,11 @@
         "discoverability": "nearest-enclosing-function",
         "value": "static/js/subs.js:185 _row"
       },
-      "id": "dynamic.9975d2606bed",
+      "id": "dynamic.e2599e351e55",
       "kind": "action",
       "label": {
         "source": "title",
-        "value": "no matching charge in the last 2 cycles \u2014 click to review / cancel"
+        "value": "no matching charge in the last 2 cycles. click to review / cancel"
       },
       "path": {
         "api": [],
@@ -225281,7 +225341,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 552
+              "line": 582
             },
             "status": "source-only",
             "tests": []
@@ -225289,7 +225349,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:551 _swatch"
+            "value": "static/js/theme.js:581 _swatch"
           },
           "keys": [],
           "modality": "pointer",
@@ -225303,7 +225363,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 552
+              "line": 582
             },
             "status": "source-only",
             "tests": []
@@ -225311,7 +225371,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:551 _swatch"
+            "value": "static/js/theme.js:581 _swatch"
           },
           "keys": [
             "Enter",
@@ -225348,7 +225408,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:551 _swatch"
+        "value": "static/js/theme.js:581 _swatch"
       },
       "id": "dynamic.b8bd67ba4b18",
       "kind": "action",
@@ -225359,7 +225419,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:551 _swatch"
+          "static/js/theme.js:581 _swatch"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -225400,9 +225460,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 552
+          "line": 582
         },
-        "source_selector": "static/js/theme.js:552:1",
+        "source_selector": "static/js/theme.js:582:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -225437,7 +225497,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 558
+              "line": 588
             },
             "status": "source-only",
             "tests": []
@@ -225445,7 +225505,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:557 _seg"
+            "value": "static/js/theme.js:587 _seg"
           },
           "keys": [],
           "modality": "pointer",
@@ -225459,7 +225519,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 558
+              "line": 588
             },
             "status": "source-only",
             "tests": []
@@ -225467,7 +225527,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:557 _seg"
+            "value": "static/js/theme.js:587 _seg"
           },
           "keys": [
             "Enter",
@@ -225504,7 +225564,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:557 _seg"
+        "value": "static/js/theme.js:587 _seg"
       },
       "id": "dynamic.fdd34d7c6028",
       "kind": "action",
@@ -225515,7 +225575,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:557 _seg"
+          "static/js/theme.js:587 _seg"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -225556,9 +225616,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 558
+          "line": 588
         },
-        "source_selector": "static/js/theme.js:558:2",
+        "source_selector": "static/js/theme.js:588:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -225593,7 +225653,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 565
+              "line": 595
             },
             "status": "source-only",
             "tests": []
@@ -225601,7 +225661,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:563 _defaultTile"
+            "value": "static/js/theme.js:593 _defaultTile"
           },
           "keys": [],
           "modality": "pointer",
@@ -225615,7 +225675,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 565
+              "line": 595
             },
             "status": "source-only",
             "tests": []
@@ -225623,7 +225683,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:563 _defaultTile"
+            "value": "static/js/theme.js:593 _defaultTile"
           },
           "keys": [
             "Enter",
@@ -225660,7 +225720,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:563 _defaultTile"
+        "value": "static/js/theme.js:593 _defaultTile"
       },
       "id": "dynamic.05dda0e741f9",
       "kind": "action",
@@ -225671,7 +225731,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:563 _defaultTile"
+          "static/js/theme.js:593 _defaultTile"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -225712,9 +225772,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 565
+          "line": 595
         },
-        "source_selector": "static/js/theme.js:565:3",
+        "source_selector": "static/js/theme.js:595:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -225749,7 +225809,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 581
+              "line": 611
             },
             "status": "source-only",
             "tests": []
@@ -225757,7 +225817,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -225771,7 +225831,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 581
+              "line": 611
             },
             "status": "source-only",
             "tests": []
@@ -225779,7 +225839,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -225815,7 +225875,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.2b2632064c5d",
       "kind": "icon-action",
@@ -225826,7 +225886,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -225867,9 +225927,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 581
+          "line": 611
         },
-        "source_selector": "static/js/theme.js:581:4",
+        "source_selector": "static/js/theme.js:611:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -225904,7 +225964,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 589
+              "line": 619
             },
             "status": "source-only",
             "tests": []
@@ -225912,7 +225972,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -225948,7 +226008,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.6589c1aea934",
       "kind": "field",
@@ -225959,7 +226019,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -226000,9 +226060,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 589
+          "line": 619
         },
-        "source_selector": "static/js/theme.js:589:5",
+        "source_selector": "static/js/theme.js:619:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -226030,7 +226090,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 593
+              "line": 623
             },
             "status": "source-only",
             "tests": []
@@ -226038,7 +226098,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -226073,7 +226133,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.7020b1a5f4d6",
       "kind": "field",
@@ -226084,7 +226144,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -226125,9 +226185,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 593
+          "line": 623
         },
-        "source_selector": "static/js/theme.js:593:6",
+        "source_selector": "static/js/theme.js:623:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -226155,7 +226215,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 594
+              "line": 624
             },
             "status": "source-only",
             "tests": []
@@ -226163,7 +226223,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -226177,7 +226237,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 594
+              "line": 624
             },
             "status": "source-only",
             "tests": []
@@ -226185,7 +226245,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -226222,7 +226282,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.139d633c4a8e",
       "kind": "action",
@@ -226233,7 +226293,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -226274,9 +226334,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 594
+          "line": 624
         },
-        "source_selector": "static/js/theme.js:594:7",
+        "source_selector": "static/js/theme.js:624:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -226311,7 +226371,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 595
+              "line": 625
             },
             "status": "source-only",
             "tests": []
@@ -226319,7 +226379,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -226333,7 +226393,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 595
+              "line": 625
             },
             "status": "source-only",
             "tests": []
@@ -226341,7 +226401,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -226378,7 +226438,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.a3b357be410c",
       "kind": "action",
@@ -226389,7 +226449,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -226430,9 +226490,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 595
+          "line": 625
         },
-        "source_selector": "static/js/theme.js:595:8",
+        "source_selector": "static/js/theme.js:625:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -226467,7 +226527,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 596
+              "line": 626
             },
             "status": "source-only",
             "tests": []
@@ -226475,7 +226535,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -226489,7 +226549,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 596
+              "line": 626
             },
             "status": "source-only",
             "tests": []
@@ -226497,7 +226557,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -226533,7 +226593,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.c1ee88082374",
       "kind": "action",
@@ -226544,7 +226604,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -226585,9 +226645,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 596
+          "line": 626
         },
-        "source_selector": "static/js/theme.js:596:9",
+        "source_selector": "static/js/theme.js:626:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -226622,7 +226682,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 607
+              "line": 637
             },
             "status": "source-only",
             "tests": []
@@ -226630,7 +226690,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -226665,7 +226725,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.203aefeee6f2",
       "kind": "field",
@@ -226676,7 +226736,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -226717,9 +226777,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 607
+          "line": 637
         },
-        "source_selector": "static/js/theme.js:607:10",
+        "source_selector": "static/js/theme.js:637:10",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -226747,7 +226807,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 608
+              "line": 638
             },
             "status": "source-only",
             "tests": []
@@ -226755,7 +226815,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -226790,7 +226850,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.636c84f69159",
       "kind": "field",
@@ -226801,7 +226861,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -226842,9 +226902,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 608
+          "line": 638
         },
-        "source_selector": "static/js/theme.js:608:11",
+        "source_selector": "static/js/theme.js:638:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -226872,7 +226932,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 610
+              "line": 640
             },
             "status": "source-only",
             "tests": []
@@ -226880,7 +226940,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -226894,7 +226954,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 610
+              "line": 640
             },
             "status": "source-only",
             "tests": []
@@ -226902,7 +226962,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -226938,7 +226998,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.b7cb900f4042",
       "kind": "action",
@@ -226949,7 +227009,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -226990,9 +227050,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 610
+          "line": 640
         },
-        "source_selector": "static/js/theme.js:610:12",
+        "source_selector": "static/js/theme.js:640:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -227027,7 +227087,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 614
+              "line": 644
             },
             "status": "source-only",
             "tests": []
@@ -227035,7 +227095,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -227070,7 +227130,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.0b445d49b717",
       "kind": "field",
@@ -227081,7 +227141,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -227122,9 +227182,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 614
+          "line": 644
         },
-        "source_selector": "static/js/theme.js:614:13",
+        "source_selector": "static/js/theme.js:644:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -227152,7 +227212,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 614
+              "line": 644
             },
             "status": "source-only",
             "tests": []
@@ -227160,7 +227220,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -227174,7 +227234,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 614
+              "line": 644
             },
             "status": "source-only",
             "tests": []
@@ -227182,7 +227242,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -227218,7 +227278,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.f51a2b9bcc32",
       "kind": "action",
@@ -227229,7 +227289,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -227270,9 +227330,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 614
+          "line": 644
         },
-        "source_selector": "static/js/theme.js:614:14",
+        "source_selector": "static/js/theme.js:644:14",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -227307,7 +227367,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 615
+              "line": 645
             },
             "status": "source-only",
             "tests": []
@@ -227315,7 +227375,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -227329,7 +227389,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 615
+              "line": 645
             },
             "status": "source-only",
             "tests": []
@@ -227337,7 +227397,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -227374,7 +227434,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.7d917f582f8e",
       "kind": "action",
@@ -227385,7 +227445,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -227426,9 +227486,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 615
+          "line": 645
         },
-        "source_selector": "static/js/theme.js:615:15",
+        "source_selector": "static/js/theme.js:645:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -227463,7 +227523,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 619
+              "line": 649
             },
             "status": "source-only",
             "tests": []
@@ -227471,7 +227531,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -227485,7 +227545,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 619
+              "line": 649
             },
             "status": "source-only",
             "tests": []
@@ -227493,7 +227553,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -227529,7 +227589,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.bd8a67c4c609",
       "kind": "action",
@@ -227540,7 +227600,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -227581,9 +227641,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 619
+          "line": 649
         },
-        "source_selector": "static/js/theme.js:619:16",
+        "source_selector": "static/js/theme.js:649:16",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -227618,7 +227678,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 620
+              "line": 650
             },
             "status": "source-only",
             "tests": []
@@ -227626,7 +227686,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -227640,7 +227700,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 620
+              "line": 650
             },
             "status": "source-only",
             "tests": []
@@ -227648,7 +227708,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -227684,7 +227744,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.988ce7dae46b",
       "kind": "action",
@@ -227695,7 +227755,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -227736,9 +227796,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 620
+          "line": 650
         },
-        "source_selector": "static/js/theme.js:620:17",
+        "source_selector": "static/js/theme.js:650:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -227773,7 +227833,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 621
+              "line": 651
             },
             "status": "source-only",
             "tests": []
@@ -227781,7 +227841,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -227795,7 +227855,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 621
+              "line": 651
             },
             "status": "source-only",
             "tests": []
@@ -227803,7 +227863,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -227839,7 +227899,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.423543fba62e",
       "kind": "action",
@@ -227850,7 +227910,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -227891,9 +227951,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 621
+          "line": 651
         },
-        "source_selector": "static/js/theme.js:621:18",
+        "source_selector": "static/js/theme.js:651:18",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -227928,7 +227988,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 622
+              "line": 652
             },
             "status": "source-only",
             "tests": []
@@ -227936,7 +227996,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -227950,7 +228010,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 622
+              "line": 652
             },
             "status": "source-only",
             "tests": []
@@ -227958,7 +228018,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:576 _renderEditor"
+            "value": "static/js/theme.js:606 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -227994,7 +228054,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:576 _renderEditor"
+        "value": "static/js/theme.js:606 _renderEditor"
       },
       "id": "dynamic.6d773dd71f9f",
       "kind": "action",
@@ -228005,7 +228065,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:576 _renderEditor"
+          "static/js/theme.js:606 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -228046,9 +228106,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 622
+          "line": 652
         },
-        "source_selector": "static/js/theme.js:622:19",
+        "source_selector": "static/js/theme.js:652:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -228103,7 +228163,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:628 _wireEditor"
+        "value": "static/js/theme.js:658 _wireEditor"
       },
       "id": "dynamic.fe86032112aa",
       "kind": "link",
@@ -228114,7 +228174,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:628 _wireEditor"
+          "static/js/theme.js:658 _wireEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -228155,9 +228215,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 712
+          "line": 742
         },
-        "source_selector": "static/js/theme.js:712:20",
+        "source_selector": "static/js/theme.js:742:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -228176,7 +228236,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 716
+              "line": 746
             },
             "status": "source-only",
             "tests": []
@@ -228184,7 +228244,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:628 _wireEditor"
+            "value": "static/js/theme.js:658 _wireEditor"
           },
           "keys": [
             "native editing keys"
@@ -228221,7 +228281,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:628 _wireEditor"
+        "value": "static/js/theme.js:658 _wireEditor"
       },
       "id": "dynamic.4d6ca1d20def",
       "kind": "field",
@@ -228232,7 +228292,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:628 _wireEditor"
+          "static/js/theme.js:658 _wireEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -228273,9 +228333,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 716
+          "line": 746
         },
-        "source_selector": "static/js/theme.js:716:21",
+        "source_selector": "static/js/theme.js:746:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -237546,7 +237606,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_finance_vault_server.py",
                 "kind": "existing-test-control-reference",
-                "line": 208
+                "line": 209
               }
             ]
           },
@@ -237575,7 +237635,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_finance_vault_server.py",
                 "kind": "existing-test-control-reference",
-                "line": 208
+                "line": 209
               }
             ]
           },
@@ -238653,7 +238713,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_finance_vault_server.py",
                 "kind": "existing-test-control-reference",
-                "line": 210
+                "line": 211
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -238688,7 +238748,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_finance_vault_server.py",
                 "kind": "existing-test-control-reference",
-                "line": 210
+                "line": 211
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",

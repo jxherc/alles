@@ -57,7 +57,7 @@ test('remote background work requires owner confirmation before any request or f
 });
 
 test('failed background enqueue restores the composer and keeps attachments', () => {
-  const branch = chat.match(/if \(!documentScope && shouldRunInBackground[\s\S]*?\n  }\n\n  showMessages/)?.[0] || '';
+  const branch = chat.match(/if \(!documentScope && shouldRunInBackground[\s\S]*?\r?\n  }\r?\n\r?\n  showMessages/)?.[0] || '';
   assert.match(branch, /if \(!run\)[\s\S]*restoreComposerInput\(text\)[\s\S]*return/);
   assert.match(branch, /if \(!run\)[\s\S]*return;[\s\S]*clearAttachments\(\)/);
   assert.match(branch, /const userRow = appendUserMsg\(text\)/);

@@ -330,7 +330,7 @@ export function renderModelList(filter = '') {
       </button>`;
     }
   }
-  if (!html) html = '<div style="padding:1rem;font-size:0.75rem;color:var(--faint)">no endpoints: add one in the endpoints tab</div>';
+  if (!html) html = '<div style="padding:1rem;font-size:0.75rem;color:var(--muted)">no endpoints: add one in the endpoints tab</div>';
   list.innerHTML = html;
   const rows = [...list.querySelectorAll('.model-row')];
   if (rows.length && !rows.some(row => row.tabIndex === 0)) rows[0].tabIndex = 0;

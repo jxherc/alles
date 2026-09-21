@@ -1,6 +1,6 @@
 # Stage 6 — Afterlife
 
-- **Status:** Phases 0 through 11 delivered; Phase 12 product/interface correction is in progress
+- **Status:** Phases 0 through 12 are implemented; current repair verification is recorded in [the September repair report](../../repair-2026-09-21.md).
 - **Started:** July 11, 2026
 - **Meaning:** preserve what works, repair what is unsafe, and give Alles one coherent new life
 
@@ -25,7 +25,7 @@ Jarvis is only the Discord bot's name. Background work remains Aide.
 
 - [Full product and architecture design](design.md)
 - [Accepted decision: Aide has one mode](decision-aide-one-mode.md)
-- [Accepted decision: approve interface starters before implementation](decision-html-first-ui.md)
+- [Historical interface-starter decision](decision-html-first-ui.md)
 - [Accepted decision: one quality system for every Andromeda search](decision-andromeda-result-quality.md)
 - [Implementation phases](phases/README.md)
 - [All project stages](../README.md)
@@ -33,12 +33,12 @@ Jarvis is only the Discord bot's name. Background work remains Aide.
 
 ## Current state
 
-Phase 12 is now in progress. The owner approved exactly eight visible specialist workbenches, a
-compact cited Andromeda answer followed by independent background verification, and an owned-only
-Server default with a fail-closed file-backed allowlist for any extended host management. The exact
-standalone KOKUEN starters are not yet approved, so no real Phase 12 interface is described as shipped.
-The decision-complete sequence and gates are in
-[`phases/phase-12-product-consolidation-ui-rebuild.md`](phases/phase-12-product-consolidation-ui-rebuild.md).
+The current app has Home, Aide, Andromeda, and nine specialist workbenches with one universal
+navigation sheet. The July KOKUEN rebuild was pushed, and August added local repairs. Older starter
+approval gates below are historical; the current owner rules make standalone starters optional.
+External provider and infrastructure acceptance is separate from local interface verification.
+See [the repair report](../../repair-2026-09-21.md) for current evidence and
+[the proposed product direction](product-direction-2026-09.md) for ideas that are not shipped.
 
 Phases 0 through 11 are delivered. Phase 11 reconciled all 41 original brainstorm requests against
 the current implementation: 40 are satisfied, only the token-glyph visual approval remains honestly

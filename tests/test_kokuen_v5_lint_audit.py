@@ -4,10 +4,13 @@ import sys
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
+from unittest.mock import patch
+
+from scripts.check_kokuen_v5_lint import canonical_linter
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "check_kokuen_v5_lint.py"
-CANONICAL_LINTER = Path("/Users/jxh/kokuen/scripts/lint_ui_rules.py")
+CANONICAL_LINTER = canonical_linter()
 
 
 class _ButtonTypeAudit(HTMLParser):
@@ -21,6 +24,10 @@ class _ButtonTypeAudit(HTMLParser):
 
 
 class KokuenV5LintAuditTests(unittest.TestCase):
+    def test_explicit_linter_override_is_not_replaced_by_discovery(self):
+        with patch.dict("os.environ", {"KOKUEN_LINTER": "~/custom-kokuen/lint.py"}):
+            self.assertEqual(canonical_linter(), Path.home() / "custom-kokuen" / "lint.py")
+
     @unittest.skipUnless(CANONICAL_LINTER.is_file(), "canonical KOKUEN checkout is not installed")
     def test_every_overlay_warning_is_reviewed(self):
         result = subprocess.run(

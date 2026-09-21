@@ -1,5 +1,20 @@
 # project changelog
 
+## 2026-09-21
+
+Change: recovered July's conversation and August's unpublished repairs; corrected invisible legacy
+text, light inline-code backgrounds, placeholder contrast, Files metadata, and light Server numbers.
+Restored rounded switch tracks within 44px targets, preserved Andromeda keyboard focus during saves,
+and wrapped long Files location paths inside their rail.
+Repaired stale JavaScript expectations, portable lint discovery, and the Finance browser fixture date.
+Reconciled generated control evidence and applied formatting with unchanged Python syntax trees.
+
+Files affected: shared CSS, Tasks/Models/Subscriptions renderers, browser and unit regressions,
+lint discovery, generated census, README, design foundations, and project state.
+
+Reason: earlier completion notes predated ten local commits and did not catch text contrast failures
+across older detail screens. Current rendered evidence and explicit external limitations replace stale claims.
+
 ## 2026-07-31
 
 Change: added the literal KOKUEN control census and repaired the first regressions exposed by rendered

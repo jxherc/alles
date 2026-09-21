@@ -6,6 +6,7 @@ import json
 import os
 import tempfile
 import urllib.request
+from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -78,7 +79,7 @@ def _seed_money() -> None:
         "/api/money/transactions",
         {
             "account_id": account["id"],
-            "date": "2026-07-30",
+            "date": date.today().isoformat(),
             "amount": -12.5,
             "category": "verification",
             "payee": "browser target",
@@ -175,7 +176,7 @@ def _finance_recent_owner(page: Page) -> None:
 def _finance_money_keyboard_targets(page: Page) -> None:
     page.evaluate("window._navigateTo('money')")
     page.locator("#money-view").wait_for(state="visible")
-    row = page.locator('.txn[data-id]').first
+    row = page.locator(".txn[data-id]").first
     row.wait_for(state="visible")
     edit = row.locator("[data-edit-txn]")
     tag = row.locator(".tx-tag")
@@ -251,19 +252,20 @@ def _server_choice_rollback(page: Page) -> None:
     group.wait_for(state="visible")
     previous = group.locator('[role="radio"][aria-checked="true"]')
     previous_value = previous.get_attribute("data-value")
-    target = group.locator(
-        f'[role="radio"]:not([data-value="{previous_value}"])'
-    ).first
+    target = group.locator(f'[role="radio"]:not([data-value="{previous_value}"])').first
     target.click()
     page.locator(".server-workbench-status.is-error").wait_for(state="visible")
-    assert group.locator(f'[role="radio"][data-value="{previous_value}"]').get_attribute(
-        "aria-checked"
-    ) == "true"
+    assert (
+        group.locator(f'[role="radio"][data-value="{previous_value}"]').get_attribute(
+            "aria-checked"
+        )
+        == "true"
+    )
     assert target.get_attribute("aria-checked") == "false"
     assert group.get_attribute("aria-busy") is None
-    assert group.locator(
-        f'[role="radio"][data-value="{previous_value}"]'
-    ).evaluate("element => document.activeElement === element")
+    assert group.locator(f'[role="radio"][data-value="{previous_value}"]').evaluate(
+        "element => document.activeElement === element"
+    )
     page.unroute("**/api/settings", fail_patch)
 
 
@@ -286,16 +288,23 @@ def run() -> None:
         )
         page.on(
             "console",
-            lambda message: errors.append(message.text)
-            if message.type == "error" and "Failed to load resource" not in message.text
-            else None,
+            lambda message: (
+                errors.append(message.text)
+                if message.type == "error" and "Failed to load resource" not in message.text
+                else None
+            ),
         )
         _wait_app(page)
         _finance_recent_owner(page)
         _finance_money_keyboard_targets(page)
         _vault_keyboard_focus_and_recovery(page)
         _server_choice_rollback(page)
-        assert page.locator('select:visible, input[type="checkbox"]:visible, input[type="radio"]:visible').count() == 0
+        assert (
+            page.locator(
+                'select:visible, input[type="checkbox"]:visible, input[type="radio"]:visible'
+            ).count()
+            == 0
+        )
         assert not errors, errors
         context.close()
         browser.close()

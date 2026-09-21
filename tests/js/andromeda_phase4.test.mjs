@@ -522,7 +522,8 @@ test('Andromeda switches expose names and roll failed writes back from a busy st
     source.indexOf('async function saveSearchConfiguration'),
   );
   assert.match(helper, /aria-busy[^\n]+true/);
-  assert.match(helper, /button\.disabled = true/);
+  assert.match(helper, /button\.setAttribute\('aria-disabled', 'true'\)/);
+  assert.doesNotMatch(helper, /button\.disabled = true/);
   assert.match(
     helper,
     /if \(!button \|\| button\.getAttribute\('aria-busy'\) === 'true'\) return false/,

@@ -24,6 +24,12 @@ python3 scripts/check_kokuen_v5_lint.py
 python3 scripts/check_kokuen_v5_lint.py --report
 ```
 
+The checker discovers an installed canonical linter beside the repository or in the user's skill
+directories. Set `KOKUEN_LINTER` to its `lint_ui_rules.py` path to override discovery.
+The September 21 repair retained all 195 reviewed warning messages and refreshed their source
+positions after the Files readability changes. The real-app contrast and switch gates supplement
+the unchanged source-level acceptance; warning reconciliation alone is not visual proof.
+
 This is a source-level advisory audit. It supplements, and does not replace, real rendered checks for
 one perceived boundary, focus clipping, target size, text legibility, zoom, responsive layout, and
 reduced motion.

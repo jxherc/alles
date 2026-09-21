@@ -77,7 +77,7 @@ function _rowHtml(t, child, progress) {
 
 function _emptyMsg() {
   const msg = _tab === 'done' ? tr('tasks.no_completed') : tr('tasks.nothing_here');
-  return `<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">${msg}</div>`;
+  return `<div style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">${msg}</div>`;
 }
 
 function renderTasks() {

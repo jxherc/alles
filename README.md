@@ -31,8 +31,8 @@ it's *one python process*. no build step, no bundler, no `node_modules`, no acco
 ## the 30-second version
 
 - **everything in one place, one login.** stop bouncing between fifteen tabs and ten companies.
-- **it's yours.** all your data is plain files + one database in a folder called `data/`. copy that folder = you've copied your whole life. delete the app = you still have your files.
-- **the ai isn't a gimmick.** it talks to *any* model (claude, gpt, deepseek, gemini, a local model, all switchable mid-chat), remembers things on your terms, and can use approved tools in Chat or hand longer work to Jarvis.
+- **it's yours.** all your data is plain files + one database in a folder called `data/`. use the encrypted backup flow to protect managed data and configured external vaults. deleting the app keeps your personal files.
+- **the ai isn't a gimmick.** it talks to *any* model (claude, gpt, deepseek, gemini, a local model, all switchable mid-chat), remembers things on your terms, and can use approved tools and continue longer work in the background within Aide.
 - **local by default.** there is no telemetry, your main data stays on your machine, and Aide can run offline with a local model. connected providers see the requests you send to them.
 - **single user, on purpose.** this is *your* workspace, not a service you host for a hundred people. it's your personal un-siloed digital brain.
 
@@ -48,37 +48,23 @@ you do **not** need to be technical to *use* it. you need to be a little technic
 
 ## the apps
 
-alles opens into a small daily shell: **Today**, **Aide**, and the app drawer. specialist views are
-grouped under Docs, Files, Finance, Passwords, and Server, but they are still one local program. old
-app links and subdomains keep working during the transition.
+alles has three primary spaces and nine specialist apps. each app shares the same navigation;
+older links open the matching section inside its current app.
 
-| app | what it is |
+| space or app | what you can do |
 |---|---|
-| **aide** | ai chat plus Jarvis work mode. General and folder-backed Projects keep their chats together without turning Projects into a separate app. |
-| **andromeda** | links-first web search with an optional grounded AI Overview. add standalone `!ai` to one query when you only want normal results. |
-| **home** | the compatibility launcher, still available as **All apps** |
-| **today** | the default daily home: Needs you, Today, In progress, Briefs, and Shortcuts. it works without an ai model and can be reordered or simplified. |
-| **activity** | a timeline of everything you actually did, across every app |
-| **docs** | obsidian-style linked markdown notes (`[[wikilinks]]`, backlinks, graph, live editor). your notes are plain files you own |
-| **mail** | a real imap/smtp email client with threads, attachments, and ai help |
-| **calendar** | month / week / day views, recurring events, `.ics` + optional caldav sync, natural-language quick-add |
-| **tasks** | natural-language to-dos with recurring, priorities, tags, subtasks, smart views |
-| **notes** | lightweight scratch notes for zero-ceremony jotting |
-| **journal** | a daily diary with mood, prompts, a streak, and a year heatmap |
-| **habits** | a habit tracker: a grid of days you toggle done, with streaks and completion stats |
-| **health** | a simple health log: weight, sleep, workouts, meds or any custom metric, with trends |
-| **subs** | subscription tracker: renewals, forecast, price-change tracking, auto-post to money |
-| **money** | accounts, transactions, budgets, csv import, charts |
-| **days** | countdowns and day-counts (birthdays, anniversaries) |
-| **files** | a file browser with inline preview (pdf/video/audio/images) and search |
-| **gallery** | a local photo library with moments, albums, exif search |
-| **read** | a read-later archive: save a url, it fetches and stores the readable page text so it survives the original going away |
-| **books** | a reading list: want / reading / done shelves, ratings, and notes |
-| **contacts** | an address book the ai can read (e.g. when drafting mail), with vcard import/export |
-| **system** | a built-in live system monitor (cpu/ram/disk/gpu) |
-| **watch** | uptime monitoring for *external* things (sites, `/health` endpoints, tls certs) with an optional public status page |
-| **secrets** | an encrypted vault with typed entries (logins, cards, api keys, notes…) |
-| **automations** | legacy rule editor; saved rules become paused Jarvis workflows and need owner review before they can run |
+| **home** | see what needs attention, your schedule, running work, briefs, and pinned apps; capture a task without an ai model |
+| **aide** | chat, use approved tools, and run background or scheduled work; group conversations in General or folder-backed Projects |
+| **andromeda** | search the web and inspect normal results with an optional cited overview |
+| **plan** | manage your agenda, week, task board, calendar, tasks, reminders, and countdowns |
+| **inbox** | read configured imap/smtp mail and manage contacts |
+| **docs** | read and edit owned markdown notes and journal entries |
+| **files** | browse local or configured online storage, keep offline copies, and open the photo gallery |
+| **library** | manage saved articles, reading lists, and news |
+| **health** | track habits and health records |
+| **finance** | manage accounts, transactions, budgets, subscriptions, and imports; optional bank and Actual connections need setup |
+| **vault** | keep encrypted secrets, passwords, passkeys, and paired browser access |
+| **server** | inspect system health, services, backups, updates, activity, and access policy |
 
 plus the smaller stuff: global search (cmd/ctrl+k), scheduled messages, prompt cookbook, webhooks, api tokens, an openai-compatible api, encrypted local, WebDAV, and S3-compatible backup with an offline staged restore and rollback, light/dark themes with a custom accent, and it installs like a pwa with real push notifications.
 
@@ -124,15 +110,15 @@ pip install -r requirements.lock
 if you only want the old checkout launcher without a managed runtime or service, use
 `./alles install --launcher-only` and remove it with `./alles uninstall --launcher-only`.
 
-**no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets: all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
+**no ai api key is needed to boot.** local docs, files, calendar, tasks, and other local tools work without a model. mail, online storage, bank connections, and remote providers need their own setup. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
 
 **prefer docker?** `docker build -t alles . && docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles`. the `data/` volume keeps your db, vault, uploads, and keys across rebuilds. the loopback-only port keeps the fresh container on this device. native LAN access requires `ALLES_ACCESS_PROFILE=lan`, enabled authentication, and a real owner password. public access also requires an HTTPS public URL, matching base domain, trusted hosts, and exact proxy IPs; see `.env.example` for the setting names.
 
 **want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434`. no key or internet needed for the ai.
 
 Andromeda can use DuckDuckGo or another configured provider, including an external HTTPS SearXNG
-instance. the bundled SearXNG service definition is pinned and loopback-only, but installation stays
-disabled in this build because its container runtime spike could not be run on the reference Mac.
+instance. the bundled SearXNG service is pinned and loopback-only. managed installation requires
+a supported Docker runtime and data location; Server reports the reason when those are unavailable.
 
 > **before you put it on a network:** alles ships with auth off. set `auth_enabled=true`, a strong `auth_password`, and a real `secret_key` first. details in the [security section](./specifications.md#security--read-before-exposing-it).
 

@@ -633,3 +633,14 @@ metadata to 14px, or remove every descendant edge regardless of its semantic job
 Consequences: the canonical overlay has zero hard errors and zero unexplained warnings. Any warning
 addition, removal, line/message drift, or new rule fails the local audit until it receives rendered review
 and an explicit resolution.
+
+## 2026-09-21: repair legacy text roles without changing structural colors
+
+Decision
+Choice: replace legacy foreground uses of the border token with muted text, keep placeholders
+opaque, and use readable text roles for selected Files metadata and light Server values.
+Reason: real rendered Tasks text used a near-background border color; light Reminders rendered
+code with identical foreground and background. A contrast sweep also exposed weak hints and metrics.
+Alternatives considered: brighten the border token globally or replace the interface wholesale.
+Consequences: existing layouts and border hierarchy remain intact. A real-app contrast gate covers
+desktop/mobile, both default themes, and every specialist tab. The future product rework remains a proposal.

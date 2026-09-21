@@ -175,8 +175,9 @@ test('specialist workbenches collapse before their fixed tracks can overflow', (
   );
   assert.match(
     kokuenCss,
-    /\.specialist-group-tabs \{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[^}]*overflow: visible;/,
+    /\.specialist-group-tabs \{[^}]*display: flex;[^}]*flex-direction: row;[^}]*overflow-x: auto;/,
   );
+  assert.match(kokuenCss, /\.specialist-group-tabs \[role="tab"\] \{[^}]*flex: 0 0 auto;[^}]*white-space: nowrap;/);
 });
 
 test('legacy app identifiers resolve to a group without losing their subsection', () => {
