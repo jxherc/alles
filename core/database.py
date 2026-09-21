@@ -122,13 +122,9 @@ class ModelEndpoint(Base):
     auth_error = Column(String, default="")
     account_identity = Column(String, default="")
     oauth_client_id = Column(EncryptedText("model_endpoints.oauth_client_id"), default="")
-    oauth_client_secret = Column(
-        EncryptedText("model_endpoints.oauth_client_secret"), default=""
-    )
+    oauth_client_secret = Column(EncryptedText("model_endpoints.oauth_client_secret"), default="")
     oauth_project_id = Column(String, default="")
-    oauth_refresh_token = Column(
-        EncryptedText("model_endpoints.oauth_refresh_token"), default=""
-    )
+    oauth_refresh_token = Column(EncryptedText("model_endpoints.oauth_refresh_token"), default="")
     oauth_expires_at = Column(Float, default=0.0)
     oauth_scopes = Column(Text, default="[]")
     enabled = Column(Boolean, default=True)

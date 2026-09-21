@@ -59,9 +59,7 @@ class AideQuestionContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "questions_count_invalid"):
             normalize_request({"questions": []})
         with self.assertRaisesRegex(ValueError, "question_choices_count_invalid"):
-            normalize_request(
-                {"questions": [{"id": "one", "prompt": "pick", "choices": ["only"]}]}
-            )
+            normalize_request({"questions": [{"id": "one", "prompt": "pick", "choices": ["only"]}]})
         with self.assertRaisesRegex(ValueError, "question_single_choice_required"):
             normalize_answer(
                 self.request(),

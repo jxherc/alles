@@ -164,9 +164,7 @@ class OpenAIUsagePayloadTests(unittest.TestCase):
             "https://api.example.test/v1/chat/completions",
         )
         self.assertEqual(
-            llm._openai_chat_url(
-                "https://generativelanguage.googleapis.com/v1beta/openai"
-            ),
+            llm._openai_chat_url("https://generativelanguage.googleapis.com/v1beta/openai"),
             "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         )
         self.assertEqual(

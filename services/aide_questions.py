@@ -52,7 +52,9 @@ def normalize_request(value: dict) -> dict:
             choices.append(
                 {
                     "id": choice_id,
-                    "label": _text(raw_choice.get("label"), field="question_choice_label", limit=160),
+                    "label": _text(
+                        raw_choice.get("label"), field="question_choice_label", limit=160
+                    ),
                     "description": str(raw_choice.get("description") or "").strip()[:300],
                 }
             )

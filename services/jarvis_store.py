@@ -259,8 +259,10 @@ def answer_questions(db: DbSession, prompt: JarvisRunPrompt, answer: dict) -> Ja
     if not schema:
         raise ValueError("structured_question_unavailable")
     normalized = normalize_answer(schema, answer)
-    summary = "cancelled" if normalized["cancelled"] else json.dumps(
-        normalized["answers"], ensure_ascii=False, separators=(",", ":")
+    summary = (
+        "cancelled"
+        if normalized["cancelled"]
+        else json.dumps(normalized["answers"], ensure_ascii=False, separators=(",", ":"))
     )
     return _mark_choice_answered(db, prompt, answer=summary, answer_data=normalized)
 

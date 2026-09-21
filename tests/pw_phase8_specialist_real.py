@@ -633,9 +633,9 @@ def _group_overviews(browser: Browser, errors: list[str], width: int) -> None:
     page.reload(wait_until="domcontentloaded")
     page.wait_for_function("typeof window._navigateTo === 'function'", timeout=15_000)
     page.locator(".specialist-workbench-plan").wait_for(state="visible")
-    dentist = page.locator(
-        ".specialist-workbench-plan .specialist-record-title"
-    ).filter(has_text="dentist")
+    dentist = page.locator(".specialist-workbench-plan .specialist-record-title").filter(
+        has_text="dentist"
+    )
     dentist.wait_for(state="visible")
     assert dentist.count() == 1
     page.locator('.specialist-workbench-plan [data-value="unscheduled"]').click()

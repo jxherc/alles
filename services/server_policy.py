@@ -127,7 +127,9 @@ def read() -> dict:
             after.st_ino,
             after.st_size,
         ):
-            raise ServerPolicyError("policy_changed_during_read", "server policy changed during read")
+            raise ServerPolicyError(
+                "policy_changed_during_read", "server policy changed during read"
+            )
         policy = validate_text(raw)
         return {
             "policy": policy,
@@ -214,12 +216,17 @@ def require_allowed_host_service(manager: str, service_id: str) -> dict:
     current = read()
     if not current["valid"] or current["policy"]["control_mode"] != "allowlisted_host":
         raise ServerPolicyError("host_control_disabled", "host service control is not enabled")
-    exact = {(
-        item["manager"],
-        item["id"],
-    ) for item in current["policy"]["host_services"]}
+    exact = {
+        (
+            item["manager"],
+            item["id"],
+        )
+        for item in current["policy"]["host_services"]
+    }
     if (manager, service_id) not in exact:
-        raise ServerPolicyError("host_service_not_allowed", "host service is not exactly allowlisted")
+        raise ServerPolicyError(
+            "host_service_not_allowed", "host service is not exactly allowlisted"
+        )
     return {"manager": manager, "id": service_id}
 
 
@@ -246,7 +253,9 @@ def control_host_service(manager: str, service_id: str, action: str) -> dict:
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=20, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise ServerPolicyError("host_service_control_failed", "host service action failed") from exc
+        raise ServerPolicyError(
+            "host_service_control_failed", "host service action failed"
+        ) from exc
     if result.returncode != 0:
         raise ServerPolicyError("host_service_control_failed", "host service action failed")
     return {**exact, "action": action, "accepted": True}

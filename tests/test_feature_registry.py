@@ -59,7 +59,16 @@ def _cli_commands(path: Path) -> set[str]:
 
 class _ControlInventory(HTMLParser):
     INTERACTIVE_TAGS = {"button", "input", "select", "textarea", "summary"}
-    INTERACTIVE_ROLES = {"button", "checkbox", "link", "menuitem", "option", "radio", "switch", "tab"}
+    INTERACTIVE_ROLES = {
+        "button",
+        "checkbox",
+        "link",
+        "menuitem",
+        "option",
+        "radio",
+        "switch",
+        "tab",
+    }
 
     def __init__(self, roots: dict[str, str]):
         super().__init__(convert_charrefs=True)
@@ -71,7 +80,9 @@ class _ControlInventory(HTMLParser):
     def handle_starttag(self, tag, attrs):
         values = dict(attrs)
         parent_owner = self.stack[-1][1] if self.stack else None
-        selectors = (["body"] if tag == "body" else []) + ([f"#{values['id']}"] if values.get("id") else [])
+        selectors = (["body"] if tag == "body" else []) + (
+            [f"#{values['id']}"] if values.get("id") else []
+        )
         owner = parent_owner
         for selector in selectors:
             if selector in self.roots:
@@ -112,7 +123,11 @@ class FeatureRegistryTest(unittest.TestCase):
     def test_every_runtime_route_owner_maps_to_one_feature(self):
         runtime = {route.endpoint.__module__ for route in _walk_routes(app.routes)}
         mapped = set(ownership_map(self.registry, "route_modules"))
-        self.assertEqual(runtime, mapped, {"unmapped": sorted(runtime - mapped), "stale": sorted(mapped - runtime)})
+        self.assertEqual(
+            runtime,
+            mapped,
+            {"unmapped": sorted(runtime - mapped), "stale": sorted(mapped - runtime)},
+        )
 
     def test_every_cli_command_job_action_and_aide_tool_maps_to_one_feature(self):
         runtime_cli = _cli_commands(ROOT / "cli.py")
@@ -130,14 +145,20 @@ class FeatureRegistryTest(unittest.TestCase):
         for surface, runtime in expected.items():
             with self.subTest(surface=surface):
                 mapped = set(ownership_map(self.registry, surface))
-                self.assertEqual(runtime, mapped, {"unmapped": sorted(runtime - mapped), "stale": sorted(mapped - runtime)})
+                self.assertEqual(
+                    runtime,
+                    mapped,
+                    {"unmapped": sorted(runtime - mapped), "stale": sorted(mapped - runtime)},
+                )
 
     def test_every_interactive_source_control_has_a_feature_owner(self):
         roots = ownership_map(self.registry, "control_roots")
         parser = _ControlInventory(roots)
         parser.feed((ROOT / "static" / "index.html").read_text("utf-8"))
         self.assertGreaterEqual(len(parser.controls), 500)
-        unmapped = [f"<{tag} id={control_id!r}>" for tag, control_id, owner in parser.controls if not owner]
+        unmapped = [
+            f"<{tag} id={control_id!r}>" for tag, control_id, owner in parser.controls if not owner
+        ]
         self.assertEqual(unmapped, [])
         self.assertEqual(set(roots), parser.seen_roots, "registry contains stale control roots")
 
@@ -167,7 +188,9 @@ class FeatureRegistryTest(unittest.TestCase):
             if feature["implementation"] != "shipped" or feature["acceptance"] == "unchecked"
         ]
         self.assertEqual(unfinished, [])
-        self.assertTrue(all(feature.get("notes", "").strip() for feature in self.registry["features"]))
+        self.assertTrue(
+            all(feature.get("notes", "").strip() for feature in self.registry["features"])
+        )
 
 
 if __name__ == "__main__":

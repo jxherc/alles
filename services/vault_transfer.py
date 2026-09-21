@@ -395,7 +395,9 @@ def prepare_vault_import(source: str, name: str) -> dict:
         if preview["conflicts"]:
             raise FileExistsError(preview["destination"])
         if not preview["can_import"]:
-            raise InsufficientSpace("not enough free space for the verified destination and rollback snapshot")
+            raise InsufficientSpace(
+                "not enough free space for the verified destination and rollback snapshot"
+            )
         return _new_operation(
             "import",
             Path(preview["destination"]),
@@ -515,7 +517,9 @@ def _resume_vault_transfer(operation_id: str) -> dict:
     _write_manifest(directory, manifest)
     if _active_vault() != destination:
         raise VaultTransferError("active vault does not match the verified destination")
-    if manifest["kind"] in {"move", "import"} and not _same_inventory(_inventory(source), expected_source):
+    if manifest["kind"] in {"move", "import"} and not _same_inventory(
+        _inventory(source), expected_source
+    ):
         _set_active_vault(Path(manifest["previous_active"]))
         raise TransferConflict("source vault changed during the final vault switch")
     if not _same_inventory(_inventory(destination), expected_destination):
@@ -552,7 +556,11 @@ def _rollback_vault_transfer(operation_id: str) -> dict:
     expected = manifest["source_inventory"]
     state = manifest.get("state")
     if state in {"switched", "complete"}:
-        expected_destination = expected if manifest["kind"] in {"move", "import"} else manifest["destination_inventory"]
+        expected_destination = (
+            expected
+            if manifest["kind"] in {"move", "import"}
+            else manifest["destination_inventory"]
+        )
         if _active_vault() != destination:
             raise TransferConflict("this transfer destination is no longer the active vault")
         if not _same_inventory(_inventory(destination), expected_destination):
@@ -592,9 +600,15 @@ def _rollback_vault_transfer(operation_id: str) -> dict:
         manifest.pop("rollback_stage_identity", None)
         _write_manifest(directory, manifest)
 
-    rollback_target = Path(manifest.get("previous_active") or source) if manifest["kind"] == "import" else source
-    rollback_inventory = manifest.get("previous_active_inventory") if manifest["kind"] == "import" else expected
-    if not rollback_target.is_dir() or not _same_inventory(_inventory(rollback_target), rollback_inventory):
+    rollback_target = (
+        Path(manifest.get("previous_active") or source) if manifest["kind"] == "import" else source
+    )
+    rollback_inventory = (
+        manifest.get("previous_active_inventory") if manifest["kind"] == "import" else expected
+    )
+    if not rollback_target.is_dir() or not _same_inventory(
+        _inventory(rollback_target), rollback_inventory
+    ):
         raise TransferConflict("previous active vault changed; rollback was not applied")
     _set_active_vault(rollback_target)
     if _active_vault() != rollback_target or not _same_inventory(_inventory(source), expected):
@@ -619,7 +633,11 @@ def delete_old_vault(operation_id: str, confirmation: str) -> dict:
         source = Path(manifest["source"])
         destination = Path(manifest["destination"])
         expected_source = manifest["source_inventory"]
-        expected_destination = expected_source if manifest["kind"] in {"move", "import"} else manifest["destination_inventory"]
+        expected_destination = (
+            expected_source
+            if manifest["kind"] in {"move", "import"}
+            else manifest["destination_inventory"]
+        )
         if _active_vault() != destination:
             raise TransferConflict("the verified destination is not the active vault")
         if not _same_inventory(_inventory(destination), expected_destination):

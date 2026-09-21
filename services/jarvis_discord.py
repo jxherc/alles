@@ -815,7 +815,11 @@ def _notice_for(run: JarvisRun, prompt: JarvisRunPrompt | None) -> str:
         if schema:
             lines = [f"Aide needs input: {schema.get('title') or prompt.question}"]
             for index, question in enumerate(schema.get("questions", []), 1):
-                mode = "choose one or more" if question.get("selection") == "multiple" else "choose one"
+                mode = (
+                    "choose one or more"
+                    if question.get("selection") == "multiple"
+                    else "choose one"
+                )
                 lines.append(f"{index}. {question.get('prompt', '')} ({mode})")
                 for choice in question.get("choices", []):
                     detail = f" - {choice['description']}" if choice.get("description") else ""

@@ -85,11 +85,7 @@ def _citations(value, sources: dict[str, dict]) -> list[dict]:
         if not source or len(quote) < 8:
             continue
         passage = next(
-            (
-                str(item)
-                for item in source.get("passages") or []
-                if quote in str(item)
-            ),
+            (str(item) for item in source.get("passages") or [] if quote in str(item)),
             "",
         )
         if not passage:
@@ -138,12 +134,18 @@ def validate_verifier_output(raw: str, query: str, answer: dict, evidence: list[
         citations = _citations(value.get("citations"), sources)
         valid = verdict in VERDICTS
         if verdict == "verified":
-            valid = valid and bool(citations) and andromeda._quotes_support_claim(
-                original, [item["quote"] for item in citations]
+            valid = (
+                valid
+                and bool(citations)
+                and andromeda._quotes_support_claim(original, [item["quote"] for item in citations])
             )
         elif verdict == "corrected":
-            valid = valid and bool(correction and citations) and andromeda._quotes_support_claim(
-                correction, [item["quote"] for item in citations]
+            valid = (
+                valid
+                and bool(correction and citations)
+                and andromeda._quotes_support_claim(
+                    correction, [item["quote"] for item in citations]
+                )
             )
         elif verdict == "conflicting":
             valid = valid and len({item["url"] for item in citations}) >= 2
@@ -167,7 +169,11 @@ def validate_verifier_output(raw: str, query: str, answer: dict, evidence: list[
     corrected_claims = []
     for index, claim in enumerate(claims[:12]):
         verdict = verdicts[index] if index < len(verdicts) else {}
-        text = verdict.get("correction") if verdict.get("verdict") == "corrected" else claim.get("text")
+        text = (
+            verdict.get("correction")
+            if verdict.get("verdict") == "corrected"
+            else claim.get("text")
+        )
         corrected_claims.append({**claim, "text": text})
     hosts = {
         urlsplit(item["url"]).hostname
