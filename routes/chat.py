@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+from contextlib import aclosing
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -548,8 +549,9 @@ def _vault_document_context(scope: VaultDocumentScope | None) -> tuple[str, dict
 
 async def _sse(gen):
     """wrap async generator into SSE — yield bytes so uvicorn flushes each chunk immediately"""
-    async for chunk in gen:
-        yield f"data: {json.dumps(chunk)}\n\n".encode()
+    async with aclosing(gen):
+        async for chunk in gen:
+            yield f"data: {json.dumps(chunk)}\n\n".encode()
     yield b"data: [DONE]\n\n"
 
 
@@ -571,52 +573,100 @@ async def _stream_and_save(
     tool_steps = []
     usage = {}
     agent_run_id = ""
+    completed = False
+    interrupted = False
 
-    if mode == "agent":
-        async for chunk in run_agent(
-            messages,
-            ep,
+    try:
+        if settings and "context_provenance" in settings:
+            yield {"context_provenance": settings["context_provenance"]}
+        if mode == "agent":
+            async with aclosing(
+                run_agent(
+                    messages,
+                    ep,
+                    model,
+                    stop_event,
+                    settings or {},
+                    accumulated,
+                    thinking_acc,
+                    tool_steps,
+                    session_id=session_id,
+                )
+            ) as stream:
+                async for chunk in stream:
+                    run = chunk.get("agent_run")
+                    if isinstance(run, dict) and run.get("id"):
+                        agent_run_id = str(run["id"])
+                    if "usage" in chunk:
+                        usage = merge_usage(usage, chunk.get("usage", {}))
+                    if chunk.get("done"):
+                        completed = True
+                    yield chunk
+        else:
+            chat_kw = {}
+            if settings and settings.get("temperature") is not None:
+                chat_kw["temperature"] = settings["temperature"]
+            if settings and settings.get("agent_effort"):
+                chat_kw["effort"] = provider_effort(settings)
+            if settings and settings.get("agent_reasoning_mode") in {"on", "off"}:
+                chat_kw["thinking"] = settings["agent_reasoning_mode"] == "on"
+            async with aclosing(
+                stream_chat(messages, ep.base_url, ep.api_key, model, **chat_kw)
+            ) as stream:
+                async for chunk in stream:
+                    if stop_event.is_set():
+                        break
+                    if "error" in chunk:
+                        yield chunk
+                        break
+                    if "thinking" in chunk:
+                        thinking_acc.append(chunk["thinking"])
+                        yield chunk
+                    elif "delta" in chunk:
+                        accumulated.append(chunk["delta"])
+                        yield chunk
+                    elif "done" in chunk:
+                        completed = True
+                        usage = chunk.get("usage", {})
+                        yield chunk
+    except (asyncio.CancelledError, GeneratorExit):
+        interrupted = not completed
+        raise
+    finally:
+        # A disconnect closes this generator; save synchronously before cancellation can
+        # interrupt another await. Each generator finalizes once, including aclose().
+        _save_turn(
+            session_id,
+            user_text,
+            "".join(accumulated),
             model,
-            stop_event,
-            settings or {},
-            accumulated,
+            db_factory,
+            incognito,
+            settings,
+            memory_ids,
             thinking_acc,
             tool_steps,
-            session_id=session_id,
-        ):
-            run = chunk.get("agent_run")
-            if isinstance(run, dict) and run.get("id"):
-                agent_run_id = str(run["id"])
-            if "usage" in chunk:
-                usage = merge_usage(usage, chunk.get("usage", {}))
-            yield chunk
-    else:
-        chat_kw = {}
-        if settings and settings.get("temperature") is not None:
-            chat_kw["temperature"] = settings["temperature"]
-        if settings and settings.get("agent_effort"):
-            chat_kw["effort"] = provider_effort(settings)
-        if settings and settings.get("agent_reasoning_mode") in {"on", "off"}:
-            chat_kw["thinking"] = settings["agent_reasoning_mode"] == "on"
-        async for chunk in stream_chat(messages, ep.base_url, ep.api_key, model, **chat_kw):
-            if stop_event.is_set():
-                break
-            if "error" in chunk:
-                yield chunk
-                break
-            if "thinking" in chunk:
-                thinking_acc.append(chunk["thinking"])
-                yield chunk
-            elif "delta" in chunk:
-                accumulated.append(chunk["delta"])
-                yield chunk
-            elif "done" in chunk:
-                usage = chunk.get("usage", {})
-                yield chunk
+            usage,
+            agent_run_id,
+            interrupted or stop_event.is_set(),
+        )
 
-    # save to db
-    full_text = "".join(accumulated)
 
+def _save_turn(
+    session_id,
+    user_text,
+    full_text,
+    model,
+    db_factory,
+    incognito,
+    settings,
+    memory_ids,
+    thinking_acc,
+    tool_steps,
+    usage,
+    agent_run_id,
+    interrupted,
+):
     if incognito:
         meta = {
             "usage": usage,
@@ -629,7 +679,13 @@ async def _stream_and_save(
             meta["tool_steps"] = tool_steps
         if agent_run_id:
             meta["agent_run_id"] = agent_run_id
+        if interrupted:
+            meta["interrupted"] = True
         incognito_service.append_turn(session_id, user_text, full_text, json.dumps(meta))
+        if interrupted and not full_text:
+            private = incognito_service.get_session(session_id)
+            if private and private.messages:
+                private.messages[-1].meta = json.dumps(meta)
         return  # RAM only; never write an incognito turn to SQLite
 
     db = db_factory()
@@ -654,7 +710,7 @@ async def _stream_and_save(
             db.add(um)
             added += 1
 
-        if full_text:
+        if full_text or interrupted or tool_steps:
             meta = {
                 "usage": usage,
                 "model": model,
@@ -668,6 +724,8 @@ async def _stream_and_save(
                 meta["tool_steps"] = tool_steps
             if agent_run_id:
                 meta["agent_run_id"] = agent_run_id
+            if interrupted:
+                meta["interrupted"] = True
             artifacts = _extract_artifacts(full_text)
             if artifacts:
                 meta["artifacts"] = artifacts
@@ -830,11 +888,12 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
 
     async def cleanup_gen():
         try:
-            yield {"context_provenance": settings["context_provenance"]}
-            async for chunk in gen:
-                yield chunk
+            async with aclosing(gen):
+                async for chunk in gen:
+                    yield chunk
         finally:
-            _streams.pop(body.session_id, None)
+            if _streams.get(body.session_id) is stop_event:
+                _streams.pop(body.session_id, None)
 
     return StreamingResponse(
         _sse(cleanup_gen()),
@@ -933,7 +992,8 @@ async def chat_background(body: ChatRequest, request: Request, db: DbSession = D
             except Exception:
                 pass
         finally:
-            _streams.pop(body.session_id, None)
+            if _streams.get(body.session_id) is stop_event:
+                _streams.pop(body.session_id, None)
             _bg_tasks.pop(body.session_id, None)
 
     _bg_tasks[body.session_id] = asyncio.create_task(runner())
