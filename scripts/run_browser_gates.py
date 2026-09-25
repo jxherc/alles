@@ -42,6 +42,8 @@ COMMANDS = {
     "files-workflows": ("tests/pw_phase7_files_real.py",),
     "pwa-offline": ("tests/pw_offline_11b.py",),
     "andromeda-cancellation": ("tests/pw_andromeda_cancellation.py",),
+    "health-workflows": ("tests/pw_health_workflows.py",),
+    "aide-continuity": ("tests/pw_aide_continuity.py",),
     **{
         f"surfaces-{device}-{theme}": ("tests/pw_stability_surfaces.py", device, theme)
         for device in ("desktop", "phone")

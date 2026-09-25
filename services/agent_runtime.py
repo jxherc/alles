@@ -6,6 +6,7 @@ import asyncio
 import json
 import shutil
 import uuid
+from contextlib import aclosing
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -524,100 +525,109 @@ async def run_agent(
     model_effort = provider_effort(settings)
     max_turns = _agent_max_turns(settings)
     run = start_run(
-        session_id=session_id, model=model, max_turns=max_turns, cwd=settings.get("agent_cwd", "")
+        session_id=session_id,
+        model=model,
+        max_turns=max_turns,
+        cwd=settings.get("agent_cwd", ""),
+        incognito=bool(settings.get("incognito")),
     )
     run_id = run["id"]
-    yield {"agent_run": {"id": run_id, "status": "running", "max_turns": max_turns}}
-
-    # 3b - persona policy: a persona can block tool scopes/names for the session. detach into a plain
-    # holder so we don't lazy-load on a closed session inside the permission gate.
-    _persona = None
-    _delegated_scope_kind = "general"
-    _delegated_scope_id = ""
-    if session_id:
-        try:
-            from core.database import Session as _Sess
-            from core.database import SessionLocal as _SL
-
-            _pdb = _SL()
-            try:
-                _s = _pdb.get(_Sess, session_id)
-                if _s and _s.project_id:
-                    _delegated_scope_kind = "project"
-                    _delegated_scope_id = _s.project_id
-                if _s and _s.persona_id and _s.persona:
-                    _persona = type(
-                        "P",
-                        (),
-                        {
-                            "blocked_scopes": _s.persona.blocked_scopes or "",
-                            "blocked_tools": _s.persona.blocked_tools or "",
-                        },
-                    )()
-            finally:
-                _pdb.close()
-        except Exception:
-            _persona = None
-
-    # 3e - stamp the run with the user's intent (last user message) so run_analysis can summarize,
-    # cluster, and pull it as a precedent later.
-    try:
-        _intent = ""
-        for m in reversed(messages or []):
-            if m.get("role") == "user":
-                c = m.get("content")
-                _intent = (
-                    c
-                    if isinstance(c, str)
-                    else next(
-                        (
-                            p.get("text", "")
-                            for p in c
-                            if isinstance(p, dict) and p.get("type") == "text"
-                        ),
-                        "",
-                    )
-                )
-                break
-        if _intent:
-            update_run(run_id, intent=_intent[:500])
-    except Exception:
-        pass
-
-    # 10a — optional per-run git worktree isolation: run on a detached copy off HEAD so
-    # parallel runs don't stomp each other. repoint agent_cwd so every file/shell op follows.
     _orig_cwd = settings.get("agent_cwd", "")
     _worktree = None
-    if settings.get("agent_worktree"):
-        from services import worktrees
-
-        _worktree = worktrees.setup(_orig_cwd, run_id)
-        if _worktree:
-            settings = {**settings, "agent_cwd": _worktree}
-            update_run(run_id, worktree=_worktree, cwd=_worktree)
-
-    # tools read sandbox/cwd/computer-use config + ep/model (for sub-agents) from here
-    set_agent_ctx(settings=settings, ep=ep, model=model, run_id=run_id, session_id=session_id)
-
-    note = agent_system_note(settings)
-    if settings.get("agent_context_files", True):
-        ctx = _load_project_context(settings.get("agent_cwd", ""))
-        if ctx:
-            note += (
-                "\n\nThe following project context files apply to this workspace. "
-                "Treat them as standing instructions:\n\n" + ctx
-            )
-
-    agent_messages = [dict(m) for m in messages]
-    if agent_messages and agent_messages[0].get("role") == "system":
-        agent_messages[0]["content"] = agent_messages[0].get("content", "").rstrip() + "\n\n" + note
-    else:
-        agent_messages.insert(0, {"role": "system", "content": note})
-
-    usage = {}
-    _failkey: dict[str, int] = {}  # (tool+args) → consecutive failure count, for the loop-breaker
-    _verify_nudged = False  # the "run your checks" nudge fires once per run
+    terminal = False
     try:
+        yield {"agent_run": {"id": run_id, "status": "running", "max_turns": max_turns}}
+
+        # 3b - persona policy: a persona can block tool scopes/names for the session. detach into a plain
+        # holder so we don't lazy-load on a closed session inside the permission gate.
+        _persona = None
+        _delegated_scope_kind = "general"
+        _delegated_scope_id = ""
+        if session_id:
+            try:
+                from core.database import Session as _Sess
+                from core.database import SessionLocal as _SL
+
+                _pdb = _SL()
+                try:
+                    _s = _pdb.get(_Sess, session_id)
+                    if _s and _s.project_id:
+                        _delegated_scope_kind = "project"
+                        _delegated_scope_id = _s.project_id
+                    if _s and _s.persona_id and _s.persona:
+                        _persona = type(
+                            "P",
+                            (),
+                            {
+                                "blocked_scopes": _s.persona.blocked_scopes or "",
+                                "blocked_tools": _s.persona.blocked_tools or "",
+                            },
+                        )()
+                finally:
+                    _pdb.close()
+            except Exception:
+                _persona = None
+
+        # 3e - stamp the run with the user's intent (last user message) so run_analysis can summarize,
+        # cluster, and pull it as a precedent later.
+        try:
+            _intent = ""
+            for m in reversed(messages or []):
+                if m.get("role") == "user":
+                    c = m.get("content")
+                    _intent = (
+                        c
+                        if isinstance(c, str)
+                        else next(
+                            (
+                                p.get("text", "")
+                                for p in c
+                                if isinstance(p, dict) and p.get("type") == "text"
+                            ),
+                            "",
+                        )
+                    )
+                    break
+            if _intent:
+                update_run(run_id, intent=_intent[:500])
+        except Exception:
+            pass
+
+        # 10a — optional per-run git worktree isolation: run on a detached copy off HEAD so
+        # parallel runs don't stomp each other. repoint agent_cwd so every file/shell op follows.
+        if settings.get("agent_worktree"):
+            from services import worktrees
+
+            _worktree = worktrees.setup(_orig_cwd, run_id)
+            if _worktree:
+                settings = {**settings, "agent_cwd": _worktree}
+                update_run(run_id, worktree=_worktree, cwd=_worktree)
+
+        # tools read sandbox/cwd/computer-use config + ep/model (for sub-agents) from here
+        set_agent_ctx(settings=settings, ep=ep, model=model, run_id=run_id, session_id=session_id)
+
+        note = agent_system_note(settings)
+        if settings.get("agent_context_files", True):
+            ctx = _load_project_context(settings.get("agent_cwd", ""))
+            if ctx:
+                note += (
+                    "\n\nThe following project context files apply to this workspace. "
+                    "Treat them as standing instructions:\n\n" + ctx
+                )
+
+        agent_messages = [dict(m) for m in messages]
+        if agent_messages and agent_messages[0].get("role") == "system":
+            agent_messages[0]["content"] = (
+                agent_messages[0].get("content", "").rstrip() + "\n\n" + note
+            )
+        else:
+            agent_messages.insert(0, {"role": "system", "content": note})
+
+        usage = {}
+        _failkey: dict[
+            str, int
+        ] = {}  # (tool+args) → consecutive failure count, for the loop-breaker
+        _verify_nudged = False  # the "run your checks" nudge fires once per run
         for turn in range(max_turns):
             if stop_event.is_set():
                 break
@@ -650,27 +660,28 @@ async def run_agent(
                     thinking_acc
                 )  # so a retry can drop this attempt's partial thinking
                 err_chunk = None
-                async for chunk in stream_chat(
-                    agent_messages, ep.base_url, ep.api_key, model, **llm_kwargs
-                ):
-                    if stop_event.is_set():
-                        break
-                    if "error" in chunk:
-                        err_chunk = chunk
-                        break
-                    if "thinking" in chunk:
-                        thinking_acc.append(chunk["thinking"])
-                        yield chunk
-                    elif "delta" in chunk:
-                        turn_text.append(chunk["delta"])
-                        accumulated.append(chunk["delta"])
-                        committed = True
-                        yield chunk
-                    elif "tool_call" in chunk:
-                        tool_calls.append(chunk["tool_call"])
-                        committed = True
-                    elif "done" in chunk:
-                        usage = merge_usage(usage, chunk.get("usage", {}))
+                async with aclosing(
+                    stream_chat(agent_messages, ep.base_url, ep.api_key, model, **llm_kwargs)
+                ) as stream:
+                    async for chunk in stream:
+                        if stop_event.is_set():
+                            break
+                        if "error" in chunk:
+                            err_chunk = chunk
+                            break
+                        if "thinking" in chunk:
+                            thinking_acc.append(chunk["thinking"])
+                            yield chunk
+                        elif "delta" in chunk:
+                            turn_text.append(chunk["delta"])
+                            accumulated.append(chunk["delta"])
+                            committed = True
+                            yield chunk
+                        elif "tool_call" in chunk:
+                            tool_calls.append(chunk["tool_call"])
+                            committed = True
+                        elif "done" in chunk:
+                            usage = merge_usage(usage, chunk.get("usage", {}))
                 if stop_event.is_set() or err_chunk is None:
                     break
                 # got an error. retry only if no REAL output streamed yet + it's transient.
@@ -698,17 +709,19 @@ async def run_agent(
                 break
             if llm_error is not None:
                 record_event(run_id, "error", llm_error)
-                yield llm_error
                 # honest status: a run that already did work was interrupted, not a
                 # clean failure — only call it 'error' if nothing ever landed.
                 finish_run(run_id, "stopped" if tool_steps else "error")
+                terminal = True
+                yield llm_error
                 return
 
             if not tool_calls:
                 # persist the final prose so a reconnecting client sees the answer (10b)
                 update_run(run_id, text="".join(accumulated))
-                yield {"done": True, "usage": usage}
                 finish_run(run_id, "done")
+                terminal = True
+                yield {"done": True, "usage": usage}
                 return
 
             # persist prose-so-far each turn so a mid-run reconnect shows progress (10b)
@@ -1090,9 +1103,16 @@ async def run_agent(
         if stop_event.is_set():
             msg = "\n\nAgent stopped."
         accumulated.append(msg)
+        update_run(run_id, text="".join(accumulated))
+        finish_run(run_id, status)
+        terminal = True
         yield {"delta": msg}
         yield {"done": True, "usage": usage}
-        finish_run(run_id, status)
+    except (asyncio.CancelledError, GeneratorExit):
+        if not terminal:
+            update_run(run_id, text="".join(accumulated))
+            finish_run(run_id, "cancelled")
+        raise
     except Exception as e:
         record_event(run_id, "error", {"error": str(e)})
         finish_run(run_id, "error")

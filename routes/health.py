@@ -215,9 +215,13 @@ class EntryPatch(BaseModel):
 
 @router.patch("/health/{eid}")
 def update_entry(eid: int, body: EntryPatch, db: DbSession = Depends(get_db)):
+    import math
+
     e = db.get(HealthEntry, eid)
     if not e:
         raise HTTPException(404)
+    if body.value is not None and not math.isfinite(body.value):
+        raise HTTPException(400, "value must be a finite number")
     if body.date is not None:
         try:
             _d(body.date)

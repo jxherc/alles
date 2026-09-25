@@ -9,7 +9,9 @@ certify the complete visual or device matrix.
 | Leave an unsaved document, return, reload and resume it | The exact mixed-language draft survived. Reload clearly separated the saved document from the recoverable local draft. | Keep this recovery path visible. |
 | Go from a document to Home, then reload | Before STAB-005, reload reopened Docs because the old URL remained. The repair keeps Home selected and Back restores the original document. | Covered by the navigation regressions. |
 | Record a Health measurement | The entry action was available after opening health log. A synthetic 74.25 kg record persisted exactly after reload. The screen rounds it to 74.3 kg. | Preserve exact values when editing; distinguish summary rounding from detailed record values. |
-| Correct that Health measurement | The record offered delete, with no visible edit action. Source inspection after the walkthrough confirmed an unused edit API. | STAB-006; repair in the specialist batch. |
+| Correct that Health measurement | The record offered delete, with no visible edit action. Source inspection after the walkthrough confirmed an unused edit API. | STAB-006 repaired: labeled edit action, exact values, persistent save errors, retry and focus return. Chromium desktop/phone and native Safari correction/reload checked. |
 | Find the main Health action | The overview shows both health log and open health history, plus repeated summaries. Creating an entry takes a further view change. | Simplify this overview in the specialist layout batch; keep privacy boundaries clear. |
 
 The last row is a design change, separate from the confirmed functional defects.
+
+Health range changes also erased drafts (STAB-011), and malformed numbers were silently shortened (STAB-010). Both have real browser reproductions and regressions. The editor now retains exact values, dates and notes during range loads, rejects malformed input, and keeps failed edits available to retry.

@@ -326,6 +326,7 @@ function renderMessages(msgs) {
     if (m.role === 'user') {
       const row = appendUserMsg(m.content);
       row.dataset.msgId = m.id;
+      if (m.meta?.interrupted) appendInterruptionNotice(row.querySelector('.user-wrap') || row);
     } else if (m.role === 'system' && m.content?.startsWith('[conversation summary]')) {
       // compact divider
       const div = document.createElement('div');
@@ -333,7 +334,7 @@ function renderMessages(msgs) {
       div.innerHTML = '<span>context compacted</span>';
       container.appendChild(div);
     } else if (m.role === 'assistant') {
-      const { row, wrap } = appendAiMsg(
+      const { row, wrap, body } = appendAiMsg(
         m.content,
         m.meta?.thinking,
         m.meta?.tool_steps,
@@ -341,6 +342,7 @@ function renderMessages(msgs) {
         m.meta?.agent_run_id,
       );
       row.dataset.msgId = m.id;
+      if (m.meta?.interrupted) appendInterruptionNotice(body);
       const actions = wrap.querySelector('.msg-actions');
       // re-open artifact button from history
       if (m.meta?.artifacts?.length) {
@@ -382,6 +384,15 @@ export function appendUserMsg(text, documentScope = null) {
   document.getElementById('messages').appendChild(row);
   scrollDown({ force: true });
   return row;
+}
+
+
+export function appendInterruptionNotice(target) {
+  const notice = document.createElement('div');
+  notice.className = 'aide-interruption';
+  notice.setAttribute('role', 'status');
+  notice.textContent = 'response interrupted';
+  target.appendChild(notice);
 }
 
 

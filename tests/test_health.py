@@ -216,3 +216,18 @@ class HealthTargetTests(ApiTest):
         self.client.put("/api/health/target", json={"kind": "weight", "value": 68})
         self.client.put("/api/health/target", json={"kind": "weight", "value": 0})
         self.assertIsNone(self._kind("weight").get("target"))
+
+
+class HealthCorrectionTests(ApiTest):
+    def test_nonfinite_correction_cannot_replace_saved_value(self):
+        entry = self.client.post("/api/health", json={"kind": "weight", "value": 74.25}).json()
+        for value in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(value=value):
+                response = self.client.patch(
+                    f"/api/health/{entry['id']}",
+                    content='{"value":' + value + "}",
+                    headers={"content-type": "application/json"},
+                )
+                self.assertEqual(response.status_code, 400)
+                saved = self.client.get("/api/health").json()["entries"][0]
+                self.assertEqual(saved["value"], 74.25)

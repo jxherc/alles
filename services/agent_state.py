@@ -15,6 +15,7 @@ from core.settings import data_dir
 DATA_DIR: Path | None = None
 
 _active: dict[str, dict] = {}
+_private: dict[str, dict] = {}
 _disk_active_by_session: dict[str, dict] | None = None
 _disk_active_dir: Path | None = None
 
@@ -40,6 +41,15 @@ def _clear_disk_active_cache():
 
 
 def _save(state: dict):
+    if state.get("incognito"):
+        from services.incognito import get_session
+
+        if get_session(state["session_id"], touch=False) is not None:
+            _private[state["id"]] = state
+        else:
+            _private.pop(state["id"], None)
+            _active.pop(state["id"], None)
+        return
     _path(state["id"]).write_text(json.dumps(state, indent=2), "utf-8")
     _clear_disk_active_cache()
 
@@ -52,14 +62,16 @@ def _disk_active_runs() -> dict[str, dict]:
     rows = {}
     for st in list_runs(limit=40):
         sid = st.get("session_id")
-        if sid and st.get("status") == "running" and sid not in rows:
+        if sid and not st.get("incognito") and st.get("status") == "running" and sid not in rows:
             rows[sid] = st
     _disk_active_by_session = rows
     _disk_active_dir = d
     return rows
 
 
-def start_run(session_id: str, model: str, max_turns: int, cwd: str = "") -> dict:
+def start_run(
+    session_id: str, model: str, max_turns: int, cwd: str = "", *, incognito: bool = False
+) -> dict:
     state = {
         "id": str(uuid.uuid4()),
         "session_id": session_id,
@@ -77,6 +89,8 @@ def start_run(session_id: str, model: str, max_turns: int, cwd: str = "") -> dic
         "updated_at": _now(),
         "finished_at": None,
     }
+    if incognito:
+        state["incognito"] = True
     _active[state["id"]] = state
     _save(state)
     return state
@@ -131,8 +145,17 @@ def finish_run(run_id: str, status: str = "done"):
 
 
 def get_run(run_id: str) -> dict | None:
-    if run_id in _active:
-        return _active[run_id]
+    state = _private.get(run_id)
+    if state is not None:
+        from services.incognito import get_session
+
+        if get_session(state["session_id"], touch=False) is None:
+            forget_private_session(state["session_id"])
+            return None
+        return state
+    state = _active.get(run_id)
+    if state is not None:
+        return state
     p = _path(run_id)
     if not p.exists():
         return None
@@ -148,22 +171,44 @@ def find_active_run(session_id: str) -> dict | None:
     event log and pick the live stream back up instead of losing the run."""
     if not session_id:
         return None
-    for st in _active.values():
+    _purge_private()
+    for st in list(_active.values()):
         if st.get("session_id") == session_id and st.get("status") == "running":
             return st
     return _disk_active_runs().get(session_id)
 
 
 def list_runs(limit: int = 20) -> list[dict]:
-    rows = []
+    _purge_private()
+    rows = list(_private.values())
+    public_count = 0
     for p in sorted(run_dir().glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
         try:
             rows.append(json.loads(p.read_text("utf-8")))
+            public_count += 1
         except Exception:
             continue
-        if len(rows) >= limit:
+        if public_count >= limit:
             break
-    return rows
+    rows.sort(key=lambda row: row.get("updated_at", ""), reverse=True)
+    return rows[:limit]
+
+
+def forget_private_session(session_id: str) -> None:
+    """Drop run details with their RAM-only conversation; never remove owner files."""
+    for run_id, state in list(_private.items()):
+        if state.get("session_id") == session_id:
+            _private.pop(run_id, None)
+            _active.pop(run_id, None)
+
+
+def _purge_private() -> None:
+    # Reading the global run list must not keep a private conversation alive forever.
+    from services.incognito import get_session
+
+    for state in list(_private.values()):
+        if get_session(state["session_id"], touch=False) is None:
+            forget_private_session(state["session_id"])
 
 
 def reconcile_interrupted() -> int:

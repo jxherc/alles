@@ -114,6 +114,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 305
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 376
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_andromeda_cancellation.py",
                 "kind": "existing-test-control-reference",
                 "line": 188
@@ -344,6 +356,18 @@
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
                 "line": 249
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 305
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 376
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -1037,6 +1061,30 @@
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
                 "line": 640
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 240
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 242
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 249
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 254
               }
             ]
           },
@@ -1092,6 +1140,30 @@
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
                 "line": 640
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 240
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 242
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 249
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 254
               }
             ]
           },
@@ -2508,6 +2580,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 241
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
                 "line": 360
@@ -2606,6 +2684,12 @@
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
                 "line": 619
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 241
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -3629,6 +3713,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 266
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_incognito_ghost.py",
                 "kind": "existing-test-control-reference",
                 "line": 48
@@ -3679,6 +3769,12 @@
                 "file": "tests/js/incognito_ghost.test.mjs",
                 "kind": "existing-test-control-reference",
                 "line": 23
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 266
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -4007,6 +4103,12 @@
             "tests": [
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 369
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_incognito_ghost.py",
                 "kind": "existing-test-control-reference",
                 "line": 70
@@ -4040,6 +4142,12 @@
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 369
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_incognito_ghost.py",
@@ -4381,6 +4489,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 92
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
                 "line": 509
@@ -4563,6 +4677,12 @@
                 "file": "tests/pw_afterlife_home_settings.py",
                 "kind": "existing-test-control-reference",
                 "line": 189
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 92
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -50358,7 +50478,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/chat.js:125 click"
+            "value": "static/js/chat.js:126 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -50380,7 +50500,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/chat.js:125 click"
+            "value": "static/js/chat.js:126 click"
           },
           "keys": [
             "Enter",
@@ -50413,7 +50533,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/chat.js:125 click"
+        "value": "static/js/chat.js:126 click"
       },
       "id": "static.87918b1fabc6",
       "kind": "action",
@@ -51502,6 +51622,30 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 264
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 269
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 270
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 378
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
                 "line": 357
@@ -51715,7 +51859,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1936 paste; static/js/app.js:1723 keydown; static/js/app.js:1733 input; static/js/app.js:1734 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:558 keydown; static/js/sessions.js:562 blur"
+            "value": "static/js/app.js:1936 paste; static/js/app.js:1723 keydown; static/js/app.js:1733 input; static/js/app.js:1734 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
           },
           "keys": [
             "native editing keys"
@@ -51815,6 +51959,30 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 264
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 269
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 270
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 378
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
                 "line": 357
@@ -52028,7 +52196,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1936 paste; static/js/app.js:1723 keydown; static/js/app.js:1733 input; static/js/app.js:1734 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:558 keydown; static/js/sessions.js:562 blur"
+            "value": "static/js/app.js:1936 paste; static/js/app.js:1723 keydown; static/js/app.js:1733 input; static/js/app.js:1734 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
           },
           "keys": [
             "handler-defined keys require source inspection"
@@ -52128,6 +52296,30 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 264
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 269
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 270
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 378
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
                 "line": 357
@@ -52341,7 +52533,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1936 paste; static/js/app.js:1723 keydown; static/js/app.js:1733 input; static/js/app.js:1734 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:558 keydown; static/js/sessions.js:562 blur"
+            "value": "static/js/app.js:1936 paste; static/js/app.js:1723 keydown; static/js/app.js:1733 input; static/js/app.js:1734 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
           },
           "keys": [
             "native editing keys"
@@ -52373,7 +52565,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1936 paste; static/js/app.js:1723 keydown; static/js/app.js:1733 input; static/js/app.js:1734 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:558 keydown; static/js/sessions.js:562 blur"
+        "value": "static/js/app.js:1936 paste; static/js/app.js:1723 keydown; static/js/app.js:1733 input; static/js/app.js:1734 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
       },
       "id": "static.98e168b2ccca",
       "kind": "field",
@@ -54036,6 +54228,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 281
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 310
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase6_stream_continuity.py",
                 "kind": "existing-test-control-reference",
                 "line": 195
@@ -54092,6 +54296,18 @@
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
                 "line": 836
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 281
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 310
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -54254,6 +54470,12 @@
             "tests": [
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/js/chat_stream_ownership.test.mjs",
+                "kind": "existing-test-control-reference",
+                "line": 46
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_background.py",
                 "kind": "existing-test-control-reference",
                 "line": 187
@@ -54263,6 +54485,12 @@
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
                 "line": 833
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 311
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -54349,6 +54577,12 @@
             "tests": [
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/js/chat_stream_ownership.test.mjs",
+                "kind": "existing-test-control-reference",
+                "line": 46
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_background.py",
                 "kind": "existing-test-control-reference",
                 "line": 187
@@ -54358,6 +54592,12 @@
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
                 "line": 833
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 311
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -54447,6 +54687,12 @@
             "tests": [
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/js/chat_stream_ownership.test.mjs",
+                "kind": "existing-test-control-reference",
+                "line": 46
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_background.py",
                 "kind": "existing-test-control-reference",
                 "line": 187
@@ -54456,6 +54702,12 @@
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
                 "line": 833
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 311
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -54545,6 +54797,12 @@
             "tests": [
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/js/chat_stream_ownership.test.mjs",
+                "kind": "existing-test-control-reference",
+                "line": 46
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_afterlife_aide_background.py",
                 "kind": "existing-test-control-reference",
                 "line": 187
@@ -54554,6 +54812,12 @@
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
                 "line": 833
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 311
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -59468,6 +59732,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 261
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 262
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_andromeda_cancellation.py",
                 "kind": "existing-test-control-reference",
                 "line": 186
@@ -59483,6 +59759,18 @@
                 "file": "tests/pw_docs_home_current.py",
                 "kind": "existing-test-control-reference",
                 "line": 62
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 89
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 90
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -59581,6 +59869,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 261
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_continuity.py",
+                "kind": "existing-test-control-reference",
+                "line": 262
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_andromeda_cancellation.py",
                 "kind": "existing-test-control-reference",
                 "line": 186
@@ -59596,6 +59896,18 @@
                 "file": "tests/pw_docs_home_current.py",
                 "kind": "existing-test-control-reference",
                 "line": 62
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 89
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 90
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -61458,6 +61770,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 102
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_model_auth_real.py",
                 "kind": "existing-test-control-reference",
                 "line": 132
@@ -61556,6 +61874,12 @@
                 "file": "tests/pw_afterlife_home_settings.py",
                 "kind": "existing-test-control-reference",
                 "line": 228
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 102
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -127944,7 +128268,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -127985,9 +128309,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 467
+          "line": 469
         },
-        "source_selector": "static/js/chat.js:467:1",
+        "source_selector": "static/js/chat.js:469:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -128006,7 +128330,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 526
+              "line": 528
             },
             "status": "source-only",
             "tests": []
@@ -128014,7 +128338,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [],
           "modality": "pointer",
@@ -128028,7 +128352,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 526
+              "line": 528
             },
             "status": "source-only",
             "tests": []
@@ -128036,7 +128360,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [
             "Enter",
@@ -128073,7 +128397,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/chat.js:147 sendMessage"
+        "value": "static/js/chat.js:148 sendMessage"
       },
       "id": "dynamic.4d0fa9740cd9",
       "kind": "action",
@@ -128089,7 +128413,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -128130,9 +128454,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 526
+          "line": 528
         },
-        "source_selector": "static/js/chat.js:526:2",
+        "source_selector": "static/js/chat.js:528:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -128167,7 +128491,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 527
+              "line": 529
             },
             "status": "source-only",
             "tests": []
@@ -128175,7 +128499,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [],
           "modality": "pointer",
@@ -128189,7 +128513,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 527
+              "line": 529
             },
             "status": "source-only",
             "tests": []
@@ -128197,7 +128521,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [
             "Enter",
@@ -128234,7 +128558,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/chat.js:147 sendMessage"
+        "value": "static/js/chat.js:148 sendMessage"
       },
       "id": "dynamic.5cefae980c42",
       "kind": "action",
@@ -128250,7 +128574,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -128291,9 +128615,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 527
+          "line": 529
         },
-        "source_selector": "static/js/chat.js:527:3",
+        "source_selector": "static/js/chat.js:529:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -128364,7 +128688,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -128405,9 +128729,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 593
+          "line": 595
         },
-        "source_selector": "static/js/chat.js:593:4",
+        "source_selector": "static/js/chat.js:595:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -128426,7 +128750,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 665
+              "line": 671
             },
             "status": "source-only",
             "tests": []
@@ -128434,7 +128758,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [],
           "modality": "pointer",
@@ -128448,7 +128772,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 665
+              "line": 671
             },
             "status": "source-only",
             "tests": []
@@ -128456,7 +128780,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [
             "Enter",
@@ -128494,7 +128818,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/chat.js:147 sendMessage"
+        "value": "static/js/chat.js:148 sendMessage"
       },
       "id": "dynamic.89019999e41e",
       "kind": "action",
@@ -128510,7 +128834,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -128551,9 +128875,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 665
+          "line": 671
         },
-        "source_selector": "static/js/chat.js:665:5",
+        "source_selector": "static/js/chat.js:671:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -128588,7 +128912,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 692
+              "line": 698
             },
             "status": "source-only",
             "tests": []
@@ -128596,7 +128920,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [],
           "modality": "pointer",
@@ -128610,7 +128934,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 692
+              "line": 698
             },
             "status": "source-only",
             "tests": []
@@ -128618,7 +128942,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [
             "Enter",
@@ -128656,7 +128980,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/chat.js:147 sendMessage"
+        "value": "static/js/chat.js:148 sendMessage"
       },
       "id": "dynamic.7e02911049e1",
       "kind": "action",
@@ -128672,7 +128996,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -128713,9 +129037,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 692
+          "line": 698
         },
-        "source_selector": "static/js/chat.js:692:6",
+        "source_selector": "static/js/chat.js:698:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -128750,7 +129074,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 730
+              "line": 736
             },
             "status": "source-only",
             "tests": []
@@ -128772,7 +129096,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 730
+              "line": 736
             },
             "status": "source-only",
             "tests": []
@@ -128834,7 +129158,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -128875,9 +129199,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 730
+          "line": 736
         },
-        "source_selector": "static/js/chat.js:730:7",
+        "source_selector": "static/js/chat.js:736:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -128912,7 +129236,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 731
+              "line": 737
             },
             "status": "source-only",
             "tests": []
@@ -128934,7 +129258,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 731
+              "line": 737
             },
             "status": "source-only",
             "tests": []
@@ -128996,7 +129320,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -129037,9 +129361,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 731
+          "line": 737
         },
-        "source_selector": "static/js/chat.js:731:9",
+        "source_selector": "static/js/chat.js:737:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -129074,7 +129398,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 732
+              "line": 738
             },
             "status": "source-only",
             "tests": []
@@ -129096,7 +129420,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 732
+              "line": 738
             },
             "status": "source-only",
             "tests": []
@@ -129158,7 +129482,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -129199,9 +129523,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 732
+          "line": 738
         },
-        "source_selector": "static/js/chat.js:732:11",
+        "source_selector": "static/js/chat.js:738:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -129236,7 +129560,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 733
+              "line": 739
             },
             "status": "source-only",
             "tests": []
@@ -129244,7 +129568,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [],
           "modality": "pointer",
@@ -129258,7 +129582,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 733
+              "line": 739
             },
             "status": "source-only",
             "tests": []
@@ -129266,7 +129590,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [
             "Enter",
@@ -129303,7 +129627,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/chat.js:147 sendMessage"
+        "value": "static/js/chat.js:148 sendMessage"
       },
       "id": "dynamic.51ef6987f579",
       "kind": "action",
@@ -129319,7 +129643,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -129360,9 +129684,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 733
+          "line": 739
         },
-        "source_selector": "static/js/chat.js:733:13",
+        "source_selector": "static/js/chat.js:739:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -129397,7 +129721,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 734
+              "line": 740
             },
             "status": "source-only",
             "tests": []
@@ -129405,7 +129729,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [],
           "modality": "pointer",
@@ -129419,7 +129743,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 734
+              "line": 740
             },
             "status": "source-only",
             "tests": []
@@ -129427,7 +129751,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [
             "Enter",
@@ -129464,7 +129788,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/chat.js:147 sendMessage"
+        "value": "static/js/chat.js:148 sendMessage"
       },
       "id": "dynamic.f9a583f6c0db",
       "kind": "action",
@@ -129480,7 +129804,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -129521,9 +129845,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 734
+          "line": 740
         },
-        "source_selector": "static/js/chat.js:734:14",
+        "source_selector": "static/js/chat.js:740:14",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -129558,7 +129882,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 738
+              "line": 744
             },
             "status": "source-only",
             "tests": []
@@ -129580,7 +129904,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 738
+              "line": 744
             },
             "status": "source-only",
             "tests": []
@@ -129642,7 +129966,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -129683,9 +130007,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 738
+          "line": 744
         },
-        "source_selector": "static/js/chat.js:738:15",
+        "source_selector": "static/js/chat.js:744:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -129722,7 +130046,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 767
+              "line": 773
             },
             "status": "source-only",
             "tests": []
@@ -129730,7 +130054,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [],
           "modality": "pointer",
@@ -129744,7 +130068,7 @@
             "source": {
               "file": "static/js/chat.js",
               "kind": "control-source",
-              "line": 767
+              "line": 773
             },
             "status": "source-only",
             "tests": []
@@ -129752,7 +130076,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/chat.js:147 sendMessage"
+            "value": "static/js/chat.js:148 sendMessage"
           },
           "keys": [
             "Enter",
@@ -129789,7 +130113,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/chat.js:147 sendMessage"
+        "value": "static/js/chat.js:148 sendMessage"
       },
       "id": "dynamic.00e230cea4cb",
       "kind": "action",
@@ -129805,7 +130129,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/chat.js:147 sendMessage"
+          "static/js/chat.js:148 sendMessage"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -129846,9 +130170,9 @@
         "source": {
           "column": null,
           "file": "static/js/chat.js",
-          "line": 767
+          "line": 773
         },
-        "source_selector": "static/js/chat.js:767:17",
+        "source_selector": "static/js/chat.js:773:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -150697,7 +151021,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 54
+              "line": 57
             },
             "status": "source-only",
             "tests": []
@@ -150705,7 +151029,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:50 _loadNotice"
+            "value": "static/js/health.js:53 _loadNotice"
           },
           "keys": [],
           "modality": "pointer",
@@ -150719,7 +151043,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 54
+              "line": 57
             },
             "status": "source-only",
             "tests": []
@@ -150727,7 +151051,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:50 _loadNotice"
+            "value": "static/js/health.js:53 _loadNotice"
           },
           "keys": [
             "Enter",
@@ -150764,7 +151088,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:50 _loadNotice"
+        "value": "static/js/health.js:53 _loadNotice"
       },
       "id": "dynamic.32948b9dde69",
       "kind": "action",
@@ -150775,7 +151099,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:50 _loadNotice"
+          "static/js/health.js:53 _loadNotice"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -150816,9 +151140,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 54
+          "line": 57
         },
-        "source_selector": "static/js/health.js:54:1",
+        "source_selector": "static/js/health.js:57:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -150853,7 +151177,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 112
+              "line": 115
             },
             "status": "source-only",
             "tests": []
@@ -150861,7 +151185,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:101 _kindCard"
+            "value": "static/js/health.js:104 _kindCard"
           },
           "keys": [],
           "modality": "pointer",
@@ -150875,7 +151199,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 112
+              "line": 115
             },
             "status": "source-only",
             "tests": []
@@ -150883,7 +151207,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:101 _kindCard"
+            "value": "static/js/health.js:104 _kindCard"
           },
           "keys": [
             "Enter",
@@ -150920,7 +151244,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:101 _kindCard"
+        "value": "static/js/health.js:104 _kindCard"
       },
       "id": "dynamic.fcad730e007f",
       "kind": "action",
@@ -150931,7 +151255,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:101 _kindCard"
+          "static/js/health.js:104 _kindCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -150972,9 +151296,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 112
+          "line": 115
         },
-        "source_selector": "static/js/health.js:112:2",
+        "source_selector": "static/js/health.js:115:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -151011,7 +151335,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 128
+              "line": 131
             },
             "status": "source-only",
             "tests": []
@@ -151019,7 +151343,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:123 _render"
+            "value": "static/js/health.js:126 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -151033,7 +151357,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 128
+              "line": 131
             },
             "status": "source-only",
             "tests": []
@@ -151041,7 +151365,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:123 _render"
+            "value": "static/js/health.js:126 _render"
           },
           "keys": [
             "Enter",
@@ -151078,7 +151402,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:123 _render"
+        "value": "static/js/health.js:126 _render"
       },
       "id": "dynamic.191a31f5a8fb",
       "kind": "choice",
@@ -151089,7 +151413,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:123 _render"
+          "static/js/health.js:126 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -151130,9 +151454,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 128
+          "line": 131
         },
-        "source_selector": "static/js/health.js:128:3",
+        "source_selector": "static/js/health.js:131:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -151167,7 +151491,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 130
+              "line": 133
             },
             "status": "source-only",
             "tests": []
@@ -151175,7 +151499,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:123 _render"
+            "value": "static/js/health.js:126 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -151189,7 +151513,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 130
+              "line": 133
             },
             "status": "source-only",
             "tests": []
@@ -151197,7 +151521,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:123 _render"
+            "value": "static/js/health.js:126 _render"
           },
           "keys": [
             "Enter",
@@ -151233,7 +151557,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:123 _render"
+        "value": "static/js/health.js:126 _render"
       },
       "id": "dynamic.839ee64946d8",
       "kind": "action",
@@ -151244,7 +151568,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:123 _render"
+          "static/js/health.js:126 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -151285,9 +151609,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 130
+          "line": 133
         },
-        "source_selector": "static/js/health.js:130:5",
+        "source_selector": "static/js/health.js:133:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -151322,10 +151646,16 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 131
+              "line": 134
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 107
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_legacy_library_health.py",
@@ -151337,7 +151667,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:123 _render"
+            "value": "static/js/health.js:126 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -151351,10 +151681,16 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 131
+              "line": 134
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 107
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_legacy_library_health.py",
@@ -151366,7 +151702,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:123 _render"
+            "value": "static/js/health.js:126 _render"
           },
           "keys": [
             "Enter",
@@ -151402,7 +151738,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:123 _render"
+        "value": "static/js/health.js:126 _render"
       },
       "id": "dynamic.20177a5d7927",
       "kind": "action",
@@ -151413,7 +151749,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:123 _render"
+          "static/js/health.js:126 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -151454,9 +151790,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 131
+          "line": 134
         },
-        "source_selector": "static/js/health.js:131:6",
+        "source_selector": "static/js/health.js:134:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -151491,7 +151827,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 142
+              "line": 145
             },
             "status": "source-only",
             "tests": []
@@ -151499,7 +151835,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:123 _render"
+            "value": "static/js/health.js:126 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -151513,7 +151849,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 142
+              "line": 145
             },
             "status": "source-only",
             "tests": []
@@ -151521,7 +151857,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:123 _render"
+            "value": "static/js/health.js:126 _render"
           },
           "keys": [
             "Enter",
@@ -151557,7 +151893,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:123 _render"
+        "value": "static/js/health.js:126 _render"
       },
       "id": "dynamic.9a8753fe844c",
       "kind": "action",
@@ -151568,7 +151904,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:123 _render"
+          "static/js/health.js:126 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -151609,9 +151945,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 142
+          "line": 145
         },
-        "source_selector": "static/js/health.js:142:7",
+        "source_selector": "static/js/health.js:145:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -151635,7 +151971,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "delete",
+        "name": "edit ${esc(label)} entry from ${esc(e.date)}",
         "relationships": {},
         "role": "native button"
       },
@@ -151646,7 +151982,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 150
+              "line": 153
             },
             "status": "source-only",
             "tests": []
@@ -151654,7 +151990,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:148 _row"
+            "value": "static/js/health.js:151 _row"
           },
           "keys": [],
           "modality": "pointer",
@@ -151668,7 +152004,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 150
+              "line": 153
             },
             "status": "source-only",
             "tests": []
@@ -151676,7 +152012,163 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:148 _row"
+            "value": "static/js/health.js:151 _row"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "health.logs-and-habits",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/health.js:151 _row"
+      },
+      "id": "dynamic.bd2676804d47",
+      "kind": "action",
+      "label": {
+        "source": "aria-label",
+        "value": "edit ${esc(label)} entry from ${esc(e.date)}"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/health.js:151 _row"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-act",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/health.js",
+          "line": 153
+        },
+        "source_selector": "static/js/health.js:153:8",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "delete ${esc(label)} entry from ${esc(e.date)}",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/health.js",
+              "kind": "control-source",
+              "line": 153
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/health.js:151 _row"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/health.js",
+              "kind": "control-source",
+              "line": 153
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/health.js:151 _row"
           },
           "keys": [
             "Enter",
@@ -151713,18 +152205,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:148 _row"
+        "value": "static/js/health.js:151 _row"
       },
-      "id": "dynamic.2ca77e2aea95",
+      "id": "dynamic.2361fae85037",
       "kind": "icon-action",
       "label": {
-        "source": "title",
-        "value": "delete"
+        "source": "aria-label",
+        "value": "delete ${esc(label)} entry from ${esc(e.date)}"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:148 _row"
+          "static/js/health.js:151 _row"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -151765,9 +152257,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 150
+          "line": 153
         },
-        "source_selector": "static/js/health.js:150:8",
+        "source_selector": "static/js/health.js:153:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -151791,7 +152283,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "value",
+        "name": "${esc(_draft.value)}",
         "relationships": {},
         "role": "native input"
       },
@@ -151802,10 +152294,46 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 158
+              "line": 164
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 108
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 125
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 141
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 143
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 156
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 189
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_legacy_library_health.py",
@@ -151817,7 +152345,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:153 _addForm"
+            "value": "static/js/health.js:156 _addForm"
           },
           "keys": [
             "native editing keys"
@@ -151852,18 +152380,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:153 _addForm"
+        "value": "static/js/health.js:156 _addForm"
       },
       "id": "dynamic.2d9a4b276c85",
       "kind": "field",
       "label": {
-        "source": "placeholder",
-        "value": "value"
+        "source": "value",
+        "value": "${esc(_draft.value)}"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:153 _addForm"
+          "static/js/health.js:156 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -151904,9 +152432,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 158
+          "line": 164
         },
-        "source_selector": "static/js/health.js:158:9",
+        "source_selector": "static/js/health.js:164:10",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -151923,7 +152451,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "kg",
+        "name": "${esc(_draft.unit)}",
         "relationships": {},
         "role": "native input"
       },
@@ -151934,7 +152462,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 159
+              "line": 165
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -151949,7 +152477,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:153 _addForm"
+            "value": "static/js/health.js:156 _addForm"
           },
           "keys": [
             "native editing keys"
@@ -151984,18 +152512,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:153 _addForm"
+        "value": "static/js/health.js:156 _addForm"
       },
       "id": "dynamic.ea00a980838e",
       "kind": "field",
       "label": {
         "source": "value",
-        "value": "kg"
+        "value": "${esc(_draft.unit)}"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:153 _addForm"
+          "static/js/health.js:156 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -152036,9 +152564,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 159
+          "line": 165
         },
-        "source_selector": "static/js/health.js:159:10",
+        "source_selector": "static/js/health.js:165:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -152055,7 +152583,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "metric name (for custom)",
+        "name": "${esc(_draft.date)}",
         "relationships": {},
         "role": "native input"
       },
@@ -152066,15 +152594,22 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 162
+              "line": 167
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 127
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:153 _addForm"
+            "value": "static/js/health.js:156 _addForm"
           },
           "keys": [
             "native editing keys"
@@ -152109,18 +152644,143 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:153 _addForm"
+        "value": "static/js/health.js:156 _addForm"
       },
-      "id": "dynamic.0773526f5a64",
+      "id": "dynamic.b20a377ac86d",
       "kind": "field",
       "label": {
-        "source": "placeholder",
-        "value": "metric name (for custom)"
+        "source": "value",
+        "value": "${esc(_draft.date)}"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:153 _addForm"
+          "static/js/health.js:156 _addForm"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "source-template may render zero to many instances",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": "#health-date",
+        "source": {
+          "column": null,
+          "file": "static/js/health.js",
+          "line": 167
+        },
+        "source_selector": "static/js/health.js:167:12",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "native-edit",
+          "keys": [
+            "native editing keys"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "${esc(_draft.label)}",
+        "relationships": {},
+        "role": "native input"
+      },
+      "activation_paths": [
+        {
+          "event": "native-edit",
+          "evidence": {
+            "source": {
+              "file": "static/js/health.js",
+              "kind": "control-source",
+              "line": 168
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/health.js:156 _addForm"
+          },
+          "keys": [
+            "native editing keys"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "health.logs-and-habits",
+      "flags": [
+        "dynamic-template"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/health.js:156 _addForm"
+      },
+      "id": "dynamic.0773526f5a64",
+      "kind": "field",
+      "label": {
+        "source": "value",
+        "value": "${esc(_draft.label)}"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/health.js:156 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -152161,9 +152821,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 162
+          "line": 168
         },
-        "source_selector": "static/js/health.js:162:11",
+        "source_selector": "static/js/health.js:168:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -152180,7 +152840,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "note (optional)",
+        "name": "${esc(_draft.note)}",
         "relationships": {},
         "role": "native input"
       },
@@ -152191,15 +152851,28 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 163
+              "line": 169
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 126
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 129
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:153 _addForm"
+            "value": "static/js/health.js:156 _addForm"
           },
           "keys": [
             "native editing keys"
@@ -152234,18 +152907,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:153 _addForm"
+        "value": "static/js/health.js:156 _addForm"
       },
       "id": "dynamic.1204b31ce36d",
       "kind": "field",
       "label": {
-        "source": "placeholder",
-        "value": "note (optional)"
+        "source": "value",
+        "value": "${esc(_draft.note)}"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:153 _addForm"
+          "static/js/health.js:156 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -152286,9 +152959,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 163
+          "line": 169
         },
-        "source_selector": "static/js/health.js:163:12",
+        "source_selector": "static/js/health.js:169:14",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -152316,10 +152989,16 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 164
+              "line": 171
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 142
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_legacy_library_health.py",
@@ -152331,7 +153010,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:153 _addForm"
+            "value": "static/js/health.js:156 _addForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -152345,10 +153024,16 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 164
+              "line": 171
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_health_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 142
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_legacy_library_health.py",
@@ -152360,7 +153045,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:153 _addForm"
+            "value": "static/js/health.js:156 _addForm"
           },
           "keys": [
             "Enter",
@@ -152396,10 +153081,10 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:153 _addForm"
+        "value": "static/js/health.js:156 _addForm"
       },
       "id": "dynamic.34f226213adb",
-      "kind": "action",
+      "kind": "form-submit",
       "label": {
         "source": "id",
         "value": "health-create"
@@ -152407,7 +153092,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:153 _addForm"
+          "static/js/health.js:156 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -152448,9 +153133,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 164
+          "line": 171
         },
-        "source_selector": "static/js/health.js:164:13",
+        "source_selector": "static/js/health.js:171:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -152485,7 +153170,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 165
+              "line": 172
             },
             "status": "source-only",
             "tests": []
@@ -152493,7 +153178,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:153 _addForm"
+            "value": "static/js/health.js:156 _addForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -152507,7 +153192,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 165
+              "line": 172
             },
             "status": "source-only",
             "tests": []
@@ -152515,7 +153200,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:153 _addForm"
+            "value": "static/js/health.js:156 _addForm"
           },
           "keys": [
             "Enter",
@@ -152551,7 +153236,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:153 _addForm"
+        "value": "static/js/health.js:156 _addForm"
       },
       "id": "dynamic.3de62e992ce9",
       "kind": "action",
@@ -152562,7 +153247,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/health.js:153 _addForm"
+          "static/js/health.js:156 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -152603,9 +153288,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 165
+          "line": 172
         },
-        "source_selector": "static/js/health.js:165:14",
+        "source_selector": "static/js/health.js:172:16",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -152640,7 +153325,7 @@
             "source": {
               "file": "static/js/health.js",
               "kind": "control-source",
-              "line": 177
+              "line": 203
             },
             "status": "source-only",
             "tests": []
@@ -152648,7 +153333,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/health.js:170 _wire"
+            "value": "static/js/health.js:196 _wire"
           },
           "keys": [
             "native editing keys"
@@ -152685,7 +153370,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/health.js:170 _wire"
+        "value": "static/js/health.js:196 _wire"
       },
       "id": "dynamic.3b50ae7dae98",
       "kind": "field",
@@ -152700,7 +153385,7 @@
           "source-local:/api/health/target"
         ],
         "client_functions": [
-          "static/js/health.js:170 _wire"
+          "static/js/health.js:196 _wire"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -152741,9 +153426,9 @@
         "source": {
           "column": null,
           "file": "static/js/health.js",
-          "line": 177
+          "line": 203
         },
-        "source_selector": "static/js/health.js:177:15",
+        "source_selector": "static/js/health.js:203:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199352,7 +200037,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 349
+              "line": 351
             },
             "status": "source-only",
             "tests": []
@@ -199374,7 +200059,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 349
+              "line": 351
             },
             "status": "source-only",
             "tests": []
@@ -199471,9 +200156,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 349
+          "line": 351
         },
-        "source_selector": "static/js/sessions.js:349:3",
+        "source_selector": "static/js/sessions.js:351:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199508,7 +200193,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 358
+              "line": 360
             },
             "status": "source-only",
             "tests": []
@@ -199530,7 +200215,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 358
+              "line": 360
             },
             "status": "source-only",
             "tests": []
@@ -199627,9 +200312,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 358
+          "line": 360
         },
-        "source_selector": "static/js/sessions.js:358:4",
+        "source_selector": "static/js/sessions.js:360:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199664,7 +200349,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 379
+              "line": 381
             },
             "status": "source-only",
             "tests": []
@@ -199686,7 +200371,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 379
+              "line": 381
             },
             "status": "source-only",
             "tests": []
@@ -199743,7 +200428,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/sessions.js:374 appendUserMsg"
+          "static/js/sessions.js:376 appendUserMsg"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -199784,9 +200469,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 379
+          "line": 381
         },
-        "source_selector": "static/js/sessions.js:379:5",
+        "source_selector": "static/js/sessions.js:381:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199821,7 +200506,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 380
+              "line": 382
             },
             "status": "source-only",
             "tests": []
@@ -199829,7 +200514,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:374 appendUserMsg"
+            "value": "static/js/sessions.js:376 appendUserMsg"
           },
           "keys": [],
           "modality": "pointer",
@@ -199843,7 +200528,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 380
+              "line": 382
             },
             "status": "source-only",
             "tests": []
@@ -199851,7 +200536,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:374 appendUserMsg"
+            "value": "static/js/sessions.js:376 appendUserMsg"
           },
           "keys": [
             "Enter",
@@ -199888,7 +200573,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:374 appendUserMsg"
+        "value": "static/js/sessions.js:376 appendUserMsg"
       },
       "id": "dynamic.327f0560b6c9",
       "kind": "action",
@@ -199899,7 +200584,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/sessions.js:374 appendUserMsg"
+          "static/js/sessions.js:376 appendUserMsg"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -199940,9 +200625,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 380
+          "line": 382
         },
-        "source_selector": "static/js/sessions.js:380:7",
+        "source_selector": "static/js/sessions.js:382:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199977,7 +200662,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 400
+              "line": 411
             },
             "status": "source-only",
             "tests": []
@@ -199985,7 +200670,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:388 appendAiMsg"
+            "value": "static/js/sessions.js:399 appendAiMsg"
           },
           "keys": [],
           "modality": "pointer",
@@ -199999,7 +200684,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 400
+              "line": 411
             },
             "status": "source-only",
             "tests": []
@@ -200007,7 +200692,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:388 appendAiMsg"
+            "value": "static/js/sessions.js:399 appendAiMsg"
           },
           "keys": [
             "Enter",
@@ -200044,7 +200729,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:388 appendAiMsg"
+        "value": "static/js/sessions.js:399 appendAiMsg"
       },
       "id": "dynamic.1236ac185f7c",
       "kind": "action",
@@ -200055,7 +200740,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/sessions.js:388 appendAiMsg"
+          "static/js/sessions.js:399 appendAiMsg"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200096,9 +200781,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 400
+          "line": 411
         },
-        "source_selector": "static/js/sessions.js:400:8",
+        "source_selector": "static/js/sessions.js:411:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200133,7 +200818,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 416
+              "line": 427
             },
             "status": "source-only",
             "tests": []
@@ -200155,7 +200840,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 416
+              "line": 427
             },
             "status": "source-only",
             "tests": []
@@ -200212,7 +200897,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/sessions.js:388 appendAiMsg"
+          "static/js/sessions.js:399 appendAiMsg"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200253,9 +200938,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 416
+          "line": 427
         },
-        "source_selector": "static/js/sessions.js:416:9",
+        "source_selector": "static/js/sessions.js:427:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200290,7 +200975,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 417
+              "line": 428
             },
             "status": "source-only",
             "tests": []
@@ -200298,7 +200983,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:388 appendAiMsg"
+            "value": "static/js/sessions.js:399 appendAiMsg"
           },
           "keys": [],
           "modality": "pointer",
@@ -200312,7 +200997,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 417
+              "line": 428
             },
             "status": "source-only",
             "tests": []
@@ -200320,7 +201005,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:388 appendAiMsg"
+            "value": "static/js/sessions.js:399 appendAiMsg"
           },
           "keys": [
             "Enter",
@@ -200357,7 +201042,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:388 appendAiMsg"
+        "value": "static/js/sessions.js:399 appendAiMsg"
       },
       "id": "dynamic.b4acd744e18d",
       "kind": "action",
@@ -200368,7 +201053,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/sessions.js:388 appendAiMsg"
+          "static/js/sessions.js:399 appendAiMsg"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200409,9 +201094,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 417
+          "line": 428
         },
-        "source_selector": "static/js/sessions.js:417:11",
+        "source_selector": "static/js/sessions.js:428:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200446,7 +201131,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 418
+              "line": 429
             },
             "status": "source-only",
             "tests": []
@@ -200454,7 +201139,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:388 appendAiMsg"
+            "value": "static/js/sessions.js:399 appendAiMsg"
           },
           "keys": [],
           "modality": "pointer",
@@ -200468,7 +201153,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 418
+              "line": 429
             },
             "status": "source-only",
             "tests": []
@@ -200476,7 +201161,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:388 appendAiMsg"
+            "value": "static/js/sessions.js:399 appendAiMsg"
           },
           "keys": [
             "Enter",
@@ -200513,7 +201198,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:388 appendAiMsg"
+        "value": "static/js/sessions.js:399 appendAiMsg"
       },
       "id": "dynamic.7459e70f0930",
       "kind": "action",
@@ -200524,7 +201209,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/sessions.js:388 appendAiMsg"
+          "static/js/sessions.js:399 appendAiMsg"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200565,9 +201250,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 418
+          "line": 429
         },
-        "source_selector": "static/js/sessions.js:418:12",
+        "source_selector": "static/js/sessions.js:429:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200602,7 +201287,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 419
+              "line": 430
             },
             "status": "source-only",
             "tests": []
@@ -200610,7 +201295,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:388 appendAiMsg"
+            "value": "static/js/sessions.js:399 appendAiMsg"
           },
           "keys": [],
           "modality": "pointer",
@@ -200624,7 +201309,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 419
+              "line": 430
             },
             "status": "source-only",
             "tests": []
@@ -200632,7 +201317,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:388 appendAiMsg"
+            "value": "static/js/sessions.js:399 appendAiMsg"
           },
           "keys": [
             "Enter",
@@ -200669,7 +201354,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:388 appendAiMsg"
+        "value": "static/js/sessions.js:399 appendAiMsg"
       },
       "id": "dynamic.2f70837f7daa",
       "kind": "action",
@@ -200680,7 +201365,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/sessions.js:388 appendAiMsg"
+          "static/js/sessions.js:399 appendAiMsg"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200721,9 +201406,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 419
+          "line": 430
         },
-        "source_selector": "static/js/sessions.js:419:13",
+        "source_selector": "static/js/sessions.js:430:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200758,7 +201443,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 520
+              "line": 531
             },
             "status": "source-only",
             "tests": []
@@ -200766,7 +201451,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:511 _wireEditButtons"
+            "value": "static/js/sessions.js:522 _wireEditButtons"
           },
           "keys": [
             "native editing keys"
@@ -200803,7 +201488,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:511 _wireEditButtons"
+        "value": "static/js/sessions.js:522 _wireEditButtons"
       },
       "id": "dynamic.a773fbf238ee",
       "kind": "field",
@@ -200816,7 +201501,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/sessions.js:511 _wireEditButtons"
+          "static/js/sessions.js:522 _wireEditButtons"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200857,9 +201542,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 520
+          "line": 531
         },
-        "source_selector": "static/js/sessions.js:520:14",
+        "source_selector": "static/js/sessions.js:531:14",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200907,7 +201592,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:707 downloadSession"
+        "value": "static/js/sessions.js:718 downloadSession"
       },
       "id": "dynamic.f83198caba36",
       "kind": "link",
@@ -200918,7 +201603,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/sessions.js:707 downloadSession"
+          "static/js/sessions.js:718 downloadSession"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200959,9 +201644,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 709
+          "line": 720
         },
-        "source_selector": "static/js/sessions.js:709:15",
+        "source_selector": "static/js/sessions.js:720:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -200980,7 +201665,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 767
+              "line": 778
             },
             "status": "source-only",
             "tests": []
@@ -200988,7 +201673,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:763 startRename"
+            "value": "static/js/sessions.js:774 startRename"
           },
           "keys": [
             "native editing keys"
@@ -201025,7 +201710,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:763 startRename"
+        "value": "static/js/sessions.js:774 startRename"
       },
       "id": "dynamic.c51d8495dbcd",
       "kind": "field",
@@ -201038,7 +201723,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/sessions.js:763 startRename"
+          "static/js/sessions.js:774 startRename"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -201079,9 +201764,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 767
+          "line": 778
         },
-        "source_selector": "static/js/sessions.js:767:16",
+        "source_selector": "static/js/sessions.js:778:16",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -201109,7 +201794,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 802
+              "line": 813
             },
             "status": "source-only",
             "tests": []
@@ -201117,7 +201802,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -201131,7 +201816,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 802
+              "line": 813
             },
             "status": "source-only",
             "tests": []
@@ -201139,7 +201824,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [
             "Enter",
@@ -201175,7 +201860,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:795 openCtxMenu"
+        "value": "static/js/sessions.js:806 openCtxMenu"
       },
       "id": "dynamic.2455c84b57c4",
       "kind": "menu-item",
@@ -201189,7 +201874,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/sessions.js:795 openCtxMenu"
+          "static/js/sessions.js:806 openCtxMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -201230,9 +201915,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 802
+          "line": 813
         },
-        "source_selector": "static/js/sessions.js:802:17",
+        "source_selector": "static/js/sessions.js:813:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -201267,7 +201952,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 805
+              "line": 816
             },
             "status": "source-only",
             "tests": []
@@ -201275,7 +201960,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -201289,7 +201974,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 805
+              "line": 816
             },
             "status": "source-only",
             "tests": []
@@ -201297,7 +201982,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [
             "Enter",
@@ -201333,7 +202018,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:795 openCtxMenu"
+        "value": "static/js/sessions.js:806 openCtxMenu"
       },
       "id": "dynamic.8a9abf6269cd",
       "kind": "menu-item",
@@ -201347,7 +202032,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/sessions.js:795 openCtxMenu"
+          "static/js/sessions.js:806 openCtxMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -201388,9 +202073,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 805
+          "line": 816
         },
-        "source_selector": "static/js/sessions.js:805:19",
+        "source_selector": "static/js/sessions.js:816:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -201425,7 +202110,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 806
+              "line": 817
             },
             "status": "source-only",
             "tests": []
@@ -201433,7 +202118,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -201447,7 +202132,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 806
+              "line": 817
             },
             "status": "source-only",
             "tests": []
@@ -201455,7 +202140,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [
             "Enter",
@@ -201491,7 +202176,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:795 openCtxMenu"
+        "value": "static/js/sessions.js:806 openCtxMenu"
       },
       "id": "dynamic.3ed30b8e535a",
       "kind": "menu-item",
@@ -201505,7 +202190,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/sessions.js:795 openCtxMenu"
+          "static/js/sessions.js:806 openCtxMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -201546,9 +202231,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 806
+          "line": 817
         },
-        "source_selector": "static/js/sessions.js:806:21",
+        "source_selector": "static/js/sessions.js:817:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -201583,7 +202268,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 807
+              "line": 818
             },
             "status": "source-only",
             "tests": []
@@ -201591,7 +202276,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -201605,7 +202290,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 807
+              "line": 818
             },
             "status": "source-only",
             "tests": []
@@ -201613,7 +202298,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [
             "Enter",
@@ -201649,7 +202334,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:795 openCtxMenu"
+        "value": "static/js/sessions.js:806 openCtxMenu"
       },
       "id": "dynamic.38224ac9fe49",
       "kind": "menu-item",
@@ -201663,7 +202348,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/sessions.js:795 openCtxMenu"
+          "static/js/sessions.js:806 openCtxMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -201704,9 +202389,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 807
+          "line": 818
         },
-        "source_selector": "static/js/sessions.js:807:23",
+        "source_selector": "static/js/sessions.js:818:23",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -201741,7 +202426,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 809
+              "line": 820
             },
             "status": "source-only",
             "tests": []
@@ -201749,7 +202434,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -201763,7 +202448,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 809
+              "line": 820
             },
             "status": "source-only",
             "tests": []
@@ -201771,7 +202456,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [
             "Enter",
@@ -201807,7 +202492,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:795 openCtxMenu"
+        "value": "static/js/sessions.js:806 openCtxMenu"
       },
       "id": "dynamic.ea6dfdfd1e72",
       "kind": "menu-item",
@@ -201821,7 +202506,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/sessions.js:795 openCtxMenu"
+          "static/js/sessions.js:806 openCtxMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -201862,9 +202547,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 809
+          "line": 820
         },
-        "source_selector": "static/js/sessions.js:809:25",
+        "source_selector": "static/js/sessions.js:820:25",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -201899,7 +202584,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 810
+              "line": 821
             },
             "status": "source-only",
             "tests": []
@@ -201907,7 +202592,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -201921,7 +202606,7 @@
             "source": {
               "file": "static/js/sessions.js",
               "kind": "control-source",
-              "line": 810
+              "line": 821
             },
             "status": "source-only",
             "tests": []
@@ -201929,7 +202614,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/sessions.js:795 openCtxMenu"
+            "value": "static/js/sessions.js:806 openCtxMenu"
           },
           "keys": [
             "Enter",
@@ -201965,7 +202650,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/sessions.js:795 openCtxMenu"
+        "value": "static/js/sessions.js:806 openCtxMenu"
       },
       "id": "dynamic.2e04799ea296",
       "kind": "menu-item",
@@ -201979,7 +202664,7 @@
           "source-local:/api/sessions/"
         ],
         "client_functions": [
-          "static/js/sessions.js:795 openCtxMenu"
+          "static/js/sessions.js:806 openCtxMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -202020,9 +202705,9 @@
         "source": {
           "column": null,
           "file": "static/js/sessions.js",
-          "line": 810
+          "line": 821
         },
-        "source_selector": "static/js/sessions.js:810:27",
+        "source_selector": "static/js/sessions.js:821:27",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -240385,12 +241070,12 @@
   "summary": {
     "activation_path_evidence": {
       "external-blocked": 3,
-      "source-only": 2128,
-      "test-linked-unclassified": 541
+      "source-only": 2129,
+      "test-linked-unclassified": 543
     },
-    "activation_paths": 2672,
-    "controls": 1579,
-    "dynamic_templates": 894,
+    "activation_paths": 2675,
+    "controls": 1581,
+    "dynamic_templates": 896,
     "event_listener_types": {
       "abort": 1,
       "animationend": 1,
@@ -240412,8 +241097,8 @@
       "focus": 2,
       "focusin": 1,
       "focusout": 1,
-      "input": 51,
-      "keydown": 94,
+      "input": 52,
+      "keydown": 93,
       "load": 3,
       "message": 2,
       "mousedown": 17,
@@ -240432,14 +241117,14 @@
       "resize": 8,
       "scroll": 4,
       "selectionchange": 1,
-      "submit": 10,
+      "submit": 11,
       "visibilitychange": 5,
       "wheel": 1
     },
     "flags": {
-      "anonymous-source-anchor": 798,
+      "anonymous-source-anchor": 799,
       "cross-feature-owner": 66,
-      "dynamic-template": 894,
+      "dynamic-template": 896,
       "inline-handler": 24,
       "unknown-label": 75
     },

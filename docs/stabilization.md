@@ -40,9 +40,11 @@ the keyword-search fallback, not live model integrations.
 
 The maintained full suite currently contains Home capture/navigation, cleanup
 regressions, Plan capture, Docs persistence and recovery, local Files operations,
-Andromeda cancellation/retry with simulated transport, PWA offline/reconnect, and
+Andromeda cancellation/retry with simulated transport, Aide interruption/recovery
+with a delayed loopback provider, Health correction/recovery,
+PWA offline/reconnect, and
 resting surfaces for all twelve apps plus Settings in both themes at desktop and
-phone widths. `daily`, `assistant`, `surfaces`, and `pwa` select those subsets.
+phone widths. `daily`, `assistant`, `specialist`, `surfaces`, and `pwa` select those subsets.
 Traces, screenshots, requests, console output and server logs accompany the
 results. Historical browser scripts outside this maintained list remain unaudited;
 the word `full` does not mean every product workflow has been certified.
@@ -88,8 +90,26 @@ The added proofs cover primary-app reload/history and three explicitly simulated
 Andromeda cancellation/retry cases. They do not establish live-provider cancellation.
 
 The [usability observations](stabilization-usability.md) record native Safari draft
-recovery and the remaining Health editing gap. The complete release gates remain
+recovery and Health correction checks. The complete release gates remain
 unsatisfied.
+
+The interruption and Health repair batch passed thirteen maintained gates twice
+from fresh fixtures, with source fingerprint
+`e714389a810870894142072564bea5b3c899b71f4e567503e1010c37f37bc27d` and acceptance
+fingerprint `465514e8fea08ed2d6bdaa271e6f8eeea48328086d01f51490de633863f85624`.
+All 609 JavaScript tests and Ruff checks passed. The isolated Python suite ran
+5,624 tests without failures, with the same six explicit skips documented above.
+The current ledger tracks 1,581
+controls and 130 workflows: 22 passed, 106 untested and two blocked. Added proofs
+cover interrupted Aide history, Stop ownership, incognito storage isolation, and
+Health correction/validation/recovery. Model responses are explicitly simulated
+on loopback. Screenshots of the new interruption and Health recovery states were
+inspected manually; native Mac Safari also passed exact Health correction/reload.
+
+Source review raised one privacy-flag finding that was rejected after tracing the
+existing request handler and verifying the real incognito browser paths. The route
+already supplies the server-owned privacy flag to the runtime. The confirmed
+run-file persistence defect has separate regression coverage.
 
 ## Stable layout
 
@@ -108,6 +128,7 @@ The layout contract is in [decision 0012](../design-system/decisions/0012-minima
 | Hide or restore that strip | `views` in the app header |
 | Capture or filter Plan tasks | Above the agenda |
 | Browse documents or file locations | Inside Docs or Files; hiding views leaves these controls available |
+| Correct a Health measurement | Health → logs → edit beside the record; exact value, date, unit and note stay together |
 
 Daily-work layouts are the first implementation batch. Specialist summaries,
 assistant workflows, long-list fixtures, all failure states, live integrations and
@@ -124,3 +145,5 @@ not run remain untested or blocked, with a reason.
 During the trial, keep names, navigation and action placement stable. Log the build,
 day, workflows used and any issue. A blocking regression restarts the trial after
 its fix and retest. Do not infer seven days of usage from elapsed time alone.
+
+Incognito run metadata now shares the conversation’s RAM-only lifetime, including cancellation and expiry. Earlier versions could write private prompt/reply content into agent-run JSON files. This repair prevents new writes; historical owner files were not inspected or deleted.

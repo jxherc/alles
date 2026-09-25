@@ -10,7 +10,10 @@ const $ = id => document.getElementById(id);
 let _data = { kinds: [], days: 30 };
 let _entries = [];
 let _days = 30;
-let _adding = false;
+let _draft = null;
+let _saving = false;
+let _formError = '';
+let _returnFocus = '#health-add-toggle';
 let _fetcher = fetch;
 let _hasOverview = false;
 let _hasEntries = false;
@@ -132,9 +135,9 @@ function _render() {
       </div>
     </div>
     ${_loadNotice()}
-    ${_adding ? _addForm() : ''}
+    ${_draft ? _addForm() : ''}
     ${_data.kinds.length ? `<div class="health-grid">${_data.kinds.map(_kindCard).join('')}</div>`
-      : (_adding || !_hasOverview || _loadState.state !== 'resting' ? '' : `
+      : (_draft || !_hasOverview || _loadState.state !== 'resting' ? '' : `
         <div class="empty-state">
           <div class="empty-state-icon">${_si('heart')}</div>
           <div class="empty-state-title">no entries yet</div>
@@ -147,32 +150,55 @@ function _render() {
 
 function _row(e) {
   const label = e.label || KIND_LABEL[e.kind] || e.kind;
-  return `<div class="health-row" data-id="${e.id}"><span class="health-row-date">${esc(e.date)}</span><span class="health-row-kind">${esc(label)}</span><span class="health-row-val">${_fmtNum(e.value)} ${esc(e.unit)}</span>${e.note ? `<span class="health-row-note">${esc(e.note)}</span>` : '<span></span>'}<button class="icon-btn danger" data-act="del" title="delete">${_si('trash')}</button></div>`;
+  return `<div class="health-row" data-id="${e.id}"><span class="health-row-date">${esc(e.date)}</span><span class="health-row-kind">${esc(label)}</span><span class="health-row-val">${esc(e.value)} ${esc(e.unit)}</span><span class="health-row-note">${esc(e.note)}</span><div class="health-row-actions"><button class="btn" data-act="edit" aria-label="edit ${esc(label)} entry from ${esc(e.date)}">edit</button><button class="icon-btn danger" data-act="del" title="delete" aria-label="delete ${esc(label)} entry from ${esc(e.date)}">${_si('trash')}</button></div></div>`;
 }
 
 function _addForm() {
+  const editing = _draft.id != null;
   return `
-    <div class="health-add">
-      <div class="health-add-row">
-        <div class="settings-input custom-select" id="health-kind" data-value="weight" data-options="weight|weight;sleep|sleep;workout|workout;med|meds;custom|custom"></div>
-        <input type="text" class="settings-input" id="health-value" inputmode="decimal" placeholder="value">
-        <input type="text" class="settings-input health-unit" id="health-unit" value="kg" placeholder="unit">
-      </div>
-      <div class="health-add-row">
-        <input type="text" class="settings-input" id="health-label" placeholder="metric name (for custom)">
-        <input type="text" class="settings-input" id="health-note" placeholder="note (optional)">
-        <button class="btn primary" id="health-create">add</button>
-        <button class="btn" id="health-cancel">cancel</button>
-      </div>
-    </div>`;
+    <form class="health-add" id="health-entry-form" aria-label="${editing ? 'edit' : 'new'} health entry" aria-busy="${_saving}">
+      <div class="health-form-title">${editing ? `edit ${esc(_draft.label || KIND_LABEL[_draft.kind] || _draft.kind)} entry` : 'new entry'}</div>
+      <fieldset ${_saving ? 'disabled' : ''}>
+        ${editing ? '' : `<div class="health-field"><span id="health-kind-label">metric</span><div class="settings-input custom-select" id="health-kind" aria-labelledby="health-kind-label" aria-disabled="${_saving}" data-value="${esc(_draft.kind)}" data-options="weight|weight;sleep|sleep;workout|workout;med|meds;custom|custom"></div></div>`}
+        <div class="health-add-row">
+          <label class="health-field" for="health-value">value<input type="text" class="settings-input" id="health-value" value="${esc(_draft.value)}" inputmode="decimal" aria-describedby="health-entry-error"></label>
+          <label class="health-field" for="health-unit">unit<input type="text" class="settings-input" id="health-unit" value="${esc(_draft.unit)}"></label>
+        </div>
+        <label class="health-field" for="health-date">date<input type="text" class="settings-input" id="health-date" value="${esc(_draft.date)}" placeholder="${editing ? 'YYYY-MM-DD' : 'YYYY-MM-DD (today if empty)'}"></label>
+        ${!editing && _draft.kind === 'custom' ? `<label class="health-field" for="health-label">metric name<input type="text" class="settings-input" id="health-label" value="${esc(_draft.label)}"></label>` : ''}
+        <label class="health-field" for="health-note">note (optional)<input type="text" class="settings-input" id="health-note" value="${esc(_draft.note)}"></label>
+        <div class="health-form-actions">
+          <button type="submit" class="btn primary" id="health-create">${_saving ? 'saving…' : editing ? 'save' : 'add'}</button>
+          <button type="button" class="btn" id="health-cancel">cancel</button>
+        </div>
+      </fieldset>
+      <p id="health-entry-error" role="alert" ${_formError ? '' : 'hidden'}>${esc(_formError)}</p>
+    </form>`;
+}
+
+async function _openEntry(entry = null) {
+  if (_saving) return;
+  if (_draft && !await dlgConfirm('discard this unsaved entry?')) return;
+  _returnFocus = entry ? `.health-row[data-id="${entry.id}"] [data-act="edit"]` : '#health-add-toggle';
+  _draft = entry ? { ...entry, value: String(entry.value) } : { kind: 'weight', value: '', unit: 'kg', date: '', label: '', note: '' };
+  _formError = '';
+  _render();
+  $('health-value')?.focus();
+}
+
+function _closeEntry() {
+  _draft = null;
+  _formError = '';
+  _render();
+  document.querySelector(_returnFocus)?.focus();
 }
 
 function _wire(body) {
   wireChoiceGroup(body.querySelector('.health-ranges'));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadHealth());
   body.querySelectorAll('.health-chip').forEach(c => c.addEventListener('click', () => { _days = +c.dataset.days; loadHealth(); }));
-  $('health-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _render(); });
-  $('health-empty-add')?.addEventListener('click', () => { _adding = true; _render(); });
+  $('health-add-toggle')?.addEventListener('click', () => _openEntry());
+  $('health-empty-add')?.addEventListener('click', () => _openEntry());
   $('health-import')?.addEventListener('click', () => {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,text/csv';
     inp.onchange = async () => {
@@ -184,15 +210,20 @@ function _wire(body) {
     inp.click();
   });
 
-  if (_adding) {
+  if (_draft) {
     const kindEl = $('health-kind');
     initCustomDropdown(kindEl);
-    // keep the unit hint synced to the chosen kind
-    const syncUnit = () => { const u = $('health-unit'); if (u) u.value = KIND_UNIT[kindEl.dataset.value] ?? ''; };
-    kindEl.addEventListener('change', syncUnit);
-    $('health-create')?.addEventListener('click', _create);
-    $('health-value')?.addEventListener('keydown', e => { if (e.key === 'Enter') _create(); });
-    $('health-cancel')?.addEventListener('click', () => { _adding = false; _render(); });
+    kindEl?.addEventListener('change', () => {
+      _draft.kind = kindEl.dataset.value;
+      _draft.unit = KIND_UNIT[_draft.kind] ?? '';
+      _render();
+      $('health-kind')?.focus();
+    });
+    for (const key of ['value', 'unit', 'date', 'label', 'note']) {
+      $(`health-${key}`)?.addEventListener('input', event => { _draft[key] = event.target.value; });
+    }
+    $('health-entry-form')?.addEventListener('submit', event => { event.preventDefault(); _create(); });
+    $('health-cancel')?.addEventListener('click', _closeEntry);
   }
 
   body.querySelectorAll('.health-card[data-kind] [data-act="set-target"]').forEach(btn => btn.addEventListener('click', async () => {
@@ -205,6 +236,10 @@ function _wire(body) {
   }));
 
   body.querySelectorAll('.health-row[data-id]').forEach(row => {
+    row.querySelector('[data-act="edit"]')?.addEventListener('click', () => {
+      const entry = _entries.find(item => String(item.id) === row.dataset.id);
+      if (entry) _openEntry(entry);
+    });
     row.querySelector('[data-act="del"]')?.addEventListener('click', async () => {
       if (!await dlgConfirm('delete this entry?')) return;
       await fetch(`/api/health/${row.dataset.id}`, { method: 'DELETE' }); loadHealth();
@@ -213,14 +248,41 @@ function _wire(body) {
 }
 
 async function _create() {
-  const kind = $('health-kind')?.dataset.value || 'weight';
-  const raw = $('health-value')?.value.trim();
-  const value = parseFloat(raw);
-  if (raw === '' || Number.isNaN(value)) { toast('enter a number', 'error'); return; }
-  const r = await fetch('/api/health', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ kind, value, unit: $('health-unit')?.value.trim() || '', note: $('health-note')?.value.trim() || '', label: kind === 'custom' ? ($('health-label')?.value.trim() || '') : '' }),
-  });
-  if (!r.ok) { toast('failed to add', 'error'); return; }
-  _adding = false; toast('logged', 'success'); loadHealth();
+  if (!_draft || _saving) return;
+  const raw = _draft.value.trim();
+  const value = Number(raw);
+  const decimal = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+  const date = _draft.date.trim();
+  const validDate = (!date && _draft.id == null) || (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date);
+  _formError = !decimal.test(raw) || !Number.isFinite(value) ? 'enter a complete, finite number.' : !validDate ? 'enter a valid date as YYYY-MM-DD.' : '';
+  if (_formError) {
+    _render();
+    $(validDate ? 'health-value' : 'health-date')?.focus();
+    return;
+  }
+  const editing = _draft.id != null;
+  const payload = { value, unit: _draft.unit.trim(), note: _draft.note.trim() };
+  if (date) payload.date = date;
+  if (!editing) Object.assign(payload, { kind: _draft.kind, label: _draft.kind === 'custom' ? _draft.label.trim() : '' });
+  _saving = true;
+  _render();
+  try {
+    const r = await fetch(editing ? `/api/health/${_draft.id}` : '/api/health', {
+      method: editing ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) throw new Error(`save failed (${r.status}). your input is kept; try again.`);
+    _draft = null;
+    toast(editing ? 'entry updated' : 'logged', 'success');
+    await loadHealth();
+    document.querySelector(_returnFocus)?.focus();
+  } catch (error) {
+    _formError = error.message || 'could not save. your input is kept; try again.';
+  } finally {
+    _saving = false;
+    if (_draft) {
+      _render();
+      $('health-create')?.focus();
+    }
+  }
 }

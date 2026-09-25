@@ -70,7 +70,7 @@ def _purge() -> None:
     now = datetime.now(UTC).replace(tzinfo=None)
     for key, value in list(_SESSIONS.items()):
         if value.expires_at <= now:
-            _SESSIONS.pop(key, None)
+            delete_session(key)
     for key, value in list(_UPLOADS.items()):
         if value.expires_at <= now:
             _UPLOADS.pop(key, None)
@@ -84,17 +84,20 @@ def create_session(**values) -> IncognitoSession:
         return session
 
 
-def get_session(session_id: str) -> IncognitoSession | None:
+def get_session(session_id: str, *, touch: bool = True) -> IncognitoSession | None:
     with _LOCK:
         _purge()
         session = _SESSIONS.get(session_id)
-        if session:
+        if session and touch:
             session.expires_at = datetime.now(UTC).replace(tzinfo=None) + _TTL
         return session
 
 
 def delete_session(session_id: str) -> bool:
     with _LOCK:
+        from services.agent_state import forget_private_session
+
+        forget_private_session(session_id)
         return _SESSIONS.pop(session_id, None) is not None
 
 
@@ -145,5 +148,6 @@ def delete_upload(upload_id: str) -> bool:
 
 def clear_for_tests() -> None:
     with _LOCK:
-        _SESSIONS.clear()
+        for session_id in list(_SESSIONS):
+            delete_session(session_id)
         _UPLOADS.clear()
