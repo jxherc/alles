@@ -1126,6 +1126,149 @@
       ],
       "evidence": [],
       "simulation": "mocked search, preview, overview and verification transport; real app UI; does not certify a live provider or server-side cancellation"
+    },
+    {
+      "id": "health.entry-validation",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "validate a measurement before saving",
+      "expected": "Malformed numbers and impossible dates show a visible error and do not create a record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "health.entry-draft-retention",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "change the history range with an unsaved entry",
+      "expected": "Exact value, date and mixed-language note survive range reloads.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "health.create-edit-persistence",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "create and correct an exact measurement",
+      "expected": "Repeated submission while pending creates one record; correction keeps its identity, exact value and date after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "health.failed-edit-retry",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "recover a failed correction",
+      "expected": "A deliberate 503 keeps the input visible and the old stored value intact; retry saves the correction after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "health.edit-cancel",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "cancel a correction",
+      "expected": "Cancel returns focus to the entry and leaves its saved value unchanged after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-stop",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "stop a partial response",
+      "expected": "The prompt and partial response survive reload with an interruption marker, and the provider connection/run terminate.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-early-stop",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "stop before the first token",
+      "expected": "The accepted prompt survives reload, visibly marked interrupted; the run is terminal.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-switch-stop",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "switch conversations and stop the originating stream",
+      "expected": "Stop targets the original streaming session; the selected second session remains untouched.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-switch-finish",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "switch away and return to a completing response",
+      "expected": "One complete prompt/reply pair persists and remains available after returning and reloading.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-navigate-disconnect",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "leave Aide during streaming and return",
+      "expected": "The disconnected partial turn is saved exactly once, marked interrupted after reload, and no stale running state remains.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-incognito-stop",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "interrupt a private conversation and exit",
+      "expected": "Private prompt, reply and run state stay in RAM, never in SQLite or agent-run files; exiting removes their queryable state.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
     }
   ],
   "findings": [
@@ -1227,7 +1370,7 @@
     {
       "id": "STAB-006",
       "title": "Health offers no visible way to edit an existing entry",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "severity": "medium",
       "screen": "Health history, populated recent entries",
       "revision": "18a2939 with uncommitted navigation and cancellation repairs",
@@ -1242,7 +1385,7 @@
         "Read-only API verification confirms 74.25 was stored exactly; the interface displays 74.3.",
         "The server has PATCH /api/health/{eid}; the browser row wiring only handles deletion."
       ],
-      "verification": "repair pending in the specialist workflow batch"
+      "verification": "Real Chromium desktop/dark and phone/light workflows correct an existing entry, retain exact values after reload, recover a deliberate failed save, cancel with focus return and prevent duplicate pending submissions. Native Mac Safari verifies exact 73.625 correction and reload."
     },
     {
       "id": "STAB-007",
@@ -1259,10 +1402,10 @@
         "Desktop Chromium real backend/local delayed provider: control-stop and navigation-stop reproductions; provider confirmed disconnection.",
         "Persistence follows the streaming loop in routes/chat.py and can be bypassed by cancellation."
       ],
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "screen": "Aide streaming conversation",
       "revision": "18a2939 with uncommitted navigation and cancellation repairs",
-      "verification": "repair pending; desktop Chromium with real owned backend and local synthetic provider only"
+      "verification": "Focused Python/JavaScript regressions and twelve desktop/phone real-server browser cases pass with a delayed loopback provider. Interrupted turns survive reload with a visible marker, terminal run states and correct session ownership. Acceptance requires subsequent frozen full runs. No live-provider claim."
     },
     {
       "id": "STAB-008",
@@ -1279,10 +1422,10 @@
         "Settled desktop Chromium synthetic-provider reproduction after confirmed provider disconnect.",
         "Cancellation bypasses the ordinary exception terminal-state update in services/agent_runtime.py."
       ],
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "screen": "Aide streaming conversation",
       "revision": "18a2939 with uncommitted navigation and cancellation repairs",
-      "verification": "repair pending; desktop Chromium with real owned backend and local synthetic provider only"
+      "verification": "Focused Python/JavaScript regressions and twelve desktop/phone real-server browser cases pass with a delayed loopback provider. Interrupted turns survive reload with a visible marker, terminal run states and correct session ownership. Acceptance requires subsequent frozen full runs. No live-provider claim."
     },
     {
       "id": "STAB-009",
@@ -1298,10 +1441,84 @@
         "Desktop Chromium pointer/keyboard switch-stop trace with recorded request and provider disconnect.",
         "stopStream reads getActiveId rather than the streaming session identity."
       ],
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "screen": "Aide streaming conversation",
       "revision": "18a2939 with uncommitted navigation and cancellation repairs",
-      "verification": "repair pending; desktop Chromium with real owned backend and local synthetic provider only"
+      "verification": "Focused Python/JavaScript regressions and twelve desktop/phone real-server browser cases pass with a delayed loopback provider. Interrupted turns survive reload with a visible marker, terminal run states and correct session ownership. Acceptance requires subsequent frozen full runs. No live-provider claim."
+    },
+    {
+      "id": "STAB-010",
+      "title": "Health silently accepts a numeric prefix from malformed input",
+      "severity": "medium",
+      "screen": "new Health entry",
+      "status": "fixed-and-verified",
+      "revision": "d9cb8c5 with stabilization repairs",
+      "reproduction": [
+        "Enter 74.25junk as a value and add the entry.",
+        "Reload and inspect its stored value."
+      ],
+      "expected": "Reject the entire malformed value and keep the draft.",
+      "actual": "The UI saved 74.25 without reporting the trailing characters.",
+      "evidence": [
+        "Desktop Chromium isolated real API reproduction saved a 74.25 value from 74.25junk; exact original input captured in trace."
+      ],
+      "verification": "Desktop and phone browser gate rejects malformed values and impossible dates without changing stored records."
+    },
+    {
+      "id": "STAB-011",
+      "title": "Changing Health history range erases an unsaved entry",
+      "severity": "medium",
+      "screen": "Health entry form",
+      "status": "fixed-and-verified",
+      "revision": "d9cb8c5 with stabilization repairs",
+      "reproduction": [
+        "Type a value and mixed-language note.",
+        "Choose a different history range."
+      ],
+      "expected": "Retain the in-progress entry while loading the selected range.",
+      "actual": "Re-rendering emptied the entry fields.",
+      "evidence": [
+        "Desktop Chromium isolated reproduction confirmed the value became empty after choosing 7d."
+      ],
+      "verification": "Desktop, phone and native Mac Safari retain exact draft values through range changes."
+    },
+    {
+      "id": "STAB-012",
+      "title": "Health corrections accept non-finite values and can break saved history",
+      "severity": "high",
+      "screen": "Health update API",
+      "status": "fixed-and-verified",
+      "revision": "d9cb8c5 with stabilization repairs",
+      "reproduction": [
+        "Create a synthetic entry with value 74.25.",
+        "PATCH the value with NaN or Infinity.",
+        "Read the saved Health history."
+      ],
+      "expected": "Reject non-finite values before changing storage.",
+      "actual": "NaN was accepted; Infinity committed then failed JSON serialization.",
+      "evidence": [
+        "The new HealthCorrectionTests regression failed before repair: NaN returned 200, Infinity and -Infinity raised non-JSON-compliant value errors."
+      ],
+      "verification": "All 26 Health API tests pass; the regression verifies each invalid update returns 400 and the exact original value remains readable."
+    },
+    {
+      "id": "STAB-013",
+      "title": "Incognito agent runs write private conversation content to disk",
+      "severity": "high",
+      "screen": "Aide incognito agent run history",
+      "status": "fixed-and-verified",
+      "revision": "d9cb8c5",
+      "reproduction": [
+        "Create an incognito session in an owned temporary data directory.",
+        "Complete a turn through a synthetic provider.",
+        "Inspect only the temporary agent_runs records for the synthetic prompt and reply."
+      ],
+      "expected": "Private conversation and run content remain in short-lived RAM and disappear on exit or expiry.",
+      "actual": "One JSON run file persisted both the private prompt and reply despite no SQLite conversation rows.",
+      "evidence": [
+        "Executing the d9cb8c5 runtime with a synthetic provider produced persisted_run_count=1, prompt_on_disk=true and reply_on_disk=true."
+      ],
+      "verification": "RAM-only private run lifecycle tests cover updates, events, checkpoints, completion, cancellation, exit, expiry and late callbacks. Desktop/phone browser cases inspect SQLite and owned run files and verify exit clears private state. Historical owner run files were not inspected or deleted; the fix prevents new persistence."
     }
   ],
   "additional_surfaces": [

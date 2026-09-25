@@ -1,6 +1,6 @@
 import { mdToHtml, toast } from './util.js';
 import {
-  appendUserMsg, createStreamingAiRow, scrollDown,
+  appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown,
   showMessages, updateSessionName, createSession, getActiveId, markActive,
 } from './sessions.js';
 import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=212';
@@ -97,6 +97,7 @@ window.openArtifactFromMsg = function(btn) {
 let _streaming = false;
 let _backgroundLaunching = false;
 let _chatAbort = null;
+let _chatSessionId = null;
 let _streamToken = 0;
 
 export function canSendMessage() {
@@ -238,6 +239,7 @@ export async function sendMessage(text) {
   const ctrl = new AbortController();
   const streamToken = ++_streamToken;
   _chatAbort = ctrl;
+  _chatSessionId = sessionId;
 
   const { row, body } = createStreamingAiRow();
 
@@ -634,7 +636,10 @@ export async function sendMessage(text) {
       if (isConnError(e.message)) showConnBanner(e.message);
     }
   } finally {
-    if (_chatAbort === ctrl) _chatAbort = null;
+    if (_chatAbort === ctrl) {
+      _chatAbort = null;
+      _chatSessionId = null;
+    }
     if (_streamToken === streamToken) setStreaming(false);
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
     finishThinking();   // freeze timer even if the reply was thinking-only
@@ -642,6 +647,7 @@ export async function sendMessage(text) {
     updateStats(true);  // final token count + tok/s (real if usage was sent)
     cursor?.remove();
     body.classList.add('done');
+    if (ctrl.signal.aborted) appendInterruptionNotice(body);
 
     if (agentEl && (toolEls.size || todoEl)) {
       const hasAttention = Boolean(
@@ -842,9 +848,10 @@ function setStreaming(val) {
 
 
 export function stopStream() {
-  const sid = getActiveId();
+  const sid = _chatSessionId;
   _chatAbort?.abort();
   _chatAbort = null;
+  _chatSessionId = null;
   if (sid) fetch(`/api/chat/stop/${sid}`, { method: 'POST' }).catch(() => {});
   setStreaming(false);
 }
