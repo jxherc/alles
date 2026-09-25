@@ -23,11 +23,13 @@ BROWSER_SUITES = {
     "surfaces": SURFACE_GATES,
     "daily": ("minimal-workflows", "files-workflows"),
     "pwa": ("pwa-offline",),
+    "assistant": ("andromeda-cancellation",),
     "full": (
         *SMOKE_GATES,
         "cleanup-regressions",
         "minimal-workflows",
         "files-workflows",
+        "andromeda-cancellation",
         "pwa-offline",
         *SURFACE_GATES,
     ),

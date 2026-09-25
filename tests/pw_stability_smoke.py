@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -38,6 +39,7 @@ def run(device: str) -> None:
         },
         {
             "id": "docs.return-home",
+            "scenario_id": "shell.route-history",
             "feature_id": "docs.documents-and-journal",
             "status": "untested",
         },
@@ -59,6 +61,14 @@ def run(device: str) -> None:
             reduced_motion="reduce",
             service_workers="block",
         )
+        fixture = context.request.post(
+            base + "/api/vault-md/file",
+            data={
+                "path": "navigation-proof.md",
+                "content": "# Navigation proof\n\nPreserve this document link.\n",
+            },
+        )
+        assert fixture.ok, fixture.text()
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
         page = context.new_page()
         page.set_default_timeout(15_000)
@@ -156,9 +166,39 @@ def run(device: str) -> None:
             current = 2
             page.locator('.today-shortcut[data-view="wiki"]').click()
             expect(page.locator("#wiki-view")).to_be_visible()
+            expect(page).to_have_url(re.compile(r"[?&]view=docs(?:&|$)"))
+            page.locator('#wiki-empty-recent [data-file="navigation-proof.md"]').click()
+            expect(page.get_by_role("heading", name="Navigation proof", exact=True)).to_be_visible()
+            document_url = page.url
             trigger.click()
             page.locator('.app-drawer-item[data-view="today"]').click()
             expect(page.locator("#today-view")).to_be_visible()
+            expect(page).to_have_url(re.compile(r"[?&]view=today(?:&|$)"))
+            for _ in range(2):
+                page.reload(wait_until="networkidle")
+                expect(page.locator("#today-view")).to_be_visible()
+            page.go_back(wait_until="networkidle")
+            expect(page.locator("#wiki-view")).to_be_visible()
+            expect(page).to_have_url(document_url)
+            expect(page.get_by_role("heading", name="Navigation proof", exact=True)).to_be_visible()
+            page.go_forward(wait_until="networkidle")
+            expect(page.locator("#today-view")).to_be_visible()
+            for destination, visible in (
+                ("chat", "#composer-ta"),
+                ("andromeda", "#andromeda-query"),
+            ):
+                trigger.click()
+                page.locator(f'.app-drawer-item[data-view="{destination}"]').click()
+                expect(page.locator(visible)).to_be_visible()
+                for _ in range(2):
+                    page.reload(wait_until="networkidle")
+                    expect(page.locator(visible)).to_be_visible()
+                    expect(page).to_have_url(re.compile(rf"[?&]view={destination}(?:&|$)"))
+            page.go_back(wait_until="networkidle")
+            expect(page.locator("#composer-ta")).to_be_visible()
+            page.go_forward(wait_until="networkidle")
+            expect(page.locator("#andromeda-query")).to_be_visible()
+            page.screenshot(path=str(output / "primary-navigation-reloaded.png"))
             scenarios[current]["status"] = "passed"
             current = 3
 
