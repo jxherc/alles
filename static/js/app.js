@@ -46,7 +46,7 @@ import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow } from './scrollfollow.js';
 import { initAideWorkspace } from './aideworkspace.js?v=276';
 import { beginBusy, createFocusBoundary, initKokuenPrimitives, setControlState } from './kokuen.js?v=1';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=247';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=248';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel } from './reminders.js?v=243';
 import { registerServiceWorker } from './push.js';
@@ -320,14 +320,15 @@ async function _boot({ reachable = true } = {}) {
       : '';
     if (singleHost()) {
       if (groupedDeepLink) {
-        _syncSpecialistGroupUrl(initialRoute, groupedIdentifier);
+        _syncLocalViewUrl(initialRoute, groupedIdentifier);
         _consumeParams(['_auth', '_sso']);
       } else {
-        _consumeParams(['app', 'view', '_auth', '_sso']);
+        _syncLocalViewUrl(initialRoute, bootParams.get('app') || bootParams.get('view') || initialRoute.view);
+        _consumeParams(['_auth', '_sso']);
       }
     } else if (initialRoute.host === currentSub()) {
       if (groupedDeepLink) {
-        _syncSpecialistGroupUrl(initialRoute, groupedIdentifier);
+        _syncLocalViewUrl(initialRoute, groupedIdentifier);
         _consumeParams(['_auth', '_sso']);
       } else {
         const cleaned = buildCompatibilityUrl({
@@ -436,7 +437,7 @@ async function _boot({ reachable = true } = {}) {
   }
 
   const _v = _p.get('app') || _p.get('view');
-  if (_v && !_ask && !_mo && /^[a-z0-9_-]+$/i.test(_v)) {
+  if (_v && !initialRoute && !_ask && !_mo && /^[a-z0-9_-]+$/i.test(_v)) {
     _consumeParams(groupRouteFor(_v) ? ['app'] : ['app', 'view']);
     setTimeout(() => navigateTo(_v), 0);
   }
@@ -804,7 +805,7 @@ window._askInChat = async (
         newChat({ projectId: scopedProjectId });
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=247');
+      const module = await import('./andromeda.js?v=248');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -890,7 +891,7 @@ const showTodayView      = () => {
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=247'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=248'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
@@ -926,11 +927,15 @@ const showSpecialistGroup = (group, section = 'overview') => showView(
   (_track, request) => initSpecialistGroup(group, { section, request, loadLegacy: _loadSpecialistLegacy }),
 );
 
-function _syncSpecialistGroupUrl(route, identifier, { replace = true } = {}) {
+function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
   try {
     const url = new URL(location.href);
+    const previous = url.searchParams.get('app') || url.searchParams.get('view');
+    const previousOwner = resolveCompatibilityRoute({ view: previous, flags: _afterlifeFlags })?.host ?? currentSub();
+    const nextOwner = route.host ?? viewToSub(groupRouteFor(identifier)?.group || identifier);
+    if (previousOwner !== nextOwner) url.hash = '';
     url.searchParams.delete('app');
-    if (route.section || singleHost()) url.searchParams.set('view', identifier);
+    if (route.section || singleHost() || !groupRouteFor(identifier)) url.searchParams.set('view', identifier);
     else url.searchParams.delete('view');
     const target = url.pathname + url.search + url.hash;
     const current = location.pathname + location.search + location.hash;
@@ -970,8 +975,9 @@ async function navigateTo(v) {
     const dest = groupedRoute?.host ?? viewToSub(v);
     if (dest !== currentSub()) { await crossNav(dest, groupedIdentifier, { docsPrepared: true }); return true; }
   }
+  const knownRoute = groupedRoute || resolveCompatibilityRoute({ view: v, flags: _afterlifeFlags });
+  if (knownRoute) _syncLocalViewUrl(knownRoute, groupedIdentifier, { replace: false });
   if (groupedRoute) {
-    _syncSpecialistGroupUrl(groupedRoute, groupedIdentifier, { replace: false });
     await renderLocalRoute(groupedRoute);
   } else {
     await renderLocalView(v);

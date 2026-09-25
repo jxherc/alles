@@ -1071,6 +1071,61 @@
         "phone"
       ],
       "evidence": []
+    },
+    {
+      "id": "shell.route-history",
+      "feature": "cross-feature.shared-shell",
+      "app": "shared",
+      "workflow": "navigate between Docs, Home, Aide and Andromeda, reload twice and use back/forward",
+      "expected": "The URL and visible app agree after each transition; reload and history restore the selected app without losing document or session deep links.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "andromeda.stop-preview-and-retry",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "stop a pending model preview, then retry",
+      "expected": "Stop immediately displays cancellation, sends no overview request after the delayed preview resolves, preserves links and allows a successful retry.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": [],
+      "simulation": "mocked search, preview, overview and verification transport; real app UI; does not certify a live provider or server-side cancellation"
+    },
+    {
+      "id": "andromeda.cancel-confirmation-and-retry",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "decline remote confirmation, then retry",
+      "expected": "Declining remote confirmation sends no overview request; a later confirmed retry succeeds and normal links remain available.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": [],
+      "simulation": "mocked search, preview, overview and verification transport; real app UI; does not certify a live provider or server-side cancellation"
+    },
+    {
+      "id": "andromeda.superseded-preview",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "start a new overview while an earlier preview is pending",
+      "expected": "A stale preview cannot submit a request or replace the newer result.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": [],
+      "simulation": "mocked search, preview, overview and verification transport; real app UI; does not certify a live provider or server-side cancellation"
     }
   ],
   "findings": [
@@ -1132,7 +1187,7 @@
     {
       "id": "STAB-004",
       "title": "Andromeda stop is ineffective while model preview is pending",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "severity": "medium",
       "screen": "Andromeda overview, checking sources",
       "revision": "c696c42 with uncommitted stabilization changes",
@@ -1147,12 +1202,12 @@
         "Isolated in-memory execution of the actual startOverview function and click handler submitted /api/andromeda/overview with signalAborted false after stop.",
         "Chromium 1440px and 390px actual pointer reproduction: stop left checking sources visible; overview POST followed after delayed preview resolved, 374ms/365ms after the click. Search/preview/overview transport explicitly mocked; no live model."
       ],
-      "verification": "real-browser reproduction confirmed on desktop and phone; repair pending"
+      "verification": "Nine behavioral JavaScript regressions (eight failed before repair) and real desktop/phone pointer checks verify immediate stop feedback, no late overview submission, preserved links, retry and superseded preview ownership. HTTP transports are explicitly simulated."
     },
     {
       "id": "STAB-005",
       "title": "Home navigation retains a specialist deep link and reload opens the wrong app",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "severity": "medium",
       "screen": "shared navigation on a single host",
       "revision": "c696c42 with uncommitted stabilization changes",
@@ -1167,7 +1222,86 @@
         "Native Safari 27.0: Home heading was visible while the address retained ?view=docs#safari-empty-stats; reload reopened that document.",
         "navigateTo updates history only for grouped specialist routes; primary spaces use renderLocalView without URL synchronization."
       ],
-      "verification": "pending navigation regression and repair"
+      "verification": "Desktop and phone Chromium checks pass repeated reloads for Home, Aide and Andromeda, plus back/forward restoration of the exact Docs URL and document. Native Safari verifies Docs to Home, reload remaining on Home, then Back restoring the saved document."
+    },
+    {
+      "id": "STAB-006",
+      "title": "Health offers no visible way to edit an existing entry",
+      "status": "confirmed",
+      "severity": "medium",
+      "screen": "Health history, populated recent entries",
+      "revision": "18a2939 with uncommitted navigation and cancellation repairs",
+      "reproduction": [
+        "Open Health, choose health log, and add a synthetic weight entry.",
+        "Reload and try to correct the existing entry using visible controls."
+      ],
+      "expected": "An existing entry can be corrected through the interface, preserving its record identity and exact value.",
+      "actual": "The record exposes only delete. The overview links to the same history twice, and the history has no edit action.",
+      "evidence": [
+        "Native Safari 27.0 accessibility tree after saving 74.25 kg: the persisted record exposes delete only.",
+        "Read-only API verification confirms 74.25 was stored exactly; the interface displays 74.3.",
+        "The server has PATCH /api/health/{eid}; the browser row wiring only handles deletion."
+      ],
+      "verification": "repair pending in the specialist workflow batch"
+    },
+    {
+      "id": "STAB-007",
+      "title": "Stopping an Aide stream drops the submitted turn from saved history",
+      "severity": "high",
+      "reproduction": [
+        "Submit a prompt to the isolated delayed provider and wait for a visible partial reply.",
+        "Press Stop or navigate to Home while the reply is streaming.",
+        "Reload and inspect conversation history."
+      ],
+      "expected": "The submitted prompt and interrupted response remain recoverable, clearly marked as interrupted.",
+      "actual": "After interruption the history API returned an empty messages list; both the prompt and partial reply disappeared.",
+      "evidence": [
+        "Desktop Chromium real backend/local delayed provider: control-stop and navigation-stop reproductions; provider confirmed disconnection.",
+        "Persistence follows the streaming loop in routes/chat.py and can be bypassed by cancellation."
+      ],
+      "status": "confirmed",
+      "screen": "Aide streaming conversation",
+      "revision": "18a2939 with uncommitted navigation and cancellation repairs",
+      "verification": "repair pending; desktop Chromium with real owned backend and local synthetic provider only"
+    },
+    {
+      "id": "STAB-008",
+      "title": "Disconnected Aide runs remain falsely running",
+      "severity": "medium",
+      "reproduction": [
+        "Interrupt a visible Aide reply with Stop or navigation.",
+        "Wait for the local provider to confirm disconnection.",
+        "Reload and inspect active runs."
+      ],
+      "expected": "Interrupted runs have a terminal state and no longer appear active.",
+      "actual": "The active-runs endpoint still reported running, and the interface displayed running in background with no live stream.",
+      "evidence": [
+        "Settled desktop Chromium synthetic-provider reproduction after confirmed provider disconnect.",
+        "Cancellation bypasses the ordinary exception terminal-state update in services/agent_runtime.py."
+      ],
+      "status": "confirmed",
+      "screen": "Aide streaming conversation",
+      "revision": "18a2939 with uncommitted navigation and cancellation repairs",
+      "verification": "repair pending; desktop Chromium with real owned backend and local synthetic provider only"
+    },
+    {
+      "id": "STAB-009",
+      "title": "Aide Stop sends the selected session instead of the streaming session",
+      "severity": "medium",
+      "reproduction": [
+        "Start streaming in session A.",
+        "Select session B and click Stop."
+      ],
+      "expected": "Stop targets the session owning the active stream.",
+      "actual": "The stop request targeted B and returned no active stream. Aborting the browser connection still disconnected A in this reproduction.",
+      "evidence": [
+        "Desktop Chromium pointer/keyboard switch-stop trace with recorded request and provider disconnect.",
+        "stopStream reads getActiveId rather than the streaming session identity."
+      ],
+      "status": "confirmed",
+      "screen": "Aide streaming conversation",
+      "revision": "18a2939 with uncommitted navigation and cancellation repairs",
+      "verification": "repair pending; desktop Chromium with real owned backend and local synthetic provider only"
     }
   ],
   "additional_surfaces": [

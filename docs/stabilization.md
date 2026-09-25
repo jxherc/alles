@@ -40,9 +40,10 @@ the keyword-search fallback, not live model integrations.
 
 The maintained full suite currently contains Home capture/navigation, cleanup
 regressions, Plan capture, Docs persistence and recovery, local Files operations,
-PWA offline/reconnect, and resting surfaces for all twelve apps plus Settings in
-both themes at desktop and phone widths. `daily`, `surfaces`, and `pwa` select those
-subsets. Traces, screenshots, requests, console output and server logs accompany the
+Andromeda cancellation/retry with simulated transport, PWA offline/reconnect, and
+resting surfaces for all twelve apps plus Settings in both themes at desktop and
+phone widths. `daily`, `assistant`, `surfaces`, and `pwa` select those subsets.
+Traces, screenshots, requests, console output and server logs accompany the
 results. Historical browser scripts outside this maintained list remain unaudited;
 the word `full` does not mean every product workflow has been certified.
 
@@ -50,7 +51,7 @@ GitHub runs Python, JavaScript, Ruff and the browser smoke suite. The workflow's
 manual dispatch can select the maintained full suite and retains browser artifacts
 for fourteen days. A green workflow does not override blocked ledger entries.
 
-## Current evidence
+## Checkpoint evidence
 
 The first implementation batch was checked on September 25, 2026, from baseline
 `c696c42` with the stabilization changes applied. Both fresh full browser runs passed
@@ -64,7 +65,7 @@ Python skips cover the separately enabled official-runtime/performance gates,
 two non-Mac contracts on this Mac, and unavailable CLIP/face models. They remain
 limitations, not successful checks.
 
-The combined ledger contains 28 feature/surface owners, 1,579 inventoried controls
+The first checkpoint's ledger contains 28 feature/surface owners, 1,579 inventoried controls
 and 115 required workflows: seven passed, 106 untested and two blocked. No control
 inherits a pass merely because a workflow visited its screen. These counts describe
 the measured coverage, not a stable release. The seven passed workflows are Home
@@ -76,6 +77,19 @@ Home capture/reload, navigation, document creation, mixed-language save/reload,
 hidden views and blank-draft feedback. This is partial Safari evidence. Real iPhone
 Safari acceptance, complete Mac Safari acceptance, live providers and the seven-day
 trial are still outstanding.
+
+The next repair batch passed all eleven maintained browser gates twice from fresh
+data, all 602 JavaScript tests, 76 focused Python tests and Ruff. Its source
+fingerprint is `00438894208d7d36488620258aaf83c5c8965edcc66856ad835444477661c9c8`;
+its acceptance fingerprint is
+`6b2240c18a7e926c7882ea1ce0aafdad06d2a531771d05ebafa004e7fb890eb4`.
+The resulting ledger has 119 workflows: eleven passed, 106 untested and two blocked.
+The added proofs cover primary-app reload/history and three explicitly simulated
+Andromeda cancellation/retry cases. They do not establish live-provider cancellation.
+
+The [usability observations](stabilization-usability.md) record native Safari draft
+recovery and the remaining Health editing gap. The complete release gates remain
+unsatisfied.
 
 ## Stable layout
 
