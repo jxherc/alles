@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 import shutil
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import Browser, Page, sync_playwright
@@ -17,6 +19,67 @@ BASE = f"http://files.localhost:{PORT}/"
 PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 )
+ARTIFACTS = Path(
+    os.environ.get("ALLES_BROWSER_ARTIFACTS") or tempfile.mkdtemp(prefix="alles-files-evidence-")
+)
+RECORDINGS = {}
+
+
+def _context(browser, label, **options):
+    context = browser.new_context(**options)
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    record = {"label": label, "events": [], "closed": False}
+    RECORDINGS[context] = record
+
+    def capture(page):
+        page.on(
+            "pageerror",
+            lambda error: record["events"].append({"kind": "pageerror", "text": str(error)}),
+        )
+        page.on(
+            "console",
+            lambda message: record["events"].append(
+                {
+                    "kind": "console",
+                    "type": message.type,
+                    "text": message.text,
+                    "url": message.location.get("url", ""),
+                }
+            ),
+        )
+        page.on(
+            "requestfailed",
+            lambda request: record["events"].append(
+                {"kind": "requestfailed", "url": request.url, "failure": request.failure}
+            ),
+        )
+        page.on(
+            "response",
+            lambda response: (
+                record["events"].append(
+                    {"kind": "http_error", "url": response.url, "status": response.status}
+                )
+                if response.status >= 400
+                else None
+            ),
+        )
+
+    context.on("page", capture)
+    return context
+
+
+def _close_context(context):
+    record = RECORDINGS[context]
+    if record["closed"]:
+        return
+    label = record["label"]
+    for index, page in enumerate(context.pages):
+        if not page.is_closed():
+            page.screenshot(path=str(ARTIFACTS / f"{label}-{index}-final.png"), full_page=True)
+    context.tracing.stop(path=str(ARTIFACTS / f"{label}.zip"))
+    (ARTIFACTS / f"{label}-events.json").write_text(json.dumps(record["events"], indent=2) + "\n")
+    record["closed"] = True
+    context.close()
 
 
 def _require_throwaway_data_root() -> None:
@@ -77,7 +140,9 @@ def _add_location(page: Page, name: str, path: Path, managed: bool) -> None:
 
 
 def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path) -> None:
-    context = browser.new_context(
+    context = _context(
+        browser,
+        "desktop",
         viewport={"width": 1440, "height": 920},
         reduced_motion="reduce",
         service_workers="block",
@@ -492,7 +557,7 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     page.locator('[data-files-view="all"]').click()
     page.wait_for_selector('#files-list .file-row[data-path="restore-check.txt"]')
 
-    page.screenshot(path="/tmp/alles-phase7-files-real-desktop.png", full_page=True)
+    page.screenshot(path=str(ARTIFACTS / "desktop-dark.png"), full_page=True)
     # Exercise the real appearance engine. Flipping only data-theme leaves the
     # engine's inline color tokens in place and can produce a false dark-theme
     # screenshot even though the user-facing theme control works correctly.
@@ -507,7 +572,7 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     assert page.locator("#files-view").evaluate(
         "element => getComputedStyle(element).backgroundColor.match(/\\d+/g).slice(0, 3).every(value => Number(value) > 200)"
     )
-    page.screenshot(path="/tmp/alles-phase7-files-real-light.png", full_page=True)
+    page.screenshot(path=str(ARTIFACTS / "desktop-light.png"), full_page=True)
     _no_overflow(page)
 
     # A 720 CSS-pixel viewport represents 200% browser zoom on the 1440px
@@ -521,11 +586,13 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     _no_overflow(page)
     assert page.locator("#files-add-location").is_visible()
     assert page.locator("#files-upload-btn").is_visible()
-    context.close()
+    _close_context(context)
 
 
 def _recovery(browser: Browser, errors: list[str]) -> None:
-    context = browser.new_context(
+    context = _context(
+        browser,
+        "recovery",
         viewport={"width": 1100, "height": 760},
         reduced_motion="reduce",
         service_workers="block",
@@ -533,14 +600,21 @@ def _recovery(browser: Browser, errors: list[str]) -> None:
     page = context.new_page()
     page.set_default_timeout(12_000)
     page.on("pageerror", lambda error: errors.append(f"recovery page: {error}"))
-    page.on(
-        "console",
-        lambda message: (
+    expected_console = []
+
+    def recovery_console(message):
+        if message.type != "error":
+            return
+        if (
+            not expected_console
+            and urlsplit(message.location.get("url", "")).path == "/api/files/list"
+            and "503 (Service Unavailable)" in message.text
+        ):
+            expected_console.append(message.text)
+        else:
             errors.append(f"recovery console: {message.text}")
-            if message.type == "error" and "503 (Service Unavailable)" not in message.text
-            else None
-        ),
-    )
+
+    page.on("console", recovery_console)
     failures = {"remaining": 1}
 
     def fail_once(route):
@@ -561,11 +635,14 @@ def _recovery(browser: Browser, errors: list[str]) -> None:
     page.locator("#files-list [data-files-retry]").click()
     page.wait_for_selector('#files-list .file-row[data-path="alpha.txt"]', timeout=15_000)
     assert page.locator("#files-list [data-files-retry]").count() == 0
-    context.close()
+    assert failures["remaining"] == 0 and len(expected_console) == 1
+    _close_context(context)
 
 
 def _mobile(browser: Browser, errors: list[str]) -> None:
-    context = browser.new_context(
+    context = _context(
+        browser,
+        "phone",
         viewport={"width": 390, "height": 844},
         reduced_motion="reduce",
         service_workers="block",
@@ -628,7 +705,7 @@ def _mobile(browser: Browser, errors: list[str]) -> None:
         assert dock and workbench
         assert dock["x"] >= workbench["x"], "transfer panel must stay clear of the shell rail"
         assert dock["x"] + dock["width"] <= 390
-        page.screenshot(path=f"/tmp/alles-phase7-files-real-mobile-{theme}.png", full_page=True)
+        page.screenshot(path=str(ARTIFACTS / f"phone-{theme}.png"), full_page=True)
     operations = page.request.get(f"{BASE}api/files/operations?limit=40").json()["operations"]
     completed = [row["id"] for row in operations if row["state"] == "completed"]
     assert completed
@@ -638,11 +715,20 @@ def _mobile(browser: Browser, errors: list[str]) -> None:
     page.locator("#files-operations-clear").click()
     for operation_id in completed:
         page.wait_for_selector(f'[data-operation-id="{operation_id}"]', state="attached")
-    context.close()
+    _close_context(context)
 
 
 def run() -> None:
     _require_throwaway_data_root()
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    scenario = {
+        "scenario_id": "files.operations-recovery",
+        "profiles": ["desktop", "phone"],
+        "status": "failed",
+        "evidence": ["desktop.zip", "phone.zip", "recovery.zip"],
+        "simulation": "one HTTP 503 on Files list; operations use real local files",
+    }
+    (ARTIFACTS / "scenarios.json").write_text(json.dumps([scenario], indent=2) + "\n")
     files = DATA / "files"
     files.mkdir(parents=True, exist_ok=True)
     (files / "alpha.txt").write_text("alpha phase seven", encoding="utf-8")
@@ -661,12 +747,41 @@ def run() -> None:
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
-            _desktop(browser, errors, second, read_only)
-            _recovery(browser, errors)
-            _mobile(browser, errors)
-            browser.close()
+            try:
+                _desktop(browser, errors, second, read_only)
+                _recovery(browser, errors)
+                _mobile(browser, errors)
+            finally:
+                for context in RECORDINGS:
+                    _close_context(context)
+                (ARTIFACTS / "environment.json").write_text(
+                    json.dumps(
+                        {
+                            "browser": "chromium",
+                            "version": browser.version,
+                            "simulated_failures": ["one 503 from /api/files/list during recovery"],
+                        },
+                        indent=2,
+                    )
+                    + "\n"
+                )
+                browser.close()
     if errors:
         raise AssertionError("browser errors:\n" + "\n".join(errors))
+    for record in RECORDINGS.values():
+        failed = [
+            event for event in record["events"] if event["kind"] in {"http_error", "requestfailed"}
+        ]
+        if record["label"] == "recovery":
+            assert (
+                len(failed) == 1
+                and failed[0].get("status") == 503
+                and urlsplit(failed[0]["url"]).path == "/api/files/list"
+            ), failed
+        else:
+            assert not failed, failed
+    scenario["status"] = "passed"
+    (ARTIFACTS / "scenarios.json").write_text(json.dumps([scenario], indent=2) + "\n")
     print("real Phase 7 Files browser gate passed")
 
 

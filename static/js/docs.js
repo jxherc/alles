@@ -16,6 +16,7 @@ let _dirty = false;
 let _syncing = false;
 let _wired = false;
 let _es = null;
+let _watchGeneration = 0;
 let _deepLinked = false;
 let _draftTimer = 0;
 let _largeDraftFlush = null;
@@ -370,7 +371,55 @@ function renderShell() {
   updateSaveState();
 }
 
-// External edits from Obsidian are safe to reload only when there is no local draft.
+function showDocumentChanged() {
+  showInlineState('This file changed on disk while a local draft was open.', [
+    { label: 'compare copies', action: compareExternal },
+    { label: 'use file from disk', action: useExternalCopy },
+  ]);
+}
+
+async function reconcileWatchedDocument(path, observed, generation, watchGeneration) {
+  const sameDocument = () => _cur === path && _section === 'docs'
+    && _watchGeneration === watchGeneration && $('wiki-view')?.style.display !== 'none';
+  const stillCurrent = () => sameDocument() && _openGeneration === generation;
+  try {
+    let disk;
+    let acknowledgedHash;
+    do {
+      // A stream event can arrive before our save response. Let that response
+      // establish its acknowledged hash before comparing the file versions.
+      await _documentWrites;
+      if (!stillCurrent()) return;
+      acknowledgedHash = _doc?.hash;
+      if (observed?.kind !== 'removed' && observed?.hash && observed.hash === acknowledgedHash) return;
+      // Events can be delayed by indexing; a removed file may already exist again.
+      disk = await api('/api/vault-md/file?path=' + encodeURIComponent(path));
+      await _documentWrites;
+      if (!stillCurrent()) return;
+    } while (_doc?.hash !== acknowledgedHash);
+    if (disk.exists && disk.hash === acknowledgedHash) return;
+    if (!disk.exists) {
+      showInlineState(
+        'This file was removed.' + ((_dirty || _draft) ? ' Your local draft is still safe.' : ''),
+        [{ label: 'back to documents', action: openDocsHome }],
+      );
+      return;
+    }
+    if (_dirty || _draft) { showDocumentChanged(); return; }
+    const revision = _editRevision;
+    const canRefresh = () => sameDocument() && !_dirty && !_draft
+      && _editRevision === revision && _doc?.hash === acknowledgedHash;
+    const opened = await openNote(path, { quiet: true, canRefresh });
+    if (!sameDocument()) return;
+    if (opened && !_dirty && !_draft) setSaveState('updated from disk');
+    else if ((_dirty || _draft) && _doc?.hash === acknowledgedHash) showDocumentChanged();
+  } catch (error) {
+    if (stillCurrent()) setSaveState(error.message || 'could not check file changes', true);
+  }
+}
+
+// Origin describes the writer, not this browser tab. Compare acknowledged hashes
+// so another Alles tab is treated as a real change when it writes different bytes.
 function _watch() {
   if (_es || typeof EventSource === 'undefined') return;
   try {
@@ -378,34 +427,25 @@ function _watch() {
     _es.onmessage = async event => {
       let data;
       try { data = JSON.parse(event.data); } catch { return; }
-      // The stream snapshots the vault when the connection is accepted. A file
-      // can change after the initial tree request but before that snapshot, so
-      // reconcile once on the server hello instead of silently missing it.
-      if (data.hello) {
-        if ($('wiki-view')?.style.display !== 'none') await loadTree();
-        return;
-      }
-      const changed = [...(data.changed || []), ...(data.removed || [])];
-      if (!changed.length || $('wiki-view')?.style.display === 'none') return;
+      const events = Array.isArray(data.events) ? data.events : [];
+      const changed = [...(data.changed || []), ...(data.removed || []), ...events.map(item => item.path)];
+      if ((!data.hello && !changed.length) || $('wiki-view')?.style.display === 'none') return;
       if (_section === 'notes') { window._reloadNotes?.(); return; }
+      // Capture selection before loadTree yields, so an event cannot affect a
+      // document the owner opens while that request is still pending.
+      const path = _cur;
+      const generation = _openGeneration;
+      const affected = _section === 'docs' && path && (data.hello || changed.includes(path));
+      const watchGeneration = affected ? ++_watchGeneration : _watchGeneration;
+      if (data.hello) {
+        await loadTree();
+        if (affected) await reconcileWatchedDocument(path, null, generation, watchGeneration);
+        return;
+      }
       await loadTree();
-      if (_section === 'journal') return;
-      if (!_cur || !changed.includes(_cur)) return;
-      if ((data.removed || []).includes(_cur)) {
-        showInlineState('This file was removed outside Alles. Your local draft is still safe.', [
-          { label: 'back to documents', action: openDocsHome },
-        ]);
-        return;
-      }
-      if (_dirty || _draft) {
-        showInlineState('This file changed in Obsidian while a local draft was open.', [
-          { label: 'compare copies', action: compareExternal },
-          { label: 'use file from disk', action: useExternalCopy },
-        ]);
-        return;
-      }
-      await openNote(_cur, { quiet: true });
-      setSaveState('updated from Obsidian');
+      if (!affected) return;
+      const observed = events.find(item => item.path === path);
+      await reconcileWatchedDocument(path, observed, generation, watchGeneration);
     };
     _es.onerror = () => {};
   } catch {}
@@ -535,8 +575,8 @@ function renderPreview(markdown = currentContent()) {
   enhanceMarkdown(preview);
 }
 
-export async function openNote(path, { quiet = false, draftFlushed = false } = {}) {
-  if (!path) return false;
+export async function openNote(path, { quiet = false, draftFlushed = false, canRefresh = null } = {}) {
+  if (!path || (canRefresh && !canRefresh())) return false;
   const requestGeneration = ++_openGeneration;
   const departureRevision = _editRevision;
   if (_dirty && !draftFlushed && !(await flushDraft())) return false;
@@ -592,7 +632,7 @@ export async function openNote(path, { quiet = false, draftFlushed = false } = {
       if (openedDraft === emergencyDraft) openedDraft = null;
     }
     const backlinksState = await fetchBacklinks(openedPath);
-    if (requestGeneration !== _openGeneration) return false;
+    if (requestGeneration !== _openGeneration || (canRefresh && !canRefresh())) return false;
     if (_dirty && _editRevision !== departureRevision && !(await flushDraft())) return false;
     if (requestGeneration !== _openGeneration) return false;
     _section = 'docs';
@@ -721,6 +761,7 @@ async function enterEdit(content = null) {
   const ready = await ensureEditor(value, { path: editPath, generation: editGeneration });
   if (!ready) return;
   setEditView('visual');
+  updateStats(currentContent());
   _editor?.focus();
 }
 
@@ -1016,7 +1057,7 @@ async function saveCurrent() {
     return true;
   } catch (error) {
     if (error.status === 409 && error.data?.code === 'document_conflict') {
-      showInlineState('The file changed in Obsidian. Alles preserved both copies.', [
+      showInlineState('The file changed on disk. Alles preserved both copies.', [
         { label: 'compare copies', action: compareExternal },
         { label: 'use file from disk', action: useExternalCopy },
       ]);

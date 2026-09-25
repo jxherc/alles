@@ -25,7 +25,7 @@ import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js?v=237';
 import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.js?v=237';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, releaseSpecialistLegacyView } from './specialist_groups.js?v=5';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, releaseSpecialistLegacyView } from './specialist_groups.js?v=6';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=241';
 import { openSettings, closeSettings, applyVis } from './settings.js?v=289';
@@ -857,7 +857,7 @@ const showCompareView  = () => showView('compare-view',  'compare',  () => { ini
 const showWikiView     = (section = 'docs') => showView(
   'wiki-view',
   section === 'journal' ? 'journal' : 'wiki',
-  (track, request) => trackedImport(track, request, () => import('./docs.js?v=256'), module => module.initDocs(section, request)),
+  (track, request) => trackedImport(track, request, () => import('./docs.js?v=257'), module => module.initDocs(section, request)),
   section === 'journal' ? 'docs-journal-section' : '',
 );
 const showVaultView      = () => showView('vault-view',      'vault',     (_track, request) => loadVaultView(request));
@@ -886,7 +886,7 @@ const showPhotosView     = () => showView('photos-view',    'photos',    (_track
 const showHomeView       = () => { _setAfterlifeSpace(''); showView('home-view', 'home', renderHome); };
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=288'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=304'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS })));
   _renderFirstRun();
   return result;
 };
@@ -911,7 +911,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'habits') return import('./habits.js').then(module => module.initHabits(request));
   if (section === 'money') return import('./money.js').then(module => module.initMoneyPanel(request));
   if (section === 'subs') return import('./subs.js').then(module => module.initSubsPanel(request));
-  if (group === 'docs') return import('./docs.js?v=256').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
+  if (group === 'docs') return import('./docs.js?v=257').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);

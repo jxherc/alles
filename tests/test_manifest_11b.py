@@ -120,21 +120,21 @@ class ManifestTests(ApiTest):
         self.assertIsNotNone(worker_stamp)
         self.assertEqual(
             {app_stamp.group(1), style_stamp.group(1), worker_stamp.group(1)},
-            {"303"},
+            {"304"},
         )
 
     def test_precache_uses_the_shell_stamp_and_every_linked_stylesheet(self):
         urls = self.client.get("/api/pwa/precache").json()["urls"]
-        self.assertIn("/static/style.css?v=303", urls)
+        self.assertIn("/static/style.css?v=304", urls)
         self.assertNotIn("/static/style.css?v=6", urls)
         self.assertIn("/static/vendor/xterm/xterm.css?v=6.0.0", urls)
         self.assertIn("/static/vendor/xterm/xterm.mjs?v=6.0.0", urls)
         self.assertIn("/static/vendor/xterm/addon-fit.mjs?v=0.11.0", urls)
-        self.assertIn("/static/kokuen.css?v=21", urls)
+        self.assertIn("/static/kokuen.css?v=22", urls)
         for module in (
             "models.js?v=212",
             "dropdown.js?v=212",
-            "specialist_groups.js?v=5",
+            "specialist_groups.js?v=6",
             "kokuen.js?v=1",
             "andromeda.js?v=247",
         ):

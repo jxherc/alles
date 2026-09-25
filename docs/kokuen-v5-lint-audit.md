@@ -3,7 +3,13 @@
 The canonical KOKUEN linter is run against `static/kokuen.css`, the final v5 overlay that owns the
 shipped shell and workbench presentation.
 
-Current acceptance:
+The stabilization layout changed warning line numbers. Comparing the canonical
+warnings with `c696c42` by severity, rule and message found no added or removed
+warning semantics. The digest was updated for those offsets. This preserves the
+historical lint review; current rendered acceptance remains in the stabilization
+ledger and is not established by this inventory.
+
+Historical lint review:
 
 - hard errors: 0
 - reviewed warnings: 192

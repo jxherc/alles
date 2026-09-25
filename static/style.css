@@ -9343,10 +9343,10 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  align-items: center;
-  gap: clamp(2rem, 7vw, 6rem);
-  padding: clamp(2rem, 7vw, 6.5rem);
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 32px;
+  padding: 32px;
   overflow-y: auto;
   color: var(--text);
 }
@@ -9357,10 +9357,10 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-notes-head h1 {
   margin: 0.45rem 0 0.75rem;
   color: var(--text);
-  font-size: clamp(1.65rem, 3.2vw, 2.8rem);
+  font-size: 20px;
   font-weight: 560;
-  letter-spacing: -0.045em;
-  line-height: 1.04;
+  letter-spacing: 0;
+  line-height: 1.4;
 }
 .docs-empty-copy p { max-width: 48ch; color: var(--muted); font-size: 0.78rem; line-height: 1.65; }
 .docs-empty-actions { display: flex; gap: 0.35rem; margin-top: 1.3rem; }

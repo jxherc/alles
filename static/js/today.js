@@ -185,7 +185,9 @@ function render() {
   };
 
   root.classList.toggle('compact', preferences?.density === 'compact');
-  root.innerHTML = orderedVisibleHomeSections(preferences).map(key => blocks[key]).filter(Boolean).join('');
+  root.innerHTML = orderedVisibleHomeSections(preferences)
+    .filter(key => (key !== 'in_progress' || running.length) && (key !== 'briefs' || briefs.length))
+    .map(key => blocks[key]).filter(Boolean).join('');
   root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', async () => {
     await navigate(button.dataset.view);
     if (button.dataset.aideSection) {

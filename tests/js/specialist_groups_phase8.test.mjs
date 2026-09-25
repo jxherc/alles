@@ -105,7 +105,7 @@ test('specialist workbenches show one app name and use the universal shell', () 
   assert.match(appSource, /const SHELL_GROUPS = Object\.freeze/);
 });
 
-test('all nine specialist workbenches share one persistent accessible sidebar toggle', () => {
+test('all nine specialist workbenches share one persistent accessible views toggle', () => {
   const toggles = [...specialistHtml.matchAll(/<button class="specialist-sidebar-toggle"[^>]+>/g)]
     .map(match => match[0]);
   assert.equal(toggles.length, 9);
@@ -113,7 +113,7 @@ test('all nine specialist workbenches share one persistent accessible sidebar to
     assert.match(toggle, /data-specialist-sidebar-toggle/);
     assert.match(toggle, /aria-expanded="true"/);
     assert.match(toggle, /aria-controls="[^"]+-tabs"/);
-    assert.match(toggle, /aria-label="hide [^"]+ navigation"/);
+    assert.match(toggle, /aria-label="hide [^"]+ views"/);
   }
   assert.equal(new Set(toggles.map(toggle => toggle.match(/aria-controls="([^"]+)"/)?.[1])).size, 9);
   assert.match(specialistSource, /SPECIALIST_SIDEBAR_STORAGE_KEY = 'alles-specialist-sidebar-hidden'/);
@@ -122,8 +122,8 @@ test('all nine specialist workbenches share one persistent accessible sidebar to
   assert.match(kokuenCss, /\[data-sidebar-collapsed="true"\]/);
 });
 
-test('specialist tabs expose responsive orientation, panels, and every directional key', () => {
-  assert.match(specialistSource, /setAttribute\('aria-orientation', narrow\.matches \? 'horizontal' : 'vertical'\)/);
+test('specialist tabs expose horizontal orientation, panels, and every directional key', () => {
+  assert.match(specialistSource, /setAttribute\('aria-orientation', 'horizontal'\)/);
   assert.match(specialistSource, /setAttribute\('role', 'tabpanel'\)/);
   assert.match(specialistSource, /setAttribute\('aria-controls'/);
   assert.match(specialistSource, /setAttribute\('aria-labelledby'/);
@@ -140,27 +140,10 @@ test('Finance privileged mutations recover recent-owner expiry and expose busy s
   assert.match(specialistSource, /undo this import\? only transactions created by this receipt will be removed/);
 });
 
-test('the shared sidebar state also collapses nested Docs and Files navigation rails', () => {
-  assert.match(
-    kokuenCss,
-    /\[data-sidebar-collapsed="true"\] \.specialist-workbench-rail\s*\{\s*display: none;/,
-  );
-  assert.match(
-    kokuenCss,
-    /\[data-sidebar-collapsed="true"\] \.specialist-workbench\s*\{\s*grid-template-columns: minmax\(18rem, 1\.5fr\) minmax\(14rem, 0\.75fr\);/,
-  );
-  assert.match(
-    kokuenCss,
-    /#docs-workbench-view\[data-sidebar-collapsed="true"\] #wiki-view \.docs-nav-panel\s*\{\s*display: none;/,
-  );
-  assert.match(
-    kokuenCss,
-    /#files-workbench-view\[data-sidebar-collapsed="true"\] #files-view \.files-phase7-location-panel\s*\{\s*display: none;/,
-  );
-  assert.match(
-    kokuenCss,
-    /#files-workbench-view\[data-sidebar-collapsed="true"\] #files-view \.files-phase7-workbench\s*\{\s*grid-template-columns: minmax\(0, 1fr\) auto;/,
-  );
+test('hiding the views strip does not hide task filters, documents or file locations', () => {
+  for (const selector of ['specialist-workbench-rail', 'docs-nav-panel', 'files-phase7-location-panel']) {
+    assert.doesNotMatch(kokuenCss, new RegExp(`\\[data-sidebar-collapsed="true"\\][^{]*\\.${selector}\\s*\\{\\s*display: none;`));
+  }
 });
 
 test('specialist workbenches collapse before their fixed tracks can overflow', () => {
