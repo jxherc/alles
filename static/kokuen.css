@@ -299,8 +299,8 @@ body:is(
   min-width: 0;
   min-height: 0;
   height: 100dvh;
-  grid-template-columns: 224px minmax(0, 1fr);
-  grid-template-rows: var(--k-app-header) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--k-app-header) var(--k-control) minmax(0, 1fr);
   overflow: hidden;
   color: var(--k-ink, var(--text));
   background: var(--k-canvas, var(--bg));
@@ -323,14 +323,17 @@ body:is(
 }
 
 .specialist-sidebar-toggle {
-  width: var(--k-control, 44px);
+  margin-left: auto;
+  min-width: var(--k-control, 44px);
   height: var(--k-control, 44px);
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  padding: 0;
+  padding: 0 var(--k-space-2, 8px);
   border: 0;
   border-radius: var(--k-radius-control, 3px);
+  font: inherit;
+  font-size: 14px;
   color: var(--k-soft, var(--text));
   background: transparent;
   cursor: pointer;
@@ -350,6 +353,7 @@ body:is(
 }
 
 .specialist-app-name {
+  order: -1;
   margin: 0;
   color: var(--k-text, var(--text));
   font-size: 15px;
@@ -395,35 +399,35 @@ body:is(
   cursor: pointer;
 }
 
+/* Local views share one strip; data navigation stays inside its workspace. */
 .specialist-group-tabs {
   grid-column: 1;
   grid-row: 2;
   display: flex;
-  flex-direction: column;
   align-items: stretch;
   gap: var(--k-space-1, 4px);
   min-width: 0;
-  min-height: 0;
-  padding: var(--k-space-3, 12px) var(--k-space-2, 8px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  border-right: 1px solid var(--k-line, var(--faint));
+  min-height: var(--k-control, 44px);
+  padding: 0 var(--k-space-4, 16px);
+  overflow-x: auto;
+  overflow-y: hidden;
   background: var(--k-page, var(--bg));
   scrollbar-width: thin;
 }
 
 .specialist-group-tabs [role="tab"] {
-  width: 100%;
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: 44px;
   min-height: 44px;
   padding: var(--k-space-2, 8px) var(--k-space-3, 12px);
   border: 0;
-  border-radius: var(--k-radius-surface, 4px);
+  border-radius: var(--k-radius-control, 3px);
   color: var(--k-ink-muted, var(--muted));
   background: transparent;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 14px;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -445,8 +449,8 @@ body:is(
 }
 
 .specialist-group-overview {
-  grid-column: 2;
-  grid-row: 2;
+  grid-column: 1;
+  grid-row: 3;
   min-width: 0;
   min-height: 0;
   flex: 1;
@@ -466,6 +470,7 @@ body:is(
   #server-workbench-view
 )[data-sidebar-collapsed="true"] {
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--k-app-header) minmax(0, 1fr);
 }
 
 :is(
@@ -977,9 +982,8 @@ body:is(
 
 .specialist-group-card {
   min-width: 0;
-  padding: var(--k-space-4, 16px);
-  border-radius: var(--k-radius-surface, 4px);
-  background: var(--k-panel, var(--panel));
+  padding: var(--k-space-4, 16px) 0;
+  background: transparent;
 }
 
 .specialist-group-card h2 {
@@ -1057,8 +1061,8 @@ body:is(
 }
 
 .specialist-group-slot {
-  grid-column: 2;
-  grid-row: 2;
+  grid-column: 1;
+  grid-row: 3;
   min-width: 0;
   min-height: 0;
   flex: 1;
@@ -1325,7 +1329,7 @@ body:is(
 .specialist-workbench {
   display: grid;
   grid-template-columns: 224px minmax(18rem, 1.5fr) minmax(14rem, 0.75fr);
-  gap: var(--k-space-3, 12px);
+  gap: var(--k-space-5, 24px);
   min-width: 0;
   max-width: 90rem;
 }
@@ -1333,9 +1337,27 @@ body:is(
 .specialist-workbench > :where(.specialist-workbench-rail, .specialist-workbench-main, .specialist-workbench-detail) {
   min-width: 0;
   padding: var(--k-space-4, 16px);
-  border-radius: var(--k-radius-surface, 4px);
-  background: var(--k-panel, var(--panel));
+  background: transparent;
 }
+
+.specialist-workbench-plan {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 880px;
+  gap: var(--k-space-3, 12px);
+}
+
+.specialist-workbench-plan .specialist-choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-2, 8px);
+}
+
+.specialist-workbench-plan .specialist-group-capture {
+  max-width: none;
+  margin: 0;
+}
+
+.specialist-workbench-plan > :where(aside, section) { padding: 0; }
 
 .specialist-workbench :where(h2) {
   margin: 0 0 var(--k-space-3, 12px);
@@ -1498,7 +1520,7 @@ body:is(
 }
 
 .specialist-workbench .specialist-group-capture {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   margin-bottom: 0;
 }
 
@@ -2003,29 +2025,6 @@ body:is(
   grid-column: 2;
 }
 
-/* The specialist toggle is universal. When a mounted app owns a second
-   navigation rail, collapse that rail too so the visible state matches the
-   toggle's label and the content actually receives the reclaimed space. */
-[data-sidebar-collapsed="true"] .specialist-workbench-rail {
-  display: none;
-}
-
-[data-sidebar-collapsed="true"] .specialist-workbench {
-  grid-template-columns: minmax(18rem, 1.5fr) minmax(14rem, 0.75fr);
-}
-
-#docs-workbench-view[data-sidebar-collapsed="true"] #wiki-view .docs-nav-panel {
-  display: none;
-}
-
-#files-workbench-view[data-sidebar-collapsed="true"] #files-view .files-phase7-location-panel {
-  display: none;
-}
-
-#files-workbench-view[data-sidebar-collapsed="true"] #files-view .files-phase7-workbench {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
 @media (max-width: 760px) {
   #files-workbench-view #files-view {
     height: 100%;
@@ -2098,13 +2097,13 @@ html[data-theme="light"] :where(
   color: var(--k-text);
 }
 
-/* Home: preserve the approved dashboard, align its workbench rhythm. */
+/* Home starts with capture and keeps the day in one readable column. */
 #today-view[data-kokuen-surface="home"] {
   background: var(--k-page);
 }
 
 #today-view[data-kokuen-surface="home"] .today-inner {
-  width: min(1120px, calc(100% - clamp(36px, 6vw, 68px)));
+  width: min(880px, calc(100% - 2 * var(--k-space-5)));
   padding-bottom: var(--k-space-6);
 }
 
@@ -2160,11 +2159,34 @@ html[data-theme="light"] :where(
 }
 
 #today-view[data-kokuen-surface="home"] .today-head h1 {
+  font-size: 20px;
+  letter-spacing: 0;
   color: var(--k-text);
   font-weight: 500;
 }
 
+#today-view[data-kokuen-surface="home"] .today-head { padding-top: var(--k-space-5); }
+
+#today-view[data-kokuen-surface="home"] .today-sections {
+  margin-top: var(--k-space-6);
+  gap: var(--k-space-5);
+}
+
+#today-view[data-kokuen-surface="home"] .today-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-4);
+}
+
+#today-view[data-kokuen-surface="home"] .today-shortcut {
+  min-height: var(--k-control);
+  border: 0;
+  padding: var(--k-space-2) 0;
+  background: transparent;
+}
+
 #today-view[data-kokuen-surface="home"] .today-summary {
+  margin-top: var(--k-space-3);
   color: var(--k-muted);
   font-size: 15px;
 }
@@ -2191,6 +2213,7 @@ html[data-theme="light"] :where(
 }
 
 #today-view[data-kokuen-surface="home"] .today-capture {
+  margin-top: var(--k-space-4);
   min-height: var(--k-app-header);
   border-color: var(--k-line);
 }

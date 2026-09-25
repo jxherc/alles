@@ -92,7 +92,7 @@ function _setSpecialistSidebarCollapsed(collapsed, { persist = false } = {}) {
     root.dataset.sidebarCollapsed = collapsed ? 'true' : 'false';
     const toggle = root.querySelector('[data-specialist-sidebar-toggle]');
     toggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    toggle?.setAttribute('aria-label', `${collapsed ? 'show' : 'hide'} ${group} navigation`);
+    toggle?.setAttribute('aria-label', `${collapsed ? 'show' : 'hide'} ${group} views`);
   });
   if (persist) {
     try { window.localStorage.setItem(SPECIALIST_SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0'); }
@@ -419,13 +419,13 @@ async function _renderPlan(target, request, section = 'overview') {
 
   const workbench = _el('div', 'specialist-workbench specialist-workbench-plan');
   const rail = _el('aside', 'specialist-workbench-rail');
-  rail.append(_el('h2', '', 'time'));
+
   const today = _todayKey();
   const sevenDayEndKey = addDateKeyDays(today, 7);
   let windowName = 'today';
   const agenda = _el('section', 'specialist-workbench-main');
   const agendaHead = _el('div', 'specialist-workbench-head');
-  agendaHead.append(_el('h2', '', 'ordered commitments'), _el('span', '', today));
+  agendaHead.append(_el('h2', '', 'agenda'), _el('span', '', today));
   const agendaList = _el('div', 'specialist-record-list');
   const renderWindow = value => {
     windowName = value;
@@ -447,22 +447,11 @@ async function _renderPlan(target, request, section = 'overview') {
     { value: 'seven', label: `next 7 days · ${commitments.filter(item => item.date >= today && item.date < sevenDayEndKey).length}` },
     { value: 'unscheduled', label: `unscheduled · ${commitments.filter(item => item.type === 'task' && !item.date).length}` },
   ], windowName, renderWindow);
-  rail.append(choices, _el('h2', '', 'specialists'));
-  const jumps = _el('div', 'specialist-workbench-jumps');
-  jumps.append(
-    _sectionJump('plan', 'calendar', 'calendar'),
-    _sectionJump('plan', 'tasks', 'tasks'),
-    _sectionJump('plan', 'reminders', 'reminders'),
-  );
-  rail.append(jumps);
+  rail.append(choices);
   agenda.append(agendaHead, agendaList);
   const aside = _el('aside', 'specialist-workbench-detail');
-  aside.append(_el('h2', '', 'quick capture'), capture, _el('h2', '', 'unscheduled'));
-  const unscheduled = commitments.filter(item => item.type === 'task' && !item.date);
-  const unscheduledList = _el('div', 'specialist-record-list');
-  _agendaRows(unscheduledList, unscheduled.slice(0, 6), unscheduledEmpty);
-  aside.append(unscheduledList);
-  workbench.append(rail, agenda, aside);
+  aside.append(capture);
+  workbench.append(aside, rail, agenda);
   const partial = _partialAvailability(failures);
   if (partial) target.append(partial);
   target.append(workbench);
@@ -1450,10 +1439,7 @@ function _wire(group, root) {
   const slot = root.querySelector('[data-group-slot]');
   if (overview) { overview.id = `${group}-overview-panel`; overview.setAttribute('role', 'tabpanel'); }
   if (slot) { slot.id = `${group}-legacy-panel`; slot.setAttribute('role', 'tabpanel'); }
-  const narrow = window.matchMedia('(max-width: 760px)');
-  const syncOrientation = () => tablist?.setAttribute('aria-orientation', narrow.matches ? 'horizontal' : 'vertical');
-  syncOrientation();
-  narrow.addEventListener?.('change', syncOrientation);
+  tablist?.setAttribute('aria-orientation', 'horizontal');
   root.querySelectorAll('[data-group-section]').forEach(button => {
     const section = button.dataset.groupSection;
     button.id = `${group}-tab-${section}`;

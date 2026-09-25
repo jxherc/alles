@@ -5,6 +5,7 @@ Run only against a server using an owned throwaway ``ALLES_DATA`` root.
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -42,18 +43,28 @@ def _capture_errors(
     errors: list[str],
     failed_requests: list[str],
     offline: dict[str, bool],
+    events: list[dict],
 ) -> None:
     page.on("pageerror", lambda error: errors.append(f"page: {error}"))
     page.on(
         "requestfailed",
-        lambda request: failed_requests.append(
-            f"{request.method} {request.url}: {request.failure}"
+        lambda request: (
+            failed_requests.append(f"{request.method} {request.url}: {request.failure}"),
+            events.append(
+                {
+                    "kind": "requestfailed",
+                    "url": request.url,
+                    "failure": request.failure,
+                    "offline": offline["active"],
+                }
+            ),
         ),
     )
 
     def on_console(message) -> None:
         if message.type != "error":
             return
+        events.append({"kind": "console", "text": message.text, "offline": offline["active"]})
         if offline["active"] and any(token in message.text for token in EXPECTED_OFFLINE_ERRORS):
             return
         errors.append(f"console: {message.text}")
@@ -82,10 +93,14 @@ def run() -> None:
     global OUTPUT
 
     _verify_test_root()
-    OUTPUT = Path(tempfile.mkdtemp(prefix="pwa-browser-artifacts-", dir=DATA))
+    OUTPUT = Path(
+        os.environ.get("ALLES_BROWSER_ARTIFACTS")
+        or tempfile.mkdtemp(prefix="pwa-browser-artifacts-", dir=DATA)
+    )
     errors: list[str] = []
     failed_requests: list[str] = []
     offline = {"active": False}
+    events = []
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
@@ -94,89 +109,96 @@ def run() -> None:
             reduced_motion="reduce",
             locale="zh-Hant-TW",
         )
+        context.tracing.start(screenshots=True, snapshots=True, sources=True)
         page = context.new_page()
-        _capture_errors(page, errors, failed_requests, offline)
+        _capture_errors(page, errors, failed_requests, offline, events)
 
-        page.goto(f"{BASE}/?app=plan", wait_until="domcontentloaded")
-        setup = page.locator("#setup-wizard")
-        if setup.is_visible():
-            page.locator("#setup-skip").click()
-            expect(setup).to_be_hidden()
-        page.wait_for_function(
-            "() => navigator.serviceWorker && navigator.serviceWorker.controller",
-            timeout=15_000,
-        )
-        expect(page.locator("body")).not_to_have_class("preboot")
-        _assert_shell(page, "plan")
-
-        cached = page.evaluate(
-            """async () => {
-              const names = await caches.keys();
-              const urls = [];
-              for (const name of names) {
-                const cache = await caches.open(name);
-                urls.push(...(await cache.keys()).map(request => request.url));
-              }
-              return { names, urls };
-            }"""
-        )
-        assert cached["names"] == ["alles-v259"], cached["names"]
-        for retired in ("files.js", "research.js", "ragquery.js", "aidebehavior.js"):
-            assert not any(f"/static/js/{retired}" in url for url in cached["urls"])
-        assert any(url.endswith("/") for url in cached["urls"])
-        assert any("/static/style.css?v=303" in url for url in cached["urls"])
-        assert any("/static/kokuen.css?v=21" in url for url in cached["urls"])
-        assert sum("/static/js/" in url for url in cached["urls"]) >= 20
-        page.screenshot(path=str(OUTPUT / "pwa-plan-online-mobile.png"), full_page=True)
-
-        offline["active"] = True
-        context.set_offline(True)
-        page.goto(f"{BASE}/?app=andromeda", wait_until="domcontentloaded")
         try:
+            page.goto(f"{BASE}/?app=plan", wait_until="domcontentloaded")
+            setup = page.locator("#setup-wizard")
+            if setup.is_visible():
+                page.locator("#setup-skip").click()
+                expect(setup).to_be_hidden()
             page.wait_for_function(
-                "() => !document.body.classList.contains('preboot')", timeout=10_000
+                "() => navigator.serviceWorker && navigator.serviceWorker.controller",
+                timeout=15_000,
             )
-        except Exception:
-            diagnostic = page.evaluate(
-                """async () => ({
-                  url: location.href,
-                  bodyClass: document.body.className,
-                  scripts: [...document.scripts].map(script => script.src).filter(Boolean),
-                  cacheNames: await caches.keys(),
-                  appModule: await (async () => {
-                    const match = await caches.match('/static/js/app.js?v=303');
-                    return match ? { status: match.status, size: (await match.clone().text()).length } : null;
-                  })(),
-                  appModuleKeys: await (async () => {
-                    const cache = await caches.open('alles-v259');
-                    return (await cache.keys())
-                      .map(request => request.url)
-                      .filter(url => url.includes('/static/js/app.js'));
-                  })(),
-                })"""
-            )
-            page.screenshot(path=str(OUTPUT / "pwa-offline-boot-failure.png"), full_page=True)
-            print(
-                {
-                    "offline_boot": diagnostic,
-                    "browser_errors": errors,
-                    "failed_requests": failed_requests,
-                }
-            )
-            raise
-        _assert_shell(page, "andromeda")
-        expect(page.locator("#andromeda-view")).to_be_visible()
-        expect(page.locator("#sync-indicator")).to_be_attached()
-        page.screenshot(path=str(OUTPUT / "pwa-andromeda-offline-mobile.png"), full_page=True)
+            expect(page.locator("body")).not_to_have_class("preboot")
+            _assert_shell(page, "plan")
 
-        context.set_offline(False)
-        offline["active"] = False
-        page.goto(f"{BASE}/?app=aide", wait_until="networkidle")
-        _assert_shell(page, "aide")
-        expect(page.locator("#chat")).to_be_visible()
-        page.screenshot(path=str(OUTPUT / "pwa-aide-reconnected-mobile.png"), full_page=True)
+            cached = page.evaluate(
+                """async () => {
+                  const names = await caches.keys();
+                  const urls = [];
+                  for (const name of names) {
+                    const cache = await caches.open(name);
+                    urls.push(...(await cache.keys()).map(request => request.url));
+                  }
+                  return { names, urls };
+                }"""
+            )
+            assert cached["names"] == ["alles-v260"], cached["names"]
+            for retired in ("files.js", "research.js", "ragquery.js", "aidebehavior.js"):
+                assert not any(f"/static/js/{retired}" in url for url in cached["urls"])
+            assert any(url.endswith("/") for url in cached["urls"])
+            assert any("/static/style.css?v=304" in url for url in cached["urls"])
+            assert any("/static/kokuen.css?v=22" in url for url in cached["urls"])
+            assert sum("/static/js/" in url for url in cached["urls"]) >= 20
+            page.screenshot(path=str(OUTPUT / "pwa-plan-online-mobile.png"), full_page=True)
 
-        browser.close()
+            offline["active"] = True
+            context.set_offline(True)
+            page.goto(f"{BASE}/?app=andromeda", wait_until="domcontentloaded")
+            try:
+                page.wait_for_function(
+                    "() => !document.body.classList.contains('preboot')", timeout=10_000
+                )
+            except Exception:
+                diagnostic = page.evaluate(
+                    """async () => ({
+                      url: location.href,
+                      bodyClass: document.body.className,
+                      scripts: [...document.scripts].map(script => script.src).filter(Boolean),
+                      cacheNames: await caches.keys(),
+                      appModule: await (async () => {
+                        const match = await caches.match('/static/js/app.js?v=304');
+                        return match ? { status: match.status, size: (await match.clone().text()).length } : null;
+                      })(),
+                      appModuleKeys: await (async () => {
+                        const cache = await caches.open('alles-v260');
+                        return (await cache.keys())
+                          .map(request => request.url)
+                          .filter(url => url.includes('/static/js/app.js'));
+                      })(),
+                    })"""
+                )
+                page.screenshot(path=str(OUTPUT / "pwa-offline-boot-failure.png"), full_page=True)
+                print(
+                    {
+                        "offline_boot": diagnostic,
+                        "browser_errors": errors,
+                        "failed_requests": failed_requests,
+                    }
+                )
+                raise
+            _assert_shell(page, "andromeda")
+            expect(page.locator("#andromeda-view")).to_be_visible()
+            expect(page.locator("#sync-indicator")).to_be_attached()
+            page.screenshot(path=str(OUTPUT / "pwa-andromeda-offline-mobile.png"), full_page=True)
+
+            context.set_offline(False)
+            offline["active"] = False
+            page.goto(f"{BASE}/?app=aide", wait_until="networkidle")
+            _assert_shell(page, "aide")
+            expect(page.locator('body[data-space="aide"] .main')).to_be_visible()
+            expect(page.locator("#composer-ta")).to_be_visible()
+            page.screenshot(path=str(OUTPUT / "pwa-aide-reconnected-mobile.png"), full_page=True)
+
+        finally:
+            page.screenshot(path=str(OUTPUT / "pwa-final.png"), full_page=True)
+            context.tracing.stop(path=str(OUTPUT / "pwa-trace.zip"))
+            (OUTPUT / "pwa-events.json").write_text(json.dumps(events, indent=2) + "\n")
+            browser.close()
 
     if errors:
         raise AssertionError("PWA console errors:\n" + "\n".join(errors))

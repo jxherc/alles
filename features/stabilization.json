@@ -1,0 +1,1183 @@
+{
+  "schema_version": 1,
+  "baseline_revision": "c696c42a7dcd3e36d6367759b9eb01d73d2c1a0d",
+  "states": [
+    "untested",
+    "failed",
+    "passed",
+    "blocked"
+  ],
+  "scenarios": [
+    {
+      "id": "setup-security.owner-setup.1",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "fresh owner setup",
+      "expected": "Install, initialize, authenticate, and safely configure one owner without exposing private data.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "setup-security.owner-setup.2",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "recent-owner reauthentication",
+      "expected": "Install, initialize, authenticate, and safely configure one owner without exposing private data.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "setup-security.owner-setup.3",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "resume interrupted setup",
+      "expected": "Install, initialize, authenticate, and safely configure one owner without exposing private data.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "home.capture-and-navigation.1",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "capture a task from Home and reload",
+      "expected": "Exactly one task with the entered title is persisted after reload; the capture field becomes usable again.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "home.capture-and-navigation.2",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "open every workbench",
+      "expected": "Capture work, review current context, open the nine workbenches, and receive local notices.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "home.capture-and-navigation.3",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "capture a task from Home at phone width",
+      "expected": "The pointer submission persists one task at 390px without horizontal page overflow.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "phone"
+      ]
+    },
+    {
+      "id": "aide.conversation-and-execution.1",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "complete an Auto task",
+      "expected": "Run model conversations, projects, memory, research, delegated work, and owner-approved local execution.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.conversation-and-execution.2",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "arm Full Access",
+      "expected": "Run model conversations, projects, memory, research, delegated work, and owner-approved local execution.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.conversation-and-execution.3",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "inspect a redacted audit",
+      "expected": "Run model conversations, projects, memory, research, delegated work, and owner-approved local execution.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.selectable-questions.1",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "answer by pointer",
+      "expected": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.selectable-questions.2",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "answer by keyboard",
+      "expected": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.selectable-questions.3",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "reload and resume",
+      "expected": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.selectable-questions.4",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "answer through Discord",
+      "expected": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "andromeda.cited-search.1",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "search and open citations",
+      "expected": "Return fast web results, a compact cited answer, and optional independent freshness-aware verification.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "andromeda.cited-search.2",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "toggle verification",
+      "expected": "Return fast web results, a compact cited answer, and optional independent freshness-aware verification.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "andromeda.cited-search.3",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "render failed checks honestly",
+      "expected": "Return fast web results, a compact cited answer, and optional independent freshness-aware verification.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "plan.tasks-calendar.1",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "create and move a task",
+      "expected": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "plan.tasks-calendar.2",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "keyboard board navigation",
+      "expected": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "plan.tasks-calendar.3",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "create and delete an event",
+      "expected": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "inbox.mail-and-contacts.1",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "connect a disposable mailbox",
+      "expected": "Read and send mail and manage contacts through owner-configured connectors.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "inbox.mail-and-contacts.2",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "send a test message",
+      "expected": "Read and send mail and manage contacts through owner-configured connectors.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "inbox.mail-and-contacts.3",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "edit a test contact",
+      "expected": "Read and send mail and manage contacts through owner-configured connectors.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.documents-and-journal.1",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "edit and recover a document",
+      "expected": "Create, edit, search, link, recover, and migrate documents and journal entries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.documents-and-journal.2",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "rename with backlink preservation",
+      "expected": "Create, edit, search, link, recover, and migrate documents and journal entries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.documents-and-journal.3",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "migrate and roll back a journal entry",
+      "expected": "Create, edit, search, link, recover, and migrate documents and journal entries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files-photos.locations-and-media.1",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "browse Alles and Connected",
+      "expected": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files-photos.locations-and-media.2",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "copy move and roll back",
+      "expected": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files-photos.locations-and-media.3",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "open Gallery and return Home",
+      "expected": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files-photos.locations-and-media.4",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "resolve a vault conflict",
+      "expected": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "library.reading-and-news.1",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "save and open a page",
+      "expected": "Save reading, manage books, collect cited news, and keep cookbook material.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "library.reading-and-news.2",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "add and update a book",
+      "expected": "Save reading, manage books, collect cited news, and keep cookbook material.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "library.reading-and-news.3",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "deliver a cited news brief",
+      "expected": "Save reading, manage books, collect cited news, and keep cookbook material.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "health.logs-and-habits.1",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "log a synthetic measurement",
+      "expected": "Record health observations and track habits without presenting the app as medical care.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "health.logs-and-habits.2",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "complete a habit",
+      "expected": "Record health observations and track habits without presenting the app as medical care.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "health.logs-and-habits.3",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "inspect empty and partial summaries",
+      "expected": "Record health observations and track habits without presenting the app as medical care.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.actual-ledger.1",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "reconcile a disposable ledger",
+      "expected": "Use Actual Budget as canonical ledger and import statements read-only with provenance and undo.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.actual-ledger.2",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "import statement fixtures",
+      "expected": "Use Actual Budget as canonical ledger and import statements read-only with provenance and undo.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.actual-ledger.3",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "undo an import",
+      "expected": "Use Actual Budget as canonical ledger and import statements read-only with provenance and undo.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.bank-connectors.1",
+      "feature": "finance.bank-connectors",
+      "app": "finance",
+      "workflow": "connect Plaid sandbox",
+      "expected": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.bank-connectors.2",
+      "feature": "finance.bank-connectors",
+      "app": "finance",
+      "workflow": "deduplicate transactions",
+      "expected": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.bank-connectors.3",
+      "feature": "finance.bank-connectors",
+      "app": "finance",
+      "workflow": "expire and reconnect consent",
+      "expected": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.bank-connectors.4",
+      "feature": "finance.bank-connectors",
+      "app": "finance",
+      "workflow": "disconnect and revoke",
+      "expected": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "passwords.vault-and-browser.1",
+      "feature": "passwords.vault-and-browser",
+      "app": "passwords",
+      "workflow": "pair the extension",
+      "expected": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "passwords.vault-and-browser.2",
+      "feature": "passwords.vault-and-browser",
+      "app": "passwords",
+      "workflow": "fill an exact test site",
+      "expected": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "passwords.vault-and-browser.3",
+      "feature": "passwords.vault-and-browser",
+      "app": "passwords",
+      "workflow": "reject a mismatched origin",
+      "expected": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "passwords.vault-and-browser.4",
+      "feature": "passwords.vault-and-browser",
+      "app": "passwords",
+      "workflow": "revoke a browser",
+      "expected": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.management.1",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "inspect neofetch and btop",
+      "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.management.2",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "restart a disposable service",
+      "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.management.3",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "reject an unsafe policy edit",
+      "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.management.4",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "perform update rollback",
+      "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.adguard-home.1",
+      "feature": "server.adguard-home",
+      "app": "server",
+      "workflow": "prepare without activation",
+      "expected": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.adguard-home.2",
+      "feature": "server.adguard-home",
+      "app": "server",
+      "workflow": "activate in isolation",
+      "expected": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.adguard-home.3",
+      "feature": "server.adguard-home",
+      "app": "server",
+      "workflow": "inspect query statistics",
+      "expected": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.adguard-home.4",
+      "feature": "server.adguard-home",
+      "app": "server",
+      "workflow": "roll back DNS",
+      "expected": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.nginx-proxy-manager.1",
+      "feature": "server.nginx-proxy-manager",
+      "app": "server",
+      "workflow": "prepare without Docker",
+      "expected": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.nginx-proxy-manager.2",
+      "feature": "server.nginx-proxy-manager",
+      "app": "server",
+      "workflow": "activate in isolation",
+      "expected": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.nginx-proxy-manager.3",
+      "feature": "server.nginx-proxy-manager",
+      "app": "server",
+      "workflow": "create a proxy host",
+      "expected": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.nginx-proxy-manager.4",
+      "feature": "server.nginx-proxy-manager",
+      "app": "server",
+      "workflow": "roll back service",
+      "expected": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.owner-connectors.1",
+      "feature": "integrations.owner-connectors",
+      "app": "settings",
+      "workflow": "pair a Discord owner",
+      "expected": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.owner-connectors.2",
+      "feature": "integrations.owner-connectors",
+      "app": "settings",
+      "workflow": "connect and revoke MCP",
+      "expected": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.owner-connectors.3",
+      "feature": "integrations.owner-connectors",
+      "app": "settings",
+      "workflow": "test a signed webhook",
+      "expected": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.owner-connectors.4",
+      "feature": "integrations.owner-connectors",
+      "app": "settings",
+      "workflow": "disconnect an endpoint",
+      "expected": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.model-authentication.1",
+      "feature": "integrations.model-authentication",
+      "app": "settings",
+      "workflow": "connect Gemini OAuth",
+      "expected": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.model-authentication.2",
+      "feature": "integrations.model-authentication",
+      "app": "settings",
+      "workflow": "connect and revoke an API key",
+      "expected": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.model-authentication.3",
+      "feature": "integrations.model-authentication",
+      "app": "settings",
+      "workflow": "discover CLIProxyAPI models",
+      "expected": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.model-authentication.4",
+      "feature": "integrations.model-authentication",
+      "app": "settings",
+      "workflow": "show unsupported OAuth honestly",
+      "expected": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "automation.schedules-and-actions.1",
+      "feature": "automation.schedules-and-actions",
+      "app": "aide",
+      "workflow": "create and pause a schedule",
+      "expected": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "automation.schedules-and-actions.2",
+      "feature": "automation.schedules-and-actions",
+      "app": "aide",
+      "workflow": "resume after restart",
+      "expected": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "automation.schedules-and-actions.3",
+      "feature": "automation.schedules-and-actions",
+      "app": "aide",
+      "workflow": "inspect a failed action",
+      "expected": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "automation.schedules-and-actions.4",
+      "feature": "automation.schedules-and-actions",
+      "app": "aide",
+      "workflow": "cancel a run",
+      "expected": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.regional-settings.1",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "use automatic region",
+      "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.regional-settings.2",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "override formats",
+      "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.regional-settings.3",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "switch reviewed languages",
+      "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.regional-settings.4",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "restart and preserve choices",
+      "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.credits.1",
+      "feature": "localization.credits",
+      "app": "settings",
+      "workflow": "search named inspirations",
+      "expected": "Show dependencies, adapted sources, inspirations, revisions, licenses, source links, and required notices.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.credits.2",
+      "feature": "localization.credits",
+      "app": "settings",
+      "workflow": "open a local notice",
+      "expected": "Show dependencies, adapted sources, inspirations, revisions, licenses, source links, and required notices.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.credits.3",
+      "feature": "localization.credits",
+      "app": "settings",
+      "workflow": "show unavailable notice honestly",
+      "expected": "Show dependencies, adapted sources, inspirations, revisions, licenses, source links, and required notices.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "accessibility.interface-contract.1",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "complete flows by keyboard",
+      "expected": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "accessibility.interface-contract.2",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "verify dialog focus return",
+      "expected": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "accessibility.interface-contract.3",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "test responsive and zoom states",
+      "expected": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "accessibility.interface-contract.4",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "test reduced motion and themes",
+      "expected": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "extension-mobile.pwa-and-extension.1",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "home",
+      "workflow": "install PWA",
+      "expected": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "extension-mobile.pwa-and-extension.2",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "home",
+      "workflow": "exercise offline and reconnect",
+      "expected": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "extension-mobile.pwa-and-extension.3",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "home",
+      "workflow": "pair and revoke extension",
+      "expected": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "extension-mobile.pwa-and-extension.4",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "home",
+      "workflow": "test mobile package",
+      "expected": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.1",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "fresh macOS install",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.2",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "fresh Linux VM install",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.3",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "recover interrupted update",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.4",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "uninstall preserving data",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.5",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "restore and roll back",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "developer-interfaces.api-cli.1",
+      "feature": "developer-interfaces.api-cli",
+      "app": "server",
+      "workflow": "issue and revoke API token",
+      "expected": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "developer-interfaces.api-cli.2",
+      "feature": "developer-interfaces.api-cli",
+      "app": "server",
+      "workflow": "call OpenAI-compatible API",
+      "expected": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "developer-interfaces.api-cli.3",
+      "feature": "developer-interfaces.api-cli",
+      "app": "server",
+      "workflow": "reject scope escalation",
+      "expected": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "developer-interfaces.api-cli.4",
+      "feature": "developer-interfaces.api-cli",
+      "app": "server",
+      "workflow": "run CLI tests",
+      "expected": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "release.mac-safari",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "complete core tasks in Mac Safari",
+      "expected": "real pointer, keyboard, persistence and recovery work in Safari",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "release.iphone-safari",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "complete core tasks on a physical iPhone in Safari",
+      "expected": "touch, safe areas, keyboard and single-pane navigation work on the real device",
+      "status": "blocked",
+      "blocker": "no physical iPhone test session is connected",
+      "evidence": []
+    },
+    {
+      "id": "release.seven-day-trial",
+      "feature": "backup-recovery.lifecycle",
+      "app": "all",
+      "workflow": "seven consecutive days of recorded use on the release candidate",
+      "expected": "daily workflow records and no unresolved blocking regression",
+      "status": "blocked",
+      "blocker": "starts after all candidate gates pass; no trial has run",
+      "evidence": []
+    },
+    {
+      "id": "settings.persistence",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "change preferences, save and reload",
+      "expected": "The saved values and their visible effects persist after reload and a second browser session.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "settings.failure-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "interrupt a settings save and retry",
+      "expected": "Keep edited values, show the save failure, allow retry, and acknowledge only confirmed persistence.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "shell.history-and-links",
+      "feature": "cross-feature.shared-shell",
+      "app": "all",
+      "workflow": "open all destinations, deep link, go back/forward and reload",
+      "expected": "The selected app and record match the URL, history is useful, and local navigation remains usable.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "shell.dialogs-and-menus",
+      "feature": "cross-feature.shared-shell",
+      "app": "all",
+      "workflow": "open, operate and dismiss shared dialogs and menus",
+      "expected": "Pointer and keyboard reach each action; escape closes the top overlay and focus returns to its trigger.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "shell.request-lifecycle",
+      "feature": "cross-feature.shared-shell",
+      "app": "all",
+      "workflow": "repeat rapid navigation, submit twice and interrupt requests",
+      "expected": "No duplicate records, stale responses, lost input, stuck loading, or unbounded request/listener growth.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "plan.capture-persistence",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "capture with Enter, filter and reload",
+      "expected": "Exactly one task with the entered title remains visible after reload; hiding views leaves capture and filters usable.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.save-persistence",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "create, source-edit, save and revisit its deep link",
+      "expected": "Saved Markdown and mixed-language content survive reload; views never hides the editor or discards input.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.failed-save",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "reject a save with a simulated HTTP 503, then retry",
+      "expected": "Unsaved text remains visible, the file on disk stays unchanged after the failed request, and retry persists the new content.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.conflict-and-draft",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "edit in two tabs and navigate away with unsaved text",
+      "expected": "Conflicts do not silently overwrite data and drafts survive the documented leave/recovery flow.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files.operations-recovery",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "copy, move, rollback, soft-delete, restore and retry a failed listing",
+      "expected": "Filesystem results match the selected operation; read-only boundaries hold and queued operations remain recoverable after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "aide.stream-recovery",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "submit, stream, cancel, navigate away, resume and fail a provider",
+      "expected": "Progress and saved conversation match the actual operation; cancellation and provider failure offer a clear next action.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "andromeda.search-recovery",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "search, inspect sources, cancel and recover from a provider failure",
+      "expected": "Citations identify the returned evidence and stale or failed searches never overwrite the current query.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "vault.lock-cycle",
+      "feature": "passwords.vault-and-browser",
+      "app": "vault",
+      "workflow": "initialize, unlock, add a synthetic secret, reload and lock",
+      "expected": "Stored values survive reload; locked and unauthorized states never disclose them.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "upgrade.migration-interruption",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "upgrade a synthetic older database with an interrupted migration",
+      "expected": "Restart or rollback restores a usable state with the original fixture values intact.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "presentation.matrix",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "inspect all apps across themes, widths, zoom and long content",
+      "expected": "Readable content, reachable actions, correct scrolling and focus in loading, empty, populated, partial, error, offline, denied, disabled and interrupted states.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "usability.task-walkthrough",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "complete task descriptions without source-code assistance",
+      "expected": "Record unclear labels, hidden actions, unnecessary steps, and ambiguous next actions; each blocking issue receives a reproduction.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.offline-save-recovery",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "disconnect while editing and saving, then reconnect",
+      "expected": "Unsaved text remains recoverable across offline/reload and retry; the UI never reports an unconfirmed write as saved.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.concurrent-save",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "edit locally while a second client writes through the document API",
+      "expected": "The browser shows a changed-file warning, preserves local input, rejects stale saves, and can explicitly load the saved remote copy after reload.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": []
+    }
+  ],
+  "findings": [
+    {
+      "id": "STAB-001",
+      "title": "document save waits for optional embedding initialization",
+      "status": "fixed-and-verified",
+      "severity": "medium",
+      "screen": "Docs editor",
+      "reproduction": [
+        "create a Markdown document on a fresh isolated instance",
+        "edit the source and press save before the embedding model is initialized"
+      ],
+      "expected": "acknowledge the durable Markdown save independently of optional search indexing",
+      "actual": "saving remained visible beyond five seconds; the save request completed in 6382ms while fastembed initialized and fetched model files",
+      "evidence": [
+        "browser trace: POST /api/vault-md/safety/save pending",
+        "server http.request duration_ms=6382.173; fastembed initialization in the same interval"
+      ],
+      "verification": "84 focused Python regressions and real desktop/phone save, reload and retry checks; save acknowledgment no longer waits for embedding initialization.",
+      "revision": "c696c42 with uncommitted stabilization changes"
+    },
+    {
+      "id": "STAB-002",
+      "title": "new document reports an external edit caused by its own creation",
+      "status": "fixed-and-verified",
+      "severity": "medium",
+      "screen": "Docs newly created document, dirty editor",
+      "reproduction": [
+        "Create a new Markdown document on an owned empty instance.",
+        "Wait for the file watcher event without opening an external editor."
+      ],
+      "expected": "Own creation/save events do not display conflict warnings; actual changed disk content still does.",
+      "actual": "Safari displayed This file changed in Obsidian while a local draft was open immediately after creation. Saving and reload worked.",
+      "evidence": [
+        "Native Safari 27.0 accessibility tree after creating safari-proof.md on the synthetic fixture.",
+        "Docs watcher checks path and dirty state without comparing event hash."
+      ],
+      "verification": "Nine watcher regressions; real desktop/phone own-create and second-client conflict checks; native Safari new-document reproduction, mixed-language save and reload.",
+      "revision": "c696c42 with uncommitted stabilization changes"
+    },
+    {
+      "id": "STAB-003",
+      "title": "new empty draft retains the stored template word count",
+      "status": "fixed-and-verified",
+      "severity": "low",
+      "screen": "Docs new document editor",
+      "reproduction": [
+        "Create a new Markdown document and inspect its word count before typing."
+      ],
+      "expected": "The empty editor is reported as empty.",
+      "actual": "The editor was empty but the count still described the generated two-word heading on disk.",
+      "evidence": [
+        "Native Safari accessibility tree showed an empty source editor beside 2 words."
+      ],
+      "verification": "Both fresh full browser runs assert the empty editor reports empty document before typing, at desktop and phone widths; all 587 JavaScript tests pass. Native Safari confirms the same empty-draft feedback with Docs views hidden.",
+      "revision": "c696c42 with uncommitted stabilization changes"
+    },
+    {
+      "id": "STAB-004",
+      "title": "Andromeda stop is ineffective while model preview is pending",
+      "status": "confirmed",
+      "severity": "medium",
+      "screen": "Andromeda overview, checking sources",
+      "revision": "c696c42 with uncommitted stabilization changes",
+      "reproduction": [
+        "Delay the model preview response after requesting an overview.",
+        "Press the visible stop button before preview resolves.",
+        "Resolve preview and observe that the overview request still starts."
+      ],
+      "expected": "Stopping during preview prevents subsequent model submission and displays cancellation.",
+      "actual": "The abort controller is created only after preview/confirmation. The visible stop handler has nothing to cancel during preview.",
+      "evidence": [
+        "Isolated in-memory execution of the actual startOverview function and click handler submitted /api/andromeda/overview with signalAborted false after stop.",
+        "Chromium 1440px and 390px actual pointer reproduction: stop left checking sources visible; overview POST followed after delayed preview resolved, 374ms/365ms after the click. Search/preview/overview transport explicitly mocked; no live model."
+      ],
+      "verification": "real-browser reproduction confirmed on desktop and phone; repair pending"
+    },
+    {
+      "id": "STAB-005",
+      "title": "Home navigation retains a specialist deep link and reload opens the wrong app",
+      "status": "confirmed",
+      "severity": "medium",
+      "screen": "shared navigation on a single host",
+      "revision": "c696c42 with uncommitted stabilization changes",
+      "reproduction": [
+        "Open a document using /?view=docs#document-name on an owned local instance.",
+        "Use the app picker to go to Home.",
+        "Reload the browser."
+      ],
+      "expected": "Home has its own current URL; reload stays on Home and browser history follows visited apps.",
+      "actual": "The visible Home screen kept ?view=docs and the document fragment. Reload returned to Docs.",
+      "evidence": [
+        "Native Safari 27.0: Home heading was visible while the address retained ?view=docs#safari-empty-stats; reload reopened that document.",
+        "navigateTo updates history only for grouped specialist routes; primary spaces use renderLocalView without URL synchronization."
+      ],
+      "verification": "pending navigation regression and repair"
+    }
+  ],
+  "additional_surfaces": [
+    {
+      "id": "cross-feature.settings",
+      "app": "settings"
+    },
+    {
+      "id": "cross-feature.shared-shell",
+      "app": "all"
+    }
+  ]
+}

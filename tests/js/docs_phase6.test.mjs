@@ -25,8 +25,8 @@ test('Docs reserves its details column only while the panel is visible', () => {
   assert.doesNotMatch(css, /@media \(min-width: 1041px\) \{[\s\S]*?\.docs-workspace/);
 });
 
-test('Docs home columns can shrink inside the workspace without clipping', () => {
-  assert.match(css, /\.wiki-empty-state\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 0\.85fr\) minmax\(0, 1\.15fr\)/);
+test('Docs home uses a shrinking single content column', () => {
+  assert.match(css, /\.wiki-empty-state\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.doesNotMatch(css, /\.wiki-empty-state\s*\{[\s\S]*?grid-template-columns:\s*minmax\(260px/);
   assert.match(css, /@media \(max-width: 900px\) \{[\s\S]*?#wiki-view\.no-note \.wiki-empty-state \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
 });
