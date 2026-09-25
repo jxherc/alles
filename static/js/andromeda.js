@@ -844,60 +844,78 @@ function selectedExactModel() {
   return _modelChoices.get(providerValue('andromeda-exact-model')) || {};
 }
 
-async function previewOverview() {
+async function previewOverview(signal) {
   const params = new URLSearchParams({ band: providerValue('andromeda-band', 'standard') });
   const exact = selectedExactModel();
   if (exact.endpoint_id) {
     params.set('endpoint_id', exact.endpoint_id);
     params.set('model', exact.model);
   }
-  return jsonRequest(`/api/andromeda/overview/preview?${params}`);
+  return jsonRequest(`/api/andromeda/overview/preview?${params}`, { signal });
+}
+
+function stopOverview() {
+  const controller = _overviewAbort;
+  if (!controller) return;
+  _overviewAbort = null;
+  controller.abort();
+  text('andromeda-overview-state', tr('andromeda.overview_stopped'));
+  showRecovery(true, 'cancelled');
+  const stop = el('andromeda-cancel-overview');
+  if (stop) stop.hidden = true;
 }
 
 async function startOverview(query, results, searchGeneration) {
+  if (searchGeneration !== _searchGeneration) return;
+  _overviewAbort?.abort();
+  const controller = new AbortController();
+  _overviewAbort = controller;
+  // A retry can replace an overview without changing the search generation.
+  const current = () => _overviewAbort === controller
+    && searchGeneration === _searchGeneration && !controller.signal.aborted;
   showOverview(true);
   clearOverview(tr('andromeda.checking_sources'));
   const stop = el('andromeda-cancel-overview');
   if (stop) stop.hidden = false;
-  let preview;
   try {
-    preview = await previewOverview();
-  } catch (error) {
-    if (searchGeneration !== _searchGeneration) return;
-    text('andromeda-overview-state', failureMessage(tr('andromeda.links_available', { error: error.message }), error));
-    showRecovery(true, error.code);
-    if (stop) stop.hidden = true;
-    return;
-  }
-  if (searchGeneration !== _searchGeneration) return;
-  _state.model = preview;
-  text('andromeda-model', `${preview.model} · ${preview.endpoint} · ${preview.privacy_class}`);
-  const confirmation = {};
-  if (preview.privacy_class === 'remote') {
-    const allowed = await confirmDialog(tr('andromeda.remote_confirm', { endpoint: preview.endpoint, model: preview.model }));
-    if (searchGeneration !== _searchGeneration) return;
-    if (!allowed) {
-      text('andromeda-overview-state', tr('andromeda.cancelled_unsent'));
-      showRecovery(true, 'remote_not_confirmed');
-      if (stop) stop.hidden = true;
+    let preview;
+    try {
+      preview = await previewOverview(controller.signal);
+    } catch (error) {
+      if (!current()) return;
+      text('andromeda-overview-state', failureMessage(tr('andromeda.links_available', { error: error.message }), error));
+      showRecovery(true, error.code);
       return;
     }
-    confirmation.confirmed_endpoint_id = preview.endpoint_id;
-    confirmation.confirmed_model = preview.model;
-  }
-  _overviewAbort?.abort();
-  _overviewAbort = new AbortController();
-  const exact = selectedExactModel();
-  try {
+    if (!current()) return;
+    _state.model = preview;
+    text('andromeda-model', `${preview.model} · ${preview.endpoint} · ${preview.privacy_class}`);
+    const confirmation = {};
+    if (preview.privacy_class === 'remote') {
+      const allowed = await confirmDialog(tr('andromeda.remote_confirm', { endpoint: preview.endpoint, model: preview.model }));
+      if (!current()) return;
+      if (!allowed) {
+        text('andromeda-overview-state', tr('andromeda.cancelled_unsent'));
+        showRecovery(true, 'remote_not_confirmed');
+        return;
+      }
+      confirmation.confirmed_endpoint_id = preview.endpoint_id;
+      confirmation.confirmed_model = preview.model;
+    }
+    const exact = selectedExactModel();
     const response = await fetch('/api/andromeda/overview', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      signal: _overviewAbort.signal,
+      signal: controller.signal,
       body: JSON.stringify({
         query, results, band: providerValue('andromeda-band', 'standard'),
         endpoint_id: exact.endpoint_id || '', model: exact.model || '', ...confirmation,
       }),
     });
+    if (!current()) {
+      await response.body?.cancel();
+      return;
+    }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       throw Object.assign(new Error(body.detail || tr('andromeda.overview_failed')), body);
@@ -909,7 +927,7 @@ async function startOverview(query, results, searchGeneration) {
     let claimIndex = 0;
     while (true) {
       const { value, done } = await reader.read();
-      if (searchGeneration !== _searchGeneration) {
+      if (!current()) {
         await reader.cancel();
         return;
       }
@@ -930,18 +948,21 @@ async function startOverview(query, results, searchGeneration) {
       }
       if (done) break;
     }
-    if (searchGeneration === _searchGeneration && _state.overview?.status === 'ready') {
+    if (current() && _state.overview?.status === 'ready') {
       void startVerification(query, _state.overview, results, searchGeneration);
     }
   } catch (error) {
-    if (searchGeneration !== _searchGeneration) return;
+    if (!current()) return;
     const message = error.name === 'AbortError'
       ? tr('andromeda.overview_stopped')
       : tr('andromeda.overview_failed_links', { error: error.message || tr('andromeda.overview_failed') });
     text('andromeda-overview-state', failureMessage(message, error));
     showRecovery(true, error.name === 'AbortError' ? 'cancelled' : error.code || 'overview_failed');
   } finally {
-    if (searchGeneration === _searchGeneration && stop) stop.hidden = true;
+    if (_overviewAbort === controller && searchGeneration === _searchGeneration) {
+      _overviewAbort = null;
+      if (stop) stop.hidden = true;
+    }
   }
 }
 
@@ -1686,7 +1707,7 @@ function bindOnce() {
     const button = event.target.closest('[data-searxng-action]');
     if (button) manageSearxng(button.dataset.searxngAction, button);
   });
-  el('andromeda-cancel-overview')?.addEventListener('click', () => _overviewAbort?.abort());
+  el('andromeda-cancel-overview')?.addEventListener('click', stopOverview);
   el('andromeda-verification-retry')?.addEventListener('click', () => {
     if (!_state.query || !_state.overview?.status) return;
     void startVerification(

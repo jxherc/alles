@@ -191,7 +191,7 @@ test('Aide reminders has a routable identifier while legacy reminders stay with 
   assert.match(app, /AIDE_TOOL_VIEWS = new Set\(\[[^]*?'aide-reminders'/);
   assert.match(app, /v === 'aide-reminders'\) showRemindersView\(\)/);
   assert.match(app, /function renderLocalRoute\(route\) \{[^]*?return renderLocalView\(route\.view, route\)/);
-  assert.match(app, /if \(route\.section \|\| singleHost\(\)\) url\.searchParams\.set\('view', identifier\)/);
+  assert.match(app, /if \(route\.section \|\| singleHost\(\) \|\| !groupRouteFor\(identifier\)\) url\.searchParams\.set\('view', identifier\)/);
   assert.doesNotMatch(app, /const aideReminder =/);
   assert.match(app, /releaseSpecialistLegacyView\('plan', 'reminders'\)/);
   assert.equal(typeof releaseSpecialistLegacyView, 'function');

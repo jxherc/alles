@@ -37,7 +37,8 @@ test('boot canonicalizes grouped app links without losing their subsection', () 
   const boot = app.match(/async function _boot\([^]*?\n}/)?.[0] || '';
   assert.match(boot, /const groupedIdentifier = groupedRoute[\s\S]*?groupIdentifierFor/);
   assert.match(boot, /const groupedRoute = groupRouteFor\(initialRoute\.hashOwner\)/);
-  assert.match(boot, /_syncSpecialistGroupUrl\(initialRoute, groupedIdentifier\)/);
+  assert.match(boot, /_syncLocalViewUrl\(initialRoute, groupedIdentifier\)/);
+  assert.match(boot, /_v && !initialRoute/);
   assert.match(boot, /_consumeParams\(groupRouteFor\(_v\) \? \['app'\] : \['app', 'view'\]\)/);
 });
 
