@@ -5,6 +5,9 @@ local CodeMirror editor backed by private drafts, expected-hash saves, conflict 
 revisions. The service layer remains shared by Docs, Aide retrieval, search, and Notes.
 """
 
+import logging
+import threading
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
@@ -15,6 +18,10 @@ from core.database import get_db
 from services import document_safety, trash, vault_md
 
 router = APIRouter(prefix="/api/vault-md")
+log = logging.getLogger(__name__)
+# Read current bytes after queued refreshes acquire the lock. Otherwise an older,
+# slower embedding job can replace the index produced by a newer save.
+_INDEX_SYNC_LOCK = threading.RLock()
 VAULT_WATCH_INTERVAL = 0.5
 VAULT_KEEPALIVE_SECONDS = 20
 
@@ -65,23 +72,31 @@ def _reindex_doc(path, content):
         finally:
             db.close()
     except Exception:
-        pass
+        log.exception("could not refresh document search index for %s", path)
 
 
 def _sync_changed(path):
-    """a file changed on disk: fold journal daily notes back into the DB, index everything else."""
-    day = _journal_day(path)
-    if day:
-        from core.database import SessionLocal
-        from services import journal_vault
-
-        db = SessionLocal()
+    """Refresh from current disk state, off the response/event-loop path."""
+    with _INDEX_SYNC_LOCK:
         try:
-            journal_vault.sync_from_vault(db, day)
-        finally:
-            db.close()
-        return
-    _reindex_doc(path, vault_md.read(path).get("content", ""))
+            document = vault_md.read(path)
+            if not document.get("exists"):
+                _unindex_doc(path)
+                return
+            day = _journal_day(path)
+            if day:
+                from core.database import SessionLocal
+                from services import journal_vault
+
+                db = SessionLocal()
+                try:
+                    journal_vault.sync_from_vault(db, day)
+                finally:
+                    db.close()
+                return
+            _reindex_doc(path, document.get("content", ""))
+        except Exception:
+            log.exception("could not synchronize document search state for %s", path)
 
 
 def _unindex_doc(path):
@@ -100,7 +115,7 @@ def _unindex_doc(path):
         finally:
             db.close()
     except Exception:
-        pass
+        log.exception("could not remove document search index for %s", path)
 
 
 def _sync_rename_indexes(manifest: dict) -> None:
@@ -109,22 +124,28 @@ def _sync_rename_indexes(manifest: dict) -> None:
         old_path = manifest.get("old_path", "")
         current_paths = {manifest.get("new_path", "")}
         current_paths.update(change.get("path_after", "") for change in manifest.get("changes", []))
-        _unindex_doc(old_path)
+        _sync_changed(old_path)
     elif state == "rolled_back":
         current_paths = {manifest.get("old_path", "")}
         current_paths.update(
             change.get("path_before", "") for change in manifest.get("changes", [])
         )
-        _unindex_doc(manifest.get("new_path", ""))
+        _sync_changed(manifest.get("new_path", ""))
     else:
         return
 
     for path in sorted(current_paths):
         if not path:
             continue
-        document = vault_md.read(path)
-        if document.get("exists"):
-            _reindex_doc(path, document.get("content", ""))
+        _sync_changed(path)
+
+
+def _sync_folder_indexes(old_path: str, new_path: str, current_paths: list[str]) -> None:
+    old_pre = old_path.strip("/") + "/"
+    new_pre = new_path.strip("/") + "/"
+    for rel_new in current_paths:
+        _sync_changed(old_pre + rel_new[len(new_pre) :])
+        _sync_changed(rel_new)
 
 
 # ── read / browse ────────────────────────────────────────────────────────────
@@ -302,7 +323,7 @@ def compare_document(body: SafeDocumentBody):
 
 
 @router.post("/safety/save")
-def save_document(body: SafeDocumentBody):
+def save_document(body: SafeDocumentBody, background_tasks: BackgroundTasks):
     try:
         result = document_safety.save_document(body.path, body.content, body.expected_hash)
     except document_safety.DocumentSaveConflict as exc:
@@ -318,7 +339,7 @@ def save_document(body: SafeDocumentBody):
         raise ApiError(409, "document_encoding_unsupported", str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    _reindex_doc(result["path"], body.content)
+    background_tasks.add_task(_sync_changed, result["path"])
     return result
 
 
@@ -341,7 +362,7 @@ def document_revisions(path: str):
 
 
 @router.post("/safety/revisions/restore")
-def restore_document_revision(body: RevisionRestoreBody):
+def restore_document_revision(body: RevisionRestoreBody, background_tasks: BackgroundTasks):
     try:
         result = document_safety.restore_revision(body.path, body.revision_id, body.expected_hash)
     except vault_md.DocumentConflictError as exc:
@@ -350,8 +371,7 @@ def restore_document_revision(body: RevisionRestoreBody):
         raise HTTPException(400, str(exc)) from exc
     except (OSError, document_safety.RecoveryConflict) as exc:
         raise HTTPException(404, "revision not found") from exc
-    document = vault_md.read(result["path"])
-    _reindex_doc(result["path"], document.get("content", ""))
+    background_tasks.add_task(_sync_changed, result["path"])
     return result
 
 
@@ -366,12 +386,12 @@ def create_file(body: PathBody, background_tasks: BackgroundTasks):
     except ValueError as e:
         raise HTTPException(400, str(e))
     path = out.get("path", _norm_path(body.path))
-    background_tasks.add_task(_reindex_doc, path, vault_md.read(path).get("content", ""))
+    background_tasks.add_task(_sync_changed, path)
     return out
 
 
 @router.delete("/file")
-def delete_file(path: str, db: DbSession = Depends(get_db)):
+def delete_file(path: str, background_tasks: BackgroundTasks, db: DbSession = Depends(get_db)):
     try:
         resolved = vault_md._safe(path)
     except ValueError as e:
@@ -383,7 +403,7 @@ def delete_file(path: str, db: DbSession = Depends(get_db)):
     ref = str(resolved.relative_to(vault_md.root_dir())).replace("\\", "/")
     item = trash.soft_delete_path(db, "vault", ref, resolved)
     if ref.lower().endswith((".md", ".markdown")):
-        _unindex_doc(ref)
+        background_tasks.add_task(_sync_changed, ref)
     return {"ok": True, "trashed": True, "trash_id": item.id}
 
 
@@ -405,7 +425,9 @@ class TrashAction(BaseModel):
 
 
 @router.post("/trash/restore")
-def restore_trash(body: TrashAction, db: DbSession = Depends(get_db)):
+def restore_trash(
+    body: TrashAction, background_tasks: BackgroundTasks, db: DbSession = Depends(get_db)
+):
     item = trash.get(db, body.id)
     if not item or item.kind != "vault":
         raise HTTPException(404, "trash item not found")
@@ -415,7 +437,7 @@ def restore_trash(body: TrashAction, db: DbSession = Depends(get_db)):
     except FileExistsError as exc:
         raise ApiError(409, "restore_conflict", "a document already exists at that path") from exc
     if destination.is_file() and destination.suffix.lower() in {".md", ".markdown"}:
-        _reindex_doc(item.ref, vault_md.read(item.ref).get("content", ""))
+        background_tasks.add_task(_sync_changed, item.ref)
     return {"ok": True, "restored": item.ref}
 
 
@@ -425,7 +447,7 @@ class RenameBody(BaseModel):
 
 
 @router.post("/rename")
-def rename_file(body: RenameBody):
+def rename_file(body: RenameBody, background_tasks: BackgroundTasks):
     try:
         source = vault_md._safe(body.path)
     except ValueError as e:
@@ -449,7 +471,7 @@ def rename_file(body: RenameBody):
                 "rename paused safely; use the pending recovery transaction",
                 headers={"x-alles-recovery-id": exc.transaction_id},
             ) from exc
-        _sync_rename_indexes(manifest)
+        background_tasks.add_task(_sync_rename_indexes, manifest)
         return {
             "ok": True,
             "path": manifest["new_path"],
@@ -467,19 +489,13 @@ def rename_file(body: RenameBody):
         raise HTTPException(400, str(exc)) from exc
     new_path = out.get("path", _norm_path(body.new_path))
     out["links_rewritten"] = 0
-    # folder rename: reindex each child at its new path (old entries get cleaned by reconcile)
     base = vault_md.vault_dir()
-    old_pre = body.path.strip("/") + "/"
-    new_pre = new_path.strip("/") + "/"
-    for p in (base / new_path).rglob("*.md"):
-        rel_new = str(p.relative_to(base)).replace("\\", "/")
-        rel_old = old_pre + rel_new[len(new_pre) :]
-        _unindex_doc(rel_old)
-        try:
-            content = vault_md._read_text_for_edit(p)
-        except vault_md.DocumentEncodingError:
-            content = ""
-        _reindex_doc(rel_new, content)
+    # Capture identities before acknowledgment: a second folder rename may occur
+    # before the deferred refresh starts, but the old paths still need cleanup.
+    current_paths = [
+        str(path.relative_to(base)).replace("\\", "/") for path in (base / new_path).rglob("*.md")
+    ]
+    background_tasks.add_task(_sync_folder_indexes, body.path, new_path, current_paths)
     return out
 
 
@@ -494,7 +510,7 @@ def pending_renames():
 
 
 @router.post("/rename/recover")
-def recover_rename(body: RenameRecoveryBody):
+def recover_rename(body: RenameRecoveryBody, background_tasks: BackgroundTasks):
     try:
         if body.action == "resume":
             manifest = document_safety.resume_rename(body.id)
@@ -506,7 +522,7 @@ def recover_rename(body: RenameRecoveryBody):
         raise HTTPException(400, str(exc)) from exc
     except document_safety.RecoveryConflict as exc:
         raise ApiError(409, "rename_recovery_conflict", str(exc)) from exc
-    _sync_rename_indexes(manifest)
+    background_tasks.add_task(_sync_rename_indexes, manifest)
     return {"ok": True, "transaction": manifest}
 
 
@@ -588,15 +604,17 @@ async def stream():
                 continue
             idle = 0
             prev = cur
-            events = [*(_observed_event(path) for path in changed)]
-            events.extend(_observed_event(path, removed=True) for path in removed)
+            events = [await asyncio.to_thread(_observed_event, path) for path in changed]
+            events.extend(
+                [await asyncio.to_thread(_observed_event, path, removed=True) for path in removed]
+            )
             for p in changed:  # keep the index fresh (idempotent); journal notes sync to the DB
                 try:
-                    await asyncio.to_thread(lambda q=p: _sync_changed(q))
+                    await asyncio.to_thread(_sync_changed, p)
                 except Exception:
-                    pass
+                    log.exception("could not index observed document change for %s", p)
             for p in removed:
-                _unindex_doc(p)
+                await asyncio.to_thread(_sync_changed, p)
             yield f"data: {_json.dumps({'changed': changed, 'removed': removed, 'events': events})}\n\n"
 
     return StreamingResponse(

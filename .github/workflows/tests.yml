@@ -4,6 +4,16 @@ on:
   push:
     branches: [main, dev-afterlife]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      browser_suite:
+        description: Maintained browser suite
+        type: choice
+        options: [smoke, full]
+        default: full
+
+env:
+  PYTHON_DOTENV_DISABLED: "1"
 
 jobs:
   test:
@@ -16,3 +26,45 @@ jobs:
           cache: pip
       - run: pip install -r requirements.lock
       - run: python -m unittest discover -s tests -v
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff==0.16.4
+      - run: ruff check .
+      - run: ruff format --check .
+
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test tests/js/*.test.mjs
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.lock playwright==1.62.0
+      - run: python -m playwright install --with-deps chromium
+      - run: python scripts/run_browser_gates.py --suite "$BROWSER_SUITE" --output "$RUNNER_TEMP/alles-browser"
+        env:
+          BROWSER_SUITE: ${{ inputs.browser_suite || 'smoke' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-smoke-evidence
+          path: ${{ runner.temp }}/alles-browser
+          if-no-files-found: error
+          retention-days: 14
