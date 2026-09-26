@@ -13581,6 +13581,18 @@
             "tests": [
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 67
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 68
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase4_aide_andromeda.py",
                 "kind": "existing-test-control-reference",
                 "line": 382
@@ -13620,6 +13632,18 @@
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 67
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 68
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase4_aide_andromeda.py",
@@ -53339,6 +53363,54 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 66
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 284
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 305
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 306
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 373
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 374
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 384
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 385
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_continuity.py",
                 "kind": "existing-test-control-reference",
                 "line": 264
@@ -53676,6 +53748,54 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 66
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 284
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 305
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 306
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 373
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 374
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 384
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 385
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_continuity.py",
                 "kind": "existing-test-control-reference",
                 "line": 264
@@ -54010,6 +54130,54 @@
                 "file": "tests/pw_afterlife_aide_shell.py",
                 "kind": "existing-test-control-reference",
                 "line": 1004
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 66
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 284
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 305
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 306
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 373
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 374
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 384
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_composer.py",
+                "kind": "existing-test-control-reference",
+                "line": 385
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",

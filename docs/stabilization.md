@@ -49,7 +49,7 @@ regressions, Plan capture/conflict/draft recovery, Calendar save/recurrence/keyb
 Docs persistence and delayed-editor
 recovery, local Files operations, explicit upload/version recovery, Gallery recovery,
 Andromeda cancellation/retry with simulated transport, Aide interruption/recovery
-with a delayed loopback provider, Health correction/recovery, local Finance
+with a delayed loopback provider, narrow Aide send/stop, Health correction/recovery, local Finance
 validation/retry/persistence, Library note/reading recovery, Inbox contact/mail draft
 recovery, Vault and local encrypted-backup controls, Home reminder timezone boundaries, owner setup and
 sign-in recovery, Settings save/order/locale/context recovery, local Server recovery,
