@@ -401,14 +401,21 @@ async function loadDrafts() {
   let drafts = [];
   try {
     const url = _active && _active !== 'all' ? `/api/mail/drafts?account_id=${encodeURIComponent(_active)}` : '/api/mail/drafts';
-    drafts = await fetch(url).then(r => r.json());
-  } catch (e) { console.error(e); list.innerHTML = '<div class="mail-empty">failed to load drafts</div>'; return; }
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('drafts unavailable');
+    drafts = await response.json();
+    if (!Array.isArray(drafts)) throw new Error('invalid drafts response');
+  } catch {
+    list.innerHTML = '<div class="mail-empty" role="alert">could not load drafts. <button class="btn" id="mail-drafts-retry">retry</button></div>';
+    list.querySelector('#mail-drafts-retry').addEventListener('click', loadDrafts);
+    return;
+  }
   if (!drafts.length) { list.innerHTML = '<div class="mail-empty">no drafts</div>'; return; }
   list.innerHTML = drafts.map(d => `
     <div class="mail-row mail-draft-row" data-id="${esc(d.id)}">
-      <div class="mail-row-top"><span class="mail-from">${esc(d.to || '(no recipient)')}</span>
-        <button class="mail-draft-del" data-id="${esc(d.id)}" title="delete draft">×</button></div>
-      <div class="mail-subj">${esc(d.subject || '(no subject)')}</div>
+      <span class="mail-from">${esc(d.to || '(no recipient)')}</span>
+      <button type="button" class="mail-open mail-subj">${esc(d.subject || '(no subject)')}</button>
+      <button class="mail-draft-del" data-id="${esc(d.id)}" aria-label="delete draft">×</button>
       <div class="mail-snippet">${esc((d.body || '').slice(0, 80))}</div>
     </div>`).join('');
   list.querySelectorAll('.mail-draft-row').forEach(row => {
@@ -507,16 +514,16 @@ const _msgRow = (m, indent = false) => {
       <div class="mail-row-top">
         <span class="mail-from">${esc(fromName(m.from))}</span>
         <span class="mail-date">${esc(shortDate(m.date))}</span>
-        <span class="mail-row-acts">
-          ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" title="unsubscribe">${_si('x-circle')}</button>` : ''}
-          <button class="mail-act" data-label title="add a label">${_si('tag')}</button>
-          <button class="mail-act" data-snooze title="snooze until tomorrow">${_si('snooze')}</button>
-          <button class="mail-act" data-mute title="mute thread">${_si('mute')}</button>
-          <button class="mail-act" data-archive title="archive">${_si('archive')}</button>
-          <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag title="flag">${_si(m.flagged ? 'star-fill' : 'star')}</button>
-        </span>
       </div>
-      <div class="mail-subject">${esc(m.subject)}${(m.labels || []).map(l => `<span class="mail-label-chip" data-labelfilter="${esc(l)}">${esc(l)}</span>`).join('')}</div>
+      <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || '(no subject)')}</button>${(m.labels || []).map(l => `<span class="mail-label-chip" data-labelfilter="${esc(l)}">${esc(l)}</span>`).join('')}</div>
+      <span class="mail-row-acts">
+        ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" title="unsubscribe">${_si('x-circle')}</button>` : ''}
+        <button class="mail-act" data-label title="add a label">${_si('tag')}</button>
+        <button class="mail-act" data-snooze title="snooze until tomorrow">${_si('snooze')}</button>
+        <button class="mail-act" data-mute title="mute thread">${_si('mute')}</button>
+        <button class="mail-act" data-archive title="archive">${_si('archive')}</button>
+        <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag title="flag">${_si(m.flagged ? 'star-fill' : 'star')}</button>
+      </span>
       ${_active === 'all' ? `<div class="mail-account-badge">${esc(m.account_name || acctName(m.account_id))}</div>` : ''}
     </div>`;
 };
@@ -557,7 +564,7 @@ function _renderThreads(messages, msgTime) {
           <span class="mail-from">${esc(fromName(t.top.from))}</span>
           <span class="mail-date">${esc(shortDate(t.top.date))}</span>
         </div>
-        <div class="mail-subject"><span class="mail-thread-caret">${open ? '▾' : '▸'}</span> ${esc(t.top.subject)} <span class="mail-thread-count">${t.msgs.length}</span></div>
+        <button type="button" class="mail-open mail-subject" aria-expanded="${open}"><span class="mail-thread-caret" aria-hidden="true">${open ? '▾' : '▸'}</span> ${esc(t.top.subject || '(no subject)')} <span class="mail-thread-count">${t.msgs.length}</span></button>
         ${_active === 'all' ? `<div class="mail-account-badge">${esc(t.top.account_name || acctName(t.top.account_id))}</div>` : ''}
       </div>`;
     const kids = open ? t.msgs.map(m => _msgRow(m, true)).join('') : '';
@@ -829,7 +836,7 @@ async function compose(pre = {}) {
       <span class="mail-sig-wrap" id="mc-sig-list"></span>
       <button class="btn" id="mc-sig-add" title="save a new signature">＋ sig</button>
     </div>
-    <div class="settings-input mail-compose-body mail-rich-body" id="mc-html" contenteditable="true" data-ph="write your message…">${pre.body || ''}</div>
+    <div class="settings-input mail-compose-body mail-rich-body" id="mc-html" contenteditable="true" role="textbox" aria-label="message" aria-multiline="true" data-ph="write your message…">${pre.body || ''}</div>
     <div id="mc-suggest-box" class="mail-suggest-box"></div>
     <input type="file" id="mc-image-input" accept="image/*" style="display:none">
     <div id="mc-status" class="mail-status"></div>
@@ -844,7 +851,7 @@ async function compose(pre = {}) {
   $('mc-add-bcc')?.addEventListener('click', () => { $('mc-bcc-row').style.display = ''; $('mc-bcc-row').querySelector('.mc-chip-input').focus(); });
   _loadAddrBook();   // warm the autocomplete cache
   let _draftId = pre.id || '';
-  const initial = serializeForm(main);
+  let initial = serializeForm(main);
   const _draftBody = () => ({
     id: _draftId, account_id: $('mc-account')?.value || defaultAid,
     to: $('mc-to').value.trim(), cc: $('mc-cc').value.trim(), bcc: $('mc-bcc').value.trim(),
@@ -853,13 +860,16 @@ async function compose(pre = {}) {
   });
   // rich-compose toolbar + signatures (5c)
   _wireRichCompose(defaultAid);
+  (pre.id ? $('mc-subj') : main.querySelector('.mc-chip-input'))?.focus();
   $('mc-save').addEventListener('click', async () => {
-    const d = await fetch('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(_draftBody()) }).then(r => r.json()).catch(e => { console.error(e); return null; });
-    if (d?.id) { _draftId = d.id; toast('draft saved', 'success'); } else toast('save failed', 'error');
+    const savedState = serializeForm(main);
+    const d = await fetch('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(_draftBody()) }).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (typeof d?.id === 'string' && d.id) { _draftId = d.id; initial = savedState; toast('draft saved', 'success'); } else toast('save failed', 'error');
   });
   $('mc-close').addEventListener('click', async () => {
     if (serializeForm(main) !== initial && !await dlgConfirm('discard this draft?')) return;
     main.innerHTML = '';
+    $('mail-list').querySelector(`.mail-draft-row[data-id="${CSS.escape(_draftId)}"] .mail-open`)?.focus();
   });
   const _composeBody = () => {
     const el = $('mc-html');
@@ -1298,7 +1308,7 @@ function friendlyMailError(err) {
 }
 
 function serializeForm(root) {
-  return [...root.querySelectorAll('input,textarea,select')]
-    .map(el => `${el.id || el.name || el.placeholder}:${el.value}`)
+  return [...root.querySelectorAll('input,textarea,select,[contenteditable="true"]')]
+    .map(el => `${el.id || el.name || el.placeholder}:${el.isContentEditable ? el.innerHTML : el.value}`)
     .join('\n');
 }

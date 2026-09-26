@@ -1,11 +1,14 @@
 from datetime import UTC, date
+from hashlib import sha256
+from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Task, get_db
+from core.database import DB_PATH, Task, get_db
 from core.settings import load_settings
 from services.task_nl import advance, parse_task, reschedule_date
 
@@ -58,6 +61,85 @@ def _ordered(rows):
             t.created_at.isoformat(),
         ),
     )
+
+
+# The keyring identifies this installation's owner without exposing key material.
+# Retained keys allow a draft to survive routine key rotation in the same tab.
+def _draft_scopes() -> list[str]:
+    from services.recovery_consistency import recovery_consistency_lock
+    from services.secretstore import active_key_id, key_ids
+
+    with recovery_consistency_lock:
+        active = active_key_id()
+        keys = [active, *sorted(key_ids() - {active})]
+    return [
+        sha256(f"alles-task-draft:{Path(DB_PATH).resolve()}:{key}".encode()).hexdigest()
+        for key in keys
+    ]
+
+
+@router.get("/tasks/draft-scope")
+def task_draft_scope(response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return {"scopes": _draft_scopes()}
+
+
+_TASK_FIELDS = {
+    "done",
+    "title",
+    "priority",
+    "due_date",
+    "tags",
+    "repeat",
+    "notes",
+    "project",
+    "sort_order",
+    "parent_id",
+    "stage",
+}
+
+
+def _expected_value(field: str, value):
+    if field in {"priority", "sort_order"}:
+        valid = type(value) is int
+    elif field == "done":
+        valid = type(value) is bool
+    elif field in {"due_date", "parent_id"}:
+        valid = value is None or isinstance(value, str)
+    else:
+        valid = isinstance(value, str)
+    if not valid:
+        raise HTTPException(400, f"invalid expected value for {field}")
+    if field == "tags":
+        return ",".join(part.strip() for part in value.split(",") if part.strip())
+    if field in {"title", "project", "repeat"}:
+        return value.strip()
+    if field in {"due_date", "parent_id"}:
+        return value.strip() or None if value is not None else None
+    return value
+
+
+def _current_value(task: Task, field: str):
+    value = getattr(task, field)
+    if value is None and field not in {"due_date", "parent_id"}:
+        value = 0 if field in {"priority", "sort_order"} else False if field == "done" else ""
+    return _expected_value(field, value)
+
+
+def _guarded_changes(body: dict) -> dict | None:
+    if "expected" not in body:
+        return None
+    expected = body["expected"]
+    changes = set(body) - {"expected", "draft_scope"}
+    if not isinstance(expected, dict) or not changes or not changes <= _TASK_FIELDS:
+        raise HTTPException(400, "expected must describe the changed task fields")
+    if set(expected) != changes:
+        raise HTTPException(400, "expected must include each changed field exactly once")
+    normalized = {}
+    for field, value in expected.items():
+        normalized[field] = _expected_value(field, value)
+        body[field] = _expected_value(field, body[field])
+    return normalized
 
 
 @router.get("/tasks")
@@ -287,9 +369,27 @@ def reorder_tasks(body: TaskOrderBody, db: DbSession = Depends(get_db)):
 
 @router.patch("/tasks/{tid}")
 def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
+    body = dict(body)
+    expected = _guarded_changes(body)
+    if "draft_scope" in body and body["draft_scope"] not in _draft_scopes():
+        raise HTTPException(403, "task draft belongs to a different owner")
+    if expected is not None:
+        # get_db gives this route a fresh session. Acquire the SQLite write lock
+        # before reading; compare and mutate under the same transaction so two
+        # simultaneous edits cannot both accept the same original field value.
+        db.execute(sql_text("BEGIN IMMEDIATE"))
     t = db.get(Task, tid)
     if not t:
+        db.rollback()
         raise HTTPException(404)
+    if expected is not None:
+        conflicts = [
+            field for field, value in expected.items() if _current_value(t, field) != value
+        ]
+        if conflicts:
+            detail = {"code": "task_conflict", "fields": conflicts, "current": _fmt(t)}
+            db.rollback()
+            raise HTTPException(409, detail)
     spawned = None
     if "stage" in body:
         body["stage"] = _validate_stage(body["stage"])

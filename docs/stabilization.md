@@ -39,10 +39,12 @@ are temporary and downloads are disabled; these runs exercise local services and
 the keyword-search fallback, not live model integrations.
 
 The maintained full suite currently contains Home capture/navigation, cleanup
-regressions, Plan capture, Docs persistence and recovery, local Files operations,
+regressions, Plan capture/conflict/draft recovery, Docs persistence and delayed-editor
+recovery, local Files operations,
 Andromeda cancellation/retry with simulated transport, Aide interruption/recovery
 with a delayed loopback provider, Health correction/recovery, local Finance
-validation/retry/persistence, Home reminder timezone boundaries, owner setup and
+validation/retry/persistence, Library note/reading recovery, Inbox contact/mail draft
+recovery, Vault and local encrypted-backup controls, Home reminder timezone boundaries, owner setup and
 sign-in recovery, PWA offline/reconnect, browser-storage failure and rejected-write recovery, and
 resting surfaces for all twelve apps plus Settings in both themes at desktop and
 phone widths. `daily`, `setup`, `assistant`, `specialist`, `surfaces`, and `pwa` select those subsets.
@@ -189,8 +191,9 @@ components and direct browser assertions; no actionable finding remained.
 
 Additional Plan checks then confirmed stale-tab overwrites, late responses replacing
 the selected list, and lost drafts on reload/full-document history (STAB-034 through
-STAB-036). These Plan findings remain open. The six earlier Plan fixes
-are verified; complete Plan and release acceptance are still outstanding.
+STAB-036). Their subsequent repair sends changed fields with atomic preconditions,
+retains per-tab owner-scoped drafts, and rejects obsolete list responses. Current
+integration evidence is recorded below; complete Plan acceptance is still outstanding.
 
 The Library repair retains book notes and URL drafts after rejected writes, rejects
 invalid save acknowledgments, restores keyboard article/note/goal actions and
@@ -200,21 +203,53 @@ read-card text below accessible contrast (STAB-037); it now measures at least
 lost continued typing (STAB-038). Rendering now preserves the currently edited
 field and caret. All six Library findings have verified reproductions and repairs.
 
-The current Library source fingerprint is
+The Library checkpoint source fingerprint is
 `ab4c43b15be10546e13f8b282940c64a9f6c13f4569894247f1ce37d26920ea0` and acceptance
 fingerprint is `5b9632b8ad321ab474d38669adc07afde2f462cc7004e094955b59a74f82b49f`.
 One fresh full twenty-gate run passed. A separate run of the same source failed an
-existing Docs recovery assertion and a Finance test scroll; both failures remain
-retained for diagnosis. This checkpoint does not meet the two-clean-full-run gate.
+existing Docs recovery assertion and a Finance test scroll. The Docs failure exposed
+STAB-054: late visual-editor loading overwrote new Source text and recovery copies.
+The Finance test unnecessarily reopened an already selected Money view; its helper
+now preserves the loaded view before measuring rows. Both original failures remain
+in the evidence archive. This checkpoint does not meet the two-clean-full-run gate.
 Library's ten desktop/phone checks passed in Chromium and supplementary WebKit
 26.5, with browser-specific keyboard and exact error-log expectations. All 648
 JavaScript tests, 84 focused Python checks and Ruff passed. The ledger inventories
 1,592 controls and 156 workflows: 50 passed, 104 untested and two blocked.
 
 Further owned-data audits recorded eleven Inbox defects (STAB-039–049) and four
-Vault/backup UI defects (STAB-050–053). They remain open. Real local backup recovery
-preserved notes and decrypted Vault entries, but complete host-supervisor, native
-device and provider acceptance is still outstanding. No stable release is claimed.
+Vault/backup UI defects (STAB-050–053). Their repairs retain failed contact and mail
+drafts, protect edits made during a pending mail save, restore keyboard row/file
+actions and keep phone controls readable. Local backup recovery preserved notes
+and decrypted Vault entries; upload failure and expired owner confirmation allow
+an exact same-file retry.
+
+The combined recovery checkpoint resolves STAB-034–036 and STAB-039–054. Its fresh
+24-gate full Chromium run passed with source fingerprint
+`fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669` and acceptance
+fingerprint `786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064`.
+All owned servers stopped and temporary data was removed. The isolated Python
+suite completed 5,651 tests with no failures and six explicit skips; all 663
+JavaScript tests, Ruff and the regenerated census checks passed. Repaired conflict,
+draft, Inbox and backup screens were manually inspected. Product source review
+found no actionable issues; the new Vault browser test was inspected and run
+locally rather than included in external review because its header/cookie code
+triggered the review bundle guard.
+
+The inventory contains 1,603 controls and 188 required workflows: 82 passed,
+98 untested, six failed and two blocked. The six failures retain the later Calendar
+and Settings audit results, covering STAB-055–077. Earlier failed full runs remain
+in the evidence archive: route/lint snapshots and Docs test line references required
+inventory corrections. Only one complete full run matches the final current source;
+the preceding 24-gate pass predates the inventory and test-assertion changes.
+
+Two supplementary Plan WebKit replays passed all eighteen recovery scenarios after
+correcting a Chromium-specific keyboard-focus assumption in the test. An earlier
+intermittent reload rendering/accessibility failure remains unresolved; diagnostic
+instrumentation can affect timing, and these replays do not prove it repaired.
+Native Safari still yields thumbnail-sized captures insufficient for visual
+acceptance. Complete host-supervisor, native device, provider and seven-day trial
+acceptance remains outstanding. This checkpoint is not a stable release.
 
 ## Stable layout
 
@@ -233,11 +268,16 @@ The layout contract is in [decision 0012](../design-system/decisions/0012-minima
 | Hide or restore that strip | `views` in the app header |
 | Capture or filter Plan tasks | Above the agenda |
 | Edit a task or protect its unsaved changes | Plan → tasks → its title; Cancel, Escape or outside dismissal asks before discarding changed fields |
+| Recover conflicting or interrupted task edits | Plan → tasks → the editor; review both versions, download a draft, or confirm which changes to keep |
+| Continue editing if the visual document editor fails | Docs → Edit → Source; the visible loading/error status preserves the current buffer and Save action |
 | Browse documents or file locations | Inside Docs or Files; hiding views leaves these controls available |
 | Correct a Finance transaction | Finance → money → edit on its row; on phones the account and actions wrap below the payee and amount |
 | Recover an offline change | Pending indicator → review; inspect saved values, sign in or retry, save a copy, or confirm discard |
 | Edit book notes or a reading goal | Library → books → the note or goal; both are keyboard actions |
 | Recover a failed reading save | Library → saved → the retained URL and inline error; retry after resolving the failure |
+| Retry a failed contact save | Inbox → contacts → the retained form and its inline error; Save or Add retries the unchanged fields |
+| Open mail or drafts by keyboard | Inbox → mail → the subject button; body-only unsaved changes also require discard confirmation |
+| Restore a local encrypted backup | Settings → backup & restore → choose backup file; keyboard file actions, password confirmation and same-file retry remain available |
 | Correct a Health measurement | Health → logs → edit beside the record; exact value, date, unit and note stay together |
 
 Daily-work layouts are the first implementation batch. Specialist summaries,

@@ -51,9 +51,9 @@ flowchart LR
 ## Route snapshot
 
 - 83 included FastAPI router modules
-- 888 HTTP method/path pairs
-- 871 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `a6c51b746852141e2f0144c1585b0322ece56828dc622fcc5d6f7b5de2a2b1f9`
+- 889 HTTP method/path pairs
+- 872 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `e55ff3c7bd44ae47e760aa5a9621be2aef52ad6be331dcf82c402d767a476540`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
@@ -105,3 +105,8 @@ share/booking routes. Exact host ownership and parser markers are regression-tes
   search, restarted healthy, reported the update current, and uninstalled while preserving config.
 - `tests/test_afterlife_phase0_inventory.py` locks the route snapshot, mapped-table inventory, root
   roles, and registered-job list to the current implementation.
+
+The stabilization task editor adds one authenticated read endpoint,
+`GET /api/tasks/draft-scope`, for opaque owner-scoped recovery namespaces. Removing
+that entry from the current route list reproduces the prior locked digest exactly;
+all 888 previous method/path pairs remain. The snapshot above includes this addition.
