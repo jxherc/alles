@@ -43,6 +43,8 @@ COMMANDS = {
     "files-workflows": ("tests/pw_phase7_files_real.py",),
     "plan-workflows": ("tests/pw_plan_workflows.py",),
     "plan-recovery": ("tests/pw_plan_recovery.py",),
+    "calendar-workflows": ("tests/pw_calendar_workflows.py",),
+    "calendar-metadata-picker": ("tests/pw_calendar_metadata_picker.py",),
     "pwa-offline": ("tests/pw_offline_11b.py",),
     "pwa-storage": ("tests/pw_offline_storage.py",),
     "pwa-rejection": ("tests/pw_offline_rejection.py",),
@@ -53,6 +55,8 @@ COMMANDS = {
     "inbox-workflows": ("tests/pw_inbox_workflows.py",),
     "vault-backup": ("tests/pw_vault_backup.py",),
     "setup-auth": ("tests/pw_setup_auth.py",),
+    "settings-recovery": ("tests/pw_settings_recovery.py",),
+    "settings-language-badges": ("tests/pw_settings_language_badges.py",),
     "home-reminders": ("tests/pw_today_reminders.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     **{
@@ -236,6 +240,9 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
     scenarios = directory / "scenarios.json"
     if scenarios.is_file():
         result["scenarios"] = json.loads(scenarios.read_text("utf-8"))
+    controls = directory / "controls.json"
+    if controls.is_file():
+        result["controls"] = json.loads(controls.read_text("utf-8"))
     surfaces = directory / "surfaces.json"
     if surfaces.is_file():
         result["surfaces"] = json.loads(surfaces.read_text("utf-8"))
@@ -255,6 +262,21 @@ def scenario_evidence(result: dict) -> list[dict]:
         if not scenario.get("scenario_id"):
             continue
         row = {**scenario, "gate": result["gate"], "artifacts": result["artifacts"]}
+        if "profiles" not in row:
+            if row.get("profile"):
+                row["profiles"] = [row["profile"]]
+            elif result["gate"] in {"smoke-desktop", "smoke-phone"}:
+                row["profiles"] = [result["gate"].removeprefix("smoke-")]
+        rows.append(row)
+    return rows
+
+
+def control_evidence(result: dict) -> list[dict]:
+    rows = []
+    for control in result.get("controls", []):
+        if not control.get("control_id"):
+            continue
+        row = {**control, "gate": result["gate"], "artifacts": result["artifacts"]}
         if "profiles" not in row:
             if row.get("profile"):
                 row["profiles"] = [row["profile"]]
@@ -301,6 +323,7 @@ def main() -> int:
         ],
         "results": [],
         "scenarios": [],
+        "controls": [],
     }
     report_path = output / "results.json"
     write_report(report_path, report)
@@ -310,6 +333,7 @@ def main() -> int:
             result = run_gate(name, output, args.startup_timeout, args.gate_timeout)
             report["results"].append(result)
             report["scenarios"].extend(scenario_evidence(result))
+            report["controls"].extend(control_evidence(result))
             write_report(report_path, report)
             print(f"{name}: {result['status']} ({result['duration_seconds']}s)", flush=True)
             if result["status"] == "interrupted":

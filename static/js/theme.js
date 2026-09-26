@@ -8,6 +8,7 @@ import { toast } from './util.js';
 export { generateHarmony };
 
 const LS_KEY = 'alles-appearance';
+const PENDING_KEY = 'alles-appearance-pending';
 
 // presets: {bg,text,panel,faint,accent} (+ optional default pattern)
 // dark/light also pin the full KOKUEN role set so the default product matches
@@ -143,23 +144,109 @@ export function loadLocal() {
 function saveLocal(a) { try { localStorage.setItem(LS_KEY, JSON.stringify(a)); } catch { /* quota */ } }
 
 let _saveTimer = null;
+let _pendingAppearance = null;
+let _appearanceSaving = false;
+let _appearanceRevision = 0;
+let _appearanceSaveState = '';
+let _appearanceSaveMessage = '';
+
+function _showAppearanceSaveState(state, message) {
+  _appearanceSaveState = state;
+  _appearanceSaveMessage = message;
+  for (const host of document.querySelectorAll('#s-pane-themes, #theme-editor')) {
+    let row = host.querySelector(':scope > .theme-save-state');
+    if (!row) {
+      row = document.createElement('div');
+      row.className = 'theme-save-state';
+      const status = document.createElement('span');
+      status.setAttribute('role', 'status');
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'btn';
+      retry.textContent = 'retry theme save';
+      retry.addEventListener('click', () => { clearTimeout(_saveTimer); _drainAppearanceSave(); });
+      row.append(status, retry);
+      host.prepend(row);
+    }
+    row.hidden = !state;
+    row.dataset.state = state;
+    row.querySelector('[role="status"]').textContent = message;
+    const retry = row.querySelector('button');
+    if (state !== 'error' && document.activeElement === retry) {
+      (host.querySelector('.theme-mode-btn.active, .te-preset.active') || host.querySelector('button:not(.theme-save-state button)'))?.focus();
+    }
+    retry.hidden = state !== 'error';
+  }
+}
+
+async function _drainAppearanceSave() {
+  if (_appearanceSaving || !_pendingAppearance) return;
+  _appearanceSaving = true;
+  try {
+    while (_pendingAppearance) {
+      const attempt = _pendingAppearance;
+      _showAppearanceSaveState('saving', 'saving theme…');
+      try {
+        const response = await fetch('/api/appearance', {
+          method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(attempt),
+        });
+        const saved = await response.json();
+        if (!response.ok || typeof saved?.preset !== 'string'
+          || ['bg', 'text', 'panel', 'faint', 'accent'].some(key => !/^#[0-9a-f]{6}$/i.test(saved?.colors?.[key] || ''))) {
+          throw new Error('theme save could not be confirmed');
+        }
+        // A newer full theme includes the earlier edits. Send it after this one;
+        // never replace the preview or clear its recovery record with an older response.
+        if (_pendingAppearance !== attempt) continue;
+        _pendingAppearance = null;
+        try { localStorage.removeItem(PENDING_KEY); } catch { /* storage unavailable */ }
+        saveLocal(saved);
+        applyAppearance(saved);
+        _showAppearanceSaveState('saved', 'theme saved');
+      } catch {
+        if (_pendingAppearance !== attempt) continue;
+        const message = 'theme not saved to the server. Retry to save this preview.';
+        _showAppearanceSaveState('error', message);
+        toast(message, 'error');
+        break;
+      }
+    }
+  } finally {
+    _appearanceSaving = false;
+  }
+}
+
 function save(a) {
+  ++_appearanceRevision;
+  // Editor objects are mutable; pending requests must own a stable snapshot.
+  _pendingAppearance = JSON.parse(JSON.stringify(a));
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(_pendingAppearance)); } catch { /* storage unavailable */ }
   saveLocal(a);
+  _showAppearanceSaveState('saving', 'saving theme…');
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(() => {
-    fetch('/api/appearance', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(a) }).catch(() => {});
-  }, 350);
+  _saveTimer = setTimeout(_drainAppearanceSave, 350);
 }
 
 // called at boot: apply the cached theme instantly, then reconcile with the server.
 // only let the server win when it actually has a stored theme (_stored) — or when we
 // have no local cache yet — so an in-flight PUT can't be clobbered by a default response.
 export async function initAppearance() {
+  const revision = _appearanceRevision;
   const hadLocal = !!localStorage.getItem(LS_KEY);
+  try {
+    const pending = JSON.parse(localStorage.getItem(PENDING_KEY) || 'null');
+    if (pending?.colors) _pendingAppearance = pending;
+  } catch { /* invalid local recovery record */ }
+  if (_pendingAppearance) {
+    saveLocal(_pendingAppearance);
+    applyAppearance(_pendingAppearance);
+    _showAppearanceSaveState('error', 'theme has unconfirmed changes kept on this browser. Retry to save them.');
+    return;
+  }
   applyAppearance(loadLocal());
   try {
     const s = await fetch('/api/appearance').then(r => r.json());
-    if (s && s.colors && (s._stored || !hadLocal)) {
+    if (revision === _appearanceRevision && !_pendingAppearance && s && s.colors && (s._stored || !hadLocal)) {
       delete s._stored;
       saveLocal(s);
       applyAppearance(s);
@@ -653,6 +740,7 @@ function _renderEditor() {
       </div>
     </div>`;
   _wireEditor(m);
+  _showAppearanceSaveState(_appearanceSaveState, _appearanceSaveMessage);
 }
 
 function _wireEditor(m) {
@@ -729,7 +817,7 @@ function _wireEditor(m) {
     if (!_draft.customThemes) _draft.customThemes = {};
     if (Object.keys(_draft.customThemes).length >= 12 && !_draft.customThemes[name]) { toast('12 custom themes max: delete one', 'error'); return; }
     _draft.customThemes[name] = { colors: { ..._draft.colors }, font: _draft.font, density: _draft.density, bgPattern: _draft.bgPattern, frosted: _draft.frosted, effect: { ..._draft.effect } };
-    save(_draft); toast(`saved "${name}"`, 'success'); _renderEditor();
+    save(_draft); _renderEditor();
   };
   m.querySelectorAll('[data-apply]').forEach(b => b.onclick = () => {
     const t = _draft.customThemes[b.dataset.apply];

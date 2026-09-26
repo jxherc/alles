@@ -1,7 +1,7 @@
 import { toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePickers } from './datepick.js';
-import { prompt as dlgPrompt } from './dialog.js';
+import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -29,6 +29,7 @@ function _instantAsCalendarWallDate(value) {
     fields.hour,
     fields.minute,
     fields.second,
+    instant.getUTCMilliseconds(),
   ));
 }
 
@@ -75,7 +76,14 @@ let _events = [];
 let _tasks = [];  // tasks with due dates, overlaid on the month/agenda
 let _birthdays = [];  // contact birthdays, overlaid as annual all-day items
 let _calendars = [];
+let _calendarMetadataError = '';
+let _preserveEditorOnRetry = false;
 let _editing = null;
+let _saving = false;
+let _editDates = null;
+let _readDraft = null;
+let _draftSnapshot = '';
+let _loadSequence = 0;
 let _editOcc = null;             // occurrence date when editing a recurring instance
 let _cursor = _calendarNow();
 let _view = localStorage.getItem('cal-view') || 'month';
@@ -111,13 +119,168 @@ export const CAL_SEARCH_DEBOUNCE_MS = 180;
 const _pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
 const localISO = d => `${ymd(d)}T${_pad(d.getHours())}:${_pad(d.getMinutes())}`;
-const apiPatch = (id, body) => fetch(`/api/calendar/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-const apiPost = body => fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const timeShort = dt => formatTime(dt, {
   hour: 'numeric', minute: '2-digit',
   timeZone: dt instanceof CalendarWallDate ? 'UTC' : _browserTimeZone(),
 });
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+// Editor dates are wall-clock values; untouched values retain their original precision/offset.
+function occurrenceDates(event, occ) {
+  const start = calendarPlacementDate(event.start_dt);
+  const delta = calendarPlacementDate(occ).getTime() - calendarPlacementDate(ymd(start)).getTime();
+  if (!delta) return { start_dt: event.start_dt, end_dt: event.end_dt || null };
+  const aware = /(?:Z|[+-]\d{2}:?\d{2})$/.test(event.start_dt);
+  const result = {};
+  for (const key of ['start_dt', 'end_dt']) {
+    const original = event[key];
+    if (!original) { result[key] = null; continue; }
+    if (key === 'end_dt' && aware && !event.all_day) continue;
+    const wall = new CalendarWallDate(calendarPlacementDate(original).getTime() + delta);
+    result[key] = aware
+      ? wallTimeForStorage(`${localISO(wall)}:${_pad(wall.getSeconds())}.${String(wall.getMilliseconds()).padStart(3, '0')}`, original)
+      : original.replace(/^\d{4}-\d{2}-\d{2}/, ymd(wall));
+  }
+  if (aware && event.end_dt && !event.all_day) {
+    const duration = new Date(event.end_dt).getTime() - new Date(event.start_dt).getTime();
+    result.end_dt = new Date(new Date(result.start_dt).getTime() + duration).toISOString();
+  }
+  return result;
+}
+
+export function editorDates(event, occ = null) {
+  if (!event?.start_dt) return { start: '', end: '' };
+  let values = event;
+  if (event.recurrence && occ) {
+    try { values = occurrenceDates(event, occ); }
+    catch {
+      // Keep a DST-gap occurrence editable; saving it asks for a valid time.
+      const start = calendarPlacementDate(event.start_dt);
+      const delta = calendarPlacementDate(occ).getTime() - calendarPlacementDate(ymd(start)).getTime();
+      return {
+        start: localISO(new CalendarWallDate(start.getTime() + delta)),
+        end: event.end_dt ? localISO(new CalendarWallDate(calendarPlacementDate(event.end_dt).getTime() + delta)) : '',
+      };
+    }
+  }
+  return { start: localISO(calendarPlacementDate(values.start_dt)), end: values.end_dt ? localISO(calendarPlacementDate(values.end_dt)) : '' };
+}
+
+export function wallTimeForStorage(value, original) {
+  if (!value) return null;
+  if (!original || !/(?:Z|[+-]\d{2}:?\d{2})$/.test(original)) return value;
+  const wall = calendarPlacementDate(value).getTime();
+  const offsets = new Set();
+  for (let hours = -36; hours <= 36; hours += 6) {
+    const instant = wall + hours * 3600000;
+    offsets.add(_instantAsCalendarWallDate(new Date(instant)).getTime() - instant);
+  }
+  const matches = [...offsets].map(offset => wall - offset)
+    .filter(instant => _instantAsCalendarWallDate(new Date(instant)).getTime() === wall)
+    .sort((a, b) => a - b);
+  if (!matches.length) throw new Error('That time does not exist in this timezone. Choose another time.');
+  const previous = new Date(original).getTime();
+  const previousOffset = _instantAsCalendarWallDate(new Date(previous)).getTime() - previous;
+  return new Date(matches.find(instant => wall - instant === previousOffset) ?? matches[0]).toISOString();
+}
+
+export function eventTimeValues(event, initial, values, scope = 'all') {
+  if (!event) return { start_dt: values.start, end_dt: values.end || null };
+  const result = {};
+  for (const [key, name] of [['start_dt', 'start'], ['end_dt', 'end']]) {
+    const original = event[key];
+    if (scope === 'all' && values[name] === initial[name]) {
+      result[key] = original || null;
+      continue;
+    }
+    if (scope !== 'all' && values[name] === initial[name]) {
+      result[key] = occurrenceDates(event, initial.start.slice(0, 10))[key];
+      continue;
+    }
+    let value = values[name];
+    if (scope === 'all' && event.recurrence && original && value && initial[name]) {
+      const delta = calendarPlacementDate(value).getTime() - calendarPlacementDate(initial[name]).getTime();
+      value = localISO(new CalendarWallDate(calendarPlacementDate(original).getTime() + delta));
+    }
+    result[key] = wallTimeForStorage(value, original || event.start_dt);
+  }
+  return result;
+}
+
+async function readCalendarResponse(response) {
+  let data;
+  try { data = await response.json(); } catch { throw new Error('The calendar returned an unreadable response. Retry.'); }
+  if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : 'The calendar request failed. Retry.');
+  return data;
+}
+async function saveCalendarRequest(url, method, body, expectedId = null) {
+  const data = await readCalendarResponse(await fetch(url, {
+    method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  }));
+  if (!data || typeof data.id !== 'string' || !data.id || data.title !== body.title
+      || data.start_dt !== body.start_dt || !Object.prototype.hasOwnProperty.call(data, 'end_dt')
+      || (body.end_dt && data.end_dt !== body.end_dt) || data.description !== body.description
+      || (expectedId && data.id !== expectedId)) {
+    throw new Error('The calendar did not confirm the saved event. Your draft is still here.');
+  }
+  return data;
+}
+function editorError(message) {
+  const el = document.getElementById('cal-save-error');
+  if (el) { el.textContent = message; el.hidden = false; el.scrollIntoView({ block: 'nearest' }); }
+  else toast(message, 'error');
+}
+function editorBusy(busy) {
+  const editor = document.querySelector('.cal-editor');
+  if (editor) { editor.inert = busy; editor.setAttribute('aria-busy', String(busy)); }
+  const save = document.getElementById('cal-save');
+  if (save) { save.disabled = busy; save.textContent = busy ? 'saving…' : (_editing ? 'save' : 'create'); }
+}
+async function leaveEditor() {
+  if (_saving) return;
+  if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm('Discard unsaved event changes?'))) return;
+  await loadCalendar();
+}
+function calendarLoadError(message) {
+  const host = document.getElementById('calendar-list');
+  if (!host) return;
+  document.getElementById('cal-load-error')?.remove();
+  const notice = document.createElement('div');
+  notice.id = 'cal-load-error'; notice.className = 'cal-load-error'; notice.setAttribute('role', 'alert');
+  const text = document.createElement('span'); text.textContent = `Could not load calendar. ${message}`;
+  const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'retry';
+  retry.addEventListener('click', retryCalendarView);
+  notice.append(text, retry); host.prepend(notice);
+}
+
+async function retryCalendarView() {
+  _preserveEditorOnRetry = Boolean(document.querySelector('.cal-editor'));
+  try { return await (typeof window._navigateTo === 'function' ? window._navigateTo('calendar') : loadCalendar()); }
+  finally { _preserveEditorOnRetry = false; }
+}
+
+function refreshCalendarPicker() {
+  const picker = document.getElementById('cal-calendar');
+  if (!picker) return;
+  const value = _calendarMetadataError && _editing ? (_editing.calendar_id || '') : picker.value;
+  picker.dataset.options = _calendars.map(c => `${c.id}|${c.name}`).join(';');
+  picker.dataset.placeholder = _calendarMetadataError ? 'calendar unavailable' : 'select';
+  picker.disabled = Boolean(_calendarMetadataError);
+  picker.value = value;
+}
+
+function calendarMetadataNotice() {
+  document.getElementById('cal-metadata-error')?.remove();
+  const layout = document.getElementById('calendar-list')?.parentElement;
+  if (!layout || !_calendarMetadataError) return;
+  const notice = document.createElement('div');
+  notice.id = 'cal-metadata-error'; notice.className = 'cal-load-error'; notice.setAttribute('role', 'alert');
+  const text = document.createElement('span');
+  text.textContent = `Calendar names are unavailable. Events are still available; calendar selection is paused. ${_calendarMetadataError}`;
+  const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'retry';
+  retry.addEventListener('click', retryCalendarView);
+  notice.append(text, retry); layout.before(notice);
+}
 
 const SUNDAY_FIRST_REGIONS = new Set(['AG', 'AS', 'BD', 'BR', 'BS', 'BT', 'BW', 'BZ', 'CA', 'CN', 'CO', 'DM', 'DO', 'ET', 'GT', 'GU', 'HK', 'HN', 'ID', 'IL', 'IN', 'JM', 'JP', 'KE', 'KH', 'KR', 'LA', 'MH', 'MM', 'MO', 'MT', 'MX', 'MZ', 'NI', 'NP', 'PA', 'PE', 'PH', 'PK', 'PR', 'PT', 'PY', 'SA', 'SG', 'SV', 'TH', 'TT', 'TW', 'UM', 'US', 'VE', 'VI', 'WS', 'YE', 'ZA', 'ZW']);
 
@@ -169,14 +332,19 @@ function _tickWorldClock() {
 export async function loadCalendar(fetcher = fetch) {
   _bindNav();
   _tickWorldClock();
+  const sequence = ++_loadSequence;
+  const preserveEditor = _preserveEditorOnRetry && Boolean(document.querySelector('.cal-editor'));
+  try {
+  const requiredList = async url => { const data = await readCalendarResponse(await fetcher(url)); if (!Array.isArray(data)) throw new Error('The calendar returned an invalid list.'); return data; };
   const [cals, evs, s, tasks, subs, bdays] = await Promise.all([
-    fetcher('/api/calendars').then(r => r.json()).catch(() => []),
-    fetcher('/api/calendar').then(r => r.json()).catch(() => []),
+    requiredList('/api/calendars').then(items => ({ items, error: '' })).catch(error => ({ error: error.message || 'Check your connection and retry.' })),
+    requiredList('/api/calendar'),
     fetcher('/api/settings').then(r => r.json()).catch(() => ({})),
     fetcher('/api/calendar/tasks').then(r => r.json()).catch(() => []),
     fetcher('/api/calendar/subscriptions').then(r => r.json()).catch(() => []),
     fetcher('/api/calendar/birthdays').then(r => r.json()).catch(() => []),
   ]);
+  if (sequence !== _loadSequence) return false;
   _tasks = Array.isArray(tasks) ? tasks : [];
   _subs = Array.isArray(subs) ? subs : [];
   _birthdays = Array.isArray(bdays) ? bdays : [];
@@ -196,10 +364,18 @@ export async function loadCalendar(fetcher = fetch) {
   } else if (dv && dv !== _lastDefaultView) {
     _lastDefaultView = dv; _view = dv; _syncViewBtns();
   }
-  _calendars = Array.isArray(cals) ? cals : [];
+  if (cals.items) _calendars = cals.items;
+  _calendarMetadataError = cals.error;
   _events = Array.isArray(evs) ? evs : [];
   renderSidebar();
-  render();
+  if (preserveEditor) refreshCalendarPicker();
+  else { _editing = null; _readDraft = null; render(); }
+  calendarMetadataNotice();
+  return true;
+  } catch (error) {
+    if (sequence === _loadSequence) calendarLoadError(error.message || 'Check your connection and retry.');
+    return false;
+  }
 }
 
 function _bindNav() {
@@ -274,7 +450,7 @@ function renderSidebar() {
   const el = document.getElementById('cal-sidebar');
   if (!el) return;
   el.innerHTML = `
-    <input type="text" id="cal-search" class="cal-side-search" placeholder="${esc(tr('calendar.search_events'))}" value="${esc(_search)}">
+    <input type="text" id="cal-search" class="cal-side-search" aria-label="${esc(tr('calendar.search_events'))}" placeholder="${esc(tr('calendar.search_events'))}" value="${esc(_search)}">
     <div class="cal-mini" id="cal-mini"></div>
     ${_clockHtml()}
     <div class="cal-cals">
@@ -697,7 +873,7 @@ function renderMonth() {
     const key = ymd(cell);
     const evts = (byDay[key] || []).sort((a, b) => (a.all_day ? 0 : a._date) - (b.all_day ? 0 : b._date));
     const chips = evts.slice(0, 4).map(o =>
-      `<div class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</div>`).join('');
+      `<button type="button" class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</button>`).join('');
     const more = evts.length > 4 ? `<div class="cal-more">+${evts.length - 4} more</div>` : '';
     const tchips = (tasksByDay[key] || []).slice(0, 3).map(t =>
       `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}">${t.done ? _si('check') : ''}</span>${esc(t.title)}</div>`).join('');
@@ -951,43 +1127,25 @@ export function buildCopy(ev, ov) {
 
 async function applyTimeChange(id, occ, newStart, newEnd) {
   const ev = _events.find(e => e.id === id);
-  if (!ev) return;
-  if (!ev.recurrence) {
-    await apiPatch(id, { start_dt: newStart, end_dt: newEnd });
-    return loadCalendar();
-  }
-  const scope = await chooseScope('move');
-  if (!scope) return loadCalendar();   // cancelled → revert the visual drag
-  if (scope === 'all') {
-    await apiPatch(id, { start_dt: newStart, end_dt: newEnd });
-  } else if (scope === 'this') {
-    await apiPatch(id, { recur_except: [...(ev.recur_except || []), occ] });
-    await apiPost(buildCopy(ev, { start_dt: newStart, end_dt: newEnd, recurrence: '', recur_byday: '', recur_count: null, recur_until: null, recur_interval: 1 }));
-  } else {
-    const db = new Date(occ + 'T00:00:00'); db.setDate(db.getDate() - 1);
-    await apiPatch(id, { recur_until: ymd(db), recur_count: null });
-    await apiPost(buildCopy(ev, { start_dt: newStart, end_dt: newEnd }));
-  }
-  loadCalendar();
+  if (!ev || _saving) return;
+  _saving = true;
+  try {
+    const scope = ev.recurrence ? await chooseScope('move') : 'all';
+    if (!scope) return;
+    const times = eventTimeValues(ev, editorDates(ev, occ), { start: newStart, end: newEnd || '' }, scope);
+    const body = buildCopy(ev, times);
+    await saveCalendarRequest(`/api/calendar/${id}?${new URLSearchParams({ scope, occ, time_zone: resolvedTimeZone() })}`, 'PATCH', body, scope === 'all' ? id : null);
+  } catch (error) { toast(error.message || 'Could not move the event. Retry.', 'error'); }
+  finally { _saving = false; await loadCalendar(); }
 }
 
 // ── scope chooser (this / following / all) ───────────────────────────────────
 function chooseScope(verb) {
-  return new Promise(resolve => {
-    const ov = document.createElement('div');
-    ov.className = 'cal-scope-ov';
-    ov.innerHTML = `<div class="cal-scope">
-      <div class="cal-scope-h">${verb} recurring event</div>
-      <button class="btn" data-s="this">This event</button>
-      <button class="btn" data-s="following">This and following</button>
-      <button class="btn" data-s="all">All events</button>
-      <button class="btn cal-scope-cancel" data-s="">cancel</button>
-    </div>`;
-    document.body.appendChild(ov);
-    const done = v => { ov.remove(); resolve(v); };
-    ov.addEventListener('click', e => { if (e.target === ov) done(null); });
-    ov.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => done(b.dataset.s || null)));
-  });
+  return dlgChoose(`${verb} recurring event`, [
+    { value: 'this', label: 'This event' },
+    { value: 'following', label: 'This and following' },
+    { value: 'all', label: 'All events' },
+  ]);
 }
 
 // ── find a time: show open slots on the focused day, click to book ───────────
@@ -1024,6 +1182,7 @@ const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DOW_LETTER = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
 function openEditor(event, defaultDate, hour, allDay, occ) {
+  if (_searchTimer) { clearTimeout(_searchTimer); _searchTimer = null; }
   const el = document.getElementById('calendar-list');
   _editing = event || null;
   _editOcc = occ || null;
@@ -1031,14 +1190,10 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   const isNew = !event;
   const now = _calendarNow(); now.setMinutes(0, 0, 0);
   const hh = hour != null ? String(hour).padStart(2, '0') : '09';
-  // editing a specific occurrence of a recurring event: keep the master's time-of-day but use
-  // the clicked occurrence's date (occ), not the master's original start
-  const mStart = event?.start_dt?.slice(0, 16) || '';
-  const mEnd = event?.end_dt?.slice(0, 16) || '';
-  const occStart = (occ && mStart) ? occ + mStart.slice(10) : '';
-  const occEnd = (occ && mEnd) ? occ + mEnd.slice(10) : '';
-  const start = pf?.start || occStart || mStart || (defaultDate ? `${defaultDate}T${hh}:00` : localISO(now));
-  const endVal = pf?.end || occEnd || mEnd || '';
+  const dates = editorDates(event, occ);
+  const start = pf?.start || dates.start || (defaultDate ? `${defaultDate}T${hh}:00` : localISO(now));
+  const endVal = pf?.end || dates.end || '';
+  _editDates = { start, end: endVal };
   const defaultCal = event?.calendar_id || (_calendars.find(c => c.is_default)?.id || _calendars[0]?.id || '');
   const rec = event?.recurrence || '';
   const reminders = new Set(event?.reminders || (isNew ? [10] : []));
@@ -1049,10 +1204,10 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   const endsMode = event?.recur_count ? 'after' : (event?.recur_until ? 'on' : 'never');
 
   el.innerHTML = `<div class="cal-editor">
-    <input class="note-editor-title" id="cal-title" value="${esc(event?.title || '')}" placeholder="event title…">
+    <input class="note-editor-title" id="cal-title" aria-label="event title" value="${esc(event?.title || '')}" placeholder="event title…">
     <div class="cal-ed-grid">
-      <div><div class="cal-flabel">start</div><div class="date-input" id="cal-start" data-type="datetime" data-value="${start}" data-ph="start" style="width:100%"></div></div>
-      <div><div class="cal-flabel">end</div><div class="date-input" id="cal-end" data-type="datetime" data-value="${endVal}" data-ph="end (optional)" style="width:100%"></div></div>
+      <div><div class="cal-flabel">start</div><div class="date-input" id="cal-start" aria-label="start" data-type="datetime" data-value="${start}" data-ph="start" style="width:100%"></div></div>
+      <div><div class="cal-flabel">end</div><div class="date-input" id="cal-end" aria-label="end" data-type="datetime" data-value="${endVal}" data-ph="end (optional)" style="width:100%"></div></div>
     </div>
     <div class="cal-sched">
       <button class="btn cal-sched-btn" id="cal-freeslot" type="button">find free time</button>
@@ -1060,26 +1215,26 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     </div>
     <div class="cal-slots" id="cal-slots"></div>
     <div class="cal-ed-row">
-      <label class="cal-flabel cal-chk-row" id="cal-allday-row"><span class="chk" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"></span> all day</label>
+      <div id="cal-allday-row"><button type="button" class="cal-flabel cal-chk-row" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"><span class="chk" aria-hidden="true"></span>all day</button></div>
       <div class="cal-cal-pick"><span class="cal-flabel">calendar</span>
-        <div class="settings-input custom-select" id="cal-calendar" data-value="${defaultCal}" data-options="${_calendars.map(c => `${c.id}|${esc(c.name)}`).join(';')}" style="min-width:130px"></div></div>
+        <div class="settings-input custom-select" id="cal-calendar" aria-label="calendar" aria-disabled="${Boolean(_calendarMetadataError)}" data-placeholder="${_calendarMetadataError ? 'calendar unavailable' : 'select'}" data-value="${defaultCal}" data-options="${_calendars.map(c => `${c.id}|${esc(c.name)}`).join(';')}" style="min-width:130px"></div></div>
     </div>
 
     <div class="cal-flabel">repeat</div>
-    <div class="settings-input custom-select" id="cal-recur" data-value="${rec}" data-options="${FREQS.map(([v, l]) => `${v}|${l}`).join(';')}" style="width:100%"></div>
+    <div class="settings-input custom-select" id="cal-recur" aria-label="repeat" data-value="${rec}" data-options="${FREQS.map(([v, l]) => `${v}|${l}`).join(';')}" style="width:100%"></div>
     <div id="cal-recur-adv" style="display:${rec ? 'block' : 'none'}">
-      <div class="cal-recur-line">every <input class="settings-input cal-int" id="cal-interval" type="text" inputmode="numeric" value="${event?.recur_interval || 1}"> <span id="cal-unit">${UNIT[rec] || 'weeks'}</span></div>
-      <div class="cal-dow" id="cal-dow" style="display:${rec === 'weekly' ? 'flex' : 'none'}">${DOW.map((d, i) => `<span class="cal-dow-b ${byday.has(i) ? 'on' : ''}" data-i="${i}">${d}</span>`).join('')}</div>
+      <div class="cal-recur-line">every <input class="settings-input cal-int" id="cal-interval" aria-label="repeat interval" type="text" inputmode="numeric" value="${event?.recur_interval || 1}"> <span id="cal-unit">${UNIT[rec] || 'weeks'}</span></div>
+      <div class="cal-dow" id="cal-dow" style="display:${rec === 'weekly' ? 'flex' : 'none'}">${DOW.map((d, i) => `<button type="button" class="cal-dow-b ${byday.has(i) ? 'on' : ''}" data-i="${i}" aria-label="${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]}" aria-pressed="${byday.has(i)}">${d}</button>`).join('')}</div>
       <div class="cal-ends" role="radiogroup" aria-label="recurrence ends">
         <span class="cal-flabel">ends</span>
         <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="never" aria-checked="${endsMode === 'never'}" tabindex="${endsMode === 'never' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>never</button></div>
-        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="on" aria-checked="${endsMode === 'on'}" tabindex="${endsMode === 'on' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>on</button><div class="date-input cal-ends-date" id="cal-until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="date" style="width:130px"></div></div>
-        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="after" aria-checked="${endsMode === 'after'}" tabindex="${endsMode === 'after' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>after</button><input class="settings-input cal-int" id="cal-count" type="text" inputmode="numeric" value="${event?.recur_count || 10}"> times</div>
+        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="on" aria-checked="${endsMode === 'on'}" tabindex="${endsMode === 'on' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>on</button><div class="date-input cal-ends-date" id="cal-until" aria-label="repeat until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="date" style="width:130px"></div></div>
+        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="after" aria-checked="${endsMode === 'after'}" tabindex="${endsMode === 'after' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>after</button><input class="settings-input cal-int" id="cal-count" aria-label="number of occurrences" type="text" inputmode="numeric" value="${event?.recur_count || 10}"> times</div>
       </div>
     </div>
 
     <div class="cal-flabel">reminders</div>
-    <div class="cal-reminders" id="cal-reminders">${REMIND_PRESETS.map(([m, l]) => `<span class="cal-rem ${reminders.has(m) ? 'on' : ''}" data-m="${m}">${l}</span>`).join('')}</div>
+    <div class="cal-reminders" id="cal-reminders">${REMIND_PRESETS.map(([m, l]) => `<button type="button" class="cal-rem ${reminders.has(m) ? 'on' : ''}" data-m="${m}" aria-pressed="${reminders.has(m)}" aria-label="${m === 0 ? 'remind at event time' : `remind ${m} minutes before`}">${l}</button>`).join('')}</div>
 
     <div class="cal-ed-grid">
       <div><div class="cal-flabel">location</div><input class="settings-input" id="cal-loc" value="${esc(event?.location || '')}" placeholder="add location" style="width:100%"></div>
@@ -1104,11 +1259,12 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
     <div class="cal-flabel">color</div>
     <div class="cal-swatches" id="cal-colors">
-      <span class="cal-sw cal-sw-def ${color === '' ? 'sel' : ''}" data-c="" title="calendar default">○</span>
-      ${COLOR_NAMES.map(c => `<span class="cal-sw ${color === c ? 'sel' : ''}" data-c="${c}" style="background:${hexOf(c)}"></span>`).join('')}
+      <button type="button" class="cal-sw cal-sw-def ${color === '' ? 'sel' : ''}" data-c="" aria-label="calendar default color" aria-pressed="${color === ''}">○</button>
+      ${COLOR_NAMES.map(c => `<button type="button" class="cal-sw ${color === c ? 'sel' : ''}" data-c="${c}" style="--cal-swatch:${hexOf(c)}" aria-label="${c} color" aria-pressed="${color === c}"></button>`).join('')}
     </div>
 
     <textarea class="note-editor-body" id="cal-desc" rows="3" placeholder="description…">${esc(event?.description || '')}</textarea>
+    <div id="cal-save-error" class="cal-save-error" role="alert" hidden></div>
     <div class="cal-ed-actions">
       ${isNew ? '' : '<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">delete</button>'}
       ${isNew ? '' : '<button class="btn" id="cal-dup" title="duplicate this event">duplicate</button>'}
@@ -1119,6 +1275,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
   initCustomDropdown(document.getElementById('cal-recur'));
   initCustomDropdown(document.getElementById('cal-calendar'));
+  refreshCalendarPicker();
   initDatePickers(el);
 
   // 4a scheduling advisor: live overlap warning + free-slot finder (timed events only)
@@ -1169,18 +1326,20 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     document.getElementById('cal-recur-adv').style.display = v ? 'block' : 'none';
     document.getElementById('cal-unit').textContent = UNIT[v] || 'weeks';
     document.getElementById('cal-dow').style.display = v === 'weekly' ? 'flex' : 'none';
-    if (v === 'weekly' && byday.size === 0) { byday.add(startDow); syncDow(); }
+    if (v === 'weekly' && byday.size === 0) { byday.add(calendarPlacementDate(document.getElementById('cal-start').value).getDay()); syncDow(); }
   });
-  function syncDow() { el.querySelectorAll('.cal-dow-b').forEach(b => b.classList.toggle('on', byday.has(+b.dataset.i))); }
+  function syncDow() { el.querySelectorAll('.cal-dow-b').forEach(b => { const on = byday.has(+b.dataset.i); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }); }
   el.querySelectorAll('.cal-dow-b').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.i; byday.has(i) ? byday.delete(i) : byday.add(i); syncDow();
   }));
-  el.querySelectorAll('.cal-rem').forEach(r => r.addEventListener('click', () => r.classList.toggle('on')));
+  el.querySelectorAll('.cal-rem').forEach(r => r.addEventListener('click', () => { r.classList.toggle('on'); r.setAttribute('aria-pressed', String(r.classList.contains('on'))); }));
   el.querySelectorAll('#cal-colors .cal-sw').forEach(s => s.addEventListener('click', () => {
-    color = s.dataset.c; el.querySelectorAll('#cal-colors .cal-sw').forEach(x => x.classList.toggle('sel', x === s));
+    color = s.dataset.c; el.querySelectorAll('#cal-colors .cal-sw').forEach(x => { x.classList.toggle('sel', x === s); x.setAttribute('aria-pressed', String(x === s)); });
   }));
 
-  document.getElementById('cal-back').addEventListener('click', () => loadCalendar());
+  _readDraft = () => JSON.stringify(collectBody(byday));
+  _draftSnapshot = _readDraft();
+  document.getElementById('cal-back').addEventListener('click', leaveEditor);
   document.getElementById('cal-del')?.addEventListener('click', () => deleteEvent());
   document.getElementById('cal-dup')?.addEventListener('click', async () => {
     if (!_editing?.id) return;
@@ -1281,7 +1440,7 @@ function collectBody(byday) {
   const reminders = [...el.querySelectorAll('.cal-rem.on')].map(r => +r.dataset.m).sort((a, b) => a - b);
   const body = {
     title: document.getElementById('cal-title').value.trim(),
-    calendar_id: document.getElementById('cal-calendar').value,
+    calendar_id: _calendarMetadataError && _editing ? (_editing.calendar_id || '') : document.getElementById('cal-calendar').value,
     description: document.getElementById('cal-desc').value,
     location: document.getElementById('cal-loc').value.trim(),
     guests: document.getElementById('cal-guests').value.trim(),
@@ -1301,50 +1460,41 @@ function collectBody(byday) {
 }
 
 async function saveEvent(byday) {
-  const body = collectBody(byday);
-  if (!body.title || !body.start_dt) { toast('title + start required', 'error'); return; }
-
-  // new, or a non-recurring edit → straightforward
-  if (!_editing) {
-    await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    toast('created', 'success'); return loadCalendar();
-  }
-  if (!_editing.recurrence) {
-    await fetch(`/api/calendar/${_editing.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    toast('saved', 'success'); return loadCalendar();
-  }
-
-  // editing a recurring series → ask scope
-  const scope = await chooseScope('edit');
-  if (!scope) return;
-  const occ = _editOcc || _editing.start_dt.slice(0, 10);
-  if (scope === 'all') {
-    await fetch(`/api/calendar/${_editing.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  } else if (scope === 'this') {
-    // exclude this occurrence on the master, create a standalone single event
-    const ex = [...(_editing.recur_except || []), occ];
-    await fetch(`/api/calendar/${_editing.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ recur_except: ex }) });
-    const single = { ...body, recurrence: '', recur_byday: '', recur_count: null, recur_until: null, recur_interval: 1 };
-    await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(single) });
-  } else { // following — end the old series before occ, start a new one here
-    const dayBefore = new Date(occ + 'T00:00:00'); dayBefore.setDate(dayBefore.getDate() - 1);
-    await fetch(`/api/calendar/${_editing.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ recur_until: ymd(dayBefore), recur_count: null }) });
-    await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  }
-  toast('saved', 'success'); loadCalendar();
+  if (_saving) return;
+  _saving = true;
+  try {
+    const body = collectBody(byday);
+    if (!body.title || !body.start_dt) throw new Error('Title and start are required.');
+    const scope = _editing?.recurrence ? await chooseScope('edit') : 'all';
+    if (!scope) return;
+    Object.assign(body, eventTimeValues(_editing, _editDates, { start: body.start_dt, end: body.end_dt || '' }, scope));
+    const id = _editing?.id;
+    const query = new URLSearchParams({ scope, occ: _editOcc || '', time_zone: resolvedTimeZone() });
+    editorBusy(true);
+    const saved = await saveCalendarRequest(id ? `/api/calendar/${id}?${query}` : '/api/calendar', id ? 'PATCH' : 'POST', body, id && scope === 'all' ? id : null);
+    toast(id ? 'saved' : 'created', 'success');
+    if (!(await loadCalendar())) {
+      openEditor(saved);
+      editorError('Saved, but the calendar could not reload. Your saved event is shown here.');
+    }
+  } catch (error) {
+    editorError(error.message === 'Failed to fetch' ? 'Could not save. Check your connection and retry; your draft is still here.' : (error.message || 'Could not save. Retry; your draft is still here.'));
+  } finally { _saving = false; editorBusy(false); }
 }
 
 async function deleteEvent() {
-  if (!_editing) return;
-  if (!_editing.recurrence) {
-    await fetch(`/api/calendar/${_editing.id}`, { method: 'DELETE' });
-    return loadCalendar();
-  }
-  const scope = await chooseScope('delete');
-  if (!scope) return;
-  const occ = _editOcc || _editing.start_dt.slice(0, 10);
-  await fetch(`/api/calendar/${_editing.id}?scope=${scope}&occ=${occ}`, { method: 'DELETE' });
-  loadCalendar();
+  if (!_editing || _saving) return;
+  _saving = true;
+  try {
+    const scope = _editing.recurrence ? await chooseScope('delete') : 'all';
+    if (!scope) return;
+    const occ = _editOcc || _editing.start_dt.slice(0, 10);
+    editorBusy(true);
+    const response = await readCalendarResponse(await fetch(`/api/calendar/${_editing.id}?${new URLSearchParams({ scope, occ })}`, { method: 'DELETE' }));
+    if (response?.ok !== true) throw new Error('The calendar did not confirm deletion. Retry.');
+    if (!(await loadCalendar())) { document.querySelector('.cal-editor')?.remove(); calendarLoadError('Event deleted. Retry to refresh the list.'); }
+  } catch (error) { editorError(error.message || 'Could not delete. Check your connection and retry.'); }
+  finally { _saving = false; editorBusy(false); }
 }
 
 // ── CalDAV sync panel ───────────────────────────────────────────────────────

@@ -137,11 +137,11 @@ def run() -> None:
                   return { names, urls };
                 }"""
             )
-            assert cached["names"] == ["alles-v266"], cached["names"]
+            assert cached["names"] == ["alles-v267"], cached["names"]
             for retired in ("files.js", "research.js", "ragquery.js", "aidebehavior.js"):
                 assert not any(f"/static/js/{retired}" in url for url in cached["urls"])
             assert any(url.endswith("/") for url in cached["urls"])
-            assert any("/static/style.css?v=310" in url for url in cached["urls"])
+            assert any("/static/style.css?v=311" in url for url in cached["urls"])
             assert any("/static/kokuen.css?v=22" in url for url in cached["urls"])
             assert sum("/static/js/" in url for url in cached["urls"]) >= 20
             page.screenshot(path=str(OUTPUT / "pwa-plan-online-mobile.png"), full_page=True)
@@ -161,11 +161,11 @@ def run() -> None:
                       scripts: [...document.scripts].map(script => script.src).filter(Boolean),
                       cacheNames: await caches.keys(),
                       appModule: await (async () => {
-                        const match = await caches.match('/static/js/app.js?v=310');
+                        const match = await caches.match('/static/js/app.js?v=311');
                         return match ? { status: match.status, size: (await match.clone().text()).length } : null;
                       })(),
                       appModuleKeys: await (async () => {
-                        const cache = await caches.open('alles-v266');
+                        const cache = await caches.open('alles-v267');
                         return (await cache.keys())
                           .map(request => request.url)
                           .filter(url => url.includes('/static/js/app.js'));
