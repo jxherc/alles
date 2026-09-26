@@ -156,6 +156,45 @@ This does not certify translation quality or every locale combination. CSS zoom
 observations are separate from real browser zoom acceptance; native Safari,
 physical iPhone keyboards and assistive technology remain unverified.
 
+Replacing programmed focus in the Settings test with actual Tab traversal exposed
+STAB-078: only the selected interface language is tabbable, and the group has no
+arrow-key handler. The earlier ability to activate a directly focused language did
+not prove keyboard access. Desktop and phone reproductions remain failed while
+the group is repaired. Rapid locale changes also stack notifications over the
+phone footer; this is retained as a separate notification-layout observation.
+
+## Files recovery audit
+
+A further local/connected-folder walkthrough confirmed STAB-079: a normal
+same-name upload replaces the original without a collision decision. Originals
+larger than 25 MiB receive no recovery version; exact before/after hashes and empty
+version lists proved the loss on desktop and phone. Smaller originals were
+versioned, but Details exposed only a count and no restoration action. STAB-080
+records phone transfer errors clipped before their actionable reason. Both remain
+open while repairs are implemented.
+
+Bulk copy/move, restore collision recovery, unavailable folders, stale search and
+permission revocation during a queued operation passed the checked local paths.
+Actual keyboard traversal reached upload/selection and filtered rows. Sorting was
+not discoverable despite URL parameters supporting it; location labels wrapped
+inside words, restored items used opaque trash IDs, and the transfer dialog
+required typed destination paths. These are separate usability observations.
+Remote providers, Gallery, full zoom and native device acceptance remain open.
+
+## Calendar recovery follow-up
+
+Real picker input exposed STAB-081: the populated end-date field extended beyond
+a 390px phone viewport. A stacked phone layout now keeps both dates readable;
+before/after screenshots and measured bounds support the repair. Combined-source
+verification remains pending.
+
+Calendar's lost-response check deliberately lets a scoped save reach the server,
+then drops its acknowledgment. The saved occurrence survives; retry reports a
+conflict without a second mutation and retains the draft. Reload is currently
+required to inspect the saved result. The existing Plan aggregate notice can also
+remain after Calendar's own Retry succeeds; that neighboring state remains under
+review. These observations do not establish native Safari acceptance.
+
 ## Remaining phone layout work
 
 Manual inspection of the current 390px light-theme surfaces confirmed these design
@@ -174,3 +213,73 @@ populated and failure states, must accompany each affected layout batch. Server
 surface captures include read-only statistics from the test host; the isolated app
 database and records are synthetic. Captures belong with test evidence and are not
 product content.
+
+
+## Server administration audit
+
+A fresh owned-data walkthrough reproduced seven issues: monitor outages retain a
+live status, service/backup results leave stale visible state, failed backups still
+say running, runtime logs omit available timestamps, and policy save feedback
+retains missing-file/error state. The owned-only policy also exposes an irrelevant
+host-permission confirmation field. These are STAB-087 through STAB-093; repairs
+are separate from the Settings/Calendar checkpoint.
+
+The audit used real local authentication, policy validation/save, runtime logs,
+encrypted export and restart of its own process. Service lifecycle and remote
+backup responses were explicitly simulated. It does not establish live supervisor
+or provider acceptance. The monitor gear opens local refresh settings; global
+Settings is reached through the existing shell. That navigation distinction is a
+usability observation, not a missing feature.
+
+## Gallery task walkthrough
+
+Source-blind discovery followed Home → Files → Gallery, then image import,
+viewing, album organization, search, caption editing and Trash recovery. Ten
+confirmed defects are STAB-094 through STAB-103. Rejected caption/restore writes
+announced success; rejected destination-album creation caused a real removal of
+existing membership. Multi-file selection processed only its first item, and
+interrupted uploads had no visible recovery. Keyboard opening/focus and long album
+menus also failed. Passing ordinary saves did not clear these failure cases.
+
+Removing an image from an album was difficult to discover beneath “add to album”.
+At phone width the active album can scroll out of the navigation row while its
+header title is hidden. The viewer's seven actions span three rows. These are
+separate layout observations; the audit did not invent overlap or unsupported
+album deep-link requirements. Ordinary original-image downloads retained their
+exact bytes. Screenshots covered desktop/phone, light/dark and emulated touch;
+Mac Safari, physical iPhone, large-library and live-provider acceptance remain open.
+
+
+## Current resting-screen layout review
+
+The integrated phone-light screenshots were manually inspected for all twelve apps
+and Settings. These fixtures include empty specialist states; they do not replace
+populated workflow acceptance. The remaining layout work is concrete:
+
+- Inbox repeats disconnected-account guidance in separate empty regions.
+- Library and Health repeat destinations and include implementation explanations
+  before the ordinary task action.
+- Finance gives optional companion installation more prominence than local entry.
+- Aide has several icon-only header actions; Andromeda does not share the compact
+  current-app header used by the daily-work apps.
+- Files and Calendar have dense tool rows, while Settings Home places a long outline
+  before the actual arrangement controls.
+
+These are design observations, not newly proven data or interaction failures. Keep
+all destinations and meaningful status available while applying the approved
+single-workspace rules. No changed screenshot was automatically accepted as a
+visual baseline, and this inspection does not certify the entire scroll/state matrix.
+
+
+The follow-up Settings audit confirmed that the active pane always matched its
+selected tab. The apparent “about & credits” selection was pointer hover. Actual
+keyboard traversal does expose a smaller problem, STAB-104: at 320px and 390px the
+selected tab and pane heading both scroll out of view, leaving no visible section
+name. Four Shift+Tab presses recover it; no edits are lost. A compact persistent
+pane label and distinct active styling are being handled separately.
+
+Ordinary preferences passed reload and a second separately authenticated phone
+browser session on the current source. The second context copied no cookies or
+browser storage and received a distinct session. The exact context limit, switch,
+appearance, French labels, 24-hour format and week-start choice were preserved.
+This closes that bounded persistence evidence gap; native device checks remain open.

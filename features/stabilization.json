@@ -195,11 +195,11 @@
       "app": "plan",
       "workflow": "create and delete an event",
       "expected": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
-      "status": "failed",
+      "status": "untested",
       "evidence": [
         "/tmp/alles-calendar-audit-report.md"
       ],
-      "notes": "Owned-data audit reproduced STAB-063 through STAB-077. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
     },
     {
       "id": "inbox.mail-and-contacts.1",
@@ -450,8 +450,11 @@
       "app": "server",
       "workflow": "inspect neofetch and btop",
       "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
-      "status": "untested",
-      "evidence": []
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-server-audit/report.md"
+      ],
+      "notes": "Current owned audit reproduces stale monitor feedback (STAB-087); synthetic metrics/provider failure are explicit. Native machine monitoring acceptance remains open."
     },
     {
       "id": "server.management.2",
@@ -666,11 +669,11 @@
       "app": "settings",
       "workflow": "use automatic region",
       "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
-      "status": "failed",
+      "status": "untested",
       "evidence": [
         "/tmp/alles-settings-audit-report.md"
       ],
-      "notes": "Owned-data audit reproduced STAB-060. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
     },
     {
       "id": "localization.regional-settings.2",
@@ -678,11 +681,11 @@
       "app": "settings",
       "workflow": "override formats",
       "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
-      "status": "failed",
+      "status": "untested",
       "evidence": [
         "/tmp/alles-settings-audit-report.md"
       ],
-      "notes": "Owned-data audit reproduced STAB-059. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
     },
     {
       "id": "localization.regional-settings.3",
@@ -690,11 +693,11 @@
       "app": "settings",
       "workflow": "switch reviewed languages",
       "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
-      "status": "failed",
+      "status": "untested",
       "evidence": [
         "/tmp/alles-settings-audit-report.md"
       ],
-      "notes": "Owned-data audit reproduced STAB-061. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
     },
     {
       "id": "localization.regional-settings.4",
@@ -920,11 +923,11 @@
       "app": "settings",
       "workflow": "change preferences, save and reload",
       "expected": "The saved values and their visible effects persist after reload and a second browser session.",
-      "status": "failed",
+      "status": "untested",
       "evidence": [
         "/tmp/alles-settings-audit-report.md"
       ],
-      "notes": "Owned-data audit reproduced STAB-055 through STAB-058. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
+      "notes": "Ordinary saved values and visible effects passed reload and a second independently authenticated browser context on phone Chromium; supplementary audit evidence has the exact current source/acceptance hashes. Other Settings failure/order checks remain separately scoped."
     },
     {
       "id": "settings.failure-recovery",
@@ -932,11 +935,11 @@
       "app": "settings",
       "workflow": "interrupt a settings save and retry",
       "expected": "Keep edited values, show the save failure, allow retry, and acknowledge only confirmed persistence.",
-      "status": "failed",
+      "status": "untested",
       "evidence": [
         "/tmp/alles-settings-audit-report.md"
       ],
-      "notes": "Owned-data audit reproduced STAB-055, STAB-057 and STAB-059. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
     },
     {
       "id": "shell.history-and-links",
@@ -2078,6 +2081,491 @@
         "desktop",
         "phone"
       ]
+    },
+    {
+      "id": "settings.rejected-save-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "reject an ordinary preference save and switch update, then retry",
+      "expected": "The failure remains visible with retryable input; a failed switch restores the saved value and successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.ordered-saves",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "save two preference values while the first write is held",
+      "expected": "Only one write is in flight; the later intent reaches the server after the first settles and survives reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.switch-queued-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "toggle twice while the first queued switch write fails",
+      "expected": "Failure of an older switch write cannot overwrite the latest intent; the successful newer value persists.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.theme-rejected-save-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "reject a theme save, reload and retry",
+      "expected": "Keep the unsaved preview and an explicit retry action across reload; only a confirmed save clears its recovery record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.theme-response-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "return malformed or incomplete theme responses and abort transport",
+      "expected": "Each failure exposes recovery; retry confirms the exact real saved appearance and clears the pending record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.theme-ordered-saves",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "choose two themes while the first save is held",
+      "expected": "Serialize stable full-theme snapshots and preserve the latest visible intent while earlier responses arrive.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.locale-response-recovery",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "interrupt regional saves with HTTP, malformed JSON and transport failures",
+      "expected": "Retain the full regional draft and previous saved values; retry persists the exact independent overrides.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.browser-timezone",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "inspect automatic timezone after saving an explicit override",
+      "expected": "Detect the actual browser zone independently of the saved formatting override and use it in the Automatic preview.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.rtl-overlay",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "open Arabic Settings and a nested confirmation at phone width",
+      "expected": "The rail cannot cover the dialog or its controls; keyboard dismissal returns focus to the opener.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.color-keyboard",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "reach and operate the custom color picker by keyboard",
+      "expected": "Keyboard traversal reaches a 44px control; Enter and Space open a custom picker, exact hex editing persists, and Done or Escape returns focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.restart-persistence",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "change settings and restart the owned server",
+      "expected": "Exact server settings and complete saved appearance survive a real restart; local font and compact controls survive browser reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.language-keyboard",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "change interface language through real keyboard traversal",
+      "expected": "Tab reaches the language group; arrow, Home and End navigation reaches enabled choices with visible focus and correct selected state. Traversal remains an unsaved draft until Save; the chosen language persists after reload.",
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-settings-keyboard-followup/manifest.json"
+      ],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-collision-recovery",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload a file whose basename already exists",
+      "expected": "Preserve original bytes until an explicit conflict decision, check replacement identity, and retain a usable recovery path or block unrecoverable replacement.",
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-files-workflow-audit-report.md"
+      ],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-error-readability",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "recover from copy and restore collisions on phone",
+      "expected": "The entire failure reason and recovery actions remain visible and reachable; retry preserves both originals until the conflict is resolved.",
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-files-workflow-audit-report.md"
+      ],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "calendar.empty-and-search",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "open an empty calendar and search from desktop and phone",
+      "expected": "The empty calendar is usable and its search control remains reachable.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.overnight-create-edit-reload",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "create and edit an overnight event, then reload",
+      "expected": "Start and end retain their separate dates and exact saved values.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.keyboard-event-and-move",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "open an event by keyboard and move it",
+      "expected": "A visible 44px event target is reachable by Tab and Enter, and the moved event survives reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.create-failure-retry",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "reject a new event save and retry",
+      "expected": "The complete draft and error remain visible; retry creates the intended event and reload preserves it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.malformed-ack-null",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "return a null save acknowledgment",
+      "expected": "The editor reports an unconfirmed save and retains its draft for recovery.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.malformed-ack-empty-object",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "return an empty save acknowledgment",
+      "expected": "An empty object cannot masquerade as a saved event; the draft remains available.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.malformed-ack-invalid-id",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "return an invalid event identifier after save",
+      "expected": "The editor rejects the invalid acknowledgment and allows explicit draft discard or retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.network-retry-and-single-pending-save",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "interrupt transport and attempt repeated saves while a write is pending",
+      "expected": "Input remains recoverable after transport failure and repeated activation cannot create duplicate pending writes.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.edit-and-delete-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "reject an edit and a delete, then recover",
+      "expected": "A failed edit retains input, a failed delete retains its event context, and successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.dirty-back-and-list-retry",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "leave a dirty editor and fail a calendar load",
+      "expected": "Back requires a deliberate discard decision; a failed load shows an error and a reachable retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.keyboard-choices-and-picker-bounds",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "choose event options and dates with keyboard input",
+      "expected": "All-day, weekday, reminder and color choices save and reload correctly; date fields and picker controls fit the viewport and retain focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.recurrence-origin-scope-cancel-and-failures",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "edit recurring events with all, this and following scopes",
+      "expected": "Cancel and failed saves preserve the master; successful scoped edits preserve the intended recurrence origin and occurrence set.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.scoped-write-lost-ack-retry-no-duplicate",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "lose the response after a real scoped write and retry",
+      "expected": "The stored occurrence is retained; a conflicting retry preserves the draft without duplicating or removing events. Reload exposes the saved result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.aware-and-all-day-exact-reload",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "edit offset-aware and all-day events",
+      "expected": "Untouched timestamps retain exact precision and offset; all-day date values stay correct after save and reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.aware-recurrence-spring-and-fall-boundaries",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "edit recurring occurrences across daylight-saving changes",
+      "expected": "Local wall time and elapsed duration produce the correct stored start and end instants, with the master and exclusions preserved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.shared-picker-countdown-and-reminder",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "use the shared date picker for countdowns and reminders",
+      "expected": "Date-only countdowns and timezone-aware reminders persist their intended values and remain visible after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "settings.language-availability-badges",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "inspect available and unavailable languages after save, pane refresh and reload",
+      "expected": "Labels and disabled state match backend catalog eligibility in LTR and RTL; genuinely unavailable languages remain unselectable and unsavable.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "calendar.optional-metadata-retains-events-and-id",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "fail calendar metadata on cold and populated loads, then save an existing event",
+      "expected": "Events stay visible; unavailable calendar selection is explicit and a prose edit preserves the original saved calendar ID.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "width-320",
+        "width-360",
+        "width-390",
+        "width-1440"
+      ]
+    },
+    {
+      "id": "calendar.metadata-retry-preserves-draft",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "retry missing calendar names while an event contains unsaved edits",
+      "expected": "The current editor, draft and dirty state survive; refreshed choices and owner status update without saving input.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "width-320",
+        "width-360",
+        "width-390",
+        "width-1440"
+      ]
+    },
+    {
+      "id": "calendar.calendar-retry-refreshes-owner-state",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "recover the event list while checking unrelated request failures",
+      "expected": "Successful recovery clears its stale Plan status; a separately failed task-overlay request keeps a truthful partial status.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "width-320",
+        "width-360",
+        "width-390",
+        "width-1440"
+      ]
+    },
+    {
+      "id": "calendar.narrow-picker-seven-columns-and-focus",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "operate the shared date picker at constrained widths and visual zoom",
+      "expected": "All seven44px columns fit, pointer selection works, Tab remains inside the picker and Escape restores focus; visual zoom evidence stays distinct from browser text zoom.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "width-320",
+        "width-360",
+        "width-390",
+        "width-1440"
+      ]
     }
   ],
   "findings": [
@@ -3159,7 +3647,7 @@
       "severity": "medium",
       "screen": "Settings chat defaults and switches",
       "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Persist context limit 55 and streaming thinking off.",
         "Reject PATCH /api/settings with 503; save context limit 77 and turn streaming thinking on.",
@@ -3171,9 +3659,11 @@
         "/tmp/alles-settings-audit-report.md",
         "/tmp/alles-settings-audit-run1/observations.json",
         "/tmp/alles-settings-audit-followup/observations.json",
-        "/tmp/alles-settings-audit/closure-manifest.json"
+        "/tmp/alles-settings-audit/closure-manifest.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-056",
@@ -3181,7 +3671,7 @@
       "severity": "medium",
       "screen": "Settings chat defaults",
       "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Hold a real save of context limit 51.",
         "Submit 52, deliver that write, then release the older 51 write.",
@@ -3193,9 +3683,11 @@
         "/tmp/alles-settings-audit-report.md",
         "/tmp/alles-settings-audit-run1/observations.json",
         "/tmp/alles-settings-audit-followup/observations.json",
-        "/tmp/alles-settings-audit/closure-manifest.json"
+        "/tmp/alles-settings-audit/closure-manifest.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-057",
@@ -3203,7 +3695,7 @@
       "severity": "medium",
       "screen": "Settings appearance",
       "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Persist Light.",
         "Reject PUT /api/appearance with 503 while allowing the legacy PATCH.",
@@ -3215,9 +3707,11 @@
         "/tmp/alles-settings-audit-report.md",
         "/tmp/alles-settings-audit-run1/observations.json",
         "/tmp/alles-settings-audit-followup/observations.json",
-        "/tmp/alles-settings-audit/closure-manifest.json"
+        "/tmp/alles-settings-audit/closure-manifest.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-058",
@@ -3225,7 +3719,7 @@
       "severity": "medium",
       "screen": "Settings appearance",
       "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Hold the debounced Dark write.",
         "Choose Light, deliver its real write, then release Dark."
@@ -3236,9 +3730,11 @@
         "/tmp/alles-settings-audit-report.md",
         "/tmp/alles-settings-audit-run1/observations.json",
         "/tmp/alles-settings-audit-followup/observations.json",
-        "/tmp/alles-settings-audit/closure-manifest.json"
+        "/tmp/alles-settings-audit/closure-manifest.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-059",
@@ -3246,7 +3742,7 @@
       "severity": "medium",
       "screen": "Settings language and region",
       "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Persist FR, Asia/Taipei, JPY, 24-hour clock and Monday.",
         "Change region to JP and simulate HTTP200 with invalid JSON for the save."
@@ -3257,9 +3753,11 @@
         "/tmp/alles-settings-audit-report.md",
         "/tmp/alles-settings-audit-run1/observations.json",
         "/tmp/alles-settings-audit-followup/observations.json",
-        "/tmp/alles-settings-audit/closure-manifest.json"
+        "/tmp/alles-settings-audit/closure-manifest.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-060",
@@ -3267,7 +3765,7 @@
       "severity": "medium",
       "screen": "Settings language and region",
       "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Use a browser in America/Toronto and save Asia/Taipei as the override.",
         "Reopen Settings and choose Automatic without saving."
@@ -3278,9 +3776,11 @@
         "/tmp/alles-settings-audit-report.md",
         "/tmp/alles-settings-audit-run1/observations.json",
         "/tmp/alles-settings-audit-followup/observations.json",
-        "/tmp/alles-settings-audit/closure-manifest.json"
+        "/tmp/alles-settings-audit/closure-manifest.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-061",
@@ -3288,7 +3788,7 @@
       "severity": "medium",
       "screen": "Settings in Arabic at 390px",
       "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Save Arabic from language and region at 390px.",
         "Inspect the dialog right edge and hit-test the timezone button."
@@ -3299,9 +3799,11 @@
         "/tmp/alles-settings-audit-report.md",
         "/tmp/alles-settings-audit-run1/observations.json",
         "/tmp/alles-settings-audit-followup/observations.json",
-        "/tmp/alles-settings-audit/closure-manifest.json"
+        "/tmp/alles-settings-audit/closure-manifest.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-062",
@@ -3309,7 +3811,7 @@
       "severity": "medium",
       "screen": "Settings appearance customization",
       "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Reach a color swatch input by keyboard.",
         "Press Enter and Space, then compare with a pointer click."
@@ -3320,9 +3822,11 @@
         "/tmp/alles-settings-audit-report.md",
         "/tmp/alles-settings-audit-run1/observations.json",
         "/tmp/alles-settings-audit-followup/observations.json",
-        "/tmp/alles-settings-audit/closure-manifest.json"
+        "/tmp/alles-settings-audit/closure-manifest.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-063",
@@ -3330,7 +3834,7 @@
       "severity": "high",
       "screen": "Plan Calendar; CAL-01",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Create Sep 26 23:45–Sep 27 00:30; reload; open the month chip; change only description; save; reload."
       ],
@@ -3344,9 +3848,11 @@
         "/tmp/alles-calendar-audit/overnight-before-api.json",
         "/tmp/alles-calendar-audit/overnight-after-api.json",
         "/tmp/alles-calendar-audit/overnight-corrupted-reload.png",
-        "/tmp/alles-calendar-audit/timezone-checks.json"
+        "/tmp/alles-calendar-audit/timezone-checks.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-064",
@@ -3354,7 +3860,7 @@
       "severity": "high",
       "screen": "Plan Calendar; CAL-02",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Seed real API event start 2026-09-26T02:30:00Z, end 03:30Z. In America/Toronto, open the correctly placed Sep 25 22:30 chip, edit only description, save."
       ],
@@ -3368,9 +3874,11 @@
         "/tmp/alles-calendar-audit/aware-toronto-placement.png",
         "/tmp/alles-calendar-audit/aware-toronto-editor.png",
         "/tmp/alles-calendar-audit/aware-edited-api.json",
-        "/tmp/alles-calendar-audit/aware-corrupted-reload.png"
+        "/tmp/alles-calendar-audit/aware-corrupted-reload.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-065",
@@ -3378,7 +3886,7 @@
       "severity": "high",
       "screen": "Plan Calendar; CAL-03",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Create weekly Friday Sep 25 09:00–10:00, 3 occurrences. Open Oct 2; edit description only; Save → All events; reload."
       ],
@@ -3391,9 +3899,11 @@
         "/tmp/alles-calendar-audit/recurrence-checks.json",
         "/tmp/alles-calendar-audit/weekly-created-api.json",
         "/tmp/alles-calendar-audit/weekly-all-edit-api.json",
-        "/tmp/alles-calendar-audit/weekly-all-edit.png"
+        "/tmp/alles-calendar-audit/weekly-all-edit.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-066",
@@ -3401,7 +3911,7 @@
       "severity": "high",
       "screen": "Plan Calendar; CAL-04",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open Oct 9 of a weekly series, edit title, Save → This event. Explicitly simulate POST /api/calendar 503 while allowing real master PATCH."
       ],
@@ -3414,9 +3924,11 @@
         "/tmp/alles-calendar-audit/recurrence-events.json",
         "/tmp/alles-calendar-audit/weekly-this-partial-failure-api.json",
         "/tmp/alles-calendar-audit/weekly-this-partial-failure.png",
-        "/tmp/alles-calendar-audit/weekly-this-failure-reload.png"
+        "/tmp/alles-calendar-audit/weekly-this-failure-reload.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance. Scoped edits are atomic. A lost acknowledgment after an accepted scoped edit retains the draft and conflicts on retry without creating duplicates; reload is needed to inspect that saved result."
     },
     {
       "id": "STAB-067",
@@ -3424,7 +3936,7 @@
       "severity": "high",
       "screen": "Plan Calendar; CAL-05",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Fill title/description; simulate POST 503; Create. Separately edit a saved title; simulate PATCH 503; Save."
       ],
@@ -3439,9 +3951,11 @@
         "/tmp/alles-calendar-audit/create-http503.png",
         "/tmp/alles-calendar-audit/create-http503-api.json",
         "/tmp/alles-calendar-audit/edit-http503.png",
-        "/tmp/alles-calendar-audit/edit-http503-api.json"
+        "/tmp/alles-calendar-audit/edit-http503-api.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-068",
@@ -3449,7 +3963,7 @@
       "severity": "medium",
       "screen": "Plan Calendar; CAL-06",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Fill new event. Hold POST responses at the browser boundary, double-click Create, then release both requests to the real API; reload."
       ],
@@ -3461,9 +3975,11 @@
         "/tmp/alles-calendar-audit/mutations.zip",
         "/tmp/alles-calendar-audit/mutation-checks.json",
         "/tmp/alles-calendar-audit/double-submit-api.json",
-        "/tmp/alles-calendar-audit/double-submit.png"
+        "/tmp/alles-calendar-audit/double-submit.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-069",
@@ -3471,7 +3987,7 @@
       "severity": "medium",
       "screen": "Plan Calendar; CAL-07",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Fill a new event, explicitly abort POST /api/calendar, press Create."
       ],
@@ -3484,9 +4000,11 @@
         "/tmp/alles-calendar-audit/mutations-events.json",
         "/tmp/alles-calendar-audit/create-network-failure.png",
         "/tmp/alles-calendar-audit/network-failed-api.json",
-        "/tmp/alles-calendar-audit/network-retry-api.json"
+        "/tmp/alles-calendar-audit/network-retry-api.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-070",
@@ -3494,7 +4012,7 @@
       "severity": "medium",
       "screen": "Plan Calendar; CAL-08",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open a saved event; explicitly simulate DELETE 503; click Delete."
       ],
@@ -3506,9 +4024,11 @@
         "/tmp/alles-calendar-audit/mutations.zip",
         "/tmp/alles-calendar-audit/delete-http503.png",
         "/tmp/alles-calendar-audit/delete-http503-api.json",
-        "/tmp/alles-calendar-audit/delete-retry-api.json"
+        "/tmp/alles-calendar-audit/delete-retry-api.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-071",
@@ -3516,7 +4036,7 @@
       "severity": "medium",
       "screen": "Plan Calendar; CAL-09",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Populate Calendar; simulate GET /api/calendar 503 with a detail object; reload."
       ],
@@ -3528,9 +4048,11 @@
         "/tmp/alles-calendar-audit/mutations.zip",
         "/tmp/alles-calendar-audit/mutations-events.json",
         "/tmp/alles-calendar-audit/list-http503.png",
-        "/tmp/alles-calendar-audit/mutation-checks.json"
+        "/tmp/alles-calendar-audit/mutation-checks.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-072",
@@ -3538,7 +4060,7 @@
       "severity": "medium",
       "screen": "Plan Calendar; CAL-10",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "New event → enter title and description → Back → + event."
       ],
@@ -3549,9 +4071,11 @@
         "/tmp/alles-calendar-audit-report.md",
         "/tmp/alles-calendar-audit/mutations.zip",
         "/tmp/alles-calendar-audit/back-discard.png",
-        "/tmp/alles-calendar-audit/mutation-checks.json"
+        "/tmp/alles-calendar-audit/mutation-checks.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-073",
@@ -3559,7 +4083,7 @@
       "severity": "high",
       "screen": "Plan Calendar; CAL-11",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "With populated month view, focus Search and Tab through the full Calendar controls/body loop."
       ],
@@ -3570,9 +4094,11 @@
         "/tmp/alles-calendar-audit-report.md",
         "/tmp/alles-calendar-audit/desktop-dark-phone-keyboard.zip",
         "/tmp/alles-calendar-audit/phone-keyboard-checks.json",
-        "/tmp/alles-calendar-audit/desktop-dark-populated.png"
+        "/tmp/alles-calendar-audit/desktop-dark-populated.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-074",
@@ -3580,7 +4106,7 @@
       "severity": "high",
       "screen": "Plan Calendar; CAL-12",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "New event → weekly repeat; start at title and Tab through the entire editor."
       ],
@@ -3593,9 +4119,11 @@
         "/tmp/alles-calendar-audit/phone-light-phone-keyboard.zip",
         "/tmp/alles-calendar-audit/phone-dark-phone-keyboard.zip",
         "/tmp/alles-calendar-audit/phone-keyboard-checks.json",
-        "/tmp/alles-calendar-audit/phone-light-editor-footer.png"
+        "/tmp/alles-calendar-audit/phone-light-editor-footer.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-075",
@@ -3603,7 +4131,7 @@
       "severity": "high",
       "screen": "Plan Calendar; CAL-13",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "At390×900, open + event then End date. Attempt September26 by pointer."
       ],
@@ -3618,9 +4146,11 @@
         "/tmp/alles-calendar-audit/unreachable-result.json",
         "/tmp/alles-calendar-audit/phone-end-picker.png",
         "/tmp/alles-calendar-audit/phone-end-date-unreachable.png",
-        "/tmp/alles-calendar-audit/phone-light-picker.png"
+        "/tmp/alles-calendar-audit/phone-light-picker.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-076",
@@ -3628,7 +4158,7 @@
       "severity": "medium",
       "screen": "Plan Calendar; CAL-14",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open populated Calendar at390px; inspect visible controls in light and dark themes."
       ],
@@ -3641,9 +4171,11 @@
         "/tmp/alles-calendar-audit/phone-dark-phone-keyboard.zip",
         "/tmp/alles-calendar-audit/phone-keyboard-checks.json",
         "/tmp/alles-calendar-audit/phone-light-populated.png",
-        "/tmp/alles-calendar-audit/phone-dark-populated.png"
+        "/tmp/alles-calendar-audit/phone-dark-populated.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
     },
     {
       "id": "STAB-077",
@@ -3651,7 +4183,7 @@
       "severity": "medium",
       "screen": "Plan Calendar; CAL-15",
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open recurring event, Save; observe focus; press Escape."
       ],
@@ -3662,9 +4194,635 @@
         "/tmp/alles-calendar-audit-report.md",
         "/tmp/alles-calendar-audit/recurrence.zip",
         "/tmp/alles-calendar-audit/recurrence-checks.json",
-        "/tmp/alles-calendar-audit/weekly-scope-dialog.png"
+        "/tmp/alles-calendar-audit/weekly-scope-dialog.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
       ],
-      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
+    },
+    {
+      "id": "STAB-078",
+      "title": "Interface language choices cannot be traversed by keyboard",
+      "severity": "medium",
+      "screen": "Settings language and region radio group",
+      "revision": "b6f4cc3 plus Settings repair; settings.js 66c2722b5e10e7573c6549bd7913505f4f3dfb7d7f9efa962b6b77267a5c14bd",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Open Settings language and region with English selected.",
+        "Use actual Tab input to reach the selected language, then try the arrow keys, Home and End.",
+        "Continue tabbing and attempt to select Arabic without a pointer or programmatic focus."
+      ],
+      "expected": "Keyboard traversal reaches enabled languages, maintains one selected tab stop and exposes the draft without saving until requested.",
+      "actual": "Only the selected language has tabindex zero; the language group has no arrow-key handler, so other languages cannot be reached.",
+      "source_trace": "static/js/settings.js:534 sets a roving tab stop; _wireLocaleSettingsPane handles menu/format keys but omits language keys.",
+      "evidence": [
+        "/tmp/alles-settings-keyboard-run1",
+        "/tmp/alles-settings-keyboard-phone",
+        "/tmp/alles-settings-keyboard-focused",
+        "/tmp/alles-settings-keyboard-followup/manifest.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
+      ],
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
+    },
+    {
+      "id": "STAB-079",
+      "title": "Local uploads silently replace existing files; originals larger than 25 MiB have no recovery version",
+      "severity": "high",
+      "screen": "Files upload and local version recovery",
+      "revision": "b6f4cc3; Files module/backend hashes unchanged by the pending Settings patch",
+      "status": "confirmed",
+      "reproduction": [
+        "Seed an owned local file of 26214401 bytes.",
+        "Open Files at that location and use the visible Upload control to choose a different file with the same basename.",
+        "No overwrite decision is shown; the upload receives HTTP 200. Reload and compare persisted bytes and version history."
+      ],
+      "expected": "Existing bytes remain intact until an explicit conflict/replace decision; unrecoverable consequences are visible.",
+      "actual": "Desktop original 26214401 bytes became 3 bytes; phone connected-location original became 9 bytes. Both version lists were empty after reload. A small-file overwrite did retain a backend snapshot, but rendered Details exposed only versions: 1, with no recovery action.",
+      "source_trace": "static/js/filesphase7.js:1422; routes/files.py:1097; services/fileversions.py:25; services/fileversions.py:60; services/files_store.py:190; static/js/filesphase7.js:656",
+      "evidence": [
+        "/tmp/alles-files-workflow-audit-report.md",
+        "/tmp/alles-files-workflow-audit-1/upload-large-overwrite-proof.json",
+        "/tmp/alles-files-workflow-audit-1/phone-large-overwrite-proof.json",
+        "/tmp/alles-files-workflow-audit-1/desktop-large-before.png",
+        "/tmp/alles-files-workflow-audit-1/desktop-large-after.png",
+        "/tmp/alles-files-workflow-audit-1/phone-large-before.png",
+        "/tmp/alles-files-workflow-audit-1/phone-large-after.png",
+        "/tmp/alles-files-workflow-audit-1/keyboard-file-detail-proof.json",
+        "/tmp/alles-files-workflow-audit-1/desktop-version-count-no-recovery-control.png"
+      ],
+      "verification": "Real pointer/keyboard and exact persisted-byte checks on owned local and connected folders; snapshots and version lists checked after reload. CSS and API causes traced. Repair is in progress; no remote provider or native device acceptance."
+    },
+    {
+      "id": "STAB-080",
+      "title": "Phone transfer panel hides the actionable failure reason",
+      "severity": "medium",
+      "screen": "Files phone transfer panel",
+      "revision": "b6f4cc3; Files module/backend hashes unchanged by the pending Settings patch",
+      "status": "confirmed",
+      "reproduction": [
+        "Copy report.txt from the default location to a connected managed folder that already contains report.txt.",
+        "After the operation fails, inspect the transfer panel on the phone. A restore collision produces the same clipping."
+      ],
+      "expected": "The failure reason remains fully readable with a visible path to recovery.",
+      "actual": "The copy row showed 0% · verified transfer · destina… . Its full reason was destination already exists, with 273px text confined to 182px. Only Retry and Dismiss existed; no expand/details control or title exposed the clipped text. Desktop displayed the full reason. Files on both sides were preserved, and a rename plus Retry succeeded.",
+      "source_trace": "static/js/filesphase7.js:1041; static/kokuen.css:5825",
+      "evidence": [
+        "/tmp/alles-files-workflow-audit-report.md",
+        "/tmp/alles-files-workflow-audit-1/phone-copy-collision.png",
+        "/tmp/alles-files-workflow-audit-1/phone-operation-error-clipping.json",
+        "/tmp/alles-files-workflow-audit-1/phone-many-operations.png",
+        "/tmp/alles-files-workflow-audit-1/desktop-restore-error-panel.png",
+        "/tmp/alles-files-workflow-audit-1/copy-collision-retry-proof.json"
+      ],
+      "verification": "Real pointer/keyboard and exact persisted-byte checks on owned local and connected folders; snapshots and version lists checked after reload. CSS and API causes traced. Repair is in progress; no remote provider or native device acceptance."
+    },
+    {
+      "id": "STAB-081",
+      "title": "Populated Calendar date fields overflow the phone editor",
+      "severity": "medium",
+      "screen": "Plan Calendar event editor at390px phone width",
+      "revision": "b6f4cc3 plus preliminary Calendar repair615a8cef",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Open a Calendar event editor on a390px phone fixture.",
+        "Use the visible date pickers to populate different start and end dates.",
+        "Inspect the complete end value and its control bounds."
+      ],
+      "expected": "Both dates stay readable and reachable inside the viewport.",
+      "actual": "The two-column grid extended the end field to x440.77 on a390px viewport.",
+      "source_trace": "static/style.css .cal-ed-grid used two unconstrained1fr columns for populated date controls.",
+      "evidence": [
+        "/tmp/alles-calendar-fix-editor-before/fields.png",
+        "/tmp/alles-calendar-fix-editor-before/bounds.json",
+        "/tmp/alles-calendar-fix-editor-after/fields.png",
+        "/tmp/alles-calendar-fix-editor-after/bounds.json",
+        "/tmp/alles-calendar-fix-run12/phone-light-date-fields.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
+      ],
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
+    },
+    {
+      "id": "STAB-082",
+      "title": "Calendar Retry leaves a stale Plan failure notice after events recover",
+      "severity": "medium",
+      "screen": "Plan Calendar load-error recovery on desktop and phone",
+      "revision": "b6f4cc3 plus Settings and Calendar integration; source97902402b7db530c2814c92b733f10c7f784cdbe38e28a79234ebc01ee807784",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Seed an event in an owned local fixture and simulate GET /api/calendar503.",
+        "Open Plan Calendar and observe both the Calendar load error and the Plan partial-data notice.",
+        "Remove the simulated failure and activate Calendar Retry."
+      ],
+      "expected": "A successful retry updates the load status for the recovered surface without clearing unrelated errors.",
+      "actual": "The event becomes visible and Calendar removes its error, but the Plan notice still says some plan data is unavailable with state partial.",
+      "source_trace": "calendarLoadError retries loadCalendar directly; app.js showView owns and paints the surrounding request-run status.",
+      "evidence": [
+        "/tmp/alles-plan-retry-notice-audit-2/proof.json",
+        "/tmp/alles-plan-retry-notice-audit-2/desktop/after.png",
+        "/tmp/alles-plan-retry-notice-audit-2/phone/after.png",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
+      ],
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
+    },
+    {
+      "id": "STAB-083",
+      "title": "Enabled language choices display stale unavailable badges",
+      "severity": "low",
+      "screen": "Settings language and region after localization refresh",
+      "revision": "b6f4cc3 plus STAB078; settings.js5f7daef20a5935b7e711fb3c8c25191f292d8e589d7bc7041ccfda784a84ab3f",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Open language and region with English selected and all shipped catalogs available.",
+        "Save French or Arabic, switch Settings panes and reopen language and region, or reload.",
+        "Compare the visible availability badge with the enabled and selected language state."
+      ],
+      "expected": "Badges match the existing backend catalog eligibility and remain correct after document translation.",
+      "actual": "Enabled and selected choices could say unavailable because rendering updated their text but left stale data-i18n keys.",
+      "source_trace": "_applyLocaleOptions in static/js/settings.js updated the badge text without updating its translation key.",
+      "evidence": [
+        "/tmp/alles-settings-badges-before",
+        "/tmp/alles-settings-badges-fix/report.md",
+        "/tmp/alles-settings-badges-run4",
+        "/tmp/alles-settings-badges-run5",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
+      ],
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance."
+    },
+    {
+      "revision": "b6f4cc3 plus Calendar repair db41ac644fc0e1fbaee45ef9529f65f841ac0be23335ceb16e084537cf0fb2b6",
+      "status": "fixed-and-verified",
+      "evidence": [
+        "/tmp/alles-calendar-followup-before/repro.json",
+        "/tmp/alles-calendar-followup-report.md",
+        "/tmp/alles-calendar-followup-verification.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
+      ],
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance.",
+      "id": "STAB-084",
+      "title": "Calendar metadata failure hides successfully loaded events",
+      "severity": "medium",
+      "screen": "Plan Calendar partial load",
+      "reproduction": [
+        "Seed an event and simulate only GET /api/calendars returning503.",
+        "Open Calendar while the real GET /api/calendar still returns that event."
+      ],
+      "expected": "Events remain usable while missing calendar names and selection show a recoverable partial failure.",
+      "actual": "The screen showed zero event chips and a fatal calendar load error despite one real saved event being available.",
+      "source_trace": "loadCalendar passed optional calendar metadata through the same required-list failure path as events."
+    },
+    {
+      "revision": "b6f4cc3 plus Calendar repair db41ac644fc0e1fbaee45ef9529f65f841ac0be23335ceb16e084537cf0fb2b6",
+      "status": "fixed-and-verified",
+      "evidence": [
+        "/tmp/alles-calendar-followup-before/repro.json",
+        "/tmp/alles-calendar-followup-report.md",
+        "/tmp/alles-calendar-followup-verification.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-1/results.json",
+        ".Codex/stabilization/2026-09-25-settings-calendar/full-2/results.json"
+      ],
+      "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance.",
+      "id": "STAB-085",
+      "title": "Shared date picker clips the rightmost date column at320px",
+      "severity": "medium",
+      "screen": "Calendar shared date picker on narrow phone viewport",
+      "reproduction": [
+        "Open a populated End date picker at320x900.",
+        "Inspect all seven day columns and the panel horizontal scroll bounds."
+      ],
+      "expected": "Seven44px date targets fit without horizontal scrolling.",
+      "actual": "The panel client width was302px and scroll width324px; the final column extended outside the visible panel.",
+      "source_trace": "Seven44px columns plus gaps and panel padding exceeded the viewport width minus16px margins."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-086",
+      "title": "Retained failed transfers cover lower Files rows on phone",
+      "severity": "medium",
+      "screen": "Files populated list with retained operation dock at 390px",
+      "reproduction": [
+        "Create a local copy conflict and keep its failed transfer visible.",
+        "Scroll a populated phone file list to its last row.",
+        "Activate the last file and adjacent selection controls without dismissing the transfer."
+      ],
+      "expected": "The last row and selection controls remain reachable while operation errors stay visible.",
+      "actual": "The last row ends at y842.5 below the dock top y703; the dock intercepts actual pointer input.",
+      "source_trace": "Fixed transfer dock reserves no scroll clearance; shrinking phone flex children let rows overflow outside the measured list box.",
+      "evidence": [
+        "/tmp/alles-files-dock-before/files-clearance/result.json",
+        "/tmp/alles-files-dock-clearance-report.md",
+        "/tmp/alles-files-dock-clearance-delivery.json"
+      ]
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-087",
+      "title": "Monitor conceals post-success errors and sticks on re-entry",
+      "severity": "medium",
+      "screen": "Server monitor-stale-feedback on desktop and phone",
+      "reproduction": [
+        "open Server overview; allow one successful stats response; then return HTTP503 from `/api/system/stats`. After multiple failed polls, the old metrics and `live · 0 procs` remain. Navigate to logs and back while failures continue: overview stays on `reading the machine…` and still says live. Removing the failure restores the metrics."
+      ],
+      "expected": "visible unavailable/stale feedback with an honest status, including after re-entry.",
+      "actual": "monitor conceals post-success errors and sticks on re-entry",
+      "source_trace": "`static/js/system.js:443–462` sets module-level `_ok` on success and only displays an error when `!_ok`; `initSystem` at line 467 resets the body but not that condition.",
+      "evidence": [
+        "/tmp/alles-server-audit/report.md",
+        "/tmp/alles-server-audit-run5/scenarios.json",
+        "/tmp/alles-server-audit/source-manifest.json",
+        "/tmp/alles-server-audit/cleanup-verification.json"
+      ],
+      "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-088",
+      "title": "Service and backup success rerenders update detached containers",
+      "severity": "medium",
+      "screen": "Server service-action-refresh on desktop and phone",
+      "reproduction": [
+        "open services with one simulated stopped owned service. Cancel restart (no mutation occurs), then keyboard-activate start. The POST succeeds and the following GET says running, but the visible card remains stopped with `start in progress…`. A tab switch away and back shows running. Separately, retry a failed simulated WebDAV backup successfully: the card still says `last backup: never` and retains the old outage error, although a fresh GET returns the successful timestamp. Tab re-entry corrects it."
+      ],
+      "expected": "settled action feedback and current state after the operation.",
+      "actual": "service and backup success rerenders update detached containers",
+      "source_trace": "`static/js/specialist_groups.js:1472–1478` moves staged child nodes into the live overview. Action closures retain the now-detached staging element. `server_workbench.js:501,514` and `:778` rerender into that detached element.",
+      "evidence": [
+        "/tmp/alles-server-audit/report.md",
+        "/tmp/alles-server-audit-run5/scenarios.json",
+        "/tmp/alles-server-audit/source-manifest.json",
+        "/tmp/alles-server-audit/cleanup-verification.json"
+      ],
+      "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-089",
+      "title": "Backup error leaves running status",
+      "severity": "medium",
+      "screen": "Server backup-failure-status on desktop and phone",
+      "reproduction": [
+        "in backups and storage, simulate a configured WebDAV destination and a 503 for its run action. The destination shows `simulated WebDAV outage` and its button is enabled again, while the introduction still says `webdav backup running…`."
+      ],
+      "expected": "the running state ends and failure is clear.",
+      "actual": "backup error leaves running status",
+      "source_trace": "`server_workbench.js:774–778` sets the introductory message before the request. The generic action catch (`:59–63`) adds an error to the destination card without resetting that separate message.",
+      "evidence": [
+        "/tmp/alles-server-audit/report.md",
+        "/tmp/alles-server-audit-run5/scenarios.json",
+        "/tmp/alles-server-audit/source-manifest.json",
+        "/tmp/alles-server-audit/cleanup-verification.json"
+      ],
+      "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-090",
+      "title": "Runtime log timestamps omitted",
+      "severity": "medium",
+      "screen": "Server runtime-log-timestamps on desktop and phone",
+      "reproduction": [
+        "open logs after the owned server handles requests. `/api/system/logs?limit=80` contains timestamped entries, but every runtime row's `<time>` is empty. Audit rows do have timestamps."
+      ],
+      "expected": "runtime entries show their available timestamp.",
+      "actual": "runtime log timestamps omitted",
+      "source_trace": "`services/observability.py:56–74` emits `ts`; `static/js/server_workbench.js:805` only reads `created_at`, `timestamp`, or `time`.",
+      "evidence": [
+        "/tmp/alles-server-audit/report.md",
+        "/tmp/alles-server-audit-run5/scenarios.json",
+        "/tmp/alles-server-audit/source-manifest.json",
+        "/tmp/alles-server-audit/cleanup-verification.json"
+      ],
+      "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-091",
+      "title": "Policy save leaves false missing-file state",
+      "severity": "medium",
+      "screen": "Server policy-stale-permission-feedback on desktop and phone",
+      "reproduction": [
+        "start from a fresh owned fixture with no policy file. Save the canonical owned-only policy with real owner confirmation. The API returns valid; the file exists with 0600 permissions. The page simultaneously says `saved and verified` and `effective state: fail closed · policy_missing`, plus `server policy file is missing`. Tab re-entry displays the correct state."
+      ],
+      "expected": "the visible effective state and warning reflect the accepted policy.",
+      "actual": "policy save leaves false missing-file state",
+      "source_trace": "`server_workbench.js:842–843` builds the initial facts/warning; the save path at `:875–883` only updates the editor, message and confirmation visibility.",
+      "evidence": [
+        "/tmp/alles-server-audit/report.md",
+        "/tmp/alles-server-audit-run5/scenarios.json",
+        "/tmp/alles-server-audit/source-manifest.json",
+        "/tmp/alles-server-audit/cleanup-verification.json"
+      ],
+      "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-092",
+      "title": "Policy success retains error styling",
+      "severity": "low",
+      "screen": "Server policy-success-style on desktop and phone",
+      "reproduction": [
+        "validate invalid schema, restore the original valid draft, cancel the expired-owner prompt once, then retry and save. The successful message is red and retains `server-workbench-status is-error`."
+      ],
+      "expected": "success or valid feedback does not retain the prior error tone.",
+      "actual": "policy success retains error styling",
+      "source_trace": "catches at `server_workbench.js:871,886` add `is-error`; successful validation/save at `:866,882` never removes it. `kokuen.css:1119` colors it as danger.",
+      "evidence": [
+        "/tmp/alles-server-audit/report.md",
+        "/tmp/alles-server-audit-run5/scenarios.json",
+        "/tmp/alles-server-audit/source-manifest.json",
+        "/tmp/alles-server-audit/cleanup-verification.json"
+      ],
+      "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-093",
+      "title": "Owned-only policy shows and focuses hidden escalation field",
+      "severity": "low",
+      "screen": "Server policy-hidden-confirmation on desktop and phone",
+      "reproduction": [
+        "open access policy in owned-only mode. The field asking to type `allow host services` is visible, and actual Tab traversal enters its input. It remains visible after a successful owned-only save and pane re-entry."
+      ],
+      "expected": "this conditional field appears only when proposing allowlisted-host mode.",
+      "actual": "owned-only policy shows and focuses hidden escalation field",
+      "source_trace": "`server_workbench.js:853–858,865,883` sets `hidden=true` correctly, but `kokuen.css:1225` gives `.server-workbench-field` `display:grid` without a matching hidden rule, overriding the browser's hidden display behavior.",
+      "evidence": [
+        "/tmp/alles-server-audit/report.md",
+        "/tmp/alles-server-audit-run5/scenarios.json",
+        "/tmp/alles-server-audit/source-manifest.json",
+        "/tmp/alles-server-audit/cleanup-verification.json"
+      ],
+      "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-094",
+      "title": "Multi-file Gallery upload silently processes only the first selected file",
+      "severity": "medium",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "Gallery → upload → select all three fixture files. Only one POST/upload occurs; only blue is saved; feedback says “added 1 image”. Separate uploads of green/red work."
+      ],
+      "expected": "Every selected file is processed with individual visible outcomes.",
+      "actual": "Multi-file Gallery upload silently processes only the first selected file",
+      "source_trace": "static/js/photos.js:923,1105-1115",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/04-gallery-populated.png",
+        "/tmp/alles-gallery-audit/05-after-upload-wait.txt",
+        "/tmp/alles-gallery-audit/events.json"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-095",
+      "title": "Photo opening is pointer-only; focused selection is invisible and lacks image identity",
+      "severity": "high",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "With populated Gallery, pointer-click Gallery settings twice to close it and establish ordinary focus, then actual Tab through navigation to grid. Only identical “select” buttons are reachable; photo cells have no keyboard opening path. First focused selector opacity is0 despite44×44 target; Enter selects but does not open."
+      ],
+      "expected": "Each image can be identified and opened with keyboard input and visible focus.",
+      "actual": "Photo opening is pointer-only; focused selection is invisible and lacks image identity",
+      "source_trace": "static/js/photos.js:62-105; static/style.css:4135-4144",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/keyboard-selection.json",
+        "/tmp/alles-gallery-audit/27-focused-invisible-select.png",
+        "/tmp/alles-gallery-audit/28-keyboard-select.txt"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-096",
+      "title": "Rejected caption save reports success and loses the draft on close/reload",
+      "severity": "high",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "Open red photo → info → enter “UNSAVED unique caption rejected”. Explicitly reject PATCH with503 JSON. Save reports “saved”; real API keeps previous caption. Close, reload, reopen shows previous value and loses the failed draft."
+      ],
+      "expected": "Rejected caption saves retain the draft and visible error without claiming success.",
+      "actual": "Rejected caption save reports success and loses the draft on close/reload",
+      "source_trace": "static/js/photos.js:1026-1040",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/false-caption-success.json",
+        "/tmp/alles-gallery-audit/33-false-caption-success.png",
+        "/tmp/alles-gallery-audit/34-caption-after-reload.txt"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-097",
+      "title": "Rejected new album creation closes silently and loses its name",
+      "severity": "medium",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "New album → type “Must retain failed album draft”; simulate POST/albums503. Dialog closes; no visible failure; reopening is blank; real albums API unchanged."
+      ],
+      "expected": "Failed album creation keeps its name and provides a reachable retry.",
+      "actual": "Rejected new album creation closes silently and loses its name",
+      "source_trace": "static/js/photos.js:1134-1139",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/35-album-create-rejected.png",
+        "/tmp/alles-gallery-audit/36-album-retry-draft.txt",
+        "/tmp/alles-gallery-audit/album-rejected-api.json"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-098",
+      "title": "Rejected photo list renders gallery empty; local navigation recovery leaves stale Files partial notice",
+      "severity": "medium",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "With three saved photos, simulate list503 and reload. Gallery says “gallery empty: upload something”, while Files partial notice appears separately at bottom. Remove failure and click Photos: all3 return but Files partial notice remains. Shared Retry subsequently clears it."
+      ],
+      "expected": "Failed photo loads distinguish unavailable data from empty data; recovery clears only its owned error.",
+      "actual": "Rejected photo list renders gallery empty; local navigation recovery leaves stale Files partial notice",
+      "source_trace": "static/js/photos.js:220-226,292-301",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/37-list-rejected.png",
+        "/tmp/alles-gallery-audit/38-list-retry.txt",
+        "/tmp/alles-gallery-audit/list-rejected-api.json"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-099",
+      "title": "Long album picker overflows 390px viewport; Escape does not close picker",
+      "severity": "medium",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "Create long named album; at390px select photo → add to album. Menu rect x8,width685.21875,right693.21875; option text extends beyond viewport with no reachable horizontal reading. Escape leaves popup open."
+      ],
+      "expected": "Album options fit the viewport, support keyboard dismissal and return focus.",
+      "actual": "Long album picker overflows 390px viewport; Escape does not close picker",
+      "source_trace": "static/js/photos.js:159-193; static/style.css:4157-4158",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/39-phone-album-menu.png",
+        "/tmp/alles-gallery-audit/50-desktop-light-album-popup.png"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-100",
+      "title": "Rejected new destination album clears existing membership through real batch request",
+      "severity": "high",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "Add red image to existing album. Inside album select it → add to album → new album… → enter “New destination rejected”. Simulate only album-create503. Client then makes a real successful POST/batch `{ids:[red],action:\"album\"}` with no album_id, says “1 updated”, and removes existing membership. Reload/API confirm album_id null; image bytes remain."
+      ],
+      "expected": "A rejected destination album creation cannot mutate existing image membership.",
+      "actual": "Rejected new destination album clears existing membership through real batch request",
+      "source_trace": "static/js/photos.js:180-189; routes/photos.py:1049-1050",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/rejected-new-album-membership.json",
+        "/tmp/alles-gallery-audit/42-rejected-new-album-membership.png",
+        "/tmp/alles-gallery-audit/43-rejected-new-album-reload.txt",
+        "/tmp/alles-gallery-audit/events.json"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-101",
+      "title": "Photo viewer does not move/trap focus or identify itself as a modal dialog",
+      "severity": "medium",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "Pointer-open first image; press Tab then Enter. Focus remains in underlying grid and Enter selects another photo behind visible viewer. Viewer lacks role/dialog and aria-modal. Keyboard path includes background controls and hidden info fields."
+      ],
+      "expected": "Viewer announces a modal, owns focus and prevents background keyboard actions until closing.",
+      "actual": "Photo viewer does not move/trap focus or identify itself as a modal dialog",
+      "source_trace": "static/js/photos.js:715-744,796-807; static/index.html:1437",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/viewer-keyboard-focus.json",
+        "/tmp/alles-gallery-audit/44-viewer-background-focus.png"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-102",
+      "title": "Rejected photo restoration reports restored although item stays in trash",
+      "severity": "high",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "Delete blue through real confirm; open Trash. Simulate restore POST503 then click Restore. Feedback says “restored”, but item remains in saved trash and visible grid. Restore again with real endpoint succeeds and same ID returns after reload."
+      ],
+      "expected": "Restore success is shown only after server confirmation; failure stays visible with retry.",
+      "actual": "Rejected photo restoration reports restored although item stays in trash",
+      "source_trace": "static/js/photos.js:1097-1101",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/restore-rejected-api.json",
+        "/tmp/alles-gallery-audit/47-restore-rejected.png",
+        "/tmp/alles-gallery-audit/restore-success-api.json"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
+      "status": "confirmed",
+      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "id": "STAB-103",
+      "title": "Network-interrupted upload produces unhandled error and no recovery message",
+      "severity": "medium",
+      "screen": "Files Gallery / Photos; see exact workflow reproduction",
+      "reproduction": [
+        "Choose upload with request deliberately reset before write. No failure/retry message; picker clears; one unhandled “Failed to fetch” plus exact reset request. Manually reselecting after connection recovers saves exactly one new image, retained after reload."
+      ],
+      "expected": "Interrupted upload retains selected files and displays recoverable failure.",
+      "actual": "Network-interrupted upload produces unhandled error and no recovery message",
+      "source_trace": "static/js/photos.js:923,1105-1115",
+      "evidence": [
+        "/tmp/alles-gallery-audit-report.md",
+        "/tmp/alles-gallery-audit/source-hashes.json",
+        "/tmp/alles-gallery-audit/upload-interrupted-api.json",
+        "/tmp/alles-gallery-audit/49-upload-interrupted.png"
+      ],
+      "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
+    },
+    {
+      "id": "STAB-104",
+      "title": "Current Settings section becomes invisible during keyboard traversal",
+      "severity": "low",
+      "screen": "Phone Settings language pane at320px and390px in LTR and RTL",
+      "revision": "b6f4cc3 plus Settings/Calendar integration; source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c",
+      "status": "confirmed",
+      "reproduction": [
+        "Open Settings and select Language & region.",
+        "Press Tab four times into the selected language control.",
+        "Inspect the navigation strip, content heading and fixed modal title."
+      ],
+      "expected": "The current Settings section remains visibly identifiable while editing its controls.",
+      "actual": "The active tab scrolls outside the strip and the content heading scrolls above its viewport. Only the generic Settings title remains; unrelated pointer hover can resemble selection.",
+      "source_trace": "Every Settings navigation item remains a Tab stop; horizontal focus scrolling can leave the active item offscreen. The fixed header omits pane name and hover shares selected styling.",
+      "evidence": [
+        "/tmp/alles-settings-navigation-audit-report.md",
+        "/tmp/alles-settings-navigation-audit-1/navigation-observations.json",
+        "/tmp/alles-settings-navigation-audit-navigation-320/navigation-observations.json"
+      ],
+      "verification": "Pane/active-tab ownership matches in all26 inspected states; no actual pane mismatch. Context loss reproduces with actual input; four Shift+Tabs recover. Low-impact repair is separate; no native-device acceptance."
     }
   ],
   "additional_surfaces": [

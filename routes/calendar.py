@@ -328,15 +328,100 @@ class EventBody(BaseModel):
     meeting_url: str = ""
 
 
+def _validate_event(data):
+    from datetime import datetime
+
+    if not str(data.get("title") or "").strip():
+        raise HTTPException(400, "An event title is required.")
+    try:
+        start = datetime.fromisoformat(data.get("start_dt") or "")
+        end = datetime.fromisoformat(data["end_dt"]) if data.get("end_dt") else None
+        if end and (end.date() < start.date() if data.get("all_day") else end <= start):
+            raise HTTPException(400, "The end must be after the start.")
+    except (ValueError, TypeError):
+        raise HTTPException(400, "Use valid start and end dates with matching timezones.") from None
+
+
+def _event_columns(data):
+    return {
+        **data,
+        "reminders": json.dumps(data.get("reminders") or []),
+        "recur_except": json.dumps(data.get("recur_except") or []),
+    }
+
+
+def _occurrence_index(event, occ, time_zone):
+    """Validate the selected local day and count positions, including exclusions."""
+    from datetime import date, datetime, timedelta
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    from services.recur import expand
+
+    try:
+        day = date.fromisoformat(occ)
+        start = datetime.fromisoformat(event["start_dt"])
+        if start.tzinfo is not None and not event.get("all_day"):
+            start = start.astimezone(ZoneInfo(time_zone)).replace(tzinfo=None)
+        else:
+            start = start.replace(tzinfo=None)
+    except (ValueError, TypeError, ZoneInfoNotFoundError):
+        raise HTTPException(400, "Use a valid occurrence date and timezone.") from None
+    local = {**event, "start_dt": start.isoformat(), "recur_except": []}
+    dates = expand(
+        local,
+        start.replace(second=0, microsecond=0),
+        datetime.combine(day + timedelta(days=1), datetime.min.time()),
+        cap=8000,
+    )
+    matches = [i for i, value in enumerate(dates) if value.date() == day]
+    if not matches or occ in event.get("recur_except", []):
+        raise HTTPException(409, "This occurrence is no longer in the series. Reload the calendar.")
+    return matches[0], day
+
+
+def _occurrence_dates(event, day, time_zone):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    start = datetime.fromisoformat(event["start_dt"])
+    zone = ZoneInfo(time_zone) if start.tzinfo is not None and not event.get("all_day") else None
+    local_start = start.astimezone(zone) if zone else start
+    delta = day - local_start.date()
+    result = {}
+    for key in ("start_dt", "end_dt"):
+        raw = event.get(key)
+        if not raw or not delta.days:
+            result[key] = raw
+            continue
+        if key == "end_dt" and zone:
+            continue  # A timed occurrence keeps its elapsed duration across clock changes.
+        value = datetime.fromisoformat(raw)
+        value = (value.astimezone(zone) if zone else value) + delta
+        if zone and value.astimezone(UTC).astimezone(zone).replace(tzinfo=None) != value.replace(
+            tzinfo=None
+        ):
+            raise HTTPException(
+                400, "This occurrence falls in a timezone gap. Choose another time."
+            )
+        result[key] = value.date().isoformat() if len(raw) == 10 else value.isoformat()
+    if zone and event.get("end_dt") and delta.days:
+        duration = datetime.fromisoformat(event["end_dt"]).astimezone(UTC) - start.astimezone(UTC)
+        result["end_dt"] = (
+            (datetime.fromisoformat(result["start_dt"]).astimezone(UTC) + duration)
+            .astimezone(zone)
+            .isoformat()
+        )
+    return result
+
+
 @router.post("/calendar")
 def create_event(body: EventBody, db: DbSession = Depends(get_db)):
     data = body.model_dump()
     data["calendar_id"] = data.get("calendar_id") or _default_cal(db)
-    data["reminders"] = json.dumps(data.get("reminders") or [])
-    data["recur_except"] = json.dumps(data.get("recur_except") or [])
     if not data["all_day"] and not data.get("end_dt") and data.get("start_dt"):
         data["end_dt"] = _plus_minutes(data["start_dt"], _default_duration()) or data.get("end_dt")
-    e = CalendarEvent(**data)
+    _validate_event(data)
+    e = CalendarEvent(**_event_columns(data))
     db.add(e)
     db.commit()
     db.refresh(e)
@@ -364,19 +449,64 @@ class EventPatch(BaseModel):
 
 
 @router.patch("/calendar/{eid}")
-def update_event(eid: str, body: EventPatch, db: DbSession = Depends(get_db)):
+def update_event(
+    eid: str,
+    body: EventPatch,
+    scope: str = "all",
+    occ: str = "",
+    time_zone: str = "UTC",
+    db: DbSession = Depends(get_db),
+):
+    """Scoped edits create the replacement and update the master in one transaction."""
+    from datetime import timedelta
+
     e = db.get(CalendarEvent, eid)
     if not e:
         raise HTTPException(404)
-    data = body.model_dump(exclude_unset=True)
-    if "reminders" in data:
-        data["reminders"] = json.dumps(data["reminders"] or [])
-    if "recur_except" in data:
-        data["recur_except"] = json.dumps(data["recur_except"] or [])
-    for k, v in data.items():
-        setattr(e, k, v)
-    db.commit()
-    return _fmt(e)
+    if scope not in {"all", "this", "following"}:
+        raise HTTPException(400, "Unknown edit scope.")
+    old = _fmt(e)
+    old.pop("id")
+    old.pop("created_at")
+    patch = body.model_dump(exclude_unset=True)
+    data = {**old, **patch}
+    _validate_event(data)
+    result = e
+    try:
+        if scope == "all":
+            for k, v in _event_columns(data).items():
+                setattr(e, k, v)
+        else:
+            if not e.recurrence:
+                raise HTTPException(409, "This event is no longer recurring. Reload the calendar.")
+            index, day = _occurrence_index(old, occ, time_zone)
+            for key, value in _occurrence_dates(old, day, time_zone).items():
+                if key not in patch:
+                    data[key] = value
+            _validate_event(data)
+            if scope == "this":
+                data.update(
+                    recurrence="",
+                    recur_interval=1,
+                    recur_byday="",
+                    recur_count=None,
+                    recur_until=None,
+                    recur_except=[],
+                )
+                e.recur_except = json.dumps([*old["recur_except"], occ])
+            else:
+                if data.get("recur_count") == old.get("recur_count") and old.get("recur_count"):
+                    data["recur_count"] = old["recur_count"] - index
+                data["recur_except"] = [value for value in old["recur_except"] if value >= occ]
+                e.recur_until = (day - timedelta(days=1)).isoformat()
+            result = CalendarEvent(**_event_columns(data))
+            db.add(result)
+        db.commit()
+        db.refresh(result)
+    except Exception:
+        db.rollback()
+        raise
+    return _fmt(result)
 
 
 @router.delete("/calendar/{eid}")

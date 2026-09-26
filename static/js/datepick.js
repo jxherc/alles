@@ -5,6 +5,8 @@ import {
   formatCalendarDate,
   formatDate,
   formatDateForLocale,
+  formatDateParts,
+  resolvedTimeZone,
   formatTime,
   localizationState,
 } from './i18n.js';
@@ -19,6 +21,10 @@ export function initDatePicker(el) {
   if (!el || el.dataset.dpReady === '1') return;
   el.dataset.dpReady = '1';
   el.tabIndex = 0;
+  el.setAttribute('role', 'button');
+  el.setAttribute('aria-haspopup', 'dialog');
+  el.setAttribute('aria-expanded', 'false');
+  if (!el.hasAttribute('aria-label') && !el.hasAttribute('aria-labelledby')) el.setAttribute('aria-label', el.dataset.ph || 'pick a date');
   Object.defineProperty(el, 'value', {
     configurable: true,
     get() { return el.dataset.value || ''; },
@@ -75,15 +81,26 @@ export function calendarDateParts(value) {
   return { y, mo, d, h: 0, mi: 0 };
 }
 
+export function dateTimeParts(value) {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(String(value || ''));
+  if (!match) return null;
+  const day = calendarDateParts(match[1]);
+  const h = Number(match[2]), mi = Number(match[3]);
+  return day && h < 24 && mi < 60 ? { ...day, h, mi } : null;
+}
+function _currentParts(value = new Date()) {
+  const parts = Object.fromEntries(formatDateParts(value, {
+    timeZone: resolvedTimeZone(), calendar: 'gregory', numberingSystem: 'latn',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).map(part => [part.type, Number(part.value)]));
+  return { y: parts.year, mo: parts.month - 1, d: parts.day, h: parts.hour, mi: parts.minute };
+}
 function _parse(el) {
   const v = el.dataset.value;
-  const dateOnly = _isDate(el) && calendarDateParts(v);
-  if (dateOnly) {
-    return dateOnly;
-  }
-  let dt = v ? new Date(v) : new Date();
-  if (isNaN(dt)) dt = new Date();
-  return { y: dt.getFullYear(), mo: dt.getMonth(), d: dt.getDate(), h: dt.getHours(), mi: dt.getMinutes() };
+  const literal = _isDate(el) ? calendarDateParts(v) : dateTimeParts(v);
+  if (literal) return literal;
+  const dt = v ? new Date(v) : new Date();
+  return _currentParts(isNaN(dt) ? new Date() : dt);
 }
 function _fmt(p, isDate) {
   const date = `${p.y}-${_z(p.mo + 1)}-${_z(p.d)}`;
@@ -94,10 +111,12 @@ function _display(v, isDate) {
     if (!calendarDateParts(v)) return v;
     return formatCalendarDate(v, { month: 'short', day: 'numeric', year: 'numeric' });
   }
-  const dt = new Date(v);
+  const wall = dateTimeParts(v);
+  const dt = wall ? new Date(Date.UTC(wall.y, wall.mo, wall.d, wall.h, wall.mi)) : new Date(v);
   if (isNaN(dt)) return v;
-  const d = formatDate(dt, { month: 'short', day: 'numeric', year: 'numeric' });
-  return `${d}, ${formatTime(dt, { hour: 'numeric', minute: '2-digit' })}`;
+  const zone = wall ? { timeZone: 'UTC' } : {};
+  const d = formatDate(dt, { month: 'short', day: 'numeric', year: 'numeric', ...zone });
+  return `${d}, ${formatTime(dt, { hour: 'numeric', minute: '2-digit', ...zone })}`;
 }
 function _trigger(el) {
   const v = el.dataset.value;
@@ -105,21 +124,37 @@ function _trigger(el) {
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
 }
 
-function _toggle(el) { if (_open?.el === el) _close(); else _openPanel(el); }
+function _toggle(el) { if (el.getAttribute('aria-disabled') === 'true') return; if (_open?.el === el) _close(); else _openPanel(el); }
 
 function _openPanel(el) {
-  _close();
+  _close(false);
   const panel = document.createElement('div');
   panel.className = 'date-panel';
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-label', el.getAttribute('aria-label') || 'choose date');
+  el.setAttribute('aria-expanded', 'true');
+  panel.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); _close(); return; }
+    if (event.key !== 'Tab') return;
+    const items = [...panel.querySelectorAll('button')];
+    const first = items[0], last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
   document.body.appendChild(panel);
   const cur = _parse(el);
   _open = { el, panel, view: { y: cur.y, mo: cur.mo }, sel: cur };
-  _render(el);   // render first so the panel has a measurable height
+  _render(el);
+  (panel.querySelector('.dp-day.sel') || panel.querySelector('.dp-day')).focus();
+  window.addEventListener('resize', _reposition);
+  window.visualViewport?.addEventListener('resize', _reposition);
   setTimeout(() => document.addEventListener('click', _outside), 0);
 }
 
 function _render(el) {
   const { panel, view, sel } = _open;
+  const active = panel.contains(document.activeElement) ? document.activeElement : null;
+  const focusKey = active?.dataset.d ? `[data-d="${active.dataset.d}"]` : active?.dataset.step ? `[data-step="${active.dataset.step}"]` : active?.dataset.nav ? `[data-nav="${active.dataset.nav}"]` : null;
   const isDate = _isDate(el);
   const monthName = formatCalendarDate(
     `${view.y}-${_z(view.mo + 1)}-01`,
@@ -138,12 +173,12 @@ function _render(el) {
   }
   const time = isDate ? '' : `
     <div class="dp-time">
-      <button type="button" class="dp-step" data-step="h-1">‹</button><span class="dp-tv">${_z(sel.h)}</span><button type="button" class="dp-step" data-step="h1">›</button>
+      <button type="button" class="dp-step" data-step="h-1" aria-label="previous hour">‹</button><span class="dp-tv">${_z(sel.h)}</span><button type="button" class="dp-step" data-step="h1" aria-label="next hour">›</button>
       <span class="dp-colon">:</span>
-      <button type="button" class="dp-step" data-step="mi-1">‹</button><span class="dp-tv">${_z(sel.mi)}</span><button type="button" class="dp-step" data-step="mi1">›</button>
+      <button type="button" class="dp-step" data-step="mi-1" aria-label="previous minute">‹</button><span class="dp-tv">${_z(sel.mi)}</span><button type="button" class="dp-step" data-step="mi1" aria-label="next minute">›</button>
     </div>`;
   panel.innerHTML = `
-    <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1">‹</button><span>${monthName}</span><button type="button" class="dp-nav" data-nav="1">›</button></div>
+    <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="previous month">‹</button><span>${monthName}</span><button type="button" class="dp-nav" data-nav="1" aria-label="next month">›</button></div>
     <div class="dp-grid">${grid}</div>${time}
     <div class="dp-foot"><button type="button" class="dp-clear">clear</button><button type="button" class="dp-now">now</button></div>`;
 
@@ -170,14 +205,14 @@ function _render(el) {
   panel.querySelector('.dp-clear').addEventListener('click', e => { e.stopPropagation(); el.value = ''; _close(); });
   panel.querySelector('.dp-now').addEventListener('click', e => {
     e.stopPropagation();
-    const n = new Date();
-    Object.assign(sel, { y: n.getFullYear(), mo: n.getMonth(), d: n.getDate(), h: n.getHours(), mi: n.getMinutes() });
+    Object.assign(sel, _currentParts());
     view.y = sel.y; view.mo = sel.mo;
     _commit(el);
     if (isDate) _close(); else _render(el);
   });
 
-  _position(el, panel);   // after content exists — height changes with the month
+  _position(el, panel);
+  if (focusKey) panel.querySelector(focusKey)?.focus({ preventScroll: true });
 }
 
 function _commit(el) {
@@ -186,25 +221,36 @@ function _commit(el) {
   el.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+function _reposition() { if (_open) _position(_open.el, _open.panel); }
 function _position(el, panel) {
   const r = el.getBoundingClientRect();
-  const margin = 8;
-  const h = panel.offsetHeight || 300;
-  const w = panel.offsetWidth || 250;
-  const spaceBelow = window.innerHeight - r.bottom - margin;
-  // flip above the trigger when there isn't room below (footer forms etc.)
-  const top = (h <= spaceBelow || spaceBelow >= r.top - margin) ? r.bottom + 4 : r.top - h - 4;
-  panel.style.top = `${Math.max(margin, top)}px`;
-  panel.style.left = `${Math.max(margin, Math.min(r.left, window.innerWidth - w - margin))}px`;
+  const viewport = window.visualViewport;
+  const left = viewport?.offsetLeft || 0, topEdge = viewport?.offsetTop || 0;
+  const width = viewport?.width || window.innerWidth, height = viewport?.height || window.innerHeight;
+  const compact = width < 350;
+  const margin = compact ? 2 : 8;
+  panel.classList.toggle('dp-compact', compact);
+  panel.style.maxHeight = `${Math.max(44, height - margin * 2)}px`;
+  panel.style.maxWidth = `${Math.max(44, width - margin * 2)}px`;
+  const h = panel.offsetHeight, w = panel.offsetWidth;
+  const below = r.bottom + 4;
+  const top = below + h <= topEdge + height - margin ? below : r.top - h - 4;
+  panel.style.top = `${Math.max(topEdge + margin, Math.min(top, topEdge + height - h - margin))}px`;
+  panel.style.left = `${Math.max(left + margin, Math.min(r.left, left + width - w - margin))}px`;
 }
 function _outside(e) {
   if (!_open) return;
   if (_open.el.contains(e.target) || _open.panel.contains(e.target)) return;
-  _close();
+  _close(false);
 }
-function _close() {
+function _close(restoreFocus = true) {
   if (!_open) return;
+  const el = _open.el;
   _open.panel.remove();
+  el.setAttribute('aria-expanded', 'false');
   _open = null;
+  if (restoreFocus && el.isConnected) el.focus({ preventScroll: true });
+  window.removeEventListener('resize', _reposition);
+  window.visualViewport?.removeEventListener('resize', _reposition);
   document.removeEventListener('click', _outside);
 }

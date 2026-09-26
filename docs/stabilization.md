@@ -19,6 +19,12 @@ control from `docs/control-census.json`, including shared navigation and Setting
 It requires matching code and acceptance-definition fingerprints. A desktop pass
 cannot replace a missing or failing phone result. An interrupted run stays incomplete.
 
+Gates can attach explicit control checks in `controls.json`, using the census
+`control_id`, execution status and device profile. The runner preserves these in
+the combined report. Workflow or screenshot success does not create control
+evidence automatically; each recorded control still needs its own activation,
+feedback and recovery assertions.
+
 ## Repeatable checks
 
 With the repository's Python environment and Playwright Chromium installed:
@@ -39,15 +45,18 @@ are temporary and downloads are disabled; these runs exercise local services and
 the keyword-search fallback, not live model integrations.
 
 The maintained full suite currently contains Home capture/navigation, cleanup
-regressions, Plan capture/conflict/draft recovery, Docs persistence and delayed-editor
+regressions, Plan capture/conflict/draft recovery, Calendar save/recurrence/keyboard recovery,
+Docs persistence and delayed-editor
 recovery, local Files operations,
 Andromeda cancellation/retry with simulated transport, Aide interruption/recovery
 with a delayed loopback provider, Health correction/recovery, local Finance
 validation/retry/persistence, Library note/reading recovery, Inbox contact/mail draft
 recovery, Vault and local encrypted-backup controls, Home reminder timezone boundaries, owner setup and
-sign-in recovery, PWA offline/reconnect, browser-storage failure and rejected-write recovery, and
+sign-in recovery, Settings save/order/locale recovery, PWA offline/reconnect,
+browser-storage failure and rejected-write recovery, and
 resting surfaces for all twelve apps plus Settings in both themes at desktop and
-phone widths. `daily`, `setup`, `assistant`, `specialist`, `surfaces`, and `pwa` select those subsets.
+phone widths. `daily`, `calendar`, `setup`, `settings`, `assistant`, `specialist`, `surfaces`,
+and `pwa` select those subsets.
 Traces, screenshots, requests, console output and server logs accompany the
 results. Historical browser scripts outside this maintained list remain unaudited;
 the word `full` does not mean every product workflow has been certified.
@@ -251,12 +260,69 @@ Native Safari still yields thumbnail-sized captures insufficient for visual
 acceptance. Complete host-supervisor, native device, provider and seven-day trial
 acceptance remains outstanding. This checkpoint is not a stable release.
 
+## Settings and Calendar recovery checkpoint
+
+Settings now keeps failed edits recoverable, orders overlapping saves and confirms
+responses before showing success. Appearance previews retain a marked unsaved state
+until retry succeeds. Regional drafts survive rejected or unreadable responses;
+automatic timezone uses the browser zone independently of saved formatting.
+Keyboard traversal reaches language and custom color controls, and logical overlay
+insets keep Arabic dialogs clear of the navigation rail. Availability labels retain
+their correct translation keys after language changes.
+
+Calendar preserves separate start/end dates, timestamp offsets and recurrence
+origins. Scoped occurrence edits commit atomically. Failed saves/deletes keep the
+editor and recovery action; repeated pending saves do not create duplicates. Event
+and option controls are keyboard reachable, dirty Back requires a discard decision,
+and phone date fields and all seven picker columns fit. Calendar metadata failure
+keeps loaded events and the original calendar assignment; Retry preserves the draft
+and updates only the recovered request status.
+
+A lost acknowledgment after a scoped write remains a bounded recovery limitation:
+the accepted event is preserved and a retry conflicts without duplication, but
+reload is required to inspect that saved result. Live calendar providers, complete
+native Safari and actual iPhone acceptance remain outstanding.
+
+This checkpoint closes STAB-055–078 and STAB-081–085 with current reproductions and
+regressions. Files, Server and Gallery audits retain twenty separately confirmed
+open findings; the further Settings context-loss audit adds STAB-104. Those repairs
+are separate work. Screenshots still show dense
+Calendar tools and Settings navigation that needs the planned layout/usability
+pass. Functional repairs do not certify the complete minimal interface.
+
+Verification on September 26: all four new Settings/Calendar gates passed in both
+fresh full runs. The first passed all 28 maintained gates. The second passed 27 and
+failed PWA storage replay after reconnect: its queued Health record remained in
+browser storage after a service-worker network error. The failure, trace and owned
+cleanup are retained for diagnosis. Only one complete clean run matches this
+checkpoint; two-run release acceptance is not satisfied.
+
+The unchanged source fingerprint is
+`579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c`;
+the acceptance fingerprint is
+`cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a`.
+The isolated Python suite passed 5,663 tests with six explicit skips; 671 JavaScript
+tests and both Ruff checks passed. An earlier Python launcher incorrectly pinned
+ALLES_DB outside backup tests' own roots; the single-test reproduction isolated
+that launcher error, and the corrected fresh full run passed. Historical failed
+logs remain separate from accepted proof.
+
+The current report covers 1,610 controls and 223 workflows: 114 passed, 103 untested,
+four failed and two blocked. A supplemental phone audit verified Settings persistence
+through reload and a second fresh authenticated browser context. No inventoried
+control inherits a pass from a workflow visit. The runner now accepts explicit
+control records, but this checkpoint has no such control-ID execution claims.
+Files/Server/Gallery defects, STAB-104 navigation context, offline replay diagnosis,
+remaining layout work, native Safari/iPhone and the seven-day trial keep the release
+open. No publication follows from this checkpoint alone.
+
 ## Stable layout
 
-The app picker keeps the same destinations. Each app has one working area, a compact
-header and local views. Advanced tools remain in their existing contextual menus.
-Home capture comes before the overview. Document and file navigation stays available
-independently of the views strip. Existing links and saved data retain their meaning.
+The app picker keeps the same destinations. Daily-work and specialist workbenches
+share a compact header and local views; assistant headers and specialist inner
+layouts still need the remaining consistency pass. Home capture comes before the
+overview. Document and file navigation stays available independently of the views
+strip. Existing links and saved data retain their meaning.
 
 The layout contract is in [decision 0012](../design-system/decisions/0012-minimal-workspace.md).
 
@@ -267,6 +333,8 @@ The layout contract is in [decision 0012](../design-system/decisions/0012-minima
 | Change a specialist app's view | The horizontal views strip below its header |
 | Hide or restore that strip | `views` in the app header |
 | Capture or filter Plan tasks | Above the agenda |
+| Create or edit an event | Plan → calendar → + event or an event; start/end dates stay separate, recurring changes ask which occurrences to change |
+| Recover a failed Calendar load or save | Plan → calendar → the visible Retry action or retained event editor; unrelated load failures remain visible |
 | Edit a task or protect its unsaved changes | Plan → tasks → its title; Cancel, Escape or outside dismissal asks before discarding changed fields |
 | Recover conflicting or interrupted task edits | Plan → tasks → the editor; review both versions, download a draft, or confirm which changes to keep |
 | Continue editing if the visual document editor fails | Docs → Edit → Source; the visible loading/error status preserves the current buffer and Save action |
@@ -278,6 +346,8 @@ The layout contract is in [decision 0012](../design-system/decisions/0012-minima
 | Retry a failed contact save | Inbox → contacts → the retained form and its inline error; Save or Add retries the unchanged fields |
 | Open mail or drafts by keyboard | Inbox → mail → the subject button; body-only unsaved changes also require discard confirmation |
 | Restore a local encrypted backup | Settings → backup & restore → choose backup file; keyboard file actions, password confirmation and same-file retry remain available |
+| Recover a failed appearance save | Settings → appearance → retry theme save; the unsaved preview stays marked until the server confirms it |
+| Choose a custom color by keyboard | Settings → appearance → presets & customization → a color control; Enter or Space opens the hex editor, Done or Escape returns focus |
 | Correct a Health measurement | Health → logs → edit beside the record; exact value, date, unit and note stay together |
 
 Daily-work layouts are the first implementation batch. Specialist summaries,

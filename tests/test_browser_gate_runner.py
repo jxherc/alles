@@ -120,6 +120,53 @@ class BrowserGateRunnerTest(unittest.TestCase):
             stored = json.loads((output / "smoke-desktop/result.json").read_text())
             self.assertEqual(stored, result)
 
+    def test_gate_keeps_explicit_control_evidence_separate_from_workflows(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw)
+            controls = [{"control_id": "synthetic-control", "status": "failed", "profile": "phone"}]
+            child = Mock(returncode=0)
+            child.poll.return_value = 0
+
+            def finish(**_kwargs):
+                (output / "smoke-phone/controls.json").write_text(json.dumps(controls))
+                return 0
+
+            child.wait.side_effect = finish
+            with (
+                patch.object(runner, "build_fingerprint", return_value="current"),
+                patch.object(runner, "acceptance_fingerprint", return_value="contract"),
+                patch.object(runner, "wait_for_server"),
+                patch.object(runner.subprocess, "Popen", return_value=child),
+            ):
+                result = runner.run_gate("smoke-phone", output, 5, 5)
+            self.assertEqual(result.get("controls"), controls)
+            self.assertNotIn("scenarios", result)
+
+    def test_suite_preserves_control_failures_without_inventing_control_passes(self):
+        with tempfile.TemporaryDirectory() as raw:
+            output = Path(raw)
+
+            def gate(name, *_args):
+                result = self.fake_gate(name)
+                if name == "smoke-phone":
+                    result["controls"] = [{"control_id": "synthetic-control", "status": "failed"}]
+                return result
+
+            self.invoke_main(output, gate)
+            report = json.loads((output / "results.json").read_text())
+            self.assertEqual(
+                report.get("controls"),
+                [
+                    {
+                        "control_id": "synthetic-control",
+                        "status": "failed",
+                        "profiles": ["phone"],
+                        "gate": "smoke-phone",
+                        "artifacts": "synthetic",
+                    }
+                ],
+            )
+
     def test_gate_timeout_is_failed_and_owned_processes_are_stopped(self):
         with tempfile.TemporaryDirectory() as raw:
             server = Mock()

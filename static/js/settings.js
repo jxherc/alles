@@ -57,14 +57,30 @@ function _setSwitch(el, on) {
   if (el.hasAttribute('role')) el.setAttribute('aria-checked', String(!!on));
 }
 
+const _switchWrites = new WeakMap();
 function _bindSwitch(el, getter, setter) {
   if (!el) return;
-  _setSwitch(el, getter());
+  let state = _switchWrites.get(el);
+  if (!state?.pending) {
+    state = { confirmed: !!getter(), revision: 0, pending: 0 };
+    _switchWrites.set(el, state);
+    _setSwitch(el, state.confirmed);
+  }
   // onclick keeps pane re-open from stacking handlers
-  el.onclick = () => {
+  el.onclick = async () => {
+    const revision = ++state.revision;
+    ++state.pending;
     const next = !el.classList.contains('on');
     _setSwitch(el, next);
-    setter(next);
+    el.setAttribute('aria-busy', 'true');
+    try {
+      if (await setter(next) !== null) state.confirmed = next;
+    } catch (error) {
+      toast(error.message || 'setting could not be saved; try again', 'error');
+    } finally {
+      if (revision === state.revision) _setSwitch(el, state.confirmed);
+      if (--state.pending === 0) el.removeAttribute('aria-busy');
+    }
   };
 }
 
@@ -416,7 +432,8 @@ function _browserRegion() {
 }
 
 function _browserTimezone() {
-  return resolvedTimeZone();
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+  catch { return 'UTC'; }
 }
 
 function _localeChoiceOptions(name) {
@@ -536,9 +553,9 @@ function _applyLocaleOptions(options) {
       if (!row) continue;
       row.querySelector('strong').textContent = language.label;
       row.querySelector('small').textContent = language.english_name;
-      row.querySelector('em').textContent = language.available
-        ? t('common.reviewed')
-        : t('locale.catalog_reviewed_pending');
+      const badge = row.querySelector('em');
+      badge.dataset.i18n = language.available ? 'common.reviewed' : 'locale.catalog_reviewed_pending';
+      badge.textContent = t(badge.dataset.i18n);
       row.setAttribute('aria-disabled', String(!language.available));
       row.dataset.direction = language.direction;
     }
@@ -686,8 +703,10 @@ async function _saveLocaleSettings() {
         week_start: _localeRadioValue('week_start'),
       }),
     });
-    const settings = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(settings.detail || t('locale.save_error'));
+    const settings = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(settings?.detail || t('locale.save_error'));
+    if (!settings || ['language', 'region', 'timezone', 'currency', 'clock_format', 'week_start']
+      .some(key => typeof settings[key] !== 'string')) throw new Error(t('locale.save_error'));
     await prepareLocalization(settings);
     _applyLocaleSettings(settings);
     _setLocaleSettingsStatus(t('locale.saved_now'));
@@ -734,6 +753,24 @@ function _wireLocaleSettingsPane() {
     if (format) _setLocaleRadioValue(format.dataset.localeFormat, format.dataset.value, true);
   });
   pane.addEventListener('keydown', event => {
+    const language = event.target.closest('[data-locale-language]');
+    if (language && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+      const choices = [...pane.querySelectorAll('[data-locale-language]')]
+        .filter(choice => !choice.disabled && choice.getAttribute('aria-disabled') !== 'true');
+      const index = choices.indexOf(language);
+      if (index < 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const rtl = getComputedStyle(language.parentElement).direction === 'rtl';
+      const backwards = event.key === 'ArrowUp'
+        || (event.key === 'ArrowLeft' && !rtl) || (event.key === 'ArrowRight' && rtl);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1
+        : (index + (backwards ? -1 : 1) + choices.length) % choices.length;
+      _setLocaleLanguage(choices[next].dataset.localeLanguage);
+      _markLocaleSettingsChanged();
+      choices[next].focus();
+      return;
+    }
     const trigger = event.target.closest('[data-locale-choice]');
     if (trigger && ['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) {
       event.preventDefault();
@@ -2693,7 +2730,6 @@ async function saveAiDefaults() {
     context_limit: parseInt(document.getElementById('settings-context-limit').value) || 40,
   };
   await _patchSettings(patch);
-  toast('saved', 'success');
 }
 
 function _renderChatBehavior(value) {
@@ -2824,7 +2860,7 @@ async function saveAndromedaModelBands() {
   });
   _andromedaModelBands = choices;
   try {
-    await _patchSettings({ andromeda_model_bands: choices });
+    if (!await _patchSettings({ andromeda_model_bands: choices })) return;
     const status = document.getElementById('s-andromeda-model-status');
     if (status) status.textContent = 'exact choices saved';
   } catch (error) { toast(error.message || 'model choices could not be saved', 'error'); }
@@ -2898,8 +2934,7 @@ async function saveSearchSettings() {
     const val = document.getElementById(htmlId.replace(/_/g, '-'))?.value.trim();
     if (val) patch[settingKey] = val;
   }
-  await _patchSettings(patch);
-  _updateSearchStatus({ search_provider: prov, search_result_count: count, ...patch });
+  if (await _patchSettings(patch)) _updateSearchStatus({ search_provider: prov, search_result_count: count, ...patch });
 }
 
 async function testSearch() {
@@ -3002,7 +3037,6 @@ function applyAccent(hex) {
   _themeSetAccent(hex || '');                 // writes colors.accent into the appearance object
   _markAccent();
   window._updateFavicon?.();
-  _patchSettings({ accent: hex || '' });      // legacy mirror so other subdomains stay in sync
 }
 function applyThemeMode(mode) {
   // "default theme" = a clean slate: reset every fancy extra (frosted/pattern/density/font/
@@ -3012,7 +3046,6 @@ function applyThemeMode(mode) {
   _markMode();
   _markAccent();   // the tint may have reset — re-mark the active swatch
   window._updateFavicon?.();
-  _patchSettings({ theme: mode === 'light' ? 'light' : '' });
   _refreshThemeLock();                        // switching to default unlocks the controls
 }
 function _markAccent() {
@@ -3103,15 +3136,7 @@ function _loadThemeColorControls() {
 // (end loadAppearancePane helper)
 
 function _bindSwitchOnce(el, getter, setter) {
-  if (!el) return;
-  _setSwitch(el, getter());
-  if (el.dataset.bound === '1') return;
-  el.dataset.bound = '1';
-  el.addEventListener('click', () => {
-    const next = !el.classList.contains('on');
-    _setSwitch(el, next);
-    setter(next);
-  });
+  _bindSwitch(el, getter, setter);
 }
 
 function loadShortcutSettings() {
@@ -3139,7 +3164,7 @@ async function loadVoicePane() {
     setDropdownValue(document.getElementById('s-tts-speed'), String(s.tts_speed ?? 1));
     _bindSwitchOnce(document.getElementById('s-tts-enabled-toggle'),
       () => !!(s.tts_auto_play),
-      async on => { await _patchSettings({ tts_auto_play: on }); }
+      on => _patchSettings({ tts_auto_play: on })
     );
     _updateTtsVoiceRow();
   } catch {}
@@ -3186,8 +3211,7 @@ async function saveVoiceSettings() {
   };
   const key = document.getElementById('settings-openai-key')?.value.trim();
   if (key) patch.openai_api_key = key;
-  await _patchSettings(patch);
-  toast('voice settings saved', 'success');
+  if (await _patchSettings(patch)) toast('voice settings saved', 'success');
 }
 
 // ── personas ──────────────────────────────────────────────────────────────────
@@ -4213,16 +4237,54 @@ async function loadIntelligencePane() {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-async function _patchSettings(patch) {
-  await fetch('/api/settings', {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(patch),
+let _settingsWriteQueue = Promise.resolve();
+let _settingsWriteRevision = 0;
+function _patchSettings(patch) {
+  const body = JSON.stringify(patch);
+  const pane = document.querySelector('#settings-modal .s-pane.active');
+  const revision = String(++_settingsWriteRevision);
+  let status = pane?.querySelector('.settings-save-state');
+  if (pane && !status) {
+    status = document.createElement('p');
+    status.className = 'settings-save-state';
+    status.setAttribute('role', 'status');
+    pane.prepend(status);
+  }
+  if (pane) pane.dataset.saveRevision = revision;
+  const show = (message, state) => {
+    if (status && pane.dataset.saveRevision === revision) {
+      status.textContent = message;
+      status.dataset.state = state;
+    }
+  };
+  show('saving…', 'saving');
+  // Capture each patch now and issue it only after the preceding write settles.
+  // A failed write must not poison the queue or turn the next save into a no-op.
+  const pending = _settingsWriteQueue.then(async () => {
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' }, body,
+      });
+      const settings = await response.json();
+      if (!response.ok) throw new Error(settings?.detail || 'setting could not be saved');
+      if (!settings || typeof settings.context_limit !== 'number' || typeof settings.language !== 'string') {
+        throw new Error('save could not be confirmed');
+      }
+      show('saved', 'saved');
+      return settings;
+    } catch (error) {
+      const message = `${error.message || 'save could not be confirmed'}. Try the control again.`;
+      show(message, 'error');
+      toast(message, 'error');
+      return null;
+    }
   });
+  _settingsWriteQueue = pending;
+  return pending;
 }
 
-async function _patchSetting(key, val) {
-  await _patchSettings({ [key]: val });
+function _patchSetting(key, val) {
+  return _patchSettings({ [key]: val });
 }
 
 function _esc(s = '') {
@@ -4263,7 +4325,7 @@ async function _addPermRule() {
   const action = getDropdownValue(document.getElementById('perm-rule-action')) || 'ask';
   if (!tool) { toast('tool pattern required (use * for any)', 'error'); return; }
   _permRules.push({ tool, path, action });
-  await _patchSettings({ permission_rules: _permRules });
+  if (!await _patchSettings({ permission_rules: _permRules })) { await loadPermRules(); return; }
   document.getElementById('perm-rule-tool').value = '';
   document.getElementById('perm-rule-path').value = '';
   toast('rule added', 'success');
@@ -4271,7 +4333,7 @@ async function _addPermRule() {
 }
 async function _delPermRule(i) {
   _permRules.splice(i, 1);
-  await _patchSettings({ permission_rules: _permRules });
+  if (!await _patchSettings({ permission_rules: _permRules })) { await loadPermRules(); return; }
   loadPermRules();
 }
 
