@@ -249,6 +249,12 @@ album deep-link requirements. Ordinary original-image downloads retained their
 exact bytes. Screenshots covered desktop/phone, light/dark and emulated touch;
 Mac Safari, physical iPhone, large-library and live-provider acceptance remain open.
 
+All ten, plus STAB-107 (an unrelated album acknowledgement moving photos), are
+now repaired. Each has a named scenario in the `gallery-workflows` gate, which
+passed 60 of 60 runs across desktop/phone and Light/Dark on 213bbdf. A write
+whose acknowledgement is lost after it commits can still need reconciliation.
+The layout observations above were not changed.
+
 
 ## Current resting-screen layout review
 
