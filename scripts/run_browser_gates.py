@@ -40,6 +40,7 @@ COMMANDS = {
     "cleanup-regressions": ("tests/pw_cleanup_regressions.py",),
     "minimal-workflows": ("tests/pw_minimal_workflows.py",),
     "files-workflows": ("tests/pw_phase7_files_real.py",),
+    "plan-workflows": ("tests/pw_plan_workflows.py",),
     "pwa-offline": ("tests/pw_offline_11b.py",),
     "pwa-storage": ("tests/pw_offline_storage.py",),
     "pwa-rejection": ("tests/pw_offline_rejection.py",),

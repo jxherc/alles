@@ -56,3 +56,50 @@ explain a useful action. These are separate design observations. This walkthroug
 followed source inspection, so it is not independent source-blind usability
 acceptance. Native Safari, light theme, zoom and actual phone keyboard checks for
 these Plan paths remain outstanding.
+
+The repaired Plan workflow now keeps current task values after search, protects
+drafts during saving and dismissal, hides filtered board cards and gives long
+phone titles a readable width. Screenshots of both editor themes, nested discard
+confirmation and separate top/bottom scroll positions in a short viewport were
+inspected. Browser checks measure 44px targets and verify real saved values.
+
+Native Mac Safari also passed search/clear/edit/reopen, a second-field edit that
+preserved the saved date, and Escape/decline/save/reload of an exact mixed-language
+note. A fresh owned fixture and final API readback confirmed the values. This is
+bounded functional evidence; native screenshot quality still prevents visual
+acceptance, and shortened browser viewports do not certify an iPhone keyboard.
+
+## Library audit
+
+Task-based discovery preceded source inspection for overview, books and saved
+reading. Local book creation, Goodreads CSV import/deduplication, notes, ratings,
+shelf movement, goals and removal were exercised. Synthetic saved articles covered
+search, reader opening, archive/unarchive and deletion. Failed note and URL saves,
+keyboard-only activation and title/remove overlap exposed STAB-030 through
+STAB-033. They remain open in this checkpoint.
+
+The overview repeats reading destinations without a direct add action; the import
+format is explained only by a tooltip. These are separate design observations.
+Books have no visible search or sort control; the audit does not claim those were
+promised features. Failed light-theme fixture setup is explicitly excluded from
+visual proof. Live lookup/extraction, native Safari, physical iPhone and large
+imports remain unverified.
+
+## Remaining phone layout work
+
+Manual inspection of the current 390px light-theme surfaces confirmed these design
+observations; passing page-overflow checks does not resolve them.
+
+| Surface | Observed friction | Planned direction |
+| --- | --- | --- |
+| Files | Location, views, mode, indexing and capture controls stack above the file list. | Keep one compact context header and group secondary location/indexing actions. |
+| Library | Tabs, material filters, specialist links and open-reading links repeat destinations; the empty state lacks a direct add action. | Put the reading queue and a clear add action first. |
+| Health | The overview repeats log/history links and shows several empty summaries. | Make recording a measurement or habit the clear next action. |
+| Finance | The optional managed-service installation panel dominates the empty overview; adding an account requires finding Money. | Lead with local accounts and daily entries; retain service setup in a labeled advanced panel. |
+| Server | Decorative system art and long machine details dominate the phone opening screen. | Lead with service health and the relevant action; expose details on demand. |
+
+These changes have not been implemented. Functional regression coverage, including
+populated and failure states, must accompany each affected layout batch. Server
+surface captures include read-only statistics from the test host; the isolated app
+database and records are synthetic. Captures belong with test evidence and are not
+product content.
