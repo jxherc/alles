@@ -1968,6 +1968,10 @@ body.is-incognito .incognito-bar {
 }
 .s-card-head svg { flex-shrink: 0; opacity: 0.55; }
 .s-card-body { padding: 0.8rem 0.9rem; }
+#s-pane-backup .backup-file-action {
+  display: block; width: 100%; min-height: 44px; white-space: normal; text-align: center;
+}
+#backup-recovery-key-btn { margin-top: 0.5rem; }
 
 /* Jarvis is a compact connection card, not a separate assistant mode. */
 .jarvis-discord-head-state {
@@ -3976,11 +3980,10 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .mail-flag { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.8rem; line-height: 1; padding: 0 0 0 0.2rem; opacity: 0.5; transition: opacity 0.15s, color 0.15s; }
 .mail-row:hover .mail-flag { opacity: 1; }
 /* 5a triage row actions + saved searches */
-.mail-row-acts { display: flex; align-items: center; gap: 0.15rem; flex-shrink: 0; }
+.mail-row-acts { display: flex; align-items: center; justify-content: flex-end; gap: 0.15rem; }
 .mail-act .ic, .mail-flag .ic { width: 15px; height: 15px; }
-.mail-act { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.75rem; line-height: 1; padding: 0 0.1rem; opacity: 0; transition: opacity 0.15s, color 0.15s; }
-.mail-row:hover .mail-act { opacity: 1; }
-.mail-act:hover { opacity: 1; color: var(--text); }
+.mail-act { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.75rem; line-height: 1; padding: 0 0.1rem; transition: color 0.15s; }
+.mail-act:hover { color: var(--text); }
 .mail-saved { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0 0 0.4rem; align-items: center; }
 .mail-saved:empty { display: none; }
 .mail-saved-chip { font-size: 0.75rem; border: 1px solid var(--faint); border-radius: 4px; padding: 0.1rem 0.5rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; color: var(--accent); }
@@ -4587,6 +4590,13 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .task-editor-ov { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
 .task-editor { background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 16px; width: 380px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .task-editor .te-notes { min-height: 60px; resize: vertical; }
+.task-recovery { padding: 8px 0; border-block: 1px solid var(--faint); }
+.task-recovery[hidden], .task-recovery [hidden] { display: none; }
+.task-recovery-message { margin: 0 0 8px; font-size: 13px; color: var(--text); }
+.task-recovery-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.task-conflict-values { max-height: 180px; overflow: auto; overflow-wrap: anywhere; margin-bottom: 8px; font-size: 13px; }
+.task-conflict-values p { margin: 4px 0 8px; white-space: pre-wrap; }
+
 .te-row { display: flex; align-items: center; gap: 0.5rem; }
 .te-row label { font-size: 0.75rem; color: var(--muted); width: 60px; flex-shrink: 0; }
 .te-resched { display: flex; gap: 0.3rem; flex-wrap: wrap; }
@@ -5952,8 +5962,14 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .contact-item:hover { background: var(--panel); }
 .contact-rowmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
 .contact-rowmain .row-name { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.contact-rowacts { display: flex; gap: 0.3rem; flex-shrink: 0; opacity: 0; transition: opacity 0.12s ease; }
-.contact-item:hover .contact-rowacts, .contact-item:focus-within .contact-rowacts { opacity: 1; }
+.contact-rowacts { display: flex; gap: 0.3rem; flex-shrink: 0; }
+.contacts-create { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+.contacts-create input { min-width: 0; width: 100%; }
+.contact-error { color: var(--error); font-size: 0.875rem; margin: 0; }
+.contacts-create .contact-error { grid-column: 1 / -1; }
+@media (max-width: 600px) {
+  .contacts-create { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .contact-star .ic { width: 15px; height: 15px; }
 .contact-star.on { color: var(--signal); }
 .contact-map .ic, #cd-back .ic, #cd-me .ic { width: 13px; height: 13px; vertical-align: -0.12em; }
@@ -7569,6 +7585,18 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 .mem-cat-cycle { font-size: 0.75rem; flex-shrink: 0; color: var(--accent); border-color: var(--accent); }
 /* 8a — vault toolbar: unified icons, switcher reads as a chip-button, settings rightmost */
+.vault-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
+  gap: 0.4rem; margin-left: auto; min-width: 0; max-width: 100%;
+}
+#vault-view .vault-toolbar > button,
+#vault-view .vault-toolbar > .vault-switcher {
+  min-height: 44px; max-width: 100%;
+}
+#vault-view .vault-toolbar > button { flex: 0 0 auto; white-space: nowrap; }
+@media (max-width: 640px) {
+  #vault-view .vault-toolbar { width: 100%; margin-left: 0; justify-content: flex-start; }
+}
 #vault-view .page-view-head .ic-btn-lbl .ic { width: 13px; height: 13px; }
 /* the switcher is `.custom-select` WITHOUT `.settings-input`, so it misses the base position/padding —
    set them here so the chevron anchors inside the chip and the name isn't flush against the border */
@@ -7839,12 +7867,19 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   border-left-color: var(--accent);
 }
 .mail-row-top {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 0.75rem;
+  gap: 0.15rem 0.75rem;
   margin-bottom: 0.12rem;
 }
+.mail-open {
+  display: block; width: 100%; min-width: 0;
+  border: 0; padding: 0; background: none; color: inherit; font: inherit;
+  text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+}
+.mail-draft-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.15rem 0.5rem; }
+.mail-draft-row > .mail-from, .mail-draft-row > .mail-snippet { grid-column: 1 / -1; }
 .mail-from {
   min-width: 0;
   overflow: hidden;

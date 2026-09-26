@@ -195,8 +195,11 @@
       "app": "plan",
       "workflow": "create and delete an event",
       "expected": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
-      "status": "untested",
-      "evidence": []
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md"
+      ],
+      "notes": "Owned-data audit reproduced STAB-063 through STAB-077. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
     },
     {
       "id": "inbox.mail-and-contacts.1",
@@ -663,8 +666,11 @@
       "app": "settings",
       "workflow": "use automatic region",
       "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
-      "status": "untested",
-      "evidence": []
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md"
+      ],
+      "notes": "Owned-data audit reproduced STAB-060. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
     },
     {
       "id": "localization.regional-settings.2",
@@ -672,8 +678,11 @@
       "app": "settings",
       "workflow": "override formats",
       "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
-      "status": "untested",
-      "evidence": []
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md"
+      ],
+      "notes": "Owned-data audit reproduced STAB-059. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
     },
     {
       "id": "localization.regional-settings.3",
@@ -681,8 +690,11 @@
       "app": "settings",
       "workflow": "switch reviewed languages",
       "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
-      "status": "untested",
-      "evidence": []
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md"
+      ],
+      "notes": "Owned-data audit reproduced STAB-061. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
     },
     {
       "id": "localization.regional-settings.4",
@@ -908,8 +920,11 @@
       "app": "settings",
       "workflow": "change preferences, save and reload",
       "expected": "The saved values and their visible effects persist after reload and a second browser session.",
-      "status": "untested",
-      "evidence": []
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md"
+      ],
+      "notes": "Owned-data audit reproduced STAB-055 through STAB-058. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
     },
     {
       "id": "settings.failure-recovery",
@@ -917,8 +932,11 @@
       "app": "settings",
       "workflow": "interrupt a settings save and retry",
       "expected": "Keep edited values, show the save failure, allow retry, and acknowledge only confirmed persistence.",
-      "status": "untested",
-      "evidence": []
+      "status": "failed",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md"
+      ],
+      "notes": "Owned-data audit reproduced STAB-055, STAB-057 and STAB-059. Relevant product source matched the integration copy at audit closure. Ordinary successful paths do not clear these failures; repairs and broader acceptance remain pending."
     },
     {
       "id": "shell.history-and-links",
@@ -1419,8 +1437,8 @@
       "id": "home.reminder-local-time",
       "feature": "home.capture-and-navigation",
       "app": "home",
-      "workflow": "show reminders on the viewer\u2019s local day and clock",
-      "expected": "Use the viewer\u2019s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "workflow": "show reminders on the viewer’s local day and clock",
+      "expected": "Use the viewer’s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -1616,6 +1634,444 @@
       "app": "library",
       "workflow": "continue URL entry while saved reading loads",
       "expected": "Initial list completion and a delayed search preserve the current URL input, caret and keyboard focus so subsequent typed characters are retained.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.concurrent-field-edits",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "save unrelated edits from two tabs",
+      "expected": "Two tabs editing different fields preserve both saved values after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.saved-refresh-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "save successfully while the following list refresh fails",
+      "expected": "Report the successful write and refresh failure separately; the exact saved values remain after reload with no unhandled rejection.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.concurrent-conflict-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "inspect and resolve conflicting task edits",
+      "expected": "Retain both versions on 409, download a recovery copy, cancel or confirm each resolution, then persist the chosen edit after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.draft-history-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "recover a draft after reload and browser history",
+      "expected": "Restore unsaved fields with their original comparison values after reload and same-document or full-document history navigation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.draft-owner-tab-isolation",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "isolate task drafts by owner and browser tab",
+      "expected": "Separate tabs retain their own draft; a simulated other owner cannot load or submit the previous owner draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.draft-storage-failure",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "recover when browser draft storage fails",
+      "expected": "Show storage write/removal failures, retain a downloadable draft and guard navigation without claiming a recovery copy was saved or removed.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.draft-offline-acceptance",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "retain draft after simulated offline queue acceptance",
+      "expected": "A simulated queued response leaves the draft recoverable; only a successful real save clears it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.response-ownership",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "navigate and search while old requests finish",
+      "expected": "Delayed real search or list responses cannot replace newer results or the selected History view.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.deleted-task-draft",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "recover edits for a deleted task",
+      "expected": "A draft whose task was deleted remains available for download or deliberate discard without silently recreating or losing it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "inbox.contact-create-recovery",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "retry failed contact creation",
+      "expected": "Failed transport, HTTP or malformed acknowledgment retains all fields; retry and reload persist the exact contact.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-single-submit-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "submit a contact while a save is pending",
+      "expected": "A double click while a real create is pending produces exactly one POST and one saved record after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-edit-recovery",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "recover failed contact editing",
+      "expected": "Retain all fields and a visible retry instruction after failed or invalid saves; a valid retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-extra-field-preserves-draft",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "add an extra contact field with unsaved notes",
+      "expected": "Field rejection and retry preserve unsaved scalar edits; saving and reloading retains both.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-list-error-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "retry a failed contact list load",
+      "expected": "Show an explicit load error rather than an empty list, and recover real records with Retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-import-favorite-delete",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "import and manage a synthetic contact",
+      "expected": "Import vCard, find the contact, favorite by keyboard, cancel then confirm deletion, and verify after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-pointer-keyboard-layout",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "read cached mail with pointer and keyboard",
+      "expected": "Sender and actions remain readable and reachable at desktop and phone widths; Tab and Enter open cached messages.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-draft-save-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "save and reopen a local mail draft",
+      "expected": "Compose, save, reload, and open a local draft by keyboard with exact text preserved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-body-dirty-guard-recovery",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "protect body-only mail edits",
+      "expected": "Body-only changes trigger discard confirmation; failed save, cancel and retry retain text and persist it after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-pending-save-keeps-new-edits",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "edit mail while an older draft save completes",
+      "expected": "New edits typed while a save is pending remain dirty and require a discard decision or another save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-draft-list-retry-delete",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "recover a failed draft list and delete a draft",
+      "expected": "A list failure stays visible with Retry; recover stored drafts and verify a deliberate deletion after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "vault.local-item-recovery",
+      "feature": "passwords.vault-and-browser",
+      "app": "vault",
+      "workflow": "create and reopen a Vault item at phone width",
+      "expected": "Unlock, reach all toolbar actions, create by keyboard, reload and reopen the encrypted item without horizontal clipping.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.local-backup-file-actions",
+      "feature": "server.management",
+      "app": "settings",
+      "workflow": "choose and stage encrypted local backups by keyboard",
+      "expected": "Both file buttons are keyboard reachable and 44px; real encrypted download/upload stages a valid backup without changing live records.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.local-backup-retry",
+      "feature": "server.management",
+      "app": "settings",
+      "workflow": "retry interrupted or unreadable backup uploads",
+      "expected": "Connection, JSON and invalid-success faults show visible errors, reset busy/file state, and permit the same-file retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.local-backup-owner-confirmation",
+      "feature": "server.management",
+      "app": "settings",
+      "workflow": "renew expired owner confirmation for local restore",
+      "expected": "Real password confirmation can be canceled or retried; confirmed upload resumes with the chosen multipart files and stages a valid backup.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-failed-retry",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "retry failed save during editor loading",
+      "expected": "A failed Save retains emergency text; late editor load preserves mode and content; retry and reload save the exact file.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-failed-reload",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "reload a failed save after editor loading",
+      "expected": "Late editor loading cannot overwrite a failed-save recovery copy; reload, resume and save preserve the full draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-autosave-reload",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "recover autosaved source input after editor loading",
+      "expected": "A real server draft secured before module completion survives reload, resume and Save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-done-reentry",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "finish and reenter while editor loading is pending",
+      "expected": "An old initialization cannot replace the newest same-file buffer; the new edit saves exactly.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-discard-reentry",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "discard then edit again during module loading",
+      "expected": "Confirmed discard invalidates older initialization; the next same-file edit remains intact and persists.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-module-failure",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "continue editing when the visual module fails",
+      "expected": "A visible failure leaves Source usable; further input and Save survive reload with exact text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-focus-retention",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "move focus while the editor loads",
+      "expected": "Late module completion preserves focus in the action menu and the selected Source mode and buffer.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-visual-choice",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "choose Visual while its module is loading",
+      "expected": "Explicit Visual selection displays the latest source buffer after initialization without reverting new text.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -2038,7 +2494,7 @@
     },
     {
       "id": "STAB-022",
-      "title": "Home filters and labels reminders in UTC instead of the viewer\u2019s time",
+      "title": "Home filters and labels reminders in UTC instead of the viewer’s time",
       "severity": "medium",
       "screen": "Home reminders near a date boundary or daylight-saving change",
       "revision": "93ed1a2",
@@ -2140,7 +2596,7 @@
       "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
       "status": "fixed-and-verified",
       "reproduction": [
-        "Open a real task editor by pointer or touch at 390\u00d7900.",
+        "Open a real task editor by pointer or touch at 390×900.",
         "Inspect and hit-test the left edge of title, notes and form labels."
       ],
       "expected": "Keep all editor fields visible and reachable above the background navigation.",
@@ -2160,7 +2616,7 @@
       "status": "fixed-and-verified",
       "reproduction": [
         "Populate tasks with ordinary due dates, priorities, tags and longer mixed-language titles.",
-        "Inspect the list at 390\u00d7900."
+        "Inspect the list at 390×900."
       ],
       "expected": "Give task titles a readable width and wrap metadata onto appropriate lines.",
       "actual": "One title shrinks to 44px width and its row grows to 308px tall.",
@@ -2274,7 +2730,7 @@
       "severity": "high",
       "screen": "Plan task editor in two tabs",
       "revision": "26e6a5d with first Plan repair batch; source a0c6b076b18e2ca6836505bf915b47ec3d8d341936010afb77a8a95256b2656f",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open the same synthetic task in two browser tabs.",
         "In tab A change its due date and notes, then save.",
@@ -2283,9 +2739,10 @@
       "expected": "Preserve the newer unrelated fields or report a conflict while retaining both edits.",
       "actual": "Tab B restores the old date and notes without warning while saving the new project.",
       "evidence": [
-        "/tmp/alles-plan-concurrency-audit/observations.json"
+        "/tmp/alles-plan-concurrency-audit/observations.json",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced on desktop and phone with owned synthetic data and real saved outcomes. Only named response delays were simulated. No shared repair applied; same-field intentional last-write behavior alone is not asserted as an additional defect."
+      "verification": "Atomic changed-field conflict checks, owner-scoped per-tab drafts, stale-response rejection, reload/history and storage-failure recovery passed. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-035",
@@ -2293,7 +2750,7 @@
       "severity": "medium",
       "screen": "Plan Tasks search and history views",
       "revision": "26e6a5d with first Plan repair batch; source a0c6b076b18e2ca6836505bf915b47ec3d8d341936010afb77a8a95256b2656f",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Hold a real alpha search response, submit beta search and allow beta to appear, then release alpha.",
         "Separately hold the All tree response, select History and let it load, then release All."
@@ -2301,9 +2758,10 @@
       "expected": "Only the current query and selected view may update the visible task list.",
       "actual": "The search field still says beta while alpha is displayed; History remains selected while active tasks replace its completed rows.",
       "evidence": [
-        "/tmp/alles-plan-concurrency-audit/observations.json"
+        "/tmp/alles-plan-concurrency-audit/observations.json",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced on desktop and phone with owned synthetic data and real saved outcomes. Only named response delays were simulated. No shared repair applied; same-field intentional last-write behavior alone is not asserted as an additional defect."
+      "verification": "Atomic changed-field conflict checks, owner-scoped per-tab drafts, stale-response rejection, reload/history and storage-failure recovery passed. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-036",
@@ -2311,7 +2769,7 @@
       "severity": "medium",
       "screen": "Plan dirty editor during browser navigation",
       "revision": "26e6a5d with first Plan repair batch; source a0c6b076b18e2ca6836505bf915b47ec3d8d341936010afb77a8a95256b2656f",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Edit a task note without saving, reload and reopen it.",
         "Repeat with a full-document Back/Forward transition."
@@ -2319,9 +2777,10 @@
       "expected": "Preserve a recoverable draft or require an explicit discard decision before leaving.",
       "actual": "Only saved content returns; the unsaved draft is gone with no warning or recovery. Same-document Back/Forward retains the editor and is not part of this defect.",
       "evidence": [
-        "/tmp/alles-plan-concurrency-audit/observations.json"
+        "/tmp/alles-plan-concurrency-audit/observations.json",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced on desktop and phone with owned synthetic data and real saved outcomes. Only named response delays were simulated. No shared repair applied; same-field intentional last-write behavior alone is not asserted as an additional defect."
+      "verification": "Atomic changed-field conflict checks, owner-scoped per-tab drafts, stale-response rejection, reload/history and storage-failure recovery passed. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-037",
@@ -2370,7 +2829,7 @@
       "severity": "high",
       "screen": "Inbox Contacts detail",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Edit a saved contact note; return a simulated HTTP 503 for its PATCH; press Save and reopen."
       ],
@@ -2379,9 +2838,10 @@
       "evidence": [
         "/tmp/alles-inbox-audit-report.md",
         "/tmp/alles-inbox-audit/contacts-observations.json",
-        "/tmp/alles-inbox-audit/contact-save-rejected.png"
+        "/tmp/alles-inbox-audit/contact-save-rejected.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-040",
@@ -2389,7 +2849,7 @@
       "severity": "high",
       "screen": "Inbox Contacts new-contact form",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Fill name, email and phone; return HTTP 503 for POST; press Add and inspect the real list."
       ],
@@ -2398,9 +2858,10 @@
       "evidence": [
         "/tmp/alles-inbox-audit-report.md",
         "/tmp/alles-inbox-audit/contacts-observations.json",
-        "/tmp/alles-inbox-audit/contact-create-rejected.png"
+        "/tmp/alles-inbox-audit/contact-create-rejected.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-041",
@@ -2408,7 +2869,7 @@
       "severity": "high",
       "screen": "Inbox Contacts detail with extra fields",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Edit notes without saving; add an extra email field; inspect the note and real saved contact."
       ],
@@ -2417,9 +2878,10 @@
       "evidence": [
         "/tmp/alles-inbox-audit-report.md",
         "/tmp/alles-inbox-audit/contact-adjacent-observations.json",
-        "/tmp/alles-inbox-audit/contact-field-loses-scalar-draft.png"
+        "/tmp/alles-inbox-audit/contact-field-loses-scalar-draft.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-042",
@@ -2427,7 +2889,7 @@
       "severity": "high",
       "screen": "Inbox Mail composer",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open a saved draft; change only the contenteditable body; close and reopen it. Repeat after a rejected or aborted draft save."
       ],
@@ -2437,9 +2899,10 @@
         "/tmp/alles-inbox-audit-report.md",
         "/tmp/alles-inbox-audit/mail-adjacent-observations.json",
         "/tmp/alles-inbox-audit/mail-failure-observations.json",
-        "/tmp/alles-inbox-audit/draft-body-only-close.png"
+        "/tmp/alles-inbox-audit/draft-body-only-close.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-043",
@@ -2447,7 +2910,7 @@
       "severity": "medium",
       "screen": "Inbox Contacts and Mail Drafts",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "With saved records present, return HTTP 503 JSON from a searched contacts GET and a mail drafts GET."
       ],
@@ -2458,9 +2921,10 @@
         "/tmp/alles-inbox-audit/contacts-observations.json",
         "/tmp/alles-inbox-audit/mail-final-observations.json",
         "/tmp/alles-inbox-audit/contacts-search-failed.png",
-        "/tmp/alles-inbox-audit/phone-draft-list-rejected.png"
+        "/tmp/alles-inbox-audit/phone-draft-list-rejected.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-044",
@@ -2468,7 +2932,7 @@
       "severity": "medium",
       "screen": "Inbox Contacts new-contact form",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Hold contact POST responses; double-click Add once; release both requests to the real server."
       ],
@@ -2477,9 +2941,10 @@
       "evidence": [
         "/tmp/alles-inbox-audit-report.md",
         "/tmp/alles-inbox-audit/contact-adjacent-observations.json",
-        "/tmp/alles-inbox-audit/contact-double-submit.png"
+        "/tmp/alles-inbox-audit/contact-double-submit.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-045",
@@ -2487,7 +2952,7 @@
       "severity": "medium",
       "screen": "Inbox contact row actions and mail row label action",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "At 390px touch width inspect contact Open/Delete before hover; in Mail Tab to add a label."
       ],
@@ -2498,9 +2963,10 @@
         "/tmp/alles-inbox-audit/phone-geometry-observations.json",
         "/tmp/alles-inbox-audit/mail-final-observations.json",
         "/tmp/alles-inbox-audit/phone-contact-actions-before-touch.png",
-        "/tmp/alles-inbox-audit/phone-mail-focused-invisible-action.png"
+        "/tmp/alles-inbox-audit/phone-mail-focused-invisible-action.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-046",
@@ -2508,7 +2974,7 @@
       "severity": "medium",
       "screen": "Inbox Contacts footer at 390px",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open Contacts at 390px with an empty or populated account; inspect and measure the Add action."
       ],
@@ -2517,9 +2983,10 @@
       "evidence": [
         "/tmp/alles-inbox-audit-report.md",
         "/tmp/alles-inbox-audit/phone-geometry-observations.json",
-        "/tmp/alles-inbox-audit/phone-contact-add-clipped.png"
+        "/tmp/alles-inbox-audit/phone-contact-add-clipped.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-047",
@@ -2527,7 +2994,7 @@
       "severity": "medium",
       "screen": "Inbox populated mail list at 390px",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Populate cached headers with ordinary sender names and inspect the phone rows before hover."
       ],
@@ -2537,9 +3004,10 @@
         "/tmp/alles-inbox-audit-report.md",
         "/tmp/alles-inbox-audit/mail-final-observations.json",
         "/tmp/alles-inbox-audit/phone-mail-populated.png",
-        "/tmp/alles-inbox-audit/phone-mail-sender-before-touch.png"
+        "/tmp/alles-inbox-audit/phone-mail-sender-before-touch.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-048",
@@ -2547,7 +3015,7 @@
       "severity": "medium",
       "screen": "Inbox Mail and Drafts lists",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "With a saved draft and cached headers present, Tab through each list and attempt to open its content."
       ],
@@ -2557,9 +3025,10 @@
         "/tmp/alles-inbox-audit-report.md",
         "/tmp/alles-inbox-audit/mail-adjacent-observations.json",
         "/tmp/alles-inbox-audit/mail-final-observations.json",
-        "/tmp/alles-inbox-audit/draft-keyboard-skips-open.png"
+        "/tmp/alles-inbox-audit/draft-keyboard-skips-open.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-049",
@@ -2567,7 +3036,7 @@
       "severity": "medium",
       "screen": "Inbox Contacts detail",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open an existing contact and inspect the accessible name of its editable name field."
       ],
@@ -2577,9 +3046,10 @@
         "/tmp/alles-inbox-audit-report.md",
         "/tmp/alles-inbox-audit/phone-contact-detail-light.txt",
         "/tmp/alles-inbox-audit/desktop-contact-detail.txt",
-        "/tmp/alles-inbox-audit/phone-observations.json"
+        "/tmp/alles-inbox-audit/phone-observations.json",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+      "verification": "Contact and mail draft failures, exact saved values after reload, repeated submission and keyboard/phone controls passed in both themes. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-050",
@@ -2587,7 +3057,7 @@
       "severity": "high",
       "screen": "Vault at 390px",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Unlock a populated Vault at 390px; Tab to the off-screen new action, create a secret and save."
       ],
@@ -2596,9 +3066,10 @@
       "evidence": [
         "/tmp/alles-backup-audit-report.md",
         "/tmp/alles-backup-audit-phone-keyboard/observations.json",
-        "/tmp/alles-backup-audit-phone-keyboard/after-keyboard-create.png"
+        "/tmp/alles-backup-audit-phone-keyboard/after-keyboard-create.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced with owned synthetic data. Encrypted export/staging and direct recovery-service restoration passed, including restored Vault decryption. Transport resets and recent-auth timestamps are controlled simulations; host-supervisor and external destinations remain unverified. UI repairs pending."
+      "verification": "Vault keyboard/save/reload and encrypted local backup file selection, interrupted upload, same-file retry and recent-owner confirmation passed. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-051",
@@ -2606,7 +3077,7 @@
       "severity": "medium",
       "screen": "Settings backup and restore file actions",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Focus download recovery key and Tab through the next actions on desktop or phone."
       ],
@@ -2614,9 +3085,10 @@
       "actual": "Focus skips the labels wrapping hidden inputs and goes directly to WebDAV; the visible local targets are 36px high.",
       "evidence": [
         "/tmp/alles-backup-audit-report.md",
-        "/tmp/alles-backup-audit-run5/observations.json"
+        "/tmp/alles-backup-audit-run5/observations.json",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced with owned synthetic data. Encrypted export/staging and direct recovery-service restoration passed, including restored Vault decryption. Transport resets and recent-auth timestamps are controlled simulations; host-supervisor and external destinations remain unverified. UI repairs pending."
+      "verification": "Vault keyboard/save/reload and encrypted local backup file selection, interrupted upload, same-file retry and recent-owner confirmation passed. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-052",
@@ -2624,7 +3096,7 @@
       "severity": "medium",
       "screen": "Settings local restore upload",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Select a backup, reset its POST connection before a response, then select the same file again."
       ],
@@ -2633,9 +3105,10 @@
       "evidence": [
         "/tmp/alles-backup-audit-report.md",
         "/tmp/alles-backup-audit-run5/observations.json",
-        "/tmp/alles-backup-audit-run5/phone/backup-network-stuck.png"
+        "/tmp/alles-backup-audit-run5/phone/backup-network-stuck.png",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced with owned synthetic data. Encrypted export/staging and direct recovery-service restoration passed, including restored Vault decryption. Transport resets and recent-auth timestamps are controlled simulations; host-supervisor and external destinations remain unverified. UI repairs pending."
+      "verification": "Vault keyboard/save/reload and encrypted local backup file selection, interrupted upload, same-file retry and recent-owner confirmation passed. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
     },
     {
       "id": "STAB-053",
@@ -2643,7 +3116,7 @@
       "severity": "medium",
       "screen": "Settings local restore upload after confirmation expiry",
       "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Expire recent-owner confirmation and select a local backup."
       ],
@@ -2652,9 +3125,546 @@
       "evidence": [
         "/tmp/alles-backup-audit-report.md",
         "/tmp/alles-backup-audit-run5/observations.json",
-        "/tmp/alles-backup-audit-expired-auth/proof.log"
+        "/tmp/alles-backup-audit-expired-auth/proof.log",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
       ],
-      "verification": "Reproduced with owned synthetic data. Encrypted export/staging and direct recovery-service restoration passed, including restored Vault decryption. Transport resets and recent-auth timestamps are controlled simulations; host-supervisor and external destinations remain unverified. UI repairs pending."
+      "verification": "Vault keyboard/save/reload and encrypted local backup file selection, interrupted upload, same-file retry and recent-owner confirmation passed. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
+    },
+    {
+      "id": "STAB-054",
+      "title": "Late visual-editor loading overwrites source edits and recovery copies",
+      "severity": "high",
+      "screen": "Docs source editor during first visual-editor load",
+      "revision": "186ada94b6111ba23952b1eecb73aa8cd59dfab7; Docs source unchanged since dcf802e",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Hold the first cm6.bundle.js response, open a synthetic document, choose Edit then Source and type a unique suffix.",
+        "Release the editor module after a failed Save or successful draft autosave.",
+        "Retry Save or reload, then inspect the document and both draft stores."
+      ],
+      "expected": "Keep the latest source text, selected mode and recovery copies through delayed initialization; retry saves the exact current text.",
+      "actual": "The late module initializes from old text and forces visual mode. Retry or page departure then saves that old text and clears or overwrites the correct recovery copies.",
+      "evidence": [
+        "/tmp/alles-docs-recovery-audit-report.md",
+        "/tmp/alles-docs-recovery-audit/observations.json",
+        "/tmp/alles-docs-recovery-audit-controls/observations.json",
+        "/tmp/alles-docs-recovery-audit-trace-summary.json",
+        ".Codex/stabilization/2026-09-25-recovery/full-3/results.json"
+      ],
+      "verification": "Delayed visual-editor load, failed-save retry, autosave/reload, reentry, selected mode and focus retention passed with exact expected network failures. Integrated in a fresh 24-gate Chromium full run. Source fad8f531be4279ebdf023b5a7bd20aa607ac7b8d34d43d4da63f1ce4a1f8c669; acceptance 786e21db18e6f58c75afba0443360790c6b788988812c4d75de96df6268ce064. Repaired screenshots manually inspected and product source review found no actionable issues. Native Safari/iPhone, complete WebKit and live providers remain unverified; this is a local checkpoint, not release acceptance."
+    },
+    {
+      "id": "STAB-055",
+      "title": "Rejected ordinary Settings saves announce success",
+      "severity": "medium",
+      "screen": "Settings chat defaults and switches",
+      "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
+      "status": "confirmed",
+      "reproduction": [
+        "Persist context limit 55 and streaming thinking off.",
+        "Reject PATCH /api/settings with 503; save context limit 77 and turn streaming thinking on.",
+        "Read server values and reload."
+      ],
+      "expected": "A rejected save shows a persistent failure and retains a retryable draft or restores the saved switch state.",
+      "actual": "A saved toast appears and the switch shows on although the server still has 55/false; reload restores older values.",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md",
+        "/tmp/alles-settings-audit-run1/observations.json",
+        "/tmp/alles-settings-audit-followup/observations.json",
+        "/tmp/alles-settings-audit/closure-manifest.json"
+      ],
+      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+    },
+    {
+      "id": "STAB-056",
+      "title": "Overlapping ordinary Settings writes overwrite newer choices",
+      "severity": "medium",
+      "screen": "Settings chat defaults",
+      "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
+      "status": "confirmed",
+      "reproduction": [
+        "Hold a real save of context limit 51.",
+        "Submit 52, deliver that write, then release the older 51 write.",
+        "Read stored value and reload."
+      ],
+      "expected": "The final intended choice is saved, or pending input is explicitly controlled.",
+      "actual": "The field displays 52 while storage contains 51.",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md",
+        "/tmp/alles-settings-audit-run1/observations.json",
+        "/tmp/alles-settings-audit-followup/observations.json",
+        "/tmp/alles-settings-audit/closure-manifest.json"
+      ],
+      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+    },
+    {
+      "id": "STAB-057",
+      "title": "Failed appearance writes silently revert on reload",
+      "severity": "medium",
+      "screen": "Settings appearance",
+      "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
+      "status": "confirmed",
+      "reproduction": [
+        "Persist Light.",
+        "Reject PUT /api/appearance with 503 while allowing the legacy PATCH.",
+        "Choose Dark and reload."
+      ],
+      "expected": "Show the unsaved appearance state and a clear recovery action.",
+      "actual": "Dark previews with no error, but storage stays Light and reload silently restores it.",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md",
+        "/tmp/alles-settings-audit-run1/observations.json",
+        "/tmp/alles-settings-audit-followup/observations.json",
+        "/tmp/alles-settings-audit/closure-manifest.json"
+      ],
+      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+    },
+    {
+      "id": "STAB-058",
+      "title": "In-flight appearance writes can persist an older theme",
+      "severity": "medium",
+      "screen": "Settings appearance",
+      "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
+      "status": "confirmed",
+      "reproduction": [
+        "Hold the debounced Dark write.",
+        "Choose Light, deliver its real write, then release Dark."
+      ],
+      "expected": "Prevent an earlier in-flight request from overwriting the final intended choice.",
+      "actual": "The page shows Light while the server stores Dark.",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md",
+        "/tmp/alles-settings-audit-run1/observations.json",
+        "/tmp/alles-settings-audit-followup/observations.json",
+        "/tmp/alles-settings-audit/closure-manifest.json"
+      ],
+      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+    },
+    {
+      "id": "STAB-059",
+      "title": "Unreadable regional save responses clear the draft and claim success",
+      "severity": "medium",
+      "screen": "Settings language and region",
+      "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
+      "status": "confirmed",
+      "reproduction": [
+        "Persist FR, Asia/Taipei, JPY, 24-hour clock and Monday.",
+        "Change region to JP and simulate HTTP200 with invalid JSON for the save."
+      ],
+      "expected": "Retain the exact regional draft and show that the save was not confirmed.",
+      "actual": "The form resets to English/automatic defaults and says saved just now; the server still holds FR and the overrides.",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md",
+        "/tmp/alles-settings-audit-run1/observations.json",
+        "/tmp/alles-settings-audit-followup/observations.json",
+        "/tmp/alles-settings-audit/closure-manifest.json"
+      ],
+      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+    },
+    {
+      "id": "STAB-060",
+      "title": "Browser timezone detection reports the saved override",
+      "severity": "medium",
+      "screen": "Settings language and region",
+      "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
+      "status": "confirmed",
+      "reproduction": [
+        "Use a browser in America/Toronto and save Asia/Taipei as the override.",
+        "Reopen Settings and choose Automatic without saving."
+      ],
+      "expected": "Detection and automatic preview name the actual browser timezone independently of the saved override.",
+      "actual": "Both descriptions name Asia/Taipei while the automatic clock uses Toronto.",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md",
+        "/tmp/alles-settings-audit-run1/observations.json",
+        "/tmp/alles-settings-audit-followup/observations.json",
+        "/tmp/alles-settings-audit/closure-manifest.json"
+      ],
+      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+    },
+    {
+      "id": "STAB-061",
+      "title": "Arabic phone Settings is obscured by the navigation rail",
+      "severity": "medium",
+      "screen": "Settings in Arabic at 390px",
+      "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
+      "status": "confirmed",
+      "reproduction": [
+        "Save Arabic from language and region at 390px.",
+        "Inspect the dialog right edge and hit-test the timezone button."
+      ],
+      "expected": "RTL dialog placement leaves its title, labels and complete controls visible and reachable.",
+      "actual": "The rail moves right but the overlay stays offset from the left; 26px of the timezone button and labels are covered.",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md",
+        "/tmp/alles-settings-audit-run1/observations.json",
+        "/tmp/alles-settings-audit-followup/observations.json",
+        "/tmp/alles-settings-audit/closure-manifest.json"
+      ],
+      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+    },
+    {
+      "id": "STAB-062",
+      "title": "Theme color controls cannot be opened by keyboard",
+      "severity": "medium",
+      "screen": "Settings appearance customization",
+      "revision": "186ada94 plus captured integration diff; snapshot 219c62ec4555e7eb5f02b8b7a4f20d26451a11437e39335f0c9638d1c41f59c2",
+      "status": "confirmed",
+      "reproduction": [
+        "Reach a color swatch input by keyboard.",
+        "Press Enter and Space, then compare with a pointer click."
+      ],
+      "expected": "Keyboard activation opens the custom picker and the action has a 44px target.",
+      "actual": "Enter/Space do nothing; pointer opens the picker. The readonly swatch is only 34px wide.",
+      "evidence": [
+        "/tmp/alles-settings-audit-report.md",
+        "/tmp/alles-settings-audit-run1/observations.json",
+        "/tmp/alles-settings-audit-followup/observations.json",
+        "/tmp/alles-settings-audit/closure-manifest.json"
+      ],
+      "verification": "Reproduced on owned synthetic fixtures using real pointer/keyboard actions; rejected responses and delivery order are explicit simulations. Normal persistence and a real owned-server restart pass. Phone RTL occlusion includes hit testing. Relevant source hashes match integration at audit closure. Repair in progress; no native Safari/iPhone or language editorial claim."
+    },
+    {
+      "id": "STAB-063",
+      "title": "Reopening a multi-day event collapses its end date to the start date",
+      "severity": "high",
+      "screen": "Plan Calendar; CAL-01",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Create Sep 26 23:45–Sep 27 00:30; reload; open the month chip; change only description; save; reload."
+      ],
+      "expected": "Opening or editing unrelated fields preserves both dates and duration.",
+      "actual": "POST saved end_dt 2026-09-27T00:30. Editor immediately shows 2026-09-26T00:30. PATCH 200 persists that invalid end before the start. All-day Sep 27–29 similarly reopens with end Sep 27.",
+      "source_trace": "static/js/calendar.js:1036–1041 constructs occEnd from the clicked start-day plus master end time for every event, including non-recurring events; month chips always pass data-occ. routes/calendar.py accepts the resulting end before start.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/normal.zip",
+        "/tmp/alles-calendar-audit/mutations.zip",
+        "/tmp/alles-calendar-audit/overnight-before-api.json",
+        "/tmp/alles-calendar-audit/overnight-after-api.json",
+        "/tmp/alles-calendar-audit/overnight-corrupted-reload.png",
+        "/tmp/alles-calendar-audit/timezone-checks.json"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-064",
+      "title": "Editing an aware timestamp changes the event time and removes its offset",
+      "severity": "high",
+      "screen": "Plan Calendar; CAL-02",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Seed real API event start 2026-09-26T02:30:00Z, end 03:30Z. In America/Toronto, open the correctly placed Sep 25 22:30 chip, edit only description, save."
+      ],
+      "expected": "Editor and save preserve the represented instant unless time is intentionally changed; presentation uses the selected zone.",
+      "actual": "Month initially displays Sep 25 22:30. Editor displays Sep 25 02:30–03:30. PATCH 200 stores naive 2026-09-25T02:30/03:30. The event moves 20 hours earlier in this zone.",
+      "source_trace": "static/js/calendar.js:1036–1041 slices stored ISO strings before applying clicked occurrence date, bypassing calendarPlacementDate timezone conversion.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/timezone-toronto.zip",
+        "/tmp/alles-calendar-audit/timezone-checks.json",
+        "/tmp/alles-calendar-audit/aware-toronto-placement.png",
+        "/tmp/alles-calendar-audit/aware-toronto-editor.png",
+        "/tmp/alles-calendar-audit/aware-edited-api.json",
+        "/tmp/alles-calendar-audit/aware-corrupted-reload.png"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-065",
+      "title": "Edit All events shifts the master series to the selected later occurrence",
+      "severity": "high",
+      "screen": "Plan Calendar; CAL-03",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Create weekly Friday Sep 25 09:00–10:00, 3 occurrences. Open Oct 2; edit description only; Save → All events; reload."
+      ],
+      "expected": "Changing a description across the series preserves its original start, count, and scheduled dates.",
+      "actual": "Master start/end become Oct 2. Sep 25 disappears and an Oct 16 occurrence is added because recur_count remains 3.",
+      "source_trace": "static/js/calendar.js:1038–1041 replaces form dates with occurrence dates; saveEvent scope all at1321–1322 patches that body directly to master.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/recurrence.zip",
+        "/tmp/alles-calendar-audit/recurrence-checks.json",
+        "/tmp/alles-calendar-audit/weekly-created-api.json",
+        "/tmp/alles-calendar-audit/weekly-all-edit-api.json",
+        "/tmp/alles-calendar-audit/weekly-all-edit.png"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-066",
+      "title": "Failed single-occurrence edit removes the original occurrence",
+      "severity": "high",
+      "screen": "Plan Calendar; CAL-04",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Open Oct 9 of a weekly series, edit title, Save → This event. Explicitly simulate POST /api/calendar 503 while allowing real master PATCH."
+      ],
+      "expected": "A failed replacement must retain the occurrence and draft, show recovery, and avoid success.",
+      "actual": "Master PATCH 200 adds recur_except=[2026-10-09], subsequent child POST 503 creates no replacement. UI announces saved and closes. Oct 9 remains absent after reload.",
+      "source_trace": "static/js/calendar.js:1325–1328 mutates the master before creating the replacement and checks neither response. No compensating recovery or atomic transaction.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/recurrence.zip",
+        "/tmp/alles-calendar-audit/recurrence-events.json",
+        "/tmp/alles-calendar-audit/weekly-this-partial-failure-api.json",
+        "/tmp/alles-calendar-audit/weekly-this-partial-failure.png",
+        "/tmp/alles-calendar-audit/weekly-this-failure-reload.png"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-067",
+      "title": "HTTP create/edit failures discard the draft and announce success",
+      "severity": "high",
+      "screen": "Plan Calendar; CAL-05",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Fill title/description; simulate POST 503; Create. Separately edit a saved title; simulate PATCH 503; Save."
+      ],
+      "expected": "Keep populated fields, display the error, allow retry, and only announce success after a confirmed save.",
+      "actual": "Both editor DOMs disappear. Green created/saved notice appears. Real GET proves missing new event/unchanged old title. Retrying requires reconstructing the lost input.",
+      "source_trace": "static/js/calendar.js:1308–1314 awaits fetch but never checks status or a saved acknowledgment, then toasts success and reloads.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/mutations.zip",
+        "/tmp/alles-calendar-audit/mutations-events.json",
+        "/tmp/alles-calendar-audit/mutation-checks.json",
+        "/tmp/alles-calendar-audit/create-http503.png",
+        "/tmp/alles-calendar-audit/create-http503-api.json",
+        "/tmp/alles-calendar-audit/edit-http503.png",
+        "/tmp/alles-calendar-audit/edit-http503-api.json"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-068",
+      "title": "Repeated Create while pending saves duplicate events",
+      "severity": "medium",
+      "screen": "Plan Calendar; CAL-06",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Fill new event. Hold POST responses at the browser boundary, double-click Create, then release both requests to the real API; reload."
+      ],
+      "expected": "One in-flight save per editor with clear busy state.",
+      "actual": "Create remains enabled; two POSTs are emitted; two distinct real IDs with identical title/time persist.",
+      "source_trace": "static/js/calendar.js:1193 and1303–1310 have no in-flight guard or disabled state.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/mutations.zip",
+        "/tmp/alles-calendar-audit/mutation-checks.json",
+        "/tmp/alles-calendar-audit/double-submit-api.json",
+        "/tmp/alles-calendar-audit/double-submit.png"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-069",
+      "title": "Network save failure has no visible recovery feedback",
+      "severity": "medium",
+      "screen": "Plan Calendar; CAL-07",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Fill a new event, explicitly abort POST /api/calendar, press Create."
+      ],
+      "expected": "Visible error and retry guidance, no unhandled rejection; retain draft.",
+      "actual": "Draft remains, but pageerror Failed to fetch is unhandled and no failure notice appears. Removing the route and clicking Create again does save and survive reload.",
+      "source_trace": "static/js/calendar.js:1303–1334 has no fetch exception handling.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/mutations.zip",
+        "/tmp/alles-calendar-audit/mutations-events.json",
+        "/tmp/alles-calendar-audit/create-network-failure.png",
+        "/tmp/alles-calendar-audit/network-failed-api.json",
+        "/tmp/alles-calendar-audit/network-retry-api.json"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-070",
+      "title": "Delete failure silently exits the editor",
+      "severity": "medium",
+      "screen": "Plan Calendar; CAL-08",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Open a saved event; explicitly simulate DELETE 503; click Delete."
+      ],
+      "expected": "Keep context and show deletion failure with a retry action.",
+      "actual": "Editor closes and calendar reloads with the event still present; no failure explanation. Reopening and deleting after removing simulation succeeds.",
+      "source_trace": "static/js/calendar.js:1337–1348 ignores DELETE status.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/mutations.zip",
+        "/tmp/alles-calendar-audit/delete-http503.png",
+        "/tmp/alles-calendar-audit/delete-http503-api.json",
+        "/tmp/alles-calendar-audit/delete-retry-api.json"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-071",
+      "title": "List failure is rendered as a clean empty calendar",
+      "severity": "medium",
+      "screen": "Plan Calendar; CAL-09",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Populate Calendar; simulate GET /api/calendar 503 with a detail object; reload."
+      ],
+      "expected": "Distinguish unavailable records from an empty account; show recovery and preserve known data when possible.",
+      "actual": "All 3 chips disappear; calendar shows normal dates without error or Retry. Removing simulation and reloading restores all 3.",
+      "source_trace": "static/js/calendar.js:173–175 parses responses without status checks; at199–200 a non-array result becomes [].",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/mutations.zip",
+        "/tmp/alles-calendar-audit/mutations-events.json",
+        "/tmp/alles-calendar-audit/list-http503.png",
+        "/tmp/alles-calendar-audit/mutation-checks.json"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-072",
+      "title": "Back discards unsaved Calendar input without a warning",
+      "severity": "medium",
+      "screen": "Plan Calendar; CAL-10",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "New event → enter title and description → Back → + event."
+      ],
+      "expected": "Protect unsaved work or make an explicit discard action clear.",
+      "actual": "No confirmation or retained draft; reopened title is empty and nothing was saved.",
+      "source_trace": "static/js/calendar.js:1183 binds Back directly to loadCalendar, which rerenders the form away.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/mutations.zip",
+        "/tmp/alles-calendar-audit/back-discard.png",
+        "/tmp/alles-calendar-audit/mutation-checks.json"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-073",
+      "title": "Existing month events cannot be opened with a keyboard",
+      "severity": "high",
+      "screen": "Plan Calendar; CAL-11",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "With populated month view, focus Search and Tab through the full Calendar controls/body loop."
+      ],
+      "expected": "Keyboard users can discover and open existing events for edit/delete.",
+      "actual": "No event receives focus. Event chips are divs with tabIndex -1, no role and only inherited click handlers. Real Tab trace goes from sidebar controls to artifact close/body and back to app navigation.",
+      "source_trace": "static/js/calendar.js:699–700 renders div.cal-chip; 710–725 handles pointer click only.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/desktop-dark-phone-keyboard.zip",
+        "/tmp/alles-calendar-audit/phone-keyboard-checks.json",
+        "/tmp/alles-calendar-audit/desktop-dark-populated.png"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-074",
+      "title": "All-day, weekday, reminder and color choices lack keyboard access",
+      "severity": "high",
+      "screen": "Plan Calendar; CAL-12",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "New event → weekly repeat; start at title and Tab through the entire editor."
+      ],
+      "expected": "Labeled, keyboard-operable controls and at least44px targets without changing other components.",
+      "actual": "All-day checkbox, weekday spans, reminder spans and color spans are skipped. All-day has no accessible name. Measured weekday targets26×26, reminders25.75px high, colors18×18; these are not expanded by the shared 44px button rule.",
+      "source_trace": "static/js/calendar.js:1063,1080,1093,1103–1106 renders spans; 1130–1135/1175–1180 attaches click only. static/style.css:6468,6482,6491 uses undersized targets.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/desktop-dark-phone-keyboard.zip",
+        "/tmp/alles-calendar-audit/phone-light-phone-keyboard.zip",
+        "/tmp/alles-calendar-audit/phone-dark-phone-keyboard.zip",
+        "/tmp/alles-calendar-audit/phone-keyboard-checks.json",
+        "/tmp/alles-calendar-audit/phone-light-editor-footer.png"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-075",
+      "title": "Phone date picker puts Friday/Saturday and footer outside the viewport",
+      "severity": "high",
+      "screen": "Plan Calendar; CAL-13",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "At390×900, open + event then End date. Attempt September26 by pointer."
+      ],
+      "expected": "All date/time choices fit or scroll inside the visible viewport and remain reachable.",
+      "actual": "Panel bounds x148..382, y522.55..950.70; scrollWidth324 despite234px panel width. Friday/Saturday end beyond390px. Real pointer click on26 times out as outside viewport; end stays blank. Footer y896..940 is also below the view.",
+      "source_trace": "static/style.css:2167–2185 fixes date-panel width234 and 7 grid columns; hydrated date buttons have44px minimum widths. Positioning does not account for expanded content height/width.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/picker-geometry.zip",
+        "/tmp/alles-calendar-audit/unreachable.zip",
+        "/tmp/alles-calendar-audit/picker-geometry.json",
+        "/tmp/alles-calendar-audit/unreachable-result.json",
+        "/tmp/alles-calendar-audit/phone-end-picker.png",
+        "/tmp/alles-calendar-audit/phone-end-date-unreachable.png",
+        "/tmp/alles-calendar-audit/phone-light-picker.png"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-076",
+      "title": "Phone layout removes Calendar search with no replacement",
+      "severity": "medium",
+      "screen": "Plan Calendar; CAL-14",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Open populated Calendar at390px; inspect visible controls in light and dark themes."
+      ],
+      "expected": "Existing search remains reachable on phone through a labeled action or panel.",
+      "actual": "#cal-search exists but is not visible or exposed in the accessibility tree; there is no alternate Calendar search control. Desktop search works.",
+      "source_trace": "static/style.css:6441 hides all .cal-sidebar at max-width720px; Calendar search is only rendered in that sidebar by static/js/calendar.js:277.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/phone-light-phone-keyboard.zip",
+        "/tmp/alles-calendar-audit/phone-dark-phone-keyboard.zip",
+        "/tmp/alles-calendar-audit/phone-keyboard-checks.json",
+        "/tmp/alles-calendar-audit/phone-light-populated.png",
+        "/tmp/alles-calendar-audit/phone-dark-populated.png"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
+    },
+    {
+      "id": "STAB-077",
+      "title": "Recurring scope overlay does not receive focus or handle Escape",
+      "severity": "medium",
+      "screen": "Plan Calendar; CAL-15",
+      "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
+      "status": "confirmed",
+      "reproduction": [
+        "Open recurring event, Save; observe focus; press Escape."
+      ],
+      "expected": "Dialog announces its purpose, contains keyboard focus, supports cancel, and returns focus.",
+      "actual": "Focus stays on background #cal-save, outside overlay; Escape does nothing. Overlay lacks dialog semantics, focus transfer, focus trap and return handling. Pointer Cancel works and preserves the draft/data.",
+      "source_trace": "static/js/calendar.js:975–990 manually appends a div overlay with pointer listeners only instead of shared dialog behavior.",
+      "evidence": [
+        "/tmp/alles-calendar-audit-report.md",
+        "/tmp/alles-calendar-audit/recurrence.zip",
+        "/tmp/alles-calendar-audit/recurrence-checks.json",
+        "/tmp/alles-calendar-audit/weekly-scope-dialog.png"
+      ],
+      "verification": "Reproduced with owned synthetic records and actual pointer/keyboard input. Saved values and deletion verified through real API reads and reload. Named HTTP503, network aborts and delayed requests are explicit simulations. Existing 17 Python and 13 JS checks pass but miss these paths. Repairs in progress; native Safari/iPhone and remote calendars are not certified."
     }
   ],
   "additional_surfaces": [
