@@ -47,6 +47,7 @@ COMMANDS = {
     "andromeda-cancellation": ("tests/pw_andromeda_cancellation.py",),
     "health-workflows": ("tests/pw_health_workflows.py",),
     "finance-workflows": ("tests/pw_finance_workflows.py",),
+    "library-workflows": ("tests/pw_library_workflows.py",),
     "setup-auth": ("tests/pw_setup_auth.py",),
     "home-reminders": ("tests/pw_today_reminders.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),

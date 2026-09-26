@@ -8433,8 +8433,10 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .read-tagfilter .btn { font-size: 0.75rem; padding: 0.05rem 0.4rem; }
 .read-card { border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); display: flex; gap: 0.5rem; padding: 0.75rem 0.9rem; transition: border-color 0.12s; }
 .read-card:hover { border-color: var(--muted); }
-.read-card.is-read { opacity: 0.62; }
-.read-card-main { flex: 1; min-width: 0; cursor: pointer; }
+.read-card-main { flex: 1; min-width: 0; }
+.read-card-open { display: block; width: 100%; min-height: 44px; border: 0; padding: 0; background: none; text-align: left; color: inherit; cursor: pointer; }
+.read-card-open .read-card-excerpt { display: block; }
+.read-save-error { color: var(--error); font-size: 0.8rem; line-height: 1.45; }
 .read-card-title { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.35rem; }
 .read-fav-dot { color: var(--accent); display: inline-flex; }
 .read-fav-dot svg { width: 12px; height: 12px; }
@@ -8458,7 +8460,7 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .books-summary { font-size: 0.78rem; color: var(--muted); }
 .books-bar { display: flex; align-items: center; gap: 0.9rem; }
 .books-bar .books-summary { flex: 0 0 auto; }
-.books-goal { display: flex; flex-direction: column; gap: 3px; min-width: 130px; max-width: 220px; cursor: pointer; margin-left: auto; }
+.books-goal { min-height: 44px; border: 0; background: none; text-align: left; justify-content: center; display: flex; flex-direction: column; gap: 3px; min-width: 130px; max-width: 220px; cursor: pointer; margin-left: auto; }
 .books-goal span { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.02em; }
 .books-goal:hover span { color: var(--text); }
 .books-goal-bar { height: 4px; border-radius: 3px; background: var(--faint); overflow: hidden; }
@@ -8483,8 +8485,8 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .book-cover { width: 52px; height: 76px; object-fit: cover; border-radius: 3px; flex-shrink: 0; background: var(--bg); }
 .book-cover-ph { display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 600; color: var(--muted); border: 1px solid var(--faint); }
 .book-info { flex: 1; min-width: 0; }
-.book-title { font-size: 0.84rem; font-weight: 600; color: var(--text); line-height: 1.25; }
-.book-author { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.35rem; }
+.book-title { padding-right: 48px; font-size: 0.84rem; font-weight: 600; color: var(--text); line-height: 1.25; }
+.book-author { padding-right: 48px; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.35rem; }
 .book-stars { display: inline-flex; gap: 1px; margin-bottom: 0.4rem; }
 .book-star { background: none; border: none; padding: 0; cursor: pointer; color: var(--muted); display: flex; }
 .book-star svg { width: 14px; height: 14px; }
@@ -8492,10 +8494,11 @@ input.cp-swatch-input { width: 34px; height: 22px; border: 1px solid var(--faint
 .book-move { display: flex; gap: 0.25rem; flex-wrap: wrap; }
 .book-move-btn { background: none; border: 1px solid var(--faint); border-radius: 3px; color: var(--muted); font-size: 0.75rem; padding: 0.12rem 0.4rem; cursor: pointer; }
 .book-move-btn:hover { color: var(--text); border-color: var(--muted); }
-.book-notes { font-size: 0.75rem; color: var(--muted); margin-top: 0.45rem; line-height: 1.4; white-space: pre-wrap; cursor: pointer; }
+.book-notes { display: block; width: 100%; border: 0; padding: 0; background: none; text-align: left; overflow-wrap: anywhere; font-size: 0.75rem; color: var(--muted); margin-top: 0.45rem; line-height: 1.4; white-space: pre-wrap; cursor: pointer; }
 .book-add-note { background: none; border: none; color: var(--muted); font-size: 0.75rem; cursor: pointer; margin-top: 0.4rem; padding: 0; }
 .book-add-note:hover { color: var(--accent); }
 .book-notes-edit { margin-top: 0.45rem; }
+.book-notes-error { color: var(--error); font-size: 0.8rem; line-height: 1.45; }
 .book-notes-edit textarea { width: 100%; resize: vertical; }
 .book-notes-actions { display: flex; gap: 0.3rem; margin-top: 0.3rem; }
 .book-del { position: absolute; top: 0.5rem; right: 0.5rem; }

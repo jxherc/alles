@@ -163,8 +163,8 @@ Nested confirmation, failed-write retry and exact persistence have browser check
 
 The Library audit subsequently confirmed failed note saves that report success and
 lose input, unrecoverable URL-save failures, missing keyboard activation and book
-remove buttons covering title text. STAB-030 through STAB-033 remain open; their
-repairs are separate from the Plan checkpoint.
+remove buttons covering title text. STAB-030 through STAB-033 were open at the first
+Plan checkpoint; the subsequent Library repair is described below.
 
 The Finance, recovery, setup and reminder checkpoint passed all eighteen maintained
 browser gates twice from fresh fixtures. Its source fingerprint is
@@ -189,8 +189,32 @@ components and direct browser assertions; no actionable finding remained.
 
 Additional Plan checks then confirmed stale-tab overwrites, late responses replacing
 the selected list, and lost drafts on reload/full-document history (STAB-034 through
-STAB-036). These and the Library findings remain open. The six earlier Plan fixes
+STAB-036). These Plan findings remain open. The six earlier Plan fixes
 are verified; complete Plan and release acceptance are still outstanding.
+
+The Library repair retains book notes and URL drafts after rejected writes, rejects
+invalid save acknowledgments, restores keyboard article/note/goal actions and
+reserves title space for remove controls. A further rendered audit found faded
+read-card text below accessible contrast (STAB-037); it now measures at least
+5.02:1 in both themes. Delayed initial or search loads also stole URL focus and
+lost continued typing (STAB-038). Rendering now preserves the currently edited
+field and caret. All six Library findings have verified reproductions and repairs.
+
+The current Library source fingerprint is
+`ab4c43b15be10546e13f8b282940c64a9f6c13f4569894247f1ce37d26920ea0` and acceptance
+fingerprint is `5b9632b8ad321ab474d38669adc07afde2f462cc7004e094955b59a74f82b49f`.
+One fresh full twenty-gate run passed. A separate run of the same source failed an
+existing Docs recovery assertion and a Finance test scroll; both failures remain
+retained for diagnosis. This checkpoint does not meet the two-clean-full-run gate.
+Library's ten desktop/phone checks passed in Chromium and supplementary WebKit
+26.5, with browser-specific keyboard and exact error-log expectations. All 648
+JavaScript tests, 84 focused Python checks and Ruff passed. The ledger inventories
+1,592 controls and 156 workflows: 50 passed, 104 untested and two blocked.
+
+Further owned-data audits recorded eleven Inbox defects (STAB-039–049) and four
+Vault/backup UI defects (STAB-050–053). They remain open. Real local backup recovery
+preserved notes and decrypted Vault entries, but complete host-supervisor, native
+device and provider acceptance is still outstanding. No stable release is claimed.
 
 ## Stable layout
 
@@ -212,6 +236,8 @@ The layout contract is in [decision 0012](../design-system/decisions/0012-minima
 | Browse documents or file locations | Inside Docs or Files; hiding views leaves these controls available |
 | Correct a Finance transaction | Finance → money → edit on its row; on phones the account and actions wrap below the payee and amount |
 | Recover an offline change | Pending indicator → review; inspect saved values, sign in or retry, save a copy, or confirm discard |
+| Edit book notes or a reading goal | Library → books → the note or goal; both are keyboard actions |
+| Recover a failed reading save | Library → saved → the retained URL and inline error; retry after resolving the failure |
 | Correct a Health measurement | Health → logs → edit beside the record; exact value, date, unit and note stay together |
 
 Daily-work layouts are the first implementation batch. Specialist summaries,
