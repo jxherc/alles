@@ -242,6 +242,7 @@
     "tasks.due": "截止日期",
     "tasks.history": "历史",
     "tasks.edit_dialog": "编辑任务",
+    "tasks.discard_changes": "放弃尚未保存的任务更改？",
     "tasks.edit_named": "编辑 {task}",
     "tasks.mark_complete": "将 {task} 标记为已完成",
     "tasks.mark_incomplete": "将 {task} 标记为未完成",

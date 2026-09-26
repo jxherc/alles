@@ -242,6 +242,7 @@
     "tasks.due": "échéance",
     "tasks.history": "historique",
     "tasks.edit_dialog": "modifier la tâche",
+    "tasks.discard_changes": "abandonner les modifications non enregistrées de cette tâche ?",
     "tasks.edit_named": "modifier {task}",
     "tasks.mark_complete": "marquer {task} comme terminée",
     "tasks.mark_incomplete": "marquer {task} comme non terminée",

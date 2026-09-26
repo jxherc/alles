@@ -1453,6 +1453,110 @@
         "desktop",
         "phone"
       ]
+    },
+    {
+      "id": "plan.search-edit-consistency",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "search, clear search, edit, reopen and edit another field",
+      "expected": "The reopened editor uses the current saved task; changing project preserves its newer due date after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.dirty-editor-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "dismiss a dirty editor using Escape, outside click and Cancel",
+      "expected": "All dismissal paths require explicit discard; declining or escaping confirmation preserves the draft and focus, and the retained draft saves correctly.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.pending-save-draft",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "save while the real task write is delayed",
+      "expected": "Pending fields and dismissal are disabled with a visible saving state; no additional input is accepted and the submitted values survive reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.task-edit-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "reject an edit with a simulated HTTP 503, then retry",
+      "expected": "The draft and original saved values survive failure; controls become usable again and keyboard retry persists the intended edit.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.task-row-readability",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "read populated tasks with long titles, metadata and actions",
+      "expected": "Mixed-language titles retain a readable line width, metadata wraps, all actions have 44px targets and the page does not overflow.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.task-editor-visibility",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "open and operate the editor in both themes and a short phone viewport",
+      "expected": "The navigation rail cannot cover or intercept editor fields; custom choices and save controls remain reachable by scrolling.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.board-filter-visibility",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "search a board title, then apply an excluding project filter",
+      "expected": "Only matching cards remain visible and actionable; visible cards agree with lane counters.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.board-move-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "move a task, fail the next move with a simulated HTTP 503, then retry",
+      "expected": "The first move persists; a rejected move leaves the saved stage unchanged and a keyboard retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
     }
   ],
   "findings": [
@@ -1912,7 +2016,7 @@
       "severity": "high",
       "screen": "Plan Tasks editor after clearing search",
       "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Search a task, clear search, change due date from 2032-11-06 to 2032-11-07 and save.",
         "Reopen it and change only the project, then save and reload."
@@ -1923,7 +2027,7 @@
         "/tmp/alles-plan-audit-report.md",
         "/tmp/alles-plan-audit/observations.json"
       ],
-      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+      "verification": "The integrated maintained Plan gate passed all 16 desktop/phone scenario checks, with real task persistence and explicitly simulated save/move 503s and pending-write latency. Both themes, 44px targets, long phone rows, editor layering, a short viewport, nested focus and explicit discard were checked. Evidence: /tmp/alles-stabilization-plan-full-1/plan-workflows/result.json. Both fresh 19-gate full suites passed with stable source/acceptance fingerprints and complete fixture cleanup: /tmp/alles-stabilization-plan-full-1/results.json and /tmp/alles-stabilization-plan-full-2/results.json. Native Safari task search/edit/reopen and draft confirmation/save/reload passed on a separate fresh fixture (/tmp/alles-plan-native/acceptance.md); full native visual and physical iPhone acceptance remain open."
     },
     {
       "id": "STAB-025",
@@ -1931,7 +2035,7 @@
       "severity": "medium",
       "screen": "Plan Tasks editor during a delayed save",
       "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Type note A and hold its real PATCH request after Save.",
         "Type note B into the still-enabled notes field, release the request, then reload/reopen."
@@ -1942,7 +2046,7 @@
         "/tmp/alles-plan-audit-report.md",
         "/tmp/alles-plan-audit/observations.json"
       ],
-      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+      "verification": "The integrated maintained Plan gate passed all 16 desktop/phone scenario checks, with real task persistence and explicitly simulated save/move 503s and pending-write latency. Both themes, 44px targets, long phone rows, editor layering, a short viewport, nested focus and explicit discard were checked. Evidence: /tmp/alles-stabilization-plan-full-1/plan-workflows/result.json. Both fresh 19-gate full suites passed with stable source/acceptance fingerprints and complete fixture cleanup: /tmp/alles-stabilization-plan-full-1/results.json and /tmp/alles-stabilization-plan-full-2/results.json. Native Safari task search/edit/reopen and draft confirmation/save/reload passed on a separate fresh fixture (/tmp/alles-plan-native/acceptance.md); full native visual and physical iPhone acceptance remain open."
     },
     {
       "id": "STAB-026",
@@ -1950,7 +2054,7 @@
       "severity": "medium",
       "screen": "Plan task board search and project filters",
       "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Search a single mixed-language task title on the board.",
         "Select a project that excludes that task."
@@ -1961,7 +2065,7 @@
         "/tmp/alles-plan-audit-report.md",
         "/tmp/alles-plan-audit/board-observations.json"
       ],
-      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+      "verification": "The integrated maintained Plan gate passed all 16 desktop/phone scenario checks, with real task persistence and explicitly simulated save/move 503s and pending-write latency. Both themes, 44px targets, long phone rows, editor layering, a short viewport, nested focus and explicit discard were checked. Evidence: /tmp/alles-stabilization-plan-full-1/plan-workflows/result.json. Both fresh 19-gate full suites passed with stable source/acceptance fingerprints and complete fixture cleanup: /tmp/alles-stabilization-plan-full-1/results.json and /tmp/alles-stabilization-plan-full-2/results.json. Native Safari task search/edit/reopen and draft confirmation/save/reload passed on a separate fresh fixture (/tmp/alles-plan-native/acceptance.md); full native visual and physical iPhone acceptance remain open."
     },
     {
       "id": "STAB-027",
@@ -1969,7 +2073,7 @@
       "severity": "medium",
       "screen": "Plan task editor at 390px",
       "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open a real task editor by pointer or touch at 390×900.",
         "Inspect and hit-test the left edge of title, notes and form labels."
@@ -1980,7 +2084,7 @@
         "/tmp/alles-plan-audit-report.md",
         "/tmp/alles-plan-audit/phone-metrics.json"
       ],
-      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+      "verification": "The integrated maintained Plan gate passed all 16 desktop/phone scenario checks, with real task persistence and explicitly simulated save/move 503s and pending-write latency. Both themes, 44px targets, long phone rows, editor layering, a short viewport, nested focus and explicit discard were checked. Evidence: /tmp/alles-stabilization-plan-full-1/plan-workflows/result.json. Both fresh 19-gate full suites passed with stable source/acceptance fingerprints and complete fixture cleanup: /tmp/alles-stabilization-plan-full-1/results.json and /tmp/alles-stabilization-plan-full-2/results.json. Native Safari task search/edit/reopen and draft confirmation/save/reload passed on a separate fresh fixture (/tmp/alles-plan-native/acceptance.md); full native visual and physical iPhone acceptance remain open."
     },
     {
       "id": "STAB-028",
@@ -1988,7 +2092,7 @@
       "severity": "medium",
       "screen": "Plan Tasks list at 390px",
       "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Populate tasks with ordinary due dates, priorities, tags and longer mixed-language titles.",
         "Inspect the list at 390×900."
@@ -1999,7 +2103,7 @@
         "/tmp/alles-plan-audit-report.md",
         "/tmp/alles-plan-audit/phone-metrics.json"
       ],
-      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+      "verification": "The integrated maintained Plan gate passed all 16 desktop/phone scenario checks, with real task persistence and explicitly simulated save/move 503s and pending-write latency. Both themes, 44px targets, long phone rows, editor layering, a short viewport, nested focus and explicit discard were checked. Evidence: /tmp/alles-stabilization-plan-full-1/plan-workflows/result.json. Both fresh 19-gate full suites passed with stable source/acceptance fingerprints and complete fixture cleanup: /tmp/alles-stabilization-plan-full-1/results.json and /tmp/alles-stabilization-plan-full-2/results.json. Native Safari task search/edit/reopen and draft confirmation/save/reload passed on a separate fresh fixture (/tmp/alles-plan-native/acceptance.md); full native visual and physical iPhone acceptance remain open."
     },
     {
       "id": "STAB-029",
@@ -2007,7 +2111,7 @@
       "severity": "medium",
       "screen": "Plan Tasks editor, outside dismissal",
       "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open a task and type an unsaved note or title.",
         "Click outside the editor, then reopen the task."
@@ -2018,7 +2122,139 @@
         "/tmp/alles-plan-audit-report.md",
         "/tmp/alles-plan-audit/observations.json"
       ],
-      "verification": "Outside dismissal reproduced on desktop/phone. The stabilization plan explicitly requires preservation of unsaved Plan work. Repair and dismissal regression are in the separate temporary Plan batch."
+      "verification": "The integrated maintained Plan gate passed all 16 desktop/phone scenario checks, with real task persistence and explicitly simulated save/move 503s and pending-write latency. Both themes, 44px targets, long phone rows, editor layering, a short viewport, nested focus and explicit discard were checked. Evidence: /tmp/alles-stabilization-plan-full-1/plan-workflows/result.json. Both fresh 19-gate full suites passed with stable source/acceptance fingerprints and complete fixture cleanup: /tmp/alles-stabilization-plan-full-1/results.json and /tmp/alles-stabilization-plan-full-2/results.json. Native Safari task search/edit/reopen and draft confirmation/save/reload passed on a separate fresh fixture (/tmp/alles-plan-native/acceptance.md); full native visual and physical iPhone acceptance remain open."
+    },
+    {
+      "id": "STAB-030",
+      "title": "Rejected book note save loses input and reports success",
+      "severity": "high",
+      "screen": "Library books, existing note editor",
+      "revision": "93ed1a2 with source fingerprint 0af46ab359fee73387cfbd2b9fe6a1a378d882f7cd66239eaa010fce6e06fec8",
+      "status": "confirmed",
+      "reproduction": [
+        "Add a synthetic book and save its first note.",
+        "Edit that note, simulate HTTP 503 for its PATCH, and click save.",
+        "Inspect the visible editor and real stored note after reload."
+      ],
+      "expected": "Keep the draft, display the failure and allow retry.",
+      "actual": "The editor closes, a saved toast appears, the old note returns and the replacement draft is lost.",
+      "evidence": [
+        "/tmp/alles-library-audit-report.md",
+        "/tmp/alles-library-audit/book-observations.json"
+      ],
+      "verification": "Reproduced with synthetic owned data, real saved results and explicit transport simulations. Repair is in a separate isolated copy; no fix is claimed in this checkpoint. Native Safari/iPhone and full Library acceptance remain unverified."
+    },
+    {
+      "id": "STAB-031",
+      "title": "Saving a reading URL loses input or gets stuck after failure",
+      "severity": "medium",
+      "screen": "Library saved URL capture",
+      "revision": "93ed1a2 with source fingerprint 0af46ab359fee73387cfbd2b9fe6a1a378d882f7cd66239eaa010fce6e06fec8",
+      "status": "confirmed",
+      "reproduction": [
+        "Enter a synthetic URL and submit with the save POST returning a simulated 503.",
+        "Repeat with an explicit simulated network rejection."
+      ],
+      "expected": "Retain the URL and restore a usable save/retry action for both failures.",
+      "actual": "HTTP errors rebuild a blank field; network errors leave saving disabled and raise an unhandled rejection.",
+      "evidence": [
+        "/tmp/alles-library-audit-report.md",
+        "/tmp/alles-library-audit/saved-observations.json"
+      ],
+      "verification": "Reproduced with synthetic owned data, real saved results and explicit transport simulations. Repair is in a separate isolated copy; no fix is claimed in this checkpoint. Native Safari/iPhone and full Library acceptance remain unverified."
+    },
+    {
+      "id": "STAB-032",
+      "title": "Saved articles, existing book notes and goals lack keyboard activation",
+      "severity": "high",
+      "screen": "Library saved reader and books note/goal actions",
+      "revision": "93ed1a2 with source fingerprint 0af46ab359fee73387cfbd2b9fe6a1a378d882f7cd66239eaa010fce6e06fec8",
+      "status": "confirmed",
+      "reproduction": [
+        "Use Tab and Enter to open a saved article.",
+        "After saving a book note and nonzero reading goal, try to edit each using keyboard navigation."
+      ],
+      "expected": "All three actions are focusable, labeled and activatable by keyboard.",
+      "actual": "Only pointer handlers exist on non-focusable divs; keyboard users cannot open saved article text or edit the existing note and goal.",
+      "evidence": [
+        "/tmp/alles-library-audit-report.md",
+        "/tmp/alles-library-audit/final-observations.json"
+      ],
+      "verification": "Reproduced with synthetic owned data, real saved results and explicit transport simulations. Repair is in a separate isolated copy; no fix is claimed in this checkpoint. Native Safari/iPhone and full Library acceptance remain unverified."
+    },
+    {
+      "id": "STAB-033",
+      "title": "Book remove action overlaps title text",
+      "severity": "medium",
+      "screen": "Library populated book cards on desktop and phone",
+      "revision": "93ed1a2 with source fingerprint 0af46ab359fee73387cfbd2b9fe6a1a378d882f7cd66239eaa010fce6e06fec8",
+      "status": "confirmed",
+      "reproduction": [
+        "Add a long mixed-language book title.",
+        "At desktop and 390px phone widths, inspect glyphs beneath the remove action and hit-test their centers."
+      ],
+      "expected": "Reserve space for the 44px remove action without covering title characters.",
+      "actual": "Title characters overlap the absolute remove button and hit-testing reaches delete.",
+      "evidence": [
+        "/tmp/alles-library-audit-report.md",
+        "/tmp/alles-library-audit/phone-observations.json"
+      ],
+      "verification": "Reproduced with synthetic owned data, real saved results and explicit transport simulations. Repair is in a separate isolated copy; no fix is claimed in this checkpoint. Native Safari/iPhone and full Library acceptance remain unverified."
+    },
+    {
+      "id": "STAB-034",
+      "title": "A stale task tab silently rolls back unrelated saved fields",
+      "severity": "high",
+      "screen": "Plan task editor in two tabs",
+      "revision": "26e6a5d with first Plan repair batch; source a0c6b076b18e2ca6836505bf915b47ec3d8d341936010afb77a8a95256b2656f",
+      "status": "confirmed",
+      "reproduction": [
+        "Open the same synthetic task in two browser tabs.",
+        "In tab A change its due date and notes, then save.",
+        "In stale tab B change only project, save, and reload."
+      ],
+      "expected": "Preserve the newer unrelated fields or report a conflict while retaining both edits.",
+      "actual": "Tab B restores the old date and notes without warning while saving the new project.",
+      "evidence": [
+        "/tmp/alles-plan-concurrency-audit/observations.json"
+      ],
+      "verification": "Reproduced on desktop and phone with owned synthetic data and real saved outcomes. Only named response delays were simulated. No shared repair applied; same-field intentional last-write behavior alone is not asserted as an additional defect."
+    },
+    {
+      "id": "STAB-035",
+      "title": "Late task responses replace the current search or list",
+      "severity": "medium",
+      "screen": "Plan Tasks search and history views",
+      "revision": "26e6a5d with first Plan repair batch; source a0c6b076b18e2ca6836505bf915b47ec3d8d341936010afb77a8a95256b2656f",
+      "status": "confirmed",
+      "reproduction": [
+        "Hold a real alpha search response, submit beta search and allow beta to appear, then release alpha.",
+        "Separately hold the All tree response, select History and let it load, then release All."
+      ],
+      "expected": "Only the current query and selected view may update the visible task list.",
+      "actual": "The search field still says beta while alpha is displayed; History remains selected while active tasks replace its completed rows.",
+      "evidence": [
+        "/tmp/alles-plan-concurrency-audit/observations.json"
+      ],
+      "verification": "Reproduced on desktop and phone with owned synthetic data and real saved outcomes. Only named response delays were simulated. No shared repair applied; same-field intentional last-write behavior alone is not asserted as an additional defect."
+    },
+    {
+      "id": "STAB-036",
+      "title": "Reload and full-document history discard unsaved task edits",
+      "severity": "medium",
+      "screen": "Plan dirty editor during browser navigation",
+      "revision": "26e6a5d with first Plan repair batch; source a0c6b076b18e2ca6836505bf915b47ec3d8d341936010afb77a8a95256b2656f",
+      "status": "confirmed",
+      "reproduction": [
+        "Edit a task note without saving, reload and reopen it.",
+        "Repeat with a full-document Back/Forward transition."
+      ],
+      "expected": "Preserve a recoverable draft or require an explicit discard decision before leaving.",
+      "actual": "Only saved content returns; the unsaved draft is gone with no warning or recovery. Same-document Back/Forward retains the editor and is not part of this defect.",
+      "evidence": [
+        "/tmp/alles-plan-concurrency-audit/observations.json"
+      ],
+      "verification": "Reproduced on desktop and phone with owned synthetic data and real saved outcomes. Only named response delays were simulated. No shared repair applied; same-field intentional last-write behavior alone is not asserted as an additional defect."
     }
   ],
   "additional_surfaces": [

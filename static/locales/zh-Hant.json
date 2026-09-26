@@ -242,6 +242,7 @@
     "tasks.due": "截止日期",
     "tasks.history": "歷史",
     "tasks.edit_dialog": "編輯任務",
+    "tasks.discard_changes": "捨棄尚未儲存的任務變更？",
     "tasks.edit_named": "編輯 {task}",
     "tasks.mark_complete": "將 {task} 標示為已完成",
     "tasks.mark_incomplete": "將 {task} 標示為未完成",

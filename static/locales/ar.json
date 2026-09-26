@@ -242,6 +242,7 @@
     "tasks.due": "الاستحقاق",
     "tasks.history": "السجل",
     "tasks.edit_dialog": "تعديل المهمة",
+    "tasks.discard_changes": "هل تريد تجاهل تغييرات المهمة غير المحفوظة؟",
     "tasks.edit_named": "تعديل {task}",
     "tasks.mark_complete": "وضع علامة مكتمل على {task}",
     "tasks.mark_incomplete": "وضع علامة غير مكتمل على {task}",

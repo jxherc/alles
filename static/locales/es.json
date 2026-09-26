@@ -242,6 +242,7 @@
     "tasks.due": "fecha límite",
     "tasks.history": "historial",
     "tasks.edit_dialog": "editar tarea",
+    "tasks.discard_changes": "¿descartar los cambios sin guardar de la tarea?",
     "tasks.edit_named": "editar {task}",
     "tasks.mark_complete": "marcar {task} como completada",
     "tasks.mark_incomplete": "marcar {task} como pendiente",

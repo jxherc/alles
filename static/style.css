@@ -4531,11 +4531,21 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .tasks-tab:hover { color: var(--text); }
 .tasks-tab.active { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .task-item {
-  display: flex; align-items: center; gap: 0.65rem;
-  padding: 0.45rem 0;
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--faint);
 }
 .task-item:last-child { border-bottom: none; }
+.task-content { min-width: 0; }
+.task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.task-meta:empty { display: none; }
+.task-meta > * { max-width: 100%; overflow-wrap: anywhere; }
+.task-actions { display: flex; gap: 4px; align-items: center; }
+.task-actions button { min-width: 44px; min-height: 44px; }
+@media (max-width: 700px) {
+  .task-item { grid-template-columns: 44px minmax(0, 1fr); align-items: start; gap: 4px 8px; }
+  .task-actions { grid-column: 2; justify-content: flex-end; }
+}
 .task-check {
   width: 14px; height: 14px; flex-shrink: 0;
   border: 1px solid var(--faint); border-radius: 3px;
@@ -4554,14 +4564,17 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
   transform: rotate(45deg);
 }
 .task-title {
-  flex: 1;
+  display: block;
+  width: 100%;
   min-width: 0;
+  min-height: 44px;
   border: 0;
   background: transparent;
-  padding-inline: 0.35rem;
+  padding: 8px 0;
+  overflow-wrap: anywhere;
   color: var(--text);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 14px;
   text-align: left;
 }
 .task-title.done { color: var(--muted); text-decoration: line-through; }
@@ -4571,8 +4584,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .task-p1 { color: var(--muted); }
 .task-p2 { color: var(--signal); }
 .task-p3 { color: var(--error); }
-.task-editor-ov { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
-.task-editor { background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 0.8rem; width: 380px; max-width: 92vw; display: flex; flex-direction: column; gap: 0.45rem; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.task-editor-ov { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
+.task-editor { background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 16px; width: 380px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .task-editor .te-notes { min-height: 60px; resize: vertical; }
 .te-row { display: flex; align-items: center; gap: 0.5rem; }
 .te-row label { font-size: 0.75rem; color: var(--muted); width: 60px; flex-shrink: 0; }
@@ -4580,8 +4593,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .te-rs { font-size: 0.75rem; }
 .te-actions { display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.3rem; }
 .task-progress { font-size: 0.75rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 2px; padding: 0 0.25rem; }
-.task-addsub { font-size: 0.75rem; color: var(--muted); background: none; border: 1px dashed var(--faint); border-radius: 2px; padding: 0 0.3rem; cursor: pointer; opacity: 0; transition: opacity 0.15s, color 0.15s; }
-.task-item:hover .task-addsub { opacity: 1; }
+.task-addsub { font-size: 0.75rem; color: var(--muted); background: none; border: 1px dashed var(--faint); border-radius: 2px; padding: 0 0.3rem; cursor: pointer; transition: color 0.15s; }
 .task-addsub:hover { color: var(--text); border-color: var(--muted); }
 .task-due { font-size: 0.75rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0.05rem 0.35rem; white-space: nowrap; }
 .task-due.today { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }

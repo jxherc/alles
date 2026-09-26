@@ -4627,6 +4627,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 101
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_setup_auth.py",
                 "kind": "existing-test-control-reference",
                 "line": 221
@@ -4851,6 +4857,12 @@
                 "file": "tests/pw_phase10_performance.py",
                 "kind": "existing-test-control-reference",
                 "line": 96
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 101
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -60284,6 +60296,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 99
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_setup_auth.py",
                 "kind": "existing-test-control-reference",
                 "line": 217
@@ -60460,6 +60484,18 @@
                 "file": "tests/pw_phase9_setup_passwords.py",
                 "kind": "existing-test-control-reference",
                 "line": 222
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 99
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -62340,6 +62376,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 108
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_stability_smoke.py",
                 "kind": "existing-test-control-reference",
                 "line": 111
@@ -62462,6 +62504,12 @@
                 "file": "tests/pw_phase7_files_real.py",
                 "kind": "existing-test-control-reference",
                 "line": 169
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 108
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -222562,7 +222610,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 67
+              "line": 68
             },
             "status": "source-only",
             "tests": []
@@ -222584,7 +222632,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 67
+              "line": 68
             },
             "status": "source-only",
             "tests": []
@@ -222681,9 +222729,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 67
+          "line": 68
         },
-        "source_selector": "static/js/tasks.js:67:2",
+        "source_selector": "static/js/tasks.js:68:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -222718,7 +222766,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 73
+              "line": 78
             },
             "status": "source-only",
             "tests": []
@@ -222740,7 +222788,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 73
+              "line": 78
             },
             "status": "source-only",
             "tests": []
@@ -222837,9 +222885,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 73
+          "line": 78
         },
-        "source_selector": "static/js/tasks.js:73:3",
+        "source_selector": "static/js/tasks.js:78:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -222874,7 +222922,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 74
+              "line": 79
             },
             "status": "source-only",
             "tests": []
@@ -222896,7 +222944,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 74
+              "line": 79
             },
             "status": "source-only",
             "tests": []
@@ -222993,9 +223041,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 74
+          "line": 79
         },
-        "source_selector": "static/js/tasks.js:74:4",
+        "source_selector": "static/js/tasks.js:79:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -223030,7 +223078,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 181
+              "line": 187
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -223039,6 +223087,24 @@
                 "file": "tests/js/tasks_custom_controls.test.mjs",
                 "kind": "existing-test-control-reference",
                 "line": 29
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 121
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 230
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 317
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -223063,7 +223129,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [
             "native editing keys"
@@ -223098,7 +223164,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/tasks.js:172 openTaskEditor"
+        "value": "static/js/tasks.js:178 openTaskEditor"
       },
       "id": "dynamic.ef81df1bb3e5",
       "kind": "field",
@@ -223111,7 +223177,7 @@
           "source-local:/api/tasks/"
         ],
         "client_functions": [
-          "static/js/tasks.js:172 openTaskEditor"
+          "static/js/tasks.js:178 openTaskEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -223152,9 +223218,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 181
+          "line": 187
         },
-        "source_selector": "static/js/tasks.js:181:5",
+        "source_selector": "static/js/tasks.js:187:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -223182,15 +223248,94 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 182
+              "line": 188
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 179
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 192
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 193
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 198
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 203
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 208
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 220
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 229
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 237
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 246
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 256
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 269
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 270
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [
             "native editing keys"
@@ -223225,7 +223370,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/tasks.js:172 openTaskEditor"
+        "value": "static/js/tasks.js:178 openTaskEditor"
       },
       "id": "dynamic.519b75a7aadd",
       "kind": "field",
@@ -223238,7 +223383,7 @@
           "source-local:/api/tasks/"
         ],
         "client_functions": [
-          "static/js/tasks.js:172 openTaskEditor"
+          "static/js/tasks.js:178 openTaskEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -223279,9 +223424,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 182
+          "line": 188
         },
-        "source_selector": "static/js/tasks.js:182:6",
+        "source_selector": "static/js/tasks.js:188:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -223309,15 +223454,34 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 185
+              "line": 191
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 161
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 165
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 170
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [
             "native editing keys"
@@ -223352,7 +223516,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/tasks.js:172 openTaskEditor"
+        "value": "static/js/tasks.js:178 openTaskEditor"
       },
       "id": "dynamic.36fd26a63988",
       "kind": "field",
@@ -223365,7 +223529,7 @@
           "source-local:/api/tasks/"
         ],
         "client_functions": [
-          "static/js/tasks.js:172 openTaskEditor"
+          "static/js/tasks.js:178 openTaskEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -223406,9 +223570,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 185
+          "line": 191
         },
-        "source_selector": "static/js/tasks.js:185:7",
+        "source_selector": "static/js/tasks.js:191:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -223436,7 +223600,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 186
+              "line": 192
             },
             "status": "source-only",
             "tests": []
@@ -223444,7 +223608,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -223458,7 +223622,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 186
+              "line": 192
             },
             "status": "source-only",
             "tests": []
@@ -223466,7 +223630,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [
             "Enter",
@@ -223503,7 +223667,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/tasks.js:172 openTaskEditor"
+        "value": "static/js/tasks.js:178 openTaskEditor"
       },
       "id": "dynamic.f3514bff7529",
       "kind": "action",
@@ -223516,7 +223680,7 @@
           "source-local:/api/tasks/"
         ],
         "client_functions": [
-          "static/js/tasks.js:172 openTaskEditor"
+          "static/js/tasks.js:178 openTaskEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -223557,9 +223721,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 186
+          "line": 192
         },
-        "source_selector": "static/js/tasks.js:186:8",
+        "source_selector": "static/js/tasks.js:192:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -223594,7 +223758,7 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 187
+              "line": 193
             },
             "status": "source-only",
             "tests": []
@@ -223602,7 +223766,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [
             "native editing keys"
@@ -223637,7 +223801,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/tasks.js:172 openTaskEditor"
+        "value": "static/js/tasks.js:178 openTaskEditor"
       },
       "id": "dynamic.b019b3c8a6aa",
       "kind": "field",
@@ -223650,7 +223814,7 @@
           "source-local:/api/tasks/"
         ],
         "client_functions": [
-          "static/js/tasks.js:172 openTaskEditor"
+          "static/js/tasks.js:178 openTaskEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -223691,9 +223855,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 187
+          "line": 193
         },
-        "source_selector": "static/js/tasks.js:187:9",
+        "source_selector": "static/js/tasks.js:193:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -223721,15 +223885,28 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 188
+              "line": 194
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 166
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 171
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [
             "native editing keys"
@@ -223764,7 +223941,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/tasks.js:172 openTaskEditor"
+        "value": "static/js/tasks.js:178 openTaskEditor"
       },
       "id": "dynamic.7ccb38eac9a7",
       "kind": "field",
@@ -223777,7 +223954,7 @@
           "source-local:/api/tasks/"
         ],
         "client_functions": [
-          "static/js/tasks.js:172 openTaskEditor"
+          "static/js/tasks.js:178 openTaskEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -223818,9 +223995,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 188
+          "line": 194
         },
-        "source_selector": "static/js/tasks.js:188:10",
+        "source_selector": "static/js/tasks.js:194:10",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -223848,10 +224025,52 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 189
+              "line": 195
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 173
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 199
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 209
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 232
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 272
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 313
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 322
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_tasks_depth.py",
@@ -223863,7 +224082,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -223877,10 +224096,52 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 189
+              "line": 195
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 173
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 199
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 209
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 232
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 272
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 313
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 322
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_tasks_depth.py",
@@ -223892,7 +224153,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [
             "Enter",
@@ -223928,7 +224189,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/tasks.js:172 openTaskEditor"
+        "value": "static/js/tasks.js:178 openTaskEditor"
       },
       "id": "dynamic.1cae8c83183f",
       "kind": "action",
@@ -223941,7 +224202,7 @@
           "source-local:/api/tasks/"
         ],
         "client_functions": [
-          "static/js/tasks.js:172 openTaskEditor"
+          "static/js/tasks.js:178 openTaskEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -223982,9 +224243,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 189
+          "line": 195
         },
-        "source_selector": "static/js/tasks.js:189:11",
+        "source_selector": "static/js/tasks.js:195:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -224019,10 +224280,58 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 189
+              "line": 195
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 94
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 227
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 228
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 267
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 268
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 277
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 319
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 320
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_tasks_depth.py",
@@ -224034,7 +224343,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -224048,10 +224357,58 @@
             "source": {
               "file": "static/js/tasks.js",
               "kind": "control-source",
-              "line": 189
+              "line": 195
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 94
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 227
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 228
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 267
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 268
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 277
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 319
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 320
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_tasks_depth.py",
@@ -224063,7 +224420,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/tasks.js:172 openTaskEditor"
+            "value": "static/js/tasks.js:178 openTaskEditor"
           },
           "keys": [
             "Enter",
@@ -224099,7 +224456,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/tasks.js:172 openTaskEditor"
+        "value": "static/js/tasks.js:178 openTaskEditor"
       },
       "id": "dynamic.a7ad493ef53d",
       "kind": "action",
@@ -224112,7 +224469,7 @@
           "source-local:/api/tasks/"
         ],
         "client_functions": [
-          "static/js/tasks.js:172 openTaskEditor"
+          "static/js/tasks.js:178 openTaskEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -224153,9 +224510,9 @@
         "source": {
           "column": null,
           "file": "static/js/tasks.js",
-          "line": 189
+          "line": 195
         },
-        "source_selector": "static/js/tasks.js:189:12",
+        "source_selector": "static/js/tasks.js:195:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -243606,8 +243963,8 @@
   "summary": {
     "activation_path_evidence": {
       "external-blocked": 3,
-      "source-only": 2124,
-      "test-linked-unclassified": 561
+      "source-only": 2121,
+      "test-linked-unclassified": 564
     },
     "activation_paths": 2688,
     "controls": 1589,

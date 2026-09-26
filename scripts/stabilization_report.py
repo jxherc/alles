@@ -21,7 +21,7 @@ SURFACE_GATES = tuple(
 BROWSER_SUITES = {
     "smoke": SMOKE_GATES,
     "surfaces": SURFACE_GATES,
-    "daily": ("minimal-workflows", "files-workflows", "home-reminders"),
+    "daily": ("minimal-workflows", "plan-workflows", "files-workflows", "home-reminders"),
     "setup": ("setup-auth",),
     "pwa": ("pwa-offline", "pwa-storage", "pwa-rejection"),
     "assistant": ("andromeda-cancellation", "aide-continuity"),
@@ -30,6 +30,7 @@ BROWSER_SUITES = {
         *SMOKE_GATES,
         "cleanup-regressions",
         "minimal-workflows",
+        "plan-workflows",
         "files-workflows",
         "home-reminders",
         "setup-auth",

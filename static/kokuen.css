@@ -761,6 +761,8 @@ body:is(
   color: var(--k-soft, var(--text));
 }
 
+.plan-board-card[hidden] { display: none; }
+
 .plan-board-card:hover,
 .plan-board-card[aria-selected="true"] {
   background: var(--k-hover, var(--panel));
