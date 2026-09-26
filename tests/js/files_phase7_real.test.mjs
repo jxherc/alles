@@ -513,8 +513,8 @@ test('Files mutations capture their location and folder before awaiting', () => 
   const upload = files.match(/async function uploadFiles\(files\)[\s\S]*?\n}\n\nfunction wireChoiceGroup/)[0];
   assert.match(upload, /const locationId = state\.locationId/);
   assert.match(upload, /const cwd = state\.cwd/);
-  assert.match(upload, /body\.append\('location_id', locationId\)/);
-  assert.match(upload, /body\.append\('path', cwd\)/);
+  assert.match(upload, /sendUpload\(file, file\.name, locationId, cwd\)/);
+  assert.match(upload, /reviewUpload\(file, locationId, cwd, error\)/);
   assert.match(upload, /state\.locationId === locationId[\s\S]*state\.cwd === cwd/);
 
   const transfer = files.match(/async function submitTransfer\(\)[\s\S]*?\n}\n\nasync function queueOperation/)[0];
@@ -602,15 +602,52 @@ test('Files async detail mutations ignore a changed location or closed detail pa
   assert.match(star, /state\.current === item[\s\S]*!panel\.hidden/);
 });
 
-test('Files version responses stay bound to the detail request that opened them', () => {
-  assert.match(files, /let detailSequence = 0/);
-  assert.match(files, /const detailRequest = \+\+detailSequence/);
-  assert.match(files, /loadVersions\(path, locationId, detailRequest\)/);
-  const versions = files.match(/async function loadVersions\(path, locationId, detailRequest\)[\s\S]*?\n}\n\nfunction closeDetails/)[0];
-  assert.match(versions, /detailRequest !== detailSequence/);
-  assert.match(versions, /locationId !== state\.locationId/);
-  assert.match(versions, /state\.current !== item/);
-  assert.match(versions, /panel\.hidden/);
+test('Files version results and failures cannot repaint a superseded detail', async () => {
+  const source = files.match(/async function loadVersions\(path, locationId, detailRequest\)[\s\S]*?\n}/)[0];
+  for (const outcome of ['resolve', 'reject']) {
+    for (const change of ['none', 'sequence', 'location', 'item', 'hidden']) {
+      const host = { innerHTML: 'original detail', querySelector: () => null, querySelectorAll: () => [] };
+      const panel = { hidden: false };
+      let finish;
+      const pending = new Promise((resolve, reject) => { finish = outcome === 'resolve' ? resolve : reject; });
+      const context = vm.createContext({
+        state: { current: {}, locationId: 'original' }, detailSequence: 7,
+        $: id => id === 'files-detail-panel' ? panel : host,
+        request: () => pending, query: () => '', esc: value => value,
+      });
+      vm.runInContext(source + '\nglobalThis.load = loadVersions;', context);
+      const result = context.load('notes.txt', 'original', 7);
+      if (change === 'sequence') context.detailSequence += 1;
+      if (change === 'location') context.state.locationId = 'other';
+      if (change === 'item') context.state.current = {};
+      if (change === 'hidden') panel.hidden = true;
+      // Active error rendering needs a real retry button; stale errors must never query it.
+      host.querySelector = () => outcome === 'reject' ? { addEventListener() {} } : null;
+      finish(outcome === 'resolve' ? [] : new Error('version source unavailable'));
+      await result;
+      if (change !== 'none') assert.equal(host.innerHTML, 'original detail', `${outcome}: ${change}`);
+      else if (outcome === 'resolve') assert.equal(host.innerHTML, '');
+      else assert.match(host.innerHTML, /version history unavailable: version source unavailable/);
+    }
+  }
+});
+
+test('Files upload request keeps its captured destination and explicit reviewed identity', async () => {
+  const source = files.match(/function sendUpload\([^)]*\)[\s\S]*?\n}/)[0];
+  const sent = [];
+  const context = vm.createContext({ FormData, request: async (url, options) => { sent.push({ url, options }); } });
+  vm.runInContext(source + '\nglobalThis.send = sendUpload;', context);
+  await context.send(new Blob(['retained draft']), 'renamed.txt', 'captured-location', 'folder', 'reviewed-token');
+  const { url, options } = sent[0];
+  assert.equal(url, '/api/files/upload');
+  assert.equal(options.method, 'POST');
+  assert.equal(options.body.get('location_id'), 'captured-location');
+  assert.equal(options.body.get('path'), 'folder');
+  assert.equal(options.body.get('expected_etag'), 'reviewed-token');
+  assert.equal(options.body.get('file').name, 'renamed.txt');
+  assert.equal(await options.body.get('file').text(), 'retained draft');
+  await context.send(new Blob(['new file']), 'new.txt', 'new-location', '');
+  assert.equal(sent[1].options.body.has('expected_etag'), false);
 });
 
 test('Files operation completion refreshes an open listing even when details are visible', () => {

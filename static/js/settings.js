@@ -1043,6 +1043,9 @@ function _switchPane(name) {
   // a blank modal. fall back to the consolidated General pane.
   if (!document.getElementById(`s-pane-${name}`)) name = 'general';
   _activePane = name;
+  const selected = document.querySelector(`.s-nav-item[data-pane="${CSS.escape(name)}"]`);
+  const context = document.getElementById('settings-pane-title');
+  if (context) context.textContent = selected?.textContent.trim() || '';
   document.querySelectorAll('.s-nav-item').forEach(n =>
     n.classList.toggle('active', n.dataset.pane === name));
   document.querySelectorAll('.s-nav-item').forEach(n =>

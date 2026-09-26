@@ -97,7 +97,7 @@ class GalleryIcons(unittest.TestCase):
                 "async function uploadPhotos"
             )
         ]
-        self.assertIn("_cellHtml(p, restore)", block)
+        self.assertIn("_cellHtml(p, null, null, restore, false)", block)
         self.assertNotIn('<img loading="lazy" src="${p.thumb}" alt="">', block)
         self.assertIn("extra = ''", _photos_fn("_cellHtml"))
 

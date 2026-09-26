@@ -40,9 +40,19 @@ the digest is refreshed for those offsets without approving any new warning.
 The real-app contrast and switch gates supplement
 the unchanged source-level acceptance; warning reconciliation alone is not visual proof.
 
+The September 26 Files recovery rules move existing source positions without adding warning
+semantics. A comparison against the preceding commit retains the same 192 severity/rule/message
+tuples. Transfer error reasons use 14px text; their wrapping and scroll clearance are checked in the
+Files transfer browser gate at desktop and phone widths, including constrained height.
+
 This is a source-level advisory audit. It supplements, and does not replace, real rendered checks for
 one perceived boundary, focus clipping, target size, text legibility, zoom, responsive layout, and
 reduced motion.
 
 The companion regression also scans shipped CSS, HTML, and dynamic JavaScript templates for `rem` or
 pixel text below 12px, closing the legacy source and inline-style gap outside the overlay.
+
+The Server feedback and Settings context additions likewise retain the same
+192 warning semantics. Settings' persistent section name uses 14px essential text;
+its wrapping header and close target have narrow-width browser checks. Source
+positions are refreshed after the scoped rules are inserted.

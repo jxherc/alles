@@ -41,6 +41,9 @@ COMMANDS = {
     "minimal-workflows": ("tests/pw_minimal_workflows.py",),
     "docs-editor-loading": ("tests/pw_docs_editor_loading.py",),
     "files-workflows": ("tests/pw_phase7_files_real.py",),
+    "files-upload-recovery": ("tests/pw_files_upload_recovery.py",),
+    "files-transfer-clearance": ("tests/pw_files_transfer_clearance.py",),
+    "gallery-workflows": ("tests/pw_gallery_workflows.py",),
     "plan-workflows": ("tests/pw_plan_workflows.py",),
     "plan-recovery": ("tests/pw_plan_recovery.py",),
     "calendar-workflows": ("tests/pw_calendar_workflows.py",),
@@ -57,6 +60,8 @@ COMMANDS = {
     "setup-auth": ("tests/pw_setup_auth.py",),
     "settings-recovery": ("tests/pw_settings_recovery.py",),
     "settings-language-badges": ("tests/pw_settings_language_badges.py",),
+    "settings-context": ("tests/pw_settings_context.py",),
+    "server-recovery": ("tests/pw_server_recovery.py",),
     "home-reminders": ("tests/pw_today_reminders.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     **{
