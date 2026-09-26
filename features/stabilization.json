@@ -1419,8 +1419,8 @@
       "id": "home.reminder-local-time",
       "feature": "home.capture-and-navigation",
       "app": "home",
-      "workflow": "show reminders on the viewer’s local day and clock",
-      "expected": "Use the viewer’s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "workflow": "show reminders on the viewer\u2019s local day and clock",
+      "expected": "Use the viewer\u2019s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -1551,6 +1551,71 @@
       "app": "plan",
       "workflow": "move a task, fail the next move with a simulated HTTP 503, then retry",
       "expected": "The first move persists; a rejected move leaves the saved stage unchanged and a keyboard retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.book-note-recovery",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "recover a rejected book note save",
+      "expected": "A failed HTTP or network save keeps the exact note and exposes a retry; pending fields cannot accept lost edits; a successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.book-controls",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "edit notes and reading goal with the keyboard",
+      "expected": "Tab and Enter reach existing notes and goals; controls retain 44px targets and remove does not cover long mixed-language title text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.saved-url-recovery",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "recover a failed or unconfirmed URL save",
+      "expected": "HTTP, network, malformed and incomplete acknowledgments retain the URL and recoverable action without false success; a successful local retry creates exactly one item that survives reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.saved-keyboard-reading",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "search and open saved reading with keyboard and touch",
+      "expected": "A synthetic saved article is searchable, opens through keyboard and phone touch, persists read state and returns focus to its opening control.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.url-loading-draft",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "continue URL entry while saved reading loads",
+      "expected": "Initial list completion and a delayed search preserve the current URL input, caret and keyboard focus so subsequent typed characters are retained.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -1973,7 +2038,7 @@
     },
     {
       "id": "STAB-022",
-      "title": "Home filters and labels reminders in UTC instead of the viewer’s time",
+      "title": "Home filters and labels reminders in UTC instead of the viewer\u2019s time",
       "severity": "medium",
       "screen": "Home reminders near a date boundary or daylight-saving change",
       "revision": "93ed1a2",
@@ -2075,7 +2140,7 @@
       "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
       "status": "fixed-and-verified",
       "reproduction": [
-        "Open a real task editor by pointer or touch at 390×900.",
+        "Open a real task editor by pointer or touch at 390\u00d7900.",
         "Inspect and hit-test the left edge of title, notes and form labels."
       ],
       "expected": "Keep all editor fields visible and reachable above the background navigation.",
@@ -2095,7 +2160,7 @@
       "status": "fixed-and-verified",
       "reproduction": [
         "Populate tasks with ordinary due dates, priorities, tags and longer mixed-language titles.",
-        "Inspect the list at 390×900."
+        "Inspect the list at 390\u00d7900."
       ],
       "expected": "Give task titles a readable width and wrap metadata onto appropriate lines.",
       "actual": "One title shrinks to 44px width and its row grows to 308px tall.",
@@ -2130,7 +2195,7 @@
       "severity": "high",
       "screen": "Library books, existing note editor",
       "revision": "93ed1a2 with source fingerprint 0af46ab359fee73387cfbd2b9fe6a1a378d882f7cd66239eaa010fce6e06fec8",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Add a synthetic book and save its first note.",
         "Edit that note, simulate HTTP 503 for its PATCH, and click save.",
@@ -2142,7 +2207,7 @@
         "/tmp/alles-library-audit-report.md",
         "/tmp/alles-library-audit/book-observations.json"
       ],
-      "verification": "Reproduced with synthetic owned data, real saved results and explicit transport simulations. Repair is in a separate isolated copy; no fix is claimed in this checkpoint. Native Safari/iPhone and full Library acceptance remain unverified."
+      "verification": "Current integrated Library gate passes all 10 desktop/phone workflow checks in Chromium (/tmp/alles-stabilization-library-full-5/library-workflows/result.json) and supplementary WebKit 26.5 (/tmp/alles-library-webkit-6/library-webkit/result.json). HTTP/network/invalid acknowledgment and delayed-load conditions are explicit simulations; API readback/reload proves real local persistence. Source review is clean. Manual screenshots and browser-computed contrast show read text at 5.024:1 dark and 5.035:1 light; initial-load continued typing also passed in both engines (/tmp/alles-library-input-after/library-input/observations.json). One current full 20-gate run passed; another current full run failed Docs recovery and Finance test scrolling and is retained under full-4 for diagnosis. These are not two clean full runs or complete Library/device/provider acceptance."
     },
     {
       "id": "STAB-031",
@@ -2150,18 +2215,20 @@
       "severity": "medium",
       "screen": "Library saved URL capture",
       "revision": "93ed1a2 with source fingerprint 0af46ab359fee73387cfbd2b9fe6a1a378d882f7cd66239eaa010fce6e06fec8",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Enter a synthetic URL and submit with the save POST returning a simulated 503.",
-        "Repeat with an explicit simulated network rejection."
+        "Repeat with an explicit simulated network rejection.",
+        "Return HTTP 200 with null or an empty object; inspect the draft, notice and actual local records."
       ],
       "expected": "Retain the URL and restore a usable save/retry action for both failures.",
-      "actual": "HTTP errors rebuild a blank field; network errors leave saving disabled and raise an unhandled rejection.",
+      "actual": "HTTP errors rebuild a blank field; network errors leave saving disabled and raise an unhandled rejection. Null or empty-object acknowledgments also clear the URL; an empty object reports saved with undefined reading time despite no stored item.",
       "evidence": [
         "/tmp/alles-library-audit-report.md",
-        "/tmp/alles-library-audit/saved-observations.json"
+        "/tmp/alles-library-audit/saved-observations.json",
+        "/tmp/alles-library-audit-ack-before/observations.json"
       ],
-      "verification": "Reproduced with synthetic owned data, real saved results and explicit transport simulations. Repair is in a separate isolated copy; no fix is claimed in this checkpoint. Native Safari/iPhone and full Library acceptance remain unverified."
+      "verification": "Current integrated Library gate passes all 10 desktop/phone workflow checks in Chromium (/tmp/alles-stabilization-library-full-5/library-workflows/result.json) and supplementary WebKit 26.5 (/tmp/alles-library-webkit-6/library-webkit/result.json). HTTP/network/invalid acknowledgment and delayed-load conditions are explicit simulations; API readback/reload proves real local persistence. Source review is clean. Manual screenshots and browser-computed contrast show read text at 5.024:1 dark and 5.035:1 light; initial-load continued typing also passed in both engines (/tmp/alles-library-input-after/library-input/observations.json). One current full 20-gate run passed; another current full run failed Docs recovery and Finance test scrolling and is retained under full-4 for diagnosis. These are not two clean full runs or complete Library/device/provider acceptance."
     },
     {
       "id": "STAB-032",
@@ -2169,7 +2236,7 @@
       "severity": "high",
       "screen": "Library saved reader and books note/goal actions",
       "revision": "93ed1a2 with source fingerprint 0af46ab359fee73387cfbd2b9fe6a1a378d882f7cd66239eaa010fce6e06fec8",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Use Tab and Enter to open a saved article.",
         "After saving a book note and nonzero reading goal, try to edit each using keyboard navigation."
@@ -2180,7 +2247,7 @@
         "/tmp/alles-library-audit-report.md",
         "/tmp/alles-library-audit/final-observations.json"
       ],
-      "verification": "Reproduced with synthetic owned data, real saved results and explicit transport simulations. Repair is in a separate isolated copy; no fix is claimed in this checkpoint. Native Safari/iPhone and full Library acceptance remain unverified."
+      "verification": "Current integrated Library gate passes all 10 desktop/phone workflow checks in Chromium (/tmp/alles-stabilization-library-full-5/library-workflows/result.json) and supplementary WebKit 26.5 (/tmp/alles-library-webkit-6/library-webkit/result.json). HTTP/network/invalid acknowledgment and delayed-load conditions are explicit simulations; API readback/reload proves real local persistence. Source review is clean. Manual screenshots and browser-computed contrast show read text at 5.024:1 dark and 5.035:1 light; initial-load continued typing also passed in both engines (/tmp/alles-library-input-after/library-input/observations.json). One current full 20-gate run passed; another current full run failed Docs recovery and Finance test scrolling and is retained under full-4 for diagnosis. These are not two clean full runs or complete Library/device/provider acceptance."
     },
     {
       "id": "STAB-033",
@@ -2188,7 +2255,7 @@
       "severity": "medium",
       "screen": "Library populated book cards on desktop and phone",
       "revision": "93ed1a2 with source fingerprint 0af46ab359fee73387cfbd2b9fe6a1a378d882f7cd66239eaa010fce6e06fec8",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Add a long mixed-language book title.",
         "At desktop and 390px phone widths, inspect glyphs beneath the remove action and hit-test their centers."
@@ -2199,7 +2266,7 @@
         "/tmp/alles-library-audit-report.md",
         "/tmp/alles-library-audit/phone-observations.json"
       ],
-      "verification": "Reproduced with synthetic owned data, real saved results and explicit transport simulations. Repair is in a separate isolated copy; no fix is claimed in this checkpoint. Native Safari/iPhone and full Library acceptance remain unverified."
+      "verification": "Current integrated Library gate passes all 10 desktop/phone workflow checks in Chromium (/tmp/alles-stabilization-library-full-5/library-workflows/result.json) and supplementary WebKit 26.5 (/tmp/alles-library-webkit-6/library-webkit/result.json). HTTP/network/invalid acknowledgment and delayed-load conditions are explicit simulations; API readback/reload proves real local persistence. Source review is clean. Manual screenshots and browser-computed contrast show read text at 5.024:1 dark and 5.035:1 light; initial-load continued typing also passed in both engines (/tmp/alles-library-input-after/library-input/observations.json). One current full 20-gate run passed; another current full run failed Docs recovery and Finance test scrolling and is retained under full-4 for diagnosis. These are not two clean full runs or complete Library/device/provider acceptance."
     },
     {
       "id": "STAB-034",
@@ -2255,6 +2322,339 @@
         "/tmp/alles-plan-concurrency-audit/observations.json"
       ],
       "verification": "Reproduced on desktop and phone with owned synthetic data and real saved outcomes. Only named response delays were simulated. No shared repair applied; same-field intentional last-write behavior alone is not asserted as an additional defect."
+    },
+    {
+      "id": "STAB-037",
+      "title": "Read Library cards fade useful text below accessible contrast",
+      "severity": "medium",
+      "screen": "Library saved reading, marked-read cards in light and dark themes",
+      "revision": "dcf802e with pending Library batch; source 0950914294c22f48965de2afbca6dcee18f8e07c88a1019f8686a4e7ce35057b",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Save a synthetic article, open it and return to the list so it is marked read.",
+        "Inspect its title, excerpt and metadata in both themes at 390px; measure browser-computed colors after the card opacity is composited."
+      ],
+      "expected": "Saved content remains readable after it is marked read; ordinary text meets 4.5:1 contrast.",
+      "actual": "The 0.62 card opacity reduces excerpt/metadata contrast to 2.580:1 in dark mode and 2.437:1 in light mode; light title contrast is 4.169:1.",
+      "evidence": [
+        "/tmp/alles-library-contrast-before/library-contrast/observations.json",
+        "/tmp/alles-library-contrast-before/library-contrast/contrast.json",
+        "/tmp/alles-library-contrast-before/library-contrast/light.png",
+        "/tmp/alles-library-contrast-before/library-contrast/dark.png"
+      ],
+      "verification": "Current integrated Library gate passes all 10 desktop/phone workflow checks in Chromium (/tmp/alles-stabilization-library-full-5/library-workflows/result.json) and supplementary WebKit 26.5 (/tmp/alles-library-webkit-6/library-webkit/result.json). HTTP/network/invalid acknowledgment and delayed-load conditions are explicit simulations; API readback/reload proves real local persistence. Source review is clean. Manual screenshots and browser-computed contrast show read text at 5.024:1 dark and 5.035:1 light; initial-load continued typing also passed in both engines (/tmp/alles-library-input-after/library-input/observations.json). One current full 20-gate run passed; another current full run failed Docs recovery and Finance test scrolling and is retained under full-4 for diagnosis. These are not two clean full runs or complete Library/device/provider acceptance."
+    },
+    {
+      "id": "STAB-038",
+      "title": "Reading list refresh steals URL focus and loses continued typing",
+      "severity": "medium",
+      "screen": "Library Saved URL capture during initial or search loading",
+      "revision": "dcf802e with pending Library batch",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Hold the initial saved-item and statistics requests, then type a URL prefix into its visible field.",
+        "Release the requests and continue typing without clicking the field again.",
+        "Repeat after a search starts loading and focus has moved to URL capture."
+      ],
+      "expected": "Refreshing the list preserves the active input and caret; every typed character reaches the current field.",
+      "actual": "Both Chromium and WebKit remove focus on initial-load completion, so the URL suffix is lost. Earlier search focus can also be restored after the user has moved to the URL field.",
+      "evidence": [
+        "/tmp/alles-library-input-before/library-input/observations.json",
+        "/tmp/alles-library-webkit-4/library-webkit/gate.log"
+      ],
+      "verification": "Current integrated Library gate passes all 10 desktop/phone workflow checks in Chromium (/tmp/alles-stabilization-library-full-5/library-workflows/result.json) and supplementary WebKit 26.5 (/tmp/alles-library-webkit-6/library-webkit/result.json). HTTP/network/invalid acknowledgment and delayed-load conditions are explicit simulations; API readback/reload proves real local persistence. Source review is clean. Manual screenshots and browser-computed contrast show read text at 5.024:1 dark and 5.035:1 light; initial-load continued typing also passed in both engines (/tmp/alles-library-input-after/library-input/observations.json). One current full 20-gate run passed; another current full run failed Docs recovery and Finance test scrolling and is retained under full-4 for diagnosis. These are not two clean full runs or complete Library/device/provider acceptance."
+    },
+    {
+      "id": "STAB-039",
+      "title": "Rejected contact save loses the editor draft and reports success",
+      "severity": "high",
+      "screen": "Inbox Contacts detail",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Edit a saved contact note; return a simulated HTTP 503 for its PATCH; press Save and reopen."
+      ],
+      "expected": "Keep the editor draft and show a persistent retryable failure.",
+      "actual": "The editor closes and reports saved while the real API retains the old note.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/contacts-observations.json",
+        "/tmp/alles-inbox-audit/contact-save-rejected.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-040",
+      "title": "Rejected contact creation clears input and reports success",
+      "severity": "high",
+      "screen": "Inbox Contacts new-contact form",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Fill name, email and phone; return HTTP 503 for POST; press Add and inspect the real list."
+      ],
+      "expected": "Retain all entered fields and report failure without claiming a contact exists.",
+      "actual": "Fields clear and contact added appears, although no matching record was saved.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/contacts-observations.json",
+        "/tmp/alles-inbox-audit/contact-create-rejected.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-041",
+      "title": "Adding a contact field discards other unsaved scalar edits",
+      "severity": "high",
+      "screen": "Inbox Contacts detail with extra fields",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Edit notes without saving; add an extra email field; inspect the note and real saved contact."
+      ],
+      "expected": "Adding a field preserves the other pending changes and their save boundary.",
+      "actual": "The new field persists but the editor reloads the old saved notes over the unsaved draft.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/contact-adjacent-observations.json",
+        "/tmp/alles-inbox-audit/contact-field-loses-scalar-draft.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-042",
+      "title": "Closing a mail draft overlooks unsaved body-only changes",
+      "severity": "high",
+      "screen": "Inbox Mail composer",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Open a saved draft; change only the contenteditable body; close and reopen it. Repeat after a rejected or aborted draft save."
+      ],
+      "expected": "Protect body changes with the same discard decision used for subject changes.",
+      "actual": "The composer closes without warning and reopening returns the old body; subject-only changes do warn.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/mail-adjacent-observations.json",
+        "/tmp/alles-inbox-audit/mail-failure-observations.json",
+        "/tmp/alles-inbox-audit/draft-body-only-close.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-043",
+      "title": "Failed contact and mail-draft list requests look like empty accounts",
+      "severity": "medium",
+      "screen": "Inbox Contacts and Mail Drafts",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "With saved records present, return HTTP 503 JSON from a searched contacts GET and a mail drafts GET."
+      ],
+      "expected": "Report unavailable data with recovery instead of claiming the account is empty.",
+      "actual": "The screens say no contacts or no drafts even though real API reads return saved records.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/contacts-observations.json",
+        "/tmp/alles-inbox-audit/mail-final-observations.json",
+        "/tmp/alles-inbox-audit/contacts-search-failed.png",
+        "/tmp/alles-inbox-audit/phone-draft-list-rejected.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-044",
+      "title": "Double contact submission creates duplicate records",
+      "severity": "medium",
+      "screen": "Inbox Contacts new-contact form",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Hold contact POST responses; double-click Add once; release both requests to the real server."
+      ],
+      "expected": "Allow one pending submission and store one contact.",
+      "actual": "The action remains enabled; two requests persist separate IDs with identical details.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/contact-adjacent-observations.json",
+        "/tmp/alles-inbox-audit/contact-double-submit.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-045",
+      "title": "Inbox actions are invisible on touch and keyboard focus",
+      "severity": "medium",
+      "screen": "Inbox contact row actions and mail row label action",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "At 390px touch width inspect contact Open/Delete before hover; in Mail Tab to add a label."
+      ],
+      "expected": "Essential touch controls are visible, and keyboard focus exposes the focused action.",
+      "actual": "Contact actions have zero opacity before touch; the focused mail label action also remains at zero opacity.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/phone-geometry-observations.json",
+        "/tmp/alles-inbox-audit/mail-final-observations.json",
+        "/tmp/alles-inbox-audit/phone-contact-actions-before-touch.png",
+        "/tmp/alles-inbox-audit/phone-mail-focused-invisible-action.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-046",
+      "title": "The phone contact Add action extends past the viewport",
+      "severity": "medium",
+      "screen": "Inbox Contacts footer at 390px",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Open Contacts at 390px with an empty or populated account; inspect and measure the Add action."
+      ],
+      "expected": "Keep the complete label and target inside the phone working pane.",
+      "actual": "Add occupies x=360.39 through 404.39, clipping about 14.39px and part of its label; the remaining fragment is tappable.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/phone-geometry-observations.json",
+        "/tmp/alles-inbox-audit/phone-contact-add-clipped.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-047",
+      "title": "Phone mail rows squeeze ordinary senders to one initial",
+      "severity": "medium",
+      "screen": "Inbox populated mail list at 390px",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Populate cached headers with ordinary sender names and inspect the phone rows before hover."
+      ],
+      "expected": "Give sender and message identity readable space while retaining reachable actions.",
+      "actual": "Sender text measures 16.52px because hidden row actions reserve 229.56px; names truncate to an initial and ellipsis.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/mail-final-observations.json",
+        "/tmp/alles-inbox-audit/phone-mail-populated.png",
+        "/tmp/alles-inbox-audit/phone-mail-sender-before-touch.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-048",
+      "title": "Mail and draft rows lack a keyboard opening control",
+      "severity": "medium",
+      "screen": "Inbox Mail and Drafts lists",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "With a saved draft and cached headers present, Tab through each list and attempt to open its content."
+      ],
+      "expected": "Expose a labeled keyboard action for opening each row before destructive or secondary actions.",
+      "actual": "Draft focus skips to the destructive cross; ordinary messages expose only the label action. Opening rows requires pointer input.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/mail-adjacent-observations.json",
+        "/tmp/alles-inbox-audit/mail-final-observations.json",
+        "/tmp/alles-inbox-audit/draft-keyboard-skips-open.png"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-049",
+      "title": "Contact name editing has no accessible label",
+      "severity": "medium",
+      "screen": "Inbox Contacts detail",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Open an existing contact and inspect the accessible name of its editable name field."
+      ],
+      "expected": "The name field announces its purpose independently of its current value.",
+      "actual": "The editable name is an unnamed textbox; neighboring email and phone fields are labeled.",
+      "evidence": [
+        "/tmp/alles-inbox-audit-report.md",
+        "/tmp/alles-inbox-audit/phone-contact-detail-light.txt",
+        "/tmp/alles-inbox-audit/desktop-contact-detail.txt",
+        "/tmp/alles-inbox-audit/phone-observations.json"
+      ],
+      "verification": "Reproduced in an isolated product copy with owned synthetic records, real persistence readback and explicit transport simulations where stated. Shared checkout unchanged by the audit. Repairs in progress; no fix or live-provider acceptance is claimed."
+    },
+    {
+      "id": "STAB-050",
+      "title": "Phone Vault toolbar and keyboard scrolling hide primary actions and entries",
+      "severity": "high",
+      "screen": "Vault at 390px",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Unlock a populated Vault at 390px; Tab to the off-screen new action, create a secret and save."
+      ],
+      "expected": "Keep primary actions and entry names within the visible working pane after keyboard actions.",
+      "actual": "The 338px panel contains 750px of content. Focus scrolls the clipped pane by 276px, leaving entry-open buttons at x=-194 through -24 after save. Secret creation itself persists.",
+      "evidence": [
+        "/tmp/alles-backup-audit-report.md",
+        "/tmp/alles-backup-audit-phone-keyboard/observations.json",
+        "/tmp/alles-backup-audit-phone-keyboard/after-keyboard-create.png"
+      ],
+      "verification": "Reproduced with owned synthetic data. Encrypted export/staging and direct recovery-service restoration passed, including restored Vault decryption. Transport resets and recent-auth timestamps are controlled simulations; host-supervisor and external destinations remain unverified. UI repairs pending."
+    },
+    {
+      "id": "STAB-051",
+      "title": "Local backup and recovery-key pickers cannot be reached by keyboard",
+      "severity": "medium",
+      "screen": "Settings backup and restore file actions",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Focus download recovery key and Tab through the next actions on desktop or phone."
+      ],
+      "expected": "Both local file choices are keyboard reachable and meet 44px target size.",
+      "actual": "Focus skips the labels wrapping hidden inputs and goes directly to WebDAV; the visible local targets are 36px high.",
+      "evidence": [
+        "/tmp/alles-backup-audit-report.md",
+        "/tmp/alles-backup-audit-run5/observations.json"
+      ],
+      "verification": "Reproduced with owned synthetic data. Encrypted export/staging and direct recovery-service restoration passed, including restored Vault decryption. Transport resets and recent-auth timestamps are controlled simulations; host-supervisor and external destinations remain unverified. UI repairs pending."
+    },
+    {
+      "id": "STAB-052",
+      "title": "Interrupted local restore upload stays busy and cannot retry the same file",
+      "severity": "medium",
+      "screen": "Settings local restore upload",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Select a backup, reset its POST connection before a response, then select the same file again."
+      ],
+      "expected": "Show failure, reset busy and file-selection state, and allow a same-file retry without reloading.",
+      "actual": "The status remains checking backup, an unhandled fetch rejection occurs, and same-file selection sends zero new requests.",
+      "evidence": [
+        "/tmp/alles-backup-audit-report.md",
+        "/tmp/alles-backup-audit-run5/observations.json",
+        "/tmp/alles-backup-audit-run5/phone/backup-network-stuck.png"
+      ],
+      "verification": "Reproduced with owned synthetic data. Encrypted export/staging and direct recovery-service restoration passed, including restored Vault decryption. Transport resets and recent-auth timestamps are controlled simulations; host-supervisor and external destinations remain unverified. UI repairs pending."
+    },
+    {
+      "id": "STAB-053",
+      "title": "Local restore cannot renew expired owner confirmation",
+      "severity": "medium",
+      "screen": "Settings local restore upload after confirmation expiry",
+      "revision": "dcf802e47d5efd3936fdeb7cfe00fa59ce731853",
+      "status": "confirmed",
+      "reproduction": [
+        "Expire recent-owner confirmation and select a local backup."
+      ],
+      "expected": "Offer owner confirmation and resume the selected upload on confirmation, with clear cancellation.",
+      "actual": "The local handler shows recent owner authentication required and clears the file; retry repeats the dead end. Export and remote restore already have confirmation paths.",
+      "evidence": [
+        "/tmp/alles-backup-audit-report.md",
+        "/tmp/alles-backup-audit-run5/observations.json",
+        "/tmp/alles-backup-audit-expired-auth/proof.log"
+      ],
+      "verification": "Reproduced with owned synthetic data. Encrypted export/staging and direct recovery-service restoration passed, including restored Vault decryption. Transport resets and recent-auth timestamps are controlled simulations; host-supervisor and external destinations remain unverified. UI repairs pending."
     }
   ],
   "additional_surfaces": [

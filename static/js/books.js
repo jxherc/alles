@@ -9,6 +9,9 @@ const $ = id => document.getElementById(id);
 let _data = { shelves: { want: [], reading: [], done: [] }, this_year: 0, total: 0 };
 let _adding = false;
 let _editingNotes = null;
+const _noteDrafts = new Map();
+const _noteErrors = new Map();
+const _savingNotes = new Set();
 let _lookup = [];
 let _fetcher = fetch;
 let _hasOverview = false;
@@ -81,8 +84,8 @@ function _card(b) {
         ${_stars(b)}
         <div class="book-move">${others.map(k => `<button class="book-move-btn" data-move="${k}">${k === 'done' ? 'read' : k === 'reading' ? 'reading' : 'want'}</button>`).join('')}</div>
         ${b.id === _editingNotes
-          ? `<div class="book-notes-edit"><textarea class="settings-input" data-f="notes" rows="3" placeholder="your notes…">${esc(b.notes)}</textarea><div class="book-notes-actions"><button class="btn primary" data-act="save-notes">save</button><button class="btn" data-act="cancel-notes">cancel</button></div></div>`
-          : (b.notes ? `<div class="book-notes" data-act="notes">${esc(b.notes)}</div>` : `<button class="book-add-note" data-act="notes">+ note</button>`)}
+          ? `<div class="book-notes-edit"><textarea class="settings-input" data-f="notes" rows="3" placeholder="your notes…">${esc(_noteDrafts.get(b.id) ?? b.notes)}</textarea>${_noteErrors.has(b.id) ? `<p class="book-notes-error" role="alert">${esc(_noteErrors.get(b.id))}</p>` : ''}<div class="book-notes-actions"><button class="btn primary" data-act="save-notes">save</button><button class="btn" data-act="cancel-notes">cancel</button></div></div>`
+          : (b.notes ? `<button type="button" class="book-notes" data-act="notes" aria-label="edit notes for ${esc(b.title)}">${esc(b.notes)}</button>` : `<button class="book-add-note" data-act="notes">+ note</button>`)}
       </div>
       <button class="icon-btn danger book-del" data-act="del" title="remove">${_si('trash')}</button>
     </div>`;
@@ -99,10 +102,10 @@ function _render() {
   }).join('');
   const goal = _data.goal || 0, yr = _data.this_year || 0;
   const goalHtml = goal > 0
-    ? `<div class="books-goal" data-act="set-goal" title="reading goal: click to change">
+    ? `<button type="button" class="books-goal" data-act="set-goal" title="reading goal: click to change">
          <span>${yr} / ${goal} this year${yr >= goal ? ' ✓' : ''}</span>
          <div class="books-goal-bar"><i style="width:${Math.min(100, Math.round(yr / goal * 100))}%"></i></div>
-       </div>`
+       </button>`
     : `<button class="books-goal-set" data-act="set-goal">+ reading goal</button>`;
   body.innerHTML = `
     <div class="books-bar">
@@ -197,6 +200,13 @@ function _wire(body) {
 
   body.querySelectorAll('.book-card[data-id]').forEach(card => {
     const id = card.dataset.id;
+    card.querySelector('[data-f="notes"]')?.addEventListener('input', e => {
+      _noteDrafts.set(id, e.target.value);
+    });
+    if (_savingNotes.has(id)) {
+      card.setAttribute('aria-busy', 'true');
+      card.querySelectorAll('button, textarea').forEach(control => { control.disabled = true; });
+    }
     card.querySelectorAll('.book-star').forEach(s => s.addEventListener('click', async () => {
       await fetch(`/api/books/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rating: +s.dataset.rate }) }); loadBooks();
     }));
@@ -205,12 +215,33 @@ function _wire(body) {
     }));
     card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
       const act = btn.dataset.act;
-      if (act === 'notes') { _editingNotes = id; _render(); return; }
-      if (act === 'cancel-notes') { _editingNotes = null; _render(); return; }
+      if (act === 'notes') { _editingNotes = id; _render(); body.querySelector('.book-notes-edit textarea')?.focus(); return; }
+      if (act === 'cancel-notes') { _noteDrafts.delete(id); _noteErrors.delete(id); _editingNotes = null; _render(); body.querySelector(`.book-card[data-id="${id}"] [data-act="notes"]`)?.focus(); return; }
       if (act === 'save-notes') {
+        if (_savingNotes.has(id)) return;
         const v = card.querySelector('[data-f="notes"]').value;
-        await fetch(`/api/books/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ notes: v }) });
-        _editingNotes = null; toast('saved', 'success'); loadBooks(); return;
+        _noteDrafts.set(id, v);
+        _noteErrors.delete(id);
+        _savingNotes.add(id);
+        _render();
+        try {
+          const response = await _fetcher(`/api/books/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ notes: v }) });
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(typeof error.detail === 'string' ? error.detail : 'Notes could not be saved. Try again.');
+          }
+          _noteDrafts.delete(id);
+          if (_editingNotes === id) _editingNotes = null;
+          toast('saved', 'success');
+          await loadBooks();
+        } catch (error) {
+          _noteErrors.set(id, error instanceof TypeError ? 'Could not connect. Check your connection and try again.' : (error.message || 'Notes could not be saved. Try again.'));
+        } finally {
+          _savingNotes.delete(id);
+          _render();
+          body.querySelector(`.book-card[data-id="${id}"] ${_editingNotes === id ? 'textarea' : '[data-act="notes"]'}`)?.focus();
+        }
+        return;
       }
       if (act === 'del') {
         if (!await dlgConfirm('remove this book?')) return;

@@ -156,6 +156,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 91
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_offline_11b.py",
                 "kind": "existing-test-control-reference",
                 "line": 79
@@ -416,6 +422,12 @@
                 "file": "tests/pw_legacy_text_contrast.py",
                 "kind": "existing-test-control-reference",
                 "line": 112
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 91
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -4579,6 +4591,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 104
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_offline_rejection.py",
                 "kind": "existing-test-control-reference",
                 "line": 251
@@ -4809,6 +4827,12 @@
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
                 "line": 853
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 104
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -62340,6 +62364,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 113
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_model_auth_real.py",
                 "kind": "existing-test-control-reference",
                 "line": 132
@@ -62468,6 +62498,12 @@
                 "file": "tests/pw_health_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 102
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 113
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -117502,7 +117538,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 37
+              "line": 40
             },
             "status": "source-only",
             "tests": []
@@ -117510,7 +117546,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:33 _loadNotice"
+            "value": "static/js/books.js:36 _loadNotice"
           },
           "keys": [],
           "modality": "pointer",
@@ -117524,7 +117560,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 37
+              "line": 40
             },
             "status": "source-only",
             "tests": []
@@ -117532,7 +117568,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:33 _loadNotice"
+            "value": "static/js/books.js:36 _loadNotice"
           },
           "keys": [
             "Enter",
@@ -117569,7 +117605,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:33 _loadNotice"
+        "value": "static/js/books.js:36 _loadNotice"
       },
       "id": "dynamic.ae01d3dc7e87",
       "kind": "action",
@@ -117580,7 +117616,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:33 _loadNotice"
+          "static/js/books.js:36 _loadNotice"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -117621,9 +117657,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 37
+          "line": 40
         },
-        "source_selector": "static/js/books.js:37:1",
+        "source_selector": "static/js/books.js:40:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -117660,7 +117696,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 61
+              "line": 64
             },
             "status": "source-only",
             "tests": []
@@ -117668,7 +117704,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:59 _stars"
+            "value": "static/js/books.js:62 _stars"
           },
           "keys": [],
           "modality": "pointer",
@@ -117682,7 +117718,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 61
+              "line": 64
             },
             "status": "source-only",
             "tests": []
@@ -117690,7 +117726,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:59 _stars"
+            "value": "static/js/books.js:62 _stars"
           },
           "keys": [
             "Enter",
@@ -117727,7 +117763,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:59 _stars"
+        "value": "static/js/books.js:62 _stars"
       },
       "id": "dynamic.167f7d74f818",
       "kind": "choice",
@@ -117738,7 +117774,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:59 _stars"
+          "static/js/books.js:62 _stars"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -117779,9 +117815,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 61
+          "line": 64
         },
-        "source_selector": "static/js/books.js:61:2",
+        "source_selector": "static/js/books.js:64:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -117816,7 +117852,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 82
+              "line": 85
             },
             "status": "source-only",
             "tests": []
@@ -117824,7 +117860,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
+            "value": "static/js/books.js:76 _card"
           },
           "keys": [],
           "modality": "pointer",
@@ -117838,7 +117874,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 82
+              "line": 85
             },
             "status": "source-only",
             "tests": []
@@ -117846,7 +117882,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
+            "value": "static/js/books.js:76 _card"
           },
           "keys": [
             "Enter",
@@ -117883,7 +117919,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:73 _card"
+        "value": "static/js/books.js:76 _card"
       },
       "id": "dynamic.555afa5cfb64",
       "kind": "action",
@@ -117894,7 +117930,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:73 _card"
+          "static/js/books.js:76 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -117935,9 +117971,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 82
+          "line": 85
         },
-        "source_selector": "static/js/books.js:82:4",
+        "source_selector": "static/js/books.js:85:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -117972,7 +118008,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 84
+              "line": 87
             },
             "status": "source-only",
             "tests": []
@@ -117980,7 +118016,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
+            "value": "static/js/books.js:76 _card"
           },
           "keys": [
             "native editing keys"
@@ -118016,7 +118052,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:73 _card"
+        "value": "static/js/books.js:76 _card"
       },
       "id": "dynamic.dd0bd0bdf12d",
       "kind": "field",
@@ -118027,7 +118063,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:73 _card"
+          "static/js/books.js:76 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -118068,9 +118104,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 84
+          "line": 87
         },
-        "source_selector": "static/js/books.js:84:5",
+        "source_selector": "static/js/books.js:87:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -118098,7 +118134,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 84
+              "line": 87
             },
             "status": "source-only",
             "tests": []
@@ -118106,7 +118142,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
+            "value": "static/js/books.js:76 _card"
           },
           "keys": [],
           "modality": "pointer",
@@ -118120,7 +118156,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 84
+              "line": 87
             },
             "status": "source-only",
             "tests": []
@@ -118128,7 +118164,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
+            "value": "static/js/books.js:76 _card"
           },
           "keys": [
             "Enter",
@@ -118165,7 +118201,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:73 _card"
+        "value": "static/js/books.js:76 _card"
       },
       "id": "dynamic.8ceb6efb608a",
       "kind": "action",
@@ -118176,7 +118212,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:73 _card"
+          "static/js/books.js:76 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -118217,9 +118253,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 84
+          "line": 87
         },
-        "source_selector": "static/js/books.js:84:6",
+        "source_selector": "static/js/books.js:87:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -118254,7 +118290,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 84
+              "line": 87
             },
             "status": "source-only",
             "tests": []
@@ -118262,7 +118298,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
+            "value": "static/js/books.js:76 _card"
           },
           "keys": [],
           "modality": "pointer",
@@ -118276,7 +118312,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 84
+              "line": 87
             },
             "status": "source-only",
             "tests": []
@@ -118284,7 +118320,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
+            "value": "static/js/books.js:76 _card"
           },
           "keys": [
             "Enter",
@@ -118321,7 +118357,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:73 _card"
+        "value": "static/js/books.js:76 _card"
       },
       "id": "dynamic.539f8876145f",
       "kind": "action",
@@ -118332,319 +118368,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:73 _card"
-        ],
-        "external_destination": null,
-        "server_owner": "not-declared-in-template-source"
-      },
-      "recovery": {
-        "classification": "source-recovery-not-declared",
-        "controls": [],
-        "reason": "static source extraction found no recovery declaration",
-        "value": "source-recovery-not-declared - no restore or undo control was located for the matched authority"
-      },
-      "states": {
-        "conditional_states": [],
-        "outcome_status": [
-          "source-classified-not-runtime-proven"
-        ],
-        "visual": [
-          "resting",
-          "hover",
-          "pressed",
-          "selected",
-          "disabled",
-          "busy",
-          "invalid",
-          "loading",
-          "empty",
-          "permission",
-          "offline",
-          "stale",
-          "partial",
-          "error"
-        ]
-      },
-      "surface": {
-        "instance_key": "runtime record value from data-act",
-        "render_mode": "dynamic-template",
-        "root": null,
-        "runtime_selector": null,
-        "source": {
-          "column": null,
-          "file": "static/js/books.js",
-          "line": 84
-        },
-        "source_selector": "static/js/books.js:84:7",
-        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
-      },
-      "trigger_variants": [
-        {
-          "event": "click",
-          "keys": [],
-          "modality": "pointer",
-          "preconditions": []
-        },
-        {
-          "event": "activation",
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "preconditions": []
-        }
-      ]
-    },
-    {
-      "accessibility": {
-        "focus": "unknown until runtime evidence is attached",
-        "name": "+ note",
-        "relationships": {},
-        "role": "native button"
-      },
-      "activation_paths": [
-        {
-          "event": "click",
-          "evidence": {
-            "source": {
-              "file": "static/js/books.js",
-              "kind": "control-source",
-              "line": 85
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
-          },
-          "keys": [],
-          "modality": "pointer",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        },
-        {
-          "event": "activation",
-          "evidence": {
-            "source": {
-              "file": "static/js/books.js",
-              "kind": "control-source",
-              "line": 85
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
-          },
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        }
-      ],
-      "authority": {
-        "busy_repeat": "not-declared-in-template-source",
-        "classification": "nearest-enclosing-controller",
-        "confirmation": "not-declared-in-template-source",
-        "guards": []
-      },
-      "construction": "markup-template",
-      "effect": {
-        "destructive": false,
-        "external": false,
-        "reversible": "not-declared-in-template-source",
-        "value": "source-effect-not-declared"
-      },
-      "evidence": {
-        "references": [],
-        "status": "programmatic-dom"
-      },
-      "feature_owner": "library.reading-and-news",
-      "flags": [
-        "dynamic-template",
-        "anonymous-source-anchor"
-      ],
-      "handler": {
-        "classification": "nearest-enclosing-controller",
-        "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:73 _card"
-      },
-      "id": "dynamic.0812e88294f8",
-      "kind": "action",
-      "label": {
-        "source": "text",
-        "value": "+ note"
-      },
-      "path": {
-        "api": [],
-        "client_functions": [
-          "static/js/books.js:73 _card"
-        ],
-        "external_destination": null,
-        "server_owner": "not-declared-in-template-source"
-      },
-      "recovery": {
-        "classification": "not-applicable",
-        "controls": [],
-        "reason": "the census does not infer a mutation from a control alone",
-        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
-      },
-      "states": {
-        "conditional_states": [],
-        "outcome_status": [
-          "source-classified-not-runtime-proven"
-        ],
-        "visual": [
-          "resting",
-          "hover",
-          "pressed",
-          "selected",
-          "disabled",
-          "busy",
-          "invalid",
-          "loading",
-          "empty",
-          "permission",
-          "offline",
-          "stale",
-          "partial",
-          "error"
-        ]
-      },
-      "surface": {
-        "instance_key": "runtime record value from data-act",
-        "render_mode": "dynamic-template",
-        "root": null,
-        "runtime_selector": null,
-        "source": {
-          "column": null,
-          "file": "static/js/books.js",
-          "line": 85
-        },
-        "source_selector": "static/js/books.js:85:8",
-        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
-      },
-      "trigger_variants": [
-        {
-          "event": "click",
-          "keys": [],
-          "modality": "pointer",
-          "preconditions": []
-        },
-        {
-          "event": "activation",
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "preconditions": []
-        }
-      ]
-    },
-    {
-      "accessibility": {
-        "focus": "unknown until runtime evidence is attached",
-        "name": "remove",
-        "relationships": {},
-        "role": "native button"
-      },
-      "activation_paths": [
-        {
-          "event": "click",
-          "evidence": {
-            "source": {
-              "file": "static/js/books.js",
-              "kind": "control-source",
-              "line": 87
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
-          },
-          "keys": [],
-          "modality": "pointer",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        },
-        {
-          "event": "activation",
-          "evidence": {
-            "source": {
-              "file": "static/js/books.js",
-              "kind": "control-source",
-              "line": 87
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:73 _card"
-          },
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        }
-      ],
-      "authority": {
-        "busy_repeat": "not-declared-in-template-source",
-        "classification": "nearest-enclosing-controller",
-        "confirmation": "not-declared-in-template-source",
-        "guards": []
-      },
-      "construction": "markup-template",
-      "effect": {
-        "destructive": true,
-        "external": false,
-        "reversible": "not-declared-in-template-source",
-        "value": "source-effect-not-declared"
-      },
-      "evidence": {
-        "references": [],
-        "status": "programmatic-dom"
-      },
-      "feature_owner": "library.reading-and-news",
-      "flags": [
-        "dynamic-template",
-        "anonymous-source-anchor"
-      ],
-      "handler": {
-        "classification": "nearest-enclosing-controller",
-        "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:73 _card"
-      },
-      "id": "dynamic.561c9cc38faf",
-      "kind": "icon-action",
-      "label": {
-        "source": "title",
-        "value": "remove"
-      },
-      "path": {
-        "api": [],
-        "client_functions": [
-          "static/js/books.js:73 _card"
+          "static/js/books.js:76 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -118687,7 +118411,7 @@
           "file": "static/js/books.js",
           "line": 87
         },
-        "source_selector": "static/js/books.js:87:9",
+        "source_selector": "static/js/books.js:87:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -118711,7 +118435,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "+ reading goal",
+        "name": "edit notes for ${esc(b.title)}",
         "relationships": {},
         "role": "native button"
       },
@@ -118722,7 +118446,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 106
+              "line": 88
             },
             "status": "source-only",
             "tests": []
@@ -118730,7 +118454,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:91 _render"
+            "value": "static/js/books.js:76 _card"
           },
           "keys": [],
           "modality": "pointer",
@@ -118744,7 +118468,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 106
+              "line": 88
             },
             "status": "source-only",
             "tests": []
@@ -118752,7 +118476,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:91 _render"
+            "value": "static/js/books.js:76 _card"
           },
           "keys": [
             "Enter",
@@ -118789,18 +118513,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:91 _render"
+        "value": "static/js/books.js:76 _card"
       },
-      "id": "dynamic.1dddc923428c",
+      "id": "dynamic.348a273e8c6c",
       "kind": "action",
       "label": {
-        "source": "text",
-        "value": "+ reading goal"
+        "source": "aria-label",
+        "value": "edit notes for ${esc(b.title)}"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:91 _render"
+          "static/js/books.js:76 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -118841,9 +118565,633 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 106
+          "line": 88
         },
-        "source_selector": "static/js/books.js:106:10",
+        "source_selector": "static/js/books.js:88:8",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "+ note",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/books.js",
+              "kind": "control-source",
+              "line": 88
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/books.js:76 _card"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/books.js",
+              "kind": "control-source",
+              "line": 88
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/books.js:76 _card"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "library.reading-and-news",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/books.js:76 _card"
+      },
+      "id": "dynamic.0812e88294f8",
+      "kind": "action",
+      "label": {
+        "source": "text",
+        "value": "+ note"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/books.js:76 _card"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-act",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/books.js",
+          "line": 88
+        },
+        "source_selector": "static/js/books.js:88:9",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "remove",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/books.js",
+              "kind": "control-source",
+              "line": 90
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/books.js:76 _card"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/books.js",
+              "kind": "control-source",
+              "line": 90
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/books.js:76 _card"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": true,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "library.reading-and-news",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/books.js:76 _card"
+      },
+      "id": "dynamic.561c9cc38faf",
+      "kind": "icon-action",
+      "label": {
+        "source": "title",
+        "value": "remove"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/books.js:76 _card"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "source-recovery-not-declared",
+        "controls": [],
+        "reason": "static source extraction found no recovery declaration",
+        "value": "source-recovery-not-declared - no restore or undo control was located for the matched authority"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-act",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/books.js",
+          "line": 90
+        },
+        "source_selector": "static/js/books.js:90:10",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "reading goal: click to change",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/books.js",
+              "kind": "control-source",
+              "line": 105
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/books.js:94 _render"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/books.js",
+              "kind": "control-source",
+              "line": 105
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/books.js:94 _render"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "library.reading-and-news",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/books.js:94 _render"
+      },
+      "id": "dynamic.3069d43cf4a4",
+      "kind": "action",
+      "label": {
+        "source": "title",
+        "value": "reading goal: click to change"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/books.js:94 _render"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-act",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/books.js",
+          "line": 105
+        },
+        "source_selector": "static/js/books.js:105:11",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "+ reading goal",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/books.js",
+              "kind": "control-source",
+              "line": 109
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/books.js:94 _render"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/books.js",
+              "kind": "control-source",
+              "line": 109
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/books.js:94 _render"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "library.reading-and-news",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/books.js:94 _render"
+      },
+      "id": "dynamic.1dddc923428c",
+      "kind": "action",
+      "label": {
+        "source": "text",
+        "value": "+ reading goal"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/books.js:94 _render"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-act",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/books.js",
+          "line": 109
+        },
+        "source_selector": "static/js/books.js:109:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -118878,7 +119226,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 111
+              "line": 114
             },
             "status": "source-only",
             "tests": []
@@ -118886,7 +119234,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:91 _render"
+            "value": "static/js/books.js:94 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -118900,7 +119248,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 111
+              "line": 114
             },
             "status": "source-only",
             "tests": []
@@ -118908,7 +119256,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:91 _render"
+            "value": "static/js/books.js:94 _render"
           },
           "keys": [
             "Enter",
@@ -118944,7 +119292,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:91 _render"
+        "value": "static/js/books.js:94 _render"
       },
       "id": "dynamic.9da907aff0da",
       "kind": "action",
@@ -118955,7 +119303,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:91 _render"
+          "static/js/books.js:94 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -118996,9 +119344,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 111
+          "line": 114
         },
-        "source_selector": "static/js/books.js:111:11",
+        "source_selector": "static/js/books.js:114:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -119033,7 +119381,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 112
+              "line": 115
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -119048,7 +119396,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:91 _render"
+            "value": "static/js/books.js:94 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -119062,7 +119410,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 112
+              "line": 115
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -119077,7 +119425,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:91 _render"
+            "value": "static/js/books.js:94 _render"
           },
           "keys": [
             "Enter",
@@ -119113,7 +119461,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:91 _render"
+        "value": "static/js/books.js:94 _render"
       },
       "id": "dynamic.5a6e66467668",
       "kind": "action",
@@ -119124,7 +119472,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:91 _render"
+          "static/js/books.js:94 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -119165,9 +119513,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 112
+          "line": 115
         },
-        "source_selector": "static/js/books.js:112:12",
+        "source_selector": "static/js/books.js:115:14",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -119202,7 +119550,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 121
+              "line": 124
             },
             "status": "source-only",
             "tests": []
@@ -119210,7 +119558,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:91 _render"
+            "value": "static/js/books.js:94 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -119224,7 +119572,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 121
+              "line": 124
             },
             "status": "source-only",
             "tests": []
@@ -119232,7 +119580,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:91 _render"
+            "value": "static/js/books.js:94 _render"
           },
           "keys": [
             "Enter",
@@ -119268,7 +119616,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:91 _render"
+        "value": "static/js/books.js:94 _render"
       },
       "id": "dynamic.bf483e120273",
       "kind": "action",
@@ -119279,7 +119627,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:91 _render"
+          "static/js/books.js:94 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -119320,9 +119668,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 121
+          "line": 124
         },
-        "source_selector": "static/js/books.js:121:13",
+        "source_selector": "static/js/books.js:124:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -119357,7 +119705,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 130
+              "line": 133
             },
             "status": "source-only",
             "tests": []
@@ -119365,7 +119713,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [
             "native editing keys"
@@ -119400,7 +119748,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:126 _addForm"
+        "value": "static/js/books.js:129 _addForm"
       },
       "id": "dynamic.43b2b008f680",
       "kind": "field",
@@ -119411,7 +119759,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:126 _addForm"
+          "static/js/books.js:129 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -119452,9 +119800,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 130
+          "line": 133
         },
-        "source_selector": "static/js/books.js:130:14",
+        "source_selector": "static/js/books.js:133:16",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -119482,7 +119830,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 131
+              "line": 134
             },
             "status": "source-only",
             "tests": []
@@ -119490,7 +119838,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -119504,7 +119852,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 131
+              "line": 134
             },
             "status": "source-only",
             "tests": []
@@ -119512,7 +119860,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [
             "Enter",
@@ -119548,7 +119896,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:126 _addForm"
+        "value": "static/js/books.js:129 _addForm"
       },
       "id": "dynamic.605148132b64",
       "kind": "action",
@@ -119559,7 +119907,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:126 _addForm"
+          "static/js/books.js:129 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -119600,9 +119948,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 131
+          "line": 134
         },
-        "source_selector": "static/js/books.js:131:15",
+        "source_selector": "static/js/books.js:134:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -119637,7 +119985,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 133
+              "line": 136
             },
             "status": "source-only",
             "tests": []
@@ -119645,7 +119993,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -119659,7 +120007,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 133
+              "line": 136
             },
             "status": "source-only",
             "tests": []
@@ -119667,7 +120015,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [
             "Enter",
@@ -119704,7 +120052,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:126 _addForm"
+        "value": "static/js/books.js:129 _addForm"
       },
       "id": "dynamic.51ca3b453442",
       "kind": "action",
@@ -119715,7 +120063,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:126 _addForm"
+          "static/js/books.js:129 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -119756,9 +120104,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 133
+          "line": 136
         },
-        "source_selector": "static/js/books.js:133:16",
+        "source_selector": "static/js/books.js:136:18",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -119793,10 +120141,22 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 135
+              "line": 138
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 122
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 200
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_legacy_library_health.py",
@@ -119808,7 +120168,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [
             "native editing keys"
@@ -119843,7 +120203,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:126 _addForm"
+        "value": "static/js/books.js:129 _addForm"
       },
       "id": "dynamic.387b7d3993ab",
       "kind": "field",
@@ -119854,7 +120214,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:126 _addForm"
+          "static/js/books.js:129 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -119895,9 +120255,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 135
+          "line": 138
         },
-        "source_selector": "static/js/books.js:135:17",
+        "source_selector": "static/js/books.js:138:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -119925,10 +120285,16 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 136
+              "line": 139
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 123
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_legacy_library_health.py",
@@ -119940,7 +120306,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [
             "native editing keys"
@@ -119975,7 +120341,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:126 _addForm"
+        "value": "static/js/books.js:129 _addForm"
       },
       "id": "dynamic.ea5200e95fbd",
       "kind": "field",
@@ -119986,7 +120352,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:126 _addForm"
+          "static/js/books.js:129 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -120027,9 +120393,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 136
+          "line": 139
         },
-        "source_selector": "static/js/books.js:136:18",
+        "source_selector": "static/js/books.js:139:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -120059,7 +120425,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 139
+              "line": 142
             },
             "status": "source-only",
             "tests": []
@@ -120067,7 +120433,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -120081,7 +120447,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 139
+              "line": 142
             },
             "status": "source-only",
             "tests": []
@@ -120089,7 +120455,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [
             "Enter",
@@ -120126,7 +120492,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:126 _addForm"
+        "value": "static/js/books.js:129 _addForm"
       },
       "id": "dynamic.13d8bcb1c5b7",
       "kind": "choice",
@@ -120137,7 +120503,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:126 _addForm"
+          "static/js/books.js:129 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -120178,9 +120544,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 139
+          "line": 142
         },
-        "source_selector": "static/js/books.js:139:19",
+        "source_selector": "static/js/books.js:142:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -120215,10 +120581,16 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 140
+              "line": 143
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 125
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_legacy_library_health.py",
@@ -120230,7 +120602,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -120244,10 +120616,16 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 140
+              "line": 143
             },
             "status": "test-linked-unclassified",
             "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 125
+              },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_v5_legacy_library_health.py",
@@ -120259,7 +120637,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [
             "Enter",
@@ -120295,7 +120673,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:126 _addForm"
+        "value": "static/js/books.js:129 _addForm"
       },
       "id": "dynamic.efa1ad616c54",
       "kind": "action",
@@ -120306,7 +120684,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:126 _addForm"
+          "static/js/books.js:129 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -120347,9 +120725,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 140
+          "line": 143
         },
-        "source_selector": "static/js/books.js:140:21",
+        "source_selector": "static/js/books.js:143:23",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -120384,7 +120762,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 141
+              "line": 144
             },
             "status": "source-only",
             "tests": []
@@ -120392,7 +120770,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -120406,7 +120784,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 141
+              "line": 144
             },
             "status": "source-only",
             "tests": []
@@ -120414,7 +120792,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:126 _addForm"
+            "value": "static/js/books.js:129 _addForm"
           },
           "keys": [
             "Enter",
@@ -120450,7 +120828,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:126 _addForm"
+        "value": "static/js/books.js:129 _addForm"
       },
       "id": "dynamic.ccfa60600f7c",
       "kind": "action",
@@ -120461,7 +120839,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/books.js:126 _addForm"
+          "static/js/books.js:129 _addForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -120502,9 +120880,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 141
+          "line": 144
         },
-        "source_selector": "static/js/books.js:141:22",
+        "source_selector": "static/js/books.js:144:24",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -120539,7 +120917,7 @@
             "source": {
               "file": "static/js/books.js",
               "kind": "control-source",
-              "line": 152
+              "line": 155
             },
             "status": "source-only",
             "tests": []
@@ -120547,7 +120925,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/books.js:146 _wire"
+            "value": "static/js/books.js:149 _wire"
           },
           "keys": [
             "native editing keys"
@@ -120584,7 +120962,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/books.js:146 _wire"
+        "value": "static/js/books.js:149 _wire"
       },
       "id": "dynamic.3b96958f49c9",
       "kind": "field",
@@ -120600,7 +120978,7 @@
           "source-local:/api/books/lookup"
         ],
         "client_functions": [
-          "static/js/books.js:146 _wire"
+          "static/js/books.js:149 _wire"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -120641,9 +121019,9 @@
         "source": {
           "column": null,
           "file": "static/js/books.js",
-          "line": 152
+          "line": 155
         },
-        "source_selector": "static/js/books.js:152:23",
+        "source_selector": "static/js/books.js:155:25",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -197566,7 +197944,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 60
+              "line": 64
             },
             "status": "source-only",
             "tests": []
@@ -197574,7 +197952,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:56 _loadNotice"
+            "value": "static/js/read.js:60 _loadNotice"
           },
           "keys": [],
           "modality": "pointer",
@@ -197588,7 +197966,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 60
+              "line": 64
             },
             "status": "source-only",
             "tests": []
@@ -197596,7 +197974,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:56 _loadNotice"
+            "value": "static/js/read.js:60 _loadNotice"
           },
           "keys": [
             "Enter",
@@ -197633,7 +198011,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:56 _loadNotice"
+        "value": "static/js/read.js:60 _loadNotice"
       },
       "id": "dynamic.3007afec14e9",
       "kind": "action",
@@ -197644,7 +198022,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:56 _loadNotice"
+          "static/js/read.js:60 _loadNotice"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -197685,9 +198063,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 60
+          "line": 64
         },
-        "source_selector": "static/js/read.js:60:1",
+        "source_selector": "static/js/read.js:64:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -197722,7 +198100,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 67
+              "line": 71
             },
             "status": "source-only",
             "tests": []
@@ -197730,7 +198108,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:64 _feedsPanel"
+            "value": "static/js/read.js:68 _feedsPanel"
           },
           "keys": [
             "native editing keys"
@@ -197765,7 +198143,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:64 _feedsPanel"
+        "value": "static/js/read.js:68 _feedsPanel"
       },
       "id": "dynamic.7df525ca8abc",
       "kind": "field",
@@ -197776,7 +198154,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:64 _feedsPanel"
+          "static/js/read.js:68 _feedsPanel"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -197817,9 +198195,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 67
+          "line": 71
         },
-        "source_selector": "static/js/read.js:67:2",
+        "source_selector": "static/js/read.js:71:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -197847,7 +198225,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 68
+              "line": 72
             },
             "status": "source-only",
             "tests": []
@@ -197855,7 +198233,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:64 _feedsPanel"
+            "value": "static/js/read.js:68 _feedsPanel"
           },
           "keys": [],
           "modality": "pointer",
@@ -197869,7 +198247,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 68
+              "line": 72
             },
             "status": "source-only",
             "tests": []
@@ -197877,7 +198255,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:64 _feedsPanel"
+            "value": "static/js/read.js:68 _feedsPanel"
           },
           "keys": [
             "Enter",
@@ -197913,7 +198291,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:64 _feedsPanel"
+        "value": "static/js/read.js:68 _feedsPanel"
       },
       "id": "dynamic.c72339e3b313",
       "kind": "action",
@@ -197924,7 +198302,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:64 _feedsPanel"
+          "static/js/read.js:68 _feedsPanel"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -197965,9 +198343,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 68
+          "line": 72
         },
-        "source_selector": "static/js/read.js:68:3",
+        "source_selector": "static/js/read.js:72:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -198002,7 +198380,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 69
+              "line": 73
             },
             "status": "source-only",
             "tests": []
@@ -198010,7 +198388,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:64 _feedsPanel"
+            "value": "static/js/read.js:68 _feedsPanel"
           },
           "keys": [],
           "modality": "pointer",
@@ -198024,7 +198402,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 69
+              "line": 73
             },
             "status": "source-only",
             "tests": []
@@ -198032,7 +198410,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:64 _feedsPanel"
+            "value": "static/js/read.js:68 _feedsPanel"
           },
           "keys": [
             "Enter",
@@ -198068,7 +198446,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:64 _feedsPanel"
+        "value": "static/js/read.js:68 _feedsPanel"
       },
       "id": "dynamic.3a42788a3712",
       "kind": "action",
@@ -198079,7 +198457,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:64 _feedsPanel"
+          "static/js/read.js:68 _feedsPanel"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -198120,9 +198498,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 69
+          "line": 73
         },
-        "source_selector": "static/js/read.js:69:4",
+        "source_selector": "static/js/read.js:73:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -198157,7 +198535,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 72
+              "line": 76
             },
             "status": "source-only",
             "tests": []
@@ -198165,7 +198543,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:64 _feedsPanel"
+            "value": "static/js/read.js:68 _feedsPanel"
           },
           "keys": [],
           "modality": "pointer",
@@ -198179,7 +198557,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 72
+              "line": 76
             },
             "status": "source-only",
             "tests": []
@@ -198187,7 +198565,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:64 _feedsPanel"
+            "value": "static/js/read.js:68 _feedsPanel"
           },
           "keys": [
             "Enter",
@@ -198224,7 +198602,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:64 _feedsPanel"
+        "value": "static/js/read.js:68 _feedsPanel"
       },
       "id": "dynamic.d2581f91d672",
       "kind": "icon-action",
@@ -198235,7 +198613,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:64 _feedsPanel"
+          "static/js/read.js:68 _feedsPanel"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -198276,9 +198654,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 72
+          "line": 76
         },
-        "source_selector": "static/js/read.js:72:5",
+        "source_selector": "static/js/read.js:76:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -198302,7 +198680,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "paste a URL to save for later\u2026",
+        "name": "URL to save for later",
         "relationships": {},
         "role": "native input"
       },
@@ -198315,13 +198693,62 @@
               "kind": "control-source",
               "line": 125
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 225
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 266
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 279
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 294
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 311
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 331
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 332
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 337
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [
             "native editing keys"
@@ -198356,18 +198783,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:119 _render"
+        "value": "static/js/read.js:115 _render"
       },
       "id": "dynamic.257ea763f2cb",
       "kind": "field",
       "label": {
-        "source": "placeholder",
-        "value": "paste a URL to save for later\u2026"
+        "source": "aria-label",
+        "value": "URL to save for later"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:119 _render"
+          "static/js/read.js:115 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -198440,13 +198867,38 @@
               "kind": "control-source",
               "line": 126
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 280
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 295
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 312
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 336
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -198462,13 +198914,38 @@
               "kind": "control-source",
               "line": 126
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 280
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 295
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 312
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 336
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [
             "Enter",
@@ -198504,7 +198981,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:119 _render"
+        "value": "static/js/read.js:115 _render"
       },
       "id": "dynamic.776273c963cb",
       "kind": "action",
@@ -198515,7 +198992,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:119 _render"
+          "static/js/read.js:115 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -198595,7 +199072,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 129
+              "line": 130
             },
             "status": "source-only",
             "tests": []
@@ -198603,7 +199080,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -198617,7 +199094,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 129
+              "line": 130
             },
             "status": "source-only",
             "tests": []
@@ -198625,7 +199102,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [
             "Enter",
@@ -198662,7 +199139,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:119 _render"
+        "value": "static/js/read.js:115 _render"
       },
       "id": "dynamic.79072f05c895",
       "kind": "choice",
@@ -198673,7 +199150,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:119 _render"
+          "static/js/read.js:115 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -198714,9 +199191,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 129
+          "line": 130
         },
-        "source_selector": "static/js/read.js:129:8",
+        "source_selector": "static/js/read.js:130:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -198753,7 +199230,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 129
+              "line": 130
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -198804,7 +199281,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -198818,7 +199295,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 129
+              "line": 130
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -198869,7 +199346,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [
             "Enter",
@@ -198905,7 +199382,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:119 _render"
+        "value": "static/js/read.js:115 _render"
       },
       "id": "dynamic.af4fbf069555",
       "kind": "action",
@@ -198916,7 +199393,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:119 _render"
+          "static/js/read.js:115 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -198957,9 +199434,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 129
+          "line": 130
         },
-        "source_selector": "static/js/read.js:129:10",
+        "source_selector": "static/js/read.js:130:10",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -198994,15 +199471,40 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 130
+              "line": 131
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 244
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 256
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 261
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 361
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [
             "native editing keys"
@@ -199037,7 +199539,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:119 _render"
+        "value": "static/js/read.js:115 _render"
       },
       "id": "dynamic.d2fbd265da90",
       "kind": "field",
@@ -199048,7 +199550,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:119 _render"
+          "static/js/read.js:115 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -199089,9 +199591,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 130
+          "line": 131
         },
-        "source_selector": "static/js/read.js:130:11",
+        "source_selector": "static/js/read.js:131:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199119,7 +199621,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 134
+              "line": 135
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -199134,7 +199636,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [],
           "modality": "pointer",
@@ -199148,7 +199650,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 134
+              "line": 135
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -199163,7 +199665,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:119 _render"
+            "value": "static/js/read.js:115 _render"
           },
           "keys": [
             "Enter",
@@ -199199,7 +199701,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:119 _render"
+        "value": "static/js/read.js:115 _render"
       },
       "id": "dynamic.639e833de682",
       "kind": "action",
@@ -199210,7 +199712,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:119 _render"
+          "static/js/read.js:115 _render"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -199251,9 +199753,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 134
+          "line": 135
         },
-        "source_selector": "static/js/read.js:134:12",
+        "source_selector": "static/js/read.js:135:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199277,7 +199779,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "#${esc(t)}",
+        "name": "open ${esc(it.title)}",
         "relationships": {},
         "role": "native button"
       },
@@ -199288,7 +199790,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 163
+              "line": 167
             },
             "status": "source-only",
             "tests": []
@@ -199296,7 +199798,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [],
           "modality": "pointer",
@@ -199310,7 +199812,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 163
+              "line": 167
             },
             "status": "source-only",
             "tests": []
@@ -199318,7 +199820,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [
             "Enter",
@@ -199355,7 +199857,163 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:156 _card"
+        "value": "static/js/read.js:162 _card"
+      },
+      "id": "dynamic.b464dcdb1e81",
+      "kind": "action",
+      "label": {
+        "source": "aria-label",
+        "value": "open ${esc(it.title)}"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/read.js:162 _card"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-open",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/read.js",
+          "line": 167
+        },
+        "source_selector": "static/js/read.js:167:13",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "#${esc(t)}",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/read.js",
+              "kind": "control-source",
+              "line": 171
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/read.js:162 _card"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/read.js",
+              "kind": "control-source",
+              "line": 171
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/read.js:162 _card"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "library.reading-and-news",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/read.js:162 _card"
       },
       "id": "dynamic.4a6fd8a8134a",
       "kind": "action",
@@ -199366,7 +200024,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:156 _card"
+          "static/js/read.js:162 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -199407,9 +200065,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 163
+          "line": 171
         },
-        "source_selector": "static/js/read.js:163:13",
+        "source_selector": "static/js/read.js:171:14",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199444,7 +200102,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 166
+              "line": 174
             },
             "status": "source-only",
             "tests": []
@@ -199452,7 +200110,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [],
           "modality": "pointer",
@@ -199466,7 +200124,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 166
+              "line": 174
             },
             "status": "source-only",
             "tests": []
@@ -199474,7 +200132,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [
             "Enter",
@@ -199511,7 +200169,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:156 _card"
+        "value": "static/js/read.js:162 _card"
       },
       "id": "dynamic.0e52dcc593d3",
       "kind": "action",
@@ -199522,7 +200180,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:156 _card"
+          "static/js/read.js:162 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -199563,9 +200221,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 166
+          "line": 174
         },
-        "source_selector": "static/js/read.js:166:14",
+        "source_selector": "static/js/read.js:174:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199600,7 +200258,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 167
+              "line": 175
             },
             "status": "source-only",
             "tests": []
@@ -199608,7 +200266,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [],
           "modality": "pointer",
@@ -199622,7 +200280,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 167
+              "line": 175
             },
             "status": "source-only",
             "tests": []
@@ -199630,7 +200288,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [
             "Enter",
@@ -199667,7 +200325,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:156 _card"
+        "value": "static/js/read.js:162 _card"
       },
       "id": "dynamic.833d3b77241b",
       "kind": "icon-action",
@@ -199678,7 +200336,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:156 _card"
+          "static/js/read.js:162 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -199719,9 +200377,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 167
+          "line": 175
         },
-        "source_selector": "static/js/read.js:167:15",
+        "source_selector": "static/js/read.js:175:16",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199756,7 +200414,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 168
+              "line": 176
             },
             "status": "source-only",
             "tests": []
@@ -199764,7 +200422,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [],
           "modality": "pointer",
@@ -199778,7 +200436,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 168
+              "line": 176
             },
             "status": "source-only",
             "tests": []
@@ -199786,7 +200444,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [
             "Enter",
@@ -199823,7 +200481,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:156 _card"
+        "value": "static/js/read.js:162 _card"
       },
       "id": "dynamic.70cd0b7500fc",
       "kind": "icon-action",
@@ -199834,7 +200492,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:156 _card"
+          "static/js/read.js:162 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -199875,9 +200533,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 168
+          "line": 176
         },
-        "source_selector": "static/js/read.js:168:16",
+        "source_selector": "static/js/read.js:176:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -199912,7 +200570,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 169
+              "line": 177
             },
             "status": "source-only",
             "tests": []
@@ -199920,7 +200578,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [],
           "modality": "pointer",
@@ -199934,7 +200592,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 169
+              "line": 177
             },
             "status": "source-only",
             "tests": []
@@ -199942,7 +200600,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:156 _card"
+            "value": "static/js/read.js:162 _card"
           },
           "keys": [
             "Enter",
@@ -199979,7 +200637,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:156 _card"
+        "value": "static/js/read.js:162 _card"
       },
       "id": "dynamic.2b71ac46a20f",
       "kind": "icon-action",
@@ -199990,7 +200648,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:156 _card"
+          "static/js/read.js:162 _card"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200031,9 +200689,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 169
+          "line": 177
         },
-        "source_selector": "static/js/read.js:169:17",
+        "source_selector": "static/js/read.js:177:18",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200068,15 +200726,28 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 180
+              "line": 188
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 367
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 374
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:174 _renderReader"
+            "value": "static/js/read.js:182 _renderReader"
           },
           "keys": [],
           "modality": "pointer",
@@ -200090,15 +200761,28 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 180
+              "line": 188
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 367
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_library_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 374
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:174 _renderReader"
+            "value": "static/js/read.js:182 _renderReader"
           },
           "keys": [
             "Enter",
@@ -200134,7 +200818,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:174 _renderReader"
+        "value": "static/js/read.js:182 _renderReader"
       },
       "id": "dynamic.a8185ce40c11",
       "kind": "action",
@@ -200145,7 +200829,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:174 _renderReader"
+          "static/js/read.js:182 _renderReader"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200186,9 +200870,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 180
+          "line": 188
         },
-        "source_selector": "static/js/read.js:180:18",
+        "source_selector": "static/js/read.js:188:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200223,7 +200907,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 181
+              "line": 189
             },
             "status": "source-only",
             "tests": []
@@ -200231,7 +200915,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:174 _renderReader"
+            "value": "static/js/read.js:182 _renderReader"
           },
           "keys": [
             "Enter"
@@ -200267,7 +200951,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:174 _renderReader"
+        "value": "static/js/read.js:182 _renderReader"
       },
       "id": "dynamic.cf417bedac2e",
       "kind": "link",
@@ -200278,7 +200962,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:174 _renderReader"
+          "static/js/read.js:182 _renderReader"
         ],
         "external_destination": "${_safeUrl(it.url)}",
         "server_owner": "not-declared-in-template-source"
@@ -200319,9 +201003,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 181
+          "line": 189
         },
-        "source_selector": "static/js/read.js:181:19",
+        "source_selector": "static/js/read.js:189:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200349,7 +201033,7 @@
             "source": {
               "file": "static/js/read.js",
               "kind": "control-source",
-              "line": 186
+              "line": 194
             },
             "status": "source-only",
             "tests": []
@@ -200357,7 +201041,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/read.js:174 _renderReader"
+            "value": "static/js/read.js:182 _renderReader"
           },
           "keys": [
             "Enter"
@@ -200393,7 +201077,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/read.js:174 _renderReader"
+        "value": "static/js/read.js:182 _renderReader"
       },
       "id": "dynamic.1d55d6fc42c3",
       "kind": "link",
@@ -200404,7 +201088,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/read.js:174 _renderReader"
+          "static/js/read.js:182 _renderReader"
         ],
         "external_destination": "${_safeUrl(it.url)}",
         "server_owner": "not-declared-in-template-source"
@@ -200445,9 +201129,9 @@
         "source": {
           "column": null,
           "file": "static/js/read.js",
-          "line": 186
+          "line": 194
         },
-        "source_selector": "static/js/read.js:186:20",
+        "source_selector": "static/js/read.js:194:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -243964,11 +244648,11 @@
     "activation_path_evidence": {
       "external-blocked": 3,
       "source-only": 2121,
-      "test-linked-unclassified": 564
+      "test-linked-unclassified": 570
     },
-    "activation_paths": 2688,
-    "controls": 1589,
-    "dynamic_templates": 904,
+    "activation_paths": 2694,
+    "controls": 1592,
+    "dynamic_templates": 907,
     "event_listener_types": {
       "abort": 1,
       "animationend": 1,
@@ -243990,7 +244674,7 @@
       "focus": 2,
       "focusin": 1,
       "focusout": 1,
-      "input": 52,
+      "input": 54,
       "keydown": 95,
       "load": 3,
       "message": 2,
@@ -244015,9 +244699,9 @@
       "wheel": 1
     },
     "flags": {
-      "anonymous-source-anchor": 807,
+      "anonymous-source-anchor": 810,
       "cross-feature-owner": 66,
-      "dynamic-template": 904,
+      "dynamic-template": 907,
       "inline-handler": 24,
       "unknown-label": 77
     },
