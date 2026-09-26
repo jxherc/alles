@@ -178,7 +178,7 @@ test('busy state wins while a mutation disables its control to reject repeats', 
 });
 
 test('body-level dialogs clear the universal rail without clipping their content', () => {
-  assert.match(css, /body\.afterlife-shell > :is\(\.modal-overlay, \.dialog-overlay\) \{\s*left: 52px/);
+  assert.match(css, /body\.afterlife-shell > :is\(\.modal-overlay, \.dialog-overlay\) \{\s*inset-inline: 52px 0/);
   assert.match(css, /body\.afterlife-shell > #setup-wizard \{[\s\S]*?padding-inline: var\(--k-space-4\)/);
   assert.match(css, /body\.afterlife-shell > #setup-wizard \.setup-card \{\s*max-width: 100%/);
 });

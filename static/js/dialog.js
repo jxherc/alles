@@ -42,7 +42,7 @@ function _wireDialog(overlay, resolve, valueFromConfirm) {
   overlay.addEventListener('click', event => {
     if (event.target === overlay) done(null);
   });
-  overlay.querySelector('[data-dialog-confirm]').addEventListener('click', () => done(valueFromConfirm()));
+  overlay.querySelectorAll('[data-dialog-confirm]').forEach(button => button.addEventListener('click', () => done(valueFromConfirm(button))));
   overlay.querySelector('[data-dialog-cancel]').addEventListener('click', () => done(null));
   return done;
 }
@@ -113,5 +113,20 @@ export function fields(title, defs) {
     const collect = () => Object.fromEntries(defs.map(f => [f.id, ov.querySelector(`#dialog-${sequence}-${CSS.escape(f.id)}`).value]));
     _wireDialog(ov, resolve, collect);
     ov.querySelector(`#dialog-${sequence}-${CSS.escape(defs[0].id)}`).focus();
+  });
+}
+
+export function choose(title, options) {
+  return new Promise(resolve => {
+    const ov = _overlay();
+    const titleId = `dialog-title-${++dialogSequence}`;
+    ov.innerHTML = `<div class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+      <div class="dialog-msg" id="${titleId}">${_esc(title)}</div>
+      <div class="dialog-choices">${options.map(option => `<button type="button" class="btn" data-dialog-confirm data-value="${_esc(option.value)}">${_esc(option.label)}</button>`).join('')}
+      <button type="button" class="btn" data-dialog-cancel>cancel</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    _wireDialog(ov, resolve, button => button.dataset.value);
+    ov.querySelector('[data-dialog-cancel]').focus();
   });
 }

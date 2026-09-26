@@ -2356,7 +2356,7 @@ html[data-kokuen-version="5"] body.afterlife-shell :where(.app, .main) {
 }
 
 html[data-kokuen-version="5"] body.afterlife-shell > :is(.modal-overlay, .dialog-overlay) {
-  left: 52px;
+  inset-inline: 52px 0;
 }
 
 html[data-kokuen-version="5"] body.afterlife-shell > #setup-wizard {
