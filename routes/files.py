@@ -1,3 +1,4 @@
+import hashlib
 import json
 import mimetypes
 from contextlib import contextmanager
@@ -1074,6 +1075,86 @@ def purge_trash(location_id: str | None = None, db: DbSession = Depends(get_db))
     }
 
 
+def _local_file_review(path: Path, identity: tuple[int, ...], message: str = "") -> HTTPException:
+    replaceable = path.is_file() and path.stat().st_size <= fileversions.CAP_BYTES
+    return HTTPException(
+        409,
+        {
+            "code": "file_conflict",
+            "message": message
+            or (
+                "a file with this name already exists; choose a new name or replace it"
+                if replaceable
+                else "this file cannot be kept in version history; upload with a different name"
+            ),
+            "expected_etag": fs.identity_etag(identity),
+            "can_replace": replaceable,
+            "size": path.stat().st_size if path.is_file() else None,
+        },
+    )
+
+
+def _same_local_bytes(path: Path, data: bytes, identity: tuple[int, ...]) -> bool:
+    if not path.is_file() or path.stat().st_size != len(data):
+        return False
+    digest = hashlib.sha256()
+    remaining = len(data) + 1
+    with path.open("rb") as handle:
+        while remaining:
+            chunk = handle.read(min(UPLOAD_READ_CHUNK, remaining))
+            if not chunk:
+                break
+            digest.update(chunk)
+            remaining -= len(chunk)
+    return digest.digest() == hashlib.sha256(data).digest() and fs.file_identity(path) == identity
+
+
+def _save_local_reviewed(db, location, rel: str, data: bytes, expected_etag: str) -> dict:
+    """Called only while the canonical Files mutation claim is held."""
+    root = _writable(location)
+    path = fs.abspath(rel, root=root)
+    identity = fs.file_identity(path)
+    if identity:
+        if _same_local_bytes(path, data, identity):
+            # A retry after a lost response must not create another write or version.
+            return {
+                "ok": True,
+                "name": path.name,
+                "path": rel,
+                "unchanged": True,
+                "etag": fs.identity_etag(identity),
+                "size": len(data),
+            }
+        if not expected_etag or expected_etag != fs.identity_etag(identity):
+            raise _local_file_review(
+                path,
+                identity,
+                "file changed; review this version before replacing it" if expected_etag else "",
+            )
+        if not path.is_file() or path.stat().st_size > fileversions.CAP_BYTES:
+            raise _local_file_review(path, identity)
+        fileversions.snapshot(db, rel, path, location.id, required=True)
+        if fs.file_identity(path) != identity:
+            raise _local_file_review(
+                path,
+                fs.file_identity(path),
+                "file changed while keeping its recovery version; review it again",
+            )
+    elif expected_etag:
+        raise HTTPException(
+            409, "the file was removed; upload with a new name or reload before restoring"
+        )
+    result = fs.save_upload(
+        str(Path(rel).parent) if "/" in rel else "",
+        Path(rel).name,
+        data,
+        root=root,
+        expected_identity=identity,
+    )
+    result.update(etag=fs.identity_etag(fs.file_identity(path)), size=len(data))
+    return result
+
+
 @router.post("/upload")
 async def upload(
     path: str = Form(""),
@@ -1094,16 +1175,14 @@ async def upload(
     try:
         with file_operations.direct_mutation_claim(db, location, rel):
             if location.kind == "local":
-                root = _writable(location)
                 try:
-                    existing = fs.abspath(rel, root=root)
-                    if existing.is_file():  # overwrite → snapshot the old content first (1e)
-                        fileversions.snapshot(db, rel, existing, location.id)
-                    result = fs.save_upload(normalized_dir, file.filename, data, root=root)
+                    result = _save_local_reviewed(db, location, rel, data, expected_etag)
                 except ValueError as e:
-                    raise HTTPException(400, str(e))
+                    raise HTTPException(409, str(e)) from e
                 except OSError as e:
-                    raise HTTPException(409, "upload could not be saved") from e
+                    raise HTTPException(
+                        409, "upload could not be saved safely; the existing file was preserved"
+                    ) from e
             else:
 
                 def store_remote():
@@ -1188,12 +1267,14 @@ class RestoreVersion(BaseModel):
     path: str
     id: str
     location_id: str | None = None
+    expected_etag: str = ""
 
 
 @router.post("/versions/restore")
 def restore_version(body: RestoreVersion, db: DbSession = Depends(get_db)):
     location = _location(db, body.location_id)
     normalized = _identity_path(body.path)
+    restored_state = {}
     try:
         with file_operations.direct_mutation_claim(db, location, normalized):
             version = fileversions.get(db, body.id)
@@ -1204,13 +1285,15 @@ def restore_version(body: RestoreVersion, db: DbSession = Depends(get_db)):
             ):
                 raise HTTPException(404)
             if location.kind == "local":
-                root = _writable(location)
-                # snapshot the current content first so a restore is itself undoable
-                cur = fs.abspath(normalized, root=root)
-                if cur.is_file():
-                    fileversions.snapshot(db, normalized, cur, location.id)
-                if not fileversions.restore(db, body.id, cur):
-                    raise HTTPException(404)
+                try:
+                    restored_bytes = fileversions.content(version)
+                    restored_state = _save_local_reviewed(
+                        db, location, normalized, restored_bytes, body.expected_etag
+                    )
+                except (ValueError, OSError) as e:
+                    raise HTTPException(
+                        409, "version could not be restored safely; the current file was preserved"
+                    ) from e
             else:
                 if location.access != "managed":
                     raise HTTPException(409, "storage location is read-only")
@@ -1231,6 +1314,18 @@ def restore_version(body: RestoreVersion, db: DbSession = Depends(get_db)):
                         if not current_etag:
                             raise HTTPException(409, "remote file does not expose a stable ETag")
                         current_size = _remote_file_size(metadata)
+                        if body.expected_etag and body.expected_etag != current_etag:
+                            raise HTTPException(
+                                409,
+                                {
+                                    "code": "file_conflict",
+                                    "message": "file changed; review this version before replacing it",
+                                    "expected_etag": current_etag,
+                                    "can_replace": current_size is not None
+                                    and current_size <= fileversions.CAP_BYTES,
+                                    "size": current_size,
+                                },
+                            )
                         if current_size is not None and current_size > fileversions.CAP_BYTES:
                             raise HTTPException(409, "current file is too large to version safely")
                         storage_backends.download(
@@ -1255,4 +1350,9 @@ def restore_version(body: RestoreVersion, db: DbSession = Depends(get_db)):
                     storage_backends.remove_temporary(restored)
     except file_operations.FileOperationError as exc:
         raise HTTPException(409, str(exc)) from exc
-    return {"ok": True, "restored": normalized, "location_id": location.id}
+    return {
+        "ok": True,
+        "restored": normalized,
+        "location_id": location.id,
+        **{key: restored_state[key] for key in ("etag", "size") if key in restored_state},
+    }

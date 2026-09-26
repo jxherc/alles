@@ -4131,6 +4131,18 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .photos-cell img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.25s cubic-bezier(0.2,0.7,0.2,1); }
 .photos-cell:hover img { transform: scale(1.04); }
 
+/* Photo entry and recovery stay reachable without hover. */
+.photos-open { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.photos-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
+.photos-cell:focus-within .photos-check { opacity: 1; }
+.photos-recovery { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 1rem; }
+.photos-recovery[hidden] { display: none; }
+.photos-recovery span { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.photos-album-dialog .dialog-card { box-sizing: border-box; min-width: 0; width: min(380px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; }
+.photos-album-dialog .dialog-choices .btn { white-space: normal; overflow-wrap: anywhere; text-align: left; }
+#photos-meta-status { margin: 0; font-size: 0.8rem; overflow-wrap: anywhere; }
+.photos-lb-nav:focus-visible { opacity: 1; }
+
 /* multi-select: hover check-circle, selected = inset image + accent ring */
 .photos-check { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.9); background: rgba(0,0,0,0.28); color: #fff; cursor: pointer; opacity: 0; padding: 0; z-index: 3; display: inline-flex; align-items: center; justify-content: center; transition: opacity 0.12s, background 0.12s, border-color 0.12s; }
 .photos-check .ic { width: 12px; height: 12px; opacity: 0; }

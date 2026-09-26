@@ -33,6 +33,8 @@ const state = {
 };
 
 let initialized = false;
+let uploadActive = false;
+let versionRestoreActive = false;
 let operationPoll = 0;
 let searchTimer = 0;
 let searchSequence = 0;
@@ -100,8 +102,12 @@ async function request(url, options = {}, fetcher = fetch) {
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : await response.text();
   if (!response.ok) {
-    const message = typeof data === 'object' ? data.detail : data;
-    throw new Error(message || `request failed (${response.status})`);
+    const detail = data && typeof data === 'object' ? data.detail : data;
+    const message = typeof detail === 'string' ? detail : detail?.message;
+    const error = new Error(message || `request failed (${response.status})`);
+    error.detail = detail;
+    error.status = response.status;
+    throw error;
   }
   return data;
 }
@@ -640,7 +646,7 @@ async function renderDetails(item) {
       <dt>location</dt><dd>${esc(currentLocation()?.name || '')}</dd>
       <dt>access</dt><dd>${isWritable() ? 'managed' : 'read only'}</dd>
       <dt>kind</dt><dd>${esc(item.type || 'file')}</dd>
-      <dt>size</dt><dd>${esc(formatSize(item.size) || 'unknown')}</dd>
+      <dt>size</dt><dd data-files-detail-size>${esc(formatSize(item.size) || 'unknown')}</dd>
       <dt>offline</dt><dd>${esc(offlineState || 'online only')}</dd>
     </dl>
     <div id="files-detail-versions"></div>`;
@@ -655,15 +661,83 @@ async function loadVersions(path, locationId, detailRequest) {
   const panel = $('files-detail-panel');
   const host = $('files-detail-versions');
   if (!host || !panel) return;
+  const current = () => detailRequest === detailSequence && locationId === state.locationId
+    && state.current === item && !panel.hidden;
   try {
     const versions = await request('/api/files/versions' + query({ path, location_id: locationId }));
-    if (detailRequest !== detailSequence
-      || locationId !== state.locationId
-      || state.current !== item
-      || panel.hidden) return;
-    if (!versions.length) return;
-    host.innerHTML = `<dl class="files-detail-meta"><dt>versions</dt><dd>${versions.length}</dd></dl>`;
-  } catch {}
+    if (!current()) return;
+    const expanded = host.querySelector('details')?.open;
+    host.innerHTML = versions.length ? `<details class="files-version-history" ${expanded ? 'open' : ''}>
+      <summary>version history (${versions.length})</summary>
+      <ul>${versions.map((version, index) => `<li>
+        <span>version ${versions.length - index} · ${esc(formatDate(version.created_at))} · ${esc(formatSize(version.size))}</span>
+        ${isWritable() ? `<button type="button" class="files-text-button" data-version-id="${esc(version.id)}" aria-label="restore version ${versions.length - index}">restore</button>` : ''}
+      </li>`).join('')}</ul>
+    </details><p class="files-version-feedback" role="status" tabindex="-1"></p>` : '';
+    host.querySelectorAll('[data-version-id]').forEach(button => button.addEventListener('click', async () => {
+      if (versionRestoreActive || !current()) return;
+      versionRestoreActive = true;
+      host.querySelectorAll('button').forEach(control => { control.disabled = true; });
+      const feedback = host.querySelector('.files-version-feedback');
+      feedback.textContent = 'checking version…';
+      let expected = item.etag || '';
+      let canceled = false;
+      try {
+        if (!await dlgConfirm('restore this version? the current file will be kept in version history.') || !current()) {
+          canceled = true;
+          if (current()) feedback.textContent = 'restore canceled. the current file is unchanged.';
+          return;
+        }
+        while (current()) {
+          try {
+            const restored = await request('/api/files/versions/restore', jsonOptions('POST', {
+              path, id: button.dataset.versionId, location_id: locationId, expected_etag: expected,
+            }));
+            if (current()) {
+              item.etag = restored.etag || '';
+              item.size = restored.size ?? versions.find(version => version.id === button.dataset.versionId)?.size ?? item.size;
+              const size = $('files-detail-content')?.querySelector('[data-files-detail-size]');
+              if (size) size.textContent = formatSize(item.size);
+              renderItems();
+            }
+            await loadVersions(path, locationId, detailRequest);
+            if (current()) {
+              const result = host.querySelector('.files-version-feedback');
+              result.textContent = 'version restored. the previous file remains in version history.';
+              result.focus();
+            }
+            return;
+          } catch (error) {
+            if (error.detail?.code !== 'file_conflict' || !error.detail.can_replace) throw error;
+            const accepted = await dlgConfirm(`${error.message}. Restore this version? The current file will be kept in version history.`);
+            if (!accepted || !current()) {
+              canceled = true;
+              if (current()) feedback.textContent = 'restore canceled. the current file is unchanged.';
+              return;
+            }
+            expected = error.detail.expected_etag;
+          }
+        }
+      } catch (error) {
+        if (current()) {
+          feedback.textContent = error.message;
+          feedback.setAttribute('role', 'alert');
+          feedback.focus();
+        }
+      } finally {
+        versionRestoreActive = false;
+        if (current()) {
+          host.querySelectorAll('button').forEach(control => { control.disabled = false; });
+          if (canceled && button.isConnected) button.focus();
+        }
+      }
+    }));
+  } catch (error) {
+    if (!current()) return;
+    host.innerHTML = `<p class="files-version-feedback" role="alert">version history unavailable: ${esc(error.message)}</p>
+      <button type="button" class="files-text-button">retry version history</button>`;
+    host.querySelector('button').addEventListener('click', () => loadVersions(path, locationId, detailRequest));
+  }
 }
 
 function closeDetails() {
@@ -1026,6 +1100,15 @@ function pollOperations() {
   loadOperations();
 }
 
+function updateOperationClearance() {
+  const view = $('files-view');
+  const dock = $('files-operation-dock');
+  if (!view || !dock) return;
+  const clearance = dock.hidden ? 0 : Math.ceil(dock.getBoundingClientRect().height
+    + (parseFloat(getComputedStyle(dock).bottom) || 0) + 8);
+  view.style.setProperty('--files-operation-clearance', `${clearance}px`);
+}
+
 function renderOperations() {
   const dock = $('files-operation-dock');
   const host = $('files-operation-list');
@@ -1038,7 +1121,7 @@ function renderOperations() {
       : operation.state;
     return `
       <div class="files-operation-row" data-operation-id="${esc(operation.id)}">
-        <span class="files-operation-copy"><strong>${esc(operation.action)} ${esc(basename(operation.source_path))}</strong><small>${esc(progress)}${operation.non_atomic ? ' · verified transfer' : ''}${operation.error_code ? ` · ${esc(operation.error_code)}` : ''}</small></span>
+        <span class="files-operation-copy"><strong>${esc(operation.action)} ${esc(basename(operation.source_path))}</strong><small>${esc(progress)}${operation.non_atomic ? (operation.state === 'completed' ? ' · verified transfer' : ' · cross-location transfer') : ''}</small>${operation.error_code ? `<span class="files-operation-error" role="status">${esc(operation.error_code)}</span>` : ''}</span>
         <span class="files-operation-actions">
           ${operation.can_run ? '<button class="files-text-button" type="button" data-operation-action="run">start</button>' : ''}
           ${operation.can_cancel ? '<button class="files-text-button" type="button" data-operation-action="cancel">cancel</button>' : ''}
@@ -1048,6 +1131,7 @@ function renderOperations() {
         </span>
       </div>`;
   }).join('');
+  updateOperationClearance();
 }
 
 async function operationAction(id, action) {
@@ -1419,26 +1503,121 @@ async function newFolder() {
   }
 }
 
+function sendUpload(file, name, locationId, cwd, expected = '') {
+  const body = new FormData();
+  body.append('location_id', locationId);
+  body.append('path', cwd);
+  body.append('file', file, name);
+  if (expected) body.append('expected_etag', expected);
+  return request('/api/files/upload', { method: 'POST', body });
+}
+
+function reviewUpload(file, locationId, cwd, initialError) {
+  return new Promise(resolve => {
+    const previousFocus = document.activeElement;
+    const overlay = document.createElement('div');
+    overlay.className = 'dialog-overlay files-upload-review';
+    const locationName = state.locations.find(location => location.id === locationId)?.name || 'files';
+    overlay.innerHTML = `<form class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="files-upload-review-title" aria-describedby="files-upload-review-message">
+      <h2 id="files-upload-review-title">finish upload</h2>
+      <p class="files-upload-destination">${esc([locationName, cwd].filter(Boolean).join(' / '))}</p>
+      <p id="files-upload-review-message" role="alert" tabindex="-1"></p>
+      <label for="files-upload-review-name">file name</label>
+      <input id="files-upload-review-name" class="settings-input" value="${esc(file.name)}" autocomplete="off">
+      <div class="dialog-btns">
+        <button type="button" class="btn" data-upload-cancel>cancel upload</button>
+        <button type="submit" class="btn primary" data-upload-submit>retry upload</button>
+      </div>
+    </form>`;
+    document.body.appendChild(overlay);
+    const form = overlay.querySelector('form');
+    const input = overlay.querySelector('input');
+    const message = overlay.querySelector('#files-upload-review-message');
+    const submit = overlay.querySelector('[data-upload-submit]');
+    const cancel = overlay.querySelector('[data-upload-cancel]');
+    let error = initialError;
+    let reviewedName = file.name;
+    let busy = false;
+    const finish = value => {
+      overlay.remove();
+      (previousFocus?.isConnected ? previousFocus : $('files-upload-btn'))?.focus();
+      resolve(value);
+    };
+    const update = () => {
+      const sameName = input.value.trim() === reviewedName;
+      const collision = error.detail?.code === 'file_conflict';
+      const replace = sameName && collision && error.detail.can_replace;
+      const valid = Boolean(input.value.trim()) && !input.value.includes('/') && !input.value.includes('\\') && !/^\.+$/.test(input.value.trim());
+      message.textContent = error.message + (replace ? '. The current file will be kept in version history.' : '');
+      submit.textContent = replace ? 'replace file' : sameName ? 'retry upload' : 'upload with new name';
+      submit.disabled = busy || !valid || (sameName && collision && !error.detail.can_replace);
+      input.disabled = cancel.disabled = busy;
+    };
+    input.addEventListener('input', update);
+    cancel.addEventListener('click', () => { if (!busy) finish(false); });
+    overlay.addEventListener('click', event => { if (event.target === overlay && !busy) finish(false); });
+    overlay.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault(); event.stopPropagation();
+        if (!busy) finish(false);
+      } else if (event.key === 'Tab') {
+        trapFilesDialogFocus(event, form);
+        event.stopPropagation();
+      }
+    });
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (submit.disabled || busy) return;
+      const name = input.value.trim();
+      const expected = name === reviewedName && error.detail?.code === 'file_conflict'
+        ? error.detail.expected_etag : '';
+      busy = true;
+      update();
+      message.textContent = `uploading ${name}…`;
+      try {
+        await sendUpload(file, name, locationId, cwd, expected);
+        finish(true);
+      } catch (nextError) {
+        error = nextError;
+        reviewedName = name;
+        busy = false;
+        update();
+        message.focus();
+      }
+    });
+    update();
+    cancel.focus();
+  });
+}
+
 async function uploadFiles(files) {
   if (!isWritable()) return;
+  if (uploadActive) { toast('finish the current upload first', 'error'); return; }
+  uploadActive = true;
+  const button = $('files-upload-btn');
   const locationId = state.locationId;
   const cwd = state.cwd;
   let complete = 0;
-  for (const file of files) {
-    const body = new FormData();
-    body.append('location_id', locationId);
-    body.append('path', cwd);
-    body.append('file', file);
-    try {
-      await request('/api/files/upload', { method: 'POST', body });
-      complete += 1;
-    } catch (error) {
-      toast(`${file.name}: ${error.message}`, 'error');
+  if (button) { button.disabled = true; button.textContent = 'uploading…'; button.setAttribute('aria-busy', 'true'); }
+  try {
+    for (const file of files) {
+      try {
+        await sendUpload(file, file.name, locationId, cwd);
+        complete += 1;
+      } catch (error) {
+        if (await reviewUpload(file, locationId, cwd, error)) complete += 1;
+      }
     }
-  }
-  if (complete) {
-    toast(`${complete} file${complete === 1 ? '' : 's'} uploaded`, 'success');
-    if (state.locationId === locationId && state.cwd === cwd) await loadFiles(cwd);
+    if (complete) {
+      toast(`${complete} file${complete === 1 ? '' : 's'} uploaded`, 'success');
+      if (state.locationId === locationId && state.cwd === cwd) await loadFiles(cwd);
+    }
+  } finally {
+    uploadActive = false;
+    if (button) {
+      button.textContent = 'upload'; button.removeAttribute('aria-busy'); button.disabled = !isWritable();
+      if (document.activeElement === document.body && button.offsetParent) button.focus();
+    }
   }
 }
 
@@ -1656,11 +1835,17 @@ export function initFiles(fetcher = fetch) {
     ? params.get('sort') : 'name';
   state.order = ['asc', 'desc'].includes(params.get('order')) ? params.get('order') : '';
   bindEvents();
+  const dock = $('files-operation-dock');
+  const dockObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(updateOperationClearance) : null;
+  if (dock) dockObserver?.observe(dock);
+  window.addEventListener('resize', updateOperationClearance);
   const initialOperations = loadOperations(fetcher);
   operationPoll = window.setInterval(pollOperations, 4000);
   window.addEventListener('beforeunload', () => {
     clearInterval(operationPoll);
     clearTimeout(indexPoll);
+    dockObserver?.disconnect();
+    window.removeEventListener('resize', updateOperationClearance);
   }, { once: true });
   return initialOperations;
 }

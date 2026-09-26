@@ -94,9 +94,15 @@ class FileVersionTests(ApiTest):
 
     # ── upload route ──
     def _upload(self, name, content, path=""):
+        target = fs.files_dir() / path / Path(name).name
         return self.client.post(
             "/api/files/upload",
-            data={"path": path},
+            data={
+                "path": path,
+                "expected_etag": fs.identity_etag(fs.file_identity(target))
+                if target.is_file()
+                else "",
+            },
             files={"file": (name, content.encode() if isinstance(content, str) else content)},
         )
 
@@ -203,7 +209,14 @@ class FileVersionTests(ApiTest):
         self._upload("doc.txt", "first")
         self._upload("doc.txt", "second")
         vid = self.client.get("/api/files/versions", params={"path": "doc.txt"}).json()[-1]["id"]
-        r = self.client.post("/api/files/versions/restore", json={"path": "doc.txt", "id": vid})
+        r = self.client.post(
+            "/api/files/versions/restore",
+            json={
+                "path": "doc.txt",
+                "id": vid,
+                "expected_etag": fs.identity_etag(fs.file_identity(fs.files_dir() / "doc.txt")),
+            },
+        )
         self.assertEqual(r.status_code, 200)
         self.assertEqual((fs.files_dir() / "doc.txt").read_text(), "first")
 

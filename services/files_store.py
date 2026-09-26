@@ -54,6 +54,7 @@ def _entry(p: Path, base: Path) -> dict:
         "size": st.st_size if p.is_file() else 0,
         "mtime": datetime.fromtimestamp(st.st_mtime).isoformat(),
         "ext": ext,
+        "etag": identity_etag(file_identity(p)),
         "is_img": ext in _IMG,
     }
 
@@ -148,7 +149,34 @@ def rename(rel: str, new_rel: str, *, root: Path | None = None) -> dict:
     return {"ok": True, "path": str(dst.relative_to(root_dir(root))).replace("\\", "/")}
 
 
-def save_upload(rel_dir: str, filename: str, data: bytes, *, root: Path | None = None) -> dict:
+def file_identity(path: Path) -> tuple[int, ...]:
+    """Identity for a conditional local mutation; an empty tuple means absent."""
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return ()
+    return (
+        stat.st_dev,
+        stat.st_ino,
+        stat.st_mode,
+        stat.st_size,
+        stat.st_mtime_ns,
+        stat.st_ctime_ns,
+    )
+
+
+def identity_etag(identity: tuple[int, ...]) -> str:
+    return "local-" + hashlib.sha256(repr(identity).encode("ascii")).hexdigest()
+
+
+def save_upload(
+    rel_dir: str,
+    filename: str,
+    data: bytes,
+    *,
+    root: Path | None = None,
+    expected_identity: tuple[int, ...] | None = None,
+) -> dict:
     name = Path(filename or "").name  # strip any path from the upload name
     if not name or set(name) <= {"."}:
         # "", ".", "..", "..." all resolve to the dir itself -> write_bytes would 500
@@ -182,6 +210,8 @@ def save_upload(rel_dir: str, filename: str, data: bytes, *, root: Path | None =
                 written.update(chunk)
         if partial.stat().st_size != len(data) or written.digest() != hashlib.sha256(data).digest():
             raise OSError("upload verification failed")
+        if expected_identity is not None and file_identity(dst) != expected_identity:
+            raise FileExistsError("file changed before it could be saved; review it again")
         if dst.is_file():
             try:
                 os.link(dst, backup)
@@ -189,7 +219,12 @@ def save_upload(rel_dir: str, filename: str, data: bytes, *, root: Path | None =
                 shutil.copy2(dst, backup)
                 with backup.open("rb") as handle:
                     os.fsync(handle.fileno())
-        os.replace(partial, dst)
+        if expected_identity == ():
+            # Atomic no-clobber publication if a file appears after the absence check.
+            os.link(partial, dst)
+            partial.unlink()
+        else:
+            os.replace(partial, dst)
         replaced = True
         try:
             directory = os.open(dst.parent, os.O_RDONLY)

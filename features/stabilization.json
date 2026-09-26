@@ -450,11 +450,11 @@
       "app": "server",
       "workflow": "inspect neofetch and btop",
       "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
-      "status": "failed",
+      "status": "untested",
       "evidence": [
         "/tmp/alles-server-audit/report.md"
       ],
-      "notes": "Current owned audit reproduces stale monitor feedback (STAB-087); synthetic metrics/provider failure are explicit. Native machine monitoring acceptance remains open."
+      "notes": "The confirmed monitor failure was repaired and covered by narrow recovery scenarios; this broader original workflow still needs complete current evidence."
     },
     {
       "id": "server.management.2",
@@ -2246,14 +2246,15 @@
       "app": "files",
       "workflow": "upload a file whose basename already exists",
       "expected": "Preserve original bytes until an explicit conflict decision, check replacement identity, and retain a usable recovery path or block unrecoverable replacement.",
-      "status": "failed",
+      "status": "untested",
       "evidence": [
         "/tmp/alles-files-workflow-audit-report.md"
       ],
       "required_profiles": [
         "desktop",
         "phone"
-      ]
+      ],
+      "notes": "The original defects are fixed in the recorded Files checkpoint. A current execution must still satisfy this whole workflow; passing narrower scenarios does not automatically certify it."
     },
     {
       "id": "files.transfer-error-readability",
@@ -2261,14 +2262,15 @@
       "app": "files",
       "workflow": "recover from copy and restore collisions on phone",
       "expected": "The entire failure reason and recovery actions remain visible and reachable; retry preserves both originals until the conflict is resolved.",
-      "status": "failed",
+      "status": "untested",
       "evidence": [
         "/tmp/alles-files-workflow-audit-report.md"
       ],
       "required_profiles": [
         "desktop",
         "phone"
-      ]
+      ],
+      "notes": "The original defects are fixed in the recorded Files checkpoint. A current execution must still satisfy this whole workflow; passing narrower scenarios does not automatically certify it."
     },
     {
       "id": "calendar.empty-and-search",
@@ -2565,6 +2567,673 @@
         "width-360",
         "width-390",
         "width-1440"
+      ]
+    },
+    {
+      "id": "files.upload-collision-cancel",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload collision cancel",
+      "expected": "Collision cancellation leaves original bytes and version history unchanged, with focus returned to the upload control.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-keep-both",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload keep both",
+      "expected": "An explicitly chosen new filename preserves both exact originals and new upload bytes after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.version-recovery",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "version recovery",
+      "expected": "Version restore checks current identity, preserves previous bytes, confirms success and survives reload/download.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-large-preservation",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload large preservation",
+      "expected": "Replacing an original above25MiB is refused without modification; a new filename remains available.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-stale-decision",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload stale decision",
+      "expected": "Another tab's saved replacement invalidates a stale decision; retry/cancel preserves that saved file.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.version-stale-decision",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "version stale decision",
+      "expected": "Restoring over a changed current file requires a new explicit decision; cancel preserves current bytes.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-lost-ack",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload lost ack",
+      "expected": "Retrying an accepted upload whose acknowledgment was lost detects identical bytes without a duplicate write/version.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-failed-retry",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload failed retry",
+      "expected": "Failed uploads keep the selected File and chosen name; retry saves once after recovery.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-interrupted-cancel",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload interrupted cancel",
+      "expected": "A pre-dispatch transport failure remains visible; cancellation does not create a destination.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-visible-failure",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer visible failure",
+      "expected": "Full transfer failure reasons wrap and remain readable in both themes; failed copies preserve source and destination.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-network-contract",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload network contract",
+      "expected": "Every deliberate response/transport fault is individually accounted for, with no unexpected page, request or console errors.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-clearance-single",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer clearance single",
+      "expected": "The last populated row and selection controls remain reachable above a retained failed transfer.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-clearance-multiple-normal",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer clearance multiple normal",
+      "expected": "Several long transfer failures stay visible without covering the last row in either theme.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-clearance-multiple-constrained",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer clearance multiple constrained",
+      "expected": "At constrained height, retained errors scroll independently while pointer/keyboard access to rows and selection remains available.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-clearance-reset",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer clearance reset",
+      "expected": "Clearing only fixture operations and reloading removes obsolete scroll clearance.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.monitor-stale-feedback",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "monitor stale feedback",
+      "expected": "After a successful metrics poll, failed polls visibly mark metrics unavailable and successful recovery updates the status.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.monitor-loading-after-success",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "monitor loading after success",
+      "expected": "Re-entering a previously successful monitor during failure displays recoverable unavailability instead of indefinite loading.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.runtime-log-timestamps",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "runtime log timestamps",
+      "expected": "Real owned runtime logs render their saved timestamps beside messages.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.partial-logs-recovery",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "partial logs recovery",
+      "expected": "A failed log request exposes a local error; retry restores current logs without an unrelated panel being replaced.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.policy-success-style",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "policy success style",
+      "expected": "A verified policy save clears the preceding failure style and displays saved confirmation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.policy-recovery",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "policy recovery",
+      "expected": "Rejected or canceled owner confirmation preserves the policy draft; retry saves the exact local policy with0600 permissions.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.policy-stale-permission-feedback",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "policy stale permission feedback",
+      "expected": "Saving a valid policy updates its effective permissions and removes obsolete missing-policy warnings after reentry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.policy-hidden-confirmation",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "policy hidden confirmation",
+      "expected": "Host-permission confirmation is absent and skipped by Tab in owned-only mode, and reachable for an unsaved allowlisted draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.service-action-refresh",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "service action refresh",
+      "expected": "Explicitly simulated service failure retains recovery controls; a successful retry updates the visible state and retains keyboard focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.service-late-refresh",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "service late refresh",
+      "expected": "A delayed simulated service action cannot replace the newly selected tab; reentry and reload reflect the simulated running state.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.unconfigured-backup-disabled",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "unconfigured backup disabled",
+      "expected": "Empty provider configuration leaves remote backup actions visibly disabled without making provider requests.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.backup-failure-status",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "backup failure status",
+      "expected": "A simulated remote backup rejection appears beside its action and clears in-progress status while allowing retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.backup-action-refresh",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "backup action refresh",
+      "expected": "Simulated remote backup success refreshes the visible backup list and retains keyboard focus; reentry preserves the confirmed simulated result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.local-export",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "local export",
+      "expected": "Actual keyboard/pointer owner confirmation downloads a nonempty encrypted local fixture backup in the expected format.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.owned-restart-persistence",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "owned restart persistence",
+      "expected": "Stopping and restarting only the disposable server preserves the exact saved policy after fresh authentication.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.light-long-content-geometry",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "light long content geometry",
+      "expected": "Long owned log content and panels remain bounded and readable in Light at desktop and phone widths.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.keyboard-tabs",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "keyboard tabs",
+      "expected": "Server section controls remain keyboard reachable with focus visible and the selected section correctly displayed.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.browser-history",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "browser history",
+      "expected": "Browser back and forward preserve the requested Server section and its visible content.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.navigation-context",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "keep the selected Settings section identifiable while traversing navigation",
+      "expected": "Current section text stays visible in the compact header; selected tabs differ from hover; actual focus, scrolling, Escape return and reentry work at desktop and320/390px inLTR/RTL andLight/Dark.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "gallery.navigation-and-empty",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery navigation and empty",
+      "expected": "Reach Gallery from Files, inspect the empty state and return through the supported navigation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.multiple-upload-bytes-and-reload",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery multiple upload bytes and reload",
+      "expected": "Choose multiple synthetic images using the visible upload control; each exact image persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.keyboard-photo-entry-and-modal-focus",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery keyboard photo entry and modal focus",
+      "expected": "Open a photo by keyboard; viewer focus stays within the modal, background controls remain inactive, and dismissal returns focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.album-create-failure-draft-retry",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery album create failure draft retry",
+      "expected": "Rejected or malformed album creation keeps the exact name and visible recovery; a valid retry persists the new album.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.album-choice-bounds-keyboard-and-membership",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery album choice bounds keyboard and membership",
+      "expected": "A long album picker fits the viewport and supports keyboard selection/Escape; selection changes the saved membership as requested.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.rejected-new-destination-preserves-membership",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery rejected new destination preserves membership",
+      "expected": "Failed destination-album creation sends no assignment and preserves each original photo membership after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.wrong-album-acknowledgement-preserves-membership",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery wrong album acknowledgement preserves membership",
+      "expected": "A deliberately replayed unrelated success after a real album commit is rejected, retains the draft and changes no photo membership; correctly acknowledged retry works.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.caption-rejected-and-malformed-draft-retention",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery caption rejected and malformed draft retention",
+      "expected": "Caption failures and invalid success responses retain exact editable text, then a successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.viewer-editor-reentry-neighbor",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery viewer editor reentry neighbor",
+      "expected": "The viewer and image editor reopen after caption recovery with their normal controls and photo context intact.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.list-rejection-and-owned-retry",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery list rejection and owned retry",
+      "expected": "A failed Gallery list is an explicit error, not an empty library; its Retry reloads the intended list.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.optional-album-metadata-recovery",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery optional album metadata recovery",
+      "expected": "Unavailable optional album metadata does not discard loaded photos; recovery updates its owned feedback.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.delete-restore-rejection-and-reload",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery delete restore rejection and reload",
+      "expected": "Delete and restore use confirmed results; rejected restore remains visible and a successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.upload-interruption-and-visible-retry",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery upload interruption and visible retry",
+      "expected": "An interrupted upload retains pending files and visible recovery, and successful retry persists the requested images.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.search-filter-album-remove-touch-return",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery search filter album remove touch return",
+      "expected": "Search, filtering, album removal and emulated touch navigation retain the expected visible and saved photo state.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.exact-error-accounting",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery exact error accounting",
+      "expected": "All network/HTTP/console faults match explicitly injected failures; there are no unexpected page errors.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
       ]
     }
   ],
@@ -4231,7 +4900,7 @@
       "severity": "high",
       "screen": "Files upload and local version recovery",
       "revision": "b6f4cc3; Files module/backend hashes unchanged by the pending Settings patch",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Seed an owned local file of 26214401 bytes.",
         "Open Files at that location and use the visible Upload control to choose a different file with the same basename.",
@@ -4249,9 +4918,11 @@
         "/tmp/alles-files-workflow-audit-1/phone-large-before.png",
         "/tmp/alles-files-workflow-audit-1/phone-large-after.png",
         "/tmp/alles-files-workflow-audit-1/keyboard-file-detail-proof.json",
-        "/tmp/alles-files-workflow-audit-1/desktop-version-count-no-recovery-control.png"
+        "/tmp/alles-files-workflow-audit-1/desktop-version-count-no-recovery-control.png",
+        ".Codex/stabilization/2026-09-26-files/files-2/results.json",
+        ".Codex/stabilization/2026-09-26-files/files-3/results.json"
       ],
-      "verification": "Real pointer/keyboard and exact persisted-byte checks on owned local and connected folders; snapshots and version lists checked after reload. CSS and API causes traced. Repair is in progress; no remote provider or native device acceptance."
+      "verification": "Two fresh integrated Files subsets passed all three gates, with162focusedPython checks and672JavaScript checks. Actual pointer/keyboard and exact saved bytes cover explicit replacement, large-original preservation, version restore, concurrent decisions, lost-response retry and retained transfer failures. Final error reasons use14px text; lower rows and selection remain reachable at constrained desktop/phone sizes. Source cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884; acceptance f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0. This is bounded local Files proof, not complete release/device/provider acceptance."
     },
     {
       "id": "STAB-080",
@@ -4259,7 +4930,7 @@
       "severity": "medium",
       "screen": "Files phone transfer panel",
       "revision": "b6f4cc3; Files module/backend hashes unchanged by the pending Settings patch",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Copy report.txt from the default location to a connected managed folder that already contains report.txt.",
         "After the operation fails, inspect the transfer panel on the phone. A restore collision produces the same clipping."
@@ -4273,9 +4944,11 @@
         "/tmp/alles-files-workflow-audit-1/phone-operation-error-clipping.json",
         "/tmp/alles-files-workflow-audit-1/phone-many-operations.png",
         "/tmp/alles-files-workflow-audit-1/desktop-restore-error-panel.png",
-        "/tmp/alles-files-workflow-audit-1/copy-collision-retry-proof.json"
+        "/tmp/alles-files-workflow-audit-1/copy-collision-retry-proof.json",
+        ".Codex/stabilization/2026-09-26-files/files-2/results.json",
+        ".Codex/stabilization/2026-09-26-files/files-3/results.json"
       ],
-      "verification": "Real pointer/keyboard and exact persisted-byte checks on owned local and connected folders; snapshots and version lists checked after reload. CSS and API causes traced. Repair is in progress; no remote provider or native device acceptance."
+      "verification": "Two fresh integrated Files subsets passed all three gates, with162focusedPython checks and672JavaScript checks. Actual pointer/keyboard and exact saved bytes cover explicit replacement, large-original preservation, version restore, concurrent decisions, lost-response retry and retained transfer failures. Final error reasons use14px text; lower rows and selection remain reachable at constrained desktop/phone sizes. Source cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884; acceptance f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0. This is bounded local Files proof, not complete release/device/provider acceptance."
     },
     {
       "id": "STAB-081",
@@ -4400,8 +5073,8 @@
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "Two fresh integrated Files subsets passed all three gates, with162focusedPython checks and672JavaScript checks. Actual pointer/keyboard and exact saved bytes cover explicit replacement, large-original preservation, version restore, concurrent decisions, lost-response retry and retained transfer failures. Final error reasons use14px text; lower rows and selection remain reachable at constrained desktop/phone sizes. Source cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884; acceptance f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0. This is bounded local Files proof, not complete release/device/provider acceptance.",
       "id": "STAB-086",
       "title": "Retained failed transfers cover lower Files rows on phone",
       "severity": "medium",
@@ -4417,13 +5090,15 @@
       "evidence": [
         "/tmp/alles-files-dock-before/files-clearance/result.json",
         "/tmp/alles-files-dock-clearance-report.md",
-        "/tmp/alles-files-dock-clearance-delivery.json"
+        "/tmp/alles-files-dock-clearance-delivery.json",
+        ".Codex/stabilization/2026-09-26-files/files-2/results.json",
+        ".Codex/stabilization/2026-09-26-files/files-3/results.json"
       ]
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-087",
       "title": "Monitor conceals post-success errors and sticks on re-entry",
       "severity": "medium",
@@ -4438,14 +5113,15 @@
         "/tmp/alles-server-audit/report.md",
         "/tmp/alles-server-audit-run5/scenarios.json",
         "/tmp/alles-server-audit/source-manifest.json",
-        "/tmp/alles-server-audit/cleanup-verification.json"
+        "/tmp/alles-server-audit/cleanup-verification.json",
+        ".Codex/stabilization/2026-09-26-administration/administration-1/results.json"
       ],
       "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-088",
       "title": "Service and backup success rerenders update detached containers",
       "severity": "medium",
@@ -4460,14 +5136,15 @@
         "/tmp/alles-server-audit/report.md",
         "/tmp/alles-server-audit-run5/scenarios.json",
         "/tmp/alles-server-audit/source-manifest.json",
-        "/tmp/alles-server-audit/cleanup-verification.json"
+        "/tmp/alles-server-audit/cleanup-verification.json",
+        ".Codex/stabilization/2026-09-26-administration/administration-1/results.json"
       ],
       "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-089",
       "title": "Backup error leaves running status",
       "severity": "medium",
@@ -4482,14 +5159,15 @@
         "/tmp/alles-server-audit/report.md",
         "/tmp/alles-server-audit-run5/scenarios.json",
         "/tmp/alles-server-audit/source-manifest.json",
-        "/tmp/alles-server-audit/cleanup-verification.json"
+        "/tmp/alles-server-audit/cleanup-verification.json",
+        ".Codex/stabilization/2026-09-26-administration/administration-1/results.json"
       ],
       "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-090",
       "title": "Runtime log timestamps omitted",
       "severity": "medium",
@@ -4504,14 +5182,15 @@
         "/tmp/alles-server-audit/report.md",
         "/tmp/alles-server-audit-run5/scenarios.json",
         "/tmp/alles-server-audit/source-manifest.json",
-        "/tmp/alles-server-audit/cleanup-verification.json"
+        "/tmp/alles-server-audit/cleanup-verification.json",
+        ".Codex/stabilization/2026-09-26-administration/administration-1/results.json"
       ],
       "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-091",
       "title": "Policy save leaves false missing-file state",
       "severity": "medium",
@@ -4526,14 +5205,15 @@
         "/tmp/alles-server-audit/report.md",
         "/tmp/alles-server-audit-run5/scenarios.json",
         "/tmp/alles-server-audit/source-manifest.json",
-        "/tmp/alles-server-audit/cleanup-verification.json"
+        "/tmp/alles-server-audit/cleanup-verification.json",
+        ".Codex/stabilization/2026-09-26-administration/administration-1/results.json"
       ],
       "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-092",
       "title": "Policy success retains error styling",
       "severity": "low",
@@ -4548,14 +5228,15 @@
         "/tmp/alles-server-audit/report.md",
         "/tmp/alles-server-audit-run5/scenarios.json",
         "/tmp/alles-server-audit/source-manifest.json",
-        "/tmp/alles-server-audit/cleanup-verification.json"
+        "/tmp/alles-server-audit/cleanup-verification.json",
+        ".Codex/stabilization/2026-09-26-administration/administration-1/results.json"
       ],
       "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-093",
       "title": "Owned-only policy shows and focuses hidden escalation field",
       "severity": "low",
@@ -4570,7 +5251,8 @@
         "/tmp/alles-server-audit/report.md",
         "/tmp/alles-server-audit-run5/scenarios.json",
         "/tmp/alles-server-audit/source-manifest.json",
-        "/tmp/alles-server-audit/cleanup-verification.json"
+        "/tmp/alles-server-audit/cleanup-verification.json",
+        ".Codex/stabilization/2026-09-26-administration/administration-1/results.json"
       ],
       "notes": "Service/remote backup responses are explicitly simulated. Real owned policy, logs and process restart use synthetic isolated data."
     },
@@ -4808,7 +5490,7 @@
       "severity": "low",
       "screen": "Phone Settings language pane at320px and390px in LTR and RTL",
       "revision": "b6f4cc3 plus Settings/Calendar integration; source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open Settings and select Language & region.",
         "Press Tab four times into the selected language control.",
@@ -4820,9 +5502,50 @@
       "evidence": [
         "/tmp/alles-settings-navigation-audit-report.md",
         "/tmp/alles-settings-navigation-audit-1/navigation-observations.json",
-        "/tmp/alles-settings-navigation-audit-navigation-320/navigation-observations.json"
+        "/tmp/alles-settings-navigation-audit-navigation-320/navigation-observations.json",
+        ".Codex/stabilization/2026-09-26-administration/administration-1/results.json"
       ],
-      "verification": "Pane/active-tab ownership matches in all26 inspected states; no actual pane mismatch. Context loss reproduces with actual input; four Shift+Tabs recover. Low-impact repair is separate; no native-device acceptance."
+      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance."
+    },
+    {
+      "id": "STAB-106",
+      "title": "Aide send target clips at320px",
+      "severity": "medium",
+      "screen": "Aide default composer at320px inLight andDark",
+      "revision": "17a50d2; original audit product hashes in /tmp/alles-shell-audit/manifest.json",
+      "status": "confirmed",
+      "reproduction": [
+        "Open the app picker and choose Aide in a320px returning-user fixture.",
+        "With default auto mode and medium effort, inspect Send and reach it using Tab."
+      ],
+      "expected": "The complete44px send target and its focus indication remain inside the visible working pane.",
+      "actual": "Send spans x289.890625to333.890625; only30.109375px is visible. Page width remains320px, so horizontal scrolling cannot reveal it. Keyboard focus clips too. Sending was not attempted during the initial audit.",
+      "evidence": [
+        "/tmp/alles-shell-audit/report.md",
+        "/tmp/alles-shell-audit/interactive/phone320-aide-composer-geometry.json"
+      ],
+      "verification": "Confirmed rendered measurement and real keyboard traversal. Isolated repair and send/stop neighboring checks in progress; native-device acceptance unclaimed."
+    },
+    {
+      "id": "STAB-107",
+      "title": "Gallery accepts an unrelated successful album acknowledgement before assigning photos",
+      "severity": "high",
+      "screen": "Gallery selection → add to album → new album",
+      "revision": "17a50d2 plus preliminary Gallery repair; source hashes recorded in isolated reproduction",
+      "status": "confirmed",
+      "reproduction": [
+        "Create a synthetic photo with an original album and a separate unrelated album.",
+        "Submit another album name; let the real creation commit, then deliberately substitute the unrelated album response.",
+        "Inspect saved photo membership before and after reload."
+      ],
+      "expected": "An acknowledgement for a different requested name must not authorize reassignment; retain the draft and original membership.",
+      "actual": "The unchecked unrelated response ID is sent in a real membership batch, and wrong membership persists after reload. The stock backend was not observed producing this response on its own.",
+      "evidence": [
+        "/tmp/alles-gallery-ack-followup-report.md",
+        "/tmp/alles-gallery-ack-before-3/scenarios.json",
+        "/tmp/alles-gallery-ack-followup-delivery.json"
+      ],
+      "verification": "Confirmed under explicitly simulated stale-success corruption. Isolated repair rejects a different name and passed sixty scenarios twice; root integration is still pending. Same-name ambiguity and empty albums after committed/lost acknowledgements remain outside the repair."
     }
   ],
   "additional_surfaces": [

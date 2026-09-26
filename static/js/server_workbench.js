@@ -53,6 +53,11 @@ function action(label, run, className = '') {
   button.type = 'button';
   button.addEventListener('click', async () => {
     if (button.disabled) return;
+    const restoreFocus = document.activeElement === button;
+    const surface = button.closest('.server-workbench-content');
+    const owner = button.closest('.server-workbench-card');
+    const title = owner?.querySelector('h2')?.textContent;
+    const index = owner ? [...owner.querySelectorAll('button')].indexOf(button) : -1;
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
     try { await run(button); }
@@ -64,6 +69,17 @@ function action(label, run, className = '') {
     } finally {
       button.disabled = false;
       button.removeAttribute('aria-busy');
+      if (restoreFocus && surface?.isConnected && document.activeElement === document.body) {
+        const current = [...surface.querySelectorAll('.server-workbench-card')]
+          .find(card => card.querySelector('h2')?.textContent === title);
+        const replacement = button.isConnected ? button : current?.querySelectorAll('button')[index];
+        if (replacement && !replacement.disabled) replacement.focus({ preventScroll: true });
+        else if (current) {
+          const heading = current.querySelector('h2');
+          heading.tabIndex = -1;
+          heading.focus({ preventScroll: true });
+        }
+      }
     }
   });
   return button;
@@ -496,7 +512,7 @@ async function renderServices(target, request) {
   const heading = card('service control', 'Alles-owned services can be controlled here. Host services stay disabled unless the policy tab explicitly allowlists exact IDs.');
   const message = statusLine();
   heading.append(message);
-  const rerender = () => renderServerSection(target, request, 'services');
+  const rerender = () => renderServices(target, request);
   const owned = ownedResult.status === 'fulfilled' ? ownedResult.value.services || [] : [];
   if (!owned.length) heading.append(el('p', 'server-workbench-empty', ownedResult.status === 'rejected' ? ownedResult.reason.message : 'no Alles-owned services are registered'));
   for (const service of owned) {
@@ -730,7 +746,7 @@ async function renderSearch(target, request) {
   target.replaceChildren(panel, models, credentials);
 }
 
-async function renderBackups(target, request) {
+async function renderBackups(target, request, completed = null) {
   const [settingsResult, locationsResult, webdavResult, s3Result] = await Promise.allSettled([
     json(request, '/api/settings'),
     json(request, '/api/storage-locations'),
@@ -738,8 +754,6 @@ async function renderBackups(target, request) {
     json(request, '/api/backup/s3'),
   ]);
   const intro = card('backups and storage', 'Backup destinations are reported independently. A failed destination never makes another one look healthy.');
-  const message = statusLine();
-  intro.append(message);
   const local = card('automatic local backup', 'The background scheduler checks this encrypted destination hourly and writes at most once every 24 hours.');
   if (settingsResult.status === 'rejected') local.append(statusLine(settingsResult.reason.message, 'error'));
   else {
@@ -771,11 +785,13 @@ async function renderBackups(target, request) {
       fact('last verified', value.last_verified_at || 'never'),
     );
     if (value.error) section.append(statusLine(value.error, 'error'));
+    const message = statusLine(completed?.type === type ? completed.message : '');
+    section.append(message);
     const button = action('run encrypted backup', async () => {
-      message.textContent = `${title} backup running…`;
+      message.classList.remove('is-error');
+      message.textContent = 'creating encrypted backup…';
       const saved = await json(request, `/api/backup/${type}/run`, { method: 'POST' });
-      message.textContent = `${title} backup complete · ${saved.filename}`;
-      await renderBackups(target, request);
+      await renderBackups(target, request, { type, message: `backup complete · ${saved.filename}` });
     });
     button.disabled = !value.configured;
     section.append(button);
@@ -802,7 +818,7 @@ async function renderUpdates(target, request) {
 
 function logEntry(entry) {
   const row = el('div', 'server-workbench-log');
-  const when = entry.created_at || entry.timestamp || entry.time || '';
+  const when = entry.created_at || entry.timestamp || entry.time || entry.ts || '';
   const actionName = entry.action || entry.level || entry.event || 'entry';
   const detail = entry.message || entry.outcome || entry.target || '';
   row.append(el('time', '', String(when)), el('strong', '', String(actionName)), el('span', '', String(detail)));
@@ -838,8 +854,10 @@ async function renderPolicy(target, request) {
     target.replaceChildren(section);
     return;
   }
-  section.append(fact('file', current.path), fact('effective state', current.valid ? current.policy.control_mode : `fail closed · ${current.error_code}`), fact('local device', current.local_device ? 'yes' : 'no'));
-  if (!current.valid) section.append(statusLine(`${current.error}. Nothing outside Alles can be controlled until a valid owner-only file is saved.`, 'error'));
+  const effectiveState = fact('effective state', current.valid ? current.policy.control_mode : `fail closed · ${current.error_code}`);
+  const policyError = current.valid ? null : statusLine(`${current.error}. Nothing outside Alles can be controlled until a valid owner-only file is saved.`, 'error');
+  section.append(fact('file', current.path), effectiveState, fact('local device', current.local_device ? 'yes' : 'no'));
+  if (policyError) section.append(policyError);
   const label = el('label', 'server-workbench-field');
   label.append(el('span', '', 'policy json'));
   const editor = el('textarea');
@@ -863,6 +881,7 @@ async function renderPolicy(target, request) {
     });
     diff.textContent = result.diff.length ? result.diff.join('\n') : 'no proposed changes';
     confirmation.hidden = result.policy.control_mode !== 'allowlisted_host';
+    message.classList.remove('is-error');
     message.textContent = 'policy is valid';
     return result;
   };
@@ -879,6 +898,9 @@ async function renderPolicy(target, request) {
           body: JSON.stringify({ policy: editor.value, confirmation: candidate.policy.control_mode === 'allowlisted_host' ? confirmInput.value : '' }),
         });
         editor.value = saved.canonical;
+        effectiveState.querySelector('strong').textContent = saved.policy.control_mode;
+        policyError?.remove();
+        message.classList.remove('is-error');
         message.textContent = 'saved and verified with owner-only permissions';
         confirmation.hidden = saved.policy.control_mode !== 'allowlisted_host';
       } catch (error) {
@@ -892,6 +914,11 @@ async function renderPolicy(target, request) {
 }
 
 export async function renderServerSection(target, request = fetch, section = 'services') {
+  // The workbench moves these children out of its staging element. Keep the
+  // action target attached so refreshes update this section after that move.
+  const content = el('div', 'server-workbench-content');
+  target.replaceChildren(content);
+  target = content;
   target.replaceChildren(el('p', 'server-workbench-empty', 'loading current server state…'));
   try {
     if (section === 'services') return await renderServices(target, request);

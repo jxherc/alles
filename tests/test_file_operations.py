@@ -302,9 +302,20 @@ class FileOperationApiTests(ApiTest):
         )
         db.close()
 
-        replacement = self.client.post(
+        review = self.client.post(
             "/api/files/upload",
             data={"path": "", "location_id": "two"},
+            files={"file": ("note.txt", b"direct replacement", "text/plain")},
+        )
+        self.assertEqual(review.status_code, 409, review.text)
+        self.assertTrue(review.json()["detail"]["can_replace"])
+        replacement = self.client.post(
+            "/api/files/upload",
+            data={
+                "path": "",
+                "location_id": "two",
+                "expected_etag": review.json()["detail"]["expected_etag"],
+            },
             files={"file": ("note.txt", b"direct replacement", "text/plain")},
         )
         self.assertEqual(replacement.status_code, 200, replacement.text)

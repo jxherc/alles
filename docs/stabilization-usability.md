@@ -283,3 +283,23 @@ browser session on the current source. The second context copied no cookies or
 browser storage and received a distinct session. The exact context limit, switch,
 appearance, French labels, 24-hour format and week-start choice were preserved.
 This closes that bounded persistence evidence gap; native device checks remain open.
+
+## Shared navigation and narrow Aide audit, September 26
+
+A task-based walkthrough at 1440px, 390px and 320px reached the app picker with
+pointer, emulated touch and keyboard. Escape restored opener focus; Tab wrapped
+inside the drawer; scrolling exposed all twelve destinations and Settings. This
+is a bounded walkthrough, not independent novice-user research. The icon-only
+opener and missing current-app marking are design observations for the consistency
+pass, not proven task failures.
+
+Measured default Light/Dark Calendar and Aide control text met 4.5:1 contrast. The
+lowest sampled ratio was 4.537488:1 for active Calendar text and the Light Aide
+mode's hover state. These measurements do not cover arbitrary custom accents.
+
+A separate confirmed defect (STAB-106) clips Aide's 44px send control at 320px:
+only 30.109375px remains visible. Keyboard focus also clips, and the page cannot
+scroll sideways to expose it. The audit did not send a provider request; a wider
+window or keyboard is the provisional workaround. Its repair requires a real
+send/stop regression and narrow rendered checks. Native Safari/iPhone remains
+unverified.

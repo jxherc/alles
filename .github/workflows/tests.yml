@@ -49,7 +49,7 @@ jobs:
 
   browser-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -58,7 +58,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements.lock playwright==1.62.0
       - run: python -m playwright install --with-deps chromium
-      - run: python scripts/run_browser_gates.py --suite "$BROWSER_SUITE" --output "$RUNNER_TEMP/alles-browser"
+      - run: python scripts/run_browser_gates.py --suite "$BROWSER_SUITE" --output "$RUNNER_TEMP/alles-browser" --gate-timeout 600
         env:
           BROWSER_SUITE: ${{ inputs.browser_suite || 'smoke' }}
       - uses: actions/upload-artifact@v4

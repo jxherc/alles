@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.request import urlopen
 
 from browser_gate_safety import require_server_ownership
+from browser_offline_network import OfflineNetwork
 from playwright.sync_api import expect, sync_playwright
 
 FEATURE = "extension-mobile.pwa-and-extension"
@@ -69,6 +70,8 @@ def run():
                     "page_errors": [],
                     "failed_requests": [],
                     "http_errors": [],
+                    "worker_failures": [],
+                    "worker_health_posts": [],
                 }
                 page.on(
                     "console",
@@ -102,6 +105,37 @@ def run():
                         else None
                     ),
                 )
+                context.on(
+                    "requestfailed",
+                    lambda req: (
+                        events["worker_failures"].append(
+                            {
+                                "url": req.url,
+                                "method": req.method,
+                                "failure": req.failure,
+                                "offline": state["offline"],
+                            }
+                        )
+                        if req.service_worker
+                        else None
+                    ),
+                )
+                context.on(
+                    "request",
+                    lambda req: (
+                        events["worker_health_posts"].append(
+                            {
+                                "url": req.url,
+                                "body": req.post_data,
+                                "offline": state["offline"],
+                            }
+                        )
+                        if req.service_worker
+                        and req.method == "POST"
+                        and req.url == base + "/api/health"
+                        else None
+                    ),
+                )
                 note = f"offline storage {profile} {mode} 中文"
 
                 def saved():
@@ -125,6 +159,7 @@ def run():
                         "from_service_worker": result.from_service_worker,
                     }
 
+                network = None
                 try:
                     page.goto(base, wait_until="networkidle")
                     if page.locator("#setup-skip").is_visible():
@@ -132,12 +167,16 @@ def run():
                     page.wait_for_function("navigator.serviceWorker.controller")
                     page.goto(base + "/?view=health-log", wait_until="networkidle")
                     worker = context.service_workers[0]
+                    network = OfflineNetwork(browser, context, page, worker)
+                    page.evaluate(
+                        "window.__onlineEvents = 0; addEventListener('online', () => window.__onlineEvents++)"
+                    )
                     assert worker.evaluate("async()=>await _all()") == []
                     page.locator("#health-add-toggle").click()
                     page.get_by_label("value", exact=True).fill("74.312")
                     page.get_by_label("note (optional)", exact=True).fill(note)
                     state["offline"] = True
-                    context.set_offline(True)
+                    network.set_offline(True)
                     if mode == "open-denied":
                         worker.evaluate(
                             """() => {
@@ -228,8 +267,10 @@ def run():
                     assert not saved()
                     record["outbox_before_reconnect"] = queued
                     page.screenshot(path=str(dest / "02-queued.png"), full_page=True)
-                    context.set_offline(False)
+                    network.set_offline(False)
                     state["offline"] = False
+                    record["network_transitions"] = network.transitions
+                    assert page.evaluate("window.__onlineEvents") == 1
                     # Only the app's real online listener flushes the outbox.
                     deadline = time.monotonic() + 10
                     entries, queued = [], queued
@@ -247,6 +288,25 @@ def run():
                     assert len(saved()) == 1
                     page.screenshot(path=str(dest / "03-persisted.png"), full_page=True)
                     record["saved_entry"] = entries[0]
+                    expected_worker_failure = {
+                        "url": base + "/api/health",
+                        "method": "POST",
+                        "failure": "net::ERR_INTERNET_DISCONNECTED",
+                        "offline": True,
+                    }
+                    assert events["worker_failures"] == [expected_worker_failure] * (
+                        2 if failure else 1
+                    ), events
+                    assert len(events["worker_health_posts"]) == (3 if failure else 2), events
+                    assert (
+                        events["worker_health_posts"][-1]["body"]
+                        == record["outbox_before_reconnect"][0]["body"]
+                    ), events
+                    assert all(
+                        item["body"] is None
+                        or item["body"] == record["outbox_before_reconnect"][0]["body"]
+                        for item in events["worker_health_posts"]
+                    ), events
                     assert not events["page_errors"], events
                     assert all(
                         item["offline"]
@@ -295,6 +355,8 @@ def run():
                     (dest / "observations.json").write_text(json.dumps(record, indent=2))
                     (output / "scenarios.json").write_text(json.dumps(records, indent=2))
                     context.tracing.stop(path=str(dest / "trace.zip"))
+                    if network is not None:
+                        network.close()
                     context.close()
         browser.close()
     print(json.dumps({"status": "passed", "scenarios": records}))

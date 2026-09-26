@@ -47,15 +47,16 @@ the keyword-search fallback, not live model integrations.
 The maintained full suite currently contains Home capture/navigation, cleanup
 regressions, Plan capture/conflict/draft recovery, Calendar save/recurrence/keyboard recovery,
 Docs persistence and delayed-editor
-recovery, local Files operations,
+recovery, local Files operations, explicit upload/version recovery, Gallery recovery,
 Andromeda cancellation/retry with simulated transport, Aide interruption/recovery
 with a delayed loopback provider, Health correction/recovery, local Finance
 validation/retry/persistence, Library note/reading recovery, Inbox contact/mail draft
 recovery, Vault and local encrypted-backup controls, Home reminder timezone boundaries, owner setup and
-sign-in recovery, Settings save/order/locale recovery, PWA offline/reconnect,
+sign-in recovery, Settings save/order/locale/context recovery, local Server recovery,
+PWA offline/reconnect,
 browser-storage failure and rejected-write recovery, and
 resting surfaces for all twelve apps plus Settings in both themes at desktop and
-phone widths. `daily`, `calendar`, `setup`, `settings`, `assistant`, `specialist`, `surfaces`,
+phone widths. `daily`, `calendar`, `files`, `gallery`, `setup`, `settings`, `administration`, `assistant`, `specialist`, `surfaces`,
 and `pwa` select those subsets.
 Traces, screenshots, requests, console output and server logs accompany the
 results. Historical browser scripts outside this maintained list remain unaudited;
@@ -64,6 +65,8 @@ the word `full` does not mean every product workflow has been certified.
 GitHub runs Python, JavaScript, Ruff and the browser smoke suite. The workflow's
 manual dispatch can select the maintained full suite and retains browser artifacts
 for fourteen days. A green workflow does not override blocked ledger entries.
+The browser job allows sixty minutes and each gate ten minutes; the earlier
+fifteen-minute job limit was shorter than the measured maintained full run.
 
 ## Checkpoint evidence
 
@@ -316,6 +319,16 @@ Files/Server/Gallery defects, STAB-104 navigation context, offline replay diagno
 remaining layout work, native Safari/iPhone and the seven-day trial keep the release
 open. No publication follows from this checkpoint alone.
 
+The subsequent Files repair passed its three maintained browser gates twice from
+fresh data, with source fingerprint
+`cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884` and acceptance
+fingerprint `f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0`.
+The 162 focused Python checks and 672 JavaScript checks passed. Larger readable
+transfer errors were rechecked with the last file row, keyboard focus and selection
+controls visible above the retained panel at constrained phone height. These are
+Files subset runs, not two complete release runs. Their archived evidence closes
+STAB-079, STAB-080 and STAB-086 for the tested local workflows.
+
 ## Stable layout
 
 The app picker keeps the same destinations. Daily-work and specialist workbenches
@@ -339,6 +352,10 @@ The layout contract is in [decision 0012](../design-system/decisions/0012-minima
 | Recover conflicting or interrupted task edits | Plan → tasks → the editor; review both versions, download a draft, or confirm which changes to keep |
 | Continue editing if the visual document editor fails | Docs → Edit → Source; the visible loading/error status preserves the current buffer and Save action |
 | Browse documents or file locations | Inside Docs or Files; hiding views leaves these controls available |
+| Upload over an existing local file | Files → upload → cancel, choose a new name, or explicitly replace; originals above the recovery snapshot limit require a new name |
+| Restore a previous file version | Files → select the file → details → version history → restore; changed current files require a new decision |
+| Recover Gallery uploads, captions or album creation | Files → gallery → the visible Retry action or retained editing dialog; rejected destination creation preserves existing membership |
+| Find the current Settings section | The compact Settings header keeps its selected section name visible while the navigation strip scrolls |
 | Correct a Finance transaction | Finance → money → edit on its row; on phones the account and actions wrap below the payee and amount |
 | Recover an offline change | Pending indicator → review; inspect saved values, sign in or retry, save a copy, or confirm discard |
 | Edit book notes or a reading goal | Library → books → the note or goal; both are keyboard actions |
@@ -367,3 +384,15 @@ day, workflows used and any issue. A blocking regression restarts the trial afte
 its fix and retest. Do not infer seven days of usage from elapsed time alone.
 
 Incognito run metadata now shares the conversation’s RAM-only lifetime, including cancellation and expiry. Earlier versions could write private prompt/reply content into agent-run JSON files. This repair prevents new writes; historical owner files were not inspected or deleted.
+
+The Settings/Calendar checkpoint's failed offline replay was subsequently traced
+to Chromium network emulation ordering. Playwright restored page connectivity
+before the service worker, so the real online event reached a still-offline worker.
+The exact queued entry remained intact. A deterministic target-order comparison
+reproduced the failure and success with unchanged product code. The test fixture
+now restores both networks, proves a real uncached worker GET while the page still
+reports offline, then lets Chromium emit the real online event. It does not dispatch
+an app event, manually flush the queue, retry a POST, or extend the original save
+deadline. Worker request/failure accounting is stricter. A genuine transport failure
+or lost write acknowledgement still requires separate recovery evidence; this
+fixture correction does not establish universal automatic replay safety.
