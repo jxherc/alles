@@ -89,6 +89,62 @@ def geometry(page):
         assert r["left"] >= 0 and r["top"] >= 0, control
         assert r["right"] <= result["width"] and r["bottom"] <= result["height"], control
         assert control["reachable"], control
+    result["messages"] = message_geometry(page)
+    return result
+
+
+def message_geometry(page):
+    # a word may only split once its bubble is already as wide as it's allowed to get.
+    # message actions must fit, not overlap, and show on touch
+    result = page.evaluate("""() => {
+      const split = [];
+      for (const bubble of document.querySelectorAll('#messages .user-bubble')) {
+        const style = getComputedStyle(bubble), parent = bubble.parentElement;
+        const room = parent.clientWidth - parseFloat(getComputedStyle(parent).paddingLeft)
+          - parseFloat(getComputedStyle(parent).paddingRight);
+        const max = style.maxWidth === 'none' ? room : style.maxWidth.endsWith('%')
+          ? room * parseFloat(style.maxWidth) / 100 : parseFloat(style.maxWidth);
+        const width = bubble.getBoundingClientRect().width;
+        if (width >= Math.min(max, room) - 1) continue;
+        const walk = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT);
+        for (let node; (node = walk.nextNode());) {
+          for (const m of node.data.matchAll(/\\S+/g)) {
+            const range = document.createRange();
+            range.setStart(node, m.index);
+            range.setEnd(node, m.index + m[0].length);
+            const lines = new Set([...range.getClientRects()].map(r => Math.round(r.top)));
+            if (lines.size > 1) split.push({word: m[0], width, max: Math.min(max, room)});
+          }
+        }
+      }
+      const touch = matchMedia('(hover: none), (pointer: coarse)').matches;
+      const rows = [...document.querySelectorAll('#messages .msg-actions')].map(row => ({
+        opacity: getComputedStyle(row).opacity,
+        buttons: [...row.querySelectorAll('.act-btn')].map(e => ({
+          text: e.textContent.trim(), rect: e.getBoundingClientRect().toJSON(),
+          fits: e.scrollWidth <= e.clientWidth + 1,
+        })),
+      }));
+      return {width: innerWidth, touch, split, rows};
+    }""")
+    assert not result["split"], result
+    for row in result["rows"]:
+        if result["touch"]:
+            assert row["opacity"] == "1", row
+        buttons = row["buttons"]
+        for button in buttons:
+            r = button["rect"]
+            assert button["fits"], button
+            assert r["left"] >= 0 and r["right"] <= result["width"], button
+        for i, one in enumerate(buttons):
+            for two in buttons[i + 1 :]:
+                a, b = one["rect"], two["rect"]
+                assert (
+                    a["right"] <= b["left"]
+                    or b["right"] <= a["left"]
+                    or a["bottom"] <= b["top"]
+                    or b["bottom"] <= a["top"]
+                ), (one, two)
     return result
 
 
@@ -417,6 +473,20 @@ def run():
                                         == history
                                     )
                                     snapshot("04-completed-reload")
+                                    if width >= 700:
+                                        page.mouse.move(1, 1)
+                                        page.locator("#composer-ta").click()
+                                        for _ in range(40):
+                                            page.keyboard.press("Shift+Tab")
+                                            if page.evaluate(
+                                                "document.activeElement.matches('#messages .act-btn')"
+                                            ):
+                                                break
+                                        result["action_focus_opacity"] = page.evaluate(
+                                            "getComputedStyle(document.activeElement"
+                                            ".closest('.msg-actions')).opacity"
+                                        )
+                                        assert result["action_focus_opacity"] == "1", result
                                     result["history"] = history
                                     assert len(events["chat"]) == 2 and all(
                                         e["session_id"] == sid for e in events["chat"]
