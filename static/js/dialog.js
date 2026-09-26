@@ -22,6 +22,7 @@ function _wireDialog(overlay, resolve, valueFromConfirm) {
   overlay.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       done(null);
       return;
     }

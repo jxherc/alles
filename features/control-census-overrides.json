@@ -49,7 +49,7 @@
     "static/js/setupwizard.js": "setup-security.owner-setup",
     "static/js/skills.js": "aide.conversation-and-execution",
     "static/js/subs.js": "finance.actual-ledger",
-    "static/js/sync.js": "plan.tasks-calendar",
+    "static/js/sync.js": "extension-mobile.pwa-and-extension",
     "static/js/system.js": "server.management",
     "static/js/tasks.js": "plan.tasks-calendar",
     "static/js/theme.js": "localization.regional-settings",
@@ -65,5 +65,11 @@
     "app-drawer-settings": "cross-feature.settings",
     "topbar-settings-btn": "cross-feature.settings",
     "nav-backdrop": "accessibility.interface-contract"
+  },
+  "factory_calls": {
+    "static/js/sync.js": {
+      "button": "button",
+      "node": "element"
+    }
   }
 }

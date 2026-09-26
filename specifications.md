@@ -227,7 +227,12 @@ this is the most feature-dense app, so here's the full list:
 imports, with an optional gated move to an Alles-managed Actual Budget core.
 
 - **accounts** (checking / savings / cash / credit / investment) with live balances + a net-worth roll-up
-- **transactions**: log income/expenses with a category + payee, browse by month, quick-add, **click a row to edit it inline**, delete
+- **transactions**: log income/expenses with a category + payee, browse by month, quick-add, **use edit on its row**, delete
+- manual amounts validate the entire decimal input; grouped numbers or trailing text keep the draft and show an error
+- local account, transaction and transfer creates accept an optional canonical UUID `request_id`.
+  retrying identical values returns the saved result; reusing the ID with changed values returns
+  409. deletion clears saved receipt content and retains a tombstone so a late retry returns 410
+  instead of recreating the entry. requests without an ID retain their existing behavior
 - **csv import / export**: pull in a bank statement (it maps a `description` column to the payee, copes with `$`/commas) and **skips rows you already imported** (matched on date + amount + payee) so re-importing an overlapping statement doesn't double-count; or export everything to a spreadsheet
 - **budgets**: set a monthly cap per category; a progress bar turns red when you go over
 - **charts**: spending-by-category bars and a 6-month income-vs-spent trend (plain svg, no chart library)

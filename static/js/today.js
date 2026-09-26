@@ -1,4 +1,4 @@
-import { calendarDateKey, formatDate, formatDateParts, t, tp } from './i18n.js';
+import { calendarDateKey, formatDate, formatDateParts, resolvedTimeZone, t, tp } from './i18n.js';
 import { toast } from './util.js';
 
 const SECTION_LABELS = {
@@ -234,7 +234,8 @@ async function load() {
   showStatus(t('home.loading'));
   try {
     const date = calendarDateKey();
-    const todayResponse = await fetch(`/api/today?date=${date}`);
+    const timezone = encodeURIComponent(resolvedTimeZone());
+    const todayResponse = await fetch(`/api/today?date=${date}&timezone=${timezone}`);
     if (generation !== loadGeneration) return false;
     if (!todayResponse.ok) throw new Error(t('home.unavailable'));
     const today = await todayResponse.json();

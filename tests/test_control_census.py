@@ -35,6 +35,23 @@ class ControlCensusTest(unittest.TestCase):
                 self.assertEqual(row["states"]["visual"], list(VISUAL_STATES))
                 self.assertIn(row["evidence"]["status"], self.document["evidence_levels"])
 
+    def test_offline_recovery_factory_actions_remain_in_the_source_inventory(self):
+        rows = [
+            row
+            for row in self.document["controls"]
+            if row["surface"]["source"]["file"] == "static/js/sync.js"
+        ]
+        labels = {row["label"]["value"] for row in rows}
+        self.assertTrue(
+            {"review", "close", "save a copy", "sign in & retry", "retry saved change", "discard"}
+            <= labels
+        )
+        self.assertTrue(
+            all(row["feature_owner"] == "extension-mobile.pwa-and-extension" for row in rows)
+        )
+        for row in rows:
+            self.assertNotEqual(row["evidence"]["status"], "passed")
+
     def test_every_discoverable_activation_path_has_bounded_provenance_and_evidence(self):
         paths = [path for row in self.document["controls"] for path in row["activation_paths"]]
         self.assertEqual(len(paths), self.document["summary"]["activation_paths"])

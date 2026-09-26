@@ -91,7 +91,7 @@ tree inventory.
 
 ## SQLite data classes
 
-The current SQLAlchemy inventory contains **120 mapped tables** inside the `aide.db` snapshot.
+The current SQLAlchemy inventory contains **121 mapped tables** inside the `aide.db` snapshot.
 `schema_migrations` is also included as migration history but is not a SQLAlchemy mapped model.
 
 ```text
@@ -101,7 +101,7 @@ calendar_subscriptions, calendars, capability_grant_events, capability_grants, c
 contact_fields, contact_group_members, contact_groups, contact_links, contacts, cookbook, day_events,
 delegated_actions, doc_comments, doc_revisions, event_attendees, faces, file_comments,
 file_operation_path_claims, file_operation_source_claims, file_operations, file_tags, file_versions,
-finance_connections, finance_import_batches, finance_import_rows, finance_ledger_state, gallery_images, habit_logs, habits,
+finance_connections, finance_create_receipts, finance_import_batches, finance_import_rows, finance_ledger_state, gallery_images, habit_logs, habits,
 health_entries, index_chunks, insights, jarvis_connectors,
 jarvis_delivery_attempts, jarvis_inbox_events, jarvis_run_events, jarvis_run_prompts, jarvis_runs,
 jarvis_triggers, jarvis_workflows, journal_entries, mail_accounts, mail_drafts, mail_rules,
@@ -119,7 +119,8 @@ webauthn_credentials, webhooks
 
 ## Fresh evidence
 
-- Runtime enumeration on 2026-07-25 found the 119 mapped table names above and no extra/missing name.
+- The historical 2026-07-25 enumeration covered 119 mapped tables. The current inventory is checked against every mapped model by the inventory regression.
+- Local Finance create receipts are stored atomically with ledger changes and included in the SQLite snapshot. Deleted entry content is removed from its receipt; a content-free tombstone prevents delayed retries from recreating the entry.
 - Synthetic backup tests cover inside/outside roots, the external-Vault freeze/remap path, concurrent
   Vault-change refusal, external `ALLES_DB` refusal, older v1 manifest compatibility, and root policy
   serialization.

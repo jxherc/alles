@@ -41,8 +41,13 @@ COMMANDS = {
     "minimal-workflows": ("tests/pw_minimal_workflows.py",),
     "files-workflows": ("tests/pw_phase7_files_real.py",),
     "pwa-offline": ("tests/pw_offline_11b.py",),
+    "pwa-storage": ("tests/pw_offline_storage.py",),
+    "pwa-rejection": ("tests/pw_offline_rejection.py",),
     "andromeda-cancellation": ("tests/pw_andromeda_cancellation.py",),
     "health-workflows": ("tests/pw_health_workflows.py",),
+    "finance-workflows": ("tests/pw_finance_workflows.py",),
+    "setup-auth": ("tests/pw_setup_auth.py",),
+    "home-reminders": ("tests/pw_today_reminders.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     **{
         f"surfaces-{device}-{theme}": ("tests/pw_stability_surfaces.py", device, theme)
@@ -108,18 +113,18 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
-def stop_process(process: subprocess.Popen) -> None:
+def stop_process(process: subprocess.Popen, *, process_group: bool = True) -> None:
     """Only terminate the child/group created by this runner, never a port's occupant."""
     if process.poll() is not None:
         return
-    if os.name == "posix":
+    if os.name == "posix" and process_group:
         os.killpg(process.pid, signal.SIGTERM)
     else:
         process.terminate()
     try:
         process.wait(timeout=10)
     except subprocess.TimeoutExpired:
-        if os.name == "posix":
+        if os.name == "posix" and process_group:
             os.killpg(process.pid, signal.SIGKILL)
         else:
             process.kill()

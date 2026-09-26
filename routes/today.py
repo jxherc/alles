@@ -3,13 +3,13 @@ heavy lifting now lives in services.signals (shared with the briefing + the
 proactive agent); this route just rolls overdue subs forward and reshapes the
 signals into the dict the home widget expects.
 
-the client passes ?date=YYYY-MM-DD (its LOCAL date). never default to the
-server's date for user-facing day math - the server may run in UTC.
+the client passes ?date=YYYY-MM-DD&timezone=IANA (its displayed date and zone).
+Date-only callers use the configured owner timezone, then server local time.
 """
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
@@ -100,16 +100,24 @@ def update_today_preferences(body: TodayPreferences):
     return value
 
 
-def _safe_date(s: str) -> date:
+def _safe_date(s: str, timezone_name=None) -> date:
     try:
         return date.fromisoformat(str(s)[:10])
     except ValueError:
-        return date.today()
+        return signals.calendar_today(timezone_name)
 
 
 @router.get("/today")
-def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(get_db)):
-    today = _safe_date(date_q) if date_q else date.today()
+def today_view(
+    date_q: str = Query("", alias="date"),
+    timezone_q: str = Query("", alias="timezone", max_length=120),
+    db: DbSession = Depends(get_db),
+):
+    try:
+        signals.calendar_zone(timezone_q)
+    except (KeyError, ValueError):
+        raise HTTPException(400, "timezone must be a valid IANA name")
+    today = _safe_date(date_q, timezone_q) if date_q else signals.calendar_today(timezone_q)
 
     # roll overdue subs forward first (a write) so signals reads fresh next_due
     from routes.subscriptions import _roll_and_post
@@ -123,6 +131,7 @@ def today_view(date_q: str = Query("", alias="date"), db: DbSession = Depends(ge
             db,
             today,
             categories={"task", "event", "reminder", "sub", "day_event", "habit"},
+            timezone_name=timezone_q,
         )
     )
 

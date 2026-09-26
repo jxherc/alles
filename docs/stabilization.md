@@ -41,10 +41,11 @@ the keyword-search fallback, not live model integrations.
 The maintained full suite currently contains Home capture/navigation, cleanup
 regressions, Plan capture, Docs persistence and recovery, local Files operations,
 Andromeda cancellation/retry with simulated transport, Aide interruption/recovery
-with a delayed loopback provider, Health correction/recovery,
-PWA offline/reconnect, and
+with a delayed loopback provider, Health correction/recovery, local Finance
+validation/retry/persistence, Home reminder timezone boundaries, owner setup and
+sign-in recovery, PWA offline/reconnect, browser-storage failure and rejected-write recovery, and
 resting surfaces for all twelve apps plus Settings in both themes at desktop and
-phone widths. `daily`, `assistant`, `specialist`, `surfaces`, and `pwa` select those subsets.
+phone widths. `daily`, `setup`, `assistant`, `specialist`, `surfaces`, and `pwa` select those subsets.
 Traces, screenshots, requests, console output and server logs accompany the
 results. Historical browser scripts outside this maintained list remain unaudited;
 the word `full` does not mean every product workflow has been certified.
@@ -99,7 +100,7 @@ from fresh fixtures, with source fingerprint
 fingerprint `465514e8fea08ed2d6bdaa271e6f8eeea48328086d01f51490de633863f85624`.
 All 609 JavaScript tests and Ruff checks passed. The isolated Python suite ran
 5,624 tests without failures, with the same six explicit skips documented above.
-The current ledger tracks 1,581
+That checkpoint tracked 1,581
 controls and 130 workflows: 22 passed, 106 untested and two blocked. Added proofs
 cover interrupted Aide history, Stop ownership, incognito storage isolation, and
 Health correction/validation/recovery. Model responses are explicitly simulated
@@ -110,6 +111,63 @@ Source review raised one privacy-flag finding that was rejected after tracing th
 existing request handler and verifying the real incognito browser paths. The route
 already supplies the server-owned privacy flag to the runtime. The confirmed
 run-file persistence defect has separate regression coverage.
+
+The Finance and offline-storage batch repairs three local-ledger defects: numeric
+prefix truncation, duplicate creates after a lost acknowledgment, and collapsed
+phone transaction rows. Finance validates the entire decimal input; unsupported grouped
+or trailing-text inputs produce an error without a write. Local account,
+transaction and transfer creates store a receipt in the same SQLite transaction.
+An exact retry reuses that result; changed values conflict. Deleting an entry
+removes receipt content and retains a tombstone so late retries cannot recreate it.
+The receipt table is additive and existing ledger rows are unchanged. Startup over
+an older synthetic database and replay from a SQLite backup were checked.
+
+Offline queueing now reports success only after browser storage commits. If storage
+fails, Health keeps the entry editable and displays a save error. A notification
+failure after a successful queue commit cannot turn that accepted write into a
+misleading failed save. Storage and notification faults are explicitly simulated;
+this evidence does not certify real device storage exhaustion or every queued API.
+
+The setup recovery batch places credential and connection errors inside the sign-in
+surface and prevents duplicate submissions while a request is pending. Optional
+companion installation uses the existing owner-confirmation flow. Escape dismisses
+only that confirmation dialog, retaining the underlying Settings draft and focus.
+Browser fixtures use real local authentication; companion installation and expired
+confirmation timestamps are explicitly controlled test conditions. No host plugin
+installation is performed.
+
+Home now supplies its displayed date and timezone when loading reminders. Stored
+UTC instants are converted with the timezone rules for that instant, including
+daylight-saving changes. Date-only API callers retain the owner or server timezone
+fallback. Deterministic boundary checks cover Toronto, Tokyo and an owner timezone
+that differs from the browser.
+
+Rejected offline changes now remain in the browser with their failure reason. The
+pending indicator opens a review dialog with saved values, a downloadable copy,
+explicit retry and individually confirmed discard. Expired sessions can sign in
+and retry; conflicts and invalid input do not resend automatically. Queue drains
+are serialized to prevent overlapping reconnect/manual requests sending the same
+entry concurrently. A manual retry cannot overtake an earlier retained write;
+the review explains which earlier change must be resolved first. Real restart/login checks and simulated 409/422/503 responses
+cover Health entries; unrelated queued APIs remain in the ledger.
+
+The subsequent Plan audit reproduced six unresolved defects: a stale search result
+can overwrite a newer saved edit, typing during a pending save can lose text,
+board filters leave excluded cards visible, the phone navigation rail covers the
+editor, task metadata squeezes long phone titles, and dismissing a dirty editor
+discards input. These are recorded as STAB-024 through STAB-029. The data-loss
+finding blocks release; a clean run of the existing suite cannot clear it.
+
+The Finance, recovery, setup and reminder checkpoint passed all eighteen maintained
+browser gates twice from fresh fixtures. Its source fingerprint is
+`0af46ab359fee73387cfbd2b9fe6a1a378d882f7cd66239eaa010fce6e06fec8` and its acceptance fingerprint is
+`562efeaab788a49f316a8ccfb38d10b423a535cdfbdcd23436865468d596066f`. Both runs confirmed server shutdown and temporary-data removal.
+The isolated Python suite passed 5,641 tests with the same six explicit skips;
+JavaScript passed 648 tests. Forty runner/ledger checks, Ruff and source review
+also passed after the queue-ordering repair. The census now inventories 1,589
+controls; the 143-workflow ledger records 37 passed, 104 untested and two blocked.
+The six open Plan defects and outstanding device/provider acceptance still prevent
+release. These results certify this checkpoint's maintained workflows only.
 
 ## Stable layout
 
@@ -128,6 +186,8 @@ The layout contract is in [decision 0012](../design-system/decisions/0012-minima
 | Hide or restore that strip | `views` in the app header |
 | Capture or filter Plan tasks | Above the agenda |
 | Browse documents or file locations | Inside Docs or Files; hiding views leaves these controls available |
+| Correct a Finance transaction | Finance → money → edit on its row; on phones the account and actions wrap below the payee and amount |
+| Recover an offline change | Pending indicator → review; inspect saved values, sign in or retry, save a copy, or confirm discard |
 | Correct a Health measurement | Health → logs → edit beside the record; exact value, date, unit and note stay together |
 
 Daily-work layouts are the first implementation batch. Specialist summaries,
