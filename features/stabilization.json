@@ -5557,7 +5557,7 @@
       "severity": "low",
       "screen": "Aide conversation at 320px in Light and Dark",
       "revision": "3d7cbc5 plus STAB-106 repair",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open Aide at 320px.",
         "Send a short sentence and look at the user message."
@@ -5566,9 +5566,14 @@
       "actual": "The message box stays narrow and splits words inside them, for example 'Respon' and 'd with'.",
       "evidence": [
         "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant/aide-composer/320-light/03b-keyboard-send.png",
-        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant/aide-composer/320-dark/03a-draft-jump.png"
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant/aide-composer/320-dark/03a-draft-jump.png",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/probe/before/320-dark.json",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/probe/after3/320-light.png",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-old/results.json",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant2/results.json"
       ],
-      "verification": "Seen in aide-composer gate screenshots only; not measured and not traced to source. Not repaired."
+      "verification": "The bubble now uses overflow-wrap: break-word and its row wraps, so the hidden buttons move below it. A 320px probe measured the bubble at 122px (its 68% limit) instead of 86px. The aide-composer gate now fails when a user-message word splits while its bubble is narrower than its limit; it failed on the previous CSS ('Respond' at 86.4px of 122.4px) and passed with the repair at 320px, 390px and 1440px in both themes. Tokens wider than the limit still break. Native Safari/iPhone unverified.",
+      "source_trace": "The bubble used word-break: break-word, so its minimum width collapsed to single letters, and the hidden remember/edit buttons in the same non-wrapping row took the rest of the 180px column."
     },
     {
       "id": "STAB-109",
@@ -5576,7 +5581,7 @@
       "severity": "low",
       "screen": "Aide assistant message actions at 320px in Dark",
       "revision": "3d7cbc5 plus STAB-106 repair",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open Aide at 320px.",
         "Show the actions under an assistant reply."
@@ -5584,9 +5589,13 @@
       "expected": "Every action label is readable, separated and reachable.",
       "actual": "'shorter', 'simpler' and the next action run together and the row is cut off at the pane edge.",
       "evidence": [
-        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant/aide-composer/320-dark/03a-draft-jump.png"
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant/aide-composer/320-dark/03a-draft-jump.png",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/probe/before/320-dark.json",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/probe/after3/390-dark.png",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant2/results.json"
       ],
-      "verification": "Seen in aide-composer gate screenshots only; target sizes and keyboard reach were not measured. Not repaired."
+      "verification": "The action row wraps and buttons no longer shrink. The row shows on keyboard focus and, like project delete, stays visible on hover-none or coarse-pointer screens; message edit, regenerate and remember buttons follow the same touch rule. Desktop hover behavior is unchanged. The aide-composer gate now checks that every action fits its label, stays inside the viewport, does not overlap, is visible on touch, and is revealed by keyboard focus on desktop. Probe screenshots at 320px, 390px and 1440px were manually inspected. Native Safari/iPhone unverified.",
+      "source_trace": "A shared KOKUEN v5 rule gives every button min-width 44px !important. The action row did not wrap, so flexbox shrank each button to 44px under its label and the row ran past the pane. The row was also hover-only: on touch it stayed invisible but tappable, and keyboard focus did not reveal it."
     }
   ],
   "additional_surfaces": [

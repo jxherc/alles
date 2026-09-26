@@ -840,7 +840,7 @@ body:not(.is-aide) .aide-only { display: none !important; }
 .jump-latest:focus-visible { border-color: var(--focus); outline: none; }
 .msg-row { max-width: none; width: 100%; margin: 0 auto; padding: 0 1.5rem; }
 
-.user-wrap { display: flex; justify-content: flex-end; padding: 0.35rem 0; }
+.user-wrap { display: flex; flex-wrap: wrap; justify-content: flex-end; padding: 0.35rem 0; }
 .msg-memory-btn {
   align-self: center;
   margin-right: 0.35rem;
@@ -867,7 +867,7 @@ body:not(.is-aide) .aide-only { display: none !important; }
   padding: 0.65rem 0.9rem;
   font-size: 0.875rem; line-height: 1.6; color: var(--text);
   background: var(--panel);
-  white-space: pre-wrap; word-break: break-word;
+  white-space: pre-wrap; overflow-wrap: break-word;
 }
 
 .ai-wrap { padding: 0.6rem 0 0.4rem; }
@@ -1492,15 +1492,16 @@ code {
 
 /* message action buttons */
 .msg-actions {
-  display: flex; gap: 0; margin-top: 0.5rem; margin-left: 1rem;
+  display: flex; flex-wrap: wrap; gap: 0; margin-top: 0.5rem; margin-left: 1rem;
   opacity: 0; transition: opacity 0.15s;
 }
-.ai-wrap:hover .msg-actions { opacity: 1; }
+.ai-wrap:hover .msg-actions,
+.msg-actions:focus-within { opacity: 1; }
 .act-btn {
   background: none; border: none; cursor: pointer;
   color: var(--muted); font-family: inherit; font-size: 0.75rem;
   letter-spacing: 0.04em; text-transform: lowercase; font-weight: 500;
-  padding: 0.2rem 0.5rem; border-radius: 3px;
+  padding: 0.2rem 0.5rem; border-radius: 3px; flex-shrink: 0;
   transition: color 0.2s ease, background 0.2s ease;
 }
 .act-btn:hover { color: var(--text); background: var(--panel); }
@@ -6781,8 +6782,14 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 .msg-edit-btn svg { width: 13px; height: 13px; display: block; }
 .user-wrap:hover .msg-edit-btn,
-.ai-wrap:hover .msg-regen-btn { opacity: 1; }
+.msg-edit-btn:focus-visible,
+.ai-wrap:hover .msg-regen-btn,
+.msg-regen-btn:focus-visible { opacity: 1; }
 .msg-edit-btn:hover, .msg-regen-btn:hover { color: var(--muted); }
+/* no hover on touch, so don't leave invisible buttons to tap by accident */
+@media (hover: none), (pointer: coarse) {
+  .msg-actions, .msg-memory-btn, .msg-edit-btn, .msg-regen-btn { opacity: 1; }
+}
 .edit-inline {
   width: 100%; background: var(--panel); border: none;
   border-bottom: 1px solid var(--muted);
