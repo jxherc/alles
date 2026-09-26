@@ -242,6 +242,7 @@
     "tasks.due": "期限",
     "tasks.history": "履歴",
     "tasks.edit_dialog": "タスクを編集",
+    "tasks.discard_changes": "タスクの未保存の変更を破棄しますか？",
     "tasks.edit_named": "{task} を編集",
     "tasks.mark_complete": "{task} を完了にする",
     "tasks.mark_incomplete": "{task} を未完了にする",

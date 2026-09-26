@@ -246,6 +246,7 @@ const BUILTIN_ENGLISH = {
     "tasks.due": "due",
     "tasks.history": "history",
     "tasks.edit_dialog": "edit task",
+    "tasks.discard_changes": "discard unsaved task changes?",
     "tasks.edit_named": "edit {task}",
     "tasks.mark_complete": "mark {task} complete",
     "tasks.mark_incomplete": "mark {task} incomplete",

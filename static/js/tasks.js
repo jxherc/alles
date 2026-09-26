@@ -1,4 +1,4 @@
-import { prompt as dlgPrompt } from './dialog.js';
+import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
 import { t as tr } from './i18n.js';
 import { createFocusBoundary, setControlState } from './kokuen.js?v=1';
@@ -64,14 +64,20 @@ function _rowHtml(t, child, progress) {
   return `
     <div class="task-item${child ? ' task-child' : ''}" data-id="${t.id}">
       <button type="button" class="task-check${t.done ? ' done' : ''}" data-id="${t.id}" aria-label="${checkLabel}"></button>
+      <div class="task-content">
       <button type="button" class="task-title${t.done ? ' done' : ''}" aria-label="${esc(tr('tasks.edit_named', { task: t.title }))}">${title}</button>
+      <div class="task-meta">
       ${t.repeat ? `<span class="task-repeat" title="${esc(tr('tasks.repeats', { repeat: tr(`tasks.repeat.${t.repeat}`) }))}">${_si('refresh')}</span>` : ''}
       ${_dueBadge(t.due_date)}
       ${(t.tags || []).map(g => `<span class="task-tag">#${esc(g)}</span>`).join('')}
       ${t.priority ? `<span class="task-high task-p${t.priority}">${esc(tr(`tasks.priority.${['', 'low', 'medium', 'high'][t.priority] || 'high'}`))}</span>` : ''}
       ${progress && progress.total ? `<span class="task-progress">${progress.done}/${progress.total}</span>` : ''}
+      </div>
+      </div>
+      <div class="task-actions">
       ${!child ? `<button type="button" class="task-addsub" data-id="${t.id}" aria-label="${esc(tr('tasks.add_subtask_named', { task: t.title }))}" title="${esc(tr('tasks.add_subtask'))}">${esc(tr('tasks.sub'))}</button>` : ''}
       <button type="button" class="task-del" data-id="${t.id}" aria-label="${esc(tr('tasks.delete_named', { task: t.title }))}">×</button>
+      </div>
     </div>`;
 }
 
@@ -97,8 +103,8 @@ function renderTree() {
 }
 
 function _findTask(id) {
-  for (const t of _tasks) if (t.id === id) return t;
-  for (const t of _tree) {
+  const visible = _tab === 'active' && !_search ? _tree : _tasks;
+  for (const t of visible) {
     if (t.id === id) return t;
     for (const s of (t.subtasks || [])) if (s.id === id) return s;
   }
@@ -193,7 +199,25 @@ function openTaskEditor(id, source) {
   populateDropdown(ov.querySelector('#te-rep'), repeats.map(([value, label]) => ({ value, label })), t.repeat || '');
   const dialog = ov.querySelector('.task-editor');
   let focusBoundary = null;
-  const close = ({ restoreFocus = true } = {}) => {
+  let saving = false;
+  let confirmingClose = false;
+  const draftValues = () => [...dialog.querySelectorAll('input, textarea, .custom-select')]
+    .map(control => control.classList.contains('custom-select') ? getDropdownValue(control) : control.value);
+  const initialDraft = JSON.stringify(draftValues());
+  const close = async ({ restoreFocus = true, discard = false } = {}) => {
+    if (saving || confirmingClose) return;
+    if (!discard && JSON.stringify(draftValues()) !== initialDraft) {
+      const previousFocus = document.activeElement;
+      confirmingClose = true;
+      dialog.inert = true;
+      const confirmed = await dlgConfirm(tr('tasks.discard_changes'));
+      dialog.inert = false;
+      confirmingClose = false;
+      if (!confirmed) {
+        previousFocus?.focus();
+        return;
+      }
+    }
     focusBoundary?.deactivate({ restoreFocus });
     focusBoundary?.destroy();
     ov.remove();
@@ -206,6 +230,7 @@ function openTaskEditor(id, source) {
     ov.querySelector('#te-due').value = _reschedDate(b.dataset.w);
   }));
   ov.querySelector('#te-save').onclick = async event => {
+    if (saving) return;
     const body = {
       title: ov.querySelector('#te-title').value.trim() || t.title,
       notes: ov.querySelector('#te-notes').value,
@@ -217,19 +242,31 @@ function openTaskEditor(id, source) {
     };
     const saveButton = event.currentTarget;
     if (saveButton.getAttribute('aria-busy') === 'true') return;
+    saving = true;
+    const controls = [...dialog.querySelectorAll('input, textarea, button, .custom-select')];
+    const disabledBefore = controls.map(control => control.disabled);
+    for (const control of controls) control.disabled = true;
+    dialog.setAttribute('aria-busy', 'true');
+    dialog.tabIndex = -1;
+    dialog.focus();
     setControlState(saveButton, 'busy', { message: tr('common.saving') });
-    saveButton.disabled = true;
+    saveButton.textContent = tr('common.saving');
     saveButton.setAttribute('aria-disabled', 'true');
     try {
       await _requireOk(fetch(`/api/tasks/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
-      close({ restoreFocus: false });
+      saving = false;
+      await close({ restoreFocus: false, discard: true });
       await loadTasks();
       document.querySelector(`.task-item[data-id="${id}"] .task-title`)?.focus();
     } catch {
-      saveButton.disabled = false;
+      saving = false;
+      controls.forEach((control, index) => { control.disabled = disabledBefore[index]; });
+      dialog.removeAttribute('aria-busy');
+      saveButton.textContent = tr('common.save');
       saveButton.removeAttribute('aria-disabled');
       saveButton.removeAttribute('aria-busy');
       setControlState(saveButton, 'error', { message: tr('common.request_failed') });
+      saveButton.focus();
       toast(tr('common.request_failed'), 'error');
     }
   };

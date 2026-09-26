@@ -151,12 +151,20 @@ entry concurrently. A manual retry cannot overtake an earlier retained write;
 the review explains which earlier change must be resolved first. Real restart/login checks and simulated 409/422/503 responses
 cover Health entries; unrelated queued APIs remain in the ledger.
 
-The subsequent Plan audit reproduced six unresolved defects: a stale search result
+The subsequent Plan audit reproduced six defects: a stale search result
 can overwrite a newer saved edit, typing during a pending save can lose text,
 board filters leave excluded cards visible, the phone navigation rail covers the
 editor, task metadata squeezes long phone titles, and dismissing a dirty editor
-discards input. These are recorded as STAB-024 through STAB-029. The data-loss
-finding blocks release; a clean run of the existing suite cannot clear it.
+discards input. STAB-024 through STAB-029 now have targeted repairs and a maintained
+desktop/phone gate. Editors use the currently displayed task collection, prevent
+editing during pending writes and require explicit discard of unsaved changes.
+Filtered cards obey their hidden state; phone titles and editor fields stay usable.
+Nested confirmation, failed-write retry and exact persistence have browser checks.
+
+The Library audit subsequently confirmed failed note saves that report success and
+lose input, unrecoverable URL-save failures, missing keyboard activation and book
+remove buttons covering title text. STAB-030 through STAB-033 remain open; their
+repairs are separate from the Plan checkpoint.
 
 The Finance, recovery, setup and reminder checkpoint passed all eighteen maintained
 browser gates twice from fresh fixtures. Its source fingerprint is
@@ -166,8 +174,23 @@ The isolated Python suite passed 5,641 tests with the same six explicit skips;
 JavaScript passed 648 tests. Forty runner/ledger checks, Ruff and source review
 also passed after the queue-ordering repair. The census now inventories 1,589
 controls; the 143-workflow ledger records 37 passed, 104 untested and two blocked.
-The six open Plan defects and outstanding device/provider acceptance still prevent
-release. These results certify this checkpoint's maintained workflows only.
+At that checkpoint, the six Plan defects were still open. Outstanding workflow,
+device and provider acceptance continue to prevent release. These results certify
+that checkpoint's maintained workflows only.
+
+The first Plan repair checkpoint passed nineteen maintained gates twice from fresh
+fixtures, plus 648 JavaScript tests, 98 focused Python checks and Ruff. Its source
+fingerprint is `a0c6b076b18e2ca6836505bf915b47ec3d8d341936010afb77a8a95256b2656f`;
+its acceptance fingerprint is
+`a87127e2e034369423dade4a7977809d4725f0ce6ad65fcab542d71e069e14f1`.
+The ledger now records 45 passed workflows, 104 untested and two blocked. Source
+review's two target-size/disabled-state concerns were disproved by existing shared
+components and direct browser assertions; no actionable finding remained.
+
+Additional Plan checks then confirmed stale-tab overwrites, late responses replacing
+the selected list, and lost drafts on reload/full-document history (STAB-034 through
+STAB-036). These and the Library findings remain open. The six earlier Plan fixes
+are verified; complete Plan and release acceptance are still outstanding.
 
 ## Stable layout
 
@@ -185,6 +208,7 @@ The layout contract is in [decision 0012](../design-system/decisions/0012-minima
 | Change a specialist app's view | The horizontal views strip below its header |
 | Hide or restore that strip | `views` in the app header |
 | Capture or filter Plan tasks | Above the agenda |
+| Edit a task or protect its unsaved changes | Plan → tasks → its title; Cancel, Escape or outside dismissal asks before discarding changed fields |
 | Browse documents or file locations | Inside Docs or Files; hiding views leaves these controls available |
 | Correct a Finance transaction | Finance → money → edit on its row; on phones the account and actions wrap below the payee and amount |
 | Recover an offline change | Pending indicator → review; inspect saved values, sign in or retry, save a copy, or confirm discard |
