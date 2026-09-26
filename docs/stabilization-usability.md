@@ -299,7 +299,12 @@ mode's hover state. These measurements do not cover arbitrary custom accents.
 
 A separate confirmed defect (STAB-106) clips Aide's 44px send control at 320px:
 only 30.109375px remains visible. Keyboard focus also clips, and the page cannot
-scroll sideways to expose it. The audit did not send a provider request; a wider
-window or keyboard is the provisional workaround. Its repair requires a real
-send/stop regression and narrow rendered checks. Native Safari/iPhone remains
-unverified.
+scroll sideways to expose it. The audit did not send a provider request.
+
+The repair lets the composer controls wrap and keeps jump to latest in the page
+flow above the draft. The `aide-composer` gate sends and stops real loopback
+requests at 320px, 390px and 1440px in both themes, and requires every composer
+control to stay whole, at least 44px and reachable. Its 320px screenshots also
+show two unrepaired problems: the user message splits words (STAB-108) and the
+message action row runs together and clips (STAB-109). Native Safari/iPhone
+remains unverified.

@@ -5513,7 +5513,7 @@
       "severity": "medium",
       "screen": "Aide default composer at320px inLight andDark",
       "revision": "17a50d2; original audit product hashes in /tmp/alles-shell-audit/manifest.json",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open the app picker and choose Aide in a320px returning-user fixture.",
         "With default auto mode and medium effort, inspect Send and reach it using Tab."
@@ -5522,9 +5522,13 @@
       "actual": "Send spans x289.890625to333.890625; only30.109375px is visible. Page width remains320px, so horizontal scrolling cannot reveal it. Keyboard focus clips too. Sending was not attempted during the initial audit.",
       "evidence": [
         "/tmp/alles-shell-audit/report.md",
-        "/tmp/alles-shell-audit/interactive/phone320-aide-composer-geometry.json"
+        "/tmp/alles-shell-audit/interactive/phone320-aide-composer-geometry.json",
+        "/tmp/alles-aide-composer-fix/complete1",
+        "/tmp/alles-aide-composer-fix/complete2",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant/results.json"
       ],
-      "verification": "Confirmed rendered measurement and real keyboard traversal. Isolated repair and send/stop neighboring checks in progress; native-device acceptance unclaimed."
+      "verification": "The composer bar and right-side controls now wrap, and jump to latest stays in layout flow above the draft. The aide-composer gate sends and stops real loopback-provider requests by pointer, touch and keyboard at 320px, 390px and 1440px in Light and Dark, and requires every composer control to be at least 44px, inside the viewport and reachable. It passed twice in an isolated copy and once in the assistant suite on 3d7cbc5 plus this repair, next to Andromeda cancellation and Aide continuity. 320px screenshots were manually inspected. Native Safari/iPhone acceptance remains unclaimed.",
+      "source_trace": "The composer bar did not wrap, so the right-hand group pushed Send past the pane edge at 320px."
     },
     {
       "id": "STAB-107",
@@ -5546,6 +5550,43 @@
         "/tmp/alles-gallery-ack-followup-delivery.json"
       ],
       "verification": "Confirmed under explicitly simulated stale-success corruption. Isolated repair rejects a different name and passed sixty scenarios twice; root integration is still pending. Same-name ambiguity and empty albums after committed/lost acknowledgements remain outside the repair."
+    },
+    {
+      "id": "STAB-108",
+      "title": "Aide user message breaks words at 320px",
+      "severity": "low",
+      "screen": "Aide conversation at 320px in Light and Dark",
+      "revision": "3d7cbc5 plus STAB-106 repair",
+      "status": "confirmed",
+      "reproduction": [
+        "Open Aide at 320px.",
+        "Send a short sentence and look at the user message."
+      ],
+      "expected": "The user message uses the available width and wraps between words.",
+      "actual": "The message box stays narrow and splits words inside them, for example 'Respon' and 'd with'.",
+      "evidence": [
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant/aide-composer/320-light/03b-keyboard-send.png",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant/aide-composer/320-dark/03a-draft-jump.png"
+      ],
+      "verification": "Seen in aide-composer gate screenshots only; not measured and not traced to source. Not repaired."
+    },
+    {
+      "id": "STAB-109",
+      "title": "Aide message actions overlap and clip at 320px",
+      "severity": "low",
+      "screen": "Aide assistant message actions at 320px in Dark",
+      "revision": "3d7cbc5 plus STAB-106 repair",
+      "status": "confirmed",
+      "reproduction": [
+        "Open Aide at 320px.",
+        "Show the actions under an assistant reply."
+      ],
+      "expected": "Every action label is readable, separated and reachable.",
+      "actual": "'shorter', 'simpler' and the next action run together and the row is cut off at the pane edge.",
+      "evidence": [
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-assistant/aide-composer/320-dark/03a-draft-jump.png"
+      ],
+      "verification": "Seen in aide-composer gate screenshots only; target sizes and keyboard reach were not measured. Not repaired."
     }
   ],
   "additional_surfaces": [
