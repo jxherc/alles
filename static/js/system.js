@@ -380,7 +380,10 @@ function render(s, fetcher = fetch) {
   const disk0 = (s.disks || [])[0];
 
   const hostEl = $('system-host');
-  if (hostEl) hostEl.textContent = s.live ? `live · ${s.proc_count || 0} procs` : 'static (no psutil)';
+  if (hostEl) {
+    hostEl.textContent = s.live ? `live · ${s.proc_count || 0} procs` : 'static (no psutil)';
+    hostEl.dataset.state = s.live ? 'live' : 'static';
+  }
 
   $('nf-info').innerHTML = buildInfo(s, freq, disk0);
 
@@ -440,25 +443,29 @@ function render(s, fetcher = fetch) {
 
 function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
 
-let _timer = null, _wired = false, _ok = false;
+let _timer = null, _wired = false;
 let _systemFetcher = fetch;
 async function tick(fetcher = _systemFetcher) {
   const v = $('system-view');
   if (!v || v.style.display === 'none' || document.hidden) return;
+  const gen = _sysGen;
   try {
     const r = await fetcher('/api/system/stats');
     if (!r.ok) throw new Error(r.status === 404 ? 'the /api/system/stats route is missing' : `server returned ${r.status}`);
     const s = await r.json();
     if (!s || !s.cpu || !s.memory) throw new Error('unexpected response');
+    if (gen !== _sysGen || v.style.display === 'none') return;
     render(s, fetcher);
-    _ok = true;
   } catch (e) {
+    if (gen !== _sysGen || v.style.display === 'none') return;
+    const host = $('system-host');
+    if (host) { host.textContent = 'unavailable'; host.dataset.state = 'unavailable'; }
     const b = $('system-body');
-    if (b && !_ok) {
+    if (b) {
       const restart = /missing|404|unexpected/.test(e.message)
         ? ' if you just updated alles, restart the server so it picks up the new route: <code>python cli.py restart</code>'
         : '';
-      b.innerHTML = `<div class="sys-note">couldn’t read system stats: ${esc(e.message)}.${restart}</div>`;
+      b.innerHTML = `<div class="sys-note" role="status">couldn’t read system stats: ${esc(e.message)}. retrying automatically.${restart}</div>`;
     }
   }
 }
@@ -467,6 +474,8 @@ let _sysGen = 0;
 export async function initSystem(fetcher = fetch) {
   const gen = ++_sysGen;
   _systemFetcher = fetcher;
+  const host = $('system-host');
+  if (host) { host.textContent = 'loading…'; host.dataset.state = 'loading'; }
   $('system-body').innerHTML = '<div class="g-dim" style="padding:1rem">reading the machine…</div>';
   if (_timer) { clearInterval(_timer); _timer = null; }
   void tick(fetcher);

@@ -28,7 +28,7 @@ class PhotoKitGalleryUiTest(unittest.TestCase):
         self.assertIn("job.state === 'queued' || job.state === 'running'", PHOTOS_JS)
 
     def test_action_recovers_and_refreshes_the_gallery(self):
-        self.assertIn("await loadPhotos();", PHOTOS_JS)
+        self.assertIn("await _reloadPhotos();", PHOTOS_JS)
         self.assertIn("await _loadMacPhotosStatus();", PHOTOS_JS)
         self.assertIn("btn.disabled = !status.available", PHOTOS_JS)
 

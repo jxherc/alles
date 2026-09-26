@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+from browser_offline_network import OfflineNetwork  # noqa: E402
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
 from run_browser_gates import (  # noqa: E402
     free_port,
@@ -241,6 +242,7 @@ def run():
                                 record["review_dimensions"] = dimensions
                                 return dialog
 
+                            network = None
                             try:
                                 page.goto(base, wait_until="networkidle")
                                 login_ui()
@@ -270,12 +272,13 @@ def run():
                                         "data-theme", "light"
                                     )
                                 worker = context.service_workers[0]
+                                network = OfflineNetwork(browser, context, page, worker)
                                 assert queue() == []
                                 page.locator("#health-add-toggle").click()
                                 page.locator("#health-value").fill("73.875")
                                 page.locator("#health-note").fill(note)
                                 state["offline"] = True
-                                context.set_offline(True)
+                                network.set_offline(True)
                                 with page.expect_response(
                                     lambda r: (
                                         r.url.endswith("/api/health") and r.request.method == "POST"
@@ -334,7 +337,8 @@ def run():
                                 }""",
                                     0 if auth else code,
                                 )
-                                context.set_offline(False)
+                                network.set_offline(False)
+                                record["network_transitions"] = network.transitions
                                 state["offline"] = False
                                 until(lambda: bool(queue()[0].get("response_status")))
                                 rejected = queue()
@@ -580,6 +584,8 @@ def run():
                                     json.dumps(records, indent=2)
                                 )
                                 context.tracing.stop(path=str(dest / "trace.zip"))
+                                if network is not None:
+                                    network.close()
                                 context.close()
                     inspector.dispose()
                     browser.close()

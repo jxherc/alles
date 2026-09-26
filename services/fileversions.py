@@ -56,15 +56,28 @@ def snapshot(
     rel,
     abspath: Path,
     location_id: str = DEFAULT_LOCAL_STORAGE_LOCATION_ID,
+    *,
+    required: bool = False,
 ) -> FileVersion | None:
     """save the current bytes of `abspath` as a version of `rel`. returns None when
     skipped (missing / too big / unchanged since the latest version)."""
-    if not abspath.is_file():
+    from services.files_store import file_identity
+
+    def unavailable(message):
+        if required:
+            raise ValueError(message)
         return None
+
+    if not abspath.is_file():
+        return unavailable("file is no longer available to keep a recovery version")
+    identity = file_identity(abspath)
     size = abspath.stat().st_size
     if size > CAP_BYTES:
-        return None
-    data = abspath.read_bytes()
+        return unavailable("file is too large to keep a recovery version")
+    with abspath.open("rb") as handle:
+        data = handle.read(CAP_BYTES + 1)
+    if len(data) > CAP_BYTES or file_identity(abspath) != identity:
+        return unavailable("file changed while keeping a recovery version")
     sha = _sha(data)
     normalized = normalize_file_identity_path(rel)
     latest = (
@@ -74,7 +87,14 @@ def snapshot(
         .first()
     )
     if latest and latest.sha == sha:
-        return None  # dedup — no change
+        if not required:
+            return None  # dedup — no change
+        stored = versions_dir() / latest.stored
+        if stored.is_file() and stored.stat().st_size == len(data):
+            with stored.open("rb") as handle:
+                if _sha(handle.read(CAP_BYTES + 1)) == sha:
+                    return latest
+        # A missing or damaged blob is not a recoverable snapshot.
     stored = uuid.uuid4().hex
     (versions_dir() / stored).write_bytes(data)
     v = FileVersion(
@@ -157,6 +177,15 @@ def delete_for_path(db, rel, location_id=DEFAULT_LOCAL_STORAGE_LOCATION_ID) -> i
 
 def get(db, vid) -> FileVersion | None:
     return db.get(FileVersion, vid)
+
+
+def content(version: FileVersion) -> bytes:
+    """Read one bounded, verified version before any mutation or history pruning."""
+    with (versions_dir() / version.stored).open("rb") as handle:
+        data = handle.read(CAP_BYTES + 1)
+    if len(data) > CAP_BYTES or len(data) != version.size or _sha(data) != version.sha:
+        raise ValueError("recovery version is unavailable or damaged")
+    return data
 
 
 def restore(db, vid, dest: Path) -> FileVersion | None:

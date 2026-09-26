@@ -762,6 +762,7 @@ alles is scriptable. two flavors:
   the provider cannot atomically bind delete-marker creation to that exact version. Photos remains
   under `/api/photos/{gallery,gallery/upload,albums,thumb}`, with a guarded
   Files-to-Photos handoff that keeps stable source identity.
+  Local upload replacement and version restoration require the current `expected_etag` when overwriting different bytes (409 otherwise). Identical-byte upload retries are idempotent. A verified recovery snapshot is required before replacement; originals above 25 MiB must use a new filename. Canonical claims serialize Alles writers, including aliased local roots; arbitrary external filesystem writes are not an atomic compare-and-swap guarantee.
 - **secrets:** `/api/vault` (+ `/unlock`, `/lock`, `/{id}/reveal`), owner-only
   `/api/vault/browsers` pairing/session management and extension download, plus the extension-only
   `/api/auth/browser/*` pair/unlock/match/release/lock boundary

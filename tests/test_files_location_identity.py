@@ -514,7 +514,12 @@ class FilesLocationIdentityTests(ApiTest):
         )
         response = self.client.post(
             "/api/files/upload",
-            data={"path": "docs"},
+            data={
+                "path": "docs",
+                "expected_etag": files_store.identity_etag(
+                    files_store.file_identity(self.root / "docs" / "note.md")
+                ),
+            },
             files={"file": ("note.md", b"updated", "text/markdown")},
         )
         self.assertEqual(response.status_code, 200, response.text)
