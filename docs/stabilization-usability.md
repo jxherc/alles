@@ -305,6 +305,9 @@ The repair lets the composer controls wrap and keeps jump to latest in the page
 flow above the draft. The `aide-composer` gate sends and stops real loopback
 requests at 320px, 390px and 1440px in both themes, and requires every composer
 control to stay whole, at least 44px and reachable. Its 320px screenshots also
-show two unrepaired problems: the user message splits words (STAB-108) and the
-message action row runs together and clips (STAB-109). Native Safari/iPhone
-remains unverified.
+showed two more problems: the user message split words (STAB-108) and the
+message action row ran together and clipped (STAB-109). Both are repaired: the
+bubble wraps between words and its hidden buttons move below it, and the action
+row wraps. Message controls were hover-only, so on touch they stayed invisible
+but tappable; they now stay visible on touch screens and appear on keyboard
+focus. The same gate checks both. Native Safari/iPhone remains unverified.
