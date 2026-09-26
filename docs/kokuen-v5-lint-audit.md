@@ -34,6 +34,9 @@ The checker discovers an installed canonical linter beside the repository or in 
 directories. Set `KOKUEN_LINTER` to its `lint_ui_rules.py` path to override discovery.
 The September 21 cleanup removed three warnings belonging to the retired Files sort, quota, and tag
 styles; the remaining warning messages are unchanged, with refreshed source positions.
+The September 25 Plan repair added two overlay lines. Running the same canonical linter
+on the earlier and current sources confirmed the same 192 severity/rule/message tuples;
+the digest is refreshed for those offsets without approving any new warning.
 The real-app contrast and switch gates supplement
 the unchanged source-level acceptance; warning reconciliation alone is not visual proof.
 

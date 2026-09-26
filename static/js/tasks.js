@@ -10,10 +10,92 @@ let _tree = [];
 let _tab = 'active';   // 'active' | 'done' (history)
 let _search = '';
 let _tabsWired = false;
+let _loadGeneration = 0;
+let _recoveryChecked = false;
+let _draftScopes = [];
+const TASK_DRAFT_PREFIX = 'alles.tasks.draft.v1:';
+
+function taskValues(task) {
+  return {
+    title: String(task.title || '').trim(), notes: String(task.notes || ''),
+    priority: Number(task.priority) || 0, repeat: String(task.repeat || '').trim(),
+    due_date: String(task.due_date || '').trim() || null,
+    tags: (Array.isArray(task.tags) ? task.tags : String(task.tags || '').split(','))
+      .map(value => value.trim()).filter(Boolean).join(','),
+    project: String(task.project || '').trim(),
+  };
+}
+
+function taskChanges(base, values) {
+  return Object.fromEntries(Object.entries(values).filter(([field, value]) => value !== base[field]));
+}
+
+async function draftScopes() {
+  try {
+    const response = await fetch('/api/tasks/draft-scope', { cache: 'no-store' });
+    if (!response.ok) return [];
+    const { scopes } = await response.json();
+    return Array.isArray(scopes) ? scopes.filter(scope => typeof scope === 'string' && /^[a-f0-9]{64}$/.test(scope)) : [];
+  } catch { return []; }
+}
+
+function draftKey(scope, id) { return `${TASK_DRAFT_PREFIX}${scope}:${id}`; }
+function validDraftValues(value) {
+  return value && ['title', 'notes', 'repeat', 'tags', 'project'].every(field => typeof value[field] === 'string')
+    && Number.isInteger(value.priority) && (value.due_date === null || typeof value.due_date === 'string');
+}
+function readTaskDraft(id, scopes = _draftScopes) {
+  for (const scope of scopes) {
+    try {
+      const draft = JSON.parse(sessionStorage.getItem(draftKey(scope, id)) || 'null');
+      if (draft?.version === 1 && draft.id === id && draft.scope === scope
+          && validDraftValues(draft.base) && validDraftValues(draft.values)) return draft;
+    } catch { /* Keep editing available; persistTaskDraft reports storage failure. */ }
+  }
+  return null;
+}
+
+function persistTaskDraft(id, base, values) {
+  const scope = _draftScopes[0];
+  if (!scope) return false;
+  try {
+    const key = draftKey(scope, id);
+    const data = JSON.stringify({ version: 1, scope, id, base, values });
+    sessionStorage.setItem(key, data);
+    return sessionStorage.getItem(key) === data;
+  } catch { return false; }
+}
+
+function clearTaskDraft(id) {
+  try {
+    for (const scope of _draftScopes) sessionStorage.removeItem(draftKey(scope, id));
+    return true;
+  } catch { return false; }
+}
+
+async function recoverTaskDraft(generation) {
+  if (_recoveryChecked || document.querySelector('.task-editor-ov')) return;
+  const scopes = await draftScopes();
+  if (generation !== _loadGeneration || !scopes.length) return;
+  _draftScopes = scopes;
+  _recoveryChecked = true;
+  try {
+    for (let index = 0; index < sessionStorage.length; index++) {
+      const key = sessionStorage.key(index);
+      const scope = scopes.find(value => key?.startsWith(`${TASK_DRAFT_PREFIX}${value}:`));
+      if (!scope) continue;
+      const id = key.slice(`${TASK_DRAFT_PREFIX}${scope}:`.length);
+      const draft = readTaskDraft(id, scopes);
+      if (draft) { await openTaskEditor(id, null, draft); break; }
+    }
+  } catch { /* An editor still offers export and an unload guard when storage is unavailable. */ }
+}
+
 
 function _wireTabs() {
   if (_tabsWired) return; _tabsWired = true;
   document.querySelectorAll('.tasks-tab').forEach(b => b.addEventListener('click', () => {
+    ++_loadGeneration;
     _tab = b.dataset.tab;
     document.querySelectorAll('.tasks-tab').forEach(x => {
       const selected = x === b;
@@ -25,6 +107,7 @@ function _wireTabs() {
   const si = document.getElementById('tasks-search');
   let _t = 0;
   si?.addEventListener('input', () => {
+    ++_loadGeneration;
     clearTimeout(_t);
     _t = setTimeout(() => { _search = si.value.trim(); loadTasks(); }, 180);
   });
@@ -40,11 +123,23 @@ const _URL = { active: '/api/tasks', done: '/api/tasks/done',
 
 export async function loadTasks(fetcher = fetch) {
   _wireTabs();
-  const isTree = _tab === 'active' && !_search;   // the "all" view shows the subtask tree
-  const url = _search ? `/api/tasks/search?q=${encodeURIComponent(_search)}`
-                      : (isTree ? '/api/tasks/tree' : (_URL[_tab] || '/api/tasks'));
-  const data = await fetcher(url).then(r => r.json());
+  const generation = ++_loadGeneration;
+  const tab = _tab, search = _search;
+  const isTree = tab === 'active' && !search;
+  const url = search ? `/api/tasks/search?q=${encodeURIComponent(search)}`
+                     : (isTree ? '/api/tasks/tree' : (_URL[tab] || '/api/tasks'));
+  let data;
+  try {
+    const response = await fetcher(url);
+    if (!response.ok) throw new Error(`request failed (${response.status})`);
+    data = await response.json();
+  } catch (error) {
+    if (generation !== _loadGeneration) return;
+    throw error;
+  }
+  if (generation !== _loadGeneration || tab !== _tab || search !== _search) return;
   if (isTree) { _tree = data; renderTree(); } else { _tasks = data; renderTasks(); }
+  await recoverTaskDraft(generation);
 }
 
 function _todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -175,9 +270,23 @@ async function _mutateTask(button, action, { alreadyBusy = false } = {}) {
   }
 }
 
-function openTaskEditor(id, source) {
-  const t = _findTask(id);
-  if (!t) return;
+async function openTaskEditor(id, source, recovered = null) {
+  if (document.querySelector('.task-editor-ov')) return;
+  const scopes = await draftScopes();
+  if (document.querySelector('.task-editor-ov') || (source && !source.isConnected)) return;
+  _draftScopes = scopes;
+  recovered = readTaskDraft(id, scopes) || (recovered && scopes.includes(recovered.scope) ? recovered : null);
+  const savedTask = _findTask(id);
+  if (!savedTask && !recovered) return;
+  let base = taskValues(recovered?.base || savedTask);
+  let values = taskValues(recovered?.values || savedTask);
+  if (recovered && savedTask) {
+    const latest = taskValues(savedTask);
+    for (const field of Object.keys(base)) {
+      if (values[field] === base[field]) base[field] = values[field] = latest[field];
+    }
+  }
+  const t = { ...values, id, tags: values.tags.split(',').filter(Boolean) };
   const priorities = [[0, tr('tasks.priority.none')], [1, tr('tasks.priority.low')], [2, tr('tasks.priority.medium')], [3, tr('tasks.priority.high')]];
   const repeats = [['', tr('tasks.repeat.none')], ['daily', tr('tasks.repeat.daily')], ['weekly', tr('tasks.repeat.weekly')], ['monthly', tr('tasks.repeat.monthly')], ['yearly', tr('tasks.repeat.yearly')]];
   const ov = document.createElement('div');
@@ -188,10 +297,19 @@ function openTaskEditor(id, source) {
     <label class="sr-only" for="te-notes">${esc(tr('tasks.notes'))}</label><textarea class="settings-input te-notes" id="te-notes" placeholder="${esc(tr('tasks.notes'))}">${esc(t.notes || '')}</textarea>
     <div class="te-row"><label id="te-prio-label">${esc(tr('tasks.priority.label'))}</label><div class="settings-input custom-select" id="te-prio" aria-labelledby="te-prio-label"></div></div>
     <div class="te-row"><label id="te-rep-label">${esc(tr('tasks.repeat.label'))}</label><div class="settings-input custom-select" id="te-rep" aria-labelledby="te-rep-label"></div></div>
-    <div class="te-row"><label for="te-due">${esc(tr('tasks.due'))}</label><input class="settings-input" id="te-due" value="${esc((t.due_date || '').slice(0, 10))}" placeholder="YYYY-MM-DD"></div>
+    <div class="te-row"><label for="te-due">${esc(tr('tasks.due'))}</label><input class="settings-input" id="te-due" value="${esc(t.due_date || '')}" placeholder="YYYY-MM-DD"></div>
     <div class="te-resched">${['today', 'tomorrow', 'next_week', 'weekend'].map(w => `<button class="btn te-rs" data-w="${w}">${esc(tr(`tasks.reschedule.${w}`))}</button>`).join('')}</div>
     <div class="te-row"><label for="te-tags">${esc(tr('tasks.tags'))}</label><input class="settings-input" id="te-tags" value="${esc((t.tags || []).join(', '))}" placeholder="${esc(tr('tasks.tags_placeholder'))}"></div>
     <div class="te-row"><label for="te-proj">${esc(tr('tasks.project'))}</label><input class="settings-input" id="te-proj" value="${esc(t.project || '')}"></div>
+    <div class="task-recovery" hidden>
+      <p class="task-recovery-message" role="status" tabindex="-1"></p>
+      <div class="task-conflict-values" hidden></div>
+      <div class="task-recovery-actions">
+        <button type="button" class="btn" data-task-recovery="export">${esc(tr('tasks.download_draft'))}</button>
+        <button type="button" class="btn" data-task-recovery="saved" hidden>${esc(tr('tasks.use_saved'))}</button>
+        <button type="button" class="btn" data-task-recovery="mine" hidden>${esc(tr('tasks.keep_changes'))}</button>
+      </div>
+    </div>
     <div class="te-actions"><button type="button" class="btn" id="te-cancel">${esc(tr('common.cancel'))}</button><button type="button" class="btn primary" id="te-save">${esc(tr('common.save'))}</button></div>
   </div>`;
   document.body.appendChild(ov);
@@ -201,75 +319,169 @@ function openTaskEditor(id, source) {
   let focusBoundary = null;
   let saving = false;
   let confirmingClose = false;
-  const draftValues = () => [...dialog.querySelectorAll('input, textarea, .custom-select')]
-    .map(control => control.classList.contains('custom-select') ? getDropdownValue(control) : control.value);
-  const initialDraft = JSON.stringify(draftValues());
+  let latestConflict = null;
+  let hasStoredDraft = Boolean(recovered);
+  let storageFailed = false;
+  const recovery = dialog.querySelector('.task-recovery');
+  const message = recovery.querySelector('.task-recovery-message');
+  const mine = recovery.querySelector('[data-task-recovery="mine"]');
+  const useSaved = recovery.querySelector('[data-task-recovery="saved"]');
+  const conflictValues = recovery.querySelector('.task-conflict-values');
+  const readValues = () => ({
+    title: ov.querySelector('#te-title').value.trim() || base.title,
+    notes: ov.querySelector('#te-notes').value,
+    priority: parseInt(getDropdownValue(ov.querySelector('#te-prio'))) || 0,
+    repeat: getDropdownValue(ov.querySelector('#te-rep')),
+    due_date: ov.querySelector('#te-due').value.trim() || null,
+    tags: ov.querySelector('#te-tags').value.split(',').map(s => s.trim()).filter(Boolean).join(','),
+    project: ov.querySelector('#te-proj').value.trim(),
+  });
+  const isDirty = () => Object.keys(taskChanges(base, readValues())).length > 0;
+  function showRecovery(text) {
+    recovery.hidden = false;
+    message.textContent = text;
+  }
+  function putValues(next) {
+    for (const [field, selector] of Object.entries({ title: '#te-title', notes: '#te-notes', due_date: '#te-due', tags: '#te-tags', project: '#te-proj' })) {
+      ov.querySelector(selector).value = next[field] ?? '';
+    }
+    populateDropdown(ov.querySelector('#te-prio'), priorities.map(([value, label]) => ({ value, label })), next.priority);
+    populateDropdown(ov.querySelector('#te-rep'), repeats.map(([value, label]) => ({ value, label })), next.repeat);
+  }
+  function storeDraft() {
+    if (!isDirty()) {
+      if (hasStoredDraft && !clearTaskDraft(id)) {
+        storageFailed = true;
+        showRecovery(tr('tasks.draft_cleanup_failed'));
+        return false;
+      }
+      hasStoredDraft = false;
+      storageFailed = false;
+      if (!latestConflict && !recovery.hidden) showRecovery(tr('tasks.no_changes'));
+      return true;
+    }
+    const stored = persistTaskDraft(id, base, readValues());
+    hasStoredDraft ||= stored;
+    storageFailed = !stored;
+    if (!stored) showRecovery(tr('tasks.draft_storage_failed'));
+    else if (!latestConflict) showRecovery(tr(recovered ? 'tasks.draft_recovered' : 'tasks.draft_kept'));
+    return stored;
+  }
+  const unload = event => {
+    if (isDirty() && !storeDraft()) { event.preventDefault(); event.returnValue = ''; }
+  };
+  window.addEventListener('beforeunload', unload);
+  dialog.addEventListener('input', storeDraft);
+  dialog.addEventListener('change', storeDraft);
+  const confirm = async text => {
+    if (confirmingClose) return false;
+    const previousFocus = document.activeElement;
+    confirmingClose = true;
+    dialog.inert = true;
+    try { return await dlgConfirm(text); }
+    finally { dialog.inert = false; confirmingClose = false; previousFocus?.focus(); }
+  };
   const close = async ({ restoreFocus = true, discard = false } = {}) => {
     if (saving || confirmingClose) return;
-    if (!discard && JSON.stringify(draftValues()) !== initialDraft) {
-      const previousFocus = document.activeElement;
-      confirmingClose = true;
-      dialog.inert = true;
-      const confirmed = await dlgConfirm(tr('tasks.discard_changes'));
-      dialog.inert = false;
-      confirmingClose = false;
-      if (!confirmed) {
-        previousFocus?.focus();
-        return;
-      }
+    if (!discard && isDirty() && !(await confirm(tr('tasks.discard_changes')))) return;
+    if (hasStoredDraft && !clearTaskDraft(id)) {
+      showRecovery(tr('tasks.draft_cleanup_failed'));
+      message.focus();
+      return;
     }
+    window.removeEventListener('beforeunload', unload);
     focusBoundary?.deactivate({ restoreFocus });
     focusBoundary?.destroy();
     ov.remove();
+    return true;
   };
   focusBoundary = createFocusBoundary(dialog, { trigger: source, onEscape: close });
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
   ov.querySelector('#te-cancel').onclick = close;
-  // stage the date in the input only (no server write) so "save" persists it and "cancel" cancels
   ov.querySelectorAll('.te-rs').forEach(b => b.addEventListener('click', () => {
     ov.querySelector('#te-due').value = _reschedDate(b.dataset.w);
+    storeDraft();
   }));
+  recovery.querySelector('[data-task-recovery="export"]').onclick = () => {
+    const blob = new Blob([JSON.stringify({ id, base, draft: readValues(), saved: latestConflict }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = `alles-task-${id}-draft.json`; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const resetConflict = () => {
+    latestConflict = null;
+    mine.hidden = useSaved.hidden = conflictValues.hidden = true;
+  };
+  useSaved.onclick = async () => {
+    if (!(await confirm(tr('tasks.discard_for_saved')))) return;
+    base = taskValues(latestConflict);
+    putValues(base);
+    resetConflict(); storeDraft();
+    if (!storageFailed) showRecovery(tr('tasks.saved_loaded'));
+    ov.querySelector('#te-notes').focus();
+  };
+  mine.onclick = async () => {
+    if (!(await confirm(tr('tasks.replace_conflicts')))) return;
+    const changes = taskChanges(base, readValues());
+    base = taskValues(latestConflict);
+    putValues({ ...base, ...changes });
+    resetConflict(); storeDraft();
+    if (!storageFailed) showRecovery(tr('tasks.conflict_reviewed'));
+    ov.querySelector('#te-save').focus();
+  };
   ov.querySelector('#te-save').onclick = async event => {
     if (saving) return;
-    const body = {
-      title: ov.querySelector('#te-title').value.trim() || t.title,
-      notes: ov.querySelector('#te-notes').value,
-      priority: parseInt(getDropdownValue(ov.querySelector('#te-prio'))) || 0,
-      repeat: getDropdownValue(ov.querySelector('#te-rep')),
-      due_date: ov.querySelector('#te-due').value.trim() || null,
-      tags: ov.querySelector('#te-tags').value.split(',').map(s => s.trim()).filter(Boolean).join(','),
-      project: ov.querySelector('#te-proj').value.trim(),
-    };
+    const values = readValues();
+    const changes = taskChanges(base, values);
+    if (!Object.keys(changes).length) { await close({ discard: true }); return; }
+    storeDraft();
+    const body = { ...changes, expected: Object.fromEntries(Object.keys(changes).map(field => [field, base[field]])) };
+    if (_draftScopes[0]) body.draft_scope = _draftScopes[0];
     const saveButton = event.currentTarget;
-    if (saveButton.getAttribute('aria-busy') === 'true') return;
     saving = true;
     const controls = [...dialog.querySelectorAll('input, textarea, button, .custom-select')];
     const disabledBefore = controls.map(control => control.disabled);
     for (const control of controls) control.disabled = true;
-    dialog.setAttribute('aria-busy', 'true');
-    dialog.tabIndex = -1;
-    dialog.focus();
+    dialog.setAttribute('aria-busy', 'true'); dialog.tabIndex = -1; dialog.focus();
     setControlState(saveButton, 'busy', { message: tr('common.saving') });
     saveButton.textContent = tr('common.saving');
     saveButton.setAttribute('aria-disabled', 'true');
+    let saved = false;
     try {
-      await _requireOk(fetch(`/api/tasks/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
-      saving = false;
-      await close({ restoreFocus: false, discard: true });
-      await loadTasks();
-      document.querySelector(`.task-item[data-id="${id}"] .task-title`)?.focus();
+      const response = await fetch(`/api/tasks/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const result = await response.json();
+      if (response.status === 409 && result.detail?.code === 'task_conflict') {
+        latestConflict = result.detail.current;
+        showRecovery(tr('tasks.conflict_message'));
+        conflictValues.innerHTML = result.detail.fields.map(field => `<div><strong>${esc(tr(({ title: 'tasks.title_label', notes: 'tasks.notes', priority: 'tasks.priority.label', repeat: 'tasks.repeat.label', due_date: 'tasks.due', tags: 'tasks.tags', project: 'tasks.project' })[field]))}</strong><p>${esc(tr('tasks.your_change'))}: ${esc(values[field] ?? '')}</p><p>${esc(tr('tasks.saved_value'))}: ${esc(taskValues(latestConflict)[field] ?? '')}</p></div>`).join('');
+        mine.hidden = useSaved.hidden = conflictValues.hidden = false;
+      } else if (!response.ok) throw new Error('request failed');
+      else if (result.queued) showRecovery(tr('tasks.save_queued'));
+      else {
+        base = taskValues(result); putValues(base); saved = true;
+      }
     } catch {
+      showRecovery(tr('common.request_failed'));
+      toast(tr('common.request_failed'), 'error');
+    } finally {
       saving = false;
       controls.forEach((control, index) => { control.disabled = disabledBefore[index]; });
       dialog.removeAttribute('aria-busy');
       saveButton.textContent = tr('common.save');
-      saveButton.removeAttribute('aria-disabled');
-      saveButton.removeAttribute('aria-busy');
-      setControlState(saveButton, 'error', { message: tr('common.request_failed') });
-      saveButton.focus();
-      toast(tr('common.request_failed'), 'error');
+      saveButton.removeAttribute('aria-disabled'); saveButton.removeAttribute('aria-busy');
+      setControlState(saveButton, saved ? 'resting' : 'error', { message: saved ? '' : tr('common.request_failed') });
     }
+    if (saved) {
+      if (await close({ restoreFocus: false, discard: true })) {
+        try { await loadTasks(); }
+        catch { toast(tr('tasks.saved_refresh_failed'), 'error'); }
+        document.querySelector(`.task-item[data-id="${id}"] .task-title`)?.focus();
+      } else { message.focus(); }
+    } else { message.focus(); }
   };
+  if (recovered) showRecovery(tr('tasks.draft_recovered'));
+  if (isDirty()) storeDraft();
   focusBoundary.activate({ focus: ov.querySelector('#te-title'), source });
 }
 

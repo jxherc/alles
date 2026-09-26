@@ -109,7 +109,10 @@ contact field also replaces other unsaved edits. Mail protects changed subjects
 but overlooks body-only changes when closing a draft. Failed list loads resemble
 empty accounts, double contact submission creates duplicates, and phone/keyboard
 checks expose invisible actions, a clipped Add label, squeezed sender names and
-missing row-opening controls. These remain open pending integrated repair checks.
+missing row-opening controls. Integrated Chromium checks now reproduce and verify
+the repairs in both themes at desktop and phone widths. Failed forms retain their
+input and errors; keyboard subject buttons open mail and body-only edits trigger
+discard protection. Saved values are checked again after reload.
 
 Ordinary local contacts, vCard import, cached-mail browsing and draft persistence
 passed in the isolated audit. The contact create footer remains visible during
@@ -118,6 +121,40 @@ one working pane. These are separate layout changes. Permanent local draft delet
 lacks the confirmation used by contact deletion; no undo or restore surface was
 found. Live mailbox delivery, remote archive/restore, CardDAV, attachments and
 provider permissions remain unverified; no external message was sent.
+
+## Calendar audit
+
+Owned-data desktop and phone walkthroughs recorded fifteen further defects,
+STAB-063 through STAB-077. Ordinary pointer create/edit/move/delete persisted, but
+editing overnight, timezone-aware or recurring events could shift saved dates.
+A failed single-occurrence replacement could remove the original occurrence.
+Rejected saves also discarded drafts and announced success. Keyboard event access,
+editor choices, phone date-picker reachability and hidden phone search had direct
+reproductions. These findings remain open while repairs are implemented.
+
+The phone month grid truncates events until their titles are hard to distinguish;
+the header uses about 300px before the work area. The existing agenda/day choices
+offer alternative views, but their task usability is not fully accepted. Immediate
+non-recurring deletion has no visible confirmation or undo. These are separate
+design observations. Remote calendars, broader recurrence rules, drag resizing,
+large calendars, native Safari and physical iPhone remain unverified.
+
+## Settings audit
+
+Normal preference changes survived reload and an actual owned-server restart.
+Deliberately rejected or reordered writes exposed STAB-055 through STAB-059:
+ordinary and appearance saves could contradict stored values, while a malformed
+regional response could discard the draft. STAB-060 records a timezone preview
+that confused the saved override with the browser's detected zone. Arabic phone
+Settings was covered by the right-side navigation rail (STAB-061), confirmed by
+pointer hit testing despite no horizontal overflow. The custom color control did
+not open from the keyboard and was only 34px wide (STAB-062). Repairs are pending.
+
+French, Arabic and Traditional Chinese selection, independent regional overrides,
+custom-menu keyboard use and second-context persistence were exercised locally.
+This does not certify translation quality or every locale combination. CSS zoom
+observations are separate from real browser zoom acceptance; native Safari,
+physical iPhone keyboards and assistive technology remain unverified.
 
 ## Remaining phone layout work
 

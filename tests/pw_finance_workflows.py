@@ -159,7 +159,12 @@ def run():
 
             def open_money():
                 expect(page.locator("#finance-view")).to_be_visible()
-                page.locator('#finance-tabs [data-group-section="money"]').click()
+                tab = page.locator('#finance-tabs [data-group-section="money"]')
+                # Reload already restored Money. Reclicking it starts another load
+                # that can replace the rows during the persistence/geometry checks.
+                if tab.get_attribute("aria-selected") != "true":
+                    tab.click()
+                expect(tab).to_have_attribute("aria-selected", "true")
                 expect(page.locator("#money-body")).to_be_visible()
 
             def choose_account(name):

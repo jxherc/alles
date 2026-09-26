@@ -1335,32 +1335,71 @@ function _initSettings() {
   document.getElementById('backup-key-export-btn')?.addEventListener('click', async () => {
     if (await _confirmRecentOwner()) window.location = '/api/backup/recovery-key';
   });
+  const restoreInput = document.getElementById('backup-restore-input');
+  const restoreButton = document.getElementById('backup-restore-btn');
+  const keyInput = document.getElementById('backup-recovery-key-input');
+  const keyButton = document.getElementById('backup-recovery-key-btn');
+  let checkingBackup = false;
+  restoreButton?.addEventListener('click', () => restoreInput?.click());
+  keyButton?.addEventListener('click', () => keyInput?.click());
   document.getElementById('backup-recovery-key-input')?.addEventListener('change', e => {
     const name = document.getElementById('backup-recovery-key-name');
     if (name) name.textContent = e.target.files[0]?.name || 'no separate key selected';
   });
-  document.getElementById('backup-restore-input')?.addEventListener('change', async e => {
-    const file = e.target.files[0];
-    if (!file) return;
+  restoreInput?.addEventListener('change', async () => {
+    const file = restoreInput.files[0];
+    if (!file || checkingBackup) return;
+    checkingBackup = true;
+    const returnFocus = document.activeElement === restoreButton;
+    const controls = [restoreButton, restoreInput, keyButton, keyInput].filter(Boolean);
+    controls.forEach(control => { control.disabled = true; });
+    restoreButton?.setAttribute('aria-busy', 'true');
     const status = document.getElementById('backup-restore-status');
-    if (status) { status.hidden = false; status.textContent = 'checking backup…'; }
+    const showStatus = text => {
+      if (status) { status.hidden = false; status.textContent = text; }
+    };
+    showStatus('checking backup…');
     const fd = new FormData(); fd.append('file', file);
-    const keyInput = document.getElementById('backup-recovery-key-input');
     if (keyInput?.files[0]) fd.append('recovery_key', keyInput.files[0]);
-    const r = await fetch('/api/backup/restore', { method: 'POST', body: fd });
-    const data = await r.json().catch(() => ({}));
-    if (r.ok) {
-      const command = data.apply_command || 'alles restore apply <restore-id>';
-      if (status) status.textContent = `verified and staged. live data is unchanged. stop Alles, then run: ${command}`;
+    const send = async () => {
+      const response = await fetch('/api/backup/restore', { method: 'POST', body: fd });
+      let data;
+      try { data = await response.json(); }
+      catch { throw new Error('could not read the backup response'); }
+      return { response, data };
+    };
+    try {
+      let { response, data } = await send();
+      if (response.status === 403 && data?.code === 'recent_auth_required') {
+        showStatus('confirm your Alles password to check this backup.');
+        if (!await _confirmRecentOwner()) {
+          showStatus('backup check canceled: password confirmation was not completed. choose a backup file to try again.');
+          return;
+        }
+        showStatus('checking backup…');
+        ({ response, data } = await send());
+      }
+      if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : 'backup check failed');
+      if (data?.status !== 'staged' || !/^[0-9a-f]{32}$/.test(data?.restore_id || '')) {
+        throw new Error('could not verify the backup response');
+      }
+      const command = data.apply_command || `alles restore apply ${data.restore_id}`;
+      showStatus(`verified and staged. live data is unchanged. stop Alles, then run: ${command}`);
       toast('backup verified and staged', 'success');
-    } else {
-      if (status) status.textContent = data.detail || 'backup check failed';
-      toast(data.detail || 'backup check failed', 'error');
+    } catch (error) {
+      const message = error instanceof TypeError ? 'connection lost while checking the backup' : error.message || 'backup check failed';
+      showStatus(`${message}. choose a backup file to try again.`);
+      toast(message, 'error');
+    } finally {
+      restoreInput.value = '';
+      if (keyInput) keyInput.value = '';
+      const keyName = document.getElementById('backup-recovery-key-name');
+      if (keyName) keyName.textContent = 'no separate key selected';
+      checkingBackup = false;
+      controls.forEach(control => { control.disabled = false; });
+      restoreButton?.removeAttribute('aria-busy');
+      if (returnFocus && document.activeElement === document.body && restoreButton?.offsetParent) restoreButton.focus();
     }
-    e.target.value = '';
-    if (keyInput) keyInput.value = '';
-    const keyName = document.getElementById('backup-recovery-key-name');
-    if (keyName) keyName.textContent = 'no separate key selected';
   });
   document.getElementById('webdav-backup-save-btn')?.addEventListener('click', saveWebdavBackup);
   document.getElementById('webdav-backup-disconnect-btn')?.addEventListener('click', disconnectWebdavBackup);

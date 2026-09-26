@@ -10,6 +10,8 @@ let _draft = null;
 let _tree = null;
 let _editor = null;
 let _editorFactory = null;
+let _editEntry = 0;
+let _editorLoadFailed = false;
 let _mode = 'view';
 let _editView = 'visual';
 let _dirty = false;
@@ -748,36 +750,73 @@ function currentContent() {
   return _dirty ? (_draft?.content ?? _doc?.content ?? '') : (_doc?.content ?? '');
 }
 
+function currentEditEntry(guard) {
+  return guard.entry === _editEntry && guard.path === _cur
+    && guard.generation === _openGeneration && _mode === 'edit';
+}
+
+function setEditorLoadState(message = '') {
+  let state = $('wiki-editor-load-state');
+  if (!state && message) {
+    state = document.createElement('div');
+    state.id = 'wiki-editor-load-state';
+    state.className = 'docs-inline-state';
+    state.setAttribute('role', 'status');
+    $('wiki-editor')?.insertBefore(state, $('wiki-live'));
+  }
+  if (state) {
+    state.textContent = message;
+    state.hidden = !message;
+  }
+}
+
 async function enterEdit(content = null) {
   if (!_doc?.editable) { toast('This file is read-only in Alles', 'error'); return; }
-  const editPath = _cur;
-  const editGeneration = _openGeneration;
+  const guard = { path: _cur, generation: _openGeneration, entry: ++_editEntry };
   const value = content ?? _draft?.content ?? _doc.content ?? '';
   _editBaseHash = _draft?.base_hash || _doc.hash || '';
   _mode = 'edit';
   _editView = 'visual';
+  _editorLoadFailed = false;
+  if ($('wiki-visual-btn')) $('wiki-visual-btn').disabled = false;
+  // Source is usable while the optional visual editor is still loading.
+  if ($('wiki-source')) $('wiki-source').value = value;
   _dirty = value !== (_doc.content || '') || !!_draft;
   renderShell();
-  const ready = await ensureEditor(value, { path: editPath, generation: editGeneration });
-  if (!ready) return;
-  setEditView('visual');
-  updateStats(currentContent());
-  _editor?.focus();
+  setEditView(_editView, { focus: false });
+  setEditorLoadState(_editorFactory ? '' : 'loading visual editor…');
+  const entryFocus = document.activeElement;
+  try {
+    const ready = await ensureEditor(guard);
+    if (!ready || !currentEditEntry(guard)) return;
+    setEditorLoadState();
+    setEditView(_editView, { focus: false });
+    updateStats(currentContent());
+    if (document.activeElement === entryFocus && _editView === 'visual') _editor?.focus();
+  } catch {
+    if (!currentEditEntry(guard)) return;
+    _editorLoadFailed = true;
+    if ($('wiki-visual-btn')) $('wiki-visual-btn').disabled = true;
+    setEditView('source', { focus: false });
+    setEditorLoadState('visual editor could not load · continue editing in source');
+    if (document.activeElement === entryFocus) $('wiki-source')?.focus();
+  }
 }
 
-async function ensureEditor(value, guard = null) {
-  const parts = splitMarkdownDocument(value);
-  _visualFrontmatter = parts.frontmatter;
+async function ensureEditor(guard) {
   if (!_editorFactory) {
     const module = await import('../vendor/cm6.bundle.js');
     _editorFactory = module.createDocEditor;
   }
-  if (guard && (guard.path !== _cur || guard.generation !== _openGeneration || _mode !== 'edit')) return false;
+  if (!currentEditEntry(guard)) return false;
+  // Read after the await: source input may have replaced the original buffer.
+  const value = $('wiki-source')?.value ?? _draft?.content ?? _doc?.content ?? '';
+  const parts = splitMarkdownDocument(value);
+  _visualFrontmatter = parts.frontmatter;
   if (_editor) {
     _syncing = true;
-    _editor.setValue(parts.body);
-    _syncing = false;
-    if ($('wiki-source')) $('wiki-source').value = value;
+    try { _editor.setValue(parts.body); }
+    finally { _syncing = false; }
     return true;
   }
   const host = $('wiki-live');
@@ -791,11 +830,12 @@ async function ensureEditor(value, guard = null) {
       return (result.names || []).filter(name => name.toLowerCase().includes(String(query || '').toLowerCase())).map(name => ({ name }));
     },
   });
-  if ($('wiki-source')) $('wiki-source').value = value;
   return true;
 }
 
 function destroyEditor() {
+  ++_editEntry;
+  setEditorLoadState();
   _editor?.destroy?.();
   _editor = null;
   $('wiki-live')?.replaceChildren();
@@ -839,19 +879,23 @@ function sourceChanged() {
   } else scheduleDraft();
 }
 
-function setEditView(view) {
-  _editView = view === 'source' ? 'source' : 'visual';
+function setEditView(view, { focus = true } = {}) {
+  _editView = view === 'source' || _editorLoadFailed ? 'source' : 'visual';
   const source = _editView === 'source';
   setHidden($('wiki-live'), source);
   setHidden($('wiki-source'), !source);
   $('wiki-visual-btn')?.setAttribute('aria-pressed', String(!source));
   $('wiki-source-btn')?.setAttribute('aria-pressed', String(source));
-  if (source) $('wiki-source')?.focus();
-  else _editor?.focus();
+  if (focus) {
+    if (source) $('wiki-source')?.focus();
+    else _editor?.focus();
+  }
 }
 
 function exitEdit() {
   if (_mode !== 'edit') return;
+  ++_editEntry;
+  setEditorLoadState();
   if (_dirty) {
     const content = currentContent();
     _draft = { path: _cur, content, base_hash: _editBaseHash };

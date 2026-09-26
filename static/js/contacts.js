@@ -8,6 +8,7 @@ const REL_KINDS = ['friend', 'colleague', 'spouse', 'partner', 'sibling', 'paren
 
 let _favOnly = false;
 let _wired = false;
+let _creatingContact = false;
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 function _wire() {
@@ -103,7 +104,10 @@ export async function loadContacts(q = '', fetcher = fetch) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (_favOnly) params.set('favorites', 'true');
-    const contacts = await fetcher('/api/contacts' + (params.toString() ? '?' + params : '')).then(r => r.json());
+    const response = await fetcher('/api/contacts' + (params.toString() ? '?' + params : ''));
+    if (!response.ok) throw new Error('contacts unavailable');
+    const contacts = await response.json();
+    if (!Array.isArray(contacts)) throw new Error('invalid contacts response');
     if (!contacts.length) { list.innerHTML = `<div class="page-empty">${_favOnly ? 'no favorites' : 'no contacts'}</div>`; return; }
     list.innerHTML = contacts.map(c => `
       <div class="contact-item" data-id="${c.id}">
@@ -126,7 +130,8 @@ export async function loadContacts(q = '', fetcher = fetch) {
     list.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openContact(b.dataset.open)));
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => delContact(b.dataset.del)));
   } catch {
-    list.innerHTML = '<div class="page-empty">failed to load</div>';
+    list.innerHTML = '<div class="page-empty" role="alert">could not load contacts. <button class="btn" id="contacts-retry">retry</button></div>';
+    list.querySelector('#contacts-retry').addEventListener('click', () => loadContacts(q, fetcher));
   }
 }
 
@@ -155,7 +160,7 @@ async function openContact(id) {
       <div class="contact-detail-head">
         <button class="btn ic-btn-lbl" id="cd-back">${_si('chevron-left')} contacts</button>
         <label class="contact-av-up" title="set photo">${_avatarHtml(c, true)}<input type="file" id="cd-avatar" accept="image/*" hidden></label>
-        <div class="contact-detail-name"><input class="settings-input" id="cd-name" value="${_esc(c.name)}"></div>
+        <label class="contact-detail-name cd-field"><span>name</span><input class="settings-input" id="cd-name" value="${_esc(c.name)}"></label>
         <button class="btn ic-btn-lbl${c.is_me ? ' primary' : ''}" id="cd-me">${c.is_me ? `${_si('check')} this is me` : 'set as me'}</button>
       </div>
       <div class="contact-scalars">
@@ -179,6 +184,7 @@ async function openContact(id) {
         <button class="btn" id="cd-reladd">link</button>
       </div>
       <div id="cd-events"></div>
+      <p class="contact-error" id="cd-error" role="alert" hidden></p>
       <div class="cd-actions"><button class="btn primary" id="cd-save">save</button></div>
     </div>`;
   document.getElementById('cd-back').addEventListener('click', () => loadContacts());
@@ -192,20 +198,60 @@ async function openContact(id) {
     await fetch(`/api/contacts/${id}/avatar`, { method: 'POST', body: fd });
     toast('photo set', 'success'); openContact(id);
   });
+  let saving = false;
   document.getElementById('cd-save').addEventListener('click', async () => {
-    const body = { name: document.getElementById('cd-name').value.trim() };
-    document.querySelectorAll('.contact-scalars [data-k]').forEach(el => { body[el.dataset.k] = el.value; });
-    await fetch(`/api/contacts/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    toast('saved', 'success'); loadContacts();
+    if (saving) return;
+    const detail = list.querySelector('.contact-detail');
+    const error = detail.querySelector('#cd-error');
+    const body = { name: detail.querySelector('#cd-name').value.trim() };
+    detail.querySelectorAll('.contact-scalars [data-k]').forEach(el => { body[el.dataset.k] = el.value; });
+    if (!body.name) { error.textContent = 'name required'; error.hidden = false; return; }
+    const controls = [...detail.querySelectorAll('input, textarea, button')].filter(el => !el.disabled);
+    saving = true;
+    error.hidden = true;
+    controls.forEach(el => { el.disabled = true; });
+    try {
+      const response = await fetch(`/api/contacts/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      await savedContact(response, body, id);
+      toast('saved', 'success');
+      await loadContacts();
+      list.querySelector(`[data-open="${CSS.escape(id)}"]`)?.focus();
+    } catch {
+      error.textContent = 'could not save contact. your changes are still here; try save again.';
+      error.hidden = false;
+    } finally {
+      saving = false;
+      controls.forEach(el => { el.disabled = false; });
+    }
   });
   initCustomDropdown(document.getElementById('cd-fkind'));
-  document.getElementById('cd-fadd').addEventListener('click', async () => {
+  document.getElementById('cd-fadd').addEventListener('click', async e => {
+    const button = e.currentTarget;
+    if (button.disabled) return;
+    const labelInput = document.getElementById('cd-flabel');
+    const valueInput = document.getElementById('cd-fvalue');
+    const error = document.getElementById('cd-error');
+    const fields = document.getElementById('cd-fields');
     const kind = getDropdownValue(document.getElementById('cd-fkind'));
-    const label = document.getElementById('cd-flabel').value.trim();
-    const value = document.getElementById('cd-fvalue').value.trim();
+    const label = labelInput.value.trim();
+    const value = valueInput.value.trim();
     if (!value) { toast('value needed', ''); return; }
-    await fetch(`/api/contacts/${id}/fields`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, label, value }) });
-    openContact(id);
+    button.disabled = labelInput.disabled = valueInput.disabled = true;
+    error.hidden = true;
+    try {
+      const response = await fetch(`/api/contacts/${id}/fields`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, label, value }) });
+      const field = await response.json();
+      if (!response.ok || !field || typeof field.id !== 'string' || !field.id || field.value !== value) throw new Error('field not saved');
+      c.fields = [...(c.fields || []), field];
+      if (fields.isConnected) renderFields(c);
+      labelInput.value = valueInput.value = '';
+    } catch {
+      error.textContent = 'could not add field. your changes are still here; try again.';
+      error.hidden = false;
+    } finally {
+      button.disabled = labelInput.disabled = valueInput.disabled = false;
+      valueInput.focus();
+    }
   });
   renderFields(c);
   renderRels(id, rels);
@@ -349,15 +395,42 @@ async function showDuplicates() {
   }));
 }
 
+async function savedContact(response, expected, id = '') {
+  const contact = await response.json();
+  if (!response.ok || !contact || typeof contact.id !== 'string' || !contact.id
+      || (id && contact.id !== id) || Object.entries(expected).some(([key, value]) => contact[key] !== value)) {
+    throw new Error('contact save not confirmed');
+  }
+  return contact;
+}
+
 export async function addContact() {
-  const name = document.getElementById('contact-name')?.value.trim();
-  const email = document.getElementById('contact-email')?.value.trim();
-  const phone = document.getElementById('contact-phone')?.value.trim();
-  if (!name) { toast('name required', 'error'); return; }
-  await fetch('/api/contacts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, email, phone }) });
-  ['contact-name', 'contact-email', 'contact-phone'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  toast('contact added', 'success');
-  await loadContacts();
+  if (_creatingContact) return;
+  const inputs = ['contact-name', 'contact-email', 'contact-phone'].map(id => document.getElementById(id));
+  const [name, email, phone] = inputs.map(el => el.value.trim());
+  const error = document.getElementById('contact-add-error');
+  if (!name) { error.textContent = 'name required'; error.hidden = false; inputs[0].focus(); return; }
+  const button = document.getElementById('contact-add-btn');
+  _creatingContact = true;
+  error.hidden = true;
+  button.disabled = true;
+  inputs.forEach(el => { el.disabled = true; });
+  try {
+    const body = { name, email, phone };
+    const response = await fetch('/api/contacts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const contact = await savedContact(response, body);
+    inputs.forEach(el => { el.value = ''; });
+    toast('contact added', 'success');
+    await loadContacts();
+    document.querySelector(`[data-open="${CSS.escape(contact.id)}"]`)?.focus();
+  } catch {
+    error.textContent = 'could not add contact. your details are still here; try add again.';
+    error.hidden = false;
+  } finally {
+    _creatingContact = false;
+    button.disabled = false;
+    inputs.forEach(el => { el.disabled = false; });
+  }
 }
 
 window._delContact = delContact;

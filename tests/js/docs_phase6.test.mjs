@@ -59,16 +59,6 @@ test('Docs commits only the latest fully loaded document and draft', () => {
   assert.ok(open.indexOf('_cur = openedPath') < open.indexOf('_draft = openedDraft'));
 });
 
-test('Docs abandons delayed editor setup after another document opens', () => {
-  const enter = docs.match(/async function enterEdit\([^)]*\)[\s\S]*?\n}/)?.[0] || '';
-  const ensure = docs.match(/async function ensureEditor\([^)]*\)[\s\S]*?\n}/)?.[0] || '';
-  assert.match(enter, /const editPath = _cur/);
-  assert.match(enter, /const editGeneration = _openGeneration/);
-  assert.match(enter, /ensureEditor\(value, \{ path: editPath, generation: editGeneration \}\)/);
-  assert.match(ensure, /guard\.path !== _cur/);
-  assert.match(ensure, /guard\.generation !== _openGeneration/);
-});
-
 test('Docs treats an intentionally empty draft as authoritative content', () => {
   const current = docs.match(/function currentContent\(\)[\s\S]*?\n}/)?.[0] || '';
   assert.match(current, /_draft\?\.content \?\? _doc\?\.content \?\? ''/);

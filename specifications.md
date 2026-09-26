@@ -187,6 +187,8 @@ this is the most feature-dense app, so here's the full list:
 - **recurring tasks**: finish one and it rolls forward to the next occurrence (daily / weekly / monthly / yearly, leap-day safe)
 - **today / upcoming / someday** views by due date, plus tags, subtasks, projects, and manual drag-reorder
 - compatible task stages include Backlog, Next, Doing, Waiting, and Done while the existing checked/unchecked behavior still works
+- task edits send only changed fields with their original values; conflicting saves retain both versions for review, download and explicit resolution. Legacy API clients without preconditions keep their existing behavior.
+- unsaved task edits recover after reload/history in the same tab, scoped to the installation owner. Storage failures show a warning and download action; closing the tab or clearing its storage is not a durable backup.
 - **active / history tabs**: checking a task off doesn't make it vanish; the **history** tab shows everything you've completed, and you can un-check one to send it back
 - tasks created anywhere (quick-capture, "extract to-dos" from a doc, the ai's `task_add` tool) all land here
 
@@ -747,6 +749,7 @@ alles is scriptable. two flavors:
 - **docs:** `get /api/vault-md/tree`, `get/put/post/delete /api/vault-md/file`, `/search`, `/grep`, `/graph`, `/tags`, `/backlinks`, `/unlinked`, `/tasks`, `/templates`, `/youtube`, `/import`, `/export-docx`, `/revisions`
 - **mail:** `get /api/mail/accounts`, `get /api/mail/inbox/{id}`, `get /api/mail/threads/{id}`, `get /api/mail/message/{id}`, `get /api/mail/attachments/{id}`, `get /api/mail/attachment/{id}`, `post /api/mail/send/{id}`, `post /api/mail/summarize`, `post /api/mail/make-task`, `post /api/mail/extract-event`
 - **tasks/calendar/notes/contacts/subs/days:** standard `get/post/patch/delete` on `/api/tasks`, `/api/calendar`, `/api/notes`, `/api/contacts`, `/api/subscriptions`, `/api/days`
+  Task PATCH accepts an optional matching `expected` field map for atomic conflict detection (409 returns current values); `get /api/tasks/draft-scope` supplies noncached owner-scoped recovery namespaces.
 - **files/photos:** `/api/storage-locations` lists and manages encrypted local/WebDAV/S3 location
   records; `/api/files/{list,raw,upload,mkdir,rename,delete}` accepts an optional `location_id` and
   keeps old calls on `default-local`; `/api/files/operations` exposes restart-safe copy, move, cancel,

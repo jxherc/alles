@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v265';   // Refresh Library save recovery and keyboard controls.
+const VERSION = 'v266';   // Refresh draft recovery and specialist controls.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '309';   // keep in sync with index.html ?v= / const _v
+const STAMP = '310';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
