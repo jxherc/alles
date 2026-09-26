@@ -329,6 +329,11 @@ controls visible above the retained panel at constrained phone height. These are
 Files subset runs, not two complete release runs. Their archived evidence closes
 STAB-079, STAB-080 and STAB-086 for the tested local workflows.
 
+On 213bbdf the Gallery gate passed all 60 scenario runs, and the ledger now closes
+STAB-094 through STAB-103 and STAB-107 against named scenarios. The aide-composer
+gate closes STAB-106, STAB-108 and STAB-109. No ledger finding is still open, but
+native Safari/iPhone and the seven-day trial keep the release open.
+
 ## Stable layout
 
 The app picker keeps the same destinations. Daily-work and specialist workbenches

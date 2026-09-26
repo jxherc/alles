@@ -1454,7 +1454,7 @@
       "feature": "extension-mobile.pwa-and-extension",
       "app": "all",
       "workflow": "recover queued input after the owner session expires",
-      "expected": "Retain an offline entry when real replay receives401, show that sign-in is needed and preserve exact values after reload. Incorrect credentials and cancellation leave it queued; successful sign-in saves it once.",
+      "expected": "Retain an offline entry when real replay receives 401, show that sign-in is needed and preserve exact values after reload. Incorrect credentials and cancellation leave it queued; successful sign-in saves it once.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -1467,7 +1467,7 @@
       "feature": "extension-mobile.pwa-and-extension",
       "app": "all",
       "workflow": "review rejected offline changes and recover deliberately",
-      "expected": "Retain conflicts and invalid input across reload, display the saved values and reason, allow export, retry or individually confirmed discard. No automatic resend of permanently rejected entries; temporary503 remains recoverable.",
+      "expected": "Retain conflicts and invalid input across reload, display the saved values and reason, allow export, retry or individually confirmed discard. No automatic resend of permanently rejected entries; temporary 503 remains recoverable.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -2559,7 +2559,7 @@
       "feature": "plan.tasks-calendar",
       "app": "plan",
       "workflow": "operate the shared date picker at constrained widths and visual zoom",
-      "expected": "All seven44px columns fit, pointer selection works, Tab remains inside the picker and Escape restores focus; visual zoom evidence stays distinct from browser text zoom.",
+      "expected": "All seven 44px columns fit, pointer selection works, Tab remains inside the picker and Escape restores focus; visual zoom evidence stays distinct from browser text zoom.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -2613,7 +2613,7 @@
       "feature": "files-photos.locations-and-media",
       "app": "files",
       "workflow": "upload large preservation",
-      "expected": "Replacing an original above25MiB is refused without modification; a new filename remains available.",
+      "expected": "Replacing an original above 25MiB is refused without modification; a new filename remains available.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -2834,7 +2834,7 @@
       "feature": "server.management",
       "app": "server",
       "workflow": "policy recovery",
-      "expected": "Rejected or canceled owner confirmation preserves the policy draft; retry saves the exact local policy with0600 permissions.",
+      "expected": "Rejected or canceled owner confirmation preserves the policy draft; retry saves the exact local policy with 0600 permissions.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -3003,7 +3003,7 @@
       "feature": "cross-feature.settings",
       "app": "settings",
       "workflow": "keep the selected Settings section identifiable while traversing navigation",
-      "expected": "Current section text stays visible in the compact header; selected tabs differ from hover; actual focus, scrolling, Escape return and reentry work at desktop and320/390px inLTR/RTL andLight/Dark.",
+      "expected": "Current section text stays visible in the compact header; selected tabs differ from hover; actual focus, scrolling, Escape return and reentry work at desktop and 320/390px inLTR/RTL andLight/Dark.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -3580,13 +3580,13 @@
         "Inspect the returned 401 error visually and by hit testing."
       ],
       "expected": "Show a readable error on the sign-in surface.",
-      "actual": "The error toast has z-index500 beneath the login overlay at1000 and is unreadable.",
+      "actual": "The error toast has z-index500 beneath the login overlay at 1000 and is unreadable.",
       "evidence": [
         "/tmp/alles-login-visual-audit/observations.json",
         "/tmp/alles-setup-acceptance-report.md",
         "Repeated on desktop and phone Chromium with owned synthetic data; injected transport/expiry conditions explicitly recorded."
       ],
-      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login 503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
     },
     {
       "id": "STAB-019",
@@ -3596,7 +3596,7 @@
       "revision": "93ed1a2; setup/auth sources unchanged by Finance/offline batch",
       "status": "fixed-and-verified",
       "reproduction": [
-        "Submit a valid synthetic password while the login response is deliberately replaced with503.",
+        "Submit a valid synthetic password while the login response is deliberately replaced with 503.",
         "Interrupt a subsequent login request, then remove the fault and retry."
       ],
       "expected": "Distinguish credential rejection from unavailable service/network and keep retry usable.",
@@ -3606,7 +3606,7 @@
         "/tmp/alles-setup-acceptance-report.md",
         "Repeated on desktop and phone Chromium with owned synthetic data; injected transport/expiry conditions explicitly recorded."
       ],
-      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login 503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
     },
     {
       "id": "STAB-020",
@@ -3621,13 +3621,13 @@
         "Click install companion."
       ],
       "expected": "Prompt for owner confirmation and retry the authorized action.",
-      "actual": "The real403 recent_auth_required response only produces an error and offers no confirmation flow; optional installation can be skipped.",
+      "actual": "The real 403 recent_auth_required response only produces an error and offers no confirmation flow; optional installation can be skipped.",
       "evidence": [
         "/tmp/alles-setup-acceptance-audit-v3",
         "/tmp/alles-setup-acceptance-report.md",
         "Repeated on desktop and phone Chromium with owned synthetic data; injected transport/expiry conditions explicitly recorded."
       ],
-      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login 503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
     },
     {
       "id": "STAB-021",
@@ -3647,7 +3647,7 @@
         "/tmp/alles-setup-acceptance-report.md",
         "Repeated on desktop and phone Chromium with owned synthetic data; injected transport/expiry conditions explicitly recorded."
       ],
-      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login 503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
     },
     {
       "id": "STAB-022",
@@ -4414,7 +4414,7 @@
       "status": "fixed-and-verified",
       "reproduction": [
         "Persist FR, Asia/Taipei, JPY, 24-hour clock and Monday.",
-        "Change region to JP and simulate HTTP200 with invalid JSON for the save."
+        "Change region to JP and simulate HTTP 200 with invalid JSON for the save."
       ],
       "expected": "Retain the exact regional draft and show that the save was not confirmed.",
       "actual": "The form resets to English/automatic defaults and says saved just now; the server still holds FR and the overrides.",
@@ -4561,7 +4561,7 @@
       ],
       "expected": "Changing a description across the series preserves its original start, count, and scheduled dates.",
       "actual": "Master start/end become Oct 2. Sep 25 disappears and an Oct 16 occurrence is added because recur_count remains 3.",
-      "source_trace": "static/js/calendar.js:1038–1041 replaces form dates with occurrence dates; saveEvent scope all at1321–1322 patches that body directly to master.",
+      "source_trace": "static/js/calendar.js:1038–1041 replaces form dates with occurrence dates; saveEvent scope all at 1321–1322 patches that body directly to master.",
       "evidence": [
         "/tmp/alles-calendar-audit-report.md",
         "/tmp/alles-calendar-audit/recurrence.zip",
@@ -4638,7 +4638,7 @@
       ],
       "expected": "One in-flight save per editor with clear busy state.",
       "actual": "Create remains enabled; two POSTs are emitted; two distinct real IDs with identical title/time persist.",
-      "source_trace": "static/js/calendar.js:1193 and1303–1310 have no in-flight guard or disabled state.",
+      "source_trace": "static/js/calendar.js:1193 and 1303–1310 have no in-flight guard or disabled state.",
       "evidence": [
         "/tmp/alles-calendar-audit-report.md",
         "/tmp/alles-calendar-audit/mutations.zip",
@@ -4711,7 +4711,7 @@
       ],
       "expected": "Distinguish unavailable records from an empty account; show recovery and preserve known data when possible.",
       "actual": "All 3 chips disappear; calendar shows normal dates without error or Retry. Removing simulation and reloading restores all 3.",
-      "source_trace": "static/js/calendar.js:173–175 parses responses without status checks; at199–200 a non-array result becomes [].",
+      "source_trace": "static/js/calendar.js:173–175 parses responses without status checks; at 199–200 a non-array result becomes [].",
       "evidence": [
         "/tmp/alles-calendar-audit-report.md",
         "/tmp/alles-calendar-audit/mutations.zip",
@@ -4779,8 +4779,8 @@
       "reproduction": [
         "New event → weekly repeat; start at title and Tab through the entire editor."
       ],
-      "expected": "Labeled, keyboard-operable controls and at least44px targets without changing other components.",
-      "actual": "All-day checkbox, weekday spans, reminder spans and color spans are skipped. All-day has no accessible name. Measured weekday targets26×26, reminders25.75px high, colors18×18; these are not expanded by the shared 44px button rule.",
+      "expected": "Labeled, keyboard-operable controls and at least 44px targets without changing other components.",
+      "actual": "All-day checkbox, weekday spans, reminder spans and color spans are skipped. All-day has no accessible name. Measured weekday targets 26×26, reminders 25.75px high, colors 18×18; these are not expanded by the shared 44px button rule.",
       "source_trace": "static/js/calendar.js:1063,1080,1093,1103–1106 renders spans; 1130–1135/1175–1180 attaches click only. static/style.css:6468,6482,6491 uses undersized targets.",
       "evidence": [
         "/tmp/alles-calendar-audit-report.md",
@@ -4802,11 +4802,11 @@
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
       "status": "fixed-and-verified",
       "reproduction": [
-        "At390×900, open + event then End date. Attempt September26 by pointer."
+        "At 390×900, open + event then End date. Attempt September 26 by pointer."
       ],
       "expected": "All date/time choices fit or scroll inside the visible viewport and remain reachable.",
-      "actual": "Panel bounds x148..382, y522.55..950.70; scrollWidth324 despite234px panel width. Friday/Saturday end beyond390px. Real pointer click on26 times out as outside viewport; end stays blank. Footer y896..940 is also below the view.",
-      "source_trace": "static/style.css:2167–2185 fixes date-panel width234 and 7 grid columns; hydrated date buttons have44px minimum widths. Positioning does not account for expanded content height/width.",
+      "actual": "Panel bounds x148..382, y522.55..950.70; scrollWidth 324 despite 234px panel width. Friday/Saturday end beyond 390px. Real pointer click on 26 times out as outside viewport; end stays blank. Footer y896..940 is also below the view.",
+      "source_trace": "static/style.css:2167–2185 fixes date-panel width 234 and 7 grid columns; hydrated date buttons have 44px minimum widths. Positioning does not account for expanded content height/width.",
       "evidence": [
         "/tmp/alles-calendar-audit-report.md",
         "/tmp/alles-calendar-audit/picker-geometry.zip",
@@ -4829,7 +4829,7 @@
       "revision": "186ada94 plus captured integration changes; source dcc358fa973e4ea9439d45d46d1836483108372c6c7dd71231d6fc198c96a8a2",
       "status": "fixed-and-verified",
       "reproduction": [
-        "Open populated Calendar at390px; inspect visible controls in light and dark themes."
+        "Open populated Calendar at 390px; inspect visible controls in light and dark themes."
       ],
       "expected": "Existing search remains reachable on phone through a labeled action or panel.",
       "actual": "#cal-search exists but is not visible or exposed in the accessibility tree; there is no alternate Calendar search control. Desktop search works.",
@@ -4922,7 +4922,7 @@
         ".Codex/stabilization/2026-09-26-files/files-2/results.json",
         ".Codex/stabilization/2026-09-26-files/files-3/results.json"
       ],
-      "verification": "Two fresh integrated Files subsets passed all three gates, with162focusedPython checks and672JavaScript checks. Actual pointer/keyboard and exact saved bytes cover explicit replacement, large-original preservation, version restore, concurrent decisions, lost-response retry and retained transfer failures. Final error reasons use14px text; lower rows and selection remain reachable at constrained desktop/phone sizes. Source cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884; acceptance f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0. This is bounded local Files proof, not complete release/device/provider acceptance."
+      "verification": "Two fresh integrated Files subsets passed all three gates, with 162 focused Python checks and 672 JavaScript checks. Actual pointer/keyboard and exact saved bytes cover explicit replacement, large-original preservation, version restore, concurrent decisions, lost-response retry and retained transfer failures. Final error reasons use 14px text; lower rows and selection remain reachable at constrained desktop/phone sizes. Source cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884; acceptance f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0. This is bounded local Files proof, not complete release/device/provider acceptance."
     },
     {
       "id": "STAB-080",
@@ -4948,13 +4948,13 @@
         ".Codex/stabilization/2026-09-26-files/files-2/results.json",
         ".Codex/stabilization/2026-09-26-files/files-3/results.json"
       ],
-      "verification": "Two fresh integrated Files subsets passed all three gates, with162focusedPython checks and672JavaScript checks. Actual pointer/keyboard and exact saved bytes cover explicit replacement, large-original preservation, version restore, concurrent decisions, lost-response retry and retained transfer failures. Final error reasons use14px text; lower rows and selection remain reachable at constrained desktop/phone sizes. Source cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884; acceptance f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0. This is bounded local Files proof, not complete release/device/provider acceptance."
+      "verification": "Two fresh integrated Files subsets passed all three gates, with 162 focused Python checks and 672 JavaScript checks. Actual pointer/keyboard and exact saved bytes cover explicit replacement, large-original preservation, version restore, concurrent decisions, lost-response retry and retained transfer failures. Final error reasons use 14px text; lower rows and selection remain reachable at constrained desktop/phone sizes. Source cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884; acceptance f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0. This is bounded local Files proof, not complete release/device/provider acceptance."
     },
     {
       "id": "STAB-081",
       "title": "Populated Calendar date fields overflow the phone editor",
       "severity": "medium",
-      "screen": "Plan Calendar event editor at390px phone width",
+      "screen": "Plan Calendar event editor at 390px phone width",
       "revision": "b6f4cc3 plus preliminary Calendar repair615a8cef",
       "status": "fixed-and-verified",
       "reproduction": [
@@ -4964,7 +4964,7 @@
       ],
       "expected": "Both dates stay readable and reachable inside the viewport.",
       "actual": "The two-column grid extended the end field to x440.77 on a390px viewport.",
-      "source_trace": "static/style.css .cal-ed-grid used two unconstrained1fr columns for populated date controls.",
+      "source_trace": "static/style.css .cal-ed-grid used two unconstrained 1fr columns for populated date controls.",
       "evidence": [
         "/tmp/alles-calendar-fix-editor-before/fields.png",
         "/tmp/alles-calendar-fix-editor-before/bounds.json",
@@ -5041,7 +5041,7 @@
       "severity": "medium",
       "screen": "Plan Calendar partial load",
       "reproduction": [
-        "Seed an event and simulate only GET /api/calendars returning503.",
+        "Seed an event and simulate only GET /api/calendars returning 503.",
         "Open Calendar while the real GET /api/calendar still returns that event."
       ],
       "expected": "Events remain usable while missing calendar names and selection show a recoverable partial failure.",
@@ -5060,21 +5060,21 @@
       ],
       "verification": "The original recovery, persistence or keyboard/layout reproduction and neighboring cases pass on the integrated source. Current 28-gate Chromium full run, 5663 Python tests (six explicit skips), 671 JavaScript tests and Ruff pass. Source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c; acceptance cb51beda7aceaf1e56ffff3f43b9b3a7b55e2cf99b814e02745474b7683d4c1a. Settings/Calendar screenshots were manually inspected and source review is clean. All four Settings/Calendar gates passed again in the second fresh full run. That run failed the separate PWA storage reconnect case; only one clean complete full run matches this source, so the release repeatability gate remains unsatisfied. Native Safari/iPhone and live integrations remain unverified; this is bounded repair evidence, not stable-release acceptance.",
       "id": "STAB-085",
-      "title": "Shared date picker clips the rightmost date column at320px",
+      "title": "Shared date picker clips the rightmost date column at 320px",
       "severity": "medium",
       "screen": "Calendar shared date picker on narrow phone viewport",
       "reproduction": [
-        "Open a populated End date picker at320x900.",
+        "Open a populated End date picker at 320x900.",
         "Inspect all seven day columns and the panel horizontal scroll bounds."
       ],
-      "expected": "Seven44px date targets fit without horizontal scrolling.",
-      "actual": "The panel client width was302px and scroll width324px; the final column extended outside the visible panel.",
-      "source_trace": "Seven44px columns plus gaps and panel padding exceeded the viewport width minus16px margins."
+      "expected": "Seven 44px date targets fit without horizontal scrolling.",
+      "actual": "The panel client width was 302px and scroll width 324px; the final column extended outside the visible panel.",
+      "source_trace": "Seven 44px columns plus gaps and panel padding exceeded the viewport width minus 16px margins."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
       "status": "fixed-and-verified",
-      "verification": "Two fresh integrated Files subsets passed all three gates, with162focusedPython checks and672JavaScript checks. Actual pointer/keyboard and exact saved bytes cover explicit replacement, large-original preservation, version restore, concurrent decisions, lost-response retry and retained transfer failures. Final error reasons use14px text; lower rows and selection remain reachable at constrained desktop/phone sizes. Source cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884; acceptance f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0. This is bounded local Files proof, not complete release/device/provider acceptance.",
+      "verification": "Two fresh integrated Files subsets passed all three gates, with 162 focused Python checks and 672 JavaScript checks. Actual pointer/keyboard and exact saved bytes cover explicit replacement, large-original preservation, version restore, concurrent decisions, lost-response retry and retained transfer failures. Final error reasons use 14px text; lower rows and selection remain reachable at constrained desktop/phone sizes. Source cddacd4ad28fe67a65799d49382fa789d65d71e420a9fc31e347e651b8718884; acceptance f58a285232c778b0bed9c4e518687bc3f2b9d69d373c6ee4547a1f56df9485c0. This is bounded local Files proof, not complete release/device/provider acceptance.",
       "id": "STAB-086",
       "title": "Retained failed transfers cover lower Files rows on phone",
       "severity": "medium",
@@ -5098,13 +5098,13 @@
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
       "status": "fixed-and-verified",
-      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
+      "verification": "The integrated administration subset passed all five gates, including 36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks. 59 focused Python checks and 672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-087",
       "title": "Monitor conceals post-success errors and sticks on re-entry",
       "severity": "medium",
       "screen": "Server monitor-stale-feedback on desktop and phone",
       "reproduction": [
-        "open Server overview; allow one successful stats response; then return HTTP503 from `/api/system/stats`. After multiple failed polls, the old metrics and `live · 0 procs` remain. Navigate to logs and back while failures continue: overview stays on `reading the machine…` and still says live. Removing the failure restores the metrics."
+        "open Server overview; allow one successful stats response; then return HTTP 503 from `/api/system/stats`. After multiple failed polls, the old metrics and `live · 0 procs` remain. Navigate to logs and back while failures continue: overview stays on `reading the machine…` and still says live. Removing the failure restores the metrics."
       ],
       "expected": "visible unavailable/stale feedback with an honest status, including after re-entry.",
       "actual": "monitor conceals post-success errors and sticks on re-entry",
@@ -5121,7 +5121,7 @@
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
       "status": "fixed-and-verified",
-      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
+      "verification": "The integrated administration subset passed all five gates, including 36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks. 59 focused Python checks and 672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-088",
       "title": "Service and backup success rerenders update detached containers",
       "severity": "medium",
@@ -5144,7 +5144,7 @@
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
       "status": "fixed-and-verified",
-      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
+      "verification": "The integrated administration subset passed all five gates, including 36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks. 59 focused Python checks and 672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-089",
       "title": "Backup error leaves running status",
       "severity": "medium",
@@ -5167,7 +5167,7 @@
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
       "status": "fixed-and-verified",
-      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
+      "verification": "The integrated administration subset passed all five gates, including 36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks. 59 focused Python checks and 672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-090",
       "title": "Runtime log timestamps omitted",
       "severity": "medium",
@@ -5190,7 +5190,7 @@
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
       "status": "fixed-and-verified",
-      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
+      "verification": "The integrated administration subset passed all five gates, including 36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks. 59 focused Python checks and 672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-091",
       "title": "Policy save leaves false missing-file state",
       "severity": "medium",
@@ -5213,7 +5213,7 @@
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
       "status": "fixed-and-verified",
-      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
+      "verification": "The integrated administration subset passed all five gates, including 36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks. 59 focused Python checks and 672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-092",
       "title": "Policy success retains error styling",
       "severity": "low",
@@ -5236,7 +5236,7 @@
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
       "status": "fixed-and-verified",
-      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
+      "verification": "The integrated administration subset passed all five gates, including 36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks. 59 focused Python checks and 672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance.",
       "id": "STAB-093",
       "title": "Owned-only policy shows and focuses hidden escalation field",
       "severity": "low",
@@ -5258,8 +5258,8 @@
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The upload keeps a copy of the whole file list before resetting the input and checks each acknowledgement. The scenario uploads three files through the real chooser and checks all three names, dimensions and original SHA-256 after reload. gallery.multiple-upload-bytes-and-reload passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. A successful upload or album creation whose acknowledgement is lost after commit can still need reconciliation. Native Safari/iPhone unverified.",
       "id": "STAB-094",
       "title": "Multi-file Gallery upload silently processes only the first selected file",
       "severity": "medium",
@@ -5275,20 +5275,21 @@
         "/tmp/alles-gallery-audit/source-hashes.json",
         "/tmp/alles-gallery-audit/04-gallery-populated.png",
         "/tmp/alles-gallery-audit/05-after-upload-wait.txt",
-        "/tmp/alles-gallery-audit/events.json"
+        "/tmp/alles-gallery-audit/events.json",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "Photos open from real named buttons; selectors name their image, expose pressed state and stay visible on focus. The scenario tabs into the grid, opens the focused photo with Enter and checks touch selection on phones. gallery.keyboard-photo-entry-and-modal-focus passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. Native Safari/iPhone unverified.",
       "id": "STAB-095",
       "title": "Photo opening is pointer-only; focused selection is invisible and lacks image identity",
       "severity": "high",
       "screen": "Files Gallery / Photos; see exact workflow reproduction",
       "reproduction": [
-        "With populated Gallery, pointer-click Gallery settings twice to close it and establish ordinary focus, then actual Tab through navigation to grid. Only identical “select” buttons are reachable; photo cells have no keyboard opening path. First focused selector opacity is0 despite44×44 target; Enter selects but does not open."
+        "With populated Gallery, pointer-click Gallery settings twice to close it and establish ordinary focus, then actual Tab through navigation to grid. Only identical “select” buttons are reachable; photo cells have no keyboard opening path. First focused selector opacity is 0 despite 44×44 target; Enter selects but does not open."
       ],
       "expected": "Each image can be identified and opened with keyboard input and visible focus.",
       "actual": "Photo opening is pointer-only; focused selection is invisible and lacks image identity",
@@ -5298,20 +5299,21 @@
         "/tmp/alles-gallery-audit/source-hashes.json",
         "/tmp/alles-gallery-audit/keyboard-selection.json",
         "/tmp/alles-gallery-audit/27-focused-invisible-select.png",
-        "/tmp/alles-gallery-audit/28-keyboard-select.txt"
+        "/tmp/alles-gallery-audit/28-keyboard-select.txt",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "Caption and keyword saves are accepted only after a valid saved-photo response. The scenario sends a 503 and malformed 200 responses, checks the saved value is unchanged and the draft stays, then retries and checks the exact values after reload. gallery.caption-rejected-and-malformed-draft-retention passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. Native Safari/iPhone unverified.",
       "id": "STAB-096",
       "title": "Rejected caption save reports success and loses the draft on close/reload",
       "severity": "high",
       "screen": "Files Gallery / Photos; see exact workflow reproduction",
       "reproduction": [
-        "Open red photo → info → enter “UNSAVED unique caption rejected”. Explicitly reject PATCH with503 JSON. Save reports “saved”; real API keeps previous caption. Close, reload, reopen shows previous value and loses the failed draft."
+        "Open red photo → info → enter “UNSAVED unique caption rejected”. Explicitly reject PATCH with 503 JSON. Save reports “saved”; real API keeps previous caption. Close, reload, reopen shows previous value and loses the failed draft."
       ],
       "expected": "Rejected caption saves retain the draft and visible error without claiming success.",
       "actual": "Rejected caption save reports success and loses the draft on close/reload",
@@ -5321,14 +5323,15 @@
         "/tmp/alles-gallery-audit/source-hashes.json",
         "/tmp/alles-gallery-audit/false-caption-success.json",
         "/tmp/alles-gallery-audit/33-false-caption-success.png",
-        "/tmp/alles-gallery-audit/34-caption-after-reload.txt"
+        "/tmp/alles-gallery-audit/34-caption-after-reload.txt",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The album name dialog reopens with the exact failed name. The scenario rejects creation with 503, checks no album exists, then retries and checks one saved album. gallery.album-create-failure-draft-retry passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. A successful upload or album creation whose acknowledgement is lost after commit can still need reconciliation. Native Safari/iPhone unverified.",
       "id": "STAB-097",
       "title": "Rejected new album creation closes silently and loses its name",
       "severity": "medium",
@@ -5344,20 +5347,21 @@
         "/tmp/alles-gallery-audit/source-hashes.json",
         "/tmp/alles-gallery-audit/35-album-create-rejected.png",
         "/tmp/alles-gallery-audit/36-album-retry-draft.txt",
-        "/tmp/alles-gallery-audit/album-rejected-api.json"
+        "/tmp/alles-gallery-audit/album-rejected-api.json",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "A failed photo list shows a scoped error with Retry instead of an empty gallery. The scenario rejects the list, recovers through local navigation and checks both notices clear; a companion scenario (optional-album-metadata-recovery) keeps real images when only album metadata fails. gallery.list-rejection-and-owned-retry passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. Native Safari/iPhone unverified.",
       "id": "STAB-098",
       "title": "Rejected photo list renders gallery empty; local navigation recovery leaves stale Files partial notice",
       "severity": "medium",
       "screen": "Files Gallery / Photos; see exact workflow reproduction",
       "reproduction": [
-        "With three saved photos, simulate list503 and reload. Gallery says “gallery empty: upload something”, while Files partial notice appears separately at bottom. Remove failure and click Photos: all3 return but Files partial notice remains. Shared Retry subsequently clears it."
+        "With three saved photos, simulate list 503 and reload. Gallery says “gallery empty: upload something”, while Files partial notice appears separately at bottom. Remove failure and click Photos: all 3 return but Files partial notice remains. Shared Retry subsequently clears it."
       ],
       "expected": "Failed photo loads distinguish unavailable data from empty data; recovery clears only its owned error.",
       "actual": "Rejected photo list renders gallery empty; local navigation recovery leaves stale Files partial notice",
@@ -5367,20 +5371,21 @@
         "/tmp/alles-gallery-audit/source-hashes.json",
         "/tmp/alles-gallery-audit/37-list-rejected.png",
         "/tmp/alles-gallery-audit/38-list-retry.txt",
-        "/tmp/alles-gallery-audit/list-rejected-api.json"
+        "/tmp/alles-gallery-audit/list-rejected-api.json",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The album picker uses the shared keyboard dialog with wrapping names. The scenario checks every label and 44px choice stays inside 390px, selects with Tab and Enter, and closes with Escape back to the opener. gallery.album-choice-bounds-keyboard-and-membership passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. Native Safari/iPhone unverified.",
       "id": "STAB-099",
       "title": "Long album picker overflows 390px viewport; Escape does not close picker",
       "severity": "medium",
       "screen": "Files Gallery / Photos; see exact workflow reproduction",
       "reproduction": [
-        "Create long named album; at390px select photo → add to album. Menu rect x8,width685.21875,right693.21875; option text extends beyond viewport with no reachable horizontal reading. Escape leaves popup open."
+        "Create long named album; at 390px select photo → add to album. Menu rect x8,width685.21875,right693.21875; option text extends beyond viewport with no reachable horizontal reading. Escape leaves popup open."
       ],
       "expected": "Album options fit the viewport, support keyboard dismissal and return focus.",
       "actual": "Long album picker overflows 390px viewport; Escape does not close picker",
@@ -5389,14 +5394,15 @@
         "/tmp/alles-gallery-audit-report.md",
         "/tmp/alles-gallery-audit/source-hashes.json",
         "/tmp/alles-gallery-audit/39-phone-album-menu.png",
-        "/tmp/alles-gallery-audit/50-desktop-light-album-popup.png"
+        "/tmp/alles-gallery-audit/50-desktop-light-album-popup.png",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "Album creation is validated before any membership batch is sent. The scenario rejects creation with 503 and malformed 200 responses and checks the photo keeps its original album, including after reload. gallery.rejected-new-destination-preserves-membership passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. A successful upload or album creation whose acknowledgement is lost after commit can still need reconciliation. Native Safari/iPhone unverified.",
       "id": "STAB-100",
       "title": "Rejected new destination album clears existing membership through real batch request",
       "severity": "high",
@@ -5413,14 +5419,15 @@
         "/tmp/alles-gallery-audit/rejected-new-album-membership.json",
         "/tmp/alles-gallery-audit/42-rejected-new-album-membership.png",
         "/tmp/alles-gallery-audit/43-rejected-new-album-reload.txt",
-        "/tmp/alles-gallery-audit/events.json"
+        "/tmp/alles-gallery-audit/events.json",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "The viewer is a named modal; the background and closed drawer are inert, and focus moves in, stays trapped and returns on Escape. The viewer-editor-reentry-neighbor scenario opens and closes the editor twice from the viewer. gallery.keyboard-photo-entry-and-modal-focus passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. Native Safari/iPhone unverified.",
       "id": "STAB-101",
       "title": "Photo viewer does not move/trap focus or identify itself as a modal dialog",
       "severity": "medium",
@@ -5435,20 +5442,21 @@
         "/tmp/alles-gallery-audit-report.md",
         "/tmp/alles-gallery-audit/source-hashes.json",
         "/tmp/alles-gallery-audit/viewer-keyboard-focus.json",
-        "/tmp/alles-gallery-audit/44-viewer-background-focus.png"
+        "/tmp/alles-gallery-audit/44-viewer-background-focus.png",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "Restore reports success only after a confirming response. The scenario rejects restore with 503, checks the exact item stays in the real trash with a failure message, then retries and checks the same ID and filename after reload. gallery.delete-restore-rejection-and-reload passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. Native Safari/iPhone unverified.",
       "id": "STAB-102",
       "title": "Rejected photo restoration reports restored although item stays in trash",
       "severity": "high",
       "screen": "Files Gallery / Photos; see exact workflow reproduction",
       "reproduction": [
-        "Delete blue through real confirm; open Trash. Simulate restore POST503 then click Restore. Feedback says “restored”, but item remains in saved trash and visible grid. Restore again with real endpoint succeeds and same ID returns after reload."
+        "Delete blue through real confirm; open Trash. Simulate restore POST 503 then click Restore. Feedback says “restored”, but item remains in saved trash and visible grid. Restore again with real endpoint succeeds and same ID returns after reload."
       ],
       "expected": "Restore success is shown only after server confirmation; failure stays visible with retry.",
       "actual": "Rejected photo restoration reports restored although item stays in trash",
@@ -5458,14 +5466,15 @@
         "/tmp/alles-gallery-audit/source-hashes.json",
         "/tmp/alles-gallery-audit/restore-rejected-api.json",
         "/tmp/alles-gallery-audit/47-restore-rejected.png",
-        "/tmp/alles-gallery-audit/restore-success-api.json"
+        "/tmp/alles-gallery-audit/restore-success-api.json",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
     {
       "revision": "b6f4cc3 plus recorded Settings/Calendar product overlays; exact audited hashes linked in evidence",
-      "status": "confirmed",
-      "verification": "Reproduced in fresh owned fixtures. Repair work is separate; no current integrated fix or native-device acceptance is claimed.",
+      "status": "fixed-and-verified",
+      "verification": "An interrupted upload is caught, keeps its files and target album and shows Retry. The scenario resets the connection before write, checks for no unhandled rejection, retries and checks exactly one saved item after reload. gallery.upload-interruption-and-visible-retry passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). The defect was reproduced by the September 25 Gallery audit; this scenario was not separately run against the pre-repair source. A successful upload or album creation whose acknowledgement is lost after commit can still need reconciliation. Native Safari/iPhone unverified.",
       "id": "STAB-103",
       "title": "Network-interrupted upload produces unhandled error and no recovery message",
       "severity": "medium",
@@ -5480,7 +5489,8 @@
         "/tmp/alles-gallery-audit-report.md",
         "/tmp/alles-gallery-audit/source-hashes.json",
         "/tmp/alles-gallery-audit/upload-interrupted-api.json",
-        "/tmp/alles-gallery-audit/49-upload-interrupted.png"
+        "/tmp/alles-gallery-audit/49-upload-interrupted.png",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
       "notes": "Source-blind discovery preceded tracing. Explicit HTTP/transport simulations are recorded separately from actual saved API/byte checks."
     },
@@ -5488,7 +5498,7 @@
       "id": "STAB-104",
       "title": "Current Settings section becomes invisible during keyboard traversal",
       "severity": "low",
-      "screen": "Phone Settings language pane at320px and390px in LTR and RTL",
+      "screen": "Phone Settings language pane at 320px and 390px in LTR and RTL",
       "revision": "b6f4cc3 plus Settings/Calendar integration; source 579d5783c394e5668645430b8e2629b2e4d9440e39e6a99c8c2397cc97081a9c",
       "status": "fixed-and-verified",
       "reproduction": [
@@ -5505,21 +5515,21 @@
         "/tmp/alles-settings-navigation-audit-navigation-320/navigation-observations.json",
         ".Codex/stabilization/2026-09-26-administration/administration-1/results.json"
       ],
-      "verification": "The integrated administration subset passed all five gates, including36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks.59 focused Python checks and672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance."
+      "verification": "The integrated administration subset passed all five gates, including 36 Server scenarios, Settings save/language/context and neighboring Vault/backup checks. 59 focused Python checks and 672 JavaScript tests passed. Product source reviews are clean; current screenshots were manually inspected. Source 935fc8a63267f652b43880915786b110b25e660debd149c86a23ef66062ee00b; acceptance 33c8f1b60039a4bb8b59462d60a3dc62042dbdb5c87fef3ce6aa93c889558bdf. Auth, policy, logs, local export and owned restart are real; service/provider actions are explicitly simulated. This is one integrated subset run, not full release/native-device acceptance."
     },
     {
       "id": "STAB-106",
-      "title": "Aide send target clips at320px",
+      "title": "Aide send target clips at 320px",
       "severity": "medium",
-      "screen": "Aide default composer at320px inLight andDark",
+      "screen": "Aide default composer at 320px inLight andDark",
       "revision": "17a50d2; original audit product hashes in /tmp/alles-shell-audit/manifest.json",
       "status": "fixed-and-verified",
       "reproduction": [
         "Open the app picker and choose Aide in a320px returning-user fixture.",
         "With default auto mode and medium effort, inspect Send and reach it using Tab."
       ],
-      "expected": "The complete44px send target and its focus indication remain inside the visible working pane.",
-      "actual": "Send spans x289.890625to333.890625; only30.109375px is visible. Page width remains320px, so horizontal scrolling cannot reveal it. Keyboard focus clips too. Sending was not attempted during the initial audit.",
+      "expected": "The complete 44px send target and its focus indication remain inside the visible working pane.",
+      "actual": "Send spans x289.890625to333.890625; only 30.109375px is visible. Page width remains 320px, so horizontal scrolling cannot reveal it. Keyboard focus clips too. Sending was not attempted during the initial audit.",
       "evidence": [
         "/tmp/alles-shell-audit/report.md",
         "/tmp/alles-shell-audit/interactive/phone320-aide-composer-geometry.json",
@@ -5536,7 +5546,7 @@
       "severity": "high",
       "screen": "Gallery selection → add to album → new album",
       "revision": "17a50d2 plus preliminary Gallery repair; source hashes recorded in isolated reproduction",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Create a synthetic photo with an original album and a separate unrelated album.",
         "Submit another album name; let the real creation commit, then deliberately substitute the unrelated album response.",
@@ -5547,9 +5557,10 @@
       "evidence": [
         "/tmp/alles-gallery-ack-followup-report.md",
         "/tmp/alles-gallery-ack-before-3/scenarios.json",
-        "/tmp/alles-gallery-ack-followup-delivery.json"
+        "/tmp/alles-gallery-ack-followup-delivery.json",
+        "/private/tmp/claude-501/-Users-jxh-Projects-alles/e1213673-5e9e-40f7-84b5-676c5d091693/scratchpad/br-gallery2/results.json"
       ],
-      "verification": "Confirmed under explicitly simulated stale-success corruption. Isolated repair rejects a different name and passed sixty scenarios twice; root integration is still pending. Same-name ambiguity and empty albums after committed/lost acknowledgements remain outside the repair."
+      "verification": "New-album creation now requires the returned name to match the trimmed requested name before any membership request. The scenario replays a real unrelated success after a real create and checks no membership request, unchanged membership after reload and no photo in the unrelated album. This scenario was also run against the previous code and failed there. gallery.wrong-album-acknowledgement-preserves-membership passed in desktop and phone, Light and Dark, in the gallery-workflows gate on clean commit 213bbdf (60/60 scenario runs). An unrelated response that carries the same album name can't be told apart, and a creation whose acknowledgement is lost after commit can leave an empty album. Native Safari/iPhone unverified."
     },
     {
       "id": "STAB-108",
