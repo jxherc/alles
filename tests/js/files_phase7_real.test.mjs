@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import vm from 'node:vm';
 
 const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
@@ -50,11 +51,6 @@ test('durable Files and storage-location mutations stay out of offline replay', 
 });
 
 test('flush quarantines stale forbidden outbox rows without replaying or deleting them', async () => {
-  const noqueueLiteral = serviceWorker.match(/const NOQUEUE = (\[[^;]+\]);/)?.[1] || '[]';
-  const noqueue = Function(`return ${noqueueLiteral}`)();
-  const pathSource = serviceWorker.match(/function replayPolicyPathname\(url\) \{[\s\S]*?\n\}/)?.[0] || '';
-  const filterSource = serviceWorker.match(/function mustQuarantineOutboxItem\(rawUrl\) \{[\s\S]*?\n\}/)?.[0] || '';
-  const flushSource = serviceWorker.match(/async function flushOutbox\(\) \{[\s\S]*?\n\}/)?.[0] || '';
   const deleted = [];
   const blocked = [];
   const fetched = [];
@@ -116,24 +112,19 @@ test('flush quarantines stale forbidden outbox rows without replaying or deletin
       body: '',
     },
   ];
-  const flush = Function(
-    'NOQUEUE',
-    '_all',
-    '_del',
-    '_put',
-    'fetch',
-    'notifyClients',
-    'self',
-    `${pathSource}\n${filterSource}\n${flushSource}\nreturn flushOutbox;`,
-  )(
-    noqueue,
-    async () => rows,
-    async id => { deleted.push(id); },
-    async item => { blocked.push(item); },
-    async url => { fetched.push(url); return { ok: true, status: 200 }; },
-    async () => {},
-    { location: { origin: 'https://alles.test' } },
-  );
+  const context = vm.createContext({
+    URL, Response,
+    self: { addEventListener() {}, location: { origin: 'https://alles.test' } },
+    fetch: async url => { fetched.push(url); return new Response('{}'); },
+    getAll: async () => rows,
+    remove: async id => { deleted.push(id); },
+    put: async item => { blocked.push(item); },
+  });
+  vm.runInContext(serviceWorker + `
+    _all = getAll; _del = remove; _put = put; notifyClients = async () => {};
+    globalThis.flush = flushOutbox;
+  `, context);
+  const flush = context.flush;
 
   await flush();
 
@@ -143,28 +134,30 @@ test('flush quarantines stale forbidden outbox rows without replaying or deletin
   assert.ok(blocked.every(item => item.blocked_reason === 'replay_policy_changed'));
 });
 
-test('only an explicit owner action discards quarantined outbox rows', async () => {
-  const discardSource = serviceWorker.match(/async function discardBlockedOutbox\(\) \{[\s\S]*?\n\}/)?.[0] || '';
+test('only an explicit owner action discards one retained outbox row', async () => {
   const deleted = [];
   let notified = 0;
-  const discard = Function(
-    '_all', '_del', 'notifyClients',
-    `${discardSource}\nreturn discardBlockedOutbox;`,
-  )(
-    async () => [
-      { id: 1, blocked_reason: 'replay_policy_changed' },
-      { id: 2 },
-      { id: 3, blocked_reason: 'replay_policy_changed' },
-    ],
-    async id => { deleted.push(id); },
-    async () => { notified += 1; },
-  );
-
-  await discard();
-
-  assert.deepEqual(deleted, [1, 3]);
-  assert.equal(notified, 1);
-  assert.match(serviceWorker, /alles-discard-blocked/);
+  const rows = [
+    { id: 1, blocked_reason: 'replay_policy_changed' },
+    { id: 2 },
+    { id: 3, blocked_reason: 'conflict' },
+  ];
+  const context = vm.createContext({
+    self: { addEventListener() {} },
+    getAll: async () => rows,
+    remove: async id => { deleted.push(id); },
+    notify: async () => { notified += 1; },
+  });
+  vm.runInContext(serviceWorker + `
+    _all = getAll; _del = remove; notifyClients = notify;
+    globalThis.discard = discardOutboxItem;
+  `, context);
+  await context.discard(1);
+  await context.discard(2);
+  await context.discard(999);
+  assert.deepEqual(deleted, [1]);
+  assert.equal(notified, 3);
+  assert.match(serviceWorker, /alles-discard-outbox/);
 });
 
 test('network-first code preserves 4xx, but uses cache for server failure or offline', async () => {

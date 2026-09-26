@@ -28,7 +28,7 @@ from core.database import (
     Watch,
     get_db,
 )
-from services import actual_finance, finance_currency, fx
+from services import actual_finance, finance_currency, finance_requests, fx
 
 
 def _actual_error(exc: actual_finance.ActualFinanceError):
@@ -251,6 +251,11 @@ def create_account(body: AccountBody, db: DbSession = Depends(get_db)):
             return actual_finance.create_account(db, values, request_id=request_id)
         except actual_finance.ActualFinanceError as exc:
             _actual_error(exc)
+    receipt, replay = finance_requests.begin(
+        db, "account", body.request_id, body.model_dump(exclude={"request_id"})
+    )
+    if replay is not None:
+        return replay
     a = Account(
         name=(body.name or "account").strip() or "account",
         kind=body.kind,
@@ -261,9 +266,10 @@ def create_account(body: AccountBody, db: DbSession = Depends(get_db)):
     )
     _prepare_money(lambda: finance_currency.prepare_account(a), detail="opening balance is invalid")
     db.add(a)
+    db.flush()
+    response = finance_requests.finish(receipt, _acct(a, a.opening or 0.0))
     db.commit()
-    db.refresh(a)
-    return _acct(a, a.opening or 0.0)
+    return response
 
 
 @router.patch("/accounts/{aid}")
@@ -316,6 +322,10 @@ def delete_account(aid: str, db: DbSession = Depends(get_db)):
         db.query(Transaction).filter(
             Transaction.transfer_id.in_(xfer_ids), Transaction.account_id != aid
         ).update({Transaction.transfer_id: ""}, synchronize_session=False)
+    txn_ids = [
+        row[0] for row in db.query(Transaction.id).filter(Transaction.account_id == aid).all()
+    ]
+    finance_requests.forget(db, [aid, *txn_ids, *xfer_ids])
     db.query(Transaction).filter(Transaction.account_id == aid).delete()
     db.delete(a)
     db.commit()
@@ -611,6 +621,11 @@ def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
             return actual_finance.create_transaction(db, values, request_id=request_id)
         except actual_finance.ActualFinanceError as exc:
             _actual_error(exc)
+    receipt, replay = finance_requests.begin(
+        db, "transaction", body.request_id, body.model_dump(exclude={"request_id"})
+    )
+    if replay is not None:
+        return replay
     if not values["category"]:  # legacy-only rules freeze at Actual cutover
         values["category"] = _categorize(body.payee, _rules(db))
     from services import tag_rules
@@ -631,9 +646,9 @@ def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
     )
     db.add(t)
     _prepare_money(lambda: finance_currency.prepare_transaction(db, t, source="manual_identity"))
+    response = finance_requests.finish(receipt, _txn(t))
     db.commit()
-    db.refresh(t)
-    return _txn(t)
+    return response
 
 
 @router.patch("/transactions/{tid}")
@@ -681,6 +696,7 @@ def delete_txn(tid: str, db: DbSession = Depends(get_db)):
     t = db.get(Transaction, tid)
     if not t:
         raise HTTPException(404)
+    finance_requests.forget(db, [t.id, t.transfer_id])
     db.query(TxnSplit).filter(
         TxnSplit.txn_id == tid
     ).delete()  # FK cascade isn't enforced on sqlite
@@ -997,6 +1013,11 @@ def create_transfer(body: TransferBody, db: DbSession = Depends(get_db)):
             return actual_finance.create_transfer(db, values, request_id=request_id)
         except actual_finance.ActualFinanceError as exc:
             _actual_error(exc)
+    receipt, replay = finance_requests.begin(
+        db, "transfer", body.request_id, body.model_dump(exclude={"request_id"})
+    )
+    if replay is not None:
+        return replay
     src = db.get(Account, body.from_account)
     dst = db.get(Account, body.to_account)
     if not src or not dst:
@@ -1026,10 +1047,11 @@ def create_transfer(body: TransferBody, db: DbSession = Depends(get_db)):
     db.add_all([out, inc])
     finance_currency.prepare_transaction(db, out, source="transfer_identity")
     finance_currency.prepare_transaction(db, inc, source="transfer_identity")
+    response = finance_requests.finish(
+        receipt, {"transfer_id": tid, "from": _txn(out), "to": _txn(inc)}
+    )
     db.commit()
-    db.refresh(out)
-    db.refresh(inc)
-    return {"transfer_id": tid, "from": _txn(out), "to": _txn(inc)}
+    return response
 
 
 @router.delete("/transfer/{tid}")
@@ -1042,6 +1064,7 @@ def delete_transfer(tid: str, db: DbSession = Depends(get_db)):
     legs = db.query(Transaction).filter(Transaction.transfer_id == tid).all()
     if not legs:
         raise HTTPException(404)
+    finance_requests.forget(db, [tid, *(leg.id for leg in legs)])
     for t in legs:
         db.delete(t)
     db.commit()
