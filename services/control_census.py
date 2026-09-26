@@ -627,6 +627,19 @@ def _dynamic_templates(overrides: dict[str, Any]) -> list[dict[str, Any]]:
                 )
         for match in CREATE_RE.finditer(text):
             matches.append((match.start(), match.group("tag").lower(), {}, "create-element"))
+        # Some modules build controls through small, explicitly declared DOM factories.
+        # Inspect their literal call sites rather than dropping those actions from scope.
+        for factory, tag in overrides.get("factory_calls", {}).get(relative, {}).items():
+            argument = (
+                r"(?P<tag>button|a|input|textarea|select)"
+                if tag == "element"
+                else r"(?P<label>[^'\"\n]+)"
+            )
+            pattern = re.compile(rf"\b{re.escape(factory)}\(\s*['\"]{argument}['\"]")
+            for match in pattern.finditer(text):
+                actual_tag = match.group("tag") if tag == "element" else tag
+                attrs = {} if tag == "element" else {"_factory_label": match.group("label")}
+                matches.append((match.start(), actual_tag, attrs, "declared-factory-call"))
         seen: set[tuple[int, str]] = set()
         anchor_occurrences: Counter[str] = Counter()
         for ordinal, (offset, tag, attrs, construction) in enumerate(sorted(matches), start=1):
@@ -634,7 +647,12 @@ def _dynamic_templates(overrides: dict[str, Any]) -> list[dict[str, Any]]:
                 continue
             seen.add((offset, tag))
             line = text.count("\n", 0, offset) + 1
-            label, label_source = _label(attrs, _template_text(text, offset, tag))
+            factory_label = attrs.pop("_factory_label", None)
+            label, label_source = (
+                (factory_label, "literal-factory-argument")
+                if factory_label is not None
+                else _label(attrs, _template_text(text, offset, tag))
+            )
             # Dynamic renderers can legitimately repeat one DOM id in mutually
             # exclusive dialog templates. The census identity is the source
             # template, never the prospective runtime DOM id.
@@ -843,6 +861,19 @@ def load_overrides(path: Path = OVERRIDES_PATH) -> dict[str, Any]:
         raise ControlCensusError(
             "control census overrides need module_feature_hints and controls objects"
         )
+    factories = value.get("factory_calls", {})
+    if not isinstance(factories, dict) or any(
+        not isinstance(calls, dict)
+        or any(
+            not isinstance(name, str)
+            or not name.isidentifier()
+            or not isinstance(tag, str)
+            or tag not in {"button", "a", "input", "textarea", "select", "element"}
+            for name, tag in calls.items()
+        )
+        for calls in factories.values()
+    ):
+        raise ControlCensusError("factory_calls must map module paths to named DOM factories")
     return value
 
 

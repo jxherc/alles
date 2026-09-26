@@ -51,7 +51,7 @@ import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './short
 import { startReminderPoll, initReminderPanel } from './reminders.js?v=243';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
-import { cachedLocalizationSettings, configureLocalization, formatDate, formatDateTime, formatTime, prepareLocalization, t } from './i18n.js';
+import { cachedLocalizationSettings, calendarDateKey, configureLocalization, formatDate, formatDateTime, formatTime, prepareLocalization, resolvedTimeZone, t } from './i18n.js';
 import { cancelRecording as cancelVoiceRecording, isRecording as isVoiceRecording } from './voice.js';
 
 window._mdToHtml = mdToHtml;
@@ -601,17 +601,37 @@ function _showLoginScreen() {
   if (!submit || submit.dataset.wired) return;   // re-entry must not stack listeners
   submit.dataset.wired = '1';
   submit.addEventListener('click', async () => {
-    const pw = document.getElementById('login-pw')?.value;
-    const r = await fetch('/api/auth/login', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ password: pw }),
-    });
-    if (r.ok) {
+    if (submit.disabled) return;
+    const password = document.getElementById('login-pw');
+    const error = document.getElementById('login-error');
+    if (error) error.textContent = '';
+    password?.removeAttribute('aria-invalid');
+    submit.disabled = true;
+    submit.setAttribute('aria-busy', 'true');
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password: password?.value || '' }),
+      });
+      if (!response.ok) {
+        if (error) error.textContent = response.status === 401
+          ? 'wrong password. try again.'
+          : response.status === 429
+            ? 'too many attempts. wait a few minutes and try again.'
+            : 'sign-in is temporarily unavailable. try again.';
+        if (response.status === 401) password?.setAttribute('aria-invalid', 'true');
+        return;
+      }
       if (screen) screen.style.display = 'none';
       document.body.classList.remove('login-mode');
-      if (_pendingSso) { _ssoRedirect(_pendingSso); return; }   // came from an app → relay back
+      if (_pendingSso) { _ssoRedirect(_pendingSso); return; }
       _boot();
-    } else toast('wrong password', 'error');
+    } catch {
+      if (error) error.textContent = 'could not reach Alles. check the connection and try again.';
+    } finally {
+      submit.disabled = false;
+      submit.removeAttribute('aria-busy');
+    }
   });
   document.getElementById('login-pw')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('login-submit')?.click();
@@ -1332,7 +1352,7 @@ async function _wireHomeAsk() {
     let ctx = '';
     if (withDay) {
       try {
-        const d = await fetch('/api/today').then(r => r.json());
+        const d = await fetch(`/api/today?date=${calendarDateKey()}&timezone=${encodeURIComponent(resolvedTimeZone())}`).then(r => r.json());
         const bits = [];
         if (d.events?.length) bits.push('events: ' + d.events.map(e => `${e.time || 'all-day'} ${e.title}`).join('; '));
         if (d.tasks?.overdue?.length) bits.push('overdue: ' + d.tasks.overdue.map(t => t.title).join('; '));
@@ -1526,10 +1546,9 @@ const _escT = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 async function _renderToday() {
   const el = document.getElementById('home-today');
   if (!el) return;
-  const local = new Date();
-  const dstr = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
+  const dstr = calendarDateKey();
   let d;
-  try { d = await fetch(`/api/today?date=${dstr}`).then(r => r.json()); }
+  try { d = await fetch(`/api/today?date=${dstr}&timezone=${encodeURIComponent(resolvedTimeZone())}`).then(r => r.json()); }
   catch { el.style.display = 'none'; return; }
 
   // unread mail straight from the inbox cache — instant, no IMAP round-trip

@@ -2637,6 +2637,21 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
   .sync-indicator { right: 0.75rem; bottom: 0.75rem; left: 0.75rem; justify-content: space-between; }
 }
 
+.sync-indicator { max-width: calc(100vw - 32px); flex-wrap: wrap; }
+.sync-indicator span { min-width: 0; overflow-wrap: anywhere; }
+.sync-review { max-width: 640px; max-height: calc(100dvh - 32px); overflow: auto; padding: 16px; }
+.sync-review h2, .sync-review h3 { margin: 0; color: var(--text); font-size: 1rem; font-weight: 600; }
+.sync-review p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.sync-review-status, .sync-review-detail { color: var(--muted); font-size: 0.82rem; }
+.sync-review-list, .sync-review-item { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.sync-review-list { gap: 24px; }
+.sync-review-values { display: grid; grid-template-columns: minmax(64px, 1fr) minmax(0, 3fr); gap: 4px 12px; margin: 0; font-size: 0.82rem; }
+.sync-review-values dt { color: var(--muted); overflow-wrap: anywhere; }
+.sync-review-values dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.sync-review-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sync-review button, .sync-review input { min-height: 44px; }
+.sync-review label { font-size: 0.82rem; }
+
 /* context menu */
 .ctx-menu {
   position: fixed; z-index: 300;
@@ -5094,9 +5109,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .tx-tags { display: flex; gap: 0.25rem; flex-wrap: wrap; max-width: 150px; overflow: hidden; }
 .tx-tag { font: inherit; font-size: 0.75rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 4px; padding: 0 0.4rem; color: var(--accent); cursor: pointer; white-space: nowrap; }
 .tx-tag:hover { border-color: var(--accent); }
-.tx-actions { display: flex; gap: 0.25rem; align-items: center; }
+.tx-actions { display: flex; gap: 0.25rem; align-items: center; flex-shrink: 0; }
 .tx-edit, .tx-clear, .tx-split-btn, .tx-receipt-btn, .tx-receipt { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.85rem; text-decoration: none; padding: 0 1px; }
 .tx-edit { font: inherit; font-size: 0.75rem; }
+.tx-receipt { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 .tx-clear.on { color: var(--green); }
 .tx-split-btn.on { color: var(--accent); }
 .tx-clear:hover, .tx-split-btn:hover, .tx-receipt-btn:hover, .tx-receipt:hover { color: var(--accent); }
@@ -5202,12 +5218,29 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .rule-form input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
 .rules-apply { font-size: 0.75rem; padding: 0.08rem 0.45rem; margin-left: 0.4rem; vertical-align: middle; }
 .money-txns h3 { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.txn-search-wrap { display: inline-flex; gap: 0.35rem; margin-left: auto; align-items: center; }
+.txn-search-wrap { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; margin-left: auto; align-items: center; max-width: 100%; }
 .txn-search-wrap input.settings-input { height: 28px; font-size: 0.75rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; padding: 0.3rem 0.5rem; box-sizing: border-box; }
 .txn-search-wrap input.settings-input:focus { border-color: var(--muted); }
 .txn-search-wrap #txn-search { width: 190px; }
 .txn-search-wrap #txn-min, .txn-search-wrap #txn-max { width: 64px; }
 @media (max-width: 720px) { .money-summary { grid-template-columns: repeat(2, 1fr); } .money-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) {
+  .txn:not(.txn-edit) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.35rem 0.6rem;
+    padding: 0.75rem 0;
+  }
+  .txn .tx-payee { grid-column: 1; grid-row: 1; white-space: normal; overflow-wrap: anywhere; }
+  .txn .tx-amt { grid-column: 2; grid-row: 1; width: auto; }
+  .txn .tx-acct { grid-column: 1; grid-row: 2; width: auto; white-space: normal; overflow-wrap: anywhere; }
+  .txn .tx-date { grid-column: 2; grid-row: 2; width: auto; text-align: right; }
+  .txn .tx-cat { grid-column: 1 / -1; grid-row: 3; white-space: normal; overflow-wrap: anywhere; }
+  .txn .tx-tags { grid-column: 1 / -1; grid-row: 4; max-width: 100%; }
+  .txn .tx-tags:empty { display: none; }
+  .txn .tx-actions { grid-column: 1; grid-row: 5; flex-wrap: wrap; }
+  .txn .tx-del { grid-column: 2; grid-row: 5; justify-self: end; }
+}
 
 .days-grid {
   display: grid;
@@ -6746,6 +6779,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   width: fit-content;
 }
 .login-btn:hover { color: var(--text); }
+.login-btn:disabled { cursor: wait; opacity: 0.6; }
+.login-error {
+  min-height: 2.9em; color: var(--error);
+  font-size: 0.82rem; line-height: 1.45;
+}
 .notrunning-msg { font-size: 0.75rem; color: var(--muted); line-height: 1.5; max-width: 280px; }
 
 /* ── search modal ── */

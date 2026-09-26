@@ -1312,6 +1312,17 @@ class SubPriceChange(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class FinanceCreateReceipt(Base):
+    """One local create acknowledgment, committed atomically with its ledger change."""
+
+    __tablename__ = "finance_create_receipts"
+    id = Column(String, primary_key=True)  # operation + caller UUID
+    payload_hash = Column(String(64), nullable=False)
+    resource_id = Column(String, nullable=False, default="", index=True)
+    response_json = Column(Text, nullable=False, default="")
+    created_at = Column(DateTime, default=_now)
+
+
 class Account(Base):
     __tablename__ = "money_accounts"
     id = Column(String, primary_key=True, default=_uid)

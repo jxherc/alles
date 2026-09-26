@@ -12,6 +12,7 @@ across runs (dedupe), and a new period (next renewal cycle) yields a new key.
 
 import json
 from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from core.database import (
     Account,
@@ -165,11 +166,35 @@ def _events(db, today):
     return out
 
 
-def _reminders(db, today):
+def calendar_zone(timezone_name=None):
+    """Use the viewer's zone, then the configured owner zone, then server local time."""
+    if timezone_name:
+        return ZoneInfo(timezone_name)
+
+    from core.settings import load_settings
+
+    configured = load_settings().get("timezone")
+    try:
+        return ZoneInfo(configured) if configured else None
+    except (KeyError, ValueError):
+        # Older or manually edited settings must not break date-only callers.
+        return None
+
+
+def calendar_today(timezone_name=None):
+    return datetime.now(UTC).astimezone(calendar_zone(timezone_name)).date()
+
+
+def _reminders(db, today, *, timezone_name=None):
     out = []
+    zone = calendar_zone(timezone_name)
     for r in db.query(Reminder).filter(Reminder.fired == False).all():  # noqa: E712
-        if r.trigger_at and r.trigger_at.date() <= today:
-            at = r.trigger_at.strftime("%H:%M")
+        if not r.trigger_at:
+            continue
+        # Reminder storage and delivery use naive UTC; calendar days and clock labels do not.
+        local_trigger = r.trigger_at.replace(tzinfo=UTC).astimezone(zone)
+        if local_trigger.date() <= today:
+            at = local_trigger.strftime("%H:%M")
             out.append(
                 _sig(
                     "reminder",
@@ -549,16 +574,19 @@ _COLLECTORS = {
 }
 
 
-def gather(db, today=None, *, categories=None) -> list:
+def gather(db, today=None, *, categories=None, timezone_name=None) -> list:
     """compute every current signal. `categories` limits the families (None = all).
     pure read - callers that want to roll subscriptions forward must do that
     themselves before calling (today.py does)."""
-    today = today or date.today()
+    today = today or calendar_today(timezone_name)
     cats = set(categories) if categories else set(CATEGORIES)
     out = []
     for name in CATEGORIES:
         if name in cats:
-            out.extend(_COLLECTORS[name](db, today))
+            if name == "reminder":
+                out.extend(_reminders(db, today, timezone_name=timezone_name))
+            else:
+                out.extend(_COLLECTORS[name](db, today))
     out.sort(key=lambda s: -s["urgency"])
     return out
 

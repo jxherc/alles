@@ -11,6 +11,20 @@ import { requestWithRecentOwner } from './recent_owner.js';
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// Require the whole entry: parseFloat("1,234.56") would silently save 1.
+function _decimal(value, empty = NaN) {
+  const text = String(value ?? '').trim();
+  if (!text) return empty;
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) return NaN;
+  const amount = Number(text);
+  return Number.isFinite(amount) ? amount : NaN;
+}
+function _validAmounts(...values) {
+  if (values.every(Number.isFinite)) return true;
+  toast('enter a number using a decimal point, e.g. 1234.56', 'error');
+  return false;
+}
+
 function _thisMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
 function _monthFromUrl() { const m = new URLSearchParams(location.search).get('m'); return (m && /^\d{4}-\d{2}$/.test(m)) ? m : ''; }
 function _setMonthUrl() { try { const u = new URL(location.href); u.searchParams.set('m', _month); history.replaceState(null, '', u); } catch {} }
@@ -773,8 +787,9 @@ export async function applySearch() {
   _tagFilter = '';
   const p = new URLSearchParams({ month: _month });
   if (q) p.set('q', q);
-  if (mn && !isNaN(parseFloat(mn))) p.set('min_amt', parseFloat(mn));
-  if (mx && !isNaN(parseFloat(mx))) p.set('max_amt', parseFloat(mx));
+  if (!_validAmounts(_decimal(mn, 0), _decimal(mx, 0))) return;
+  if (mn) p.set('min_amt', _decimal(mn));
+  if (mx) p.set('max_amt', _decimal(mx));
   try {
     _searchResults = await api(`/api/money/transactions/search?${p}`);
   } catch { _searchResults = []; }
@@ -785,8 +800,9 @@ export async function applySearch() {
 async function addAccount() {
   const name = $('af-name')?.value.trim();
   if (!name) { toast('name the account', 'error'); return; }
-  const opening = parseFloat($('af-open')?.value) || 0;
-  const low_balance = parseFloat($('af-low')?.value) || 0;
+  const opening = _decimal($('af-open')?.value, 0);
+  const low_balance = _decimal($('af-low')?.value, 0);
+  if (!_validAmounts(opening, low_balance)) return;
   let requestId = '';
   try {
     const accountPayload = { name, kind: getDropdownValue($('af-kind')), opening, low_balance };
@@ -806,7 +822,8 @@ async function delAccount(id) {
   catch { toast('delete failed', 'error'); }
 }
 async function addTxn() {
-  const amtRaw = parseFloat($('tx-amt')?.value);
+  const amtRaw = _decimal($('tx-amt')?.value);
+  if (!_validAmounts(amtRaw)) return;
   if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
   const sign = getDropdownValue($('tx-sign')) === '+' ? 1 : -1;
   let requestId = '';
@@ -847,11 +864,14 @@ function _readSplitRows() {
   const ed = $('money-body').querySelector('.txn-split-editor'); if (!ed) return [];
   return [...ed.querySelectorAll('.split-row')].map(r => ({
     category: r.querySelector('.split-cat')?.value.trim() || '',
-    amount: parseFloat(r.querySelector('.split-amt')?.value) || 0,
+    amount: r.querySelector('.split-amt')?.value || '',
   }));
 }
 async function saveSplits(id) {
-  const splits = _readSplitRows().filter(s => s.category && s.amount > 0);
+  const draft = _readSplitRows();
+  const amounts = draft.map(s => _decimal(s.amount, 0));
+  if (!_validAmounts(...amounts)) return;
+  const splits = draft.map((s, i) => ({ ...s, amount: amounts[i] })).filter(s => s.category && s.amount > 0);
   try {
     await api(`/api/money/transactions/${id}/splits`, { method: 'PUT', body: { splits } });
     _splitTxn = null; _splitRows = [];
@@ -901,9 +921,9 @@ function toggleReconcile(aid) {
   wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
 }
 async function runReconcile(aid) {
-  const v = parseFloat($(`rc-stmt-${aid}`)?.value);
+  const v = _decimal($(`rc-stmt-${aid}`)?.value);
   const out = $(`rc-out-${aid}`); if (!out) return;
-  if (isNaN(v)) { out.textContent = 'enter a statement balance'; return; }
+  if (!Number.isFinite(v)) { out.className = 'rc-out bad'; out.textContent = 'enter a statement balance using a decimal point, e.g. 1234.56'; return; }
   try {
     const d = await api(`/api/money/accounts/${aid}/reconcile?statement=${v}`);
     out.className = 'rc-out ' + (d.reconciled ? 'ok' : 'bad');
@@ -914,7 +934,8 @@ async function runReconcile(aid) {
 }
 async function doTransfer() {
   const from = getDropdownValue($('tr-from')), to = getDropdownValue($('tr-to'));
-  const amt = parseFloat($('tr-amt')?.value);
+  const amt = _decimal($('tr-amt')?.value);
+  if (!_validAmounts(amt)) return;
   if (!amt || amt <= 0) { toast('enter an amount', 'error'); return; }
   if (from === to) { toast('pick two different accounts', 'error'); return; }
   let requestId = '';
@@ -942,7 +963,8 @@ async function saveTxn(id) {
   const row = $('money-body').querySelector(`.txn-edit[data-id="${id}"]`);
   if (!row) return;
   const f = name => row.querySelector(`[data-f="${name}"]`);
-  const amtRaw = parseFloat(f('amount')?.value);
+  const amtRaw = _decimal(f('amount')?.value);
+  if (!_validAmounts(amtRaw)) return;
   if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
   const sign = getDropdownValue(f('sign')) === '+' ? 1 : -1;
   try {
@@ -957,11 +979,14 @@ async function saveTxn(id) {
 async function addGoal() {
   const name = $('gl-name')?.value.trim();
   if (!name) { toast('name the goal', 'error'); return; }
+  const target = _decimal($('gl-target')?.value, 0);
+  const current = _decimal($('gl-current')?.value, 0);
+  const monthly = _decimal($('gl-monthly')?.value, 0);
+  if (!_validAmounts(target, current, monthly)) return;
   try {
     await api('/api/money/goals', { method: 'POST', body: {
       name, kind: getDropdownValue($('gl-kind')) || 'savings',
-      target: parseFloat($('gl-target')?.value) || 0, current: parseFloat($('gl-current')?.value) || 0,
-      monthly: parseFloat($('gl-monthly')?.value) || 0,
+      target, current, monthly,
     } });
     await load();
   } catch { toast('add failed', 'error'); }
@@ -994,10 +1019,13 @@ async function runBaseNw() {
 async function addHolding() {
   const symbol = $('hd-sym')?.value.trim();
   if (!symbol) { toast('enter a symbol', 'error'); return; }
+  const qty = _decimal($('hd-qty')?.value, 0);
+  const cost_basis = _decimal($('hd-cost')?.value, 0);
+  const price = _decimal($('hd-price')?.value, 0);
+  if (!_validAmounts(qty, cost_basis, price)) return;
   try {
     await api('/api/money/holdings', { method: 'POST', body: {
-      symbol, qty: parseFloat($('hd-qty')?.value) || 0,
-      cost_basis: parseFloat($('hd-cost')?.value) || 0, price: parseFloat($('hd-price')?.value) || 0,
+      symbol, qty, cost_basis, price,
     } });
     await load();
   } catch { toast('add failed', 'error'); }
@@ -1039,19 +1067,22 @@ function _decorateCards() {
 }
 async function assignEnvelope(category, amount) {
   category = (category || '').trim();
-  if (!category) { toast('name a category', 'error'); return; }
+  if (!category) { toast('name a category', 'error'); return false; }
+  amount = _decimal(amount, 0);
+  if (!_validAmounts(amount)) return false;
   try {
-    await api('/api/money/envelope/assign', { method: 'PUT', body: { category, month: _month, amount: parseFloat(amount) || 0 } });
+    await api('/api/money/envelope/assign', { method: 'PUT', body: { category, month: _month, amount } });
     _envelope = await api(`/api/money/envelope?month=${_month}`).catch(() => _envelope);
     const card = $('money-body').querySelector('.money-envelope');
     if (card) { card.innerHTML = `<h3>envelope budgeting${_aom && _aom.age != null ? ` <span class="aom">age of money: ${_aom.age}d</span>` : ''}</h3>` + envelopeCard(); _wireEnvelope(); }
-  } catch { toast('assign failed', 'error'); }
+    return true;
+  } catch { toast('assign failed', 'error'); return false; }
 }
 function _wireEnvelope() {
   $('money-body').querySelectorAll('.env-assign').forEach(inp =>
     inp.addEventListener('change', () => assignEnvelope(inp.dataset.cat, inp.value)));
-  $('env-assign-btn')?.addEventListener('click', () => {
-    assignEnvelope($('env-new-cat')?.value, $('env-new-amt')?.value);
+  $('env-assign-btn')?.addEventListener('click', async () => {
+    if (!await assignEnvelope($('env-new-cat')?.value, $('env-new-amt')?.value)) return;
     if ($('env-new-cat')) $('env-new-cat').value = '';
     if ($('env-new-amt')) $('env-new-amt').value = '';
   });
@@ -1064,14 +1095,17 @@ async function setEnvTarget(category) {
     { id: 'date', label: 'by date (YYYY-MM-DD, optional)', value: '' },
   ]);
   if (!v) return;
+  const amount = _decimal(v.amount, 0);
+  if (!_validAmounts(amount)) return;
   try {
-    await api('/api/money/envelope/target', { method: 'PUT', body: { category, amount: parseFloat(v.amount) || 0, target_date: (v.date || '').trim() } });
+    await api('/api/money/envelope/target', { method: 'PUT', body: { category, amount, target_date: (v.date || '').trim() } });
     await load();
   } catch { toast('failed to set target', 'error'); }
 }
 async function addBudget() {
   const category = $('bf-cat')?.value.trim();
-  const limit_amt = parseFloat($('bf-amt')?.value) || 0;
+  const limit_amt = _decimal($('bf-amt')?.value, 0);
+  if (!_validAmounts(limit_amt)) return;
   if (!category) { toast('pick a category', 'error'); return; }
   try { await api('/api/money/budgets', { method: 'POST', body: { category, limit_amt } }); await load(); }
   catch { toast('couldn\'t set budget', 'error'); }
@@ -1083,7 +1117,8 @@ async function delBudget(id) {
 }
 async function addRecurring() {
   const payee = $('rc-payee')?.value.trim();
-  const amtRaw = parseFloat($('rc-amt')?.value);
+  const amtRaw = _decimal($('rc-amt')?.value);
+  if (!_validAmounts(amtRaw)) return;
   if (!payee && !$('rc-cat')?.value.trim()) { toast('give it a payee or category', 'error'); return; }
   if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
   const sign = getDropdownValue($('rc-sign')) === '+' ? 1 : -1;

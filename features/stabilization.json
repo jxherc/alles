@@ -13,27 +13,39 @@
       "feature": "setup-security.owner-setup",
       "app": "setup",
       "workflow": "fresh owner setup",
-      "expected": "Install, initialize, authenticate, and safely configure one owner without exposing private data.",
+      "expected": "Initialize a fresh owner, enforce the owner lock, complete setup, authenticate and preserve completion after reload.",
       "status": "untested",
-      "evidence": []
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
     },
     {
       "id": "setup-security.owner-setup.2",
       "feature": "setup-security.owner-setup",
       "app": "setup",
       "workflow": "recent-owner reauthentication",
-      "expected": "Install, initialize, authenticate, and safely configure one owner without exposing private data.",
+      "expected": "Cancel or reject recent-owner confirmation without creating a token or losing the Settings draft; a valid retry creates exactly one token that remains after reload.",
       "status": "untested",
-      "evidence": []
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
     },
     {
       "id": "setup-security.owner-setup.3",
       "feature": "setup-security.owner-setup",
       "app": "setup",
       "workflow": "resume interrupted setup",
-      "expected": "Install, initialize, authenticate, and safely configure one owner without exposing private data.",
+      "expected": "A failed setup save retains input and leaves progress unchanged; retry, reload, dismiss and resume preserve the completed step and owner values.",
       "status": "untested",
-      "evidence": []
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
     },
     {
       "id": "home.capture-and-navigation.1",
@@ -1269,6 +1281,178 @@
         "desktop",
         "phone"
       ]
+    },
+    {
+      "id": "finance.local-amount-validation",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Reject malformed local Finance amounts",
+      "expected": "Reject grouped or trailing-text numbers without a write; retain the draft for correction. Exact decimal account, transaction and edited values survive reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "finance.local-create-edit-persistence",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Create and correct local manual ledger entries",
+      "expected": "Create an account and expense, correct the same transaction, cancel an edit, toggle cleared, and verify exact values and identities after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "finance.local-retry-once",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Retry a local save after losing its acknowledgment",
+      "expected": "A retry with the same request identity returns the committed result without duplicating the transaction or balance change.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "finance.local-reconcile",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Reconcile a local manual account",
+      "expected": "An exact statement balance reconciles; a one-cent mismatch remains visible. Malformed statements never query a truncated number.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "finance.local-phone-readability",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Read and operate local transactions on a phone",
+      "expected": "Payee, category, account and amount remain visible within the phone viewport, with reachable 44px actions and wrapped filters.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "pwa.queue-storage-failure",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "all",
+      "workflow": "Recover an offline Health save when browser storage fails",
+      "expected": "Storage-open denial and transaction abort show save failure and retain the editable draft. Restoring storage and retrying produces one saved entry after reconnect and reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Chromium with real service worker and local API; IndexedDB failures deliberately simulated. Does not certify native Safari, physical devices or every queued API."
+    },
+    {
+      "id": "pwa.queue-reconnect",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "all",
+      "workflow": "Queue and replay an offline Health entry",
+      "expected": "A committed outbox record visibly remains pending and reconnect persists exactly one entry with the entered value. A notification failure after commit must not turn accepted work into a failed save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Chromium with real service worker and local API; IndexedDB failures deliberately simulated. Does not certify native Safari, physical devices or every queued API."
+    },
+    {
+      "id": "setup.package-install-upgrade",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "install and upgrade the packaged application",
+      "expected": "Install the documented application in a clean environment and upgrade existing synthetic data without changing owner values or stored content.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": []
+    },
+    {
+      "id": "setup.login-recovery",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "recover from rejected and unavailable sign-in",
+      "expected": "Show readable inline errors for invalid password, unavailable service, rate limits and interrupted transport; preserve the password and allow one successful retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "setup.companion-reauth",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "confirm optional companion installation after owner confirmation expires",
+      "expected": "Cancel or reject confirmation without installing; a valid retry reaches the simulated installer once and restores focus to the next setup action. Live host installation remains separate.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "home.reminder-local-time",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "show reminders on the viewer’s local day and clock",
+      "expected": "Use the viewer’s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "pwa.queue-auth-recovery",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "all",
+      "workflow": "recover queued input after the owner session expires",
+      "expected": "Retain an offline entry when real replay receives401, show that sign-in is needed and preserve exact values after reload. Incorrect credentials and cancellation leave it queued; successful sign-in saves it once.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "pwa.queue-rejection-recovery",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "all",
+      "workflow": "review rejected offline changes and recover deliberately",
+      "expected": "Retain conflicts and invalid input across reload, display the saved values and reason, allow export, retry or individually confirmed discard. No automatic resend of permanently rejected entries; temporary503 remains recoverable.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
     }
   ],
   "findings": [
@@ -1519,6 +1703,322 @@
         "Executing the d9cb8c5 runtime with a synthetic provider produced persisted_run_count=1, prompt_on_disk=true and reply_on_disk=true."
       ],
       "verification": "RAM-only private run lifecycle tests cover updates, events, checkpoints, completion, cancellation, exit, expiry and late callbacks. Desktop/phone browser cases inspect SQLite and owned run files and verify exit clears private state. Historical owner run files were not inspected or deleted; the fix prevents new persistence."
+    },
+    {
+      "id": "STAB-014",
+      "title": "Finance silently truncates formatted or malformed amounts",
+      "severity": "high",
+      "screen": "Finance local manual ledger",
+      "revision": "93ed1a2",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Create a local account and enter 1,234.56 as an expense.",
+        "Save and reload the transaction."
+      ],
+      "expected": "Reject unsupported number formatting visibly, preserving the input.",
+      "actual": "The local transaction saved -1.00 from 1,234.56.",
+      "evidence": [
+        "Repeated isolated real-server desktop/phone Chromium reproduction, synthetic data only.",
+        "/tmp/alles-finance-manual-audit/findings.json",
+        "/tmp/alles-finance-manual-audit/run-3/finance-phone/observations.json"
+      ],
+      "verification": "Local/manual Finance browser gate passed all nine desktop/phone profile checks; malformed input rejected, exact create/edit/reconcile values survive reload, lost-acknowledgment retry creates one row, and phone row identities/actions remain visible. Durable receipt regressions cover concurrency, conflict, restart, rollback, deletion tombstones and backup replay. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-015",
+      "title": "Retrying a local Finance save duplicates committed transactions",
+      "severity": "high",
+      "screen": "Finance local manual ledger",
+      "revision": "93ed1a2",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Create a local expense for 23.45.",
+        "Simulate losing the success acknowledgment after the real server commits.",
+        "Retry the same form using its retained request_id."
+      ],
+      "expected": "Return the original committed result and apply the balance change once.",
+      "actual": "The same request_id inserted a second -23.45 transaction in the local branch.",
+      "evidence": [
+        "Repeated isolated real-server desktop/phone Chromium reproduction, synthetic data only.",
+        "/tmp/alles-finance-manual-audit/findings.json",
+        "/tmp/alles-finance-manual-audit/run-3/finance-phone/observations.json"
+      ],
+      "verification": "Local/manual Finance browser gate passed all nine desktop/phone profile checks; malformed input rejected, exact create/edit/reconcile values survive reload, lost-acknowledgment retry creates one row, and phone row identities/actions remain visible. Durable receipt regressions cover concurrency, conflict, restart, rollback, deletion tombstones and backup replay. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-016",
+      "title": "Phone Finance rows collapse transaction identity",
+      "severity": "medium",
+      "screen": "Finance local manual ledger",
+      "revision": "93ed1a2",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Open populated local Finance at 390px width.",
+        "Inspect payee, category, account and action positions."
+      ],
+      "expected": "Keep transaction identity readable and every action within the working pane.",
+      "actual": "Payee, category and account measured zero width; receipt/delete actions extended beyond the viewport.",
+      "evidence": [
+        "Repeated isolated real-server desktop/phone Chromium reproduction, synthetic data only.",
+        "/tmp/alles-finance-manual-audit/findings.json",
+        "/tmp/alles-finance-manual-audit/run-3/finance-phone/observations.json"
+      ],
+      "verification": "Local/manual Finance browser gate passed all nine desktop/phone profile checks; malformed input rejected, exact create/edit/reconcile values survive reload, lost-acknowledgment retry creates one row, and phone row identities/actions remain visible. Durable receipt regressions cover concurrency, conflict, restart, rollback, deletion tombstones and backup replay. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-017",
+      "title": "Offline saves report success when browser storage fails",
+      "severity": "high",
+      "screen": "Health > logs > add entry, offline with unavailable browser storage",
+      "revision": "93ed1a2 with Finance repairs",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Use a fresh owned Alles fixture; open Health logs in a Chromium browser with the real service worker controlling the page.",
+        "Click + entry; fill value 74.312 and a unique synthetic note through the input controls.",
+        "Make the browser offline; simulate either IndexedDB.open throwing SecurityError for alles-sync, or an outbox.add transaction abort before commit.",
+        "Click add. Restore browser storage, reconnect, then reload Health logs."
+      ],
+      "expected": "Do not claim accepted or queued without a committed queue record. Display a save failure and retain the editable input for retry.",
+      "actual": "The service worker returns HTTP 200 with queued:true/offline:true. Health clears the draft and displays logged. No pending badge, no outbox row after restoring storage, and no server entry after reconnect/reload.",
+      "evidence": [
+        "/tmp/alles-offline-storage-audit/findings.json",
+        "4/4 fault cases: two storage failure modes on desktop and phone-width Chromium; ordinary offline queue passed 2/2 controls."
+      ],
+      "verification": "Eight real-service-worker browser cases pass across desktop/phone: simulated storage-open denial and commit abort keep editable input with a visible error, retry/reconnect saves once, normal queueing and notification failure after commit remain correct. Five focused JS regressions pass;  Native devices and unrelated replay paths are not certified. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-018",
+      "title": "Login errors are hidden behind the sign-in overlay",
+      "severity": "medium",
+      "screen": "Login",
+      "revision": "93ed1a2; setup/auth sources unchanged by Finance/offline batch",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Open a locked synthetic instance and submit an incorrect password.",
+        "Inspect the returned 401 error visually and by hit testing."
+      ],
+      "expected": "Show a readable error on the sign-in surface.",
+      "actual": "The error toast has z-index500 beneath the login overlay at1000 and is unreadable.",
+      "evidence": [
+        "/tmp/alles-login-visual-audit/observations.json",
+        "/tmp/alles-setup-acceptance-report.md",
+        "Repeated on desktop and phone Chromium with owned synthetic data; injected transport/expiry conditions explicitly recorded."
+      ],
+      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-019",
+      "title": "Login network and service failures lack usable feedback",
+      "severity": "medium",
+      "screen": "Login",
+      "revision": "93ed1a2; setup/auth sources unchanged by Finance/offline batch",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Submit a valid synthetic password while the login response is deliberately replaced with503.",
+        "Interrupt a subsequent login request, then remove the fault and retry."
+      ],
+      "expected": "Distinguish credential rejection from unavailable service/network and keep retry usable.",
+      "actual": "503 is reported as wrong password; interrupted fetch throws with no visible feedback.",
+      "evidence": [
+        "/tmp/alles-setup-fault-audit",
+        "/tmp/alles-setup-acceptance-report.md",
+        "Repeated on desktop and phone Chromium with owned synthetic data; injected transport/expiry conditions explicitly recorded."
+      ],
+      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-020",
+      "title": "Setup companion cannot recover from expired owner confirmation",
+      "severity": "medium",
+      "screen": "Setup companion installation",
+      "revision": "93ed1a2; setup/auth sources unchanged by Finance/offline batch",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Enable the owner lock and save synthetic Files/Vault paths in setup.",
+        "Expire recent-owner confirmation in the isolated server while keeping the session valid.",
+        "Click install companion."
+      ],
+      "expected": "Prompt for owner confirmation and retry the authorized action.",
+      "actual": "The real403 recent_auth_required response only produces an error and offers no confirmation flow; optional installation can be skipped.",
+      "evidence": [
+        "/tmp/alles-setup-acceptance-audit-v3",
+        "/tmp/alles-setup-acceptance-report.md",
+        "Repeated on desktop and phone Chromium with owned synthetic data; injected transport/expiry conditions explicitly recorded."
+      ],
+      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-021",
+      "title": "Escape dismisses Settings underneath owner confirmation",
+      "severity": "medium",
+      "screen": "Settings owner confirmation",
+      "revision": "93ed1a2; setup/auth sources unchanged by Finance/offline batch",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Open Settings API & shortcuts with an expired owner confirmation.",
+        "Enter a token name, click Generate and press Escape in the password dialog."
+      ],
+      "expected": "Close only the top dialog and restore focus to Generate with Settings visible.",
+      "actual": "Escape propagates to the global handler and closes Settings too; draft remains in hidden DOM.",
+      "evidence": [
+        "/tmp/alles-setup-acceptance-audit-v3",
+        "/tmp/alles-setup-acceptance-report.md",
+        "Repeated on desktop and phone Chromium with owned synthetic data; injected transport/expiry conditions explicitly recorded."
+      ],
+      "verification": "Maintained setup browser checks pass on desktop-dark and phone-light Chromium: real owner lock, wrong-password rejection, setup and token persistence, retained inputs, and focus after cancellation. Login503/429/network failure, confirmation age and companion installation are explicitly simulated. Integrated evidence: /tmp/alles-setup-integrated-final;  Native Mac Safari separately passed wrong-password feedback, successful retry and reload, with visual capture limitations. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-022",
+      "title": "Home filters and labels reminders in UTC instead of the viewer’s time",
+      "severity": "medium",
+      "screen": "Home reminders near a date boundary or daylight-saving change",
+      "revision": "93ed1a2",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Seed an unfired reminder for 2026-09-26T00:30:00 UTC.",
+        "Request Home for 2026-09-25 in America/Toronto; repeat spring and autumn daylight-saving instants."
+      ],
+      "expected": "Show the reminder on September 25 at 20:30 Toronto time and use the offset applicable to each stored instant.",
+      "actual": "UTC dates omit due evening reminders and UTC clock text mislabels them.",
+      "evidence": [
+        "/tmp/alles-reminder-boundary-regression-before.log"
+      ],
+      "verification": "34 focused Python tests passed in local, UTC and Tokyo environments; six real-browser cases passed across desktop/phone with viewer and configured-zone overrides, actual Home request parameters, correct clock labels, future-day exclusion, pointer/keyboard navigation and reload. Evidence: /tmp/alles-reminder-browser-after-2/home-reminders/result.json and /tmp/alles-reminder-focused-after.log. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-023",
+      "title": "Rejected offline replay silently deletes queued input",
+      "severity": "high",
+      "screen": "Health offline entry after reconnect or expired login",
+      "revision": "93ed1a2 with offline storage failure repair",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Queue a synthetic Health entry using the real service worker while offline.",
+        "Restart the owned authenticated server, then reconnect so the real replay receives 401; separately simulate 409 and 422.",
+        "Inspect the outbox, pending indicator and persisted entries after reload."
+      ],
+      "expected": "Retain the rejected payload, show the reason and provide recovery without claiming it was saved.",
+      "actual": "All three rejected replies remove the queued entry, hide the pending badge and leave no saved row or draft. A 503 control correctly retains the queue.",
+      "evidence": [
+        "/tmp/alles-offline-rejection-audit/desktop-session-restart-401/observations.json",
+        "/tmp/alles-offline-rejection-audit/desktop-simulated-409/observations.json",
+        "/tmp/alles-offline-rejection-audit/desktop-simulated-422/observations.json"
+      ],
+      "verification": "Ten desktop/phone browser cases passed with real IndexedDB, owner login and SQLite persistence: actual server restart 401, explicit 409/422/503 transport faults, review/export/cancel/retry/confirmed individual discard, exact single saved row and reload. 94 focused JS checks include serialized drains and retained failures. Evidence: /tmp/alles-offline-rejection-fixed-4;  Real iPhone and unrelated queued APIs are not certified. Later-item retry ordering is covered for ordinary pending and rejected predecessors; policy quarantine behavior remains intentional. Both fresh 18-gate full runs passed with identical source and acceptance fingerprints and verified fixture cleanup: /tmp/alles-stabilization-combined-full-2/results.json and /tmp/alles-stabilization-combined-full-3/results.json."
+    },
+    {
+      "id": "STAB-024",
+      "title": "Reopened task editor uses stale search data and overwrites saved values",
+      "severity": "high",
+      "screen": "Plan Tasks editor after clearing search",
+      "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
+      "status": "confirmed",
+      "reproduction": [
+        "Search a task, clear search, change due date from 2032-11-06 to 2032-11-07 and save.",
+        "Reopen it and change only the project, then save and reload."
+      ],
+      "expected": "Reopen with current saved values and preserve the due date when changing only project.",
+      "actual": "The editor shows the older cached date and saving project silently restores it.",
+      "evidence": [
+        "/tmp/alles-plan-audit-report.md",
+        "/tmp/alles-plan-audit/observations.json"
+      ],
+      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+    },
+    {
+      "id": "STAB-025",
+      "title": "Task save discards input typed while the request is pending",
+      "severity": "medium",
+      "screen": "Plan Tasks editor during a delayed save",
+      "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
+      "status": "confirmed",
+      "reproduction": [
+        "Type note A and hold its real PATCH request after Save.",
+        "Type note B into the still-enabled notes field, release the request, then reload/reopen."
+      ],
+      "expected": "Preserve or prevent further editing during save; never silently discard accepted input.",
+      "actual": "The editor closes and only note A is saved; note B is lost.",
+      "evidence": [
+        "/tmp/alles-plan-audit-report.md",
+        "/tmp/alles-plan-audit/observations.json"
+      ],
+      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+    },
+    {
+      "id": "STAB-026",
+      "title": "Task board filters update counts while excluded cards stay visible",
+      "severity": "medium",
+      "screen": "Plan task board search and project filters",
+      "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
+      "status": "confirmed",
+      "reproduction": [
+        "Search a single mixed-language task title on the board.",
+        "Select a project that excludes that task."
+      ],
+      "expected": "Show only matching cards and counts.",
+      "actual": "Counts filter correctly but hidden cards remain displayed as grid and actionable.",
+      "evidence": [
+        "/tmp/alles-plan-audit-report.md",
+        "/tmp/alles-plan-audit/board-observations.json"
+      ],
+      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+    },
+    {
+      "id": "STAB-027",
+      "title": "Phone navigation rail covers the task editor",
+      "severity": "medium",
+      "screen": "Plan task editor at 390px",
+      "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
+      "status": "confirmed",
+      "reproduction": [
+        "Open a real task editor by pointer or touch at 390×900.",
+        "Inspect and hit-test the left edge of title, notes and form labels."
+      ],
+      "expected": "Keep all editor fields visible and reachable above the background navigation.",
+      "actual": "The editor starts at x=15.59 beneath the 52px navigation rail; the rail intercepts part of the input.",
+      "evidence": [
+        "/tmp/alles-plan-audit-report.md",
+        "/tmp/alles-plan-audit/phone-metrics.json"
+      ],
+      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+    },
+    {
+      "id": "STAB-028",
+      "title": "Populated phone task rows collapse task titles",
+      "severity": "medium",
+      "screen": "Plan Tasks list at 390px",
+      "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
+      "status": "confirmed",
+      "reproduction": [
+        "Populate tasks with ordinary due dates, priorities, tags and longer mixed-language titles.",
+        "Inspect the list at 390×900."
+      ],
+      "expected": "Give task titles a readable width and wrap metadata onto appropriate lines.",
+      "actual": "One title shrinks to 44px width and its row grows to 308px tall.",
+      "evidence": [
+        "/tmp/alles-plan-audit-report.md",
+        "/tmp/alles-plan-audit/phone-metrics.json"
+      ],
+      "verification": "Reproduced in owned Chromium fixtures on desktop/phone (phone visual defects at 390px); only pending-save latency was simulated. Repair in separate temporary product copy; not applied to this frozen batch. Native Safari/iPhone and full Plan acceptance remain unverified."
+    },
+    {
+      "id": "STAB-029",
+      "title": "Closing a dirty task editor discards unsaved input without recovery",
+      "severity": "medium",
+      "screen": "Plan Tasks editor, outside dismissal",
+      "revision": "93ed1a2 with stabilization batch; Plan sources unchanged",
+      "status": "confirmed",
+      "reproduction": [
+        "Open a task and type an unsaved note or title.",
+        "Click outside the editor, then reopen the task."
+      ],
+      "expected": "Preserve the draft or require an explicit discard decision before losing unsaved work.",
+      "actual": "The editor immediately closes; reopening restores only saved content and the draft is lost.",
+      "evidence": [
+        "/tmp/alles-plan-audit-report.md",
+        "/tmp/alles-plan-audit/observations.json"
+      ],
+      "verification": "Outside dismissal reproduced on desktop/phone. The stabilization plan explicitly requires preservation of unsaved Plan work. Repair and dismissal regression are in the separate temporary Plan batch."
     }
   ],
   "additional_surfaces": [

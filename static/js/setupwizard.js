@@ -1,5 +1,6 @@
 // server-owned first-run setup: resumable across browsers and safe to dismiss.
 import { toast } from './util.js';
+import { requestWithRecentOwner } from './recent_owner.js';
 import { addEndpoint } from './models.js?v=212';
 import { resolvedTimeZone } from './i18n.js';
 import { wireChoiceGroup } from './kokuen.js?v=1';
@@ -28,8 +29,10 @@ let _dismissedThisSession = false;
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-async function _api(path, options = {}) {
-  const response = await fetch(path, options);
+async function _api(path, options = {}, { recentOwner = false } = {}) {
+  const response = recentOwner
+    ? await requestWithRecentOwner(fetch, path, options)
+    : await fetch(path, options);
   let payload = {};
   try { payload = await response.json(); } catch { /* retain the status fallback */ }
   if (!response.ok) throw new Error(payload.message || payload.detail || 'request failed');
@@ -395,9 +398,14 @@ function _renderObsidianChoice() {
     if (button?.getAttribute('aria-busy') === 'true') return;
     _busy(button, true, 'installing companion…');
     try {
-      _obsidian = await _api('/api/setup/obsidian', _json('POST', { approve: true }));
+      _obsidian = await _api('/api/setup/obsidian', _json('POST', { approve: true }), { recentOwner: true });
+      _busy(button, false);
       _renderObsidianChoice(); toast('Obsidian companion installed', 'success');
-    } catch (error) { _busy(button, false, error.message); }
+      $('sw-save')?.focus();
+    } catch (error) {
+      _busy(button, false, error.message);
+      button?.focus();
+    }
   });
 }
 

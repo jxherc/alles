@@ -93,6 +93,15 @@ class BrowserGateRunnerTest(unittest.TestCase):
         self.assertIsNotNone(process.poll())
         runner.stop_process(process)
 
+    def test_nested_server_cleanup_does_not_signal_the_gate_process_group(self):
+        process = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(60)"], start_new_session=False
+        )
+        with patch.object(runner.os, "killpg") as kill_group:
+            runner.stop_process(process, process_group=False)
+        self.assertIsNotNone(process.poll())
+        kill_group.assert_not_called()
+
     def test_product_changes_invalidate_otherwise_passing_results(self):
         with tempfile.TemporaryDirectory() as raw:
             output = Path(raw)

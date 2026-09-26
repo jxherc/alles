@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v262';   // Refresh interrupted conversations and Health corrections.
+const VERSION = 'v263';   // Refresh Finance validation and responsive transaction rows.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '306';   // keep in sync with index.html ?v= / const _v
+const STAMP = '307';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
@@ -153,8 +153,16 @@ async function handleWrite(req) {
   try {
     return await fetch(req.clone());
   } catch (err) {
-    // offline (or network down) → stash it and tell the UI; pretend it went through
-    try { await queueRequest(req); await notifyClients(); } catch (e) {}
+    try {
+      await queueRequest(req);
+    } catch (e) {
+      return new Response(JSON.stringify({
+        detail: 'could not store this change offline. reconnect and try again.',
+        queued: false, offline: true,
+      }), { status: 503, headers: { 'content-type': 'application/json' } });
+    }
+    // The transaction committed. A failed notification must not invite a duplicate retry.
+    try { await notifyClients(); } catch (e) {}
     return new Response(JSON.stringify({ queued: true, offline: true }), {
       status: 200, headers: { 'content-type': 'application/json' },
     });
@@ -228,48 +236,120 @@ function mustQuarantineOutboxItem(rawUrl) {
   }
 }
 
-async function flushOutbox() {
-  let items = [];
-  try { items = await _all(); } catch (e) { return; }
-  for (const it of items) {
-    try {
-      // A tightened policy must never replay or erase a write accepted by an older
-      // worker. Keep it blocked until the owner explicitly resolves it in the UI.
-      if (it.blocked_reason) continue;
-      if (mustQuarantineOutboxItem(it.url)) {
-        await _put({ ...it, blocked_reason: 'replay_policy_changed', blocked_at: Date.now() });
-        continue;
-      }
-      const r = await fetch(it.url, { method: it.method, headers: it.headers, body: it.body || undefined });
-      if (r.ok || (r.status >= 400 && r.status < 500)) await _del(it.id);  // done, or a permanent client error
-      else break;                                                          // server error → keep, retry later
-    } catch (err) { break; }                                              // still offline → stop
-  }
-  await notifyClients();
+// One worker may receive reconnect, boot and manual retry messages together.
+// Serialize reads and mutations so two drains cannot send the same saved write.
+let outboxWork = Promise.resolve();
+function withOutbox(work) {
+  const result = outboxWork.then(work, work);
+  outboxWork = result.catch(() => {});
+  return result;
 }
 
-async function discardBlockedOutbox() {
-  let items = [];
-  try { items = await _all(); } catch (e) { return; }
-  for (const item of items) {
-    if (item.blocked_reason) await _del(item.id);
+async function replayError(response) {
+  try {
+    const data = await response.clone().json();
+    const detail = data.detail || data.message;
+    if (typeof detail === 'string') return detail.slice(0, 2000);
+    if (Array.isArray(detail)) return detail.map(item => item.msg || '').filter(Boolean).join('; ').slice(0, 2000);
+  } catch {}
+  return '';
+}
+
+async function drainOutbox({ retryAuth = false, retryId = null } = {}) {
+  const items = await _all();
+  if (retryId !== null) {
+    const eligible = items.filter(item => item.blocked_reason !== 'replay_policy_changed'
+      && !mustQuarantineOutboxItem(item.url));
+    if (eligible.findIndex(item => item.id === retryId) > 0) {
+      throw Object.assign(new Error('resolve the earlier offline change before retrying this one.'), {
+        code: 'earlier_change_pending',
+      });
+    }
   }
-  await notifyClients();
+  for (const it of items) {
+    if (retryId !== null && it.id !== retryId) continue;
+    if (mustQuarantineOutboxItem(it.url)) {
+      if (it.blocked_reason !== 'replay_policy_changed') {
+        await _put({ ...it, blocked_reason: 'replay_policy_changed', blocked_at: Date.now() });
+      }
+      continue;
+    }
+    const selected = it.id === retryId && it.blocked_reason !== 'replay_policy_changed';
+    const authenticated = retryAuth && it.blocked_reason === 'auth_required';
+    if (it.blocked_reason && !selected && !authenticated) {
+      if (it.blocked_reason === 'replay_policy_changed') continue;
+      break;
+    }
+    try {
+      const response = await fetch(it.url, {
+        method: it.method, headers: it.headers, body: it.body || undefined,
+      });
+      if (response.ok) {
+        await _del(it.id);
+        continue;
+      }
+      const status = response.status;
+      const blocked = status >= 400 && status < 500 && status !== 408 && status !== 429;
+      await _put({
+        ...it,
+        blocked_reason: blocked
+          ? (status === 401 ? 'auth_required' : status === 409 ? 'conflict'
+            : status === 422 ? 'validation_failed' : 'request_rejected')
+          : null,
+        blocked_at: blocked ? Date.now() : null,
+        response_status: status,
+        response_detail: await replayError(response),
+      });
+      // Preserve ordering: later writes may depend on the rejected change.
+      // Manual retries observe the same order, including still-pending writes.
+      break;
+    } catch { break; }
+  }
+}
+
+async function flushOutbox(options = {}) {
+  return withOutbox(async () => {
+    try { await drainOutbox(options); }
+    finally { await notifyClients(); }
+  });
+}
+
+async function discardOutboxItem(id) {
+  return withOutbox(async () => {
+    // Only a reviewed, retained failure can be discarded. A successful drain
+    // may already have removed it while the owner was reading the dialog.
+    const item = (await _all()).find(row => row.id === id);
+    if (item?.blocked_reason) await _del(id);
+    await notifyClients();
+  });
 }
 
 async function notifyClients() {
   let items = [];
-  try { items = await _all(); } catch (e) {}
+  try { items = await _all(); } catch (e) { return; }
   const n = items.length;
   const blocked = items.filter(item => item.blocked_reason).length;
-  const at = Date.now();   // stamp at read time so a stale count can't clobber a fresher one
+  const auth = items.filter(item => item.blocked_reason === 'auth_required').length;
+  const at = Date.now();
   const cs = await self.clients.matchAll({ includeUncontrolled: true });
-  cs.forEach(c => c.postMessage({ type: 'alles-sync', pending: n, blocked, at }));
+  cs.forEach(c => c.postMessage({ type: 'alles-sync', pending: n, blocked, auth, at }));
 }
 
 self.addEventListener('message', e => {
   if (!e.data) return;
-  if (e.data.type === 'alles-flush') e.waitUntil(flushOutbox());
-  else if (e.data.type === 'alles-discard-blocked') e.waitUntil(discardBlockedOutbox());
-  else if (e.data.type === 'alles-pending') e.waitUntil(notifyClients());
+  const { type, id } = e.data;
+  let action;
+  if (type === 'alles-flush') action = flushOutbox({ retryAuth: e.data.retryAuth === true });
+  else if (type === 'alles-retry-outbox' && Number.isInteger(id)) action = flushOutbox({ retryId: id });
+  else if (type === 'alles-discard-outbox' && Number.isInteger(id)) action = discardOutboxItem(id);
+  else if (type === 'alles-pending') action = notifyClients();
+  else if (type === 'alles-outbox-list') action = withOutbox(_all);
+  if (!action) return;
+  e.waitUntil(action.then(result => {
+    e.ports?.[0]?.postMessage({ ok: true, items: type === 'alles-outbox-list' ? result : undefined });
+  }).catch(error => {
+    e.ports?.[0]?.postMessage({ ok: false, error: error?.code === 'earlier_change_pending'
+      ? 'resolve the earlier offline change before retrying this one.'
+      : 'could not read or update offline changes. try again.' });
+  }));
 });
