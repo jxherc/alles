@@ -12,6 +12,10 @@ let _stats = null;
 let _filter = 'all';
 let _q = '';
 let _tag = '';
+let _urlDraft = '';
+let _saveError = '';
+let _saving = false;
+let _returnItem = null;
 let _open = null;   // full item being read
 let _feeds = [];
 let _showFeeds = false;
@@ -80,10 +84,6 @@ export async function loadRead(fetcher = _fetcher) {
   if (_filter && _filter !== 'all') params.set('filter', _filter);
   if (_q) params.set('q', _q);
   if (_tag) params.set('tag', _tag);
-  // the search box triggers loadRead on a debounce; _render rebuilds the whole body
-  // so remember if we were typing in it + the caret, and put focus back after.
-  const wasSearching = document.activeElement?.id === 'read-q';
-  const caret = wasSearching ? document.activeElement.selectionStart : null;
   _loadState = { state: 'loading', message: 'loading saved reading…' };
   _itemsCurrent = false;
   _render();
@@ -106,10 +106,6 @@ export async function loadRead(fetcher = _fetcher) {
   } else failures.push(['reading statistics', statsResult.reason]);
   _loadState = failures.length ? _loadFailure(failures, successes) : { state: 'resting', message: '' };
   _render();
-  if (wasSearching) {
-    const q = $('read-q');
-    if (q) { q.focus(); if (caret != null) try { q.setSelectionRange(caret, caret); } catch {} }
-  }
 }
 
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -120,11 +116,16 @@ function _render() {
   const body = $('read-body');
   if (!body) return;
   if (_open) { _renderReader(body); return; }
+  const active = document.activeElement;
+  const editing = !_saving && body.contains(active) && ['read-url', 'read-q'].includes(active.id)
+    ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
+  if (editing?.id === 'read-url') _urlDraft = active.value;
   body.innerHTML = `
     <div class="read-add">
-      <input type="text" id="read-url" class="settings-input" placeholder="paste a URL to save for later…" spellcheck="false">
-      <button class="btn primary" id="read-save">${_si('plus')} save</button>
+      <input type="text" id="read-url" class="settings-input" aria-label="URL to save for later" aria-describedby="read-save-error" placeholder="paste a URL to save for later…" spellcheck="false" value="${esc(_urlDraft)}" ${_saving ? 'disabled' : ''}>
+      <button class="btn primary" id="read-save" ${_saving ? 'disabled aria-busy="true"' : ''}>${_saving ? 'saving…' : `${_si('plus')} save`}</button>
     </div>
+    <p id="read-save-error" class="read-save-error" role="alert" ${_saveError ? '' : 'hidden'}>${esc(_saveError)}</p>
     <div class="read-toolbar">
       <div class="read-filters"><span class="read-filter-choices" role="radiogroup" aria-label="saved reading filter">${FILTERS.map(([k, l]) => `<button type="button" role="radio" aria-checked="${_filter === k}" class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${l}</button>`).join('')}</span><button type="button" class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" aria-pressed="${_showFeeds}" title="rss feeds">feeds</button></div>
       <div class="read-search"><input type="text" id="read-q" class="settings-input" placeholder="search saved…" value="${esc(_q)}" spellcheck="false"></div>
@@ -136,6 +137,11 @@ function _render() {
     ${_items.length ? `<div class="read-list">${_items.map(_card).join('')}</div>`
       : (_itemsCurrent ? `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet: paste a link above and alles will keep the article text here, searchable, forever.'}</div>` : '')}`;
   _wire(body);
+  if (editing) {
+    const field = $(editing.id);
+    field?.focus();
+    if (editing.start != null) field?.setSelectionRange(editing.start, editing.end);
+  }
 }
 
 function _fmtMin(m) {
@@ -157,9 +163,11 @@ function _card(it) {
   const tags = (it.tags || '').split(',').map(t => t.trim()).filter(Boolean);
   return `
     <div class="read-card${it.read ? ' is-read' : ''}" data-id="${it.id}">
-      <div class="read-card-main" data-open="${it.id}">
-        <div class="read-card-title">${it.fav ? `<span class="read-fav-dot">${_si('star')}</span>` : ''}${esc(it.title)}</div>
-        <div class="read-card-excerpt">${esc(it.excerpt)}</div>
+      <div class="read-card-main">
+        <button type="button" class="read-card-open" data-open="${it.id}" aria-label="open ${esc(it.title)}">
+        <span class="read-card-title">${it.fav ? `<span class="read-fav-dot">${_si('star')}</span>` : ''}${esc(it.title)}</span>
+        <span class="read-card-excerpt">${esc(it.excerpt)}</span>
+        </button>
         <div class="read-card-meta">${esc(it.site)} · ${it.read_minutes} min${it.read ? ' · read' : ''}${tags.length ? ' · ' + tags.map(t => `<button class="read-tag" data-tag="${esc(t)}">#${esc(t)}</button>`).join(' ') : ''}</div>
       </div>
       <div class="read-card-actions">
@@ -186,7 +194,7 @@ function _renderReader(body) {
         ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page. <a href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open the original</a>.</p>`}
       </article>
     </div>`;
-  $('read-back').addEventListener('click', () => { _open = null; loadRead(); });
+  $('read-back').addEventListener('click', async () => { _open = null; await loadRead(); body.querySelector(`[data-open="${_returnItem}"]`)?.focus(); });
 }
 
 function _wire(body) {
@@ -194,6 +202,7 @@ function _wire(body) {
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadRead());
   const save = () => _save();
   $('read-save')?.addEventListener('click', save);
+  $('read-url')?.addEventListener('input', e => { _urlDraft = e.target.value; });
   $('read-url')?.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
 
   $('read-feeds-btn')?.addEventListener('click', async () => {
@@ -238,8 +247,8 @@ function _wire(body) {
   $('read-tag-clear')?.addEventListener('click', () => { _tag = ''; loadRead(); });
 
   body.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', async () => {
-    try { _open = await _fetcher(`/api/read/${el.dataset.open}`).then(r => r.json()); _render(); }
-    catch { toast('could not open', 'error'); }
+    try { _open = await _json(_fetcher, `/api/read/${el.dataset.open}`); _returnItem = el.dataset.open; _render(); $('read-back')?.focus(); }
+    catch { toast('could not open', 'error'); return; }
     // mark read on open if it wasn't
     const it = _items.find(x => x.id === el.dataset.open);
     if (it && !it.read) _fetcher(`/api/read/${el.dataset.open}/read`, { method: 'POST' });
@@ -263,15 +272,31 @@ function _wire(body) {
 }
 
 async function _save() {
-  const inp = $('read-url');
-  const url = inp?.value.trim();
-  if (!url) { toast('paste a url first', 'error'); return; }
-  const btn = $('read-save');
-  if (btn) { btn.disabled = true; btn.textContent = 'saving…'; }
-  const r = await _fetcher('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
-  if (!r.ok) { toast((await r.json()).detail || 'failed to save', 'error'); if (btn) { btn.disabled = false; } loadRead(); return; }
-  const it = await r.json();
-  toast(`saved · ${it.read_minutes} min read`, 'success');
-  if (inp) inp.value = '';
-  loadRead();
+  if (_saving) return;
+  _urlDraft = $('read-url')?.value || _urlDraft;
+  const url = _urlDraft.trim();
+  if (!url) { _saveError = 'Paste a URL first.'; _render(); $('read-url')?.focus(); return; }
+  _saving = true;
+  _saveError = '';
+  _render();
+  try {
+    const response = await _fetcher('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
+    const result = await response.json().catch(() => { throw new Error('Could not read the save response. Check saved items before retrying.'); });
+    if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : 'Could not save this URL. Try again.');
+    if (!result || typeof result !== 'object' || Array.isArray(result)
+      || typeof result.id !== 'string' || !result.id.trim()
+      || typeof result.url !== 'string' || !result.url.trim()
+      || !Number.isInteger(result.read_minutes) || result.read_minutes < 1) {
+      throw new Error('Save was not confirmed. Check saved items before retrying.');
+    }
+    _urlDraft = '';
+    toast(`saved · ${result.read_minutes} min read`, 'success');
+    await loadRead();
+  } catch (error) {
+    _saveError = error instanceof TypeError ? 'Could not connect. Check your connection and try again.' : (error.message || 'Could not save this URL. Try again.');
+  } finally {
+    _saving = false;
+    _render();
+    $('read-url')?.focus();
+  }
 }

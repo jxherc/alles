@@ -25,7 +25,7 @@ BROWSER_SUITES = {
     "setup": ("setup-auth",),
     "pwa": ("pwa-offline", "pwa-storage", "pwa-rejection"),
     "assistant": ("andromeda-cancellation", "aide-continuity"),
-    "specialist": ("health-workflows", "finance-workflows"),
+    "specialist": ("health-workflows", "finance-workflows", "library-workflows"),
     "full": (
         *SMOKE_GATES,
         "cleanup-regressions",
@@ -38,6 +38,7 @@ BROWSER_SUITES = {
         "aide-continuity",
         "health-workflows",
         "finance-workflows",
+        "library-workflows",
         "pwa-offline",
         "pwa-storage",
         "pwa-rejection",

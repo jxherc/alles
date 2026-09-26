@@ -76,14 +76,48 @@ reading. Local book creation, Goodreads CSV import/deduplication, notes, ratings
 shelf movement, goals and removal were exercised. Synthetic saved articles covered
 search, reader opening, archive/unarchive and deletion. Failed note and URL saves,
 keyboard-only activation and title/remove overlap exposed STAB-030 through
-STAB-033. They remain open in this checkpoint.
+STAB-033. The integrated repair keeps failed drafts and inline errors visible,
+makes note/goal/article actions keyboard reachable and prevents title overlap.
+Desktop-dark and phone-light screenshots were manually inspected.
+
+Further inspection found read-card fading reduced summary/metadata contrast to
+2.58:1 dark and 2.44:1 light. Removing that fade restores at least 5.02:1 while the
+read label remains. A delayed loading check also reproduced lost URL focus and
+continued typing in Chromium and WebKit; both now preserve the active field and
+caret. Ten maintained Library workflow checks pass in each engine. WebKit uses
+Option-Tab and Command-Right for Mac keyboard behavior, and its exact simulated
+failure logs differ from Chromium. These checks do not certify a real iPhone.
+
+A bounded native Safari check saved/reloaded a book note, opened an article with
+Option-Tab/Enter and returned focus, then saved/reloaded a local fallback URL.
+That check predates the final focus/contrast adjustments. Its small screenshot
+capture cannot support native visual acceptance; full current Safari coverage
+remains open.
 
 The overview repeats reading destinations without a direct add action; the import
 format is explained only by a tooltip. These are separate design observations.
 Books have no visible search or sort control; the audit does not claim those were
 promised features. Failed light-theme fixture setup is explicitly excluded from
-visual proof. Live lookup/extraction, native Safari, physical iPhone and large
+visual proof. Live lookup/extraction, full native Safari, physical iPhone and large
 imports remain unverified.
+
+## Inbox audit
+
+The subsequent Inbox walkthrough confirmed STAB-039 through STAB-049. Contact
+creation/edit failures falsely report success and erase drafts; adding an extra
+contact field also replaces other unsaved edits. Mail protects changed subjects
+but overlooks body-only changes when closing a draft. Failed list loads resemble
+empty accounts, double contact submission creates duplicates, and phone/keyboard
+checks expose invisible actions, a clipped Add label, squeezed sender names and
+missing row-opening controls. These remain open pending integrated repair checks.
+
+Ordinary local contacts, vCard import, cached-mail browsing and draft persistence
+passed in the isolated audit. The contact create footer remains visible during
+detail editing, and the phone composer appears below the list instead of occupying
+one working pane. These are separate layout changes. Permanent local draft deletion
+lacks the confirmation used by contact deletion; no undo or restore surface was
+found. Live mailbox delivery, remote archive/restore, CardDAV, attachments and
+provider permissions remain unverified; no external message was sent.
 
 ## Remaining phone layout work
 
