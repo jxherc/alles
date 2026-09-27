@@ -122,7 +122,8 @@ program, and compatibility links keep the older app names and subdomains working
   that pane directly. Needs you
   cannot be hidden, and loading, empty, partial, offline, and error states remain visible
 - Home capture creates tasks in Plan and uniquely named Markdown notes in Docs → Documents; an
-  unconfirmed save keeps the input so the owner can check before retrying
+  unconfirmed response keeps the draft for inspection, while a confirmed offline task queue is labelled
+  as queued rather than saved. Capture never auto-retries an uncertain write.
 
 ### activity
 **plain version:** one scrollable feed of *everything you did*, across every app, newest first. if today is what's coming up, activity is what already happened.

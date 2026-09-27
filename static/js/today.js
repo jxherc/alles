@@ -346,17 +346,26 @@ function wireCapture() {
     const value = input.value.trim();
     if (!value) return;
     const asTask = mode.getAttribute('aria-pressed') === 'true';
+    const uncertain = asTask
+      ? 'could not confirm task; check Plan before retrying'
+      : 'could not confirm note; check Docs before retrying';
     form.setAttribute('aria-busy', 'true');
     input.disabled = true;
     mode.disabled = true;
     const submit = form.querySelector('[type="submit"]');
     if (submit) submit.disabled = true;
     try {
-      await capture(value, asTask);
-      input.value = '';
-      toast(asTask ? t('home.task_added') : t('home.note_saved'), 'success');
-      await load();
-    } catch { showStatus(t('home.capture_failed'), true); }
+      const result = await capture(value, asTask);
+      if (asTask && result?.queued === true && result?.offline === true) {
+        input.value = '';
+        showStatus('task queued; it will sync when online');
+      } else {
+        if (!(asTask ? result?.id : result?.created === true)) throw new Error('unconfirmed capture');
+        input.value = '';
+        toast(asTask ? t('home.task_added') : t('home.note_saved'), 'success');
+        await load();
+      }
+    } catch { showStatus(uncertain); }
     finally {
       form.removeAttribute('aria-busy');
       input.disabled = false;

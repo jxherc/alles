@@ -5380,7 +5380,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/today.js:399 click"
+            "value": "static/js/today.js:408 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -5427,7 +5427,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/today.js:399 click"
+            "value": "static/js/today.js:408 click"
           },
           "keys": [
             "Enter",
@@ -5460,7 +5460,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/today.js:399 click"
+        "value": "static/js/today.js:408 click"
       },
       "id": "static.241670a3874b",
       "kind": "action",
@@ -5570,6 +5570,12 @@
                 "file": "tests/pw_stability_smoke.py",
                 "kind": "existing-test-control-reference",
                 "line": 139
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_today_capture_confirm.py",
+                "kind": "existing-test-control-reference",
+                "line": 44
               }
             ]
           },
@@ -5611,6 +5617,12 @@
                 "file": "tests/pw_stability_smoke.py",
                 "kind": "existing-test-control-reference",
                 "line": 139
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_today_capture_confirm.py",
+                "kind": "existing-test-control-reference",
+                "line": 44
               }
             ]
           },
@@ -5776,6 +5788,12 @@
                 "file": "tests/pw_stability_surfaces.py",
                 "kind": "existing-test-control-reference",
                 "line": 20
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_today_capture_confirm.py",
+                "kind": "existing-test-control-reference",
+                "line": 41
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -62719,6 +62737,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_today_capture_confirm.py",
+                "kind": "existing-test-control-reference",
+                "line": 38
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_today_reminders.py",
                 "kind": "existing-test-control-reference",
                 "line": 144
@@ -62985,6 +63009,12 @@
                 "file": "tests/pw_stability_smoke.py",
                 "kind": "existing-test-control-reference",
                 "line": 98
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_today_capture_confirm.py",
+                "kind": "existing-test-control-reference",
+                "line": 38
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",

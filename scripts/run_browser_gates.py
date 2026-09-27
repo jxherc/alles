@@ -66,6 +66,7 @@ COMMANDS = {
     "home-capture": ("tests/pw_home_capture.py",),
     "home-day-draft": ("tests/pw_home_day_draft.py",),
     "home-preferences": ("tests/pw_home_preferences.py",),
+    "today-capture-confirm": ("tests/pw_today_capture_confirm.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     "aide-composer": ("tests/pw_aide_composer.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),
