@@ -7,6 +7,7 @@ SQLITE_APPLICATION_ID = 0x414C4C53  # ASCII: ALLS
 
 # Shipped Afterlife surfaces are the clean-install default. Keep unfinished surfaces explicit
 # and off: an environment typo must never invent and enable a new feature.
+# afterlife_today remains an accepted config name, but Home is now one shipped screen.
 AFTERLIFE_FEATURE_DEFAULTS = {
     "afterlife_shell": True,
     "afterlife_today": True,
@@ -38,9 +39,9 @@ def afterlife_feature_flags(raw: str | None = None) -> dict[str, bool]:
     """Return the fixed Afterlife flag set, with an optional strict env allow-list.
 
     With no override, shipped surfaces use their clean-install defaults. A non-empty
-    ``ALLES_AFTERLIFE_FEATURES`` value is a strict comma-separated allow-list, which lets tests
-    and development runs isolate one surface. Unknown, blank, or duplicate entries are rejected
-    instead of being guessed.
+    ``ALLES_AFTERLIFE_FEATURES`` value is a strict comma-separated allow-list for other surfaces.
+    Today is always on; its old name stays accepted so existing configs keep starting.
+    Unknown, blank, or duplicate entries are rejected instead of being guessed.
     """
     flags = dict(AFTERLIFE_FEATURE_DEFAULTS)
     value = os.environ.get(AFTERLIFE_FEATURES_ENV, "") if raw is None else raw
@@ -59,6 +60,7 @@ def afterlife_feature_flags(raw: str | None = None) -> dict[str, bool]:
     flags = {name: False for name in flags}
     for name in requested:
         flags[name] = True
+    flags["afterlife_today"] = True
     return flags
 
 

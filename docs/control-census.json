@@ -140,7 +140,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 180
+                "line": 183
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -421,7 +421,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 180
+                "line": 183
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -2666,7 +2666,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 172
+                "line": 189
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -2779,7 +2779,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 172
+                "line": 189
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -3244,25 +3244,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 166
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 169
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 178
+                "line": 182
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
                 "line": 186
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 194
               }
             ]
           },
@@ -3291,25 +3285,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 166
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 169
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 178
+                "line": 182
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
                 "line": 186
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 194
               }
             ]
           },
@@ -3685,19 +3673,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 174
+                "line": 191
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 179
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 187
+                "line": 195
               }
             ]
           },
@@ -3726,19 +3708,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 174
+                "line": 191
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_home_capture.py",
                 "kind": "existing-test-control-reference",
-                "line": 179
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 187
+                "line": 195
               }
             ]
           },
@@ -5585,6 +5561,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 59
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_stability_smoke.py",
                 "kind": "existing-test-control-reference",
                 "line": 117
@@ -5629,6 +5611,12 @@
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
                 "line": 141
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 59
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5788,6 +5776,12 @@
                 "file": "tests/pw_afterlife_home_apps.py",
                 "kind": "existing-test-control-reference",
                 "line": 134
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 58
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -12785,27 +12779,8 @@
               "kind": "control-source",
               "line": 403
             },
-            "status": "test-linked-unclassified",
-            "tests": [
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 54
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 79
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 119
-              }
-            ]
+            "status": "source-only",
+            "tests": []
           },
           "handler_provenance": {
             "classification": "direct-id-listener",
@@ -12828,27 +12803,8 @@
               "kind": "control-source",
               "line": 403
             },
-            "status": "test-linked-unclassified",
-            "tests": [
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 54
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 79
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 119
-              }
-            ]
+            "status": "source-only",
+            "tests": []
           },
           "handler_provenance": {
             "classification": "direct-id-listener",
@@ -12975,27 +12931,8 @@
               "kind": "control-source",
               "line": 404
             },
-            "status": "test-linked-unclassified",
-            "tests": [
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 55
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 87
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 113
-              }
-            ]
+            "status": "source-only",
+            "tests": []
           },
           "handler_provenance": {
             "classification": "no-matched-source-authority",
@@ -13016,27 +12953,8 @@
               "kind": "control-source",
               "line": 404
             },
-            "status": "test-linked-unclassified",
-            "tests": [
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 55
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 87
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_home_capture.py",
-                "kind": "existing-test-control-reference",
-                "line": 113
-              }
-            ]
+            "status": "source-only",
+            "tests": []
           },
           "handler_provenance": {
             "classification": "no-matched-source-authority",
@@ -252300,8 +252218,8 @@
   "summary": {
     "activation_path_evidence": {
       "external-blocked": 3,
-      "source-only": 2112,
-      "test-linked-unclassified": 630
+      "source-only": 2116,
+      "test-linked-unclassified": 626
     },
     "activation_paths": 2745,
     "controls": 1619,

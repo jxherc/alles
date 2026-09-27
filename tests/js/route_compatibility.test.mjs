@@ -191,12 +191,12 @@ test('unknown explicit identifiers and unknown hosts are no-ops', () => {
   assert.equal(resolveCompatibilityRoute(), null);
 });
 
-test('Today keeps its flag-off fallback while Activity always consolidates into Server', () => {
+test('old Home links reach the one Home even with old flags off', () => {
   assert.deepEqual(pick(resolveCompatibilityRoute({ sub: 'home', flags: off })), {
-    host: '', view: 'home', hashOwner: 'home',
+    host: '', view: 'today', hashOwner: 'today',
   });
   assert.deepEqual(pick(resolveCompatibilityRoute({ app: 'today', flags: off })), {
-    host: '', view: 'home', hashOwner: 'home',
+    host: '', view: 'today', hashOwner: 'today',
   });
   assert.deepEqual(pick(resolveCompatibilityRoute({ sub: 'activity', flags: off })), {
     host: 'server', view: 'server', section: 'activity', hashOwner: 'activity',
