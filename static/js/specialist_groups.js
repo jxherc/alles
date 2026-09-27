@@ -591,7 +591,7 @@ async function _renderLibrary(target, request) {
   const records = [
     ...read.map(item => ({
       id: `saved:${item.id || item.url || item.title}`,
-      kind: item.source === 'andromeda_news' ? 'saved news' : 'saved reading',
+      kind: item.source_kind === 'saved_news' ? 'saved news' : 'saved reading',
       title: item.title || item.url || 'untitled saved item',
       meta: item.site || item.url || item.status || 'saved',
       section: 'read',
