@@ -247,11 +247,7 @@ function _wire(body) {
   $('read-tag-clear')?.addEventListener('click', () => { _tag = ''; loadRead(); });
 
   body.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', async () => {
-    try { _open = await _json(_fetcher, `/api/read/${el.dataset.open}`); _returnItem = el.dataset.open; _render(); $('read-back')?.focus(); }
-    catch { toast('could not open', 'error'); return; }
-    // mark read on open if it wasn't
-    const it = _items.find(x => x.id === el.dataset.open);
-    if (it && !it.read) _fetcher(`/api/read/${el.dataset.open}/read`, { method: 'POST' });
+    await openReadItem(el.dataset.open);
   }));
 
   body.querySelectorAll('.read-card[data-id]').forEach(card => {
@@ -299,4 +295,22 @@ async function _save() {
     _render();
     $('read-url')?.focus();
   }
+}
+
+export async function openReadItem(id) {
+  try {
+    _open = await _json(_fetcher, `/api/read/${encodeURIComponent(id)}`);
+    _returnItem = id;
+    _render();
+    $('read-back')?.focus();
+  } catch {
+    _open = null;
+    _render();
+    $('read-q')?.focus();
+    toast('could not open', 'error');
+    return false;
+  }
+  const listed = _items.find(item => item.id === id);
+  if (listed && !listed.read) _fetcher(`/api/read/${encodeURIComponent(id)}/read`, { method: 'POST' });
+  return true;
 }
