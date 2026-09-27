@@ -928,7 +928,7 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
         try:
-            from routes.calendars import seed_default_calendar
+            from services.calendar_events import seed_default_calendar
 
             seed_default_calendar()  # first-boot 'Personal' calendar + adopt orphan events
         except Exception:

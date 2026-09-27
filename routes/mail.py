@@ -3,7 +3,7 @@ from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import MailAccount, MailDraft, get_db
@@ -1018,13 +1018,25 @@ class ExtractEventBody(BaseModel):
     date: str = ""  # the mail's own date header, helps resolve "next tuesday"
 
 
+class ExtractedEvent(BaseModel):
+    model_config = ConfigDict(strict=True)
+
+    found: bool
+    title: str | None = None
+    start: str | None = None
+    end: str | None = None
+    location: str | None = None
+    all_day: bool = False
+
+
 @router.post("/extract-event")
 async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db)):
     """AI-extract an event from a mail and drop it straight into the calendar."""
     import json as _json
     from datetime import datetime
 
-    from core.database import CalendarEvent, ModelEndpoint
+    from core.database import ModelEndpoint
+    from services import calendar_events
     from services.llm import simple_complete
 
     ep = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
@@ -1057,26 +1069,35 @@ async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db))
     raw = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=300)
     raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     try:
-        data = _json.loads(raw)
-    except Exception:
-        raise HTTPException(502, "model returned unparseable output — try again")
-    if not data.get("found") or not data.get("start"):
+        decoded = _json.loads(raw)
+    except _json.JSONDecodeError:
+        raise HTTPException(502, "model returned unparseable output — try again") from None
+    try:
+        data = ExtractedEvent.model_validate(decoded)
+    except ValidationError:
+        raise HTTPException(502, "model returned invalid event data — try again") from None
+    if not data.found or not data.start:
         return {"found": False}
 
     desc = "from mail"
-    if data.get("location"):
-        desc += f" — {data['location']}"
-    ev = CalendarEvent(
-        title=(data.get("title") or body.subject or "event")[:200],
-        description=desc,
-        start_dt=str(data["start"]),
-        end_dt=str(data["end"]) if data.get("end") else None,
-        all_day=bool(data.get("all_day")),
-        color="accent",
-    )
-    db.add(ev)
-    db.commit()
-    db.refresh(ev)
+    if data.location:
+        desc += f" — {data.location}"
+    try:
+        ev = calendar_events.create_event(
+            db,
+            {
+                "title": (data.title or body.subject or "event")[:200],
+                "description": desc,
+                "start_dt": data.start,
+                "end_dt": data.end,
+                "all_day": data.all_day,
+                "color": "accent",
+            },
+        )
+    except HTTPException as exc:
+        if exc.status_code != 400:
+            raise
+        raise HTTPException(502, "model returned invalid event dates — try again") from None
     return {
         "found": True,
         "id": ev.id,
