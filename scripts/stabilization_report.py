@@ -46,7 +46,8 @@ BROWSER_SUITES = {
     "files": ("files-workflows", "files-upload-recovery", "files-transfer-clearance"),
     "gallery": ("gallery-workflows",),
     "pwa": ("pwa-offline", "pwa-storage", "pwa-rejection"),
-    "assistant": ("andromeda-cancellation", "aide-continuity", "aide-composer"),
+    "assistant": ("andromeda-cancellation", "aide-continuity", "aide-composer", "aide-questions"),
+    "questions": ("aide-questions",),
     "specialist": (
         "health-workflows",
         "finance-workflows",
@@ -76,6 +77,7 @@ BROWSER_SUITES = {
         "andromeda-cancellation",
         "aide-continuity",
         "aide-composer",
+        "aide-questions",
         "health-workflows",
         "finance-workflows",
         "library-workflows",

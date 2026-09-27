@@ -1249,9 +1249,19 @@ body:not(.is-aide) .aide-only { display: none !important; }
   background: color-mix(in srgb, var(--text) 5%, transparent);
   color: var(--text);
 }
-.aide-question-footer { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin-top: 0.85rem; }
-.aide-question-footer [data-question-status] { margin-right: auto; color: var(--dim); font-size: 0.75rem; }
-.aide-question-footer button { min-height: 40px; padding: 0 0.75rem; border: 0; border-radius: 4px; }
+.aide-question-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.5rem; margin-top: 0.85rem; }
+.aide-question-footer [data-question-status] {
+  flex: 1 1 12rem;
+  min-width: 0;
+  /* Reserve the error line so a failed save keeps its retry action in view. */
+  min-height: 1.45em;
+  line-height: 1.45;
+  margin-right: auto;
+  overflow-wrap: anywhere;
+  color: var(--dim);
+  font-size: 14px;
+}
+.aide-question-footer button { flex-shrink: 0; min-height: 44px; padding: 0 0.75rem; border: 0; border-radius: 4px; }
 .aide-question-cancel { background: transparent; color: var(--muted); }
 .aide-question-submit { background: var(--text); color: var(--bg); }
 .aide-question-footer button:disabled { opacity: 0.42; cursor: default; }

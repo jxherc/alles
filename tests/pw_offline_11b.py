@@ -137,7 +137,7 @@ def run() -> None:
                   return { names, urls };
                 }"""
             )
-            assert cached["names"] == ["alles-v269"], cached["names"]
+            assert cached["names"] == ["alles-v270"], cached["names"]
             for retired in ("files.js", "research.js", "ragquery.js", "aidebehavior.js"):
                 assert not any(f"/static/js/{retired}" in url for url in cached["urls"])
             assert any(url.endswith("/") for url in cached["urls"])
@@ -165,7 +165,7 @@ def run() -> None:
                         return match ? { status: match.status, size: (await match.clone().text()).length } : null;
                       })(),
                       appModuleKeys: await (async () => {
-                        const cache = await caches.open('alles-v269');
+                        const cache = await caches.open('alles-v270');
                         return (await cache.keys())
                           .map(request => request.url)
                           .filter(url => url.includes('/static/js/app.js'));

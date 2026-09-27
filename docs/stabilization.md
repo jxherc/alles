@@ -337,7 +337,17 @@ STAB-079, STAB-080 and STAB-086 for the tested local workflows.
 On 213bbdf the Gallery gate passed all 60 scenario runs, and the ledger now closes
 STAB-094 through STAB-103 and STAB-107 against named scenarios. The aide-composer
 gate closes STAB-106, STAB-108 and STAB-109. A subsequent question-card audit
-recorded STAB-111, clipped phone recovery labels after a failed answer save.
+reproduced STAB-111, clipped phone recovery labels after a failed answer save.
+The footer repair reserves room for the error, wraps its actions and preserves
+44px button targets. The new `aide-questions` gate fails against the previous CSS
+and passes all 16 answer/retry and cancellation executions across 1440px, 820px,
+390px and 320px in both themes. It checks retained mixed-language answers after a
+simulated 503 and exact stored answers or cancellation after reload. The final
+320px dark and 390px light failure screenshots were manually inspected.
+
+Native Mac Safari separately completed the question by keyboard and preserved its
+exact answers after reload. Its thumbnail-only capture still blocks native visual
+acceptance; the native check did not exercise the simulated save failure.
 Remaining workflow coverage, native Safari/iPhone and the seven-day trial also
 keep the release open.
 
@@ -360,6 +370,7 @@ The layout contract is in [decision 0012](../design-system/decisions/0012-minima
 | Capture or filter Plan tasks | Above the agenda |
 | Create or edit an event | Plan → calendar → + event or an event; start/end dates stay separate, recurring changes ask which occurrences to change |
 | Recover a failed Calendar load or save | Plan → calendar → the visible Retry action or retained event editor; unrelated load failures remain visible |
+| Retry or cancel an Aide question | Aide → the pending question card → Continue or Cancel; a failed save keeps the entered answers and visible error beside the recovery actions |
 | Edit a task or protect its unsaved changes | Plan → tasks → its title; Cancel, Escape or outside dismissal asks before discarding changed fields |
 | Recover conflicting or interrupted task edits | Plan → tasks → the editor; review both versions, download a draft, or confirm which changes to keep |
 | Continue editing if the visual document editor fails | Docs → Edit → Source; the visible loading/error status preserves the current buffer and Save action |

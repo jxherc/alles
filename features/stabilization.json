@@ -82,6 +82,26 @@
       ]
     },
     {
+      "id": "aide.question-answer-recovery",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "answer a pending question, recover a rejected save and reload",
+      "expected": "A simulated loopback provider's pending question reattaches after reload. Real keyboard or touch input selects single and multiple answers and free text. A deliberate HTTP 503 preserves answers, complete labels and reachable 44px recovery actions at phone and desktop widths in both themes. Retrying records the exact answer once in real local run history, retained after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": ["desktop", "phone"]
+    },
+    {
+      "id": "aide.question-cancel",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "cancel a pending question and reload the resumed conversation",
+      "expected": "The Cancel control records one explicit cancellation without invented answers. The simulated loopback provider receives the tool result, and the real local conversation resumes without a pending card after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": ["desktop", "phone"]
+    },
+    {
       "id": "aide.composer-responsive",
       "feature": "aide.conversation-and-execution",
       "app": "aide",
@@ -5648,7 +5668,7 @@
       "severity": "low",
       "screen": "Aide pending question card after a rejected answer save at 320px and 390px",
       "revision": "40334f5 plus coverage report repair; product CSS unchanged",
-      "status": "confirmed",
+      "status": "fixed-and-verified",
       "reproduction": [
         "Open a pending Aide question from a simulated loopback provider at phone width and dismiss the history drawer through its backdrop.",
         "Choose answers and enter a mixed-language note.",
@@ -5660,9 +5680,12 @@
       "evidence": [
         ".Codex/stabilization/2026-09-26-question-audit/run-3/results.json",
         ".Codex/stabilization/2026-09-26-question-audit/run-3/390-light/03-failure-draft.png",
-        ".Codex/stabilization/2026-09-26-question-audit/run-3/320-dark/03-failure-draft.png"
+        ".Codex/stabilization/2026-09-26-question-audit/run-3/320-dark/03-failure-draft.png",
+        ".Codex/stabilization/2026-09-26-question-audit/maintained-before-3/results.json",
+        ".Codex/stabilization/2026-09-26-question-audit/maintained-after/results.json",
+        ".Codex/stabilization/2026-09-26-question-audit/native-1/safari-question-result.json"
       ],
-      "verification": "A temporary browser-only CSS probe wraps the footer and preserves button widths; all three audited profiles pass the label-width assertion. This probe is diagnosis, not a shipped repair. Native Safari and physical iPhone remain unverified."
+      "verification": "The footer now wraps, buttons retain their label widths and 44px targets, and an empty status line reserves room for a failed save without moving recovery actions out of view. The maintained aide-questions gate fails on the previous CSS at 390px and passes all 16 answer/retry and cancellation scenario executions at 1440px, 820px, 390px and 320px in both themes. It checks actual keyboard/touch input, retained answers after a simulated 503, exact stored answer/cancellation after reload, geometry, hit targets and request errors. Final 320px dark and 390px light failure screenshots were manually inspected. Native Mac Safari separately saved an answer by keyboard and preserved its exact values after reload; thumbnail-only captures block native visual acceptance. Physical iPhone, native failure recovery and live providers remain unverified."
     }
   ],
   "additional_surfaces": [
