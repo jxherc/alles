@@ -1355,7 +1355,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1477 input"
+            "value": "static/js/app.js:1478 input"
           },
           "keys": [
             "native editing keys"
@@ -1434,7 +1434,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1477 input"
+            "value": "static/js/app.js:1478 input"
           },
           "keys": [
             "native editing keys"
@@ -1466,7 +1466,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1477 input"
+        "value": "static/js/app.js:1478 input"
       },
       "id": "static.7e57ab13df53",
       "kind": "field",
@@ -1581,7 +1581,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1471 click"
+            "value": "static/js/app.js:1472 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -1622,7 +1622,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1471 click"
+            "value": "static/js/app.js:1472 click"
           },
           "keys": [
             "Enter",
@@ -1655,7 +1655,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1471 click"
+        "value": "static/js/app.js:1472 click"
       },
       "id": "static.1fe37b0d9599",
       "kind": "action",
@@ -1775,7 +1775,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1566 click"
+            "value": "static/js/app.js:1567 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -1822,7 +1822,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1566 click"
+            "value": "static/js/app.js:1567 click"
           },
           "keys": [
             "Enter",
@@ -1855,7 +1855,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1566 click"
+        "value": "static/js/app.js:1567 click"
       },
       "id": "static.0e5694e7401c",
       "kind": "action",
@@ -2441,7 +2441,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1538 click; static/js/app.js:2181 click; static/js/app.js:2192 click"
+            "value": "static/js/app.js:1539 click; static/js/app.js:2182 click; static/js/app.js:2193 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -2494,7 +2494,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1538 click; static/js/app.js:2181 click; static/js/app.js:2192 click"
+            "value": "static/js/app.js:1539 click; static/js/app.js:2182 click; static/js/app.js:2193 click"
           },
           "keys": [
             "Enter",
@@ -2527,7 +2527,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1538 click; static/js/app.js:2181 click; static/js/app.js:2192 click"
+        "value": "static/js/app.js:1539 click; static/js/app.js:2182 click; static/js/app.js:2193 click"
       },
       "id": "static.1669f070b6d3",
       "kind": "action",
@@ -2635,7 +2635,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1565 click"
+            "value": "static/js/app.js:1566 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -2670,7 +2670,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1565 click"
+            "value": "static/js/app.js:1566 click"
           },
           "keys": [
             "Enter",
@@ -2703,7 +2703,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1565 click"
+        "value": "static/js/app.js:1566 click"
       },
       "id": "static.fbac007c0d1b",
       "kind": "menu-item",
@@ -2889,7 +2889,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1622 click"
+            "value": "static/js/app.js:1623 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -3002,7 +3002,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1622 click"
+            "value": "static/js/app.js:1623 click"
           },
           "keys": [
             "Enter",
@@ -3035,7 +3035,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1622 click"
+        "value": "static/js/app.js:1623 click"
       },
       "id": "static.d9f3325920d3",
       "kind": "icon-action",
@@ -3134,7 +3134,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1584 click; static/js/models.js:598 click"
+            "value": "static/js/app.js:1585 click; static/js/models.js:598 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -3156,7 +3156,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1584 click; static/js/models.js:598 click"
+            "value": "static/js/app.js:1585 click; static/js/models.js:598 click"
           },
           "keys": [
             "Enter",
@@ -3189,7 +3189,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1584 click; static/js/models.js:598 click"
+        "value": "static/js/app.js:1585 click; static/js/models.js:598 click"
       },
       "id": "static.0c6718314cf3",
       "kind": "action",
@@ -3455,7 +3455,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1581 click"
+            "value": "static/js/app.js:1582 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -3496,7 +3496,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1581 click"
+            "value": "static/js/app.js:1582 click"
           },
           "keys": [
             "Enter",
@@ -3529,7 +3529,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1581 click"
+        "value": "static/js/app.js:1582 click"
       },
       "id": "static.9902b761b38b",
       "kind": "action",
@@ -3878,7 +3878,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1589 click"
+            "value": "static/js/app.js:1590 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -3913,7 +3913,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1589 click"
+            "value": "static/js/app.js:1590 click"
           },
           "keys": [
             "Enter",
@@ -3946,7 +3946,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1589 click"
+        "value": "static/js/app.js:1590 click"
       },
       "id": "static.7a1e9669d039",
       "kind": "icon-action",
@@ -4092,7 +4092,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1494 click"
+            "value": "static/js/app.js:1495 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -4163,7 +4163,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1494 click"
+            "value": "static/js/app.js:1495 click"
           },
           "keys": [
             "Enter",
@@ -4196,7 +4196,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1494 click"
+        "value": "static/js/app.js:1495 click"
       },
       "id": "static.f201f73df8e5",
       "kind": "icon-action",
@@ -4304,7 +4304,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1534 click"
+            "value": "static/js/app.js:1535 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -4339,7 +4339,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1534 click"
+            "value": "static/js/app.js:1535 click"
           },
           "keys": [
             "Enter",
@@ -4374,7 +4374,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1534 click"
+        "value": "static/js/app.js:1535 click"
       },
       "id": "static.c346e925522f",
       "kind": "icon-action",
@@ -4500,7 +4500,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1500 click"
+            "value": "static/js/app.js:1501 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -4553,7 +4553,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1500 click"
+            "value": "static/js/app.js:1501 click"
           },
           "keys": [
             "Enter",
@@ -4586,7 +4586,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1500 click"
+        "value": "static/js/app.js:1501 click"
       },
       "id": "static.6a00587a9ff9",
       "kind": "icon-action",
@@ -4681,7 +4681,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1469 click"
+            "value": "static/js/app.js:1470 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -4703,7 +4703,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1469 click"
+            "value": "static/js/app.js:1470 click"
           },
           "keys": [
             "Enter",
@@ -4736,7 +4736,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1469 click"
+        "value": "static/js/app.js:1470 click"
       },
       "id": "static.caffbe47919b",
       "kind": "action",
@@ -5120,7 +5120,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1570 click"
+            "value": "static/js/app.js:1571 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -5431,7 +5431,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1570 click"
+            "value": "static/js/app.js:1571 click"
           },
           "keys": [
             "Enter",
@@ -5464,7 +5464,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1570 click"
+        "value": "static/js/app.js:1571 click"
       },
       "id": "static.87e9e1822f7d",
       "kind": "action",
@@ -12725,7 +12725,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1479 click"
+            "value": "static/js/app.js:1480 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -12747,7 +12747,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1479 click"
+            "value": "static/js/app.js:1480 click"
           },
           "keys": [
             "Enter",
@@ -12780,7 +12780,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1479 click"
+        "value": "static/js/app.js:1480 click"
       },
       "id": "static.bbb62cb0878e",
       "kind": "action",
@@ -12875,7 +12875,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1478 input"
+            "value": "static/js/app.js:1479 input"
           },
           "keys": [
             "native editing keys"
@@ -12899,7 +12899,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1478 input"
+            "value": "static/js/app.js:1479 input"
           },
           "keys": [
             "native editing keys"
@@ -12931,7 +12931,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1478 input"
+        "value": "static/js/app.js:1479 input"
       },
       "id": "static.c73794a471c9",
       "kind": "field",
@@ -13034,7 +13034,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1480 click"
+            "value": "static/js/app.js:1481 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -13063,7 +13063,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1480 click"
+            "value": "static/js/app.js:1481 click"
           },
           "keys": [
             "Enter",
@@ -13096,7 +13096,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1480 click"
+        "value": "static/js/app.js:1481 click"
       },
       "id": "static.fe86ab18e5b5",
       "kind": "action",
@@ -13191,7 +13191,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1481 click"
+            "value": "static/js/app.js:1482 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -13213,7 +13213,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1481 click"
+            "value": "static/js/app.js:1482 click"
           },
           "keys": [
             "Enter",
@@ -13246,7 +13246,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1481 click"
+        "value": "static/js/app.js:1482 click"
       },
       "id": "static.cd79ec5ad518",
       "kind": "action",
@@ -21415,7 +21415,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1634 keydown"
+            "value": "static/js/app.js:1635 keydown"
           },
           "keys": [
             "native editing keys"
@@ -21524,7 +21524,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1634 keydown"
+            "value": "static/js/app.js:1635 keydown"
           },
           "keys": [
             "handler-defined keys require source inspection"
@@ -21556,7 +21556,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1634 keydown"
+        "value": "static/js/app.js:1635 keydown"
       },
       "id": "static.92eccc27c643",
       "kind": "field",
@@ -21652,7 +21652,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1631 click"
+            "value": "static/js/app.js:1632 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -21674,7 +21674,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1631 click"
+            "value": "static/js/app.js:1632 click"
           },
           "keys": [
             "Enter",
@@ -21707,7 +21707,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1631 click"
+        "value": "static/js/app.js:1632 click"
       },
       "id": "static.e1e1fec3a589",
       "kind": "action",
@@ -24055,7 +24055,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1629 click"
+            "value": "static/js/app.js:1630 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -24096,7 +24096,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1629 click"
+            "value": "static/js/app.js:1630 click"
           },
           "keys": [
             "Enter",
@@ -24129,7 +24129,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1629 click"
+        "value": "static/js/app.js:1630 click"
       },
       "id": "static.80050a58fc69",
       "kind": "action",
@@ -38066,7 +38066,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1675 input"
+            "value": "static/js/app.js:1676 input"
           },
           "keys": [
             "native editing keys"
@@ -38109,7 +38109,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1675 input"
+            "value": "static/js/app.js:1676 input"
           },
           "keys": [
             "native editing keys"
@@ -38141,7 +38141,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1675 input"
+        "value": "static/js/app.js:1676 input"
       },
       "id": "static.ceb015747030",
       "kind": "field",
@@ -38985,7 +38985,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1677 click"
+            "value": "static/js/app.js:1678 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -39007,7 +39007,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1677 click"
+            "value": "static/js/app.js:1678 click"
           },
           "keys": [
             "Enter",
@@ -39040,7 +39040,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1677 click"
+        "value": "static/js/app.js:1678 click"
       },
       "id": "static.10c9a3d836e1",
       "kind": "action",
@@ -39135,7 +39135,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1678 change"
+            "value": "static/js/app.js:1679 change"
           },
           "keys": [
             "native editing keys"
@@ -39159,7 +39159,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1678 change"
+            "value": "static/js/app.js:1679 change"
           },
           "keys": [
             "value selection keys or pointer"
@@ -39191,7 +39191,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1678 change"
+        "value": "static/js/app.js:1679 change"
       },
       "id": "static.0328ecf68005",
       "kind": "field",
@@ -39857,7 +39857,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1676 click"
+            "value": "static/js/app.js:1677 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -39886,7 +39886,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1676 click"
+            "value": "static/js/app.js:1677 click"
           },
           "keys": [
             "Enter",
@@ -39919,7 +39919,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1676 click"
+        "value": "static/js/app.js:1677 click"
       },
       "id": "static.31efcf97294f",
       "kind": "action",
@@ -40227,7 +40227,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1535 click"
+            "value": "static/js/app.js:1536 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -40286,7 +40286,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1535 click"
+            "value": "static/js/app.js:1536 click"
           },
           "keys": [
             "Enter",
@@ -40319,7 +40319,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1535 click"
+        "value": "static/js/app.js:1536 click"
       },
       "id": "static.bfb5f92e4c79",
       "kind": "action",
@@ -51715,7 +51715,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1509 click"
+            "value": "static/js/app.js:1510 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -51737,7 +51737,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1509 click"
+            "value": "static/js/app.js:1510 click"
           },
           "keys": [
             "Enter",
@@ -51770,7 +51770,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1509 click"
+        "value": "static/js/app.js:1510 click"
       },
       "id": "static.12bb276c4582",
       "kind": "icon-action",
@@ -51865,7 +51865,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1511 keydown"
+            "value": "static/js/app.js:1512 keydown"
           },
           "keys": [
             "native editing keys"
@@ -51889,7 +51889,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1511 keydown"
+            "value": "static/js/app.js:1512 keydown"
           },
           "keys": [
             "handler-defined keys require source inspection"
@@ -51921,7 +51921,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1511 keydown"
+        "value": "static/js/app.js:1512 keydown"
       },
       "id": "static.c7cf1c6ad26b",
       "kind": "field",
@@ -52017,7 +52017,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1510 click"
+            "value": "static/js/app.js:1511 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -52039,7 +52039,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1510 click"
+            "value": "static/js/app.js:1511 click"
           },
           "keys": [
             "Enter",
@@ -52072,7 +52072,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1510 click"
+        "value": "static/js/app.js:1511 click"
       },
       "id": "static.f735111328cc",
       "kind": "action",
@@ -52576,7 +52576,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1647 paste; static/js/app.js:1434 keydown; static/js/app.js:1444 input; static/js/app.js:1445 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
+            "value": "static/js/app.js:1648 paste; static/js/app.js:1435 keydown; static/js/app.js:1445 input; static/js/app.js:1446 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
           },
           "keys": [
             "native editing keys"
@@ -53009,7 +53009,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1647 paste; static/js/app.js:1434 keydown; static/js/app.js:1444 input; static/js/app.js:1445 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
+            "value": "static/js/app.js:1648 paste; static/js/app.js:1435 keydown; static/js/app.js:1445 input; static/js/app.js:1446 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
           },
           "keys": [
             "handler-defined keys require source inspection"
@@ -53442,7 +53442,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1647 paste; static/js/app.js:1434 keydown; static/js/app.js:1444 input; static/js/app.js:1445 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
+            "value": "static/js/app.js:1648 paste; static/js/app.js:1435 keydown; static/js/app.js:1445 input; static/js/app.js:1446 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
           },
           "keys": [
             "native editing keys"
@@ -53474,7 +53474,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1647 paste; static/js/app.js:1434 keydown; static/js/app.js:1444 input; static/js/app.js:1445 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
+        "value": "static/js/app.js:1648 paste; static/js/app.js:1435 keydown; static/js/app.js:1445 input; static/js/app.js:1446 input; static/js/scrollfollow.js:79 input; static/js/sessions.js:569 keydown; static/js/sessions.js:573 blur"
       },
       "id": "static.98e168b2ccca",
       "kind": "field",
@@ -53578,7 +53578,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1639 click"
+            "value": "static/js/app.js:1640 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -53600,7 +53600,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1639 click"
+            "value": "static/js/app.js:1640 click"
           },
           "keys": [
             "Enter",
@@ -53633,7 +53633,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1639 click"
+        "value": "static/js/app.js:1640 click"
       },
       "id": "static.e16e2746aaf6",
       "kind": "action",
@@ -54078,7 +54078,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1526 click"
+            "value": "static/js/app.js:1527 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -54233,7 +54233,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1526 click"
+            "value": "static/js/app.js:1527 click"
           },
           "keys": [
             "Enter",
@@ -54266,7 +54266,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1526 click"
+        "value": "static/js/app.js:1527 click"
       },
       "id": "static.9c4edd3d5105",
       "kind": "action",
@@ -54408,7 +54408,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1533 click"
+            "value": "static/js/app.js:1534 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -54473,7 +54473,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1533 click"
+            "value": "static/js/app.js:1534 click"
           },
           "keys": [
             "Enter",
@@ -54506,7 +54506,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1533 click"
+        "value": "static/js/app.js:1534 click"
       },
       "id": "static.9effdba77435",
       "kind": "action",
@@ -54674,7 +54674,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1531 click"
+            "value": "static/js/app.js:1532 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -54769,7 +54769,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1531 click"
+            "value": "static/js/app.js:1532 click"
           },
           "keys": [
             "Enter",
@@ -54802,7 +54802,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1531 click"
+        "value": "static/js/app.js:1532 click"
       },
       "id": "static.ff56c5d6d1a5",
       "kind": "action",
@@ -54964,7 +54964,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1659 click"
+            "value": "static/js/app.js:1660 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -55053,7 +55053,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1659 click"
+            "value": "static/js/app.js:1660 click"
           },
           "keys": [
             "Enter",
@@ -55086,7 +55086,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1659 click"
+        "value": "static/js/app.js:1660 click"
       },
       "id": "static.b8fadda6f76b",
       "kind": "action",
@@ -55230,7 +55230,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1468 click"
+            "value": "static/js/app.js:1469 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -55301,7 +55301,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1468 click"
+            "value": "static/js/app.js:1469 click"
           },
           "keys": [
             "Enter",
@@ -55334,7 +55334,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1468 click"
+        "value": "static/js/app.js:1469 click"
       },
       "id": "static.629448013cdd",
       "kind": "action",
@@ -55514,7 +55514,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1447 click; static/js/app.js:1459 contextmenu; static/js/app.js:1463 keydown"
+            "value": "static/js/app.js:1448 click; static/js/app.js:1460 contextmenu; static/js/app.js:1464 keydown"
           },
           "keys": [],
           "modality": "pointer",
@@ -55621,7 +55621,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1447 click; static/js/app.js:1459 contextmenu; static/js/app.js:1463 keydown"
+            "value": "static/js/app.js:1448 click; static/js/app.js:1460 contextmenu; static/js/app.js:1464 keydown"
           },
           "keys": [
             "Enter",
@@ -55731,7 +55731,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1447 click; static/js/app.js:1459 contextmenu; static/js/app.js:1463 keydown"
+            "value": "static/js/app.js:1448 click; static/js/app.js:1460 contextmenu; static/js/app.js:1464 keydown"
           },
           "keys": [
             "ContextMenu",
@@ -55841,7 +55841,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1447 click; static/js/app.js:1459 contextmenu; static/js/app.js:1463 keydown"
+            "value": "static/js/app.js:1448 click; static/js/app.js:1460 contextmenu; static/js/app.js:1464 keydown"
           },
           "keys": [
             "handler-defined keys require source inspection"
@@ -55873,7 +55873,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1447 click; static/js/app.js:1459 contextmenu; static/js/app.js:1463 keydown"
+        "value": "static/js/app.js:1448 click; static/js/app.js:1460 contextmenu; static/js/app.js:1464 keydown"
       },
       "id": "static.ae251c79218b",
       "kind": "action",
@@ -55998,7 +55998,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1642 change"
+            "value": "static/js/app.js:1643 change"
           },
           "keys": [
             "native editing keys"
@@ -56035,7 +56035,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1642 change"
+            "value": "static/js/app.js:1643 change"
           },
           "keys": [
             "value selection keys or pointer"
@@ -56067,7 +56067,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1642 change"
+        "value": "static/js/app.js:1643 change"
       },
       "id": "static.78e76c4a9c2a",
       "kind": "field",
@@ -62211,7 +62211,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1585 click"
+            "value": "static/js/app.js:1586 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -62233,7 +62233,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1585 click"
+            "value": "static/js/app.js:1586 click"
           },
           "keys": [
             "Enter",
@@ -62266,7 +62266,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1585 click"
+        "value": "static/js/app.js:1586 click"
       },
       "id": "static.a814dfddc4ae",
       "kind": "action",
@@ -62368,7 +62368,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1586 input"
+            "value": "static/js/app.js:1587 input"
           },
           "keys": [
             "native editing keys"
@@ -62399,7 +62399,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1586 input"
+            "value": "static/js/app.js:1587 input"
           },
           "keys": [
             "native editing keys"
@@ -62431,7 +62431,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1586 input"
+        "value": "static/js/app.js:1587 input"
       },
       "id": "static.ddf535d3b2d4",
       "kind": "field",
@@ -83046,7 +83046,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1576 input"
+            "value": "static/js/app.js:1577 input"
           },
           "keys": [
             "native editing keys"
@@ -83070,7 +83070,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/app.js:1576 input"
+            "value": "static/js/app.js:1577 input"
           },
           "keys": [
             "native editing keys"
@@ -83102,7 +83102,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/app.js:1576 input"
+        "value": "static/js/app.js:1577 input"
       },
       "id": "static.75be3a2229f5",
       "kind": "field",
@@ -116164,7 +116164,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1295
+              "line": 1296
             },
             "status": "source-only",
             "tests": []
@@ -116186,7 +116186,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1295
+              "line": 1296
             },
             "status": "source-only",
             "tests": []
@@ -116285,9 +116285,9 @@
         "source": {
           "column": null,
           "file": "static/js/app.js",
-          "line": 1295
+          "line": 1296
         },
-        "source_selector": "static/js/app.js:1295:4",
+        "source_selector": "static/js/app.js:1296:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -116322,7 +116322,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1839
+              "line": 1840
             },
             "status": "source-only",
             "tests": []
@@ -116330,7 +116330,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1826 toggleMoreTools"
+            "value": "static/js/app.js:1827 toggleMoreTools"
           },
           "keys": [],
           "modality": "pointer",
@@ -116344,7 +116344,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1839
+              "line": 1840
             },
             "status": "source-only",
             "tests": []
@@ -116352,7 +116352,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1826 toggleMoreTools"
+            "value": "static/js/app.js:1827 toggleMoreTools"
           },
           "keys": [
             "Enter",
@@ -116390,7 +116390,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:1826 toggleMoreTools"
+        "value": "static/js/app.js:1827 toggleMoreTools"
       },
       "id": "dynamic.52f0cb1600d2",
       "kind": "menu-item",
@@ -116401,167 +116401,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/app.js:1826 toggleMoreTools"
-        ],
-        "external_destination": null,
-        "server_owner": "not-declared-in-template-source"
-      },
-      "recovery": {
-        "classification": "not-applicable",
-        "controls": [],
-        "reason": "the census does not infer a mutation from a control alone",
-        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
-      },
-      "states": {
-        "conditional_states": [],
-        "outcome_status": [
-          "source-classified-not-runtime-proven"
-        ],
-        "visual": [
-          "resting",
-          "hover",
-          "pressed",
-          "selected",
-          "disabled",
-          "busy",
-          "invalid",
-          "loading",
-          "empty",
-          "permission",
-          "offline",
-          "stale",
-          "partial",
-          "error"
-        ]
-      },
-      "surface": {
-        "instance_key": "runtime record value from data-tool",
-        "render_mode": "dynamic-template",
-        "root": null,
-        "runtime_selector": null,
-        "source": {
-          "column": null,
-          "file": "static/js/app.js",
-          "line": 1839
-        },
-        "source_selector": "static/js/app.js:1839:5",
-        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
-      },
-      "trigger_variants": [
-        {
-          "event": "click",
-          "keys": [],
-          "modality": "pointer",
-          "preconditions": []
-        },
-        {
-          "event": "activation",
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "preconditions": []
-        }
-      ]
-    },
-    {
-      "accessibility": {
-        "focus": "unknown until runtime evidence is attached",
-        "name": "link an app",
-        "relationships": {
-          "aria-expanded": "false",
-          "aria-haspopup": "menu"
-        },
-        "role": "menuitem"
-      },
-      "activation_paths": [
-        {
-          "event": "click",
-          "evidence": {
-            "source": {
-              "file": "static/js/app.js",
-              "kind": "control-source",
-              "line": 1840
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1826 toggleMoreTools"
-          },
-          "keys": [],
-          "modality": "pointer",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        },
-        {
-          "event": "activation",
-          "evidence": {
-            "source": {
-              "file": "static/js/app.js",
-              "kind": "control-source",
-              "line": 1840
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1826 toggleMoreTools"
-          },
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        }
-      ],
-      "authority": {
-        "busy_repeat": "not-declared-in-template-source",
-        "classification": "nearest-enclosing-controller",
-        "confirmation": "not-declared-in-template-source",
-        "guards": []
-      },
-      "construction": "markup-template",
-      "effect": {
-        "destructive": false,
-        "external": false,
-        "reversible": "not-declared-in-template-source",
-        "value": "source-effect-not-declared"
-      },
-      "evidence": {
-        "references": [],
-        "status": "programmatic-dom"
-      },
-      "feature_owner": "cross-feature.shared-shell",
-      "flags": [
-        "dynamic-template",
-        "cross-feature-owner",
-        "anonymous-source-anchor"
-      ],
-      "handler": {
-        "classification": "nearest-enclosing-controller",
-        "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:1826 toggleMoreTools"
-      },
-      "id": "dynamic.f44645edbb98",
-      "kind": "menu-item",
-      "label": {
-        "source": "text",
-        "value": "link an app"
-      },
-      "path": {
-        "api": [],
-        "client_functions": [
-          "static/js/app.js:1826 toggleMoreTools"
+          "static/js/app.js:1827 toggleMoreTools"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -116604,7 +116444,7 @@
           "file": "static/js/app.js",
           "line": 1840
         },
-        "source_selector": "static/js/app.js:1840:7",
+        "source_selector": "static/js/app.js:1840:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -116628,8 +116468,11 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "@${app.name}",
-        "relationships": {},
+        "name": "link an app",
+        "relationships": {
+          "aria-expanded": "false",
+          "aria-haspopup": "menu"
+        },
         "role": "menuitem"
       },
       "activation_paths": [
@@ -116639,7 +116482,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1888
+              "line": 1841
             },
             "status": "source-only",
             "tests": []
@@ -116647,7 +116490,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1878 openAppLinkMenu"
+            "value": "static/js/app.js:1827 toggleMoreTools"
           },
           "keys": [],
           "modality": "pointer",
@@ -116661,7 +116504,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1888
+              "line": 1841
             },
             "status": "source-only",
             "tests": []
@@ -116669,7 +116512,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1878 openAppLinkMenu"
+            "value": "static/js/app.js:1827 toggleMoreTools"
           },
           "keys": [
             "Enter",
@@ -116707,7 +116550,164 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:1878 openAppLinkMenu"
+        "value": "static/js/app.js:1827 toggleMoreTools"
+      },
+      "id": "dynamic.f44645edbb98",
+      "kind": "menu-item",
+      "label": {
+        "source": "text",
+        "value": "link an app"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/app.js:1827 toggleMoreTools"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-tool",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/app.js",
+          "line": 1841
+        },
+        "source_selector": "static/js/app.js:1841:7",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "@${app.name}",
+        "relationships": {},
+        "role": "menuitem"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/app.js",
+              "kind": "control-source",
+              "line": 1889
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/app.js:1879 openAppLinkMenu"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/app.js",
+              "kind": "control-source",
+              "line": 1889
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/app.js:1879 openAppLinkMenu"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "cross-feature.shared-shell",
+      "flags": [
+        "dynamic-template",
+        "cross-feature-owner",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/app.js:1879 openAppLinkMenu"
       },
       "id": "dynamic.6e34f7809d0a",
       "kind": "menu-item",
@@ -116718,7 +116718,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/app.js:1878 openAppLinkMenu"
+          "static/js/app.js:1879 openAppLinkMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -116759,9 +116759,9 @@
         "source": {
           "column": null,
           "file": "static/js/app.js",
-          "line": 1888
+          "line": 1889
         },
-        "source_selector": "static/js/app.js:1888:9",
+        "source_selector": "static/js/app.js:1889:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -116796,7 +116796,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1937
+              "line": 1938
             },
             "status": "source-only",
             "tests": []
@@ -116804,7 +116804,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1927 _openSchedulePop"
+            "value": "static/js/app.js:1928 _openSchedulePop"
           },
           "keys": [],
           "modality": "pointer",
@@ -116818,7 +116818,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1937
+              "line": 1938
             },
             "status": "source-only",
             "tests": []
@@ -116826,7 +116826,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1927 _openSchedulePop"
+            "value": "static/js/app.js:1928 _openSchedulePop"
           },
           "keys": [
             "Enter",
@@ -116863,7 +116863,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:1927 _openSchedulePop"
+        "value": "static/js/app.js:1928 _openSchedulePop"
       },
       "id": "dynamic.f561a4a24bdc",
       "kind": "action",
@@ -116876,7 +116876,7 @@
           "source-local:/api/reminders"
         ],
         "client_functions": [
-          "static/js/app.js:1927 _openSchedulePop"
+          "static/js/app.js:1928 _openSchedulePop"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -116917,9 +116917,9 @@
         "source": {
           "column": null,
           "file": "static/js/app.js",
-          "line": 1937
+          "line": 1938
         },
-        "source_selector": "static/js/app.js:1937:11",
+        "source_selector": "static/js/app.js:1938:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -116954,7 +116954,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1938
+              "line": 1939
             },
             "status": "source-only",
             "tests": []
@@ -116962,7 +116962,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1927 _openSchedulePop"
+            "value": "static/js/app.js:1928 _openSchedulePop"
           },
           "keys": [],
           "modality": "pointer",
@@ -116976,7 +116976,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 1938
+              "line": 1939
             },
             "status": "source-only",
             "tests": []
@@ -116984,7 +116984,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:1927 _openSchedulePop"
+            "value": "static/js/app.js:1928 _openSchedulePop"
           },
           "keys": [
             "Enter",
@@ -117021,7 +117021,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:1927 _openSchedulePop"
+        "value": "static/js/app.js:1928 _openSchedulePop"
       },
       "id": "dynamic.9dbb30df7b24",
       "kind": "action",
@@ -117034,7 +117034,7 @@
           "source-local:/api/reminders"
         ],
         "client_functions": [
-          "static/js/app.js:1927 _openSchedulePop"
+          "static/js/app.js:1928 _openSchedulePop"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -117075,9 +117075,9 @@
         "source": {
           "column": null,
           "file": "static/js/app.js",
-          "line": 1938
+          "line": 1939
         },
-        "source_selector": "static/js/app.js:1938:12",
+        "source_selector": "static/js/app.js:1939:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -117114,7 +117114,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2032
+              "line": 2033
             },
             "status": "source-only",
             "tests": []
@@ -117122,7 +117122,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2017 _openPermMenu"
+            "value": "static/js/app.js:2018 _openPermMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -117136,7 +117136,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2032
+              "line": 2033
             },
             "status": "source-only",
             "tests": []
@@ -117144,7 +117144,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2017 _openPermMenu"
+            "value": "static/js/app.js:2018 _openPermMenu"
           },
           "keys": [
             "Enter",
@@ -117182,7 +117182,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:2017 _openPermMenu"
+        "value": "static/js/app.js:2018 _openPermMenu"
       },
       "id": "dynamic.e5d49bdd86ba",
       "kind": "menu-item",
@@ -117193,7 +117193,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/app.js:2017 _openPermMenu"
+          "static/js/app.js:2018 _openPermMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -117234,9 +117234,9 @@
         "source": {
           "column": null,
           "file": "static/js/app.js",
-          "line": 2032
+          "line": 2033
         },
-        "source_selector": "static/js/app.js:2032:13",
+        "source_selector": "static/js/app.js:2033:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -117273,7 +117273,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2108
+              "line": 2109
             },
             "status": "source-only",
             "tests": []
@@ -117281,7 +117281,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -117295,7 +117295,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2108
+              "line": 2109
             },
             "status": "source-only",
             "tests": []
@@ -117303,7 +117303,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [
             "Enter",
@@ -117341,7 +117341,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:2081 _openEffortMenu"
+        "value": "static/js/app.js:2082 _openEffortMenu"
       },
       "id": "dynamic.76e08948f74e",
       "kind": "menu-item",
@@ -117352,7 +117352,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/app.js:2081 _openEffortMenu"
+          "static/js/app.js:2082 _openEffortMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -117393,9 +117393,9 @@
         "source": {
           "column": null,
           "file": "static/js/app.js",
-          "line": 2108
+          "line": 2109
         },
-        "source_selector": "static/js/app.js:2108:15",
+        "source_selector": "static/js/app.js:2109:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -117430,7 +117430,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2116
+              "line": 2117
             },
             "status": "source-only",
             "tests": []
@@ -117438,7 +117438,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -117452,7 +117452,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2116
+              "line": 2117
             },
             "status": "source-only",
             "tests": []
@@ -117460,7 +117460,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [
             "Enter",
@@ -117498,7 +117498,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:2081 _openEffortMenu"
+        "value": "static/js/app.js:2082 _openEffortMenu"
       },
       "id": "dynamic.19ad91895809",
       "kind": "action",
@@ -117509,7 +117509,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/app.js:2081 _openEffortMenu"
+          "static/js/app.js:2082 _openEffortMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -117550,9 +117550,9 @@
         "source": {
           "column": null,
           "file": "static/js/app.js",
-          "line": 2116
+          "line": 2117
         },
-        "source_selector": "static/js/app.js:2116:17",
+        "source_selector": "static/js/app.js:2117:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -117587,7 +117587,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2118
+              "line": 2119
             },
             "status": "source-only",
             "tests": []
@@ -117595,7 +117595,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -117609,7 +117609,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2118
+              "line": 2119
             },
             "status": "source-only",
             "tests": []
@@ -117617,7 +117617,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [
             "Enter",
@@ -117655,7 +117655,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:2081 _openEffortMenu"
+        "value": "static/js/app.js:2082 _openEffortMenu"
       },
       "id": "dynamic.17b08d2e606c",
       "kind": "action",
@@ -117666,7 +117666,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/app.js:2081 _openEffortMenu"
+          "static/js/app.js:2082 _openEffortMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -117707,9 +117707,9 @@
         "source": {
           "column": null,
           "file": "static/js/app.js",
-          "line": 2118
+          "line": 2119
         },
-        "source_selector": "static/js/app.js:2118:18",
+        "source_selector": "static/js/app.js:2119:18",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -117744,7 +117744,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2121
+              "line": 2122
             },
             "status": "source-only",
             "tests": []
@@ -117752,7 +117752,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -117766,7 +117766,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2121
+              "line": 2122
             },
             "status": "source-only",
             "tests": []
@@ -117774,7 +117774,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [
             "Enter",
@@ -117812,7 +117812,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:2081 _openEffortMenu"
+        "value": "static/js/app.js:2082 _openEffortMenu"
       },
       "id": "dynamic.26808a2e3a18",
       "kind": "action",
@@ -117823,164 +117823,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/app.js:2081 _openEffortMenu"
-        ],
-        "external_destination": null,
-        "server_owner": "not-declared-in-template-source"
-      },
-      "recovery": {
-        "classification": "not-applicable",
-        "controls": [],
-        "reason": "the census does not infer a mutation from a control alone",
-        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
-      },
-      "states": {
-        "conditional_states": [],
-        "outcome_status": [
-          "source-classified-not-runtime-proven"
-        ],
-        "visual": [
-          "resting",
-          "hover",
-          "pressed",
-          "selected",
-          "disabled",
-          "busy",
-          "invalid",
-          "loading",
-          "empty",
-          "permission",
-          "offline",
-          "stale",
-          "partial",
-          "error"
-        ]
-      },
-      "surface": {
-        "instance_key": "runtime record value from data-custom-key",
-        "render_mode": "dynamic-template",
-        "root": null,
-        "runtime_selector": null,
-        "source": {
-          "column": null,
-          "file": "static/js/app.js",
-          "line": 2121
-        },
-        "source_selector": "static/js/app.js:2121:19",
-        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
-      },
-      "trigger_variants": [
-        {
-          "event": "click",
-          "keys": [],
-          "modality": "pointer",
-          "preconditions": []
-        },
-        {
-          "event": "activation",
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "preconditions": []
-        }
-      ]
-    },
-    {
-      "accessibility": {
-        "focus": "unknown until runtime evidence is attached",
-        "name": "helpers ${custom.delegation}",
-        "relationships": {},
-        "role": "native button"
-      },
-      "activation_paths": [
-        {
-          "event": "click",
-          "evidence": {
-            "source": {
-              "file": "static/js/app.js",
-              "kind": "control-source",
-              "line": 2122
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
-          },
-          "keys": [],
-          "modality": "pointer",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        },
-        {
-          "event": "activation",
-          "evidence": {
-            "source": {
-              "file": "static/js/app.js",
-              "kind": "control-source",
-              "line": 2122
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
-          },
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        }
-      ],
-      "authority": {
-        "busy_repeat": "not-declared-in-template-source",
-        "classification": "nearest-enclosing-controller",
-        "confirmation": "not-declared-in-template-source",
-        "guards": []
-      },
-      "construction": "markup-template",
-      "effect": {
-        "destructive": false,
-        "external": false,
-        "reversible": "not-declared-in-template-source",
-        "value": "source-effect-not-declared"
-      },
-      "evidence": {
-        "references": [],
-        "status": "programmatic-dom"
-      },
-      "feature_owner": "cross-feature.shared-shell",
-      "flags": [
-        "dynamic-template",
-        "cross-feature-owner",
-        "anonymous-source-anchor"
-      ],
-      "handler": {
-        "classification": "nearest-enclosing-controller",
-        "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:2081 _openEffortMenu"
-      },
-      "id": "dynamic.f6078207ee3f",
-      "kind": "action",
-      "label": {
-        "source": "text",
-        "value": "helpers ${custom.delegation}"
-      },
-      "path": {
-        "api": [],
-        "client_functions": [
-          "static/js/app.js:2081 _openEffortMenu"
+          "static/js/app.js:2082 _openEffortMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -118023,7 +117866,7 @@
           "file": "static/js/app.js",
           "line": 2122
         },
-        "source_selector": "static/js/app.js:2122:20",
+        "source_selector": "static/js/app.js:2122:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -118047,7 +117890,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "workflows ${custom.workflows}",
+        "name": "helpers ${custom.delegation}",
         "relationships": {},
         "role": "native button"
       },
@@ -118066,7 +117909,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -118088,7 +117931,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [
             "Enter",
@@ -118126,18 +117969,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:2081 _openEffortMenu"
+        "value": "static/js/app.js:2082 _openEffortMenu"
       },
-      "id": "dynamic.b29935045c74",
+      "id": "dynamic.f6078207ee3f",
       "kind": "action",
       "label": {
         "source": "text",
-        "value": "workflows ${custom.workflows}"
+        "value": "helpers ${custom.delegation}"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/app.js:2081 _openEffortMenu"
+          "static/js/app.js:2082 _openEffortMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -118180,7 +118023,7 @@
           "file": "static/js/app.js",
           "line": 2123
         },
-        "source_selector": "static/js/app.js:2123:21",
+        "source_selector": "static/js/app.js:2123:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -118204,11 +118047,9 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "${label} ${desc}",
-        "relationships": {
-          "aria-checked": "${v === reasoning}"
-        },
-        "role": "menuitemradio"
+        "name": "workflows ${custom.workflows}",
+        "relationships": {},
+        "role": "native button"
       },
       "activation_paths": [
         {
@@ -118217,7 +118058,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2127
+              "line": 2124
             },
             "status": "source-only",
             "tests": []
@@ -118225,7 +118066,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -118239,7 +118080,7 @@
             "source": {
               "file": "static/js/app.js",
               "kind": "control-source",
-              "line": 2127
+              "line": 2124
             },
             "status": "source-only",
             "tests": []
@@ -118247,7 +118088,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/app.js:2081 _openEffortMenu"
+            "value": "static/js/app.js:2082 _openEffortMenu"
           },
           "keys": [
             "Enter",
@@ -118285,7 +118126,166 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/app.js:2081 _openEffortMenu"
+        "value": "static/js/app.js:2082 _openEffortMenu"
+      },
+      "id": "dynamic.b29935045c74",
+      "kind": "action",
+      "label": {
+        "source": "text",
+        "value": "workflows ${custom.workflows}"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/app.js:2082 _openEffortMenu"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-custom-key",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/app.js",
+          "line": 2124
+        },
+        "source_selector": "static/js/app.js:2124:21",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "${label} ${desc}",
+        "relationships": {
+          "aria-checked": "${v === reasoning}"
+        },
+        "role": "menuitemradio"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/app.js",
+              "kind": "control-source",
+              "line": 2128
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/app.js:2082 _openEffortMenu"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/app.js",
+              "kind": "control-source",
+              "line": 2128
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/app.js:2082 _openEffortMenu"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "cross-feature.shared-shell",
+      "flags": [
+        "dynamic-template",
+        "cross-feature-owner",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/app.js:2082 _openEffortMenu"
       },
       "id": "dynamic.42b30f86f61b",
       "kind": "menu-item",
@@ -118296,7 +118296,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/app.js:2081 _openEffortMenu"
+          "static/js/app.js:2082 _openEffortMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -118337,9 +118337,9 @@
         "source": {
           "column": null,
           "file": "static/js/app.js",
-          "line": 2127
+          "line": 2128
         },
-        "source_selector": "static/js/app.js:2127:22",
+        "source_selector": "static/js/app.js:2128:22",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
