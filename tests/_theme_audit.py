@@ -132,7 +132,7 @@ def main():
                             view + "-view"
                             if view in ("journal",)
                             else {
-                                "home": "home-view",
+                                "home": "today-view",
                                 "money": "money-view",
                                 "wiki": "wiki-view",
                                 "calendar": "calendar-view",

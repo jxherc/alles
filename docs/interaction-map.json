@@ -60,10 +60,10 @@
     },
     {
       "acceptance": "passed",
-      "acceptance_evidence": "Passed 2026-07-27: the isolated Home/Apps gate captured one task, opened all nine workbenches, and passed desktop/phone layout, keyboard, retry, focus, overflow, and clean-console checks.",
+      "acceptance_evidence": "Passed 2026-09-27: isolated desktop and phone Home gates checked capture, old routes, saved preferences, private day draft, suggestions, offline recovery, and clean console behavior. The nine-workbench gate passed 2026-07-27.",
       "app": "home",
       "authority_guards": [
-        "local Home state",
+        "server-owned Home preferences",
         "destination registry"
       ],
       "automated_tests": [
@@ -76,8 +76,7 @@
       "control_surfaces": [
         "body",
         "#app-drawer",
-        "#today-view",
-        "#home-view"
+        "#today-view"
       ],
       "external_blocks_or_gaps": [],
       "failure": "Local notices retain failure or offline state.",
@@ -104,7 +103,7 @@
       },
       "implementation": "shipped",
       "keyboard_focus": "Shell navigation and capture are keyboard-operable with focus return.",
-      "mutations": "Captures work and persists Home display preferences where enabled.",
+      "mutations": "Captures tasks or unique Docs documents and persists Home preferences on the server.",
       "recovery": "Retry is explicit where a Home section fails.",
       "risk": "medium",
       "success": "Captured work is visible and registered workbenches open.",

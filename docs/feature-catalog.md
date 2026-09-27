@@ -38,14 +38,14 @@ Capture work, review current context, open the nine workbenches, and receive loc
 - risk: `medium`
 - implementation: `shipped`
 - acceptance: `passed`
-- acceptance evidence: Passed 2026-07-27: the isolated Home/Apps gate captured one task, opened all nine workbenches, and passed desktop/phone layout, keyboard, retry, focus, overflow, and clean-console checks.
+- acceptance evidence: Passed 2026-09-27: isolated desktop and phone Home gates checked capture, old routes, saved preferences, private day draft, suggestions, offline recovery, and clean console behavior. The nine-workbench gate passed 2026-07-27.
 - platforms: `macos`, `linux`, `web`
 - dependencies: none
 - Aide tools: none
 - automated tests: `tests/test_home.py`, `tests/test_today_golden.py`, `tests/pw_afterlife_home_apps.py`
 - real-computer scenarios: `capture from Home`, `open every workbench`, `use Home at phone width`
 - route owners: `app`, `routes.today`, `routes.briefing`, `routes.notify`, `routes.push`, `routes.timeline`
-- control roots: `body`, `#app-drawer`, `#today-view`, `#home-view`
+- control roots: `body`, `#app-drawer`, `#today-view`
 - CLI commands: none
 - jobs: `day_events`, `reminders`, `calendar_reminders`
 - automation actions: none

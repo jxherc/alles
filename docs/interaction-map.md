@@ -13,7 +13,7 @@ The universal visible-state vocabulary is: `resting`, `hover`, `pressed`, `selec
 | feature | app | risk | implementation | acceptance | triggers | controls | tests |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | setup-security.owner-setup | setup | critical | shipped | passed | fresh owner setup<br>recent-owner reauthentication<br>resume interrupted setup | #setup-wizard | tests/test_api_setup.py<br>tests/test_auth.py<br>tests/test_server_config.py |
-| home.capture-and-navigation | home | medium | shipped | passed | capture from Home<br>open every workbench<br>use Home at phone width | body<br>#app-drawer<br>#today-view<br>#home-view | tests/test_home.py<br>tests/test_today_golden.py<br>tests/pw_afterlife_home_apps.py |
+| home.capture-and-navigation | home | medium | shipped | passed | capture from Home<br>open every workbench<br>use Home at phone width | body<br>#app-drawer<br>#today-view | tests/test_home.py<br>tests/test_today_golden.py<br>tests/pw_afterlife_home_apps.py |
 | aide.conversation-and-execution | aide | critical | shipped | blocked | complete an Auto task<br>arm Full Access<br>inspect a redacted audit | #chat<br>#project-view<br>#models-view<br>#model-modal<br>#brain-view<br>#reminders-view<br>#aide-scheduled-view<br>#skills-view<br>#usage-view<br>#aide-work-panel | tests/test_agent_tools.py<br>tests/test_agent_runtime.py<br>tests/test_policy.py<br>tests/js/aide_afterlife_shell.test.mjs |
 | aide.selectable-questions | aide | medium | shipped | blocked | answer by pointer<br>answer by keyboard<br>reload and resume<br>answer through Discord | none registered | tests/test_aide_questions.py<br>tests/test_agent_runtime.py<br>tests/test_jarvis_records.py<br>tests/test_jarvis_discord.py<br>tests/pw_aide_questions_real.py |
 | andromeda.cited-search | andromeda | medium | shipped | blocked | search and open citations<br>toggle verification<br>render failed checks honestly | #andromeda-view<br>#compare-view<br>#search-modal | tests/test_andromeda_phase4.py<br>tests/js/andromeda_phase4.test.mjs<br>tests/pw_afterlife_andromeda.py |
@@ -62,18 +62,18 @@ Install, initialize, authenticate, and safely configure one owner without exposi
 Capture work, review current context, open the nine workbenches, and receive local notices.
 
 - triggers: `capture from Home`, `open every workbench`, `use Home at phone width`
-- authority and guards: `local Home state`, `destination registry`
-- mutation or side effect: Captures work and persists Home display preferences where enabled.
+- authority and guards: `server-owned Home preferences`, `destination registry`
+- mutation or side effect: Captures tasks or unique Docs documents and persists Home preferences on the server.
 - visible states: `loading`, `ready`, `empty`, `partial`, `offline`, `error`, `busy`
 - success: Captured work is visible and registered workbenches open.
 - failure: Local notices retain failure or offline state.
 - recovery: Retry is explicit where a Home section fails.
 - busy and repeat: Shared KOKUEN controls reject re-entry while aria-busy is true; feature-specific exceptions are recorded as gaps.
 - keyboard and focus: Shell navigation and capture are keyboard-operable with focus return.
-- control surfaces: `body`, `#app-drawer`, `#today-view`, `#home-view`
+- control surfaces: `body`, `#app-drawer`, `#today-view`
 - function surfaces: `app`, `routes.today`, `routes.briefing`, `routes.notify`, `routes.push`, `routes.timeline`, `day_events`, `reminders`, `calendar_reminders`
 - automated tests: `tests/test_home.py`, `tests/test_today_golden.py`, `tests/pw_afterlife_home_apps.py`
-- acceptance evidence: Passed 2026-07-27: the isolated Home/Apps gate captured one task, opened all nine workbenches, and passed desktop/phone layout, keyboard, retry, focus, overflow, and clean-console checks.
+- acceptance evidence: Passed 2026-09-27: isolated desktop and phone Home gates checked capture, old routes, saved preferences, private day draft, suggestions, offline recovery, and clean console behavior. The nine-workbench gate passed 2026-07-27.
 - external blocks or gaps: none registered
 
 ## aide.conversation-and-execution
