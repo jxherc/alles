@@ -2264,9 +2264,10 @@
       "app": "settings",
       "workflow": "change interface language through real keyboard traversal",
       "expected": "Tab reaches the language group; arrow, Home and End navigation reaches enabled choices with visible focus and correct selected state. Traversal remains an unsaved draft until Save; the chosen language persists after reload.",
-      "status": "failed",
+      "status": "passed",
       "evidence": [
-        "/tmp/alles-settings-keyboard-followup/manifest.json"
+        "/tmp/alles-settings-keyboard-followup/manifest.json",
+        "/private/tmp/alles-stab-full-census.YkGvPC/results.json"
       ],
       "required_profiles": [
         "desktop",
@@ -5686,6 +5687,27 @@
         ".Codex/stabilization/2026-09-26-question-audit/native-1/safari-question-result.json"
       ],
       "verification": "The footer now wraps, buttons retain their label widths and 44px targets, and an empty status line reserves room for a failed save without moving recovery actions out of view. The maintained aide-questions gate fails on the previous CSS at 390px and passes all 16 answer/retry and cancellation scenario executions at 1440px, 820px, 390px and 320px in both themes. It checks actual keyboard/touch input, retained answers after a simulated 503, exact stored answer/cancellation after reload, geometry, hit targets and request errors. Final 320px dark and 390px light failure screenshots were manually inspected. Native Mac Safari separately saved an answer by keyboard and preserved its exact values after reload; thumbnail-only captures block native visual acceptance. Physical iPhone, native failure recovery and live providers remain unverified."
+    },
+    {
+      "id": "STAB-112",
+      "title": "Older contact load replaces a newer search error",
+      "severity": "medium",
+      "screen": "Inbox contacts list",
+      "revision": "2026-09-27 stabilization checkpoint",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Return from contact detail to the contacts list while its unfiltered GET remains in flight.",
+        "Search while the filtered GET returns HTTP 503, then let the older unfiltered GET resolve."
+      ],
+      "expected": "The newest search shows its recoverable error until Retry; an older response cannot replace it.",
+      "actual": "The list showed unfiltered contacts with the search field still filled, hiding the error and Retry action.",
+      "source_trace": "Overlapping loadContacts calls wrote to the same list without checking which request was newest.",
+      "evidence": [
+        "/private/tmp/alles-stab-full.uUEAqV/inbox-workflows/phone-dark-trace.zip",
+        "/private/tmp/alles-stab-full.uUEAqV/inbox-workflows/phone-dark-failure.png",
+        "tests/pw_inbox_workflows.py"
+      ],
+      "verification": "The maintained Inbox gate now holds an older successful response until after a newer simulated 503 and confirms the error remains visible before Retry. All four desktop/phone, light/dark profiles passed in the focused specialist run and the clean 35-gate full run. Native Safari and physical iPhone remain unverified."
     }
   ],
   "additional_surfaces": [

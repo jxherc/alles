@@ -137,11 +137,15 @@ def run() -> None:
                   return { names, urls };
                 }"""
             )
-            assert cached["names"] == ["alles-v270"], cached["names"]
+            style_href = page.locator('link[href^="/static/style.css"]').get_attribute("href")
+            assert style_href
+            app_href = style_href.replace("/static/style.css", "/static/js/app.js")
+            assert cached["names"] == ["alles-v271"], cached["names"]
             for retired in ("files.js", "research.js", "ragquery.js", "aidebehavior.js"):
                 assert not any(f"/static/js/{retired}" in url for url in cached["urls"])
             assert any(url.endswith("/") for url in cached["urls"])
-            assert any("/static/style.css?v=313" in url for url in cached["urls"])
+            assert any(url.endswith(style_href) for url in cached["urls"])
+            assert any(url.endswith(app_href) for url in cached["urls"])
             assert any("/static/kokuen.css?v=22" in url for url in cached["urls"])
             assert sum("/static/js/" in url for url in cached["urls"]) >= 20
             page.screenshot(path=str(OUTPUT / "pwa-plan-online-mobile.png"), full_page=True)
@@ -155,22 +159,23 @@ def run() -> None:
                 )
             except Exception:
                 diagnostic = page.evaluate(
-                    """async () => ({
+                    """async appHref => ({
                       url: location.href,
                       bodyClass: document.body.className,
                       scripts: [...document.scripts].map(script => script.src).filter(Boolean),
                       cacheNames: await caches.keys(),
                       appModule: await (async () => {
-                        const match = await caches.match('/static/js/app.js?v=313');
+                        const match = await caches.match(appHref);
                         return match ? { status: match.status, size: (await match.clone().text()).length } : null;
                       })(),
                       appModuleKeys: await (async () => {
-                        const cache = await caches.open('alles-v270');
+                        const cache = await caches.open('alles-v271');
                         return (await cache.keys())
                           .map(request => request.url)
                           .filter(url => url.includes('/static/js/app.js'));
                       })(),
-                    })"""
+                    })""",
+                    app_href,
                 )
                 page.screenshot(path=str(OUTPUT / "pwa-offline-boot-failure.png"), full_page=True)
                 print(
