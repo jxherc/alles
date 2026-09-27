@@ -11,6 +11,7 @@ export function normalizeAfterlifeFeatures(value) {
   const flags = { ...AFTERLIFE_FEATURE_DEFAULTS };
   if (!value || typeof value !== 'object' || Array.isArray(value)) return flags;
   for (const key of Object.keys(flags)) flags[key] = value[key] === true;
+  flags.afterlife_today = true; // accepted legacy flag; the one Home is always available
   return flags;
 }
 
@@ -30,7 +31,7 @@ export function activeAfterlifeSpaces(flags, available = { aide: true, today: tr
   const safe = normalizeAfterlifeFeatures(flags);
   if (!safe.afterlife_shell) return [];
   return [
-    safe.afterlife_today && available.today ? 'today' : '',
+    available.today ? 'today' : '',
     available.aide ? 'aide' : '',
     safe.afterlife_andromeda && available.andromeda ? 'andromeda' : '',
   ].filter(Boolean);

@@ -13,7 +13,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
-from core.build_info import afterlife_feature_flags
 from core.database import Subscription, Task, get_db
 from core.settings import load_settings, save_settings
 from services import signals
@@ -218,8 +217,7 @@ def today_view(
         "recent_docs": recent_docs,
         "partial_sources": partial_sources,
     }
-    if afterlife_feature_flags()["afterlife_today"]:
-        from services.today_sections import build
+    from services.today_sections import build
 
-        response["sections"] = build(db, response.copy())
+    response["sections"] = build(db, response.copy())
     return response
