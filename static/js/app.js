@@ -1504,13 +1504,24 @@ function _wireQuickCapture() {
     if (inp) inp.placeholder = _qcMode === 'task' ? 'capture a task…' : 'capture a note…';
   }));
   const submit = async () => {
+    if (!save || save.disabled) return;
     const text = (inp?.value || '').trim();
     if (!text) return;
+    const asTask = _qcMode === 'task';
     save.disabled = true;
-    const ok = await _quickCapture(text, _qcMode === 'task');
+    const result = await _quickCapture(text, asTask);
     save.disabled = false;
-    if (ok) { inp.value = ''; toast(_qcMode === 'task' ? 'task added' : 'note saved', 'success'); _renderToday(); }
-    else toast('capture failed', 'error');
+    if (result === 'saved' || result === 'queued') {
+      if (inp.value.trim() === text) inp.value = '';
+      if (result === 'queued') toast('task queued; it will sync when online');
+      else {
+        toast(asTask ? 'task added' : 'note saved', 'success');
+        _renderToday();
+      }
+    } else {
+      toast(asTask ? 'could not confirm task; check Plan before retrying' : 'could not confirm note; check Docs before retrying', 'error');
+      if (document.activeElement === save || document.activeElement === document.body) inp.focus();
+    }
   };
   save?.addEventListener('click', submit);
   inp?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
@@ -1526,18 +1537,16 @@ function _titleFromText(text) {
 async function _quickCapture(text, asTask) {
   try {
     if (asTask) {
-      await api('/api/tasks', { method: 'POST', body: { title: text } });
-      return true;
+      const result = await api('/api/tasks', { method: 'POST', body: { title: text } });
+      return result?.id ? 'saved' : result?.queued === true ? 'queued' : null;
     }
-    // a standalone note named from its content, with a free (non-clobbering) name
+    // the server allocates a free name atomically, without replacing an existing note
     const title = _titleFromText(text);
-    let taken = new Set();
-    try { taken = new Set(((await api('/api/vault-md/names')).names || []).map(n => n.toLowerCase())); } catch {}
-    let name = title, i = 2;
-    while (taken.has(name.toLowerCase())) name = `${title} ${i++}`;
-    await api('/api/vault-md/file', { method: 'POST', body: { path: name, content: text.trim() + '\n' } });
-    return true;
-  } catch { return false; }
+    const result = await api('/api/vault-md/file', {
+      method: 'POST', body: { path: title, content: text.trim() + '\n', unique: true },
+    });
+    return result?.created === true ? 'saved' : null;
+  } catch { return null; }
 }
 
 // ── today strip: events, tasks, reminders, renewals, mail, recent docs ──────

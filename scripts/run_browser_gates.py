@@ -63,6 +63,7 @@ COMMANDS = {
     "settings-context": ("tests/pw_settings_context.py",),
     "server-recovery": ("tests/pw_server_recovery.py",),
     "home-reminders": ("tests/pw_today_reminders.py",),
+    "home-capture": ("tests/pw_home_capture.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     "aide-composer": ("tests/pw_aide_composer.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),
@@ -194,6 +195,8 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
     with owned_data() as (data, run_id):
         port = free_port()
         env = isolated_environment(data, run_id, port, directory)
+        if name == "home-capture":
+            env["ALLES_AFTERLIFE_FEATURES"] = "afterlife_shell"
         result.update({"run_id": run_id, "port": port, "data_root": str(data)})
         server = gate = None
         try:
