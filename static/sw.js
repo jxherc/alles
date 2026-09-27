@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v280';   // Remove the duplicate legacy Home shell.
+const VERSION = 'v281';   // Keep command shortcuts available in the cached shell.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '324';   // keep in sync with index.html ?v= / const _v
+const STAMP = '325';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

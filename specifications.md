@@ -583,6 +583,7 @@ run from a hidden Aide Research toggle.
 | shortcut | does |
 |---|---|
 | **ctrl/cmd + k** | command palette: search everything (chats, docs, mail, tasks, calendar, money, subs, photos, …) + "ask aide" / "search with Andromeda" |
+| **/** | open the command palette when you are not typing in a field or Aide's composer |
 | **ctrl/cmd + o** | (in docs) quick-switch to any note by name |
 | **ctrl/cmd + f** | (in docs) find & replace inside the current note |
 | **ctrl/cmd + b** | toggle the sidebar |

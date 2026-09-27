@@ -1689,6 +1689,12 @@ function bindEvents() {
 
   document.addEventListener('keydown', e => {
     const shortcuts = loadShortcuts();
+    const commandK = e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey
+      && e.key.toLowerCase() === 'k' && !e.defaultPrevented
+      && !e.target?.closest?.('[role="dialog"], .docs-editor');
+    const slash = e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey;
+    const slashAllowed = slash && !e.isComposing && !e.defaultPrevented
+      && !e.target?.closest?.('input, textarea, select, [contenteditable], [role="textbox"], [role="combobox"], [role="dialog"], [role="menu"], [role="listbox"]');
     if (e.key === 'Escape') {
       const filesPreview = document.getElementById('files-preview-modal');
       if (filesPreview?.style.display !== 'none') return;
@@ -1701,7 +1707,7 @@ function bindEvents() {
       const ta = document.getElementById('composer-ta');
       if (ta && ta.offsetParent !== null) { e.preventDefault(); ta.focus(); }
     }
-    else if (matchesShortcut(e, shortcuts.search)) { e.preventDefault(); openSearch(); }
+    else if ((matchesShortcut(e, shortcuts.search) && (!slash || slashAllowed)) || commandK || slashAllowed) { e.preventDefault(); openSearch(); }
     else if (matchesSettingsShortcut(e, shortcuts.settings)) { e.preventDefault(); openSettings(); }
     else if (matchesShortcut(e, shortcuts.sidebar) && document.body.classList.contains('is-aide')) { e.preventDefault(); document.body.classList.toggle('sidebar-hidden'); }
     else if (matchesShortcut(e, shortcuts.new_chat)) { e.preventDefault(); document.getElementById('new-chat-btn')?.click(); }

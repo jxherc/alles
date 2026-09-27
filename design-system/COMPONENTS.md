@@ -76,6 +76,10 @@ Use a real search input with a visible or accessible label. Search may expand on
 
 ## universal command
 
+`Cmd-K` on Mac, the saved search shortcut, and `/` outside text entry open the same surface.
+`/` never interrupts typing, dialogs, menus, or Aide composer slash commands. Docs editing keeps
+its own key handling.
+
 Use one labelled modal dialog, one focused search input, and one listbox. The input owns
 `aria-activedescendant`; group labels are presentational; every actionable result is a semantic button
 with `role="option"`; and exactly one available result is active. Arrow keys move through results,
