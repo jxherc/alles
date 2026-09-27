@@ -213,18 +213,21 @@ def navigation(page, api, dest, profile, records):
             save_locale(page, language)
             page.reload()
             open_pane(page, "notifications")
+        nav_scroll = None
         for pane in ("rules", "credits", "backup"):
             page.keyboard.press("Tab")
             target = page.locator(f'.s-nav-item[data-pane="{pane}"]')
             expect(target).to_be_focused()
             expect(target).to_be_in_viewport()
             # Focus does not select another pane or snap the strip back to it.
-            observe(f"{language}-focus-{pane}")
+            state = observe(f"{language}-focus-{pane}")
+            if pane == "backup":
+                nav_scroll = state["navScroll"]
         page.keyboard.press("Tab")
         expect(page.locator(f'[data-locale-language="{language}"]')).to_be_focused()
         after = observe(f"{language}-controls-hover")
         if profile == "phone":
-            assert not next(t for t in after["tabs"] if t["active"])["visible"], after
+            assert after["navScroll"] == nav_scroll, after
         page.mouse.move(page.viewport_size["width"] - 1, 1)
         observe(f"{language}-controls-no-hover")
         assert tab_to(page, page.locator(".s-nav-item.active"), reverse=True) == 4

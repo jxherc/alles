@@ -3059,7 +3059,11 @@ function _markAccent() {
 }
 function _markMode() {
   const cur = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
-  document.querySelectorAll('.theme-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.themeMode === cur));
+  document.querySelectorAll('.theme-mode-btn').forEach(b => {
+    const selected = b.dataset.themeMode === cur;
+    b.classList.toggle('active', selected);
+    b.setAttribute('aria-pressed', String(selected));
+  });
 }
 function _loadThemeColorControls() {
   // theme mode buttons
