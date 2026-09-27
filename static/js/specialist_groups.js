@@ -591,6 +591,7 @@ async function _renderLibrary(target, request) {
   const records = [
     ...read.map(item => ({
       id: `saved:${item.id || item.url || item.title}`,
+      targetId: item.id,
       kind: item.source_kind === 'saved_news' ? 'saved news' : 'saved reading',
       title: item.title || item.url || 'untitled saved item',
       meta: item.site || item.url || item.status || 'saved',
@@ -599,6 +600,7 @@ async function _renderLibrary(target, request) {
     })),
     ...books.map(item => ({
       id: `book:${item.id || item.title}`,
+      targetId: item.id,
       kind: 'book',
       title: item.title || 'untitled book',
       meta: item.author || item.reading_state || 'book',
@@ -632,8 +634,21 @@ async function _renderLibrary(target, request) {
       return;
     }
     for (const record of visible) {
-      const button = _sectionJump('library', record.section, '', 'specialist-library-row');
+      const button = _el('button', 'specialist-library-row');
+      button.type = 'button';
       button.setAttribute('aria-label', `open ${record.kind}: ${record.title}`);
+      button.addEventListener('click', async () => {
+        if (!record.targetId) return;
+        const navigated = await window._navigateSpecialistSection?.('library', record.section);
+        if (!navigated || document.getElementById('library-view')?.dataset.section !== record.section) return;
+        if (record.section === 'read') {
+          const { openReadItem } = await import('./read.js');
+          await openReadItem(record.targetId);
+        } else {
+          const { focusBook } = await import('./books.js');
+          focusBook(record.targetId);
+        }
+      });
       button.append(
         _el('span', 'specialist-record-time', record.kind),
         _el('strong', 'specialist-record-title', record.title),

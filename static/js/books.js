@@ -76,7 +76,7 @@ function _cover(b) {
 function _card(b) {
   const others = SHELVES.map(([k]) => k).filter(k => k !== b.status);
   return `
-    <div class="book-card" data-id="${b.id}">
+    <div class="book-card" data-id="${b.id}" role="group" aria-label="book: ${esc(b.title)}" tabindex="-1">
       ${_cover(b)}
       <div class="book-info">
         <div class="book-title">${esc(b.title)}</div>
@@ -270,4 +270,15 @@ async function _create() {
   });
   if (!r.ok) { toast((await r.json()).detail || 'failed', 'error'); return; }
   _adding = false; _lookup = []; toast(`added ${title}`, 'success'); loadBooks();
+}
+
+export function focusBook(id) {
+  const card = [...document.querySelectorAll('#books-body .book-card')].find(item => item.dataset.id === id);
+  if (!card) {
+    toast('book is no longer available', 'error');
+    $('books-add-toggle')?.focus();
+    return false;
+  }
+  card.focus();
+  return true;
 }
