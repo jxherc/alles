@@ -57947,7 +57947,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/test_bootstate.py",
                 "kind": "existing-test-control-reference",
-                "line": 52
+                "line": 54
               }
             ]
           },
@@ -57976,7 +57976,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/test_bootstate.py",
                 "kind": "existing-test-control-reference",
-                "line": 52
+                "line": 54
               }
             ]
           },
