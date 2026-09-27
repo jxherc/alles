@@ -126,17 +126,17 @@ def main():
                 r["journal_renders"] = pg.is_visible("#docs-journal-section")
                 pg.close()
 
-            # ── cross-nav: from the hub, a tile jumps to its app subdomain ───────────
+            # ── cross-nav: from Home, a pinned app jumps to its subdomain ─────────────
             if _want("crossnav"):
                 mark("crossnav")
                 pg = b.new_page()
                 _wire(pg, errs)
                 pg.goto(f"http://{BASE}/", wait_until="domcontentloaded")
-                pg.wait_for_selector('.home-tile[data-go="money"]', timeout=15000)
+                pg.wait_for_selector('.today-shortcut[data-view="plan"]', timeout=15000)
                 pg.wait_for_timeout(500)
-                pg.eval_on_selector('.home-tile[data-go="money"]', "el => el.click()")
+                pg.eval_on_selector('.today-shortcut[data-view="plan"]', "el => el.click()")
                 pg.wait_for_timeout(1800)
-                r["crossnav_hub_to_app"] = "money" in pg.evaluate("() => location.hostname")
+                r["crossnav_hub_to_app"] = "plan" in pg.evaluate("() => location.hostname")
                 pg.screenshot(path=str(EVID / "final-crossnav.png"))
                 pg.close()
 

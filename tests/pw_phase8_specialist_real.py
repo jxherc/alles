@@ -627,7 +627,7 @@ def _group_overviews(browser: Browser, errors: list[str], width: int) -> None:
     assert parse_qs(urlparse(page.url).query).get("view") == ["plan"]
     page.locator("#app-drawer-btn").click()
     page.locator('.app-drawer-item[data-view="today"]').click()
-    page.locator("#today-view:visible, #home-view:visible").wait_for(state="visible")
+    page.locator("#today-view:visible").wait_for(state="visible")
     page.evaluate("window._navigateTo('plan')")
     page.locator(".specialist-workbench-plan").wait_for(state="visible")
     page.reload(wait_until="domcontentloaded")
