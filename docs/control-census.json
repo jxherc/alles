@@ -62623,6 +62623,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_route_parity.py",
+                "kind": "existing-test-control-reference",
+                "line": 39
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 205
@@ -62895,6 +62901,12 @@
                 "file": "tests/pw_home_preferences.py",
                 "kind": "existing-test-control-reference",
                 "line": 40
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_route_parity.py",
+                "kind": "existing-test-control-reference",
+                "line": 39
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
