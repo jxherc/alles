@@ -1288,6 +1288,7 @@ function _renderAppDrawer() {
     section.className = 'app-drawer-group';
     const heading = document.createElement('h3');
     heading.textContent = label === 'primary spaces' ? t('shell.main_spaces') : label;
+    if (label === 'primary spaces') heading.dataset.i18n = 'shell.main_spaces';
     section.appendChild(heading);
     const list = document.createElement('div');
     list.className = 'app-drawer-list';
