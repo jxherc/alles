@@ -140,7 +140,7 @@ def run() -> None:
             style_href = page.locator('link[href^="/static/style.css"]').get_attribute("href")
             assert style_href
             app_href = style_href.replace("/static/style.css", "/static/js/app.js")
-            assert cached["names"] == ["alles-v277"], cached["names"]
+            assert cached["names"] == ["alles-v278"], cached["names"]
             for retired in ("files.js", "research.js", "ragquery.js", "aidebehavior.js"):
                 assert not any(f"/static/js/{retired}" in url for url in cached["urls"])
             assert any(url.endswith("/") for url in cached["urls"])
@@ -169,7 +169,7 @@ def run() -> None:
                         return match ? { status: match.status, size: (await match.clone().text()).length } : null;
                       })(),
                       appModuleKeys: await (async () => {
-                        const cache = await caches.open('alles-v277');
+                        const cache = await caches.open('alles-v278');
                         return (await cache.keys())
                           .map(request => request.url)
                           .filter(url => url.includes('/static/js/app.js'));

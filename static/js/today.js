@@ -9,6 +9,7 @@ const SECTION_LABELS = {
   shortcuts: 'pinned apps',
 };
 const SHORTCUT_ALIASES = { calendar: 'plan', tasks: 'plan', days: 'plan', reminders: 'plan', mail: 'inbox', contacts: 'inbox', notes: 'wiki', journal: 'wiki', photos: 'files', gallery: 'files', books: 'library', read: 'library', habits: 'health', money: 'finance', subs: 'finance', secrets: 'vault', server: 'system', watch: 'system', activity: 'system' };
+const SUGGESTION_LINKS = new Set(['tasks', 'calendar', 'reminders', 'subs', 'days', 'habits', 'read', 'books', 'health', 'money', 'mail', 'journal', 'contacts', 'home']);
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -21,6 +22,7 @@ let legacyChecked = false;
 let apps = [];
 let data = null;
 let preferences = null;
+let suggestions = [];
 let clockTimer = null;
 let headingPeriod = '';
 let headingGreeting = '';
@@ -150,6 +152,57 @@ function pinnedAppsSection() {
   </section>`;
 }
 
+function suggestionSection() {
+  if (!suggestions.length) return '';
+  const rows = suggestions.map(item => {
+    const title = esc(item.title);
+    const body = item.body ? `<small>${esc(item.body)}</small>` : '';
+    const content = `<b>${title}</b>${body}`;
+    const open = SUGGESTION_LINKS.has(item.link)
+      ? `<button class="today-suggestion-open" type="button" data-suggestion-act="${esc(item.id)}" aria-label="${esc(`open ${item.title}`)}">${content}</button>`
+      : `<div class="today-suggestion-text">${content}</div>`;
+    return `<div class="today-suggestion">${open}
+      <button class="today-suggestion-dismiss" type="button" data-suggestion-dismiss="${esc(item.id)}" aria-label="${esc(`dismiss ${item.title}`)}">dismiss</button>
+      <small class="today-suggestion-status" role="status" hidden></small>
+    </div>`;
+  }).join('');
+  return `<section class="today-section today-suggestions" aria-label="suggestions">
+    <header><h2>suggestions</h2></header><div class="today-list">${rows}</div>
+  </section>`;
+}
+
+async function useSuggestion(button, action) {
+  const row = button.closest('.today-suggestion');
+  const id = button.dataset.suggestionAct || button.dataset.suggestionDismiss;
+  const item = suggestions.find(card => card.id === id);
+  if (!row || !item) return;
+  const index = suggestions.indexOf(item);
+  const controls = row.querySelectorAll('button');
+  controls.forEach(control => { control.disabled = true; });
+  try {
+    const result = await json(`/api/proactive/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
+    if (result?.ok !== true) throw new Error('unconfirmed suggestion');
+  } catch {
+    const status = row.querySelector('.today-suggestion-status');
+    if (status) {
+      status.textContent = 'could not confirm; check again when online';
+      status.hidden = false;
+    }
+    controls.forEach(control => { control.disabled = false; });
+    return;
+  }
+  suggestions = suggestions.filter(card => card.id !== id);
+  render();
+  if (document.getElementById('today-view')?.style.display === 'none') return;
+  if (action === 'act') {
+    try { await navigate(item.link); }
+    catch { showStatus('suggestion handled, but could not open its app'); }
+  } else {
+    const remaining = document.querySelectorAll('.today-suggestion-dismiss');
+    (remaining[Math.min(index, remaining.length - 1)] || document.getElementById('today-settings'))?.focus();
+  }
+}
+
 function render() {
   const root = document.getElementById('today-sections');
   if (!root || !data) return;
@@ -199,7 +252,7 @@ function render() {
   root.classList.toggle('compact', preferences?.density === 'compact');
   root.innerHTML = orderedVisibleHomeSections(preferences)
     .filter(key => (key !== 'in_progress' || running.length) && (key !== 'briefs' || briefs.length))
-    .map(key => blocks[key]).filter(Boolean).join('');
+    .map(key => blocks[key]).filter(Boolean).join('') + suggestionSection();
   root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', async () => {
     await navigate(button.dataset.view);
     if (button.dataset.aideSection) {
@@ -211,6 +264,8 @@ function render() {
   root.querySelector('[data-home-pinned-edit]')?.addEventListener('click', () => {
     document.getElementById('today-settings')?.click();
   });
+  root.querySelectorAll('[data-suggestion-act]').forEach(button => button.addEventListener('click', () => useSuggestion(button, 'act')));
+  root.querySelectorAll('[data-suggestion-dismiss]').forEach(button => button.addEventListener('click', () => useSuggestion(button, 'dismiss')));
 
   const summary = document.getElementById('today-summary');
   if (summary) {
@@ -280,9 +335,20 @@ async function load() {
     }
     preferences = normalizeTodayPreferences(savedPreferences, apps.map(item => item.view));
     if (!data) throw new Error(t('home.not_enabled'));
+    let suggestionsPartial = false;
+    try {
+      const cards = await json('/api/proactive');
+      if (generation !== loadGeneration) return false;
+      if (!Array.isArray(cards)) throw new Error('suggestions unavailable');
+      suggestions = cards.filter(item => typeof item?.id === 'string' && typeof item.title === 'string').slice(0, 4);
+    } catch {
+      if (generation !== loadGeneration) return false;
+      suggestions = [];
+      suggestionsPartial = true;
+    }
     if (generation !== loadGeneration) return false;
     render();
-    const partial = [...(today.partial_sources || []), ...(preferencesPartial ? ['customization'] : [])];
+    const partial = [...(today.partial_sources || []), ...(preferencesPartial ? ['customization'] : []), ...(suggestionsPartial ? ['suggestions'] : [])];
     if (partial.length) {
       showStatus(t('home.partial_sources', { sources: partial.join(', ').replaceAll('_', ' ') }));
       return false;

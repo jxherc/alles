@@ -68,6 +68,7 @@ COMMANDS = {
     "home-preferences": ("tests/pw_home_preferences.py",),
     "today-capture-confirm": ("tests/pw_today_capture_confirm.py",),
     "home-route-parity": ("tests/pw_home_route_parity.py",),
+    "home-suggestions": ("tests/pw_home_suggestions.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     "aide-composer": ("tests/pw_aide_composer.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),
