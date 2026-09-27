@@ -2946,6 +2946,16 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
   -webkit-line-clamp: 2;
 }
 .today-brief:hover p { color: color-mix(in srgb, var(--text) 72%, var(--muted)); }
+.today-suggestion { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px 12px; border-bottom: 1px solid var(--faint); }
+.today-suggestion-open, .today-suggestion-text { min-width: 0; min-height: 44px; padding: 8px 0; color: var(--text); text-align: left; }
+.today-suggestion-open { width: 100%; border: 0; background: transparent; font: inherit; cursor: pointer; }
+.today-suggestion-open:hover b { color: var(--signal); }
+.today-suggestion b { display: block; font-size: 0.88rem; font-weight: 520; overflow-wrap: anywhere; }
+.today-suggestion small { display: block; color: var(--muted); font-size: 0.76rem; line-height: 1.4; overflow-wrap: anywhere; }
+.today-suggestion-dismiss { min-width: 56px; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 0.75rem; cursor: pointer; }
+.today-suggestion-dismiss:hover { color: var(--text); }
+.today-suggestion .today-suggestion-status { grid-column: 1 / -1; color: var(--signal); padding-bottom: 8px; }
+.today-suggestion-status[hidden] { display: none; }
 .today-capture { min-height: 48px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: clamp(36px, 6vh, 52px); border-bottom: 1px solid var(--faint); }
 .today-capture:focus-within { border-bottom-color: var(--muted); }
 .today-capture-mode, .today-capture-send { min-width: 34px; min-height: 34px; border: 0; background: transparent; color: var(--muted); font: 500 0.75rem/1 var(--font-family, sans-serif); cursor: pointer; }
