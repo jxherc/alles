@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=323">
+<link rel="stylesheet" href="/static/style.css?v=324">
   <link rel="stylesheet" href="/static/kokuen.css?v=22">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -377,60 +377,6 @@
         </div>
       </aside>
     </section>
-
-    <!-- ── home / launcher (landing) ── -->
-    <div class="page-view home-view" id="home-view" style="display:none">
-      <div class="home-inner">
-        <div class="home-head">
-          <div class="home-brand">alles</div>
-          <div class="home-greeting" id="home-greeting"></div>
-          <div id="home-tagline" class="home-tagline">your everything, in one place</div>
-          <div class="home-head-actions">
-            <button type="button" class="btn" id="home-settings-btn" title="alles settings">settings</button>
-            <button type="button" class="btn home-edit-btn" id="home-edit-btn" title="rearrange & hide tiles">customize</button>
-          </div>
-        </div>
-        <div class="home-firstrun" id="home-firstrun" style="display:none"></div>
-        <!-- order: schedule → note/task capture → quick message → everything else.
-             schedule + capture share one box so their spacing reads as a single block. -->
-        <div class="home-board">
-          <div class="home-today" id="home-today" style="display:none"></div>
-          <div class="home-capture" id="home-capture">
-            <div class="hc-modes">
-              <button type="button" class="hc-mode active" data-mode="note">note</button>
-              <button type="button" class="hc-mode" data-mode="task">task</button>
-            </div>
-            <input type="text" id="hc-input" class="hc-input" placeholder="capture a note…" spellcheck="true" autocomplete="off">
-            <button type="button" class="btn primary hc-save" id="hc-save">save</button>
-          </div>
-        </div>
-
-        <!-- quick message to aide (plain) + a dedicated "about my day" rundown button -->
-        <div class="home-ask" id="home-ask">
-          <div class="home-ask-reply" id="home-ask-reply" style="display:none"></div>
-          <div class="home-ask-bar">
-            <input type="file" id="ha-file" hidden>
-            <button type="button" class="ha-tool" id="ha-upload" title="attach a text file" aria-label="attach">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-            </button>
-            <input type="text" id="ha-input" class="home-ask-input" placeholder="quick message…" autocomplete="off">
-            <button type="button" class="ha-tool" id="ha-voice" title="voice input" aria-label="voice">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-            </button>
-            <div id="ha-model" class="home-ask-model custom-select" title="model"></div>
-            <button type="button" class="btn primary ha-send" id="ha-send">send</button>
-          </div>
-        </div>
-
-        <!-- everything else -->
-        <div class="home-grid" id="home-grid"></div>
-
-        <div class="home-foot">
-          <span class="live-dot"></span>
-          <span id="home-clock"></span>
-        </div>
-      </div>
-    </div>
 
     <!-- ── chat view (default) ── -->
     <nav class="aide-message-rail" id="aide-message-rail" aria-label="messages from you" hidden>
@@ -2853,7 +2799,7 @@
 </div>
 
 <script type="module">
-const _v = '323';
+const _v = '324';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

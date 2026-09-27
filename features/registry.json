@@ -97,7 +97,7 @@
       ],
       "implementation": "shipped",
       "acceptance": "passed",
-      "notes": "Passed 2026-07-27: the isolated Home/Apps gate captured one task, opened all nine workbenches, and passed desktop/phone layout, keyboard, retry, focus, overflow, and clean-console checks.",
+      "notes": "Passed 2026-09-27: isolated desktop and phone Home gates checked capture, old routes, saved preferences, private day draft, suggestions, offline recovery, and clean console behavior. The nine-workbench gate passed 2026-07-27.",
       "coverage": {
         "route_modules": [
           "app",
@@ -110,8 +110,7 @@
         "control_roots": [
           "body",
           "#app-drawer",
-          "#today-view",
-          "#home-view"
+          "#today-view"
         ],
         "cli_commands": [],
         "jobs": [

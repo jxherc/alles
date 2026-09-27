@@ -5,7 +5,7 @@ light themes. boots nothing; needs a server up (AUTH off). exits non-zero on any
 
 asserts: across the light-bg presets, no visible text node in journal/home/money/aide or
 the login overlay sits below 3.0 WCAG contrast against its real (composited) background,
-except the deliberately-faint decorative #home-clock.
+with no contrast exceptions for the current Home.
 """
 
 import os
@@ -15,12 +15,7 @@ from playwright.sync_api import sync_playwright
 
 PORT = int(os.environ.get("AUDIT_PORT", "8823"))
 THRESH = 3.0
-ALLOW = {
-    "span#home-clock",  # giant decorative clock — faint by design on every theme
-    "button.hc-mode.active",  # app-wide active-chip pattern (accent text on 18% accent tint);
-    # legible (~2.4 on the palest accent) + marked by border+tint. a
-    # global accent-legibility pass is tracked separately, not #39.
-}
+ALLOW = set()
 
 THEMES = {
     "light": dict(bg="#f4f3f0", text="#242321", panel="#eeece8", faint="#d5d0c9", accent="#5960c7"),

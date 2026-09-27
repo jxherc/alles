@@ -1,12 +1,10 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, getSelected, getCurrentEndpoint, initModelModal, prettyModel, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=212';
-import { populateDropdown } from './dropdown.js?v=212';
+import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=212';
 import { icon, iconEl, ICON_NAMES } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
 import { chooseBootState } from './bootstate.js';
 import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
-import { providerKey } from './brandlogo.js';
 import { canSendMessage, sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
 import { loadTasks, addTask } from './tasks.js';
@@ -51,7 +49,7 @@ import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './short
 import { startReminderPoll, initReminderPanel } from './reminders.js?v=243';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
-import { cachedLocalizationSettings, calendarDateKey, configureLocalization, formatDate, formatDateTime, formatTime, prepareLocalization, resolvedTimeZone, t } from './i18n.js';
+import { cachedLocalizationSettings, configureLocalization, formatDateTime, prepareLocalization, t } from './i18n.js';
 import { cancelRecording as cancelVoiceRecording, isRecording as isVoiceRecording } from './voice.js';
 
 window._mdToHtml = mdToHtml;
@@ -643,7 +641,7 @@ init();
 
 // ── views ─────────────────────────────────────────────────────────────────────
 const _VIEW_IDS = [
-  'today-view', 'andromeda-view', 'home-view', 'chat', 'plan-view', 'inbox-view', 'library-view', 'health-group-view', 'finance-view', 'docs-workbench-view', 'files-workbench-view', 'vault-workbench-view', 'server-workbench-view', 'tasks-view', 'calendar-view', 'gallery-view',
+  'today-view', 'andromeda-view', 'chat', 'plan-view', 'inbox-view', 'library-view', 'health-group-view', 'finance-view', 'docs-workbench-view', 'files-workbench-view', 'vault-workbench-view', 'server-workbench-view', 'tasks-view', 'calendar-view', 'gallery-view',
   'models-view', 'brain-view', 'wiki-view', 'compare-view', 'vault-view', 'contacts-view',
   'reminders-view', 'aide-scheduled-view', 'files-view', 'mail-view', 'photos-view', 'subs-view', 'money-view', 'days-view', 'cookbook-view', 'usage-view', 'skills-view', 'activity-view', 'system-view', 'watch-view', 'habits-view', 'read-view', 'books-view', 'health-view',
   'project-view',
@@ -943,7 +941,6 @@ const showUsageView      = () => showView('usage-view',     'usage',     (track,
 const showFilesView      = () => showView('files-view',     'files',     (_track, request) => Promise.all([initFiles(request), loadFiles(undefined, request)]));
 const showMailView       = () => showView('mail-view',      'mail',      (_track, request) => loadMail(request));
 const showPhotosView     = () => showView('photos-view',    'photos',    (_track, request) => { initPhotos(); return loadPhotos(request); });
-const showHomeView       = () => { _setAfterlifeSpace(''); showView('home-view', 'home', renderHome); };
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
   const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=308'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts })));
@@ -1163,21 +1160,21 @@ const _ICON = {
 const _svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${_ICON[k] || ''}</svg>`;
 
 const HOME_TILES = [
-  { view: 'chat',     name: 'aide',     desc: 'chat, agent',     icon: 'chat' },
-  { view: 'plan',     name: 'plan',     desc: 'calendar, tasks, reminders', icon: 'calendar' },
-  { view: 'inbox',    name: 'inbox',    desc: 'mail & contacts', icon: 'mail' },
-  { view: 'library',  name: 'library',  desc: 'books & saved reading', icon: 'books' },
-  { view: 'health',   name: 'health',   desc: 'logs & habits', icon: 'health' },
-  { view: 'finance',  name: 'finance',  desc: 'money & subscriptions', icon: 'money' },
-  { view: 'wiki',     name: 'docs',     desc: 'linked notes',    icon: 'notes' },
-  { view: 'files',    name: 'files',    desc: 'your files',      icon: 'files' },
-  { view: 'photos',   name: 'gallery',  desc: 'photos',          icon: 'photos' },
-  { view: 'vault',    name: 'secrets',  desc: 'passwords',       icon: 'secrets' },
-  { view: 'days',     name: 'days',     desc: 'countdowns',      icon: 'days' },
-  { view: 'journal',  name: 'journal',  desc: 'daily entries',   icon: 'journal' },
-  { view: 'activity', name: 'activity', desc: 'everything, lately', icon: 'activity' },
-  { view: 'system',   name: 'system',   desc: 'live machine stats', icon: 'system' },
-  { view: 'watch',    name: 'watch',    desc: 'uptime & status',  icon: 'watch' },
+  { view: 'chat', name: 'aide' },
+  { view: 'plan', name: 'plan' },
+  { view: 'inbox', name: 'inbox' },
+  { view: 'library', name: 'library' },
+  { view: 'health', name: 'health' },
+  { view: 'finance', name: 'finance' },
+  { view: 'wiki', name: 'docs' },
+  { view: 'files', name: 'files' },
+  { view: 'photos', name: 'gallery' },
+  { view: 'vault', name: 'secrets' },
+  { view: 'days', name: 'days' },
+  { view: 'journal', name: 'journal' },
+  { view: 'activity', name: 'activity' },
+  { view: 'system', name: 'system' },
+  { view: 'watch', name: 'watch' },
 ];
 
 const HOME_PINNABLE_APPS = [
@@ -1321,14 +1318,10 @@ function closeAppDrawer() {
 window._navCommands = SHELL_GROUPS.flatMap(([, destinations]) => destinations)
   .map(destination => ({ view: destination.view, label: destination.name, hint: destination.desc }));
 
-// ── home tiles: drag-reorder + hide/show (persisted) + quick capture ─────────
+// Keep the old browser keys only to import a user's tile choices once.
 const HOME_ORDER_KEY = 'alles-home-order';
 const HOME_HIDDEN_KEY = 'alles-home-hidden';
-let _homeEdit = false, _homeAnimated = false, _dragView = null;
-
-const _homeOrder = () => { try { const value = JSON.parse(localStorage.getItem(HOME_ORDER_KEY) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } };
-const _homeHidden = () => { try { const value = JSON.parse(localStorage.getItem(HOME_HIDDEN_KEY) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } };
-function _orderedTiles(order = _homeOrder()) {
+function _orderedTiles(order) {
   const pos = new Map(order.map((v, i) => [v, i]));
   return [...HOME_TILES].sort((a, b) => (pos.get(a.view) ?? 999) - (pos.get(b.view) ?? 999));
 }
@@ -1348,409 +1341,17 @@ function readLegacyHomeShortcuts() {
   return _orderedTiles(order).filter(tile => !hiddenViews.has(tile.view)).map(tile => tile.view);
 }
 
-function renderHome() {
-  const grid = document.getElementById('home-grid');
-  if (!grid) return;
-  _renderHomeTiles();
-  _renderHomeGreeting();
-  _renderFirstRun();
-  _renderToday();
-  _startHomeClock();
-  _wireQuickCapture();
-  _wireHomeAsk();
-}
-
-// "ask aide about my day" — a simple, tool-free aide right on the home page, with
-// its own model switcher. pure chat (no research/agent), but day-aware: it tucks a
-// quick summary of today in front of your question so it can actually answer.
-let _haSession = null, _haAttach = '';
-async function _wireHomeAsk() {
-  const inp = document.getElementById('ha-input');
-  const sel = document.getElementById('ha-model');
-  const send = document.getElementById('ha-send');
-  const rep = document.getElementById('home-ask-reply');
-  if (!inp || inp.dataset.wired) return;
-  inp.dataset.wired = '1';
-  try {
-    const eps = await fetch('/api/models').then(r => r.json());
-    const withModels = eps.filter(e => (e.cached_models || e.models || []).length);
-    const opts = [];
-    for (const e of withModels) for (const m of (e.cached_models || e.models || []))
-      // model name + a glowing brand logo (endpoint still in the value)
-      opts.push({ value: `${e.id}::${m}`, label: prettyModel(m), icon: providerKey([e.provider, e.name, e.base_url, m].filter(Boolean).join(' ')) });
-    if (!opts.length) opts.push({ value: '', label: 'no model' });
-    // default to whatever model the app is already on, not the first of a huge list
-    const cur = getSelected();
-    const want = cur?.model ? `${cur.endpointId || getCurrentEndpoint()?.id}::${cur.model}` : null;
-    populateDropdown(sel, opts, opts.some(o => o.value === want) ? want : opts[0].value);
-  } catch {}
-
-  document.getElementById('ha-upload')?.addEventListener('click', () => document.getElementById('ha-file')?.click());
-  document.getElementById('ha-file')?.addEventListener('change', async e => {
-    const f = e.target.files[0]; if (!f) return;
-    try { _haAttach = `\n\n[attached ${f.name}]:\n` + (await f.text()).slice(0, 4000); toast(`attached ${f.name}`, 'success'); }
-    catch { toast('could not read that file', 'error'); }
-  });
-  document.getElementById('ha-voice')?.addEventListener('click', async () => {
-    try { (await import('./voice.js')).dictateInto?.(inp); }
-    catch { toast('voice input lives in the full aide', 'error'); }
-  });
-
-  // withDay=true → the "about my day" button: tuck today's summary in front (and ask for a
-  // rundown if the box is empty). withDay=false → a plain quick message to aide.
-  const ask = async (withDay) => {
-    let q = inp.value.trim();
-    if (!withDay && !q) return;
-    const [eid, model] = (sel.value || '::').split('::');
-    if (!eid) { toast('add a model in settings first', 'error'); return; }
-    rep.style.display = 'block'; rep.textContent = '…'; send.disabled = true;
-    let ctx = '';
-    if (withDay) {
-      try {
-        const d = await fetch(`/api/today?date=${calendarDateKey()}&timezone=${encodeURIComponent(resolvedTimeZone())}`).then(r => r.json());
-        const bits = [];
-        if (d.events?.length) bits.push('events: ' + d.events.map(e => `${e.time || 'all-day'} ${e.title}`).join('; '));
-        if (d.tasks?.overdue?.length) bits.push('overdue: ' + d.tasks.overdue.map(t => t.title).join('; '));
-        if (d.tasks?.due_today?.length) bits.push('due today: ' + d.tasks.due_today.map(t => t.title).join('; '));
-        if (d.reminders?.length) bits.push('reminders: ' + d.reminders.map(r => r.text).join('; '));
-        if (bits.length) ctx = `(my day so far: ${bits.join(' | ')})\n\n`;
-      } catch {}
-      if (!q) q = 'how is my day looking? give me a quick rundown.';
-    }
-    if (!_haSession) {
-      _haSession = (await fetch('/api/sessions', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: 'home: ask aide', model, endpoint_id: eid, incognito: true }) }).then(x => x.json())).id;
-    }
-    let text = '';
-    let pendingRender = false;
-    try {
-      const resp = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ session_id: _haSession, message: ctx + q + _haAttach, mode: 'chat', simple: true }) });
-      const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = '';
-      for (;;) {
-        const { done, value } = await reader.read(); if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let i;
-        while ((i = buf.indexOf('\n\n')) >= 0) {
-          const line = buf.slice(0, i); buf = buf.slice(i + 2);
-          if (line.startsWith('data: ')) {
-            const dd = line.slice(6); if (dd === '[DONE]') break;
-            try {
-              const ev = JSON.parse(dd);
-              if (ev.delta) {
-                text += ev.delta;
-                if (!pendingRender) {
-                  pendingRender = true;
-                  requestAnimationFrame(() => {
-                    rep.innerHTML = mdToHtml(text);
-                    pendingRender = false;
-                  });
-                }
-              }
-            } catch {}
-          }
-        }
-      }
-      rep.innerHTML = mdToHtml(text);
-    } catch { rep.textContent = 'failed: try again'; }
-    send.disabled = false; inp.value = ''; _haAttach = '';
-  };
-  send.addEventListener('click', () => ask(false));
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ask(false); } });
-  document.getElementById('ha-day')?.addEventListener('click', () => ask(true));
-}
-
 // server-owned first-run state resumes across browsers; browser storage never decides completion.
 async function _renderFirstRun() {
-  const el = document.getElementById('home-firstrun');
-  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   let st;
   try { st = await fetch('/api/setup/status').then(r => r.json()); }
-  catch { return; }   // never let this block the launcher
+  catch { return; }   // never let this block Home
   if (st.setup?.completed || st.setup?.dismissed) return;
   if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
   (await import('./setupwizard.js?v=284')).openSetupWizard({ status: st });
 }
 // let anything (a settings link, the command palette) re-run the wizard on demand
 window._openSetupWizard = async () => (await import('./setupwizard.js?v=284')).openSetupWizard({ resume: true });
-
-function _renderHomeTiles() {
-  const grid = document.getElementById('home-grid');
-  if (!grid) return;
-  const hidden = new Set(_homeHidden());
-  const tiles = _orderedTiles();
-  const shown = _homeEdit ? tiles : tiles.filter(t => !hidden.has(t.view));
-  grid.classList.toggle('editing', _homeEdit);
-  grid.classList.toggle('no-anim', _homeAnimated);
-  grid.innerHTML = shown.map((t, i) => {
-    const isHidden = hidden.has(t.view);
-    return `<div class="home-tile${isHidden ? ' hidden-tile' : ''}" data-go="${t.view}" draggable="${_homeEdit}" style="--i:${i}">
-      <span class="home-tile-icon">${_svg(t.icon || t.view)}</span>
-      <span class="home-tile-name">${t.name}</span>
-      <span class="home-tile-desc">${t.desc}</span>
-      ${_homeEdit ? `<button class="home-tile-toggle" data-toggle="${t.view}" title="${isHidden ? 'show' : 'hide'}">${isHidden ? '+' : '×'}</button>` : ''}
-    </div>`;
-  }).join('');
-  _homeAnimated = true;
-  grid.querySelectorAll('.home-tile').forEach(el => {
-    el.addEventListener('click', e => {
-      if (_homeEdit || e.target.closest('.home-tile-toggle')) return;
-      navigateTo(el.dataset.go);
-    });
-    if (_homeEdit) _bindTileDrag(el);
-  });
-  grid.querySelectorAll('.home-tile-toggle').forEach(b =>
-    b.addEventListener('click', e => { e.stopPropagation(); _toggleTileHidden(b.dataset.toggle); }));
-}
-
-function _toggleHomeEdit() {
-  _homeEdit = !_homeEdit;
-  const btn = document.getElementById('home-edit-btn');
-  if (btn) { btn.classList.toggle('active', _homeEdit); btn.textContent = _homeEdit ? 'done' : 'customize'; }
-  _renderHomeTiles();
-}
-function _toggleTileHidden(view) {
-  const h = new Set(_homeHidden());
-  h.has(view) ? h.delete(view) : h.add(view);
-  localStorage.setItem(HOME_HIDDEN_KEY, JSON.stringify([...h]));
-  _renderHomeTiles();
-}
-function _clearDropMarks() {
-  document.querySelectorAll('.home-tile.drop-before, .home-tile.drop-after')
-    .forEach(t => t.classList.remove('drop-before', 'drop-after'));
-}
-function _bindTileDrag(el) {
-  el.addEventListener('dragstart', e => { _dragView = el.dataset.go; e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
-  el.addEventListener('dragend', () => { el.classList.remove('dragging'); _dragView = null; _clearDropMarks(); });
-  el.addEventListener('dragover', e => {
-    if (!_dragView || el.dataset.go === _dragView) return;
-    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-    const r = el.getBoundingClientRect();
-    const after = e.clientX > r.left + r.width / 2;   // which side of the tile → where the bar shows
-    _clearDropMarks();
-    el.classList.add(after ? 'drop-after' : 'drop-before');
-  });
-  el.addEventListener('dragleave', () => el.classList.remove('drop-before', 'drop-after'));
-  el.addEventListener('drop', e => {
-    e.preventDefault();
-    const from = _dragView, to = el.dataset.go;
-    const after = el.classList.contains('drop-after');
-    _clearDropMarks();
-    if (!from || !to || from === to) return;
-    const order = _orderedTiles().map(t => t.view).filter(v => v !== from);
-    let idx = order.indexOf(to);
-    if (after) idx += 1;
-    order.splice(idx, 0, from);
-    localStorage.setItem(HOME_ORDER_KEY, JSON.stringify(order));
-    _renderHomeTiles();
-  });
-}
-
-// quick capture → today's daily note (bullet) or a task
-let _qcWired = false, _qcMode = 'note';
-function _wireQuickCapture() {
-  if (_qcWired) return; _qcWired = true;
-  const inp = document.getElementById('hc-input'), save = document.getElementById('hc-save');
-  document.getElementById('home-edit-btn')?.addEventListener('click', _toggleHomeEdit);
-  document.getElementById('home-settings-btn')?.addEventListener('click', () => openSettings('general', true));
-  document.querySelectorAll('.hc-mode').forEach(b => b.addEventListener('click', () => {
-    _qcMode = b.dataset.mode;
-    document.querySelectorAll('.hc-mode').forEach(x => x.classList.toggle('active', x === b));
-    if (inp) inp.placeholder = _qcMode === 'task' ? 'capture a task…' : 'capture a note…';
-  }));
-  const submit = async () => {
-    if (!save || save.disabled) return;
-    const text = (inp?.value || '').trim();
-    if (!text) return;
-    const asTask = _qcMode === 'task';
-    save.disabled = true;
-    const result = await _quickCapture(text, asTask);
-    save.disabled = false;
-    if (result === 'saved' || result === 'queued') {
-      if (inp.value.trim() === text) inp.value = '';
-      if (result === 'queued') toast('task queued; it will sync when online');
-      else {
-        toast(asTask ? 'task added' : 'note saved', 'success');
-        _renderToday();
-      }
-    } else {
-      toast(asTask ? 'could not confirm task; check Plan before retrying' : 'could not confirm note; check Docs before retrying', 'error');
-      if (document.activeElement === save || document.activeElement === document.body) inp.focus();
-    }
-  };
-  save?.addEventListener('click', submit);
-  inp?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
-}
-// derive a doc title from the note's text — its first line, cleaned up. so a quick
-// note names itself after what you wrote instead of getting a date stamp.
-function _titleFromText(text) {
-  let t = (text || '').trim().split('\n')[0].replace(/^#+\s*/, '').replace(/^[-*]\s+(\[[ xX]\]\s+)?/, '').trim();
-  t = t.replace(/[\\/:*?"<>|#\[\]]+/g, ' ').replace(/\s+/g, ' ').trim();
-  if (t.length > 60) t = t.slice(0, 60).replace(/\s+\S*$/, '').trim();   // don't cut mid-word
-  return t || 'note';
-}
-async function _quickCapture(text, asTask) {
-  try {
-    if (asTask) {
-      const result = await api('/api/tasks', { method: 'POST', body: { title: text } });
-      return result?.id ? 'saved' : result?.queued === true ? 'queued' : null;
-    }
-    // the server allocates a free name atomically, without replacing an existing note
-    const title = _titleFromText(text);
-    const result = await api('/api/vault-md/file', {
-      method: 'POST', body: { path: title, content: text.trim() + '\n', unique: true },
-    });
-    return result?.created === true ? 'saved' : null;
-  } catch { return null; }
-}
-
-// ── today strip: events, tasks, reminders, renewals, mail, recent docs ──────
-const _escT = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-async function _renderToday() {
-  const el = document.getElementById('home-today');
-  if (!el) return;
-  const dstr = calendarDateKey();
-  let d;
-  try { d = await fetch(`/api/today?date=${dstr}&timezone=${encodeURIComponent(resolvedTimeZone())}`).then(r => r.json()); }
-  catch { el.style.display = 'none'; return; }
-
-  // unread mail straight from the inbox cache — instant, no IMAP round-trip
-  let unread = [];
-  try {
-    for (const k of Object.keys(localStorage)) {
-      if (!k.startsWith('mail-cache-') || k.endsWith('-sent')) continue;
-      for (const m of JSON.parse(localStorage.getItem(k) || '[]')) {
-        if (!m.seen && !unread.find(x => x.uid === m.uid && x.account_id === m.account_id)) unread.push(m);
-      }
-    }
-  } catch {}
-
-  const rows = [];
-  const row = (go, icon, html) => rows.push(`<div class="ht-row" data-go="${go}"><span class="ht-ico">${icon}</span><span class="ht-body">${html}</span></div>`);
-
-  for (const e of d.events.slice(0, 4))
-    row('calendar', '◷', `${e.time ? `<b>${e.time}</b> ` : ''}${_escT(e.title)}`);
-  for (const t of d.tasks.overdue.slice(0, 3))
-    row('tasks', '!', `<span class="ht-warn">overdue</span> ${_escT(t.title)}`);
-  for (const t of d.tasks.due_today.slice(0, 3))
-    row('tasks', '☐', `due today: ${_escT(t.title)}`);
-  for (const r of d.reminders.slice(0, 3))
-    row('reminders', '◔', `<b>${r.at}</b> ${_escT(r.text)}`);
-  for (const s of d.renewing.slice(0, 3))
-    row('subs', '↻', `${_escT(s.name)} renews ${s.in_days === 0 ? 'today' : s.in_days === 1 ? 'tomorrow' : `in ${s.in_days}d`}${s.price ? `: ${_escT(s.currency)}${s.price}` : ''}`);
-  for (const e of d.day_events.slice(0, 2))
-    row('days', '⧗', `${_escT(e.name)} ${e.in_days === 0 ? 'is today' : `in ${e.in_days}d`}`);
-  if (unread.length)
-    row('mail', '✉', `${unread.length} unread: ${_escT((unread[0].subject || '').slice(0, 50))}`);
-
-  // proactive cards — advisory suggestions aide surfaced on its own
-  let cards = [];
-  try { cards = await fetch('/api/proactive').then(r => r.json()); } catch {}
-  for (const c of (cards || []).slice(0, 4))
-    rows.push(`<div class="ht-row ht-card" data-go="${c.link || 'home'}" data-act="${c.id}"><span class="ht-ico">✦</span><span class="ht-body">${_escT(c.title)}${c.body ? ` <span class="ht-sub">- ${_escT(c.body)}</span>` : ''}</span><button class="icon-btn ht-x" data-dismiss="${c.id}" title="dismiss">✕</button></div>`);
-
-  // recents aren't "today" items — when they're all we have, lead with the
-  // clear-day note so the strip still reads as a day view
-  const scheduled = rows.length;
-  for (const doc of (d.recent_docs || []).slice(0, 2))
-    row('wiki', '≡', `recent: ${_escT(doc.name)}`);
-
-  const empty = scheduled ? '' : '<div class="ht-empty">nothing scheduled. clear day ✨</div>';
-  el.innerHTML = `${empty}${rows.length ? `<div class="ht-rows">${rows.join('')}</div>` : ''}
-    <button class="btn" id="ht-ask">ask aide about my day</button>`;
-  el.style.display = 'flex';
-
-  el.querySelectorAll('.ht-row').forEach(r => r.addEventListener('click', () => {
-    // clicking a proactive card = acting on it -> teaches the feed to favor this card type (1a)
-    if (r.dataset.act) fetch(`/api/proactive/${r.dataset.act}/act`, { method: 'POST' }).catch(() => {});
-    navigateTo(r.dataset.go);
-  }));
-  el.querySelectorAll('.ht-x').forEach(b => b.addEventListener('click', async (ev) => {
-    ev.stopPropagation();
-    try { await fetch(`/api/proactive/${b.dataset.dismiss}/dismiss`, { method: 'POST' }); } catch {}
-    b.closest('.ht-row')?.remove();
-  }));
-  document.getElementById('ht-ask')?.addEventListener('click', () => _askAideAboutToday(d, unread));
-}
-
-function _askAideAboutToday(d, unread) {
-  const bits = [];
-  if (d.events.length) bits.push(`events: ${d.events.map(e => `${e.time || 'all-day'} ${e.title}`).join('; ')}`);
-  if (d.tasks.overdue.length) bits.push(`overdue tasks: ${d.tasks.overdue.map(t => t.title).join('; ')}`);
-  if (d.tasks.due_today.length) bits.push(`tasks due today: ${d.tasks.due_today.map(t => t.title).join('; ')}`);
-  if (d.reminders.length) bits.push(`reminders: ${d.reminders.map(r => `${r.at} ${r.text}`).join('; ')}`);
-  if (d.renewing.length) bits.push(`renewing soon: ${d.renewing.map(s => `${s.name} in ${s.in_days}d`).join('; ')}`);
-  if (unread.length) bits.push(`unread mail: ${unread.slice(0, 5).map(m => m.subject).join('; ')}`);
-  const ctx = bits.length ? `here's my day:\n${bits.join('\n')}` : 'my schedule is empty today.';
-  showChatView();
-  newChat();
-  sendMessage(`${ctx}\n\ngive me a short, friendly rundown of my day: what to do first, what can wait, anything i'm about to miss.`);
-}
-
-// a different one every visit — picked by time of day
-const _GREETINGS = {
-  night: ['still up?', 'the quiet hours', 'burning the midnight oil', 'night owl mode',
-          '3am thoughts?', "the world's asleep", 'moonlight session', 'late night, big ideas',
-          'insomnia or inspiration?', 'the night shift'],
-  morning: ['good morning', 'rise and shine', 'coffee first', 'a fresh one', 'up and at it',
-            'new day, clean slate', 'morning, sunshine', "let's get this day", 'early bird hours',
-            'the day is yours', 'ready when you are', 'top of the morning'],
-  afternoon: ['good afternoon', 'midday check-in', 'keeping the momentum', 'halfway there',
-              'afternoon focus', 'the day is in full swing', 'cruising along', 'post-lunch power',
-              'steady as she goes', 'making it count', 'deep in the day'],
-  evening: ['good evening', 'winding down?', 'home stretch', 'golden hour', 'evening calm',
-            'the night is young', 'lights low, focus up', "day's almost done", 'evening session',
-            'one more thing?', 'the day did its part'],
-};
-
-function _renderHomeGreeting() {
-  const el = document.getElementById('home-greeting');
-  if (!el) return;
-  const h = new Date().getHours();
-  const pool = h < 5 ? _GREETINGS.night : h < 12 ? _GREETINGS.morning
-             : h < 18 ? _GREETINGS.afternoon : _GREETINGS.evening;
-  const phrase = pool[Math.floor(Math.random() * pool.length)];
-  const name = (localStorage.getItem('alles-name') || '').trim();
-  el.replaceChildren();
-  if (name) {
-    // "still up, eric?" — the name slips in before any ?/! punctuation
-    const punct = /[?!]$/.test(phrase) ? phrase.slice(-1) : '';
-    el.appendChild(document.createTextNode((punct ? phrase.slice(0, -1) : phrase) + ', '));
-    const s = document.createElement('span');
-    s.className = 'accent';
-    s.textContent = name;
-    el.appendChild(s);
-    if (punct) el.appendChild(document.createTextNode(punct));
-  } else {
-    el.appendChild(document.createTextNode(phrase));
-  }
-  // greeting doubles as the way in to set your name
-  el.title = 'click to set your name';
-
-  if (!el.dataset.wired) {
-    el.dataset.wired = '1';
-    el.addEventListener('click', () => openSettings('general'));
-  }
-}
-
-let _homeClockTimer = null;
-function _startHomeClock() {
-  const tick = () => {
-    const el = document.getElementById('home-clock');
-    if (!el) return;
-    const now = new Date();
-    const date = formatDate(now, { weekday: 'long', month: 'long', day: 'numeric' }).toLowerCase();
-    const time = formatTime(now, { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-    el.textContent = `${date} · ${time}`;
-  };
-  tick();
-  if (!_startHomeClock.localeBound) {
-    _startHomeClock.localeBound = true;
-    window.addEventListener('alles:localization-change', tick);
-  }
-  if (!_homeClockTimer) _homeClockTimer = setInterval(tick, 20000);
-}
 
 // aide's tools live in the collapsible "tools" group
 const _moreViews = new Set(['gallery','brain','models','aide-reminders','subs','days']);

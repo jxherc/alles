@@ -24,7 +24,7 @@ class ControlCensusTest(unittest.TestCase):
 
     def test_every_record_has_a_unique_source_address_and_complete_visual_vocabulary(self):
         controls = self.document["controls"]
-        self.assertGreaterEqual(self.document["summary"]["static_controls"], 685)
+        self.assertGreaterEqual(self.document["summary"]["static_controls"], 675)
         self.assertGreater(self.document["summary"]["dynamic_templates"], 0)
         self.assertEqual(len({row["id"] for row in controls}), len(controls))
         for row in controls:
@@ -34,6 +34,13 @@ class ControlCensusTest(unittest.TestCase):
                 self.assertGreater(row["surface"]["source"]["line"], 0)
                 self.assertEqual(row["states"]["visual"], list(VISUAL_STATES))
                 self.assertIn(row["evidence"]["status"], self.document["evidence_levels"])
+
+    def test_home_controls_have_one_current_owner(self):
+        selectors = {row["surface"]["runtime_selector"] for row in self.document["controls"]}
+        self.assertIn("#today-capture-input", selectors)
+        self.assertIn("#today-ask-aide", selectors)
+        self.assertNotIn("#hc-input", selectors)
+        self.assertNotIn("#ha-send", selectors)
 
     def test_offline_recovery_factory_actions_remain_in_the_source_inventory(self):
         rows = [
