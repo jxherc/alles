@@ -62,6 +62,7 @@ class ContextHandoffBody(BaseModel):
     ask: str = Field(min_length=1, max_length=20_000)
     web: bool = False
     document_scope: ContextDocumentScope | None = None
+    delivery: Literal["send", "private_draft"] = "send"
 
 
 def _context_session(aide_session: str | None) -> str:

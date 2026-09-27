@@ -1649,8 +1649,8 @@ code {
 
 /* ── incognito mode: a dedicated screen (its own header, hero + exit) ── */
 .incognito-bar { display: none; }
-body.is-incognito .topbar { display: none; }
-body.is-incognito .incognito-bar {
+body.is-aide.is-incognito .topbar { display: none; }
+body.is-aide.is-incognito .incognito-bar {
   display: flex; align-items: center; justify-content: space-between;
   height: 46px; padding: 0 0.75rem 0 1.3rem;
   border-bottom: 1px solid var(--faint); flex-shrink: 0;
@@ -3730,7 +3730,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
   body.afterlife-aide-projects[data-space="aide"] .aide-project-context,
   body.afterlife-aide-projects[data-space="aide"] .aide-branch-context { max-width: 48%; }
   body.afterlife-aide-projects[data-space="aide"] .composer-ta { max-height: 120px; }
-  body.afterlife-aide-projects[data-space="aide"] .aide-model-choice { display: none; }
+  body.afterlife-aide-projects[data-space="aide"] .aide-model-choice { min-height: 44px; max-width: min(42vw, 160px); }
+  body.afterlife-aide-projects[data-space="aide"] #aide-model-choice-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   body.afterlife-aide-projects[data-space="aide"] #sidebar-toggle-btn,
   body.afterlife-aide-projects[data-space="aide"] .aide-work-panel-toggle { width: 44px; height: 44px; flex: 0 0 44px; }
   body.afterlife-aide-projects[data-space="aide"] .aide-message-rail { left: 3px; }
