@@ -71,6 +71,7 @@ COMMANDS = {
     "home-route-parity-off": ("tests/pw_home_route_parity.py",),
     "home-suggestions": ("tests/pw_home_suggestions.py",),
     "shell-command-shortcuts": ("tests/pw_shell_command_shortcuts.py",),
+    "shell-app-name": ("tests/pw_shell_app_name.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     "aide-composer": ("tests/pw_aide_composer.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),

@@ -572,12 +572,14 @@ def exercise(page, api, dest, profile, restart, records):
     )
     page.locator("#s-timezone-trigger").scroll_into_view_if_needed()
     rect = page.locator("#settings-modal .s-modal").bounding_box()
-    rail = page.locator("#space-rail").bounding_box()
-    assert rect["x"] >= 0 and rect["x"] + rect["width"] <= rail["x"] + 1
+    viewport = page.evaluate("document.documentElement.clientWidth")
+    overlay = page.locator("#settings-modal").bounding_box()
+    assert overlay["x"] >= -1 and overlay["width"] >= viewport - 1
+    assert rect["x"] >= 0 and rect["x"] + rect["width"] <= viewport + 1
     hit = page.locator("#s-timezone-trigger").evaluate(
         "e=>{let r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.right-5,r.y+r.height/2))}"
     )
-    assert hit, "rail covers the timezone control"
+    assert hit, "settings overlay covers the timezone control"
     page.locator("#s-timezone-trigger").click()
     expect(page.locator("#s-timezone-menu")).to_be_visible()
     shot("08-arabic-menu")
@@ -588,12 +590,12 @@ def exercise(page, api, dest, profile, restart, records):
     dialog = page.locator(".dialog-overlay .dialog-card")
     expect(dialog).to_be_visible()
     rect2 = dialog.bounding_box()
-    assert rect2["x"] >= 0 and rect2["x"] + rect2["width"] <= rail["x"] + 1
+    assert rect2["x"] >= 0 and rect2["x"] + rect2["width"] <= viewport + 1
     shot("09-arabic-confirm-dialog")
     page.keyboard.press("Escape")
     expect(dialog).to_be_hidden()
     expect(page.locator("#s-pidx-clear")).to_be_focused()
-    record("settings.rtl-overlay", settings_rect=rect, dialog_rect=rect2, rail_rect=rail)
+    record("settings.rtl-overlay", settings_rect=rect, dialog_rect=rect2, overlay_rect=overlay)
     pane("notifications")
     page.locator('[data-locale-language="en"]').click()
     locale_save()

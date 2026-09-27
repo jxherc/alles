@@ -35,7 +35,6 @@
     "paddingInline": { "$type": "dimension", "$value": "{space.control}" }
   },
   "shell": {
-    "railWidth": { "$type": "dimension", "$value": { "value": 52, "unit": "px" } },
     "navigationTarget": { "$type": "dimension", "$value": "{size.controlNormal}" },
     "sheetWidth": { "$type": "dimension", "$value": { "value": 420, "unit": "px" } }
   },

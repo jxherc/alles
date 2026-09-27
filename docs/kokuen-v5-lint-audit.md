@@ -12,12 +12,12 @@ ledger and is not established by this inventory.
 Historical lint review:
 
 - hard errors: 0
-- reviewed warnings: 192
+- reviewed warnings: 191
 - unexplained warnings: 0
 - `small-type`: 120 reviewed 12-13px secondary metadata or compact workbench labels. The hard 12px
   floor is preserved; interactive silhouettes remain at least 44px and primary text keeps the essential
   hierarchy.
-- `nested-boundary`: 72 reviewed control bezels or independent scroll/select/dialog/rail subregions.
+- `nested-boundary`: 71 reviewed control bezels or independent scroll/select/dialog subregions.
   The descendant and ancestor edges have distinct jobs and the rendered pass found no same-level double
   bezel.
 
@@ -56,3 +56,8 @@ The Server feedback and Settings context additions likewise retain the same
 192 warning semantics. Settings' persistent section name uses 14px essential text;
 its wrapping header and close target have narrow-width browser checks. Source
 positions are refreshed after the scoped rules are inserted.
+
+The September 27 app-name switcher removes the persistent rail and its border. The
+canonical audit now has 71 nested-boundary warnings rather than 72; small-type stays
+at 120 and there are no hard errors. The digest is refreshed for that removal and the
+shifted source lines. Rendered desktop/phone and settings checks remain separate proof.

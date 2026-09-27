@@ -161,9 +161,10 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
     )
     assert root.locator(":scope > .specialist-group-head").count() == 0
     assert header.locator("[data-specialist-home]").count() == 0
-    assert page.locator("#space-rail").is_visible()
+    assert page.locator("#space-rail").count() == 0
     shell_trigger = page.locator("#app-drawer-btn")
     assert shell_trigger.is_visible()
+    assert header.locator("#app-drawer-btn").count() == 1
     assert shell_trigger.evaluate(
         "element => element.getBoundingClientRect().width >= 44 && element.getBoundingClientRect().height >= 44"
     )
@@ -201,18 +202,20 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
     assert root.get_attribute("data-sidebar-collapsed") == "false"
     assert toggle.get_attribute("aria-expanded") == "true"
     if width <= 760:
-        assert round(root_box["x"]) == 52, root_box
-        assert round(root_box["width"]) == width - 52, root_box
-        assert round(tabs_box["width"]) == width - 52, tabs_box
+        assert round(root_box["x"]) == 0, root_box
+        assert round(root_box["width"]) == width, root_box
+        assert round(tabs_box["width"]) == width, tabs_box
         assert round(tabs_box["height"]) >= 44, tabs_box
-        clipped_tabs = header.locator('.specialist-group-tabs [role="tab"]').evaluate_all(
-            """tabs => tabs.filter(tab => {
-              const tabBox = tab.getBoundingClientRect();
-              const listBox = tab.parentElement.getBoundingClientRect();
-              return tabBox.left < listBox.left - 1 || tabBox.right > listBox.right + 1;
-            }).map(tab => tab.textContent.trim())"""
-        )
-        assert not clipped_tabs, clipped_tabs
+        tabs = header.locator('.specialist-group-tabs [role="tab"]')
+        for tab in tabs.all():
+            tab.scroll_into_view_if_needed()
+            assert tab.evaluate(
+                """element => {
+                  const tab = element.getBoundingClientRect();
+                  const strip = element.parentElement.getBoundingClientRect();
+                  return tab.left >= strip.left - 1 && tab.right <= strip.right + 1;
+                }"""
+            )
 
 
 def _assert_controls(page: Page) -> None:
@@ -397,9 +400,7 @@ def _exercise_case(
     _assert_no_overflow(page)
 
     selected = page.locator('#finance-view [role="tab"][aria-selected="true"]')
-    assert page.locator("#finance-tabs").get_attribute("aria-orientation") == (
-        "horizontal" if width <= 760 else "vertical"
-    )
+    assert page.locator("#finance-tabs").get_attribute("aria-orientation") == "horizontal"
     assert selected.get_attribute("aria-controls")
     assert page.locator(f"#{selected.get_attribute('aria-controls')}").get_attribute(
         "aria-labelledby"
