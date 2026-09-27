@@ -87,7 +87,84 @@ def run() -> None:
                 mode = _colors(selected)
                 assert mode["color"] == text and mode["background"] == raised
                 assert mode["border"] == line and mode["border"] != accent
+
+                presets = page.locator("#theme-editor-inline .te-presets")
+                expect(presets).to_have_attribute("role", "radiogroup")
+                default = presets.locator('[data-preset="default"]')
+                expect(default).to_have_attribute("aria-checked", "true")
+                assert _colors(default)["background"] == raised
+                assert _colors(default)["border"] == line
+                assert _colors(default)["border"] != accent
+
+                page.locator('#s-accent-swatches .accent-swatch[data-hex="#a78bfa"]').click()
+                expect(
+                    page.locator('#theme-editor-inline input[data-color="accent"]')
+                ).to_have_value("#a78bfa")
+
+                font = page.locator('#theme-editor-inline [data-seg="font"]')
+                expect(font).to_have_attribute("role", "radiogroup")
+                sans = font.locator('[data-val="sans"]')
+                mono = font.locator('[data-val="mono"]')
+                sans.focus()
+                sans.press("ArrowRight")
+                expect(mono).to_be_focused()
+                expect(mono).to_have_attribute("aria-checked", "true")
+                assert (page.locator("html").get_attribute("data-theme") or "dark") == theme
+                assert (
+                    page.evaluate(
+                        "JSON.parse(localStorage.getItem('alles-appearance')).colors.accent"
+                    )
+                    == "#a78bfa"
+                )
+                assert _colors(mono)["background"] == raised, (
+                    theme,
+                    _colors(mono),
+                    raised,
+                    mono.get_attribute("class"),
+                    mono.get_attribute("data-kokuen-state"),
+                )
+                assert _colors(mono)["color"] == text
+                mono.press("Home")
+                expect(sans).to_be_focused()
+                expect(sans).to_have_attribute("aria-checked", "true")
+
+                harmony = page.locator('#theme-editor-inline [data-seg="harmony-type"]')
+                expect(harmony).to_have_attribute("role", "radiogroup")
+                harmony.locator('[data-val="complementary"]').focus()
+                harmony.locator('[data-val="complementary"]').press("ArrowRight")
+                expect(harmony.locator('[data-val="analogous"]')).to_have_attribute(
+                    "aria-checked", "true"
+                )
+
+                sample = presets.locator(
+                    '[data-preset="sakura"]' if theme == "light" else '[data-preset="graphite"]'
+                )
+                sample.click()
+                expect(sample).to_be_focused()
+                expect(sample).to_have_attribute("aria-checked", "true")
+                assert _colors(sample)["background"] == _token(page, "--raised")
+                assert _colors(sample)["border"] == _token(page, "--line-strong")
+                assert _colors(sample)["border"] != _token(page, "--accent")
+                page.locator('#theme-editor-inline input[data-color="bg"]').evaluate(
+                    "el => { el.value = '#123456'; el.dispatchEvent(new Event('input', { bubbles: true })); }"
+                )
+                expect(presets.locator('[aria-checked="true"]')).to_have_count(0)
+                default.click()
+                expect(default).to_have_attribute("aria-checked", "true")
+                selected.click()
+                expect(page.locator("#s-pane-themes > .theme-save-state")).to_have_attribute(
+                    "data-state", "saved"
+                )
                 page.screenshot(path=str(output / f"settings-appearance-{width}-{theme}.png"))
+
+                if width == 1440:
+                    page.evaluate("document.body.style.zoom = '200%'")
+                    assert page.evaluate(
+                        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+                    )
+                    page.evaluate("document.body.style.zoom = ''")
+                font.scroll_into_view_if_needed()
+                page.screenshot(path=str(output / f"settings-editor-options-{width}-{theme}.png"))
 
                 page.locator('.s-nav-item[data-pane="general"]').click()
                 switch = page.locator("#s-welcome-toggle")
