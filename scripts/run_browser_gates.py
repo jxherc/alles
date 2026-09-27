@@ -47,6 +47,7 @@ COMMANDS = {
     "plan-workflows": ("tests/pw_plan_workflows.py",),
     "plan-recovery": ("tests/pw_plan_recovery.py",),
     "calendar-workflows": ("tests/pw_calendar_workflows.py",),
+    "mail-calendar-capture": ("tests/pw_mail_calendar_capture.py",),
     "calendar-metadata-picker": ("tests/pw_calendar_metadata_picker.py",),
     "pwa-offline": ("tests/pw_offline_11b.py",),
     "pwa-storage": ("tests/pw_offline_storage.py",),
