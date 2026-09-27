@@ -83234,7 +83234,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3100 input"
+            "value": "static/js/settings.js:3107 input"
           },
           "keys": [
             "native editing keys"
@@ -83258,7 +83258,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3100 input"
+            "value": "static/js/settings.js:3107 input"
           },
           "keys": [
             "native editing keys"
@@ -83290,7 +83290,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3100 input"
+        "value": "static/js/settings.js:3107 input"
       },
       "id": "static.5fafafd3d645",
       "kind": "field",
@@ -84688,7 +84688,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3128 click"
+        "value": "static/js/settings.js:3135 click"
       },
       "id": "static.ad9daacfe2f7",
       "kind": "action",
@@ -85127,7 +85127,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3106 click"
+            "value": "static/js/settings.js:3113 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -85149,7 +85149,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3106 click"
+            "value": "static/js/settings.js:3113 click"
           },
           "keys": [
             "Enter",
@@ -85182,7 +85182,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3106 click"
+        "value": "static/js/settings.js:3113 click"
       },
       "id": "static.e29840d898cf",
       "kind": "action",
@@ -85585,7 +85585,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3085 keydown"
+            "value": "static/js/settings.js:3092 keydown"
           },
           "keys": [
             "native editing keys"
@@ -85609,7 +85609,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3085 keydown"
+            "value": "static/js/settings.js:3092 keydown"
           },
           "keys": [
             "handler-defined keys require source inspection"
@@ -85641,7 +85641,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3085 keydown"
+        "value": "static/js/settings.js:3092 keydown"
       },
       "id": "static.9836bc798cae",
       "kind": "field",
@@ -85737,7 +85737,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3092 click"
+            "value": "static/js/settings.js:3099 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -85759,7 +85759,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3092 click"
+            "value": "static/js/settings.js:3099 click"
           },
           "keys": [
             "Enter",
@@ -85792,7 +85792,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3092 click"
+        "value": "static/js/settings.js:3099 click"
       },
       "id": "static.4bd9846911ba",
       "kind": "action",
@@ -89019,7 +89019,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3805 click"
+            "value": "static/js/settings.js:3812 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89041,7 +89041,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3805 click"
+            "value": "static/js/settings.js:3812 click"
           },
           "keys": [
             "Enter",
@@ -89074,7 +89074,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3805 click"
+        "value": "static/js/settings.js:3812 click"
       },
       "id": "static.224836749895",
       "kind": "action",
@@ -89214,7 +89214,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3821 click"
+            "value": "static/js/settings.js:3828 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89279,7 +89279,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3821 click"
+            "value": "static/js/settings.js:3828 click"
           },
           "keys": [
             "Enter",
@@ -89312,7 +89312,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3821 click"
+        "value": "static/js/settings.js:3828 click"
       },
       "id": "static.af5f0d771cb3",
       "kind": "switch",
@@ -89407,7 +89407,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3831 click"
+            "value": "static/js/settings.js:3838 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89429,7 +89429,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3831 click"
+            "value": "static/js/settings.js:3838 click"
           },
           "keys": [
             "Enter",
@@ -89462,7 +89462,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3831 click"
+        "value": "static/js/settings.js:3838 click"
       },
       "id": "static.2d3f6277b69a",
       "kind": "action",
@@ -89570,7 +89570,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3795 input"
+            "value": "static/js/settings.js:3802 input"
           },
           "keys": [
             "native editing keys"
@@ -89607,7 +89607,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3795 input"
+            "value": "static/js/settings.js:3802 input"
           },
           "keys": [
             "native editing keys"
@@ -89639,7 +89639,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3795 input"
+        "value": "static/js/settings.js:3802 input"
       },
       "id": "static.79a876798a68",
       "kind": "field",
@@ -89748,7 +89748,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3841 click"
+            "value": "static/js/settings.js:3848 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89783,7 +89783,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3841 click"
+            "value": "static/js/settings.js:3848 click"
           },
           "keys": [
             "Enter",
@@ -89816,7 +89816,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3841 click"
+        "value": "static/js/settings.js:3848 click"
       },
       "id": "static.f5514afe89a5",
       "kind": "action",
@@ -89911,7 +89911,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3857 click"
+            "value": "static/js/settings.js:3864 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89933,7 +89933,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3857 click"
+            "value": "static/js/settings.js:3864 click"
           },
           "keys": [
             "Enter",
@@ -89966,7 +89966,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3857 click"
+        "value": "static/js/settings.js:3864 click"
       },
       "id": "static.0395605844d5",
       "kind": "action",
@@ -90100,7 +90100,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3869 click"
+            "value": "static/js/settings.js:3876 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -90159,7 +90159,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3869 click"
+            "value": "static/js/settings.js:3876 click"
           },
           "keys": [
             "Enter",
@@ -90192,7 +90192,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3869 click"
+        "value": "static/js/settings.js:3876 click"
       },
       "id": "static.3de370dc85e0",
       "kind": "switch",
@@ -90654,7 +90654,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3892 click"
+            "value": "static/js/settings.js:3899 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -90676,7 +90676,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3892 click"
+            "value": "static/js/settings.js:3899 click"
           },
           "keys": [
             "Enter",
@@ -90709,7 +90709,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3892 click"
+        "value": "static/js/settings.js:3899 click"
       },
       "id": "static.351906cb6d2a",
       "kind": "action",
@@ -90804,7 +90804,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3910 click"
+            "value": "static/js/settings.js:3917 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -90826,7 +90826,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3910 click"
+            "value": "static/js/settings.js:3917 click"
           },
           "keys": [
             "Enter",
@@ -90859,7 +90859,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3910 click"
+        "value": "static/js/settings.js:3917 click"
       },
       "id": "static.da036e00fa6f",
       "kind": "action",
@@ -91568,7 +91568,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3538 click"
+            "value": "static/js/settings.js:3545 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -91590,7 +91590,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3538 click"
+            "value": "static/js/settings.js:3545 click"
           },
           "keys": [
             "Enter",
@@ -91623,7 +91623,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3538 click"
+        "value": "static/js/settings.js:3545 click"
       },
       "id": "static.5e75d432206e",
       "kind": "action",
@@ -91958,7 +91958,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4326 click"
+            "value": "static/js/settings.js:4333 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -91980,7 +91980,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4326 click"
+            "value": "static/js/settings.js:4333 click"
           },
           "keys": [
             "Enter",
@@ -92013,7 +92013,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4326 click"
+        "value": "static/js/settings.js:4333 click"
       },
       "id": "static.699ba5b23bd6",
       "kind": "action",
@@ -93250,7 +93250,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3666 click"
+            "value": "static/js/settings.js:3673 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -93272,7 +93272,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3666 click"
+            "value": "static/js/settings.js:3673 click"
           },
           "keys": [
             "Enter",
@@ -93305,7 +93305,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3666 click"
+        "value": "static/js/settings.js:3673 click"
       },
       "id": "static.55982dee59b7",
       "kind": "action",
@@ -100718,7 +100718,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4387 click"
+            "value": "static/js/settings.js:4394 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -100740,7 +100740,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4387 click"
+            "value": "static/js/settings.js:4394 click"
           },
           "keys": [
             "Enter",
@@ -100773,7 +100773,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4387 click"
+        "value": "static/js/settings.js:4394 click"
       },
       "id": "static.9b5e3d6605ac",
       "kind": "action",
@@ -100893,7 +100893,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4386 click"
+            "value": "static/js/settings.js:4393 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -100940,7 +100940,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4386 click"
+            "value": "static/js/settings.js:4393 click"
           },
           "keys": [
             "Enter",
@@ -100973,7 +100973,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4386 click"
+        "value": "static/js/settings.js:4393 click"
       },
       "id": "static.a4b0fb43a78a",
       "kind": "action",
@@ -106583,7 +106583,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4116 click"
+            "value": "static/js/settings.js:4123 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -106612,7 +106612,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4116 click"
+            "value": "static/js/settings.js:4123 click"
           },
           "keys": [
             "Enter",
@@ -106645,7 +106645,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4116 click"
+        "value": "static/js/settings.js:4123 click"
       },
       "id": "static.c0165f05bea6",
       "kind": "action",
@@ -106759,7 +106759,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4118 click"
+            "value": "static/js/settings.js:4125 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -106800,7 +106800,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4118 click"
+            "value": "static/js/settings.js:4125 click"
           },
           "keys": [
             "Enter",
@@ -106833,7 +106833,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4118 click"
+        "value": "static/js/settings.js:4125 click"
       },
       "id": "static.d6e6281f6402",
       "kind": "action",
@@ -108155,7 +108155,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4168 click"
+        "value": "static/js/settings.js:4175 click"
       },
       "id": "static.1181487964d1",
       "kind": "action",
@@ -108234,7 +108234,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4180 click"
+            "value": "static/js/settings.js:4187 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -108256,7 +108256,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4180 click"
+            "value": "static/js/settings.js:4187 click"
           },
           "keys": [
             "Enter",
@@ -108289,7 +108289,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4180 click"
+        "value": "static/js/settings.js:4187 click"
       },
       "id": "static.92e63043bd67",
       "kind": "action",
@@ -211847,7 +211847,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3079
+              "line": 3086
             },
             "status": "source-only",
             "tests": []
@@ -211855,7 +211855,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3068 _loadThemeColorControls"
+            "value": "static/js/settings.js:3075 _loadThemeColorControls"
           },
           "keys": [],
           "modality": "pointer",
@@ -211869,7 +211869,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3079
+              "line": 3086
             },
             "status": "source-only",
             "tests": []
@@ -211877,7 +211877,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3068 _loadThemeColorControls"
+            "value": "static/js/settings.js:3075 _loadThemeColorControls"
           },
           "keys": [
             "Enter",
@@ -211915,7 +211915,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3068 _loadThemeColorControls"
+        "value": "static/js/settings.js:3075 _loadThemeColorControls"
       },
       "id": "dynamic.cf7268fa8e76",
       "kind": "action",
@@ -211930,7 +211930,7 @@
           "source-local:/api/auth/me"
         ],
         "client_functions": [
-          "static/js/settings.js:3068 _loadThemeColorControls"
+          "static/js/settings.js:3075 _loadThemeColorControls"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -211971,9 +211971,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3079
+          "line": 3086
         },
-        "source_selector": "static/js/settings.js:3079:19",
+        "source_selector": "static/js/settings.js:3086:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212008,7 +212008,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3312
+              "line": 3319
             },
             "status": "source-only",
             "tests": []
@@ -212016,7 +212016,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3307 _buildPersonaAccents"
+            "value": "static/js/settings.js:3314 _buildPersonaAccents"
           },
           "keys": [],
           "modality": "pointer",
@@ -212030,7 +212030,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3312
+              "line": 3319
             },
             "status": "source-only",
             "tests": []
@@ -212038,7 +212038,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3307 _buildPersonaAccents"
+            "value": "static/js/settings.js:3314 _buildPersonaAccents"
           },
           "keys": [
             "Enter",
@@ -212076,7 +212076,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3307 _buildPersonaAccents"
+        "value": "static/js/settings.js:3314 _buildPersonaAccents"
       },
       "id": "dynamic.a704909e7ea1",
       "kind": "action",
@@ -212087,7 +212087,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/settings.js:3307 _buildPersonaAccents"
+          "static/js/settings.js:3314 _buildPersonaAccents"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212128,9 +212128,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3312
+          "line": 3319
         },
-        "source_selector": "static/js/settings.js:3312:20",
+        "source_selector": "static/js/settings.js:3319:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212165,7 +212165,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3314
+              "line": 3321
             },
             "status": "source-only",
             "tests": []
@@ -212173,7 +212173,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3307 _buildPersonaAccents"
+            "value": "static/js/settings.js:3314 _buildPersonaAccents"
           },
           "keys": [],
           "modality": "pointer",
@@ -212187,7 +212187,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3314
+              "line": 3321
             },
             "status": "source-only",
             "tests": []
@@ -212195,7 +212195,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3307 _buildPersonaAccents"
+            "value": "static/js/settings.js:3314 _buildPersonaAccents"
           },
           "keys": [
             "Enter",
@@ -212233,7 +212233,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3307 _buildPersonaAccents"
+        "value": "static/js/settings.js:3314 _buildPersonaAccents"
       },
       "id": "dynamic.2ba5f906defc",
       "kind": "action",
@@ -212244,7 +212244,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/settings.js:3307 _buildPersonaAccents"
+          "static/js/settings.js:3314 _buildPersonaAccents"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212285,9 +212285,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3314
+          "line": 3321
         },
-        "source_selector": "static/js/settings.js:3314:21",
+        "source_selector": "static/js/settings.js:3321:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212322,7 +212322,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3345
+              "line": 3352
             },
             "status": "source-only",
             "tests": []
@@ -212330,7 +212330,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3334 _fillPersonaModels"
+            "value": "static/js/settings.js:3341 _fillPersonaModels"
           },
           "keys": [
             "native editing keys"
@@ -212368,7 +212368,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3334 _fillPersonaModels"
+        "value": "static/js/settings.js:3341 _fillPersonaModels"
       },
       "id": "dynamic.a5c816dce749",
       "kind": "field",
@@ -212379,7 +212379,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/settings.js:3334 _fillPersonaModels"
+          "static/js/settings.js:3341 _fillPersonaModels"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212420,9 +212420,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3345
+          "line": 3352
         },
-        "source_selector": "static/js/settings.js:3345:22",
+        "source_selector": "static/js/settings.js:3352:22",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212485,7 +212485,7 @@
           "source-local:/api/personas"
         ],
         "client_functions": [
-          "static/js/settings.js:3348 loadPersonas"
+          "static/js/settings.js:3355 loadPersonas"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212526,9 +212526,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3358
+          "line": 3365
         },
-        "source_selector": "static/js/settings.js:3358:23",
+        "source_selector": "static/js/settings.js:3365:23",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -212547,7 +212547,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3361
+              "line": 3368
             },
             "status": "source-only",
             "tests": []
@@ -212569,7 +212569,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3361
+              "line": 3368
             },
             "status": "source-only",
             "tests": []
@@ -212629,7 +212629,7 @@
           "source-local:/api/personas"
         ],
         "client_functions": [
-          "static/js/settings.js:3348 loadPersonas"
+          "static/js/settings.js:3355 loadPersonas"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212670,9 +212670,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3361
+          "line": 3368
         },
-        "source_selector": "static/js/settings.js:3361:24",
+        "source_selector": "static/js/settings.js:3368:24",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212707,7 +212707,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3362
+              "line": 3369
             },
             "status": "source-only",
             "tests": []
@@ -212729,7 +212729,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3362
+              "line": 3369
             },
             "status": "source-only",
             "tests": []
@@ -212789,7 +212789,7 @@
           "source-local:/api/personas"
         ],
         "client_functions": [
-          "static/js/settings.js:3348 loadPersonas"
+          "static/js/settings.js:3355 loadPersonas"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212830,9 +212830,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3362
+          "line": 3369
         },
-        "source_selector": "static/js/settings.js:3362:26",
+        "source_selector": "static/js/settings.js:3369:26",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212867,7 +212867,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3399
+              "line": 3406
             },
             "status": "source-only",
             "tests": []
@@ -212875,7 +212875,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3391 _loadPersonaDocs"
+            "value": "static/js/settings.js:3398 _loadPersonaDocs"
           },
           "keys": [],
           "modality": "pointer",
@@ -212889,7 +212889,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3399
+              "line": 3406
             },
             "status": "source-only",
             "tests": []
@@ -212897,7 +212897,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3391 _loadPersonaDocs"
+            "value": "static/js/settings.js:3398 _loadPersonaDocs"
           },
           "keys": [
             "Enter",
@@ -212935,7 +212935,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3391 _loadPersonaDocs"
+        "value": "static/js/settings.js:3398 _loadPersonaDocs"
       },
       "id": "dynamic.bf2282ea2d98",
       "kind": "action",
@@ -212948,7 +212948,7 @@
           "source-local:/api/personas/"
         ],
         "client_functions": [
-          "static/js/settings.js:3391 _loadPersonaDocs"
+          "static/js/settings.js:3398 _loadPersonaDocs"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212989,9 +212989,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3399
+          "line": 3406
         },
-        "source_selector": "static/js/settings.js:3399:28",
+        "source_selector": "static/js/settings.js:3406:28",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213026,7 +213026,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3494
+              "line": 3501
             },
             "status": "source-only",
             "tests": []
@@ -213048,7 +213048,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3494
+              "line": 3501
             },
             "status": "source-only",
             "tests": []
@@ -213109,7 +213109,7 @@
           "source-local:/api/cookbook/"
         ],
         "client_functions": [
-          "static/js/settings.js:3485 loadCookbook"
+          "static/js/settings.js:3492 loadCookbook"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213150,9 +213150,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3494
+          "line": 3501
         },
-        "source_selector": "static/js/settings.js:3494:29",
+        "source_selector": "static/js/settings.js:3501:29",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213187,7 +213187,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3599
+              "line": 3606
             },
             "status": "source-only",
             "tests": []
@@ -213209,7 +213209,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3599
+              "line": 3606
             },
             "status": "source-only",
             "tests": []
@@ -213269,7 +213269,7 @@
           "source-local:/api/mcp/servers"
         ],
         "client_functions": [
-          "static/js/settings.js:3587 loadMcpServers"
+          "static/js/settings.js:3594 loadMcpServers"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213310,9 +213310,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3599
+          "line": 3606
         },
-        "source_selector": "static/js/settings.js:3599:31",
+        "source_selector": "static/js/settings.js:3606:31",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213347,7 +213347,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3633
+              "line": 3640
             },
             "status": "source-only",
             "tests": []
@@ -213355,7 +213355,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3626 _loadMcpPresets"
+            "value": "static/js/settings.js:3633 _loadMcpPresets"
           },
           "keys": [],
           "modality": "pointer",
@@ -213369,7 +213369,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3633
+              "line": 3640
             },
             "status": "source-only",
             "tests": []
@@ -213377,7 +213377,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3626 _loadMcpPresets"
+            "value": "static/js/settings.js:3633 _loadMcpPresets"
           },
           "keys": [
             "Enter",
@@ -213415,7 +213415,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3626 _loadMcpPresets"
+        "value": "static/js/settings.js:3633 _loadMcpPresets"
       },
       "id": "dynamic.e5feacac359b",
       "kind": "action",
@@ -213428,7 +213428,7 @@
           "source-local:/api/mcp/presets"
         ],
         "client_functions": [
-          "static/js/settings.js:3626 _loadMcpPresets"
+          "static/js/settings.js:3633 _loadMcpPresets"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213469,9 +213469,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3633
+          "line": 3640
         },
-        "source_selector": "static/js/settings.js:3633:33",
+        "source_selector": "static/js/settings.js:3640:33",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213506,7 +213506,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3676
+              "line": 3683
             },
             "status": "source-only",
             "tests": []
@@ -213528,7 +213528,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3676
+              "line": 3683
             },
             "status": "source-only",
             "tests": []
@@ -213588,7 +213588,7 @@
           "source-local:/api/connections"
         ],
         "client_functions": [
-          "static/js/settings.js:3656 loadConnections"
+          "static/js/settings.js:3663 loadConnections"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213629,9 +213629,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3676
+          "line": 3683
         },
-        "source_selector": "static/js/settings.js:3676:34",
+        "source_selector": "static/js/settings.js:3683:34",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213666,7 +213666,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3677
+              "line": 3684
             },
             "status": "source-only",
             "tests": []
@@ -213688,7 +213688,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3677
+              "line": 3684
             },
             "status": "source-only",
             "tests": []
@@ -213748,7 +213748,7 @@
           "source-local:/api/connections"
         ],
         "client_functions": [
-          "static/js/settings.js:3656 loadConnections"
+          "static/js/settings.js:3663 loadConnections"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213789,9 +213789,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3677
+          "line": 3684
         },
-        "source_selector": "static/js/settings.js:3677:36",
+        "source_selector": "static/js/settings.js:3684:36",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213826,7 +213826,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3999
+              "line": 4006
             },
             "status": "source-only",
             "tests": []
@@ -213848,7 +213848,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3999
+              "line": 4006
             },
             "status": "source-only",
             "tests": []
@@ -213908,7 +213908,7 @@
           "source-local:/api/tokens"
         ],
         "client_functions": [
-          "static/js/settings.js:3988 loadTokens"
+          "static/js/settings.js:3995 loadTokens"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213949,9 +213949,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3999
+          "line": 4006
         },
-        "source_selector": "static/js/settings.js:3999:38",
+        "source_selector": "static/js/settings.js:4006:38",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214021,7 +214021,7 @@
           "source-local:/api/webhooks/"
         ],
         "client_functions": [
-          "static/js/settings.js:4055 loadWebhooks"
+          "static/js/settings.js:4062 loadWebhooks"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214062,9 +214062,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4068
+          "line": 4075
         },
-        "source_selector": "static/js/settings.js:4068:40",
+        "source_selector": "static/js/settings.js:4075:40",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -214083,7 +214083,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4069
+              "line": 4076
             },
             "status": "source-only",
             "tests": []
@@ -214105,7 +214105,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4069
+              "line": 4076
             },
             "status": "source-only",
             "tests": []
@@ -214166,7 +214166,7 @@
           "source-local:/api/webhooks/"
         ],
         "client_functions": [
-          "static/js/settings.js:4055 loadWebhooks"
+          "static/js/settings.js:4062 loadWebhooks"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214207,9 +214207,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4069
+          "line": 4076
         },
-        "source_selector": "static/js/settings.js:4069:41",
+        "source_selector": "static/js/settings.js:4076:41",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214244,7 +214244,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4070
+              "line": 4077
             },
             "status": "source-only",
             "tests": []
@@ -214266,7 +214266,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4070
+              "line": 4077
             },
             "status": "source-only",
             "tests": []
@@ -214327,7 +214327,7 @@
           "source-local:/api/webhooks/"
         ],
         "client_functions": [
-          "static/js/settings.js:4055 loadWebhooks"
+          "static/js/settings.js:4062 loadWebhooks"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214368,9 +214368,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4070
+          "line": 4077
         },
-        "source_selector": "static/js/settings.js:4070:43",
+        "source_selector": "static/js/settings.js:4077:43",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214405,7 +214405,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4319
+              "line": 4326
             },
             "status": "source-only",
             "tests": []
@@ -214413,7 +214413,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4308 loadPermRules"
+            "value": "static/js/settings.js:4315 loadPermRules"
           },
           "keys": [],
           "modality": "pointer",
@@ -214427,7 +214427,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4319
+              "line": 4326
             },
             "status": "source-only",
             "tests": []
@@ -214435,7 +214435,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4308 loadPermRules"
+            "value": "static/js/settings.js:4315 loadPermRules"
           },
           "keys": [
             "Enter",
@@ -214473,7 +214473,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4308 loadPermRules"
+        "value": "static/js/settings.js:4315 loadPermRules"
       },
       "id": "dynamic.2e58b686f96b",
       "kind": "action",
@@ -214486,7 +214486,7 @@
           "source-local:/api/settings"
         ],
         "client_functions": [
-          "static/js/settings.js:4308 loadPermRules"
+          "static/js/settings.js:4315 loadPermRules"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214527,9 +214527,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4319
+          "line": 4326
         },
-        "source_selector": "static/js/settings.js:4319:45",
+        "source_selector": "static/js/settings.js:4326:45",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214564,7 +214564,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4411
+              "line": 4418
             },
             "status": "source-only",
             "tests": []
@@ -214572,7 +214572,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4407 _renderRulePresets"
+            "value": "static/js/settings.js:4414 _renderRulePresets"
           },
           "keys": [],
           "modality": "pointer",
@@ -214586,7 +214586,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4411
+              "line": 4418
             },
             "status": "source-only",
             "tests": []
@@ -214594,7 +214594,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4407 _renderRulePresets"
+            "value": "static/js/settings.js:4414 _renderRulePresets"
           },
           "keys": [
             "Enter",
@@ -214632,7 +214632,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4407 _renderRulePresets"
+        "value": "static/js/settings.js:4414 _renderRulePresets"
       },
       "id": "dynamic.8a82054436ea",
       "kind": "action",
@@ -214643,7 +214643,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/settings.js:4407 _renderRulePresets"
+          "static/js/settings.js:4414 _renderRulePresets"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214684,9 +214684,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4411
+          "line": 4418
         },
-        "source_selector": "static/js/settings.js:4411:46",
+        "source_selector": "static/js/settings.js:4418:46",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214721,7 +214721,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4454
+              "line": 4461
             },
             "status": "source-only",
             "tests": []
@@ -214729,7 +214729,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4437 _renderRules"
+            "value": "static/js/settings.js:4444 _renderRules"
           },
           "keys": [],
           "modality": "pointer",
@@ -214743,7 +214743,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4454
+              "line": 4461
             },
             "status": "source-only",
             "tests": []
@@ -214751,7 +214751,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4437 _renderRules"
+            "value": "static/js/settings.js:4444 _renderRules"
           },
           "keys": [
             "Enter",
@@ -214789,7 +214789,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4437 _renderRules"
+        "value": "static/js/settings.js:4444 _renderRules"
       },
       "id": "dynamic.65101ff426e5",
       "kind": "action",
@@ -214803,7 +214803,7 @@
           "source-local:/api/automations/"
         ],
         "client_functions": [
-          "static/js/settings.js:4437 _renderRules"
+          "static/js/settings.js:4444 _renderRules"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214844,9 +214844,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4454
+          "line": 4461
         },
-        "source_selector": "static/js/settings.js:4454:47",
+        "source_selector": "static/js/settings.js:4461:47",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214881,7 +214881,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4455
+              "line": 4462
             },
             "status": "source-only",
             "tests": []
@@ -214889,7 +214889,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4437 _renderRules"
+            "value": "static/js/settings.js:4444 _renderRules"
           },
           "keys": [],
           "modality": "pointer",
@@ -214903,7 +214903,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4455
+              "line": 4462
             },
             "status": "source-only",
             "tests": []
@@ -214911,7 +214911,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4437 _renderRules"
+            "value": "static/js/settings.js:4444 _renderRules"
           },
           "keys": [
             "Enter",
@@ -214949,7 +214949,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4437 _renderRules"
+        "value": "static/js/settings.js:4444 _renderRules"
       },
       "id": "dynamic.aeae06cb020a",
       "kind": "action",
@@ -214963,7 +214963,7 @@
           "source-local:/api/automations/"
         ],
         "client_functions": [
-          "static/js/settings.js:4437 _renderRules"
+          "static/js/settings.js:4444 _renderRules"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -215004,9 +215004,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4455
+          "line": 4462
         },
-        "source_selector": "static/js/settings.js:4455:48",
+        "source_selector": "static/js/settings.js:4462:48",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -215041,7 +215041,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4456
+              "line": 4463
             },
             "status": "source-only",
             "tests": []
@@ -215049,7 +215049,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4437 _renderRules"
+            "value": "static/js/settings.js:4444 _renderRules"
           },
           "keys": [],
           "modality": "pointer",
@@ -215063,7 +215063,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4456
+              "line": 4463
             },
             "status": "source-only",
             "tests": []
@@ -215071,7 +215071,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4437 _renderRules"
+            "value": "static/js/settings.js:4444 _renderRules"
           },
           "keys": [
             "Enter",
@@ -215109,7 +215109,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4437 _renderRules"
+        "value": "static/js/settings.js:4444 _renderRules"
       },
       "id": "dynamic.c14c795c090e",
       "kind": "action",
@@ -215123,7 +215123,7 @@
           "source-local:/api/automations/"
         ],
         "client_functions": [
-          "static/js/settings.js:4437 _renderRules"
+          "static/js/settings.js:4444 _renderRules"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -215164,9 +215164,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4456
+          "line": 4463
         },
-        "source_selector": "static/js/settings.js:4456:49",
+        "source_selector": "static/js/settings.js:4463:49",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -230522,7 +230522,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 163
+              "line": 164
             },
             "status": "source-only",
             "tests": []
@@ -230530,7 +230530,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:153 _showAppearanceSaveState"
+            "value": "static/js/theme.js:154 _showAppearanceSaveState"
           },
           "keys": [],
           "modality": "pointer",
@@ -230544,7 +230544,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 163
+              "line": 164
             },
             "status": "source-only",
             "tests": []
@@ -230552,7 +230552,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:153 _showAppearanceSaveState"
+            "value": "static/js/theme.js:154 _showAppearanceSaveState"
           },
           "keys": [
             "Enter",
@@ -230590,7 +230590,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:153 _showAppearanceSaveState"
+        "value": "static/js/theme.js:154 _showAppearanceSaveState"
       },
       "id": "dynamic.242e91d78b1a",
       "kind": "action",
@@ -230601,7 +230601,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:153 _showAppearanceSaveState"
+          "static/js/theme.js:154 _showAppearanceSaveState"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -230642,9 +230642,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 163
+          "line": 164
         },
-        "source_selector": "static/js/theme.js:163:1",
+        "source_selector": "static/js/theme.js:164:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -230669,8 +230669,10 @@
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
         "name": "${name}",
-        "relationships": {},
-        "role": "native button"
+        "relationships": {
+          "aria-checked": "${active}"
+        },
+        "role": "radio"
       },
       "activation_paths": [
         {
@@ -230679,7 +230681,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 669
+              "line": 671
             },
             "status": "source-only",
             "tests": []
@@ -230687,7 +230689,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:668 _swatch"
+            "value": "static/js/theme.js:669 _swatch"
           },
           "keys": [],
           "modality": "pointer",
@@ -230701,7 +230703,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 669
+              "line": 671
             },
             "status": "source-only",
             "tests": []
@@ -230709,7 +230711,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:668 _swatch"
+            "value": "static/js/theme.js:669 _swatch"
           },
           "keys": [
             "Enter",
@@ -230746,10 +230748,10 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:668 _swatch"
+        "value": "static/js/theme.js:669 _swatch"
       },
-      "id": "dynamic.b8bd67ba4b18",
-      "kind": "action",
+      "id": "dynamic.5dba680c2d58",
+      "kind": "choice",
       "label": {
         "source": "title",
         "value": "${name}"
@@ -230757,7 +230759,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:668 _swatch"
+          "static/js/theme.js:669 _swatch"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -230798,9 +230800,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 669
+          "line": 671
         },
-        "source_selector": "static/js/theme.js:669:2",
+        "source_selector": "static/js/theme.js:671:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -230825,8 +230827,10 @@
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
         "name": "${o}",
-        "relationships": {},
-        "role": "native button"
+        "relationships": {
+          "aria-checked": "${_draft[field] === o}"
+        },
+        "role": "radio"
       },
       "activation_paths": [
         {
@@ -230835,7 +230839,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 675
+              "line": 678
             },
             "status": "source-only",
             "tests": []
@@ -230843,7 +230847,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:674 _seg"
+            "value": "static/js/theme.js:676 _seg"
           },
           "keys": [],
           "modality": "pointer",
@@ -230857,7 +230861,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 675
+              "line": 678
             },
             "status": "source-only",
             "tests": []
@@ -230865,7 +230869,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:674 _seg"
+            "value": "static/js/theme.js:676 _seg"
           },
           "keys": [
             "Enter",
@@ -230902,10 +230906,10 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:674 _seg"
+        "value": "static/js/theme.js:676 _seg"
       },
-      "id": "dynamic.fdd34d7c6028",
-      "kind": "action",
+      "id": "dynamic.1d04ebb357b6",
+      "kind": "choice",
       "label": {
         "source": "text",
         "value": "${o}"
@@ -230913,7 +230917,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:674 _seg"
+          "static/js/theme.js:676 _seg"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -230954,9 +230958,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 675
+          "line": 678
         },
-        "source_selector": "static/js/theme.js:675:3",
+        "source_selector": "static/js/theme.js:678:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -230981,8 +230985,10 @@
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
         "name": "default",
-        "relationships": {},
-        "role": "native button"
+        "relationships": {
+          "aria-checked": "${active}"
+        },
+        "role": "radio"
       },
       "activation_paths": [
         {
@@ -230991,7 +230997,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 682
+              "line": 685
             },
             "status": "source-only",
             "tests": []
@@ -230999,7 +231005,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:680 _defaultTile"
+            "value": "static/js/theme.js:683 _defaultTile"
           },
           "keys": [],
           "modality": "pointer",
@@ -231013,7 +231019,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 682
+              "line": 685
             },
             "status": "source-only",
             "tests": []
@@ -231021,7 +231027,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:680 _defaultTile"
+            "value": "static/js/theme.js:683 _defaultTile"
           },
           "keys": [
             "Enter",
@@ -231058,10 +231064,10 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:680 _defaultTile"
+        "value": "static/js/theme.js:683 _defaultTile"
       },
-      "id": "dynamic.05dda0e741f9",
-      "kind": "action",
+      "id": "dynamic.d78537fe3f05",
+      "kind": "choice",
       "label": {
         "source": "title",
         "value": "default"
@@ -231069,7 +231075,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:680 _defaultTile"
+          "static/js/theme.js:683 _defaultTile"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -231110,9 +231116,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 682
+          "line": 685
         },
-        "source_selector": "static/js/theme.js:682:4",
+        "source_selector": "static/js/theme.js:685:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -231147,7 +231153,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 698
+              "line": 701
             },
             "status": "source-only",
             "tests": []
@@ -231155,7 +231161,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -231169,7 +231175,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 698
+              "line": 701
             },
             "status": "source-only",
             "tests": []
@@ -231177,7 +231183,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -231213,7 +231219,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.2b2632064c5d",
       "kind": "icon-action",
@@ -231224,7 +231230,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -231265,9 +231271,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 698
+          "line": 701
         },
-        "source_selector": "static/js/theme.js:698:5",
+        "source_selector": "static/js/theme.js:701:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -231302,7 +231308,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 706
+              "line": 709
             },
             "status": "source-only",
             "tests": []
@@ -231310,7 +231316,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -231346,7 +231352,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.6589c1aea934",
       "kind": "field",
@@ -231357,7 +231363,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -231398,9 +231404,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 706
+          "line": 709
         },
-        "source_selector": "static/js/theme.js:706:6",
+        "source_selector": "static/js/theme.js:709:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -231428,7 +231434,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 710
+              "line": 713
             },
             "status": "source-only",
             "tests": []
@@ -231436,7 +231442,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -231471,7 +231477,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.7020b1a5f4d6",
       "kind": "field",
@@ -231482,7 +231488,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -231523,9 +231529,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 710
+          "line": 713
         },
-        "source_selector": "static/js/theme.js:710:7",
+        "source_selector": "static/js/theme.js:713:10",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -231542,9 +231548,11 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "${o.slice(0, 4)}",
-        "relationships": {},
-        "role": "native button"
+        "name": "${o}",
+        "relationships": {
+          "aria-checked": "${i === 0}"
+        },
+        "role": "radio"
       },
       "activation_paths": [
         {
@@ -231553,7 +231561,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 711
+              "line": 714
             },
             "status": "source-only",
             "tests": []
@@ -231561,7 +231569,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -231575,7 +231583,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 711
+              "line": 714
             },
             "status": "source-only",
             "tests": []
@@ -231583,7 +231591,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -231620,18 +231628,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
-      "id": "dynamic.139d633c4a8e",
-      "kind": "action",
+      "id": "dynamic.0890b496620f",
+      "kind": "choice",
       "label": {
-        "source": "text",
-        "value": "${o.slice(0, 4)}"
+        "source": "aria-label",
+        "value": "${o}"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -231672,9 +231680,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 711
+          "line": 714
         },
-        "source_selector": "static/js/theme.js:711:8",
+        "source_selector": "static/js/theme.js:714:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -231699,8 +231707,10 @@
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
         "name": "${o}",
-        "relationships": {},
-        "role": "native button"
+        "relationships": {
+          "aria-checked": "${i === 0}"
+        },
+        "role": "radio"
       },
       "activation_paths": [
         {
@@ -231709,7 +231719,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 712
+              "line": 715
             },
             "status": "source-only",
             "tests": []
@@ -231717,7 +231727,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -231731,7 +231741,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 712
+              "line": 715
             },
             "status": "source-only",
             "tests": []
@@ -231739,7 +231749,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -231776,10 +231786,10 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
-      "id": "dynamic.a3b357be410c",
-      "kind": "action",
+      "id": "dynamic.0a50c88bfc4a",
+      "kind": "choice",
       "label": {
         "source": "text",
         "value": "${o}"
@@ -231787,7 +231797,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -231828,9 +231838,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 712
+          "line": 715
         },
-        "source_selector": "static/js/theme.js:712:9",
+        "source_selector": "static/js/theme.js:715:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -231865,7 +231875,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 713
+              "line": 716
             },
             "status": "source-only",
             "tests": []
@@ -231873,7 +231883,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -231887,7 +231897,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 713
+              "line": 716
             },
             "status": "source-only",
             "tests": []
@@ -231895,7 +231905,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -231931,7 +231941,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.c1ee88082374",
       "kind": "action",
@@ -231942,7 +231952,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -231983,9 +231993,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 713
+          "line": 716
         },
-        "source_selector": "static/js/theme.js:713:10",
+        "source_selector": "static/js/theme.js:716:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -232020,7 +232030,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 724
+              "line": 727
             },
             "status": "source-only",
             "tests": []
@@ -232028,7 +232038,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -232063,7 +232073,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.203aefeee6f2",
       "kind": "field",
@@ -232074,7 +232084,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -232115,9 +232125,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 724
+          "line": 727
         },
-        "source_selector": "static/js/theme.js:724:11",
+        "source_selector": "static/js/theme.js:727:16",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -232145,7 +232155,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 725
+              "line": 728
             },
             "status": "source-only",
             "tests": []
@@ -232153,7 +232163,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -232188,7 +232198,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.636c84f69159",
       "kind": "field",
@@ -232199,7 +232209,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -232240,9 +232250,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 725
+          "line": 728
         },
-        "source_selector": "static/js/theme.js:725:12",
+        "source_selector": "static/js/theme.js:728:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -232270,7 +232280,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 727
+              "line": 730
             },
             "status": "source-only",
             "tests": []
@@ -232278,7 +232288,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -232292,7 +232302,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 727
+              "line": 730
             },
             "status": "source-only",
             "tests": []
@@ -232300,7 +232310,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -232336,7 +232346,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.b7cb900f4042",
       "kind": "action",
@@ -232347,7 +232357,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -232388,9 +232398,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 727
+          "line": 730
         },
-        "source_selector": "static/js/theme.js:727:13",
+        "source_selector": "static/js/theme.js:730:18",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -232425,7 +232435,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 731
+              "line": 734
             },
             "status": "source-only",
             "tests": []
@@ -232433,7 +232443,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "native editing keys"
@@ -232468,7 +232478,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.0b445d49b717",
       "kind": "field",
@@ -232479,7 +232489,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -232520,9 +232530,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 731
+          "line": 734
         },
-        "source_selector": "static/js/theme.js:731:14",
+        "source_selector": "static/js/theme.js:734:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -232550,7 +232560,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 731
+              "line": 734
             },
             "status": "source-only",
             "tests": []
@@ -232558,7 +232568,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -232572,7 +232582,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 731
+              "line": 734
             },
             "status": "source-only",
             "tests": []
@@ -232580,7 +232590,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -232616,7 +232626,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.f51a2b9bcc32",
       "kind": "action",
@@ -232627,7 +232637,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -232668,9 +232678,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 731
+          "line": 734
         },
-        "source_selector": "static/js/theme.js:731:15",
+        "source_selector": "static/js/theme.js:734:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -232705,7 +232715,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 732
+              "line": 735
             },
             "status": "source-only",
             "tests": []
@@ -232713,7 +232723,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -232727,7 +232737,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 732
+              "line": 735
             },
             "status": "source-only",
             "tests": []
@@ -232735,7 +232745,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -232772,7 +232782,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.7d917f582f8e",
       "kind": "action",
@@ -232783,7 +232793,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -232824,9 +232834,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 732
+          "line": 735
         },
-        "source_selector": "static/js/theme.js:732:16",
+        "source_selector": "static/js/theme.js:735:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -232861,7 +232871,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 736
+              "line": 739
             },
             "status": "source-only",
             "tests": []
@@ -232869,7 +232879,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -232883,7 +232893,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 736
+              "line": 739
             },
             "status": "source-only",
             "tests": []
@@ -232891,7 +232901,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -232927,7 +232937,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.bd8a67c4c609",
       "kind": "action",
@@ -232938,7 +232948,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -232979,9 +232989,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 736
+          "line": 739
         },
-        "source_selector": "static/js/theme.js:736:17",
+        "source_selector": "static/js/theme.js:739:22",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -233016,7 +233026,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 737
+              "line": 740
             },
             "status": "source-only",
             "tests": []
@@ -233024,7 +233034,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -233038,7 +233048,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 737
+              "line": 740
             },
             "status": "source-only",
             "tests": []
@@ -233046,7 +233056,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -233082,7 +233092,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.988ce7dae46b",
       "kind": "action",
@@ -233093,7 +233103,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -233134,9 +233144,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 737
+          "line": 740
         },
-        "source_selector": "static/js/theme.js:737:18",
+        "source_selector": "static/js/theme.js:740:23",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -233171,7 +233181,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 738
+              "line": 741
             },
             "status": "source-only",
             "tests": []
@@ -233179,7 +233189,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -233193,7 +233203,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 738
+              "line": 741
             },
             "status": "source-only",
             "tests": []
@@ -233201,7 +233211,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -233237,7 +233247,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.423543fba62e",
       "kind": "action",
@@ -233248,7 +233258,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -233289,9 +233299,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 738
+          "line": 741
         },
-        "source_selector": "static/js/theme.js:738:19",
+        "source_selector": "static/js/theme.js:741:24",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -233326,7 +233336,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 739
+              "line": 742
             },
             "status": "source-only",
             "tests": []
@@ -233334,7 +233344,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [],
           "modality": "pointer",
@@ -233348,7 +233358,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 739
+              "line": 742
             },
             "status": "source-only",
             "tests": []
@@ -233356,7 +233366,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:693 _renderEditor"
+            "value": "static/js/theme.js:696 _renderEditor"
           },
           "keys": [
             "Enter",
@@ -233392,7 +233402,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:693 _renderEditor"
+        "value": "static/js/theme.js:696 _renderEditor"
       },
       "id": "dynamic.6d773dd71f9f",
       "kind": "action",
@@ -233403,7 +233413,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:693 _renderEditor"
+          "static/js/theme.js:696 _renderEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -233444,9 +233454,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 739
+          "line": 742
         },
-        "source_selector": "static/js/theme.js:739:20",
+        "source_selector": "static/js/theme.js:742:25",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -233501,7 +233511,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:746 _wireEditor"
+        "value": "static/js/theme.js:749 _wireEditor"
       },
       "id": "dynamic.fe86032112aa",
       "kind": "link",
@@ -233512,7 +233522,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:746 _wireEditor"
+          "static/js/theme.js:749 _wireEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -233553,9 +233563,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 830
+          "line": 842
         },
-        "source_selector": "static/js/theme.js:830:21",
+        "source_selector": "static/js/theme.js:842:26",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -233574,7 +233584,7 @@
             "source": {
               "file": "static/js/theme.js",
               "kind": "control-source",
-              "line": 834
+              "line": 846
             },
             "status": "source-only",
             "tests": []
@@ -233582,7 +233592,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/theme.js:746 _wireEditor"
+            "value": "static/js/theme.js:749 _wireEditor"
           },
           "keys": [
             "native editing keys"
@@ -233619,7 +233629,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/theme.js:746 _wireEditor"
+        "value": "static/js/theme.js:749 _wireEditor"
       },
       "id": "dynamic.4d6ca1d20def",
       "kind": "field",
@@ -233630,7 +233640,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/theme.js:746 _wireEditor"
+          "static/js/theme.js:749 _wireEditor"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -233671,9 +233681,9 @@
         "source": {
           "column": null,
           "file": "static/js/theme.js",
-          "line": 834
+          "line": 846
         },
-        "source_selector": "static/js/theme.js:834:22",
+        "source_selector": "static/js/theme.js:846:27",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [

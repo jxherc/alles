@@ -3004,6 +3004,11 @@ function loadThemesPane() {
   _refreshThemeLock();
 }
 
+function _syncInlineThemeEditor() {
+  const host = document.getElementById('theme-editor-inline');
+  if (host && _inlineEditorBuilt) renderThemeEditorInto(host, { onChange: _refreshThemeLock });
+}
+
 // when a fancy preset is active, the default-theme mode + accent are dictated by it — lock
 // those controls (visually + functionally) and say so; picking 'default' in the editor (or
 // a mode button, which always drops to default) unlocks them.
@@ -3038,6 +3043,7 @@ const _curAccent = () => {
 
 function applyAccent(hex) {
   _themeSetAccent(hex || '');                 // writes colors.accent into the appearance object
+  _syncInlineThemeEditor();
   _markAccent();
   window._updateFavicon?.();
 }
@@ -3046,6 +3052,7 @@ function applyThemeMode(mode) {
   // effect) to default for the chosen base, same as the default preset tile. leaving a fancy
   // preset also drops its accent tint back to default; a plain base keeps the accent you set.
   _resetToDefault(mode === 'light' ? 'light' : 'dark');
+  _syncInlineThemeEditor();
   _markMode();
   _markAccent();   // the tint may have reset — re-mark the active swatch
   window._updateFavicon?.();

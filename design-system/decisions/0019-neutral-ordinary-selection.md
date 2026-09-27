@@ -14,3 +14,10 @@ that moves and changes tone. The selected language keeps its checked radio state
 Other selected controls remain on their
 current rules until their workbench is checked in both themes and on a phone. A global accent-token
 swap would also recolor permissions, status, and data signals, so it is not part of this decision.
+
+The next slice covers the appearance theme editor only. Preset tiles and font, density, background,
+and harmony choices use raised surfaces, strong lines, readable text, and checked radio state. The
+preview swatches still show each theme's real colors; Books' separate shelf selector keeps its existing
+styling until that workbench is reviewed. Settings mode and accent changes refresh the inline editor's
+draft so its next edit cannot reapply an older theme. Desktop and phone behavior in both themes,
+keyboard selection, reduced motion, and 200% layout are checked on isolated data.
