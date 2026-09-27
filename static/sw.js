@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v275';   // Keep the private Home-to-Aide draft in one module generation.
+const VERSION = 'v276';   // Import former Home tile choices without replacing current settings.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '319';   // keep in sync with index.html ?v= / const _v
+const STAMP = '320';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

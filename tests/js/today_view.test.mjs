@@ -103,7 +103,7 @@ test('Home presents configured destinations as pinned apps without an unexplaine
     assert.match(app, new RegExp(`HOME_PINNABLE_APPS[\\s\\S]*?view: '${view}'`));
   }
   assert.doesNotMatch(app.match(/const HOME_PINNABLE_APPS = \[[\s\S]*?\n\];/)?.[0] || '', /view: '(?:calendar|tasks|mail|money|photos|watch|activity)'/);
-  assert.match(app, /initToday\(\{ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft \}\)/);
+  assert.match(app, /initToday\(\{ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts \}\)/);
 });
 
 test('a successful Home capture is confirmed independently of a partial refresh', () => {

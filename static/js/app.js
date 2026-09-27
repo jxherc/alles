@@ -946,7 +946,7 @@ const showPhotosView     = () => showView('photos-view',    'photos',    (_track
 const showHomeView       = () => { _setAfterlifeSpace(''); showView('home-view', 'home', renderHome); };
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=305'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=306'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts })));
   _renderFirstRun();
   return result;
 };
@@ -1326,11 +1326,26 @@ const HOME_ORDER_KEY = 'alles-home-order';
 const HOME_HIDDEN_KEY = 'alles-home-hidden';
 let _homeEdit = false, _homeAnimated = false, _dragView = null;
 
-const _homeOrder = () => { try { return JSON.parse(localStorage.getItem(HOME_ORDER_KEY) || '[]'); } catch { return []; } };
-const _homeHidden = () => { try { return JSON.parse(localStorage.getItem(HOME_HIDDEN_KEY) || '[]'); } catch { return []; } };
-function _orderedTiles() {
-  const pos = new Map(_homeOrder().map((v, i) => [v, i]));
+const _homeOrder = () => { try { const value = JSON.parse(localStorage.getItem(HOME_ORDER_KEY) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } };
+const _homeHidden = () => { try { const value = JSON.parse(localStorage.getItem(HOME_HIDDEN_KEY) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } };
+function _orderedTiles(order = _homeOrder()) {
+  const pos = new Map(order.map((v, i) => [v, i]));
   return [...HOME_TILES].sort((a, b) => (pos.get(a.view) ?? 999) - (pos.get(b.view) ?? 999));
+}
+
+function readLegacyHomeShortcuts() {
+  const rawOrder = localStorage.getItem(HOME_ORDER_KEY);
+  const rawHidden = localStorage.getItem(HOME_HIDDEN_KEY);
+  if (rawOrder === null && rawHidden === null) return null;
+  const order = rawOrder === null ? [] : JSON.parse(rawOrder);
+  const hidden = rawHidden === null ? [] : JSON.parse(rawHidden);
+  if (![order, hidden].every(value => Array.isArray(value)
+    && value.length <= HOME_TILES.length
+    && value.every(view => typeof view === 'string'))) {
+    throw new Error('invalid legacy Home preferences');
+  }
+  const hiddenViews = new Set(hidden);
+  return _orderedTiles(order).filter(tile => !hiddenViews.has(tile.view)).map(tile => tile.view);
 }
 
 function renderHome() {
