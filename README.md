@@ -53,7 +53,7 @@ older links open the matching section inside its current app.
 
 | space or app | what you can do |
 |---|---|
-| **home** | see what needs attention, your schedule, running work, briefs, and pinned apps; capture a task without an ai model, or review a private day question before sending it to aide |
+| **home** | see what needs attention, your schedule, running work, briefs, pinned apps, and any saved aide suggestions; capture a task without an ai model, or review a private day question before sending it to aide |
 | **aide** | chat, use approved tools, and run background or scheduled work; group conversations in General or folder-backed Projects |
 | **andromeda** | search the web and inspect normal results with an optional cited overview |
 | **plan** | manage your agenda, week, task board, calendar, tasks, reminders, and countdowns |

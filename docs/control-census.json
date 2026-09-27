@@ -4715,6 +4715,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_suggestions.py",
+                "kind": "existing-test-control-reference",
+                "line": 165
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 207
@@ -5011,6 +5017,12 @@
                 "file": "tests/pw_health_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 92
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_suggestions.py",
+                "kind": "existing-test-control-reference",
+                "line": 165
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5380,7 +5392,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/today.js:408 click"
+            "value": "static/js/today.js:474 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -5427,7 +5439,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/today.js:408 click"
+            "value": "static/js/today.js:474 click"
           },
           "keys": [
             "Enter",
@@ -5460,7 +5472,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/today.js:408 click"
+        "value": "static/js/today.js:474 click"
       },
       "id": "static.241670a3874b",
       "kind": "action",
@@ -5582,7 +5594,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/today.js:336 click"
+            "value": "static/js/today.js:402 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -5629,7 +5641,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/today.js:336 click"
+            "value": "static/js/today.js:402 click"
           },
           "keys": [
             "Enter",
@@ -5662,7 +5674,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/today.js:336 click"
+        "value": "static/js/today.js:402 click"
       },
       "id": "static.0d865f22b8d8",
       "kind": "action",
@@ -62629,6 +62641,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_suggestions.py",
+                "kind": "existing-test-control-reference",
+                "line": 85
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 205
@@ -62907,6 +62925,12 @@
                 "file": "tests/pw_home_route_parity.py",
                 "kind": "existing-test-control-reference",
                 "line": 39
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_home_suggestions.py",
+                "kind": "existing-test-control-reference",
+                "line": 85
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -235515,7 +235539,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 113
+              "line": 115
             },
             "status": "source-only",
             "tests": []
@@ -235523,7 +235547,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:112 dayRow"
+            "value": "static/js/today.js:114 dayRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -235537,7 +235561,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 113
+              "line": 115
             },
             "status": "source-only",
             "tests": []
@@ -235545,7 +235569,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:112 dayRow"
+            "value": "static/js/today.js:114 dayRow"
           },
           "keys": [
             "Enter",
@@ -235582,7 +235606,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/today.js:112 dayRow"
+        "value": "static/js/today.js:114 dayRow"
       },
       "id": "dynamic.d008afcac175",
       "kind": "action",
@@ -235593,7 +235617,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/today.js:112 dayRow"
+          "static/js/today.js:114 dayRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -235634,9 +235658,9 @@
         "source": {
           "column": null,
           "file": "static/js/today.js",
-          "line": 113
+          "line": 115
         },
-        "source_selector": "static/js/today.js:113:1",
+        "source_selector": "static/js/today.js:115:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -235671,7 +235695,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 121
+              "line": 123
             },
             "status": "source-only",
             "tests": []
@@ -235679,7 +235703,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:118 attentionRow"
+            "value": "static/js/today.js:120 attentionRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -235693,7 +235717,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 121
+              "line": 123
             },
             "status": "source-only",
             "tests": []
@@ -235701,7 +235725,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:118 attentionRow"
+            "value": "static/js/today.js:120 attentionRow"
           },
           "keys": [
             "Enter",
@@ -235738,7 +235762,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/today.js:118 attentionRow"
+        "value": "static/js/today.js:120 attentionRow"
       },
       "id": "dynamic.dac3405dd24b",
       "kind": "action",
@@ -235749,7 +235773,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/today.js:118 attentionRow"
+          "static/js/today.js:120 attentionRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -235790,9 +235814,9 @@
         "source": {
           "column": null,
           "file": "static/js/today.js",
-          "line": 121
+          "line": 123
         },
-        "source_selector": "static/js/today.js:121:2",
+        "source_selector": "static/js/today.js:123:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -235827,7 +235851,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 136
+              "line": 138
             },
             "status": "source-only",
             "tests": []
@@ -235835,7 +235859,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:133 briefRow"
+            "value": "static/js/today.js:135 briefRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -235849,7 +235873,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 136
+              "line": 138
             },
             "status": "source-only",
             "tests": []
@@ -235857,7 +235881,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:133 briefRow"
+            "value": "static/js/today.js:135 briefRow"
           },
           "keys": [
             "Enter",
@@ -235894,7 +235918,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/today.js:133 briefRow"
+        "value": "static/js/today.js:135 briefRow"
       },
       "id": "dynamic.2170eb61283b",
       "kind": "action",
@@ -235905,7 +235929,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/today.js:133 briefRow"
+          "static/js/today.js:135 briefRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -235946,9 +235970,9 @@
         "source": {
           "column": null,
           "file": "static/js/today.js",
-          "line": 136
+          "line": 138
         },
-        "source_selector": "static/js/today.js:136:3",
+        "source_selector": "static/js/today.js:138:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -235983,7 +236007,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 143
+              "line": 145
             },
             "status": "source-only",
             "tests": []
@@ -235991,7 +236015,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:139 shortcutRows"
+            "value": "static/js/today.js:141 shortcutRows"
           },
           "keys": [],
           "modality": "pointer",
@@ -236005,7 +236029,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 143
+              "line": 145
             },
             "status": "source-only",
             "tests": []
@@ -236013,7 +236037,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:139 shortcutRows"
+            "value": "static/js/today.js:141 shortcutRows"
           },
           "keys": [
             "Enter",
@@ -236050,7 +236074,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/today.js:139 shortcutRows"
+        "value": "static/js/today.js:141 shortcutRows"
       },
       "id": "dynamic.7cd7f381d1a7",
       "kind": "action",
@@ -236061,7 +236085,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/today.js:139 shortcutRows"
+          "static/js/today.js:141 shortcutRows"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -236102,9 +236126,9 @@
         "source": {
           "column": null,
           "file": "static/js/today.js",
-          "line": 143
+          "line": 145
         },
-        "source_selector": "static/js/today.js:143:4",
+        "source_selector": "static/js/today.js:145:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -236139,7 +236163,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 148
+              "line": 150
             },
             "status": "source-only",
             "tests": []
@@ -236147,7 +236171,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:146 pinnedAppsSection"
+            "value": "static/js/today.js:148 pinnedAppsSection"
           },
           "keys": [],
           "modality": "pointer",
@@ -236161,7 +236185,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 148
+              "line": 150
             },
             "status": "source-only",
             "tests": []
@@ -236169,7 +236193,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:146 pinnedAppsSection"
+            "value": "static/js/today.js:148 pinnedAppsSection"
           },
           "keys": [
             "Enter",
@@ -236205,7 +236229,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/today.js:146 pinnedAppsSection"
+        "value": "static/js/today.js:148 pinnedAppsSection"
       },
       "id": "dynamic.81494049e3ba",
       "kind": "action",
@@ -236216,7 +236240,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/today.js:146 pinnedAppsSection"
+          "static/js/today.js:148 pinnedAppsSection"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -236257,9 +236281,321 @@
         "source": {
           "column": null,
           "file": "static/js/today.js",
-          "line": 148
+          "line": 150
         },
-        "source_selector": "static/js/today.js:148:5",
+        "source_selector": "static/js/today.js:150:5",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "${esc(`open ${item.title}`)}",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/today.js",
+              "kind": "control-source",
+              "line": 162
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/today.js:155 suggestionSection"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/today.js",
+              "kind": "control-source",
+              "line": 162
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/today.js:155 suggestionSection"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "home.capture-and-navigation",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/today.js:155 suggestionSection"
+      },
+      "id": "dynamic.f5a7a32ca10a",
+      "kind": "action",
+      "label": {
+        "source": "aria-label",
+        "value": "${esc(`open ${item.title}`)}"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/today.js:155 suggestionSection"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-suggestion-act",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/today.js",
+          "line": 162
+        },
+        "source_selector": "static/js/today.js:162:6",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "${esc(`dismiss ${item.title}`)}",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/today.js",
+              "kind": "control-source",
+              "line": 165
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/today.js:155 suggestionSection"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/today.js",
+              "kind": "control-source",
+              "line": 165
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/today.js:155 suggestionSection"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "home.capture-and-navigation",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/today.js:155 suggestionSection"
+      },
+      "id": "dynamic.a7401d7289b1",
+      "kind": "action",
+      "label": {
+        "source": "aria-label",
+        "value": "${esc(`dismiss ${item.title}`)}"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/today.js:155 suggestionSection"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-suggestion-dismiss",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/today.js",
+          "line": 165
+        },
+        "source_selector": "static/js/today.js:165:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -236294,7 +236630,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 297
+              "line": 363
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -236321,7 +236657,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:244 load"
+            "value": "static/js/today.js:299 load"
           },
           "keys": [],
           "modality": "pointer",
@@ -236335,7 +236671,7 @@
             "source": {
               "file": "static/js/today.js",
               "kind": "control-source",
-              "line": 297
+              "line": 363
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -236362,7 +236698,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/today.js:244 load"
+            "value": "static/js/today.js:299 load"
           },
           "keys": [
             "Enter",
@@ -236398,7 +236734,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/today.js:244 load"
+        "value": "static/js/today.js:299 load"
       },
       "id": "dynamic.fc219abddc55",
       "kind": "action",
@@ -236413,7 +236749,7 @@
           "source-local:/api/today/preferences/import-legacy"
         ],
         "client_functions": [
-          "static/js/today.js:244 load"
+          "static/js/today.js:299 load"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -236454,9 +236790,9 @@
         "source": {
           "column": null,
           "file": "static/js/today.js",
-          "line": 297
+          "line": 363
         },
-        "source_selector": "static/js/today.js:297:6",
+        "source_selector": "static/js/today.js:363:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -251940,19 +252276,19 @@
   "summary": {
     "activation_path_evidence": {
       "external-blocked": 3,
-      "source-only": 2108,
+      "source-only": 2112,
       "test-linked-unclassified": 630
     },
-    "activation_paths": 2741,
-    "controls": 1617,
-    "dynamic_templates": 927,
+    "activation_paths": 2745,
+    "controls": 1619,
+    "dynamic_templates": 929,
     "event_listener_types": {
       "abort": 1,
       "animationend": 1,
       "beforeunload": 4,
       "blur": 9,
       "change": 53,
-      "click": 792,
+      "click": 794,
       "close": 1,
       "contextmenu": 2,
       "controllerchange": 1,
@@ -251992,9 +252328,9 @@
       "wheel": 1
     },
     "flags": {
-      "anonymous-source-anchor": 827,
+      "anonymous-source-anchor": 829,
       "cross-feature-owner": 66,
-      "dynamic-template": 927,
+      "dynamic-template": 929,
       "inline-handler": 24,
       "unknown-label": 80
     },
