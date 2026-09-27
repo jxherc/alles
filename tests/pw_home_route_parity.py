@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -57,6 +58,18 @@ def run() -> None:
             page.goto(f"{base}/?view=today&keep=still-here", wait_until="networkidle")
             expect(page.locator("#today-view")).to_be_visible()
             assert parse_qs(urlparse(page.url).query).get("keep") == ["still-here"]
+            page.locator("#app-drawer-btn").click()
+            page.locator('.app-drawer-item[data-view="inbox"]').click()
+            expect(page.locator("#inbox-view")).to_be_visible()
+            expect(page.get_by_role("heading", name="cached messages")).to_be_visible()
+            page.locator('#inbox-view [data-group-section="mail"]').click()
+            expect(page.locator("#mail-view")).to_be_visible()
+            unread = page.locator('.mail-nav-item[data-filter="unread"]')
+            expect(unread).to_be_visible()
+            unread.click()
+            expect(unread).to_have_class(re.compile(r"\bactive\b"))
+            page.goto(base, wait_until="networkidle")
+            expect(page.locator("#today-view")).to_be_visible()
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
             )
