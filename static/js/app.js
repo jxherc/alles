@@ -489,21 +489,9 @@ function applySubdomainScope(initialRoute = null) {
   document.title = onHub ? 'alles' : `${app.app} / alles`;
   renderAppCrumb(app.app, sub);
 
-  // chats + composer chrome belong to aide only
-  _show('sidebar-toggle-btn', onAide);
-  _show('new-chat-btn', onAide);
-  document.querySelector('.search-wrap')?.style.setProperty('display', onAide ? '' : 'none');
-  _show('session-list', onAide);
-  _show('ai-top-controls', onAide);
-  // settings is AI-heavy — keep it inside aide, not bleeding onto mail/docs/etc.
-  _show('topbar-settings-btn', onAide);
-  _show('incognito-btn', onAide);   // incognito lives in the topbar now, aide-only
+  _scopeAideChrome(onAide);
   // on aide the logo lives in the sidebar's top-left; elsewhere it's the topbar crumb
   _show('app-crumb', !onAide);
-  if (!onAide) {
-    _show('persona-btn', false);
-    _show('session-actions-btn', false);
-  }
   // the sidebar only renders on aide now, so show every nav item there and let
   // applyVis (user prefs) be the only thing that hides any of them.
 
@@ -513,6 +501,18 @@ function applySubdomainScope(initialRoute = null) {
   else if (!(app.primary === 'chat' && location.hash)) renderLocalRoute({ view: app.primary, hashOwner: app.primary });
   // (aide with a #sessionId is already restored by initSessions)
   document.body.classList.remove('preboot', 'login-mode');
+}
+
+function _scopeAideChrome(onAide) {
+  // chats + composer chrome belong to aide only, including in single-host navigation
+  _show('sidebar-toggle-btn', onAide);
+  _show('new-chat-btn', onAide);
+  document.querySelector('.search-wrap')?.style.setProperty('display', onAide ? '' : 'none');
+  _show('session-list', onAide);
+  _show('ai-top-controls', onAide);
+  // settings is AI-heavy — keep it inside aide, not bleeding onto mail/docs/etc.
+  _show('topbar-settings-btn', onAide);
+  _show('incognito-btn', onAide);   // incognito lives in the topbar now, aide-only
 }
 
 function _show(id, on) { const e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; }
@@ -558,6 +558,7 @@ function _shChrome(v, { onAide = false } = {}) {
   document.body.classList.toggle('is-aide', onAide);
   document.body.dataset.app = onAide ? 'aide' : app.app;
   document.title = onHome ? 'alles' : onAide ? 'aide' : `${app.app} / alles`;
+  _scopeAideChrome(onAide);
   _show('app-crumb', !onHome && !onAide);
   const crumb = document.getElementById('app-crumb');
   if (crumb) {
@@ -1028,7 +1029,7 @@ window.addEventListener('popstate', async () => {
   }
   if (route) await renderLocalRoute(route);
   else if (nextGroup) await renderLocalView(nextGroup.group, { view: nextGroup.group, section: nextGroup.section });
-  else if (singleHost()) (_afterlifeFlags.afterlife_today ? showTodayView() : showHomeView());
+  else if (singleHost()) await renderLocalView(_afterlifeFlags.afterlife_today ? 'today' : 'home');
 });
 
 function renderLocalRoute(route) {
