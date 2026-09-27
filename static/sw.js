@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v276';   // Import former Home tile choices without replacing current settings.
+const VERSION = 'v277';   // Confirm current Home capture before clearing its draft.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '320';   // keep in sync with index.html ?v= / const _v
+const STAMP = '321';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
