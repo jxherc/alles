@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DROP = (ROOT / "static" / "js" / "dropdown.js").read_text(encoding="utf-8")
-APP = (ROOT / "static" / "js" / "app.js").read_text(encoding="utf-8")
+MODELS = (ROOT / "static" / "js" / "models.js").read_text(encoding="utf-8")
 CSS = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
 
 
@@ -79,8 +79,9 @@ class BrandLogoTests(unittest.TestCase):
         self.assertIn("el._iconHtml", DROP)
         self.assertIn("_iconFor(el, opt.value)", DROP)
 
-    def test_home_selector_passes_provider_icon(self):
-        self.assertIn("icon: providerKey(", APP)
+    def test_aide_model_choice_shows_selected_provider_logo(self):
+        self.assertIn("document.getElementById('aide-model-choice-logo')", MODELS)
+        self.assertIn("aideLogo.innerHTML = providerLogo(selectedProvider", MODELS)
 
     def test_brandlogo_css_present(self):
         self.assertIn(".brandlogo-glow", CSS)
