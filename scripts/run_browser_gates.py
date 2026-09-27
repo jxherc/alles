@@ -65,6 +65,7 @@ COMMANDS = {
     "home-reminders": ("tests/pw_today_reminders.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     "aide-composer": ("tests/pw_aide_composer.py",),
+    "aide-questions": ("tests/pw_aide_question_recovery.py",),
     **{
         f"surfaces-{device}-{theme}": ("tests/pw_stability_surfaces.py", device, theme)
         for device in ("desktop", "phone")
