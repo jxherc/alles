@@ -50,6 +50,7 @@ you do **not** need to be technical to *use* it. you need to be a little technic
 
 alles has three primary spaces and nine specialist apps. each app shares the same navigation;
 older links open the matching section inside its current app.
+click the current app name to switch apps. cmd/ctrl+k opens search, and / opens it when you're not typing.
 
 | space or app | what you can do |
 |---|---|

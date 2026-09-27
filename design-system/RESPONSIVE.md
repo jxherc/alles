@@ -12,8 +12,8 @@ These are defaults, not permission to keep a broken layout until the exact pixel
 
 ## shell
 
-- preserve the 52px universal rail and its 44px trigger at every supported width;
-- the navigation sheet fills the remaining phone width and never obscures its own close action;
+- preserve the 44px-minimum app-name trigger in the visible header at every supported width;
+- the navigation sheet fits the phone width and never obscures its own close action;
 - opening the sheet preserves the current app state, makes the workbench inert, and restores trigger
   focus on every close path;
 - preserve the 52px app-owned identity row where the app needs one;

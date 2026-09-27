@@ -152,7 +152,8 @@ def run() -> None:
             assert "*" not in brief_text
             assert len(brief_text) <= 181
             assert brief.evaluate("el => el.getBoundingClientRect().height < 56")
-            assert page.locator("#space-rail").is_visible()
+            assert page.locator("#space-rail").count() == 0
+            assert page.locator(".today-topbar #app-drawer-btn").is_visible()
             assert page.locator("#app-drawer-btn").evaluate(
                 "el => el.getBoundingClientRect().width >= 44 && el.getBoundingClientRect().height >= 44"
             )
@@ -208,14 +209,14 @@ def run() -> None:
             ]
             assert page.locator("#app-drawer").evaluate(
                 "el => Math.round(el.getBoundingClientRect().width)"
-            ) == min(420, width - 52)
+            ) == min(420, width)
             assert (
                 page.locator("#app-drawer").evaluate("el => getComputedStyle(el).position")
                 == "fixed"
             )
             apps_frame = page.locator("#app-drawer").bounding_box()
             assert apps_frame is not None
-            assert abs(apps_frame["x"] - 52) <= 1
+            assert abs(apps_frame["x"]) <= 1
             assert apps_frame["x"] + apps_frame["width"] <= width + 1
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
@@ -230,7 +231,8 @@ def run() -> None:
             page.locator('.app-drawer-item[data-view="plan"]').click()
             page.wait_for_selector("#plan-view:visible")
             assert page.locator("#app-drawer").is_hidden()
-            assert page.locator("#space-rail").is_visible()
+            assert page.locator("#space-rail").count() == 0
+            assert page.locator("#plan-view .specialist-app-brand #app-drawer-btn").is_visible()
             page.locator("#app-drawer-btn").click()
             page.locator('.app-drawer-item[data-view="today"]').click()
             page.wait_for_url(f"http://localhost:{PORT}/")

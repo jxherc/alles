@@ -6,15 +6,15 @@ Components carry behavior, not decoration. Each contract applies in both themes 
 
 **Purpose:** make every space reachable without duplicating global navigation inside app headers.
 
-- One persistent 52px structural rail contains one 44px navigation trigger on every authenticated
-  product surface. The trigger opens the same modal navigation sheet from Home, Aide, Andromeda,
-  every specialist app, and Settings.
+- The app name is one 44px-minimum navigation trigger in the visible header. The same button moves
+  with the active surface, including Aide's compact header, and opens the same modal navigation sheet
+  from Home, Aide, Andromeda, and every specialist app. Settings stays a modal over the current app.
 - The sheet lists Home, Aide, and Andromeda first, followed by exactly Plan, Inbox, Docs, Files,
   Library, Health, Finance, Vault, and Server. The universal command uses this same registry.
 - Opening the sheet makes the underlying workbench inert, moves focus to Close, traps Tab and
   Shift+Tab, supports Escape and scrim dismissal, and restores focus to the trigger.
-- Local app headers never repeat Home or a second app picker. They contain app-local context and
-  actions only.
+- Local app headers contain one app-name switcher plus local context and actions, never a second
+  Home path or app picker.
 - Never show the legacy `<app> / alles` crumb. It duplicates identity and makes the app look embedded
   in an older shell.
 - Show the app identity once. Do not repeat the app name as a giant landing or workbench title below

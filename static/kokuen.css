@@ -2305,43 +2305,30 @@ html[data-theme="light"] :where(
   }
 }
 
-/* KOKUEN v5 universal runtime ------------------------------------------------
-   One structural rail and one navigation control remain available in every
-   space. Product headers keep only local identity and local tools. */
-html[data-kokuen-version="5"] body.afterlife-shell .space-rail:not([hidden]) {
-  width: 52px;
-  flex: 0 0 52px;
-  min-height: 100dvh;
-  display: flex !important;
-  align-items: center;
-  justify-content: flex-start;
-  padding: var(--k-space-1, 4px);
-  border-right: 1px solid var(--k-line, var(--faint));
-  background: var(--k-page, var(--bg));
-  z-index: 310;
-}
+/* One app-name switcher moves between the visible app headers. */
+html[data-kokuen-version="5"] .shell-navigation-toggle[hidden] { display: none; }
 
 html[data-kokuen-version="5"] .shell-navigation-toggle {
-  width: var(--k-control, 44px);
+  min-width: var(--k-control, 44px);
   height: var(--k-control, 44px);
-  display: grid;
-  place-items: center;
-  padding: 0;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--k-space-2);
+  padding: 0 var(--k-space-2);
+  margin-inline-start: calc(-1 * var(--k-space-2));
   border: 0;
   border-radius: var(--k-radius-control, 3px);
-  color: var(--k-muted, var(--muted));
+  color: var(--k-text, var(--text));
   background: transparent;
+  font: 560 15px/1 var(--k-font);
   cursor: pointer;
 }
 
-html[data-kokuen-version="5"] .shell-navigation-toggle svg {
-  width: 20px;
-  height: 20px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.45;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+html[data-kokuen-version="5"] .shell-navigation-chevron {
+  color: var(--k-muted, var(--muted));
+  font-size: 16px;
+  line-height: 1;
 }
 
 html[data-kokuen-version="5"] .shell-navigation-toggle:is(:hover, [aria-expanded="true"]) {
@@ -2354,12 +2341,27 @@ html[data-kokuen-version="5"] .shell-navigation-toggle:focus-visible {
   outline-offset: -2px;
 }
 
-html[data-kokuen-version="5"] body.afterlife-shell :where(.app, .main) {
-  min-width: 0;
+html[data-kokuen-version="5"] .shell-trigger-host :is(.today-wordmark, .sidebar-brand, .aide-mobile-name) {
+  display: none;
 }
 
-html[data-kokuen-version="5"] body.afterlife-shell > :is(.modal-overlay, .dialog-overlay) {
-  inset-inline: 52px 0;
+html[data-kokuen-version="5"] .shell-trigger-host .specialist-app-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+html[data-kokuen-version="5"] .andromeda-app-head.shell-trigger-host .shell-navigation-toggle {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+
+html[data-kokuen-version="5"] body.afterlife-shell :where(.app, .main) {
+  min-width: 0;
 }
 
 html[data-kokuen-version="5"] body.afterlife-shell > #setup-wizard {
@@ -2384,7 +2386,7 @@ html[data-kokuen-version="5"] body.afterlife-shell[data-space="andromeda"] .main
 }
 
 html[data-kokuen-version="5"] body.afterlife-shell[data-space="andromeda"] .andromeda-idle-footer {
-  left: calc(52px + var(--k-space-3));
+  left: var(--k-space-3);
 }
 
 html[data-kokuen-version="5"] .aide-mobile-name {
@@ -2392,7 +2394,7 @@ html[data-kokuen-version="5"] .aide-mobile-name {
 }
 
 @media (max-width: 700px) {
-  html[data-kokuen-version="5"] body[data-space="aide"] .aide-mobile-name {
+  html[data-kokuen-version="5"] body[data-space="aide"] .topbar-left:not(.shell-trigger-host) .aide-mobile-name {
     display: inline;
     flex: 0 0 auto;
     color: var(--k-text);
@@ -2401,14 +2403,14 @@ html[data-kokuen-version="5"] .aide-mobile-name {
 }
 
 html[data-kokuen-version="5"] body.afterlife-shell #app-drawer-scrim:not([hidden]) {
-  inset: 0 0 0 52px;
+  inset: 0;
   display: block !important;
   background: rgb(0 0 0 / 0.58);
 }
 
 html[data-kokuen-version="5"] #app-drawer[data-kokuen-surface="apps"] {
-  inset: 0 auto 0 52px;
-  width: min(420px, calc(100vw - 52px));
+  inset: 0 auto 0 0;
+  width: min(420px, 100vw);
   min-height: 100dvh;
   padding: var(--k-space-4) var(--k-space-4) var(--k-space-5);
   overflow-y: auto;
@@ -2654,7 +2656,6 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 @media (forced-colors: active) {
-  html[data-kokuen-version="5"] .space-rail,
   html[data-kokuen-version="5"] #app-drawer[data-kokuen-surface="apps"] {
     border-color: CanvasText;
   }
@@ -2740,7 +2741,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   html[data-kokuen-version="5"] body.afterlife-shell #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-settings-panel {
     top: 12px;
     right: var(--k-space-3);
-    left: calc(52px + var(--k-space-3));
+    left: var(--k-space-3);
     width: auto;
     max-width: none;
     max-height: calc(100dvh - 24px);
@@ -2750,7 +2751,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 @media (max-width: 320px) {
   html[data-kokuen-version="5"] body.afterlife-shell #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-settings-panel {
     right: var(--k-space-1);
-    left: calc(52px + var(--k-space-1));
+    left: var(--k-space-1);
   }
 
   #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-settings-head {
@@ -6299,7 +6300,7 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
     right: var(--k-space-2);
     bottom: var(--k-space-2);
     width: calc(100% - 16px);
-    max-width: calc(100vw - 52px - 16px);
+    max-width: calc(100vw - 16px);
   }
 
   body[data-app="files"]:has(#files-operation-dock:not([hidden])) .toast-container {

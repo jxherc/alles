@@ -716,6 +716,7 @@ function showView(viewId, navKey, onShow, stateRootId = '') {
   hideAllViews();
   const root = document.getElementById(viewId);
   root.style.display = 'flex';
+  _syncShellTrigger(root);
   setNav(navKey);
   if (!root.dataset.specialistApp && !root.classList.contains('aide-tool-view')) {
     return onShow?.(callback => callback(), _specialistFetch);
@@ -764,8 +765,14 @@ async function trackedImport(track, request, load, initialize) {
 const showChatView = () => {
   _setAfterlifeSpace('aide');
   if (singleHost()) _shChrome('chat', { onAide: true });
+  // Direct chat entry from an Aide tool must switch routes before a session hash is added.
+  const route = new URLSearchParams(location.search);
+  if (singleHost() || route.has('view') || route.has('app')) {
+    _syncLocalViewUrl({ host: 'aide', view: 'chat' }, 'chat', { replace: false });
+  }
   hideAllViews();
   document.getElementById('chat').style.display = 'flex';
+  _syncShellTrigger();
   document.getElementById('composer-outer').style.display = 'block';
   setNav('chat');
 };
@@ -1216,20 +1223,15 @@ let _appDrawerFocusBoundary = null;
 
 function initAfterlifeShell(flags) {
   const spaces = activeAfterlifeSpaces(flags);
-  const rail = document.getElementById('space-rail');
+  const trigger = document.getElementById('app-drawer-btn');
   document.body.classList.toggle('afterlife-shell', spaces.length > 0);
   document.body.classList.toggle('afterlife-aide-projects', flags.afterlife_aide_projects === true);
   initAideWorkspace();
-  if (!rail || !spaces.length) {
-    if (rail) rail.hidden = true;
-    return;
-  }
-  rail.hidden = false;
+  if (!trigger || !spaces.length) return;
   _setAfterlifeSpace(document.body.classList.contains('is-aide') ? 'aide' : '');
   _renderAppDrawer();
 
   const drawer = document.getElementById('app-drawer');
-  const trigger = document.getElementById('app-drawer-btn');
   if (drawer && trigger) {
     _appDrawerFocusBoundary = createFocusBoundary(drawer, {
       trigger,
@@ -1246,11 +1248,36 @@ function initAfterlifeShell(flags) {
     closeAppDrawer();
     openSettings();
   });
+  window.matchMedia('(max-width: 700px)').addEventListener?.('change', () => _syncShellTrigger());
 }
 
 function _setAfterlifeSpace(space) {
   document.body.dataset.space = space || '';
   window._syncAideNewTaskContext?.(window._currentSession || null);
+}
+
+function _syncShellTrigger(root = null) {
+  if (!document.body.classList.contains('afterlife-shell')) return;
+  const trigger = document.getElementById('app-drawer-btn');
+  if (!trigger) return;
+  const space = document.body.dataset.space;
+  const app = root?.dataset.specialistApp || document.body.dataset.app || 'alles';
+  const label = space === 'today' ? 'alles' : space === 'aide' ? 'aide'
+    : space === 'andromeda' ? 'andromeda' : app;
+  const target = space === 'today' ? document.querySelector('.today-topbar')
+    : space === 'aide' ? document.querySelector(window.matchMedia('(max-width: 700px)').matches
+      ? '.topbar-left' : '.sidebar-head')
+      : space === 'andromeda' ? document.querySelector('.andromeda-app-head')
+      : root?.querySelector('.specialist-app-brand, .page-view-head')
+        || document.querySelector(`[data-specialist-app="${app}"] .specialist-app-brand`)
+        || document.querySelector('.topbar-left');
+  if (!target) return;
+  trigger.parentElement?.classList.remove('shell-trigger-host');
+  target.prepend(trigger);
+  target.classList.add('shell-trigger-host');
+  document.getElementById('app-drawer-label').textContent = label;
+  trigger.setAttribute('aria-label', `switch app from ${label}`);
+  trigger.hidden = false;
 }
 
 function _renderAppDrawer() {

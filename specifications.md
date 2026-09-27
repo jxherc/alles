@@ -732,6 +732,8 @@ replacement is delivered and are not removed in Afterlife Phase 3.
 `static/js/subdomain.js` maps each host to the views it shows; `app.js` scopes the shell and cross-jumps
 between them. this works **today with zero dns setup**; browsers route `*.localhost` to your own
 machine automatically.
+the visible app name opens one navigation sheet with Home, Aide, Andromeda, and the nine specialist
+apps. it is the same button on single-host routes and subdomains; the workbench keeps its local tabs.
 
 **one login across all of them.** because a cookie set for `localhost` isn't sent to `*.localhost`
 subdomains, alles logs you in per-host and quietly relays the session with a one-time handoff code. the
