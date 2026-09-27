@@ -153,6 +153,34 @@ def run() -> None:
             )
             page.unroute("**/api/tasks")
             page.screenshot(path=str(output / f"home-capture-{width}.png"), full_page=True)
+
+            persona = context.request.post(
+                f"{base}/api/personas", data={"name": f"private helper {width}"}
+            )
+            assert persona.ok, persona.text()
+            session = context.request.post(
+                f"{base}/api/sessions", data={"name": f"returning chat {width}"}
+            )
+            assert session.ok, session.text()
+            page.evaluate("window._refreshPersonaBtn()")
+            expect(page.locator("#persona-btn")).to_be_hidden()
+            page.locator('.home-tile[data-go="chat"]').click()
+            expect(page.locator("#chat")).to_be_visible()
+            expect(page.locator("#persona-btn")).to_be_visible()
+            page.evaluate("window._reloadAideSessions()")
+            if page.locator("body").evaluate("body => body.classList.contains('sidebar-hidden')"):
+                page.locator("#sidebar-toggle-btn").click()
+            page.locator(f'.session-item[data-id="{session.json()["id"]}"] .session-open').click()
+            expect(page.locator("#session-actions-btn")).to_be_visible()
+            page.go_back(wait_until="networkidle")
+            page.go_back(wait_until="networkidle")
+            expect(page.locator("#home-view")).to_be_visible()
+            expect(page.locator("#persona-btn")).to_be_hidden()
+            expect(page.locator("#session-actions-btn")).to_be_hidden()
+            page.locator('.home-tile[data-go="chat"]').click()
+            expect(page.locator("#chat")).to_be_visible()
+            expect(page.locator("#persona-btn")).to_be_visible()
+            expect(page.locator("#session-actions-btn")).to_be_visible()
             assert not errors, errors
             context.close()
         browser.close()

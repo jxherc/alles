@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v272';   // Keep Home note capture and confirmation in sync.
+const VERSION = 'v273';   // Restore Aide chrome on single-host navigation.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '316';   // keep in sync with index.html ?v= / const _v
+const STAMP = '317';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

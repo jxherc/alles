@@ -751,6 +751,8 @@ body:not(.is-aide) .aide-only { display: none !important; }
 
 .topbar-utilities, .topbar-right { display: flex; align-items: center; gap: 0.25rem; }
 .topbar-utilities { margin-left: auto; }
+body:not(.is-aide) #persona-btn,
+body:not(.is-aide) #session-actions-btn { display: none !important; }
 .icon-btn {
   background: none; border: none; cursor: pointer;
   color: var(--muted); padding: 0.3rem 0.4rem; border-radius: 3px;
