@@ -85,12 +85,8 @@ python app.py
 
 open **http://localhost:6769** and you're in.
 
-on `dev-afterlife`, the new shell and Andromeda are still behind explicit release flags. preview the
-delivered Phase 4 surfaces with:
-
-```bash
-ALLES_AFTERLIFE_FEATURES=afterlife_shell,afterlife_today,afterlife_aide_projects,afterlife_andromeda,afterlife_jarvis,afterlife_storage_locations python app.py
-```
+Home, the shared shell, and Andromeda are on by default. Existing configurations that name
+`afterlife_today` still start; that old flag no longer switches Home screens.
 
 **want a normal mac/linux install?** run `./alles install` once. it builds a private,
 versioned Python environment, adds the `alles` launcher, and registers a user-owned launchd or

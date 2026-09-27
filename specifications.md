@@ -118,6 +118,8 @@ program, and compatibility links keep the older app names and subdomains working
 - **Suggestions** appears only when Aide has saved proactive cards. It stays separate from Needs you;
   opening or dismissing a card records feedback only after the server confirms it, while an uncertain
   or offline response leaves the card visible for a later check
+- old `home` links and deployments with the old `afterlife_today` flag use this same Home; the flag
+  name remains accepted for existing configurations but no longer selects a separate screen
 - on first use, older browser-local Home tile choices can seed pinned apps only when this server has
   no saved Home layout; the original browser choices remain available for rollback
 - every core section is deterministic and useful without a model. **Settings → Home** controls order,
@@ -647,7 +649,7 @@ copy `.env.example` to `.env`. **everything is optional**: alles runs fine with 
 | `auth_password` | — | that password |
 | `base_domain` | — | your real domain, for the subdomain setup (see architecture) |
 | `tavily_api_key` | — | better research search (falls back to duckduckgo + wikipedia, no key needed) |
-| `ALLES_AFTERLIFE_FEATURES` | — | exact comma-separated development flags; add `afterlife_andromeda` to expose the Phase 4 search page |
+| `ALLES_AFTERLIFE_FEATURES` | — | comma-separated development allow-list for optional surfaces; Home is always enabled and the old `afterlife_today` name remains accepted |
 
 **normal product preferences are configured in the interface.** Open Settings from Home or with
 ctrl/cmd+comma; grouped panes cover Home layout, general appearance, Aide, models/providers,

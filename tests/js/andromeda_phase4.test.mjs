@@ -619,7 +619,7 @@ test('Andromeda Home actions use the authenticated shared navigator', () => {
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
   assert.match(source, /window\._navigateHome\?\.\(\)/);
-  assert.match(app, /window\._navigateHome = \(\) => navigateTo\(_afterlifeFlags\.afterlife_today \? 'today' : 'home'\)/);
+  assert.match(app, /window\._navigateHome = \(\) => navigateTo\('today'\)/);
   assert.doesNotMatch(source, /location\.assign\(urlForApp\(''\)\)/);
 });
 
@@ -634,7 +634,7 @@ test('the service worker cannot mix old and new JavaScript modules', () => {
   const worker = readFileSync(new URL('../../static/sw.js', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
   const compatibility = readFileSync(new URL('../../static/js/routecompat.js', import.meta.url), 'utf8');
-  assert.match(worker, /const STAMP = '322'/);
+  assert.match(worker, /const STAMP = '323'/);
   assert.match(worker, /NETWORK_FIRST_STATIC = \['\.js', '\.mjs', '\.css'\]/);
   assert.match(worker, /NETWORK_FIRST_STATIC\.some\(ext => url\.pathname\.endsWith\(ext\)\)/);
   assert.match(worker, /Network-first code and styles/);

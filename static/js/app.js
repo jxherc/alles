@@ -24,7 +24,7 @@ import { loadMail, startMailPoll } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js?v=237';
-import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.js?v=237';
+import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.js?v=238';
 import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, releaseSpecialistLegacyView } from './specialist_groups.js?v=6';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=241';
@@ -497,7 +497,7 @@ function applySubdomainScope(initialRoute = null) {
 
   // landing
   if (initialRoute) renderLocalRoute(initialRoute);
-  else if (!sub) { if (!location.hash) (_afterlifeFlags.afterlife_today ? showTodayView() : showHomeView()); }
+  else if (!sub) { if (!location.hash) showTodayView(); }
   else if (!(app.primary === 'chat' && location.hash)) renderLocalRoute({ view: app.primary, hashOwner: app.primary });
   // (aide with a #sessionId is already restored by initSessions)
   document.body.classList.remove('preboot', 'login-mode');
@@ -782,7 +782,7 @@ window._openProject = (pid) => showView('project-view', 'project', () => import(
 // the command palette (search.js) reaches across subdomains, so expose the router
 // + an "ask aide / Andromeda search" handoff it can call from any app.
 window._navigateTo = (v) => navigateTo(v);
-window._navigateHome = () => navigateTo(_afterlifeFlags.afterlife_today ? 'today' : 'home');
+window._navigateHome = () => navigateTo('today');
 
 async function showPrivateDayDraft(prompt) {
   if (!(await navigateTo('chat'))) return false;
@@ -1006,7 +1006,7 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
 async function navigateTo(v) {
-  if (v === 'home' || v === 'today') v = _afterlifeFlags.afterlife_today ? 'today' : 'home';
+  if (v === 'home') v = 'today';
   const staysInDocs = v === 'wiki' || v === 'journal';
   const docsVisible = document.getElementById('wiki-view')?.style.display !== 'none';
   if (!staysInDocs && docsVisible && typeof window._prepareDocsNavigation === 'function') {
@@ -1068,7 +1068,7 @@ window.addEventListener('popstate', async () => {
   }
   if (route) await renderLocalRoute(route);
   else if (nextGroup) await renderLocalView(nextGroup.group, { view: nextGroup.group, section: nextGroup.section });
-  else if (singleHost()) await renderLocalView(_afterlifeFlags.afterlife_today ? 'today' : 'home');
+  else if (singleHost()) await renderLocalView('today');
 });
 
 function renderLocalRoute(route) {
@@ -1084,12 +1084,12 @@ const AIDE_TOOL_VIEWS = new Set([
 ]);
 
 function renderLocalView(v, route = {}) {
+  if (v === 'home') v = 'today';
   const staysInAide = AIDE_TOOL_VIEWS.has(v);
   _setAfterlifeSpace(staysInAide ? 'aide' : v === 'today' ? 'today' : v === 'andromeda' ? 'andromeda' : '');
   if (singleHost() && v !== 'settings') _shChrome(v, { onAide: staysInAide });
   if      (v === 'today')     showTodayView();
   else if (v === 'andromeda') return showAndromedaView();
-  else if (v === 'home')      showHomeView();
   else if (v === 'chat')      showChatView();
   else if (v === 'models')    showModelsView();
   else if (v === 'brain')     showBrainView();

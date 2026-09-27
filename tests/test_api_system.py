@@ -213,7 +213,7 @@ class BuildInfoTest(ApiTest):
         flags = afterlife_feature_flags("afterlife_shell, afterlife_storage_locations")
         self.assertTrue(flags["afterlife_shell"])
         self.assertTrue(flags["afterlife_storage_locations"])
-        self.assertFalse(flags["afterlife_today"])
+        self.assertTrue(flags["afterlife_today"])
         self.assertFalse(flags["afterlife_aide_projects"])
         self.assertFalse(flags["afterlife_andromeda"])
         self.assertFalse(flags["afterlife_jarvis"])

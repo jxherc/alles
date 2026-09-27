@@ -18,14 +18,14 @@ test('delivered afterlife surfaces default on', () => {
   assert.equal(AFTERLIFE_FEATURE_DEFAULTS.afterlife_storage_locations, false);
 });
 
-test('only exact boolean flags can enable a surface', () => {
+test('the one Home remains available while other surfaces still require boolean flags', () => {
   const flags = normalizeAfterlifeFeatures({
     afterlife_shell: true,
     afterlife_today: 'true',
     made_up_surface: true,
   });
   assert.equal(flags.afterlife_shell, true);
-  assert.equal(flags.afterlife_today, false);
+  assert.equal(flags.afterlife_today, true);
   assert.equal('made_up_surface' in flags, false);
 });
 
@@ -53,4 +53,5 @@ test('a finished destination still needs its exact feature flag', () => {
     ['today', 'aide'],
   );
   assert.deepEqual(activeAfterlifeSpaces({ ...flags, afterlife_shell: false }), []);
+  assert.deepEqual(activeAfterlifeSpaces({ ...flags, afterlife_today: false }), ['today', 'aide', 'andromeda']);
 });

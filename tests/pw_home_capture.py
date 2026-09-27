@@ -1,9 +1,10 @@
-"""Legacy Home capture must never report an existing document as a new save."""
+"""The old Home flag and links now use the same safe capture and Aide shell."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
@@ -45,22 +46,23 @@ def run() -> None:
                     errors.append(message.text)
 
             page.on("console", console)
-            page.goto(base, wait_until="networkidle")
-            page.locator("#home-view").wait_for(state="visible")
+            page.goto(f"{base}/?app=home&keep=flag-off", wait_until="networkidle")
             if page.locator("#setup-wizard").is_visible():
                 page.locator("#setup-skip").click()
                 page.locator("#setup-wizard").wait_for(state="hidden")
-            for selector in (
-                "#hc-input",
-                "#hc-save",
-                '.hc-mode[data-mode="note"]',
-                '.hc-mode[data-mode="task"]',
-            ):
-                box = page.locator(selector).bounding_box()
-                assert box and box["width"] >= 44 and box["height"] >= 44, (selector, box)
-            assert page.evaluate(
-                "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-            )
+            expect(page.locator("#today-view")).to_be_visible()
+            assert not page.locator("#home-view").is_visible()
+            assert parse_qs(urlparse(page.url).query).get("keep") == ["flag-off"]
+            build = context.request.get(f"{base}/api/system/build")
+            assert build.ok and build.json()["feature_flags"]["afterlife_today"] is True
+            capture = page.locator("#today-capture-input")
+            mode = page.locator("#today-capture-mode")
+            submit = page.locator('#today-capture [type="submit"]')
+            for control in (capture, mode, submit):
+                box = control.bounding_box()
+                assert box and box["width"] >= 44 and box["height"] >= 44, box
+            mode.click()
+            expect(mode).to_have_attribute("aria-pressed", "false")
 
             title = f"capture collision {width}"
             original = context.request.post(
@@ -68,15 +70,15 @@ def run() -> None:
                 data={"path": title, "content": "owner original\n"},
             )
             assert original.ok, original.text()
-
-            names_requests = []
-
-            def stale_names(route):
-                names_requests.append(route.request.url)
-                route.fulfill(status=200, content_type="application/json", body='{"names":[]}')
-
-            page.route("**/api/vault-md/names", stale_names)
-            capture = page.locator("#hc-input")
+            names_requests: list[str] = []
+            page.on(
+                "request",
+                lambda request: (
+                    names_requests.append(request.url)
+                    if request.url.endswith("/api/vault-md/names")
+                    else None
+                ),
+            )
             capture.fill(title)
             with page.expect_response(
                 lambda response: (
@@ -84,21 +86,19 @@ def run() -> None:
                     and response.request.method == "POST"
                 )
             ) as saved:
-                page.locator("#hc-save").click()
+                submit.click()
             result = saved.value.json()
             assert result.get("created") is True, result
             assert result["path"] == f"{title} 2.md", result
             expect(capture).to_have_value("")
             expect(page.locator("#toast-container .toast.success").last).to_have_text("note saved")
             assert not names_requests, names_requests
-
             for path, expected in (
                 (f"{title}.md", "owner original\n"),
                 (f"{title} 2.md", f"{title}\n"),
             ):
                 response = context.request.get(f"{base}/api/vault-md/file", params={"path": path})
-                assert response.ok, response.text()
-                assert response.json()["content"] == expected
+                assert response.ok and response.json()["content"] == expected
 
             capture.fill(f"failed capture {width}")
             page.route(
@@ -110,26 +110,33 @@ def run() -> None:
                 ),
             )
             expected_failure[0] = True
-            page.locator("#hc-save").click()
-            expect(page.locator("#toast-container .toast.error").last).to_contain_text(
+            with page.expect_response(
+                lambda response: (
+                    response.url.endswith("/api/vault-md/file")
+                    and response.request.method == "POST"
+                )
+            ):
+                submit.click()
+            expect(page.locator("#today-capture")).not_to_have_attribute("aria-busy", "true")
+            expect(page.locator("#today-status")).to_contain_text(
                 "could not confirm note; check Docs before retrying"
             )
             expect(capture).to_have_value(f"failed capture {width}")
-            active = page.evaluate("document.activeElement?.id")
-            assert active == "hc-input", active
+            expect(capture).to_be_focused()
             expected_failure[0] = False
             assert len(expected_errors) == 1, expected_errors
             page.unroute("**/api/vault-md/file")
 
-            page.locator('.hc-mode[data-mode="task"]').click()
+            mode.click()
+            expect(mode).to_have_attribute("aria-pressed", "true")
             capture.fill(f"captured task {width}")
             with page.expect_response(
                 lambda response: (
                     response.url.endswith("/api/tasks") and response.request.method == "POST"
                 )
             ) as task_response:
-                capture.press("Enter")
-            assert task_response.value.ok, task_response.value.text()
+                submit.click()
+            assert task_response.value.ok and task_response.value.json().get("id")
             expect(capture).to_have_value("")
             expect(page.locator("#toast-container .toast.success").last).to_have_text("task added")
 
@@ -146,12 +153,21 @@ def run() -> None:
                 ),
             )
             capture.fill(f"queued task {width}")
-            capture.press("Enter")
+            with page.expect_response(
+                lambda response: (
+                    response.url.endswith("/api/tasks") and response.request.method == "POST"
+                )
+            ):
+                submit.click()
+            expect(page.locator("#today-capture")).not_to_have_attribute("aria-busy", "true")
             expect(capture).to_have_value("")
-            expect(page.locator("#toast-container .toast").last).to_have_text(
+            expect(page.locator("#today-status")).to_have_text(
                 "task queued; it will sync when online"
             )
             page.unroute("**/api/tasks")
+            assert page.evaluate(
+                "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+            )
             page.screenshot(path=str(output / f"home-capture-{width}.png"), full_page=True)
 
             persona = context.request.post(
@@ -164,7 +180,8 @@ def run() -> None:
             assert session.ok, session.text()
             page.evaluate("window._refreshPersonaBtn()")
             expect(page.locator("#persona-btn")).to_be_hidden()
-            page.locator('.home-tile[data-go="chat"]').click()
+            page.locator("#app-drawer-btn").click()
+            page.locator('.app-drawer-item[data-view="chat"]').click()
             expect(page.locator("#chat")).to_be_visible()
             expect(page.locator("#persona-btn")).to_be_visible()
             page.evaluate("window._reloadAideSessions()")
@@ -172,19 +189,10 @@ def run() -> None:
                 page.locator("#sidebar-toggle-btn").click()
             page.locator(f'.session-item[data-id="{session.json()["id"]}"] .session-open').click()
             expect(page.locator("#session-actions-btn")).to_be_visible()
-            page.go_back(wait_until="networkidle")
-            page.go_back(wait_until="networkidle")
-            expect(page.locator("#home-view")).to_be_visible()
+            page.goto(f"{base}/?view=home", wait_until="networkidle")
+            expect(page.locator("#today-view")).to_be_visible()
             expect(page.locator("#persona-btn")).to_be_hidden()
             expect(page.locator("#session-actions-btn")).to_be_hidden()
-            page.locator("#app-drawer-btn").click()
-            page.locator('.app-drawer-item[data-view="today"]').click()
-            expect(page.locator("#home-view")).to_be_visible()
-            expect(page.locator("#app-drawer")).to_be_hidden()
-            page.locator('.home-tile[data-go="chat"]').click()
-            expect(page.locator("#chat")).to_be_visible()
-            expect(page.locator("#persona-btn")).to_be_visible()
-            expect(page.locator("#session-actions-btn")).to_be_visible()
             assert not errors, errors
             context.close()
         browser.close()

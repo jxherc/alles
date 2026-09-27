@@ -131,11 +131,11 @@ class TodaySectionsTest(ApiTest):
         ):
             return self.client.get("/api/today").json()
 
-    def test_sections_are_absent_while_today_flag_is_off(self):
+    def test_one_home_keeps_sections_when_old_flag_is_omitted(self):
         with mock.patch.dict(
             "os.environ", {"ALLES_AFTERLIFE_FEATURES": "afterlife_shell"}, clear=False
         ):
-            self.assertNotIn("sections", self.client.get("/api/today").json())
+            self.assertIn("sections", self.client.get("/api/today").json())
 
     def test_empty_sections_keep_the_five_part_shape(self):
         sections = self.get_today()["sections"]

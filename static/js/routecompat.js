@@ -18,7 +18,6 @@ const _route = (host, view, hashOwner, extra = {}) => Object.freeze({
 });
 
 const HOME_TODAY = _route('', 'today', 'today');
-const HOME_LEGACY = _route('', 'home', 'home');
 const ANDROMEDA = _route('andromeda', 'andromeda', 'andromeda');
 const ACTIVITY = _route('server', 'server', 'activity', { section: 'activity' });
 const SYSTEM = _route('server', 'system', 'system');
@@ -164,9 +163,9 @@ function _hasIdentifier(value) {
   return typeof value === 'string' && value.trim() !== '';
 }
 
-function _routeForIdentifier(identifier, flags) {
+function _routeForIdentifier(identifier) {
   if (identifier === 'home' || identifier === 'today') {
-    return flags?.afterlife_today === true ? HOME_TODAY : HOME_LEGACY;
+    return HOME_TODAY;
   }
   if (identifier === 'activity') return ACTIVITY;
   return _fixedIdentifierRoutes[identifier] || null;
@@ -179,20 +178,20 @@ function _routeForIdentifier(identifier, flags) {
  * `view`, matching the existing boot router. An explicit but unknown identifier
  * is a no-op instead of falling through to a different legacy host redirect.
  */
-export function resolveCompatibilityRoute({ sub = '', app, view, flags = {} } = {}) {
+export function resolveCompatibilityRoute({ sub = '', app, view } = {}) {
   const sourceHost = _identifier(sub);
   const hasApp = _hasIdentifier(app);
   const hasView = _hasIdentifier(view);
 
   if (hasApp || hasView) {
     const identifier = _identifier(hasApp ? app : view);
-    return _routeForIdentifier(identifier, flags);
+    return _routeForIdentifier(identifier);
   }
 
   if (!sourceHost || Object.hasOwn(CANONICAL_HOSTS, sourceHost)) return null;
 
   if (sourceHost === 'home') {
-    return flags?.afterlife_today === true ? HOME_TODAY : HOME_LEGACY;
+    return HOME_TODAY;
   }
   return LEGACY_HOST_ALIASES[sourceHost] || null;
 }
