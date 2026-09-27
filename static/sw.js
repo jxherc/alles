@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v274';   // Keep Home navigation aligned with its feature flag.
+const VERSION = 'v275';   // Keep the private Home-to-Aide draft in one module generation.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '318';   // keep in sync with index.html ?v= / const _v
+const STAMP = '319';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

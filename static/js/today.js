@@ -15,6 +15,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
 }[char]));
 
 let navigate = () => {};
+let askAide = async () => false;
 let apps = [];
 let data = null;
 let preferences = null;
@@ -53,6 +54,15 @@ export function dailyRows(day) {
   for (const item of day?.day_events || []) rows.push({ view: 'days', meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: item.name, kind: 'date' });
   for (const item of day?.habits || []) rows.push({ view: 'habits', meta: t('home.not_done'), title: item.name, kind: 'habit' });
   return rows.slice(0, 12);
+}
+
+export function homeDayRequest(sections) {
+  const attention = (sections?.needs_you || []).slice(0, 5)
+    .map(item => `needs attention: ${item.title}${item.summary ? ` — ${item.summary}` : ''}`);
+  const dated = dailyRows(sections?.today).map(item => `${item.kind}: ${item.meta} — ${item.title}`);
+  const lines = [...attention, ...dated]
+    .map(line => String(line).replace(/\s+/g, ' ').trim().slice(0, 350));
+  return `here's the day context available in alles:\n${lines.join('\n') || 'no dated items are showing.'}\n\nplease give me a short rundown: what matters first, what can wait, and anything i might miss.`;
 }
 
 export function homeAidePreview(value, limit = 180) {
@@ -371,7 +381,10 @@ function updateHeading() {
 }
 
 function wireHome() {
-  document.getElementById('today-ask-aide')?.addEventListener('click', () => navigate('chat'));
+  document.getElementById('today-ask-aide')?.addEventListener('click', async () => {
+    if (!data?.today) { showStatus(t('home.load_error')); return; }
+    await askAide(homeDayRequest(data));
+  });
   document.querySelectorAll('[data-today-destination]').forEach(button => button.addEventListener('click', () => {
     if (button.dataset.todayDestination === 'apps') document.getElementById('app-drawer-btn')?.click();
     else navigate(button.dataset.todayDestination);
@@ -390,6 +403,7 @@ function wireHome() {
 
 export function initToday(options) {
   navigate = options.navigate;
+  askAide = options.askAide;
   apps = options.apps;
   const root = document.getElementById('today-view');
   if (root && !root.dataset.wired) {

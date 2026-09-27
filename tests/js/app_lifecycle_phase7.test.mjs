@@ -282,7 +282,8 @@ test('scoped web searches use one-time handoff state and retain scope for Aide f
 
 test('boot-time Aide handoffs preserve a validated selected project', () => {
   assert.match(app, /const handoffProjectId = validatedProjectId\(bootParams\.get\('project_id'\)\)/);
-  assert.match(app, /_askInChat\(\s*_ask,\s*handoffWeb,\s*handoffDocumentScope,\s*handoffProjectId/);
+  assert.match(app, /_deliverContextHandoff\(\s*_pendingContextHandoffPayload \|\| \{[\s\S]*?handoffProjectId, contextHandoffReady/);
+  assert.match(app, /return window\._askInChat\(\s*ask, payload\.web === true, payload\.document_scope \|\| null, projectId, redeemed/);
   assert.match(app, /projectId \|\| window\._currentSession\?\.project_id/);
 });
 

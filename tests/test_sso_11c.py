@@ -131,8 +131,22 @@ class SsoTests(ApiTest):
         self.assertEqual(self.client.get(f"/api/auth/context-handoff/{code}").status_code, 405)
         redeemed = self.client.post(f"/api/auth/context-handoff/{code}")
         self.assertEqual(redeemed.status_code, 200)
-        self.assertEqual(redeemed.json(), payload)
+        self.assertEqual(redeemed.json(), {**payload, "delivery": "send"})
         self.assertEqual(self.client.post(f"/api/auth/context-handoff/{code}").status_code, 404)
+
+        private = self.client.post(
+            "/api/auth/context-handoff",
+            json={"ask": "private day", "delivery": "private_draft"},
+        )
+        self.assertEqual(private.status_code, 200)
+        redeemed_private = self.client.post(f"/api/auth/context-handoff/{private.json()['code']}")
+        self.assertEqual(redeemed_private.json()["delivery"], "private_draft")
+        self.assertEqual(
+            self.client.post(
+                "/api/auth/context-handoff", json={"ask": "x", "delivery": "unknown"}
+            ).status_code,
+            422,
+        )
 
     # ── middleware gating ──────────────────────────────────────────────────────
     def test_middleware_gates_api(self):

@@ -80,6 +80,9 @@ program, and compatibility links keep the older app names and subdomains working
   format; retired standalone names do not reappear as extra tiles
 - Home remains the live clock, day summary, capture, and pinned-app surface. Saved legacy pins are
   normalized to their new workbench without deleting the owner's preference
+- Home's day question opens an editable incognito draft in Aide. It carries the available day context
+  through a one-time code across app subdomains; it does not send or create a conversation until the
+  owner chooses to send.
 
 ### specialist workbenches
 **plain version:** related apps now open together without merging their records.

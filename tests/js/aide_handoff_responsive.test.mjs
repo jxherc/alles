@@ -26,14 +26,15 @@ test('context handoff scrubs ctx before attempting redemption', () => {
   assert.ok(redeem.indexOf('_rememberContextHandoffPayload(payload)') < redeem.indexOf('_forgetContextHandoffCode()'));
   const retry = app.match(/function _showContextHandoffRetry\([^]*?\n}/)?.[0] || '';
   assert.match(retry, /const payload = await _redeemPendingContextHandoff\(\)/);
-  assert.match(retry, /if \(!delivered\) throw new Error/);
+  assert.match(retry, /if \(!\(await _deliverContextHandoff\(payload, projectId, true\)\)\)/);
   assert.match(retry, /_isTerminalContextHandoffError\(error\)[^]*?_discardContextHandoff\(\)[^]*?retry\.textContent = 'dismiss'/);
   assert.ok(
-    retry.indexOf('await window._askInChat') < retry.indexOf('_discardContextHandoff()'),
+    retry.indexOf('await _deliverContextHandoff') < retry.indexOf('_discardContextHandoff()'),
     'private context must remain recoverable until chat delivery succeeds',
   );
+  assert.match(app, /if \(payload\.delivery === 'private_draft'\) return showPrivateDayDraft\(ask\)/);
   assert.match(boot, /const contextHandoffReady = Boolean\(_pendingContextHandoffPayload\)/);
-  assert.match(boot, /await window\._askInChat\([^]*?if \(!delivered\)[^]*?_discardContextHandoff\(\)/);
+  assert.match(boot, /await _deliverContextHandoff\([^]*?if \(!delivered\)[^]*?_discardContextHandoff\(\)/);
 });
 
 test('Aide drawer and backdrop share the 700px responsive breakpoint', () => {

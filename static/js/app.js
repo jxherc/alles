@@ -198,6 +198,15 @@ async function _redeemPendingContextHandoff() {
   return payload;
 }
 
+async function _deliverContextHandoff(payload, projectId = '', redeemed = false) {
+  const ask = String(payload?.ask || '');
+  if (!ask) return true;
+  if (payload.delivery === 'private_draft') return showPrivateDayDraft(ask);
+  return window._askInChat(
+    ask, payload.web === true, payload.document_scope || null, projectId, redeemed,
+  );
+}
+
 function _showContextHandoffRetry(projectId = '') {
   if (!_pendingContextHandoffCode && !_pendingContextHandoffPayload) return;
   const container = document.getElementById('toast-container');
@@ -208,36 +217,28 @@ function _showContextHandoffRetry(projectId = '') {
   notice.className = 'toast error context-handoff-error';
   notice.setAttribute('role', 'alert');
   const message = document.createElement('span');
-  message.textContent = 'private document context could not be opened';
+  message.textContent = 'private context could not be opened';
   const retry = document.createElement('button');
   retry.type = 'button';
   retry.textContent = 'retry';
   retry.addEventListener('click', async () => {
     if (!_pendingContextHandoffCode && !_pendingContextHandoffPayload) { notice.remove(); return; }
     retry.disabled = true;
-    message.textContent = 'retrying private document context';
+    message.textContent = 'retrying private context';
     try {
       const payload = await _redeemPendingContextHandoff();
-      const ask = String(payload?.ask || '');
-      if (ask) {
-        const delivered = await window._askInChat(
-          ask,
-          payload.web === true,
-          payload.document_scope || null,
-          projectId,
-          true,
-        );
-        if (!delivered) throw new Error('context handoff was not accepted');
+      if (!(await _deliverContextHandoff(payload, projectId, true))) {
+        throw new Error('context handoff was not accepted');
       }
       _discardContextHandoff();
       notice.remove();
     } catch (error) {
       if (_isTerminalContextHandoffError(error)) {
         _discardContextHandoff();
-        message.textContent = 'private document context expired';
+        message.textContent = 'private context expired';
         retry.textContent = 'dismiss';
       } else {
-        message.textContent = 'private document context is still unavailable';
+        message.textContent = 'private context is still unavailable';
       }
       retry.disabled = false;
       retry.focus();
@@ -404,12 +405,11 @@ async function _boot({ reachable = true } = {}) {
     const contextHandoffReady = Boolean(_pendingContextHandoffPayload);
     setTimeout(async () => {
       try {
-        const delivered = await window._askInChat(
-          _ask,
-          handoffWeb,
-          handoffDocumentScope,
-          handoffProjectId,
-          contextHandoffReady,
+        const delivered = await _deliverContextHandoff(
+          _pendingContextHandoffPayload || {
+            ask: _ask, web: handoffWeb, document_scope: handoffDocumentScope,
+          },
+          handoffProjectId, contextHandoffReady,
         );
         if (contextHandoffReady) {
           if (!delivered) throw new Error('context handoff was not accepted');
@@ -783,6 +783,44 @@ window._openProject = (pid) => showView('project-view', 'project', () => import(
 // + an "ask aide / Andromeda search" handoff it can call from any app.
 window._navigateTo = (v) => navigateTo(v);
 window._navigateHome = () => navigateTo(_afterlifeFlags.afterlife_today ? 'today' : 'home');
+
+async function showPrivateDayDraft(prompt) {
+  if (!(await navigateTo('chat'))) return false;
+  saveDraft();
+  await discardAttachments();
+  setIncognitoMode(true);
+  newChat({ skipDraft: true });
+  const input = document.getElementById('composer-ta');
+  input.value = prompt;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
+  return true;
+}
+
+async function prepareHomeDayDraft(prompt) {
+  if (!prompt) return false;
+  if (singleHost() || appForSub(currentSub()).app === 'aide') {
+    try { return await showPrivateDayDraft(prompt); }
+    catch { toast('could not prepare private day question', 'error'); return false; }
+  }
+  try {
+    const response = await fetch('/api/auth/context-handoff', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ask: prompt, delivery: 'private_draft' }),
+    });
+    if (!response.ok) throw new Error('handoff failed');
+    const { code } = await response.json();
+    if (!code) throw new Error('handoff failed');
+    const target = new URL(urlForApp('aide'));
+    target.searchParams.set('ctx', code);
+    return await _navigateWithHandoff(target.toString());
+  } catch {
+    toast('could not prepare private day question', 'error');
+    return false;
+  }
+}
+
 window._askInChat = async (
   q,
   web = false,
@@ -908,7 +946,7 @@ const showPhotosView     = () => showView('photos-view',    'photos',    (_track
 const showHomeView       = () => { _setAfterlifeSpace(''); showView('home-view', 'home', renderHome); };
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=304'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=305'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft })));
   _renderFirstRun();
   return result;
 };
