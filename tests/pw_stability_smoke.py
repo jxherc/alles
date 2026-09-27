@@ -161,17 +161,14 @@ def run(device: str) -> None:
             )
             page.locator("#today-ask-aide").click()
             expect(page.locator("#composer-ta")).to_be_visible()
-            incognito = page.locator("#incognito-btn")
-            expect(incognito).to_be_visible()
-            incognito.click()
             expect(page.locator("body")).to_have_class(re.compile(r"\bis-incognito\b"))
-            expect(incognito).to_have_attribute("aria-pressed", "true")
+            expect(page.locator("#composer-ta")).to_have_value(re.compile(r"day context"))
             page.locator("#incognito-exit").click()
             expect(page.locator("body")).not_to_have_class(re.compile(r"\bis-incognito\b"))
             page.screenshot(path=str(output / "home-to-aide.png"), full_page=True)
             page.go_back(wait_until="networkidle")
             expect(page.locator("#today-view")).to_be_visible()
-            expect(incognito).to_be_hidden()
+            expect(page.locator("#incognito-btn")).to_be_hidden()
             scenarios[current]["status"] = "passed"
             if device == "phone":
                 scenarios.append(

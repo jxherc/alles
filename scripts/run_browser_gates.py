@@ -64,6 +64,7 @@ COMMANDS = {
     "server-recovery": ("tests/pw_server_recovery.py",),
     "home-reminders": ("tests/pw_today_reminders.py",),
     "home-capture": ("tests/pw_home_capture.py",),
+    "home-day-draft": ("tests/pw_home_day_draft.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     "aide-composer": ("tests/pw_aide_composer.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),

@@ -20,7 +20,9 @@ test('leaving incognito deletes the temporary server session without saving its 
 
 test('switching privacy modes discards selected attachments', () => {
   assert.match(uploads, /export async function discardAttachments\(\)/);
-  assert.equal((app.match(/await discardAttachments\(\)/g) || []).length, 2);
+  assert.match(app, /async function showPrivateDayDraft\(prompt\) \{[\s\S]*?await discardAttachments\(\)/);
+  assert.match(app, /getElementById\('incognito-btn'\)[\s\S]*?await discardAttachments\(\)/);
+  assert.match(app, /getElementById\('incognito-exit'\)[\s\S]*?await discardAttachments\(\)/);
 });
 
 test('attachment ids are copied before the composer clears them', () => {

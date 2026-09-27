@@ -6,6 +6,7 @@ import { configureLocalization } from '../../static/js/i18n.js';
 
 import {
   dailyRows,
+  homeDayRequest,
   homeAidePreview,
   homeGreetingFor,
   orderedVisibleHomeSections,
@@ -57,6 +58,17 @@ test('unfinished habits become local daily rows', () => {
   assert.deepEqual(rows[0], { view: 'habits', meta: 'not done', title: 'stretch', kind: 'habit' });
 });
 
+test('day request contains bounded visible context and stays a draft until the owner sends', () => {
+  const request = homeDayRequest({
+    needs_you: [{ title: 'review budget', summary: 'one item needs approval' }],
+    today: { events: [{ time: '09:30', title: 'private calendar marker' }], tasks: {} },
+  });
+  assert.match(request, /review budget/);
+  assert.match(request, /private calendar marker/);
+  assert.match(request, /what matters first/);
+  assert.ok(request.length < 20000);
+});
+
 test('home aide preview removes markdown and stays brief', () => {
   const preview = homeAidePreview(`*Baby don't hurt me.* But seriously — **love** is an emotion.\n\n- first point\n- second point ${'more words '.repeat(30)}`);
   assert.ok(!preview.includes('*'));
@@ -91,7 +103,7 @@ test('Home presents configured destinations as pinned apps without an unexplaine
     assert.match(app, new RegExp(`HOME_PINNABLE_APPS[\\s\\S]*?view: '${view}'`));
   }
   assert.doesNotMatch(app.match(/const HOME_PINNABLE_APPS = \[[\s\S]*?\n\];/)?.[0] || '', /view: '(?:calendar|tasks|mail|money|photos|watch|activity)'/);
-  assert.match(app, /initToday\(\{ navigate: navigateTo, apps: HOME_PINNABLE_APPS \}\)/);
+  assert.match(app, /initToday\(\{ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft \}\)/);
 });
 
 test('a successful Home capture is confirmed independently of a partial refresh', () => {
