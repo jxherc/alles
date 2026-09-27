@@ -8303,6 +8303,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-shelf-h span { color: var(--muted); }
 .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; }
 .book-card { display: flex; gap: 0.7rem; border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); padding: 0.7rem; position: relative; }
+.book-card:focus { outline: 2px solid var(--k-focus); outline-offset: 2px; }
 .book-cover { width: 52px; height: 76px; object-fit: cover; border-radius: 3px; flex-shrink: 0; background: var(--bg); }
 .book-cover-ph { display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 600; color: var(--muted); border: 1px solid var(--faint); }
 .book-info { flex: 1; min-width: 0; }
