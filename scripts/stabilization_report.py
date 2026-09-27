@@ -300,6 +300,23 @@ def build_report(registry: dict, census: dict, manifest: dict, executions: list[
     ]
     for control in controls:
         _apply_evidence(control, current, "controls", "control_id")
+    control_ids = {row["id"] for row in controls}
+    unmapped_scenarios = sorted(
+        {
+            result["scenario_id"]
+            for run in current
+            for result in run.get("scenarios", [])
+            if result.get("scenario_id") and result["scenario_id"] not in ids
+        }
+    )
+    unmapped_controls = sorted(
+        {
+            result["control_id"]
+            for run in current
+            for result in run.get("controls", [])
+            if result.get("control_id") and result["control_id"] not in control_ids
+        }
+    )
     full_runs = {}
     for run in matching:
         if (
@@ -316,6 +333,7 @@ def build_report(registry: dict, census: dict, manifest: dict, executions: list[
         ),
     )[-2:]
     release_gates = {
+        "all_execution_results_mapped": not unmapped_scenarios and not unmapped_controls,
         "all_required_scenarios": bool(scenarios)
         and all(row["status"] == "passed" for row in scenarios),
         "all_controls_verified": bool(controls)
@@ -340,6 +358,8 @@ def build_report(registry: dict, census: dict, manifest: dict, executions: list[
             "controls": len(controls),
             "scenarios": dict(Counter(row["status"] for row in scenarios)),
             "unmapped_control_owners": sorted({row["feature"] for row in controls} - set(features)),
+            "unmapped_scenario_results": unmapped_scenarios,
+            "unmapped_control_results": unmapped_controls,
         },
         "scenarios": scenarios,
         "controls": controls,

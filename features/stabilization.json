@@ -82,6 +82,19 @@
       ]
     },
     {
+      "id": "aide.composer-responsive",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "send, stop and reload a conversation using the responsive composer",
+      "expected": "At 320px, 390px and desktop widths in both themes, pointer, touch and keyboard reach unclipped 44px composer actions. Send and Stop use a simulated loopback provider; the saved conversation survives reload. Message text uses its available width, and message action labels stay separate, visible on touch and revealed by keyboard focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
       "id": "aide.conversation-and-execution.1",
       "feature": "aide.conversation-and-execution",
       "app": "aide",
@@ -5607,6 +5620,49 @@
       ],
       "verification": "The action row wraps and buttons no longer shrink. The row shows on keyboard focus and, like project delete, stays visible on hover-none or coarse-pointer screens; message edit, regenerate and remember buttons follow the same touch rule. Desktop hover behavior is unchanged. The aide-composer gate now checks that every action fits its label, stays inside the viewport, does not overlap, is visible on touch, and is revealed by keyboard focus on desktop. Probe screenshots at 320px, 390px and 1440px were manually inspected. Native Safari/iPhone unverified.",
       "source_trace": "A shared KOKUEN v5 rule gives every button min-width 44px !important. The action row did not wrap, so flexbox shrank each button to 44px under its label and the row ran past the pane. The row was also hover-only: on touch it stayed invisible but tappable, and keyboard focus did not reveal it."
+    },
+    {
+      "id": "STAB-110",
+      "title": "Coverage report silently omits results for unknown workflow and control IDs",
+      "severity": "medium",
+      "screen": "Stabilization coverage report",
+      "revision": "40334f5",
+      "status": "fixed-and-verified",
+      "reproduction": [
+        "Inspect the maintained aide-composer gate's aide.composer-responsive result and the ledger; the ID has no required workflow entry.",
+        "Build a report with a current execution containing a workflow or control ID missing from the ledger.",
+        "Inspect the coverage summary and release gates: the omitted IDs are not disclosed."
+      ],
+      "expected": "Current named results must map to ledger entries or appear as an explicit coverage gap that blocks release.",
+      "actual": "Only existing ledger rows are joined to evidence, silently dropping unknown result IDs from coverage.",
+      "source_trace": "scripts/stabilization_report.py build_report and _apply_evidence iterate ledger entries without checking execution IDs against them.",
+      "evidence": [
+        "tests/test_stabilization_report.py::StabilizationEvidenceTests.test_unmapped_current_results_are_visible_and_block_release",
+        "tests/test_stabilization_report.py::StabilizationEvidenceTests.test_historical_unmapped_results_do_not_block_current_contract"
+      ],
+      "verification": "Both added regressions failed before the repair and pass afterward; all 16 reporter tests pass. The report preserves current unregistered IDs in its summary and blocks release; historical mismatched contracts remain historical. Aide composer now has an explicit required desktop/phone workflow. Complete current browser verification is recorded separately."
+    },
+    {
+      "id": "STAB-111",
+      "title": "Aide question save errors squeeze and clip phone recovery labels",
+      "severity": "low",
+      "screen": "Aide pending question card after a rejected answer save at 320px and 390px",
+      "revision": "40334f5 plus coverage report repair; product CSS unchanged",
+      "status": "confirmed",
+      "reproduction": [
+        "Open a pending Aide question from a simulated loopback provider at phone width and dismiss the history drawer through its backdrop.",
+        "Choose answers and enter a mixed-language note.",
+        "Return a deliberate HTTP 503 for the answer POST and inspect the retained card's footer."
+      ],
+      "expected": "The retained draft, failure reason and complete Cancel/Continue labels remain readable and reachable together.",
+      "actual": "The non-wrapping footer shrinks its buttons. At 390px Continue has 66px text overflow in a 63px client box; at 320px Cancel is 52px in 44px and Continue is 66px in 47px. Exact answers still persist after retry.",
+      "source_trace": "static/style.css .aide-question-footer places status and shrinkable buttons in one flex row.",
+      "evidence": [
+        ".Codex/stabilization/2026-09-26-question-audit/run-3/results.json",
+        ".Codex/stabilization/2026-09-26-question-audit/run-3/390-light/03-failure-draft.png",
+        ".Codex/stabilization/2026-09-26-question-audit/run-3/320-dark/03-failure-draft.png"
+      ],
+      "verification": "A temporary browser-only CSS probe wraps the footer and preserves button widths; all three audited profiles pass the label-width assertion. This probe is diagnosis, not a shipped repair. Native Safari and physical iPhone remain unverified."
     }
   ],
   "additional_surfaces": [
