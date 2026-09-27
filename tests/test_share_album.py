@@ -151,3 +151,19 @@ class ShareAlbumTests(ApiTest):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.headers["content-type"].startswith("image/"))
         self.assertEqual(r.headers.get("x-content-type-options"), "nosniff")
+
+    def test_single_photo_share_stops_serving_when_hidden(self):
+        pid = self._upload("private.png")
+        token = self.client.post("/api/share", json={"kind": "photo", "ref": pid}).json()["token"]
+        self.assertEqual(self.client.get(f"/s/{token}").status_code, 200)
+        self.assertEqual(
+            self.client.patch(f"/api/photos/{pid}", json={"hidden": True}).status_code, 200
+        )
+        self.assertEqual(self.client.get(f"/s/{token}").status_code, 404)
+
+    def test_single_photo_share_stops_serving_when_deleted(self):
+        pid = self._upload("deleted.png")
+        token = self.client.post("/api/share", json={"kind": "photo", "ref": pid}).json()["token"]
+        self.assertEqual(self.client.get(f"/s/{token}").status_code, 200)
+        self.assertEqual(self.client.delete(f"/api/photos/{pid}").status_code, 200)
+        self.assertEqual(self.client.get(f"/s/{token}").status_code, 404)

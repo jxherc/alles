@@ -393,7 +393,7 @@ def view_shared(token: str, request: Request, db: DbSession = Depends(get_db)):
             )
         if sh.kind == "photo":
             ph = db.get(Photo, sh.ref)
-            if not ph:
+            if not ph or ph.deleted_at is not None or ph.hidden:
                 return _not_found()
             p = photos_store.photos_dir() / ph.filename
             if not p.exists():
