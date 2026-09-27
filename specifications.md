@@ -115,6 +115,8 @@ program, and compatibility links keep the older app names and subdomains working
 - **Today** combines events, due work, reminders, habits, renewals, and important dates
 - **In progress** shows active background Aide work; **Briefs** holds completed reports
 - **Pinned apps** opens the app destinations selected in **Settings → Home**
+- on first use, older browser-local Home tile choices can seed pinned apps only when this server has
+  no saved Home layout; the original browser choices remain available for rollback
 - every core section is deterministic and useful without a model. **Settings → Home** controls order,
   visibility, density, and pinned apps; the Home Settings action and the section's **edit** action open
   that pane directly. Needs you

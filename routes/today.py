@@ -17,6 +17,7 @@ from core.build_info import afterlife_feature_flags
 from core.database import Subscription, Task, get_db
 from core.settings import load_settings, save_settings
 from services import signals
+from services.recovery_consistency import recovery_consistency_lock
 from services.signals import (
     _event_occurs_on,  # noqa: F401  re-export for routes.today._event_occurs_on
 )
@@ -98,6 +99,18 @@ def update_today_preferences(body: TodayPreferences):
     value = _preferences(body.model_dump())
     save_settings({"today_layout": value})
     return value
+
+
+@router.post("/today/preferences/import-legacy")
+def import_legacy_home_preferences(body: TodayPreferences):
+    # Ordinary preference saves take this same lock inside save_settings.
+    with recovery_consistency_lock:
+        saved = load_settings().get("today_layout")
+        if saved is not None:
+            return {"preferences": _preferences(saved), "imported": False}
+        value = _preferences(body.model_dump())
+        save_settings({"today_layout": value})
+        return {"preferences": value, "imported": True}
 
 
 def _safe_date(s: str, timezone_name=None) -> date:

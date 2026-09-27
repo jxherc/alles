@@ -16,6 +16,8 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
 
 let navigate = () => {};
 let askAide = async () => false;
+let legacyShortcuts = () => null;
+let legacyChecked = false;
 let apps = [];
 let data = null;
 let preferences = null;
@@ -254,10 +256,23 @@ async function load() {
     let savedPreferences = {};
     let preferencesPartial = false;
     try {
-      const preferenceResponse = await fetch('/api/today/preferences');
+      let oldShortcuts = null;
+      if (!legacyChecked) {
+        try { oldShortcuts = legacyShortcuts(); }
+        catch { preferencesPartial = true; }
+      }
+      const preferenceResponse = oldShortcuts === null
+        ? await fetch('/api/today/preferences')
+        : await fetch('/api/today/preferences/import-legacy', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ shortcuts: oldShortcuts }),
+        });
       if (generation !== loadGeneration) return false;
       if (!preferenceResponse.ok) throw new Error('preferences unavailable');
-      savedPreferences = await preferenceResponse.json();
+      const preferenceValue = await preferenceResponse.json();
+      savedPreferences = oldShortcuts === null ? preferenceValue : preferenceValue.preferences;
+      if (oldShortcuts !== null) legacyChecked = true;
       if (generation !== loadGeneration) return false;
     } catch {
       if (generation !== loadGeneration) return false;
@@ -405,6 +420,7 @@ export function initToday(options) {
   navigate = options.navigate;
   askAide = options.askAide;
   apps = options.apps;
+  legacyShortcuts = options.legacyShortcuts || (() => null);
   const root = document.getElementById('today-view');
   if (root && !root.dataset.wired) {
     root.dataset.wired = '1';

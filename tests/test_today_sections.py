@@ -1,6 +1,13 @@
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from threading import Event
 from unittest import mock
 
+import core.settings as settings
+import routes.today as today_route
 from core.database import (
     Habit,
     JarvisDeliveryAttempt,
@@ -10,6 +17,105 @@ from core.database import (
     Project,
 )
 from tests._client import ApiTest
+
+
+class TodayLegacyPreferencesImportTest(ApiTest):
+    def setUp(self):
+        super().setUp()
+        self.settings_dir = TemporaryDirectory(prefix="alles-home-settings-")
+        self.settings_path = mock.patch.object(
+            settings, "_SETTINGS_FILE", Path(self.settings_dir.name) / "settings.json"
+        )
+        self.settings_path.start()
+        settings._clear_settings_cache()
+
+    def tearDown(self):
+        settings._clear_settings_cache()
+        self.settings_path.stop()
+        self.settings_dir.cleanup()
+        super().tearDown()
+
+    def test_first_import_collapses_old_tiles_and_keeps_their_order(self):
+        response = self.client.post(
+            "/api/today/preferences/import-legacy",
+            json={"shortcuts": ["watch", "journal", "photos", "plan", "files", "chat", "wiki"]},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["imported"])
+        self.assertEqual(
+            response.json()["preferences"]["shortcuts"], ["system", "wiki", "files", "plan"]
+        )
+        self.assertEqual(
+            self.client.get("/api/today/preferences").json(), response.json()["preferences"]
+        )
+
+        repeated = self.client.post(
+            "/api/today/preferences/import-legacy", json={"shortcuts": ["finance"]}
+        )
+        self.assertEqual(repeated.status_code, 200)
+        self.assertFalse(repeated.json()["imported"])
+        self.assertEqual(repeated.json()["preferences"], response.json()["preferences"])
+
+    def test_import_never_replaces_a_saved_current_home_layout(self):
+        current = self.client.put(
+            "/api/today/preferences", json={"shortcuts": ["vault"], "density": "compact"}
+        )
+        self.assertEqual(current.status_code, 200)
+        imported = self.client.post(
+            "/api/today/preferences/import-legacy", json={"shortcuts": ["plan", "wiki"]}
+        )
+        self.assertEqual(imported.status_code, 200)
+        self.assertFalse(imported.json()["imported"])
+        self.assertEqual(imported.json()["preferences"], current.json())
+        self.assertEqual(self.client.get("/api/today/preferences").json(), current.json())
+
+    def test_invalid_import_does_not_create_a_layout(self):
+        invalid = self.client.post(
+            "/api/today/preferences/import-legacy", json={"shortcuts": ["plan"] * 21}
+        )
+        self.assertEqual(invalid.status_code, 422)
+        self.assertIsNone(settings.load_settings().get("today_layout"))
+
+    def test_all_hidden_old_tiles_keep_pinned_apps_empty(self):
+        imported = self.client.post("/api/today/preferences/import-legacy", json={"shortcuts": []})
+        self.assertEqual(imported.status_code, 200)
+        self.assertTrue(imported.json()["imported"])
+        self.assertEqual(imported.json()["preferences"]["shortcuts"], [])
+        self.assertEqual(self.client.get("/api/today/preferences").json()["shortcuts"], [])
+
+    def test_new_save_cannot_interleave_with_first_import(self):
+        entered, release, save_started = Event(), Event(), Event()
+        original_load = today_route.load_settings
+
+        def paused_load():
+            entered.set()
+            if not release.wait(5):
+                raise TimeoutError("import did not resume")
+            return original_load()
+
+        def save_new_layout():
+            save_started.set()
+            return today_route.update_today_preferences(
+                today_route.TodayPreferences(shortcuts=["vault"])
+            )
+
+        with mock.patch.object(today_route, "load_settings", side_effect=paused_load):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                imported = executor.submit(
+                    today_route.import_legacy_home_preferences,
+                    today_route.TodayPreferences(shortcuts=["plan"]),
+                )
+                try:
+                    self.assertTrue(entered.wait(2))
+                    saved = executor.submit(save_new_layout)
+                    self.assertTrue(save_started.wait(2))
+                    with self.assertRaises(FutureTimeoutError):
+                        saved.result(timeout=0.1)
+                finally:
+                    release.set()
+                self.assertTrue(imported.result(timeout=2)["imported"])
+                self.assertEqual(saved.result(timeout=2)["shortcuts"], ["vault"])
+        self.assertEqual(self.client.get("/api/today/preferences").json()["shortcuts"], ["vault"])
 
 
 class TodaySectionsTest(ApiTest):
