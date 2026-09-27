@@ -60,6 +60,7 @@ COMMANDS = {
     "setup-auth": ("tests/pw_setup_auth.py",),
     "settings-recovery": ("tests/pw_settings_recovery.py",),
     "settings-language-badges": ("tests/pw_settings_language_badges.py",),
+    "settings-selected": ("tests/pw_settings_selected.py",),
     "settings-context": ("tests/pw_settings_context.py",),
     "server-recovery": ("tests/pw_server_recovery.py",),
     "home-reminders": ("tests/pw_today_reminders.py",),
