@@ -1669,23 +1669,38 @@ async def _calendar_list(start, end):
 
 
 async def _calendar_create(a):
-    from core.database import CalendarEvent, SessionLocal
+    from fastapi import HTTPException
+
+    from core.database import SessionLocal
+    from services import calendar_events
+
+    if not isinstance(a, dict):
+        return {"output": "invalid calendar event fields", "error": True}
+    data = {
+        "title": a.get("title"),
+        "start_dt": a.get("start_dt"),
+        "end_dt": a.get("end_dt") or None,
+        "all_day": a.get("all_day", False),
+        "description": a.get("description", ""),
+        "color": a.get("color", "") or "accent",
+        "recurrence": a.get("recurrence", "") or "",
+    }
+    if (
+        any(
+            not isinstance(data[key], str)
+            for key in ("title", "start_dt", "description", "color", "recurrence")
+        )
+        or (data["end_dt"] is not None and not isinstance(data["end_dt"], str))
+        or not isinstance(data["all_day"], bool)
+    ):
+        return {"output": "invalid calendar event fields", "error": True}
 
     db = SessionLocal()
     try:
-        e = CalendarEvent(
-            title=a.get("title", ""),
-            start_dt=a.get("start_dt", ""),
-            end_dt=a.get("end_dt") or None,
-            all_day=bool(a.get("all_day")),
-            description=a.get("description", ""),
-            color=a.get("color", "") or "accent",
-            recurrence=a.get("recurrence", "") or "",
-        )
-        db.add(e)
-        db.commit()
-        db.refresh(e)
+        e = calendar_events.create_event(db, data)
         return {"output": f"created event {e.id} — {e.title} @ {e.start_dt}"}
+    except HTTPException as exc:
+        return {"output": str(exc.detail), "error": True}
     finally:
         db.close()
 
