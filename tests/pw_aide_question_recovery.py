@@ -231,7 +231,15 @@ def run_profile(browser, endpoint, output, records, controls, width, theme):
         expect(card.locator("textarea")).to_have_value(ANSWER["answers"]["surface"]["free_text"])
         page.screenshot(path=str(directory / "failed-save-retained.png"))
         answer_row["geometry"] = footer_geometry(card)
-        card.locator(".aide-question-submit").click()
+        if profile == "desktop":
+            # Disabling the saving button blurs it; traverse the recovery actions.
+            page.keyboard.press("Shift+Tab")
+            expect(card.locator(".aide-question-cancel")).to_be_focused()
+            page.keyboard.press("Tab")
+            expect(card.locator(".aide-question-submit")).to_be_focused()
+            page.keyboard.press("Enter")
+        else:
+            card.locator(".aide-question-submit").tap()
         expect(page.locator("#messages")).to_contain_text("question answer received", timeout=30000)
         reload()
         expect(page.locator("#messages")).to_contain_text("question answer received")
@@ -244,7 +252,21 @@ def run_profile(browser, endpoint, output, records, controls, width, theme):
         cancel_row["status"] = "failed"
         cancel_session = begin_question("cancel")
         cancel_id = card.get_attribute("data-aide-question-request")
-        card.locator(".aide-question-cancel").click()
+        if profile == "desktop":
+            expect(card.locator('[data-choice-id="files"]')).to_be_focused()
+            for selector in (
+                '[data-choice-id="aide"]',
+                "textarea",
+                '[data-choice-id="desktop"]',
+                '[data-choice-id="phone"]',
+                '[data-choice-id="keyboard"]',
+                ".aide-question-cancel",
+            ):
+                page.keyboard.press("Tab")
+                expect(card.locator(selector)).to_be_focused()
+            page.keyboard.press("Enter")
+        else:
+            card.locator(".aide-question-cancel").tap()
         expect(page.locator("#messages")).to_contain_text("question answer received", timeout=30000)
         reload()
         expect(page.locator("#messages")).to_contain_text("question answer received")
