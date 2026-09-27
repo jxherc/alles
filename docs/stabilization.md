@@ -25,6 +25,11 @@ the combined report. Workflow or screenshot success does not create control
 evidence automatically; each recorded control still needs its own activation,
 feedback and recovery assertions.
 
+Current execution results whose workflow or control IDs are absent from the ledger
+are listed in the report summary and block release. Historical results with a
+different source or acceptance fingerprint remain historical. The responsive Aide
+composer has its own required workflow, separate from broader assistant tasks.
+
 ## Repeatable checks
 
 With the repository's Python environment and Playwright Chromium installed:
@@ -331,8 +336,10 @@ STAB-079, STAB-080 and STAB-086 for the tested local workflows.
 
 On 213bbdf the Gallery gate passed all 60 scenario runs, and the ledger now closes
 STAB-094 through STAB-103 and STAB-107 against named scenarios. The aide-composer
-gate closes STAB-106, STAB-108 and STAB-109. No ledger finding is still open, but
-native Safari/iPhone and the seven-day trial keep the release open.
+gate closes STAB-106, STAB-108 and STAB-109. A subsequent question-card audit
+recorded STAB-111, clipped phone recovery labels after a failed answer save.
+Remaining workflow coverage, native Safari/iPhone and the seven-day trial also
+keep the release open.
 
 ## Stable layout
 

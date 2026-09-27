@@ -189,6 +189,28 @@ class StabilizationEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing required workflows"):
             self.report([])
 
+    def test_unmapped_current_results_are_visible_and_block_release(self, _fingerprint):
+        run = self.execution()
+        run["scenarios"].append({"scenario_id": "aide.composer-responsive", "status": "passed"})
+        run["controls"] = [{"control_id": "missing-control", "status": "passed"}]
+        report = self.report([run])
+        self.assertEqual(
+            report["summary"]["unmapped_scenario_results"], ["aide.composer-responsive"]
+        )
+        self.assertEqual(report["summary"]["unmapped_control_results"], ["missing-control"])
+        self.assertFalse(report["release_gates"]["all_execution_results_mapped"])
+        self.assertEqual(report["scenarios"][0]["status"], "passed")
+        self.assertEqual(report["executions"], [run])
+
+    def test_historical_unmapped_results_do_not_block_current_contract(self, _fingerprint):
+        old = self.execution()
+        old["acceptance_fingerprint"] = "old"
+        old["scenarios"].append({"scenario_id": "retired-workflow", "status": "passed"})
+        report = self.report([old, self.execution(day=2)])
+        self.assertEqual(report["summary"]["unmapped_scenario_results"], [])
+        self.assertEqual(report["summary"]["unmapped_control_results"], [])
+        self.assertTrue(report["release_gates"]["all_execution_results_mapped"])
+
 
 class StabilizationFingerprintTests(unittest.TestCase):
     def test_runtime_and_contract_fingerprints_are_separate_when_loaded_from_disk(self):
