@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v282';   // Deliver the app-name switcher with its updated shell layout.
+const VERSION = 'v283';   // Refresh the shell cache for neutral Settings selections.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '326';   // keep in sync with index.html ?v= / const _v
+const STAMP = '327';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

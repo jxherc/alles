@@ -3056,6 +3056,22 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   text-underline-offset: var(--k-space-1);
 }
 
+#settings-modal[data-kokuen-surface="settings"] .theme-mode-btn.active {
+  border-color: var(--k-line-strong);
+  background: var(--k-raised);
+  color: var(--k-text);
+  font-weight: 600;
+}
+
+#settings-modal[data-kokuen-surface="settings"] .s-switch.on::before {
+  border-color: var(--k-line-strong);
+  background: var(--k-raised);
+}
+
+#settings-modal[data-kokuen-surface="settings"] .s-switch.on::after {
+  background: var(--k-text);
+}
+
 #settings-modal[data-kokuen-surface="settings"] .s-nav-group {
   padding: var(--k-space-4) var(--k-space-3) var(--k-space-1);
   color: var(--k-muted);
@@ -3266,8 +3282,8 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-language-choice[aria-checked="true"]::after {
-  border-color: var(--k-accent);
-  background: var(--k-accent);
+  border-color: var(--k-text);
+  background: var(--k-text);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-language-choice[aria-disabled="true"]::after {
@@ -3946,13 +3962,13 @@ html[dir="rtl"] :where(
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::before {
-  border-color: var(--k-accent);
-  background: color-mix(in srgb, var(--k-accent) 10%, var(--k-raised));
+  border-color: var(--k-line-strong);
+  background: var(--k-raised);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::after {
   left: 23px;
-  background: var(--k-accent);
+  background: var(--k-text);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-switch:disabled {

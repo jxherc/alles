@@ -5029,13 +5029,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 276
+                "line": 279
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 277
+                "line": 280
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5048,6 +5048,12 @@
                 "file": "tests/pw_settings_recovery.py",
                 "kind": "existing-test-control-reference",
                 "line": 118
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_settings_selected.py",
+                "kind": "existing-test-control-reference",
+                "line": 67
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5340,13 +5346,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 276
+                "line": 279
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 277
+                "line": 280
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5359,6 +5365,12 @@
                 "file": "tests/pw_settings_recovery.py",
                 "kind": "existing-test-control-reference",
                 "line": 118
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_settings_selected.py",
+                "kind": "existing-test-control-reference",
+                "line": 67
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -57455,25 +57467,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 296
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_settings_context.py",
-                "kind": "existing-test-control-reference",
-                "line": 297
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_settings_context.py",
-                "kind": "existing-test-control-reference",
-                "line": 298
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_settings_context.py",
-                "kind": "existing-test-control-reference",
                 "line": 299
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_settings_context.py",
+                "kind": "existing-test-control-reference",
+                "line": 300
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_settings_context.py",
+                "kind": "existing-test-control-reference",
+                "line": 301
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_settings_context.py",
+                "kind": "existing-test-control-reference",
+                "line": 302
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -57594,25 +57606,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 296
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_settings_context.py",
-                "kind": "existing-test-control-reference",
-                "line": 297
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_settings_context.py",
-                "kind": "existing-test-control-reference",
-                "line": 298
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_settings_context.py",
-                "kind": "existing-test-control-reference",
                 "line": 299
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_settings_context.py",
+                "kind": "existing-test-control-reference",
+                "line": 300
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_settings_context.py",
+                "kind": "existing-test-control-reference",
+                "line": 301
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_settings_context.py",
+                "kind": "existing-test-control-reference",
+                "line": 302
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -78632,13 +78644,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 314
+                "line": 317
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 347
+                "line": 350
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -79065,7 +79077,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 318
+                "line": 321
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -79100,7 +79112,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 318
+                "line": 321
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -83198,7 +83210,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3096 input"
+            "value": "static/js/settings.js:3100 input"
           },
           "keys": [
             "native editing keys"
@@ -83222,7 +83234,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3096 input"
+            "value": "static/js/settings.js:3100 input"
           },
           "keys": [
             "native editing keys"
@@ -83254,7 +83266,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3096 input"
+        "value": "static/js/settings.js:3100 input"
       },
       "id": "static.5fafafd3d645",
       "kind": "field",
@@ -84652,7 +84664,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3124 click"
+        "value": "static/js/settings.js:3128 click"
       },
       "id": "static.ad9daacfe2f7",
       "kind": "action",
@@ -85091,7 +85103,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3102 click"
+            "value": "static/js/settings.js:3106 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -85113,7 +85125,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3102 click"
+            "value": "static/js/settings.js:3106 click"
           },
           "keys": [
             "Enter",
@@ -85146,7 +85158,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3102 click"
+        "value": "static/js/settings.js:3106 click"
       },
       "id": "static.e29840d898cf",
       "kind": "action",
@@ -85223,7 +85235,9 @@
       "accessibility": {
         "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
         "name": "dark",
-        "relationships": {},
+        "relationships": {
+          "aria-pressed": "false"
+        },
         "role": "native button"
       },
       "activation_paths": [
@@ -85300,7 +85314,7 @@
         "discoverability": "no-matched-source-authority",
         "value": "no direct-id listener, inline handler, or native authority matched by static source extraction"
       },
-      "id": "static.647a2ac8cbed",
+      "id": "static.66990d197741",
       "kind": "action",
       "label": {
         "source": "text",
@@ -85375,7 +85389,9 @@
       "accessibility": {
         "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
         "name": "light",
-        "relationships": {},
+        "relationships": {
+          "aria-pressed": "false"
+        },
         "role": "native button"
       },
       "activation_paths": [
@@ -85452,7 +85468,7 @@
         "discoverability": "no-matched-source-authority",
         "value": "no direct-id listener, inline handler, or native authority matched by static source extraction"
       },
-      "id": "static.a93c107d41ea",
+      "id": "static.8d4c2c737adf",
       "kind": "action",
       "label": {
         "source": "text",
@@ -85545,7 +85561,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3081 keydown"
+            "value": "static/js/settings.js:3085 keydown"
           },
           "keys": [
             "native editing keys"
@@ -85569,7 +85585,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3081 keydown"
+            "value": "static/js/settings.js:3085 keydown"
           },
           "keys": [
             "handler-defined keys require source inspection"
@@ -85601,7 +85617,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3081 keydown"
+        "value": "static/js/settings.js:3085 keydown"
       },
       "id": "static.9836bc798cae",
       "kind": "field",
@@ -85697,7 +85713,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3088 click"
+            "value": "static/js/settings.js:3092 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -85719,7 +85735,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3088 click"
+            "value": "static/js/settings.js:3092 click"
           },
           "keys": [
             "Enter",
@@ -85752,7 +85768,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3088 click"
+        "value": "static/js/settings.js:3092 click"
       },
       "id": "static.4bd9846911ba",
       "kind": "action",
@@ -88979,7 +88995,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3801 click"
+            "value": "static/js/settings.js:3805 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89001,7 +89017,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3801 click"
+            "value": "static/js/settings.js:3805 click"
           },
           "keys": [
             "Enter",
@@ -89034,7 +89050,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3801 click"
+        "value": "static/js/settings.js:3805 click"
       },
       "id": "static.224836749895",
       "kind": "action",
@@ -89174,7 +89190,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3817 click"
+            "value": "static/js/settings.js:3821 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89239,7 +89255,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3817 click"
+            "value": "static/js/settings.js:3821 click"
           },
           "keys": [
             "Enter",
@@ -89272,7 +89288,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3817 click"
+        "value": "static/js/settings.js:3821 click"
       },
       "id": "static.af5f0d771cb3",
       "kind": "switch",
@@ -89367,7 +89383,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3827 click"
+            "value": "static/js/settings.js:3831 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89389,7 +89405,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3827 click"
+            "value": "static/js/settings.js:3831 click"
           },
           "keys": [
             "Enter",
@@ -89422,7 +89438,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3827 click"
+        "value": "static/js/settings.js:3831 click"
       },
       "id": "static.2d3f6277b69a",
       "kind": "action",
@@ -89530,7 +89546,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3791 input"
+            "value": "static/js/settings.js:3795 input"
           },
           "keys": [
             "native editing keys"
@@ -89567,7 +89583,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3791 input"
+            "value": "static/js/settings.js:3795 input"
           },
           "keys": [
             "native editing keys"
@@ -89599,7 +89615,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3791 input"
+        "value": "static/js/settings.js:3795 input"
       },
       "id": "static.79a876798a68",
       "kind": "field",
@@ -89708,7 +89724,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3837 click"
+            "value": "static/js/settings.js:3841 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89743,7 +89759,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3837 click"
+            "value": "static/js/settings.js:3841 click"
           },
           "keys": [
             "Enter",
@@ -89776,7 +89792,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3837 click"
+        "value": "static/js/settings.js:3841 click"
       },
       "id": "static.f5514afe89a5",
       "kind": "action",
@@ -89871,7 +89887,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3853 click"
+            "value": "static/js/settings.js:3857 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -89893,7 +89909,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3853 click"
+            "value": "static/js/settings.js:3857 click"
           },
           "keys": [
             "Enter",
@@ -89926,7 +89942,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3853 click"
+        "value": "static/js/settings.js:3857 click"
       },
       "id": "static.0395605844d5",
       "kind": "action",
@@ -90060,7 +90076,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3865 click"
+            "value": "static/js/settings.js:3869 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -90119,7 +90135,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3865 click"
+            "value": "static/js/settings.js:3869 click"
           },
           "keys": [
             "Enter",
@@ -90152,7 +90168,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3865 click"
+        "value": "static/js/settings.js:3869 click"
       },
       "id": "static.3de370dc85e0",
       "kind": "switch",
@@ -90614,7 +90630,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3888 click"
+            "value": "static/js/settings.js:3892 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -90636,7 +90652,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3888 click"
+            "value": "static/js/settings.js:3892 click"
           },
           "keys": [
             "Enter",
@@ -90669,7 +90685,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3888 click"
+        "value": "static/js/settings.js:3892 click"
       },
       "id": "static.351906cb6d2a",
       "kind": "action",
@@ -90764,7 +90780,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3906 click"
+            "value": "static/js/settings.js:3910 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -90786,7 +90802,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3906 click"
+            "value": "static/js/settings.js:3910 click"
           },
           "keys": [
             "Enter",
@@ -90819,7 +90835,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3906 click"
+        "value": "static/js/settings.js:3910 click"
       },
       "id": "static.da036e00fa6f",
       "kind": "action",
@@ -91528,7 +91544,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3534 click"
+            "value": "static/js/settings.js:3538 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -91550,7 +91566,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3534 click"
+            "value": "static/js/settings.js:3538 click"
           },
           "keys": [
             "Enter",
@@ -91583,7 +91599,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3534 click"
+        "value": "static/js/settings.js:3538 click"
       },
       "id": "static.5e75d432206e",
       "kind": "action",
@@ -91918,7 +91934,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4322 click"
+            "value": "static/js/settings.js:4326 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -91940,7 +91956,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4322 click"
+            "value": "static/js/settings.js:4326 click"
           },
           "keys": [
             "Enter",
@@ -91973,7 +91989,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4322 click"
+        "value": "static/js/settings.js:4326 click"
       },
       "id": "static.699ba5b23bd6",
       "kind": "action",
@@ -93210,7 +93226,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3662 click"
+            "value": "static/js/settings.js:3666 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -93232,7 +93248,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:3662 click"
+            "value": "static/js/settings.js:3666 click"
           },
           "keys": [
             "Enter",
@@ -93265,7 +93281,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:3662 click"
+        "value": "static/js/settings.js:3666 click"
       },
       "id": "static.55982dee59b7",
       "kind": "action",
@@ -99001,13 +99017,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 360
+                "line": 363
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 370
+                "line": 373
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -99072,13 +99088,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 360
+                "line": 363
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_settings_context.py",
                 "kind": "existing-test-control-reference",
-                "line": 370
+                "line": 373
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -100678,7 +100694,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4383 click"
+            "value": "static/js/settings.js:4387 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -100700,7 +100716,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4383 click"
+            "value": "static/js/settings.js:4387 click"
           },
           "keys": [
             "Enter",
@@ -100733,7 +100749,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4383 click"
+        "value": "static/js/settings.js:4387 click"
       },
       "id": "static.9b5e3d6605ac",
       "kind": "action",
@@ -100853,7 +100869,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4382 click"
+            "value": "static/js/settings.js:4386 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -100900,7 +100916,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4382 click"
+            "value": "static/js/settings.js:4386 click"
           },
           "keys": [
             "Enter",
@@ -100933,7 +100949,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4382 click"
+        "value": "static/js/settings.js:4386 click"
       },
       "id": "static.a4b0fb43a78a",
       "kind": "action",
@@ -106543,7 +106559,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4112 click"
+            "value": "static/js/settings.js:4116 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -106572,7 +106588,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4112 click"
+            "value": "static/js/settings.js:4116 click"
           },
           "keys": [
             "Enter",
@@ -106605,7 +106621,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4112 click"
+        "value": "static/js/settings.js:4116 click"
       },
       "id": "static.c0165f05bea6",
       "kind": "action",
@@ -106719,7 +106735,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4114 click"
+            "value": "static/js/settings.js:4118 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -106760,7 +106776,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4114 click"
+            "value": "static/js/settings.js:4118 click"
           },
           "keys": [
             "Enter",
@@ -106793,7 +106809,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4114 click"
+        "value": "static/js/settings.js:4118 click"
       },
       "id": "static.d6e6281f6402",
       "kind": "action",
@@ -108115,7 +108131,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4164 click"
+        "value": "static/js/settings.js:4168 click"
       },
       "id": "static.1181487964d1",
       "kind": "action",
@@ -108194,7 +108210,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4176 click"
+            "value": "static/js/settings.js:4180 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -108216,7 +108232,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/settings.js:4176 click"
+            "value": "static/js/settings.js:4180 click"
           },
           "keys": [
             "Enter",
@@ -108249,7 +108265,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/settings.js:4176 click"
+        "value": "static/js/settings.js:4180 click"
       },
       "id": "static.92e63043bd67",
       "kind": "action",
@@ -109155,7 +109171,7 @@
     {
       "accessibility": {
         "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
-        "name": "settings general \u00d7 general & appearance general home appearance aide & chat behavior chat defaults search voice personas background checks intelligence models & providers models memory & instructions memory recall connections & mcp connections & tools api & shortcuts privacy & security privacy & password notifications & language language & region rules & delivery server, backups & data about & credits backup & restore home Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear. loading preferences\u2026 structure Move sections into the order you scan them. Hide anything that is not useful every day. needs youapprovals, failed work, and delivery prompts \u00b7 always visible \u2191\u2193 scheduleevents, tasks, reminders, renewals, and habits \u2191\u2193 in progressactive background Aide work \u2191\u2193 briefsrecent finished Aide summaries \u2191\u2193 pinned appsthe app destinations selected below \u2191\u2193 density This changes vertical spacing only. It never removes details. comfortablemore room between sections compactmore of the day at once pinned apps Choose and order the app destinations shown on Home. planagenda, board, calendar, tasks, and reminders\u2191\u2193 inboxmail and contacts\u2191\u2193 docsdocuments, notes, and journal\u2191\u2193 fileslocal and remote storage plus gallery\u2191\u2193 librarybooks, saved reading, and news\u2191\u2193 healthmeasurements and habits\u2191\u2193 financemoney and subscriptions\u2191\u2193 vaultpasswords and protected secrets\u2191\u2193 serverservices, search, backups, and activity\u2191\u2193 home outline5 sections The greeting and capture bar stay fixed. This is the order below them. needs youapprovals and recovery prompts scheduleevents and priorities in progressactive Aide work briefsrecent summaries pinned appsplan \u00b7 docs \u00b7 files no unsaved changesSaving updates Home for every browser using this Alles server. reset defaultssave home model defaults choose one default for each kind of work. you can still change the model for a single chat or run. loading model choices\u2026 save defaults model endpoints refresh all Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits. + add endpoint OpenAI Anthropic DeepSeek Kimi Groq Gemini xAI (Grok) Mistral Perplexity OpenRouter Together Fireworks Cohere Ollama name base url provider authentication api key provider adapter manual models comma-separated add + probe models vision-capable models (comma-separated, optional) connect Gemini with Google OAuth Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow. client ID client secret Google Cloud project ID open Google authorization local serving checking Ollama... pull any model pull refresh start Ollama openai-compatible api base url: http://localhost:8001/v1 model id format: EndpointName/model-id chat defaults aide uses the right tools automatically and can still answer normal questions. context window (messages) features streaming thinking show model reasoning blocks as they stream artifacts render HTML, SVG and code in a side panel auto-compact context summarize old messages when context fills up save owner instructions tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules. save instructions memory extract from chat incognito chats never read or save memory. owner instructions stay separate from the memories below. memory policy ask before saving suggested memories off ask auto use relevant memory in chatsavailable only while memory is set to ask or auto general remember saved to memory undo pause export clear all web search primary provider test tavily api key brave search api key searxng base url google pse api key search engine cx id serper api key fallback provider results per query andromeda normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent. normal resultsshow web results below the overview ai overviewbuild a claim-by-claim answer from fetched evidence independent fact-checkuse the separate verifier after freshness-sensitive answers fact-check policy default model band light standard strong auto test auto model profile your name : aide greets you by it username : synced across your apps chat bar reset all welcome messageshow the empty chat welcome screen compact modetighter spacing throughout the UI font size microphonevoice input button sidebar views docs tasks calendar ai gallery memory secrets contacts gallery privacy sensitive blurblur emails, keys and secrets in aide replies text-only emojisstrip emoji glyphs from aide replies incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them. password require passwordlock alles behind your password current password new password verify password : enter it again change password default theme mode dark light accent color : the highlight used everywhere reset presets & customization speech-to-text (STT) provider microphone language (optional) text-to-speech (TTS) auto-play TTSspeak AI replies automatically provider voice speed openai api key required for whisper api and openai tts save voice settings personas name system prompt starter message : prefilled into the composer when you pick this persona (optional) pinned model temperature auto precise \u00b7 0creative \u00b7 2 runs as auto chat only agent accent \u00b7 re-themes the app while this persona is active default persona add persona cancel knowledge files : this assistant answers from these add \ud83d\udd17 share this assistant cookbook (custom slash commands) name description prompt template add command Jarvis on Discord not connected loading connection\u2026 Discord bot token encrypted and never shown again connect Jarvis create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work. Jarvisnot paired pair one ownersend pair CODE in a DM to Jarvis. the code expires after 10 minutes. new pairing code approved private channel ids one numeric id per line; owner messages only save channels revoke owner quiet hourshold finished notices; questions still come through from to time zone save disconnect Jarvis agent stack refresh context filesread AGENTS.md from the working dir shell sandboxrun shell inside docker (needs docker installed) computer usescreenshot + click/type tools (needs pyautogui) sub-agentsallow spawn_agent + parallel delegation extra approved file roots read-only; one existing folder per line save approved roots permission rules fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (* ?); a plain path is a \"contains\" match. e.g. allow git_status, ask on git_commit, deny write_file on .env. add rule mcp servers one-click presets name command remote server and private values transport remote url environment http headers private values are encrypted on disk and never shown again. add server macOS integration connections service name token connect github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected. alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed. rotate credential key re-encrypts saved credentials, then safely retires the old key. api tokens generate access read write models agent secrets connections admin choose only what this token needs. admin includes every permission. webhooks name url add webhook shortcuts search sidebar settings new chat send focus input stop generating openai-compatible api expose Aide's models via the OpenAI API spec. base url: http://localhost:8001/v1 model id format: EndpointName/model-id language & region Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent. loading settings\u2026 interface language Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest. EnglishEnglishreviewed Fran\u00e7aisFrenchunavailable Espa\u00f1olSpanishunavailable \u7b80\u4f53\u4e2d\u6587Simplified Chineseunavailable \u7e41\u9ad4\u4e2d\u6587Traditional Chineseunavailable \u65e5\u672c\u8a9eJapaneseunavailable \ud55c\uad6d\uc5b4Koreanunavailable \u0627\u0644\u0639\u0631\u0628\u064a\u0629Arabicunavailable regional formats Automatic values follow this browser. An override changes formatting, not the interface language. regiondetecting this browser\u2026 automatic timezonedetecting this browser\u2026 automatic clockDoes not change stored event times. automatic 24 hour 12 hour first day of weekCalendar layout only. automatic monday sunday currencyUsed for locale-sensitive money display. automatic no unsaved changes save language & region live previewen alles home needs your attention settings saved alles/data \u00b7 14:30 directionleft to right regionautomatic timezoneautomatic currencyautomatic about & credits See what Alles includes, connects to, and learned from. loading credits\u2026 release credits search credits all code data companions inspiration loading manifest\u2026 Select a credit to inspect its source and local notice state. automation rules when this happens, do that. rules run in the background. everything is checked within ~30 seconds. cancel add rule delivery channels the \"send to discord / telegram\" actions use these. paste a discord webhook url and/or a telegram bot token + chat id. setup checking setup\u2026 resume setup export downloads an encrypted .alles-backup containing the selected local data and a verified manifest. download encrypted backup download recovery key save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost. restore select an encrypted backup or ZIP to verify and stage. your live data stays unchanged until you stop Alles and run the shown CLI command. choose backup file choose separate recovery key (optional) no separate key selected webdav backup send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles. https url username password use an app password when your WebDAV service supports one. connect and save disconnect checking connection\u2026 last successful backup: never last verified: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore s3 backup manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects. the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles. https endpoint region existing bucket prefix (optional) addressing style access-key id secret-access key enter both credentials together. leaving both blank keeps the saved pair. connect and save disconnect checking connection\u2026 last successful backup: never last verified upload read-back: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore personal recall let aide search your own notes, journal, mail, contacts, saved articles and books. the vault is never indexed; the journal honours its lock. answering sends matched snippets to your chosen model - use a local model for fully offline recall. enable recall index mail notes journal contacts read-later books reindex now clear index background checks aide checks your day on a schedule and drops short advisory cards into the home today strip - overdue tasks, renewals, habits and the like. it never acts on its own; you click through. off by default since it runs the model on a timer (it spends tokens). hit \"run now\" to try it. enable background checks tasks & reminders subscriptions calendar & day-events habits reading health money (budget & low balance) important mail (flagged / vip) journal (stale nudge) run every hours quiet hours to send push for urgentweb-push high-priority cards (needs notifications on) run now intelligence aide can learn from how you use alles - find cross-domain insights, build a model of your preferences, and weave both into its answers. the learning passes spend tokens so they are off by default; the inject + suggestion switches are cheap and on. see what it finds in the brain page. cross-domain insightsa periodic pass that finds patterns across your data (spends tokens) inject insights into aide learn about you (user model)distill durable facts from your behavior (spends tokens) inject what it learned into aide composer suggestionspredicted next-step chips above the message box session contextkeep aide aware of the current topic across turns generate insights distill now",
+        "name": "settings general \u00d7 general & appearance general home appearance aide & chat behavior chat defaults search voice personas background checks intelligence models & providers models memory & instructions memory recall connections & mcp connections & tools api & shortcuts privacy & security privacy & password notifications & language language & region rules & delivery server, backups & data about & credits backup & restore home Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear. loading preferences\u2026 structure Move sections into the order you scan them. Hide anything that is not useful every day. needs youapprovals, failed work, and delivery prompts \u00b7 always visible \u2191\u2193 scheduleevents, tasks, reminders, renewals, and habits \u2191\u2193 in progressactive background Aide work \u2191\u2193 briefsrecent finished Aide summaries \u2191\u2193 pinned appsthe app destinations selected below \u2191\u2193 density This changes vertical spacing only. It never removes details. comfortablemore room between sections compactmore of the day at once pinned apps Choose and order the app destinations shown on Home. planagenda, board, calendar, tasks, and reminders\u2191\u2193 inboxmail and contacts\u2191\u2193 docsdocuments, notes, and journal\u2191\u2193 fileslocal and remote storage plus gallery\u2191\u2193 librarybooks, saved reading, and news\u2191\u2193 healthmeasurements and habits\u2191\u2193 financemoney and subscriptions\u2191\u2193 vaultpasswords and protected secrets\u2191\u2193 serverservices, search, backups, and activity\u2191\u2193 home outline5 sections The greeting and capture bar stay fixed. This is the order below them. needs youapprovals and recovery prompts scheduleevents and priorities in progressactive Aide work briefsrecent summaries pinned appsplan \u00b7 docs \u00b7 files no unsaved changesSaving updates Home for every browser using this Alles server. reset defaultssave home model defaults choose one default for each kind of work. you can still change the model for a single chat or run. loading model choices\u2026 save defaults model endpoints refresh all Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits. + add endpoint OpenAI Anthropic DeepSeek Kimi Groq Gemini xAI (Grok) Mistral Perplexity OpenRouter Together Fireworks Cohere Ollama name base url provider authentication api key provider adapter manual models comma-separated add + probe models vision-capable models (comma-separated, optional) connect Gemini with Google OAuth Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow. client ID client secret Google Cloud project ID open Google authorization local serving checking Ollama... pull any model pull refresh start Ollama openai-compatible api base url: http://localhost:8001/v1 model id format: EndpointName/model-id chat defaults aide uses the right tools automatically and can still answer normal questions. context window (messages) features streaming thinking show model reasoning blocks as they stream artifacts render HTML, SVG and code in a side panel auto-compact context summarize old messages when context fills up save owner instructions tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules. save instructions memory extract from chat incognito chats never read or save memory. owner instructions stay separate from the memories below. memory policy ask before saving suggested memories off ask auto use relevant memory in chatsavailable only while memory is set to ask or auto general remember saved to memory undo pause export clear all web search primary provider test tavily api key brave search api key searxng base url google pse api key search engine cx id serper api key fallback provider results per query andromeda normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent. normal resultsshow web results below the overview ai overviewbuild a claim-by-claim answer from fetched evidence independent fact-checkuse the separate verifier after freshness-sensitive answers fact-check policy default model band light standard strong auto test auto model profile your name : aide greets you by it username : synced across your apps chat bar reset all welcome messageshow the empty chat welcome screen compact modetighter spacing throughout the UI font size microphonevoice input button sidebar views docs tasks calendar ai gallery memory secrets contacts gallery privacy sensitive blurblur emails, keys and secrets in aide replies text-only emojisstrip emoji glyphs from aide replies incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them. password require passwordlock alles behind your password current password new password verify password : enter it again change password default theme mode dark light accent color reset presets & customization speech-to-text (STT) provider microphone language (optional) text-to-speech (TTS) auto-play TTSspeak AI replies automatically provider voice speed openai api key required for whisper api and openai tts save voice settings personas name system prompt starter message : prefilled into the composer when you pick this persona (optional) pinned model temperature auto precise \u00b7 0creative \u00b7 2 runs as auto chat only agent accent \u00b7 re-themes the app while this persona is active default persona add persona cancel knowledge files : this assistant answers from these add \ud83d\udd17 share this assistant cookbook (custom slash commands) name description prompt template add command Jarvis on Discord not connected loading connection\u2026 Discord bot token encrypted and never shown again connect Jarvis create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work. Jarvisnot paired pair one ownersend pair CODE in a DM to Jarvis. the code expires after 10 minutes. new pairing code approved private channel ids one numeric id per line; owner messages only save channels revoke owner quiet hourshold finished notices; questions still come through from to time zone save disconnect Jarvis agent stack refresh context filesread AGENTS.md from the working dir shell sandboxrun shell inside docker (needs docker installed) computer usescreenshot + click/type tools (needs pyautogui) sub-agentsallow spawn_agent + parallel delegation extra approved file roots read-only; one existing folder per line save approved roots permission rules fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (* ?); a plain path is a \"contains\" match. e.g. allow git_status, ask on git_commit, deny write_file on .env. add rule mcp servers one-click presets name command remote server and private values transport remote url environment http headers private values are encrypted on disk and never shown again. add server macOS integration connections service name token connect github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected. alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed. rotate credential key re-encrypts saved credentials, then safely retires the old key. api tokens generate access read write models agent secrets connections admin choose only what this token needs. admin includes every permission. webhooks name url add webhook shortcuts search sidebar settings new chat send focus input stop generating openai-compatible api expose Aide's models via the OpenAI API spec. base url: http://localhost:8001/v1 model id format: EndpointName/model-id language & region Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent. loading settings\u2026 interface language Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest. EnglishEnglishreviewed Fran\u00e7aisFrenchunavailable Espa\u00f1olSpanishunavailable \u7b80\u4f53\u4e2d\u6587Simplified Chineseunavailable \u7e41\u9ad4\u4e2d\u6587Traditional Chineseunavailable \u65e5\u672c\u8a9eJapaneseunavailable \ud55c\uad6d\uc5b4Koreanunavailable \u0627\u0644\u0639\u0631\u0628\u064a\u0629Arabicunavailable regional formats Automatic values follow this browser. An override changes formatting, not the interface language. regiondetecting this browser\u2026 automatic timezonedetecting this browser\u2026 automatic clockDoes not change stored event times. automatic 24 hour 12 hour first day of weekCalendar layout only. automatic monday sunday currencyUsed for locale-sensitive money display. automatic no unsaved changes save language & region live previewen alles home needs your attention settings saved alles/data \u00b7 14:30 directionleft to right regionautomatic timezoneautomatic currencyautomatic about & credits See what Alles includes, connects to, and learned from. loading credits\u2026 release credits search credits all code data companions inspiration loading manifest\u2026 Select a credit to inspect its source and local notice state. automation rules when this happens, do that. rules run in the background. everything is checked within ~30 seconds. cancel add rule delivery channels the \"send to discord / telegram\" actions use these. paste a discord webhook url and/or a telegram bot token + chat id. setup checking setup\u2026 resume setup export downloads an encrypted .alles-backup containing the selected local data and a verified manifest. download encrypted backup download recovery key save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost. restore select an encrypted backup or ZIP to verify and stage. your live data stays unchanged until you stop Alles and run the shown CLI command. choose backup file choose separate recovery key (optional) no separate key selected webdav backup send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles. https url username password use an app password when your WebDAV service supports one. connect and save disconnect checking connection\u2026 last successful backup: never last verified: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore s3 backup manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects. the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles. https endpoint region existing bucket prefix (optional) addressing style access-key id secret-access key enter both credentials together. leaving both blank keeps the saved pair. connect and save disconnect checking connection\u2026 last successful backup: never last verified upload read-back: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore personal recall let aide search your own notes, journal, mail, contacts, saved articles and books. the vault is never indexed; the journal honours its lock. answering sends matched snippets to your chosen model - use a local model for fully offline recall. enable recall index mail notes journal contacts read-later books reindex now clear index background checks aide checks your day on a schedule and drops short advisory cards into the home today strip - overdue tasks, renewals, habits and the like. it never acts on its own; you click through. off by default since it runs the model on a timer (it spends tokens). hit \"run now\" to try it. enable background checks tasks & reminders subscriptions calendar & day-events habits reading health money (budget & low balance) important mail (flagged / vip) journal (stale nudge) run every hours quiet hours to send push for urgentweb-push high-priority cards (needs notifications on) run now intelligence aide can learn from how you use alles - find cross-domain insights, build a model of your preferences, and weave both into its answers. the learning passes spend tokens so they are off by default; the inject + suggestion switches are cheap and on. see what it finds in the brain page. cross-domain insightsa periodic pass that finds patterns across your data (spends tokens) inject insights into aide learn about you (user model)distill durable facts from your behavior (spends tokens) inject what it learned into aide composer suggestionspredicted next-step chips above the message box session contextkeep aide aware of the current topic across turns generate insights distill now",
         "relationships": {},
         "role": "native div"
       },
@@ -109185,11 +109201,11 @@
         "discoverability": "no-matched-source-authority",
         "value": "no direct-id listener, inline handler, or native authority matched by static source extraction"
       },
-      "id": "static.0a45a234d239",
+      "id": "static.d37f2097932b",
       "kind": "action",
       "label": {
         "source": "text",
-        "value": "settings general \u00d7 general & appearance general home appearance aide & chat behavior chat defaults search voice personas background checks intelligence models & providers models memory & instructions memory recall connections & mcp connections & tools api & shortcuts privacy & security privacy & password notifications & language language & region rules & delivery server, backups & data about & credits backup & restore home Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear. loading preferences\u2026 structure Move sections into the order you scan them. Hide anything that is not useful every day. needs youapprovals, failed work, and delivery prompts \u00b7 always visible \u2191\u2193 scheduleevents, tasks, reminders, renewals, and habits \u2191\u2193 in progressactive background Aide work \u2191\u2193 briefsrecent finished Aide summaries \u2191\u2193 pinned appsthe app destinations selected below \u2191\u2193 density This changes vertical spacing only. It never removes details. comfortablemore room between sections compactmore of the day at once pinned apps Choose and order the app destinations shown on Home. planagenda, board, calendar, tasks, and reminders\u2191\u2193 inboxmail and contacts\u2191\u2193 docsdocuments, notes, and journal\u2191\u2193 fileslocal and remote storage plus gallery\u2191\u2193 librarybooks, saved reading, and news\u2191\u2193 healthmeasurements and habits\u2191\u2193 financemoney and subscriptions\u2191\u2193 vaultpasswords and protected secrets\u2191\u2193 serverservices, search, backups, and activity\u2191\u2193 home outline5 sections The greeting and capture bar stay fixed. This is the order below them. needs youapprovals and recovery prompts scheduleevents and priorities in progressactive Aide work briefsrecent summaries pinned appsplan \u00b7 docs \u00b7 files no unsaved changesSaving updates Home for every browser using this Alles server. reset defaultssave home model defaults choose one default for each kind of work. you can still change the model for a single chat or run. loading model choices\u2026 save defaults model endpoints refresh all Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits. + add endpoint OpenAI Anthropic DeepSeek Kimi Groq Gemini xAI (Grok) Mistral Perplexity OpenRouter Together Fireworks Cohere Ollama name base url provider authentication api key provider adapter manual models comma-separated add + probe models vision-capable models (comma-separated, optional) connect Gemini with Google OAuth Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow. client ID client secret Google Cloud project ID open Google authorization local serving checking Ollama... pull any model pull refresh start Ollama openai-compatible api base url: http://localhost:8001/v1 model id format: EndpointName/model-id chat defaults aide uses the right tools automatically and can still answer normal questions. context window (messages) features streaming thinking show model reasoning blocks as they stream artifacts render HTML, SVG and code in a side panel auto-compact context summarize old messages when context fills up save owner instructions tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules. save instructions memory extract from chat incognito chats never read or save memory. owner instructions stay separate from the memories below. memory policy ask before saving suggested memories off ask auto use relevant memory in chatsavailable only while memory is set to ask or auto general remember saved to memory undo pause export clear all web search primary provider test tavily api key brave search api key searxng base url google pse api key search engine cx id serper api key fallback provider results per query andromeda normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent. normal resultsshow web results below the overview ai overviewbuild a claim-by-claim answer from fetched evidence independent fact-checkuse the separate verifier after freshness-sensitive answers fact-check policy default model band light standard strong auto test auto model profile your name : aide greets you by it username : synced across your apps chat bar reset all welcome messageshow the empty chat welcome screen compact modetighter spacing throughout the UI font size microphonevoice input button sidebar views docs tasks calendar ai gallery memory secrets contacts gallery privacy sensitive blurblur emails, keys and secrets in aide replies text-only emojisstrip emoji glyphs from aide replies incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them. password require passwordlock alles behind your password current password new password verify password : enter it again change password default theme mode dark light accent color : the highlight used everywhere reset presets & customization speech-to-text (STT) provider microphone language (optional) text-to-speech (TTS) auto-play TTSspeak AI replies automatically provider voice speed openai api key required for whisper api and openai tts save voice settings personas name system prompt starter message : prefilled into the composer when you pick this persona (optional) pinned model temperature auto precise \u00b7 0creative \u00b7 2 runs as auto chat only agent accent \u00b7 re-themes the app while this persona is active default persona add persona cancel knowledge files : this assistant answers from these add \ud83d\udd17 share this assistant cookbook (custom slash commands) name description prompt template add command Jarvis on Discord not connected loading connection\u2026 Discord bot token encrypted and never shown again connect Jarvis create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work. Jarvisnot paired pair one ownersend pair CODE in a DM to Jarvis. the code expires after 10 minutes. new pairing code approved private channel ids one numeric id per line; owner messages only save channels revoke owner quiet hourshold finished notices; questions still come through from to time zone save disconnect Jarvis agent stack refresh context filesread AGENTS.md from the working dir shell sandboxrun shell inside docker (needs docker installed) computer usescreenshot + click/type tools (needs pyautogui) sub-agentsallow spawn_agent + parallel delegation extra approved file roots read-only; one existing folder per line save approved roots permission rules fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (* ?); a plain path is a \"contains\" match. e.g. allow git_status, ask on git_commit, deny write_file on .env. add rule mcp servers one-click presets name command remote server and private values transport remote url environment http headers private values are encrypted on disk and never shown again. add server macOS integration connections service name token connect github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected. alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed. rotate credential key re-encrypts saved credentials, then safely retires the old key. api tokens generate access read write models agent secrets connections admin choose only what this token needs. admin includes every permission. webhooks name url add webhook shortcuts search sidebar settings new chat send focus input stop generating openai-compatible api expose Aide's models via the OpenAI API spec. base url: http://localhost:8001/v1 model id format: EndpointName/model-id language & region Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent. loading settings\u2026 interface language Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest. EnglishEnglishreviewed Fran\u00e7aisFrenchunavailable Espa\u00f1olSpanishunavailable \u7b80\u4f53\u4e2d\u6587Simplified Chineseunavailable \u7e41\u9ad4\u4e2d\u6587Traditional Chineseunavailable \u65e5\u672c\u8a9eJapaneseunavailable \ud55c\uad6d\uc5b4Koreanunavailable \u0627\u0644\u0639\u0631\u0628\u064a\u0629Arabicunavailable regional formats Automatic values follow this browser. An override changes formatting, not the interface language. regiondetecting this browser\u2026 automatic timezonedetecting this browser\u2026 automatic clockDoes not change stored event times. automatic 24 hour 12 hour first day of weekCalendar layout only. automatic monday sunday currencyUsed for locale-sensitive money display. automatic no unsaved changes save language & region live previewen alles home needs your attention settings saved alles/data \u00b7 14:30 directionleft to right regionautomatic timezoneautomatic currencyautomatic about & credits See what Alles includes, connects to, and learned from. loading credits\u2026 release credits search credits all code data companions inspiration loading manifest\u2026 Select a credit to inspect its source and local notice state. automation rules when this happens, do that. rules run in the background. everything is checked within ~30 seconds. cancel add rule delivery channels the \"send to discord / telegram\" actions use these. paste a discord webhook url and/or a telegram bot token + chat id. setup checking setup\u2026 resume setup export downloads an encrypted .alles-backup containing the selected local data and a verified manifest. download encrypted backup download recovery key save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost. restore select an encrypted backup or ZIP to verify and stage. your live data stays unchanged until you stop Alles and run the shown CLI command. choose backup file choose separate recovery key (optional) no separate key selected webdav backup send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles. https url username password use an app password when your WebDAV service supports one. connect and save disconnect checking connection\u2026 last successful backup: never last verified: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore s3 backup manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects. the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles. https endpoint region existing bucket prefix (optional) addressing style access-key id secret-access key enter both credentials together. leaving both blank keeps the saved pair. connect and save disconnect checking connection\u2026 last successful backup: never last verified upload read-back: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore personal recall let aide search your own notes, journal, mail, contacts, saved articles and books. the vault is never indexed; the journal honours its lock. answering sends matched snippets to your chosen model - use a local model for fully offline recall. enable recall index mail notes journal contacts read-later books reindex now clear index background checks aide checks your day on a schedule and drops short advisory cards into the home today strip - overdue tasks, renewals, habits and the like. it never acts on its own; you click through. off by default since it runs the model on a timer (it spends tokens). hit \"run now\" to try it. enable background checks tasks & reminders subscriptions calendar & day-events habits reading health money (budget & low balance) important mail (flagged / vip) journal (stale nudge) run every hours quiet hours to send push for urgentweb-push high-priority cards (needs notifications on) run now intelligence aide can learn from how you use alles - find cross-domain insights, build a model of your preferences, and weave both into its answers. the learning passes spend tokens so they are off by default; the inject + suggestion switches are cheap and on. see what it finds in the brain page. cross-domain insightsa periodic pass that finds patterns across your data (spends tokens) inject insights into aide learn about you (user model)distill durable facts from your behavior (spends tokens) inject what it learned into aide composer suggestionspredicted next-step chips above the message box session contextkeep aide aware of the current topic across turns generate insights distill now"
+        "value": "settings general \u00d7 general & appearance general home appearance aide & chat behavior chat defaults search voice personas background checks intelligence models & providers models memory & instructions memory recall connections & mcp connections & tools api & shortcuts privacy & security privacy & password notifications & language language & region rules & delivery server, backups & data about & credits backup & restore home Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear. loading preferences\u2026 structure Move sections into the order you scan them. Hide anything that is not useful every day. needs youapprovals, failed work, and delivery prompts \u00b7 always visible \u2191\u2193 scheduleevents, tasks, reminders, renewals, and habits \u2191\u2193 in progressactive background Aide work \u2191\u2193 briefsrecent finished Aide summaries \u2191\u2193 pinned appsthe app destinations selected below \u2191\u2193 density This changes vertical spacing only. It never removes details. comfortablemore room between sections compactmore of the day at once pinned apps Choose and order the app destinations shown on Home. planagenda, board, calendar, tasks, and reminders\u2191\u2193 inboxmail and contacts\u2191\u2193 docsdocuments, notes, and journal\u2191\u2193 fileslocal and remote storage plus gallery\u2191\u2193 librarybooks, saved reading, and news\u2191\u2193 healthmeasurements and habits\u2191\u2193 financemoney and subscriptions\u2191\u2193 vaultpasswords and protected secrets\u2191\u2193 serverservices, search, backups, and activity\u2191\u2193 home outline5 sections The greeting and capture bar stay fixed. This is the order below them. needs youapprovals and recovery prompts scheduleevents and priorities in progressactive Aide work briefsrecent summaries pinned appsplan \u00b7 docs \u00b7 files no unsaved changesSaving updates Home for every browser using this Alles server. reset defaultssave home model defaults choose one default for each kind of work. you can still change the model for a single chat or run. loading model choices\u2026 save defaults model endpoints refresh all Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits. + add endpoint OpenAI Anthropic DeepSeek Kimi Groq Gemini xAI (Grok) Mistral Perplexity OpenRouter Together Fireworks Cohere Ollama name base url provider authentication api key provider adapter manual models comma-separated add + probe models vision-capable models (comma-separated, optional) connect Gemini with Google OAuth Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow. client ID client secret Google Cloud project ID open Google authorization local serving checking Ollama... pull any model pull refresh start Ollama openai-compatible api base url: http://localhost:8001/v1 model id format: EndpointName/model-id chat defaults aide uses the right tools automatically and can still answer normal questions. context window (messages) features streaming thinking show model reasoning blocks as they stream artifacts render HTML, SVG and code in a side panel auto-compact context summarize old messages when context fills up save owner instructions tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules. save instructions memory extract from chat incognito chats never read or save memory. owner instructions stay separate from the memories below. memory policy ask before saving suggested memories off ask auto use relevant memory in chatsavailable only while memory is set to ask or auto general remember saved to memory undo pause export clear all web search primary provider test tavily api key brave search api key searxng base url google pse api key search engine cx id serper api key fallback provider results per query andromeda normal links and the cited overview are independent. a remote overview model is confirmed for each search before anything is sent. normal resultsshow web results below the overview ai overviewbuild a claim-by-claim answer from fetched evidence independent fact-checkuse the separate verifier after freshness-sensitive answers fact-check policy default model band light standard strong auto test auto model profile your name : aide greets you by it username : synced across your apps chat bar reset all welcome messageshow the empty chat welcome screen compact modetighter spacing throughout the UI font size microphonevoice input button sidebar views docs tasks calendar ai gallery memory secrets contacts gallery privacy sensitive blurblur emails, keys and secrets in aide replies text-only emojisstrip emoji glyphs from aide replies incognito is chosen per chat. incognito chats stay only in temporary memory and are deleted when you leave them. password require passwordlock alles behind your password current password new password verify password : enter it again change password default theme mode dark light accent color reset presets & customization speech-to-text (STT) provider microphone language (optional) text-to-speech (TTS) auto-play TTSspeak AI replies automatically provider voice speed openai api key required for whisper api and openai tts save voice settings personas name system prompt starter message : prefilled into the composer when you pick this persona (optional) pinned model temperature auto precise \u00b7 0creative \u00b7 2 runs as auto chat only agent accent \u00b7 re-themes the app while this persona is active default persona add persona cancel knowledge files : this assistant answers from these add \ud83d\udd17 share this assistant cookbook (custom slash commands) name description prompt template add command Jarvis on Discord not connected loading connection\u2026 Discord bot token encrypted and never shown again connect Jarvis create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work. Jarvisnot paired pair one ownersend pair CODE in a DM to Jarvis. the code expires after 10 minutes. new pairing code approved private channel ids one numeric id per line; owner messages only save channels revoke owner quiet hourshold finished notices; questions still come through from to time zone save disconnect Jarvis agent stack refresh context filesread AGENTS.md from the working dir shell sandboxrun shell inside docker (needs docker installed) computer usescreenshot + click/type tools (needs pyautogui) sub-agentsallow spawn_agent + parallel delegation extra approved file roots read-only; one existing folder per line save approved roots permission rules fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (* ?); a plain path is a \"contains\" match. e.g. allow git_status, ask on git_commit, deny write_file on .env. add rule mcp servers one-click presets name command remote server and private values transport remote url environment http headers private values are encrypted on disk and never shown again. add server macOS integration connections service name token connect github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected. alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed. rotate credential key re-encrypts saved credentials, then safely retires the old key. api tokens generate access read write models agent secrets connections admin choose only what this token needs. admin includes every permission. webhooks name url add webhook shortcuts search sidebar settings new chat send focus input stop generating openai-compatible api expose Aide's models via the OpenAI API spec. base url: http://localhost:8001/v1 model id format: EndpointName/model-id language & region Choose the words Alles uses. Region, timezone, clock, week start, and currency stay independent. loading settings\u2026 interface language Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest. EnglishEnglishreviewed Fran\u00e7aisFrenchunavailable Espa\u00f1olSpanishunavailable \u7b80\u4f53\u4e2d\u6587Simplified Chineseunavailable \u7e41\u9ad4\u4e2d\u6587Traditional Chineseunavailable \u65e5\u672c\u8a9eJapaneseunavailable \ud55c\uad6d\uc5b4Koreanunavailable \u0627\u0644\u0639\u0631\u0628\u064a\u0629Arabicunavailable regional formats Automatic values follow this browser. An override changes formatting, not the interface language. regiondetecting this browser\u2026 automatic timezonedetecting this browser\u2026 automatic clockDoes not change stored event times. automatic 24 hour 12 hour first day of weekCalendar layout only. automatic monday sunday currencyUsed for locale-sensitive money display. automatic no unsaved changes save language & region live previewen alles home needs your attention settings saved alles/data \u00b7 14:30 directionleft to right regionautomatic timezoneautomatic currencyautomatic about & credits See what Alles includes, connects to, and learned from. loading credits\u2026 release credits search credits all code data companions inspiration loading manifest\u2026 Select a credit to inspect its source and local notice state. automation rules when this happens, do that. rules run in the background. everything is checked within ~30 seconds. cancel add rule delivery channels the \"send to discord / telegram\" actions use these. paste a discord webhook url and/or a telegram bot token + chat id. setup checking setup\u2026 resume setup export downloads an encrypted .alles-backup containing the selected local data and a verified manifest. download encrypted backup download recovery key save the recovery key somewhere separate. a backup cannot be opened without it if this installation is lost. restore select an encrypted backup or ZIP to verify and stage. your live data stays unchanged until you stop Alles and run the shown CLI command. choose backup file choose separate recovery key (optional) no separate key selected webdav backup send the same encrypted backup to your WebDAV server. Alles never shows the saved password. for disaster recovery, keep your WebDAV login and recovery key somewhere outside Alles. https url username password use an app password when your WebDAV service supports one. connect and save disconnect checking connection\u2026 last successful backup: never last verified: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore s3 backup manually send the same encrypted backup to an existing S3 bucket. this is backup-only: Alles will not sync or manage other objects. the connection check creates and removes tiny probe objects. each backup is one copy, and the copy is not atomic. the artifact must be 5 GB or smaller. for disaster recovery, keep your S3 credentials and recovery-key file somewhere outside Alles. https endpoint region existing bucket prefix (optional) addressing style access-key id secret-access key enter both credentials together. leaving both blank keeps the saved pair. connect and save disconnect checking connection\u2026 last successful backup: never last verified upload read-back: never back up now refresh backups remote backup choose a backup to stage a restore. choose separate recovery key (optional) no separate key selected verify and stage selected restore personal recall let aide search your own notes, journal, mail, contacts, saved articles and books. the vault is never indexed; the journal honours its lock. answering sends matched snippets to your chosen model - use a local model for fully offline recall. enable recall index mail notes journal contacts read-later books reindex now clear index background checks aide checks your day on a schedule and drops short advisory cards into the home today strip - overdue tasks, renewals, habits and the like. it never acts on its own; you click through. off by default since it runs the model on a timer (it spends tokens). hit \"run now\" to try it. enable background checks tasks & reminders subscriptions calendar & day-events habits reading health money (budget & low balance) important mail (flagged / vip) journal (stale nudge) run every hours quiet hours to send push for urgentweb-push high-priority cards (needs notifications on) run now intelligence aide can learn from how you use alles - find cross-domain insights, build a model of your preferences, and weave both into its answers. the learning passes spend tokens so they are off by default; the inject + suggestion switches are cheap and on. see what it finds in the brain page. cross-domain insightsa periodic pass that finds patterns across your data (spends tokens) inject insights into aide learn about you (user model)distill durable facts from your behavior (spends tokens) inject what it learned into aide composer suggestionspredicted next-step chips above the message box session contextkeep aide aware of the current topic across turns generate insights distill now"
       },
       "path": {
         "api": [],
@@ -211793,7 +211809,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3075
+              "line": 3079
             },
             "status": "source-only",
             "tests": []
@@ -211801,7 +211817,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3064 _loadThemeColorControls"
+            "value": "static/js/settings.js:3068 _loadThemeColorControls"
           },
           "keys": [],
           "modality": "pointer",
@@ -211815,7 +211831,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3075
+              "line": 3079
             },
             "status": "source-only",
             "tests": []
@@ -211823,7 +211839,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3064 _loadThemeColorControls"
+            "value": "static/js/settings.js:3068 _loadThemeColorControls"
           },
           "keys": [
             "Enter",
@@ -211861,7 +211877,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3064 _loadThemeColorControls"
+        "value": "static/js/settings.js:3068 _loadThemeColorControls"
       },
       "id": "dynamic.cf7268fa8e76",
       "kind": "action",
@@ -211876,7 +211892,7 @@
           "source-local:/api/auth/me"
         ],
         "client_functions": [
-          "static/js/settings.js:3064 _loadThemeColorControls"
+          "static/js/settings.js:3068 _loadThemeColorControls"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -211917,9 +211933,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3075
+          "line": 3079
         },
-        "source_selector": "static/js/settings.js:3075:19",
+        "source_selector": "static/js/settings.js:3079:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -211954,7 +211970,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3308
+              "line": 3312
             },
             "status": "source-only",
             "tests": []
@@ -211962,7 +211978,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3303 _buildPersonaAccents"
+            "value": "static/js/settings.js:3307 _buildPersonaAccents"
           },
           "keys": [],
           "modality": "pointer",
@@ -211976,7 +211992,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3308
+              "line": 3312
             },
             "status": "source-only",
             "tests": []
@@ -211984,7 +212000,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3303 _buildPersonaAccents"
+            "value": "static/js/settings.js:3307 _buildPersonaAccents"
           },
           "keys": [
             "Enter",
@@ -212022,7 +212038,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3303 _buildPersonaAccents"
+        "value": "static/js/settings.js:3307 _buildPersonaAccents"
       },
       "id": "dynamic.a704909e7ea1",
       "kind": "action",
@@ -212033,7 +212049,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/settings.js:3303 _buildPersonaAccents"
+          "static/js/settings.js:3307 _buildPersonaAccents"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212074,9 +212090,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3308
+          "line": 3312
         },
-        "source_selector": "static/js/settings.js:3308:20",
+        "source_selector": "static/js/settings.js:3312:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212111,7 +212127,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3310
+              "line": 3314
             },
             "status": "source-only",
             "tests": []
@@ -212119,7 +212135,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3303 _buildPersonaAccents"
+            "value": "static/js/settings.js:3307 _buildPersonaAccents"
           },
           "keys": [],
           "modality": "pointer",
@@ -212133,7 +212149,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3310
+              "line": 3314
             },
             "status": "source-only",
             "tests": []
@@ -212141,7 +212157,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3303 _buildPersonaAccents"
+            "value": "static/js/settings.js:3307 _buildPersonaAccents"
           },
           "keys": [
             "Enter",
@@ -212179,7 +212195,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3303 _buildPersonaAccents"
+        "value": "static/js/settings.js:3307 _buildPersonaAccents"
       },
       "id": "dynamic.2ba5f906defc",
       "kind": "action",
@@ -212190,7 +212206,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/settings.js:3303 _buildPersonaAccents"
+          "static/js/settings.js:3307 _buildPersonaAccents"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212231,9 +212247,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3310
+          "line": 3314
         },
-        "source_selector": "static/js/settings.js:3310:21",
+        "source_selector": "static/js/settings.js:3314:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212268,7 +212284,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3341
+              "line": 3345
             },
             "status": "source-only",
             "tests": []
@@ -212276,7 +212292,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3330 _fillPersonaModels"
+            "value": "static/js/settings.js:3334 _fillPersonaModels"
           },
           "keys": [
             "native editing keys"
@@ -212314,7 +212330,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3330 _fillPersonaModels"
+        "value": "static/js/settings.js:3334 _fillPersonaModels"
       },
       "id": "dynamic.a5c816dce749",
       "kind": "field",
@@ -212325,7 +212341,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/settings.js:3330 _fillPersonaModels"
+          "static/js/settings.js:3334 _fillPersonaModels"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212366,9 +212382,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3341
+          "line": 3345
         },
-        "source_selector": "static/js/settings.js:3341:22",
+        "source_selector": "static/js/settings.js:3345:22",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212431,7 +212447,7 @@
           "source-local:/api/personas"
         ],
         "client_functions": [
-          "static/js/settings.js:3344 loadPersonas"
+          "static/js/settings.js:3348 loadPersonas"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212472,9 +212488,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3354
+          "line": 3358
         },
-        "source_selector": "static/js/settings.js:3354:23",
+        "source_selector": "static/js/settings.js:3358:23",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -212493,7 +212509,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3357
+              "line": 3361
             },
             "status": "source-only",
             "tests": []
@@ -212515,7 +212531,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3357
+              "line": 3361
             },
             "status": "source-only",
             "tests": []
@@ -212575,7 +212591,7 @@
           "source-local:/api/personas"
         ],
         "client_functions": [
-          "static/js/settings.js:3344 loadPersonas"
+          "static/js/settings.js:3348 loadPersonas"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212616,9 +212632,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3357
+          "line": 3361
         },
-        "source_selector": "static/js/settings.js:3357:24",
+        "source_selector": "static/js/settings.js:3361:24",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212653,7 +212669,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3358
+              "line": 3362
             },
             "status": "source-only",
             "tests": []
@@ -212675,7 +212691,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3358
+              "line": 3362
             },
             "status": "source-only",
             "tests": []
@@ -212735,7 +212751,7 @@
           "source-local:/api/personas"
         ],
         "client_functions": [
-          "static/js/settings.js:3344 loadPersonas"
+          "static/js/settings.js:3348 loadPersonas"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212776,9 +212792,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3358
+          "line": 3362
         },
-        "source_selector": "static/js/settings.js:3358:26",
+        "source_selector": "static/js/settings.js:3362:26",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212813,7 +212829,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3395
+              "line": 3399
             },
             "status": "source-only",
             "tests": []
@@ -212821,7 +212837,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3387 _loadPersonaDocs"
+            "value": "static/js/settings.js:3391 _loadPersonaDocs"
           },
           "keys": [],
           "modality": "pointer",
@@ -212835,7 +212851,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3395
+              "line": 3399
             },
             "status": "source-only",
             "tests": []
@@ -212843,7 +212859,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3387 _loadPersonaDocs"
+            "value": "static/js/settings.js:3391 _loadPersonaDocs"
           },
           "keys": [
             "Enter",
@@ -212881,7 +212897,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3387 _loadPersonaDocs"
+        "value": "static/js/settings.js:3391 _loadPersonaDocs"
       },
       "id": "dynamic.bf2282ea2d98",
       "kind": "action",
@@ -212894,7 +212910,7 @@
           "source-local:/api/personas/"
         ],
         "client_functions": [
-          "static/js/settings.js:3387 _loadPersonaDocs"
+          "static/js/settings.js:3391 _loadPersonaDocs"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -212935,9 +212951,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3395
+          "line": 3399
         },
-        "source_selector": "static/js/settings.js:3395:28",
+        "source_selector": "static/js/settings.js:3399:28",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -212972,7 +212988,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3490
+              "line": 3494
             },
             "status": "source-only",
             "tests": []
@@ -212994,7 +213010,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3490
+              "line": 3494
             },
             "status": "source-only",
             "tests": []
@@ -213055,7 +213071,7 @@
           "source-local:/api/cookbook/"
         ],
         "client_functions": [
-          "static/js/settings.js:3481 loadCookbook"
+          "static/js/settings.js:3485 loadCookbook"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213096,9 +213112,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3490
+          "line": 3494
         },
-        "source_selector": "static/js/settings.js:3490:29",
+        "source_selector": "static/js/settings.js:3494:29",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213133,7 +213149,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3595
+              "line": 3599
             },
             "status": "source-only",
             "tests": []
@@ -213155,7 +213171,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3595
+              "line": 3599
             },
             "status": "source-only",
             "tests": []
@@ -213215,7 +213231,7 @@
           "source-local:/api/mcp/servers"
         ],
         "client_functions": [
-          "static/js/settings.js:3583 loadMcpServers"
+          "static/js/settings.js:3587 loadMcpServers"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213256,9 +213272,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3595
+          "line": 3599
         },
-        "source_selector": "static/js/settings.js:3595:31",
+        "source_selector": "static/js/settings.js:3599:31",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213293,7 +213309,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3629
+              "line": 3633
             },
             "status": "source-only",
             "tests": []
@@ -213301,7 +213317,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3622 _loadMcpPresets"
+            "value": "static/js/settings.js:3626 _loadMcpPresets"
           },
           "keys": [],
           "modality": "pointer",
@@ -213315,7 +213331,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3629
+              "line": 3633
             },
             "status": "source-only",
             "tests": []
@@ -213323,7 +213339,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:3622 _loadMcpPresets"
+            "value": "static/js/settings.js:3626 _loadMcpPresets"
           },
           "keys": [
             "Enter",
@@ -213361,7 +213377,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:3622 _loadMcpPresets"
+        "value": "static/js/settings.js:3626 _loadMcpPresets"
       },
       "id": "dynamic.e5feacac359b",
       "kind": "action",
@@ -213374,7 +213390,7 @@
           "source-local:/api/mcp/presets"
         ],
         "client_functions": [
-          "static/js/settings.js:3622 _loadMcpPresets"
+          "static/js/settings.js:3626 _loadMcpPresets"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213415,9 +213431,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3629
+          "line": 3633
         },
-        "source_selector": "static/js/settings.js:3629:33",
+        "source_selector": "static/js/settings.js:3633:33",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213452,7 +213468,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3672
+              "line": 3676
             },
             "status": "source-only",
             "tests": []
@@ -213474,7 +213490,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3672
+              "line": 3676
             },
             "status": "source-only",
             "tests": []
@@ -213534,7 +213550,7 @@
           "source-local:/api/connections"
         ],
         "client_functions": [
-          "static/js/settings.js:3652 loadConnections"
+          "static/js/settings.js:3656 loadConnections"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213575,9 +213591,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3672
+          "line": 3676
         },
-        "source_selector": "static/js/settings.js:3672:34",
+        "source_selector": "static/js/settings.js:3676:34",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213612,7 +213628,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3673
+              "line": 3677
             },
             "status": "source-only",
             "tests": []
@@ -213634,7 +213650,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3673
+              "line": 3677
             },
             "status": "source-only",
             "tests": []
@@ -213694,7 +213710,7 @@
           "source-local:/api/connections"
         ],
         "client_functions": [
-          "static/js/settings.js:3652 loadConnections"
+          "static/js/settings.js:3656 loadConnections"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213735,9 +213751,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3673
+          "line": 3677
         },
-        "source_selector": "static/js/settings.js:3673:36",
+        "source_selector": "static/js/settings.js:3677:36",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213772,7 +213788,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3995
+              "line": 3999
             },
             "status": "source-only",
             "tests": []
@@ -213794,7 +213810,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 3995
+              "line": 3999
             },
             "status": "source-only",
             "tests": []
@@ -213854,7 +213870,7 @@
           "source-local:/api/tokens"
         ],
         "client_functions": [
-          "static/js/settings.js:3984 loadTokens"
+          "static/js/settings.js:3988 loadTokens"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -213895,9 +213911,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 3995
+          "line": 3999
         },
-        "source_selector": "static/js/settings.js:3995:38",
+        "source_selector": "static/js/settings.js:3999:38",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -213967,7 +213983,7 @@
           "source-local:/api/webhooks/"
         ],
         "client_functions": [
-          "static/js/settings.js:4051 loadWebhooks"
+          "static/js/settings.js:4055 loadWebhooks"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214008,9 +214024,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4064
+          "line": 4068
         },
-        "source_selector": "static/js/settings.js:4064:40",
+        "source_selector": "static/js/settings.js:4068:40",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -214029,7 +214045,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4065
+              "line": 4069
             },
             "status": "source-only",
             "tests": []
@@ -214051,7 +214067,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4065
+              "line": 4069
             },
             "status": "source-only",
             "tests": []
@@ -214112,7 +214128,7 @@
           "source-local:/api/webhooks/"
         ],
         "client_functions": [
-          "static/js/settings.js:4051 loadWebhooks"
+          "static/js/settings.js:4055 loadWebhooks"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214153,9 +214169,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4065
+          "line": 4069
         },
-        "source_selector": "static/js/settings.js:4065:41",
+        "source_selector": "static/js/settings.js:4069:41",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214190,7 +214206,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4066
+              "line": 4070
             },
             "status": "source-only",
             "tests": []
@@ -214212,7 +214228,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4066
+              "line": 4070
             },
             "status": "source-only",
             "tests": []
@@ -214273,7 +214289,7 @@
           "source-local:/api/webhooks/"
         ],
         "client_functions": [
-          "static/js/settings.js:4051 loadWebhooks"
+          "static/js/settings.js:4055 loadWebhooks"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214314,9 +214330,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4066
+          "line": 4070
         },
-        "source_selector": "static/js/settings.js:4066:43",
+        "source_selector": "static/js/settings.js:4070:43",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214351,7 +214367,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4315
+              "line": 4319
             },
             "status": "source-only",
             "tests": []
@@ -214359,7 +214375,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4304 loadPermRules"
+            "value": "static/js/settings.js:4308 loadPermRules"
           },
           "keys": [],
           "modality": "pointer",
@@ -214373,7 +214389,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4315
+              "line": 4319
             },
             "status": "source-only",
             "tests": []
@@ -214381,7 +214397,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4304 loadPermRules"
+            "value": "static/js/settings.js:4308 loadPermRules"
           },
           "keys": [
             "Enter",
@@ -214419,7 +214435,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4304 loadPermRules"
+        "value": "static/js/settings.js:4308 loadPermRules"
       },
       "id": "dynamic.2e58b686f96b",
       "kind": "action",
@@ -214432,7 +214448,7 @@
           "source-local:/api/settings"
         ],
         "client_functions": [
-          "static/js/settings.js:4304 loadPermRules"
+          "static/js/settings.js:4308 loadPermRules"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214473,9 +214489,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4315
+          "line": 4319
         },
-        "source_selector": "static/js/settings.js:4315:45",
+        "source_selector": "static/js/settings.js:4319:45",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214510,7 +214526,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4407
+              "line": 4411
             },
             "status": "source-only",
             "tests": []
@@ -214518,7 +214534,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4403 _renderRulePresets"
+            "value": "static/js/settings.js:4407 _renderRulePresets"
           },
           "keys": [],
           "modality": "pointer",
@@ -214532,7 +214548,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4407
+              "line": 4411
             },
             "status": "source-only",
             "tests": []
@@ -214540,7 +214556,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4403 _renderRulePresets"
+            "value": "static/js/settings.js:4407 _renderRulePresets"
           },
           "keys": [
             "Enter",
@@ -214578,7 +214594,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4403 _renderRulePresets"
+        "value": "static/js/settings.js:4407 _renderRulePresets"
       },
       "id": "dynamic.8a82054436ea",
       "kind": "action",
@@ -214589,7 +214605,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/settings.js:4403 _renderRulePresets"
+          "static/js/settings.js:4407 _renderRulePresets"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214630,9 +214646,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4407
+          "line": 4411
         },
-        "source_selector": "static/js/settings.js:4407:46",
+        "source_selector": "static/js/settings.js:4411:46",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214667,7 +214683,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4450
+              "line": 4454
             },
             "status": "source-only",
             "tests": []
@@ -214675,7 +214691,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4433 _renderRules"
+            "value": "static/js/settings.js:4437 _renderRules"
           },
           "keys": [],
           "modality": "pointer",
@@ -214689,7 +214705,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4450
+              "line": 4454
             },
             "status": "source-only",
             "tests": []
@@ -214697,7 +214713,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4433 _renderRules"
+            "value": "static/js/settings.js:4437 _renderRules"
           },
           "keys": [
             "Enter",
@@ -214735,7 +214751,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4433 _renderRules"
+        "value": "static/js/settings.js:4437 _renderRules"
       },
       "id": "dynamic.65101ff426e5",
       "kind": "action",
@@ -214749,7 +214765,7 @@
           "source-local:/api/automations/"
         ],
         "client_functions": [
-          "static/js/settings.js:4433 _renderRules"
+          "static/js/settings.js:4437 _renderRules"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214790,9 +214806,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4450
+          "line": 4454
         },
-        "source_selector": "static/js/settings.js:4450:47",
+        "source_selector": "static/js/settings.js:4454:47",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214827,7 +214843,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4451
+              "line": 4455
             },
             "status": "source-only",
             "tests": []
@@ -214835,7 +214851,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4433 _renderRules"
+            "value": "static/js/settings.js:4437 _renderRules"
           },
           "keys": [],
           "modality": "pointer",
@@ -214849,7 +214865,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4451
+              "line": 4455
             },
             "status": "source-only",
             "tests": []
@@ -214857,7 +214873,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4433 _renderRules"
+            "value": "static/js/settings.js:4437 _renderRules"
           },
           "keys": [
             "Enter",
@@ -214895,7 +214911,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4433 _renderRules"
+        "value": "static/js/settings.js:4437 _renderRules"
       },
       "id": "dynamic.aeae06cb020a",
       "kind": "action",
@@ -214909,7 +214925,7 @@
           "source-local:/api/automations/"
         ],
         "client_functions": [
-          "static/js/settings.js:4433 _renderRules"
+          "static/js/settings.js:4437 _renderRules"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -214950,9 +214966,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4451
+          "line": 4455
         },
-        "source_selector": "static/js/settings.js:4451:48",
+        "source_selector": "static/js/settings.js:4455:48",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -214987,7 +215003,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4452
+              "line": 4456
             },
             "status": "source-only",
             "tests": []
@@ -214995,7 +215011,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4433 _renderRules"
+            "value": "static/js/settings.js:4437 _renderRules"
           },
           "keys": [],
           "modality": "pointer",
@@ -215009,7 +215025,7 @@
             "source": {
               "file": "static/js/settings.js",
               "kind": "control-source",
-              "line": 4452
+              "line": 4456
             },
             "status": "source-only",
             "tests": []
@@ -215017,7 +215033,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/settings.js:4433 _renderRules"
+            "value": "static/js/settings.js:4437 _renderRules"
           },
           "keys": [
             "Enter",
@@ -215055,7 +215071,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/settings.js:4433 _renderRules"
+        "value": "static/js/settings.js:4437 _renderRules"
       },
       "id": "dynamic.c14c795c090e",
       "kind": "action",
@@ -215069,7 +215085,7 @@
           "source-local:/api/automations/"
         ],
         "client_functions": [
-          "static/js/settings.js:4433 _renderRules"
+          "static/js/settings.js:4437 _renderRules"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -215110,9 +215126,9 @@
         "source": {
           "column": null,
           "file": "static/js/settings.js",
-          "line": 4452
+          "line": 4456
         },
-        "source_selector": "static/js/settings.js:4452:49",
+        "source_selector": "static/js/settings.js:4456:49",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [

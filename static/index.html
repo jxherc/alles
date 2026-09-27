@@ -28,8 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=326">
-  <link rel="stylesheet" href="/static/kokuen.css?v=23">
+<link rel="stylesheet" href="/static/style.css?v=327">
+  <link rel="stylesheet" href="/static/kokuen.css?v=24">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#090909">
@@ -2024,13 +2024,13 @@
               <div class="s-default-lock" id="s-theme-lock-note" style="display:none"></div>
               <div class="s-field">
                 <label>mode</label>
-                <div class="theme-mode-row" id="s-theme-mode-row">
-                  <button type="button" class="theme-mode-btn" data-theme-mode="dark">dark</button>
-                  <button type="button" class="theme-mode-btn" data-theme-mode="light">light</button>
+                <div class="theme-mode-row" id="s-theme-mode-row" role="group" aria-label="theme mode">
+                  <button type="button" class="theme-mode-btn" data-theme-mode="dark" aria-pressed="false">dark</button>
+                  <button type="button" class="theme-mode-btn" data-theme-mode="light" aria-pressed="false">light</button>
                 </div>
               </div>
               <div class="s-field" style="margin-top:0.6rem">
-                <label>accent color <span style="color:var(--muted);font-weight:400">: the highlight used everywhere</span></label>
+                <label>accent color</label>
                 <div class="accent-swatches" id="s-accent-swatches"></div>
                 <div class="accent-custom">
                   <input type="text" id="s-accent-hex" class="settings-input" placeholder="type a #hex color" spellcheck="false" style="width:160px">
@@ -2795,7 +2795,7 @@
 </div>
 
 <script type="module">
-const _v = '326';
+const _v = '327';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
