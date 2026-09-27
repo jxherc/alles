@@ -9,6 +9,7 @@ const REL_KINDS = ['friend', 'colleague', 'spouse', 'partner', 'sibling', 'paren
 let _favOnly = false;
 let _wired = false;
 let _creatingContact = false;
+let _contactsLoad = 0;
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 function _wire() {
@@ -100,6 +101,7 @@ export async function loadContacts(q = '', fetcher = fetch) {
   _wire();
   const list = document.getElementById('contacts-list');
   if (!list) return;
+  const load = ++_contactsLoad;
   try {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
@@ -108,6 +110,7 @@ export async function loadContacts(q = '', fetcher = fetch) {
     if (!response.ok) throw new Error('contacts unavailable');
     const contacts = await response.json();
     if (!Array.isArray(contacts)) throw new Error('invalid contacts response');
+    if (load !== _contactsLoad) return;
     if (!contacts.length) { list.innerHTML = `<div class="page-empty">${_favOnly ? 'no favorites' : 'no contacts'}</div>`; return; }
     list.innerHTML = contacts.map(c => `
       <div class="contact-item" data-id="${c.id}">
@@ -130,6 +133,7 @@ export async function loadContacts(q = '', fetcher = fetch) {
     list.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openContact(b.dataset.open)));
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => delContact(b.dataset.del)));
   } catch {
+    if (load !== _contactsLoad) return;
     list.innerHTML = '<div class="page-empty" role="alert">could not load contacts. <button class="btn" id="contacts-retry">retry</button></div>';
     list.querySelector('#contacts-retry').addEventListener('click', () => loadContacts(q, fetcher));
   }
