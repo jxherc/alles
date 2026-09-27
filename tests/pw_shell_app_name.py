@@ -81,6 +81,7 @@ def run() -> None:
                 drawer = page.locator("#app-drawer")
                 drawer.wait_for(state="visible")
                 assert drawer.locator(".app-drawer-item").count() == 12
+                assert drawer.locator(".app-drawer-group h3").first.inner_text() == "main spaces"
                 assert page.locator(".main").get_attribute("inert") is not None
                 page.keyboard.press("Escape")
                 drawer.wait_for(state="hidden")

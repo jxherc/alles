@@ -290,31 +290,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 96
+                "line": 97
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 101
+                "line": 102
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 104
+                "line": 105
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 107
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_shell_app_name.py",
-                "kind": "existing-test-control-reference",
-                "line": 111
+                "line": 108
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -326,13 +320,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 125
+                "line": 113
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
                 "line": 126
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_app_name.py",
+                "kind": "existing-test-control-reference",
+                "line": 127
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -667,31 +667,25 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 96
+                "line": 97
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 101
+                "line": 102
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 104
+                "line": 105
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 107
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_shell_app_name.py",
-                "kind": "existing-test-control-reference",
-                "line": 111
+                "line": 108
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -703,13 +697,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
-                "line": 125
+                "line": 113
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_app_name.py",
                 "kind": "existing-test-control-reference",
                 "line": 126
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_app_name.py",
+                "kind": "existing-test-control-reference",
+                "line": 127
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",

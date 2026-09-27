@@ -13,7 +13,7 @@
   ],
   "coverage_contract": {
     "localized_core_flows": [
-      {"id": "shell", "sources": ["static/index.html"], "key_prefixes": ["common.", "shell.", "plan."]},
+      {"id": "shell", "sources": ["static/index.html", "static/js/app.js"], "key_prefixes": ["common.", "shell.", "plan."]},
       {"id": "home", "sources": ["static/index.html", "static/js/today.js"], "key_prefixes": ["home."]},
       {"id": "aide-primary", "sources": ["static/index.html"], "key_prefixes": ["aide."]},
       {"id": "andromeda-search", "sources": ["static/index.html", "static/js/andromeda.js"], "key_prefixes": ["andromeda."]},

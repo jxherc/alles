@@ -1287,7 +1287,7 @@ function _renderAppDrawer() {
     const section = document.createElement('section');
     section.className = 'app-drawer-group';
     const heading = document.createElement('h3');
-    heading.textContent = label;
+    heading.textContent = label === 'primary spaces' ? t('shell.main_spaces') : label;
     section.appendChild(heading);
     const list = document.createElement('div');
     list.className = 'app-drawer-list';
