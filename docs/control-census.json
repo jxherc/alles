@@ -39167,19 +39167,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 378
+                "line": 391
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 386
+                "line": 412
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 387
+                "line": 413
               }
             ]
           },
@@ -39210,19 +39210,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 378
+                "line": 391
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 386
+                "line": 412
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 387
+                "line": 413
               }
             ]
           },
@@ -39357,7 +39357,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/contacts.js:17 click"
+            "value": "static/js/contacts.js:18 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -39379,7 +39379,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/contacts.js:17 click"
+            "value": "static/js/contacts.js:18 click"
           },
           "keys": [
             "Enter",
@@ -39412,7 +39412,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/contacts.js:17 click"
+        "value": "static/js/contacts.js:18 click"
       },
       "id": "static.c888af6ce8f5",
       "kind": "action",
@@ -39507,7 +39507,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/contacts.js:22 click"
+            "value": "static/js/contacts.js:23 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -39529,7 +39529,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/contacts.js:22 click"
+            "value": "static/js/contacts.js:23 click"
           },
           "keys": [
             "Enter",
@@ -39562,7 +39562,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/contacts.js:22 click"
+        "value": "static/js/contacts.js:23 click"
       },
       "id": "static.eb5853cac6ac",
       "kind": "action",
@@ -39664,7 +39664,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/contacts.js:23 click"
+            "value": "static/js/contacts.js:24 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -39693,7 +39693,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/contacts.js:23 click"
+            "value": "static/js/contacts.js:24 click"
           },
           "keys": [
             "Enter",
@@ -39726,7 +39726,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/contacts.js:23 click"
+        "value": "static/js/contacts.js:24 click"
       },
       "id": "static.7be973456c63",
       "kind": "action",
@@ -39828,7 +39828,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/contacts.js:24 click"
+            "value": "static/js/contacts.js:25 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -39857,7 +39857,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/contacts.js:24 click"
+            "value": "static/js/contacts.js:25 click"
           },
           "keys": [
             "Enter",
@@ -39890,7 +39890,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/contacts.js:24 click"
+        "value": "static/js/contacts.js:25 click"
       },
       "id": "static.16c811d5a92c",
       "kind": "action",
@@ -53527,7 +53527,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_offline_11b.py",
                 "kind": "existing-test-control-reference",
-                "line": 194
+                "line": 199
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53918,7 +53918,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_offline_11b.py",
                 "kind": "existing-test-control-reference",
-                "line": 194
+                "line": 199
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -54309,7 +54309,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_offline_11b.py",
                 "kind": "existing-test-control-reference",
-                "line": 194
+                "line": 199
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -136084,7 +136084,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 34
+              "line": 35
             },
             "status": "source-only",
             "tests": []
@@ -136092,7 +136092,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [],
           "modality": "pointer",
@@ -136106,7 +136106,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 34
+              "line": 35
             },
             "status": "source-only",
             "tests": []
@@ -136114,7 +136114,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [
             "Enter",
@@ -136150,7 +136150,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:28 showCardDav"
+        "value": "static/js/contacts.js:29 showCardDav"
       },
       "id": "dynamic.73bba0d93959",
       "kind": "action",
@@ -136167,7 +136167,7 @@
           "source-local:/api/carddav/sync"
         ],
         "client_functions": [
-          "static/js/contacts.js:28 showCardDav"
+          "static/js/contacts.js:29 showCardDav"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -136208,9 +136208,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 34
+          "line": 35
         },
-        "source_selector": "static/js/contacts.js:34:1",
+        "source_selector": "static/js/contacts.js:35:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -136245,7 +136245,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 39
+              "line": 40
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -136260,7 +136260,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [],
           "modality": "pointer",
@@ -136274,7 +136274,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 39
+              "line": 40
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -136289,7 +136289,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [
             "Enter",
@@ -136325,7 +136325,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:28 showCardDav"
+        "value": "static/js/contacts.js:29 showCardDav"
       },
       "id": "dynamic.7066cae93547",
       "kind": "action",
@@ -136342,7 +136342,7 @@
           "source-local:/api/carddav/sync"
         ],
         "client_functions": [
-          "static/js/contacts.js:28 showCardDav"
+          "static/js/contacts.js:29 showCardDav"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -136383,9 +136383,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 39
+          "line": 40
         },
-        "source_selector": "static/js/contacts.js:39:2",
+        "source_selector": "static/js/contacts.js:40:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -136420,7 +136420,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 40
+              "line": 41
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -136435,7 +136435,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [],
           "modality": "pointer",
@@ -136449,7 +136449,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 40
+              "line": 41
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -136464,7 +136464,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [
             "Enter",
@@ -136500,7 +136500,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:28 showCardDav"
+        "value": "static/js/contacts.js:29 showCardDav"
       },
       "id": "dynamic.316797bafda9",
       "kind": "action",
@@ -136517,7 +136517,7 @@
           "source-local:/api/carddav/sync"
         ],
         "client_functions": [
-          "static/js/contacts.js:28 showCardDav"
+          "static/js/contacts.js:29 showCardDav"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -136558,9 +136558,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 40
+          "line": 41
         },
-        "source_selector": "static/js/contacts.js:40:3",
+        "source_selector": "static/js/contacts.js:41:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -136595,7 +136595,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 41
+              "line": 42
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -136610,7 +136610,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [],
           "modality": "pointer",
@@ -136624,7 +136624,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 41
+              "line": 42
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -136639,7 +136639,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [
             "Enter",
@@ -136675,7 +136675,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:28 showCardDav"
+        "value": "static/js/contacts.js:29 showCardDav"
       },
       "id": "dynamic.f295815a355a",
       "kind": "action",
@@ -136692,7 +136692,7 @@
           "source-local:/api/carddav/sync"
         ],
         "client_functions": [
-          "static/js/contacts.js:28 showCardDav"
+          "static/js/contacts.js:29 showCardDav"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -136733,9 +136733,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 41
+          "line": 42
         },
-        "source_selector": "static/js/contacts.js:41:4",
+        "source_selector": "static/js/contacts.js:42:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -136770,7 +136770,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 45
+              "line": 46
             },
             "status": "source-only",
             "tests": []
@@ -136778,7 +136778,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [],
           "modality": "pointer",
@@ -136792,7 +136792,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 45
+              "line": 46
             },
             "status": "source-only",
             "tests": []
@@ -136800,7 +136800,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:28 showCardDav"
+            "value": "static/js/contacts.js:29 showCardDav"
           },
           "keys": [
             "Enter",
@@ -136837,7 +136837,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:28 showCardDav"
+        "value": "static/js/contacts.js:29 showCardDav"
       },
       "id": "dynamic.f79729e4659c",
       "kind": "action",
@@ -136854,7 +136854,7 @@
           "source-local:/api/carddav/sync"
         ],
         "client_functions": [
-          "static/js/contacts.js:28 showCardDav"
+          "static/js/contacts.js:29 showCardDav"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -136895,9 +136895,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 45
+          "line": 46
         },
-        "source_selector": "static/js/contacts.js:45:5",
+        "source_selector": "static/js/contacts.js:46:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -136932,7 +136932,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 114
+              "line": 117
             },
             "status": "source-only",
             "tests": []
@@ -136940,7 +136940,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:99 loadContacts"
+            "value": "static/js/contacts.js:100 loadContacts"
           },
           "keys": [],
           "modality": "pointer",
@@ -136954,7 +136954,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 114
+              "line": 117
             },
             "status": "source-only",
             "tests": []
@@ -136962,7 +136962,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:99 loadContacts"
+            "value": "static/js/contacts.js:100 loadContacts"
           },
           "keys": [
             "Enter",
@@ -136999,7 +136999,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:99 loadContacts"
+        "value": "static/js/contacts.js:100 loadContacts"
       },
       "id": "dynamic.23ae557dcc5d",
       "kind": "action",
@@ -137012,7 +137012,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:99 loadContacts"
+          "static/js/contacts.js:100 loadContacts"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -137053,9 +137053,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 114
+          "line": 117
         },
-        "source_selector": "static/js/contacts.js:114:6",
+        "source_selector": "static/js/contacts.js:117:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -137090,7 +137090,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 121
+              "line": 124
             },
             "status": "source-only",
             "tests": []
@@ -137098,7 +137098,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:99 loadContacts"
+            "value": "static/js/contacts.js:100 loadContacts"
           },
           "keys": [],
           "modality": "pointer",
@@ -137112,7 +137112,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 121
+              "line": 124
             },
             "status": "source-only",
             "tests": []
@@ -137120,7 +137120,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:99 loadContacts"
+            "value": "static/js/contacts.js:100 loadContacts"
           },
           "keys": [
             "Enter",
@@ -137157,7 +137157,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:99 loadContacts"
+        "value": "static/js/contacts.js:100 loadContacts"
       },
       "id": "dynamic.f356fd6e56eb",
       "kind": "action",
@@ -137170,7 +137170,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:99 loadContacts"
+          "static/js/contacts.js:100 loadContacts"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -137211,9 +137211,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 121
+          "line": 124
         },
-        "source_selector": "static/js/contacts.js:121:7",
+        "source_selector": "static/js/contacts.js:124:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -137248,7 +137248,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 122
+              "line": 125
             },
             "status": "source-only",
             "tests": []
@@ -137256,7 +137256,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:99 loadContacts"
+            "value": "static/js/contacts.js:100 loadContacts"
           },
           "keys": [],
           "modality": "pointer",
@@ -137270,7 +137270,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 122
+              "line": 125
             },
             "status": "source-only",
             "tests": []
@@ -137278,7 +137278,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:99 loadContacts"
+            "value": "static/js/contacts.js:100 loadContacts"
           },
           "keys": [
             "Enter",
@@ -137315,7 +137315,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:99 loadContacts"
+        "value": "static/js/contacts.js:100 loadContacts"
       },
       "id": "dynamic.1a9bf8580bd5",
       "kind": "action",
@@ -137328,7 +137328,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:99 loadContacts"
+          "static/js/contacts.js:100 loadContacts"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -137369,9 +137369,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 122
+          "line": 125
         },
-        "source_selector": "static/js/contacts.js:122:8",
+        "source_selector": "static/js/contacts.js:125:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -137406,7 +137406,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 133
+              "line": 137
             },
             "status": "source-only",
             "tests": []
@@ -137414,7 +137414,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:99 loadContacts"
+            "value": "static/js/contacts.js:100 loadContacts"
           },
           "keys": [],
           "modality": "pointer",
@@ -137428,7 +137428,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 133
+              "line": 137
             },
             "status": "source-only",
             "tests": []
@@ -137436,7 +137436,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:99 loadContacts"
+            "value": "static/js/contacts.js:100 loadContacts"
           },
           "keys": [
             "Enter",
@@ -137472,7 +137472,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:99 loadContacts"
+        "value": "static/js/contacts.js:100 loadContacts"
       },
       "id": "dynamic.5242fd6ca925",
       "kind": "action",
@@ -137485,7 +137485,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:99 loadContacts"
+          "static/js/contacts.js:100 loadContacts"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -137526,9 +137526,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 133
+          "line": 137
         },
-        "source_selector": "static/js/contacts.js:133:9",
+        "source_selector": "static/js/contacts.js:137:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -137563,7 +137563,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 157
+              "line": 161
             },
             "status": "external-blocked",
             "tests": []
@@ -137571,7 +137571,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "Enter"
@@ -137607,7 +137607,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.1e672284ffac",
       "kind": "link",
@@ -137621,7 +137621,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": "https://www.openstreetmap.org/search?query=${encodeURIComponent(c.address)}",
         "server_owner": "not-declared-in-template-source"
@@ -137662,9 +137662,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 157
+          "line": 161
         },
-        "source_selector": "static/js/contacts.js:157:10",
+        "source_selector": "static/js/contacts.js:161:10",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -137692,7 +137692,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 161
+              "line": 165
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -137707,7 +137707,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [],
           "modality": "pointer",
@@ -137721,7 +137721,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 161
+              "line": 165
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -137736,7 +137736,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "Enter",
@@ -137772,7 +137772,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.d62a1ec6c575",
       "kind": "action",
@@ -137786,7 +137786,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -137827,9 +137827,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 161
+          "line": 165
         },
-        "source_selector": "static/js/contacts.js:161:11",
+        "source_selector": "static/js/contacts.js:165:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -137864,7 +137864,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 162
+              "line": 166
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -137879,7 +137879,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "native editing keys"
@@ -137914,7 +137914,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.303eb862ba20",
       "kind": "field",
@@ -137928,7 +137928,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -137969,9 +137969,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 162
+          "line": 166
         },
-        "source_selector": "static/js/contacts.js:162:12",
+        "source_selector": "static/js/contacts.js:166:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -137999,7 +137999,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 163
+              "line": 167
             },
             "status": "source-only",
             "tests": []
@@ -138007,7 +138007,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "native editing keys"
@@ -138042,7 +138042,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.4e197e5456e2",
       "kind": "field",
@@ -138056,7 +138056,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -138097,9 +138097,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 163
+          "line": 167
         },
-        "source_selector": "static/js/contacts.js:163:13",
+        "source_selector": "static/js/contacts.js:167:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -138127,7 +138127,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 164
+              "line": 168
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -138148,7 +138148,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [],
           "modality": "pointer",
@@ -138162,7 +138162,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 164
+              "line": 168
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -138183,7 +138183,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "Enter",
@@ -138219,7 +138219,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.299717a19e32",
       "kind": "action",
@@ -138233,7 +138233,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -138274,9 +138274,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 164
+          "line": 168
         },
-        "source_selector": "static/js/contacts.js:164:14",
+        "source_selector": "static/js/contacts.js:168:14",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -138311,7 +138311,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 167
+              "line": 171
             },
             "status": "source-only",
             "tests": []
@@ -138319,7 +138319,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "native editing keys"
@@ -138355,7 +138355,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.b5a17a4d2191",
       "kind": "field",
@@ -138369,7 +138369,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -138410,9 +138410,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 167
+          "line": 171
         },
-        "source_selector": "static/js/contacts.js:167:15",
+        "source_selector": "static/js/contacts.js:171:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -138440,7 +138440,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 168
+              "line": 172
             },
             "status": "source-only",
             "tests": []
@@ -138448,7 +138448,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "native editing keys"
@@ -138484,7 +138484,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.95ca62a9616a",
       "kind": "field",
@@ -138498,7 +138498,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -138539,9 +138539,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 168
+          "line": 172
         },
-        "source_selector": "static/js/contacts.js:168:16",
+        "source_selector": "static/js/contacts.js:172:16",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -138569,7 +138569,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 175
+              "line": 179
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -138584,7 +138584,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "native editing keys"
@@ -138619,7 +138619,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.d8e83af0cfa1",
       "kind": "field",
@@ -138633,7 +138633,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -138674,9 +138674,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 175
+          "line": 179
         },
-        "source_selector": "static/js/contacts.js:175:17",
+        "source_selector": "static/js/contacts.js:179:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -138704,7 +138704,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 176
+              "line": 180
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -138719,7 +138719,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "native editing keys"
@@ -138754,7 +138754,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.5c675dd15f05",
       "kind": "field",
@@ -138768,7 +138768,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -138809,9 +138809,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 176
+          "line": 180
         },
-        "source_selector": "static/js/contacts.js:176:18",
+        "source_selector": "static/js/contacts.js:180:18",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -138839,7 +138839,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 177
+              "line": 181
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -138854,7 +138854,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [],
           "modality": "pointer",
@@ -138868,7 +138868,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 177
+              "line": 181
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -138883,7 +138883,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "Enter",
@@ -138919,7 +138919,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.1f7b1c5ba8d5",
       "kind": "action",
@@ -138933,7 +138933,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -138974,9 +138974,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 177
+          "line": 181
         },
-        "source_selector": "static/js/contacts.js:177:19",
+        "source_selector": "static/js/contacts.js:181:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -139011,7 +139011,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 184
+              "line": 188
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -139026,7 +139026,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [],
           "modality": "pointer",
@@ -139040,7 +139040,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 184
+              "line": 188
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -139055,7 +139055,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "Enter",
@@ -139091,7 +139091,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.3daf951ea248",
       "kind": "action",
@@ -139105,7 +139105,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -139146,9 +139146,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 184
+          "line": 188
         },
-        "source_selector": "static/js/contacts.js:184:20",
+        "source_selector": "static/js/contacts.js:188:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -139183,7 +139183,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 188
+              "line": 192
             },
             "status": "source-only",
             "tests": []
@@ -139191,7 +139191,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [],
           "modality": "pointer",
@@ -139205,7 +139205,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 188
+              "line": 192
             },
             "status": "source-only",
             "tests": []
@@ -139213,7 +139213,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:147 openContact"
+            "value": "static/js/contacts.js:151 openContact"
           },
           "keys": [
             "Enter",
@@ -139249,7 +139249,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:147 openContact"
+        "value": "static/js/contacts.js:151 openContact"
       },
       "id": "dynamic.4ab4bf98a6c6",
       "kind": "action",
@@ -139263,7 +139263,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:147 openContact"
+          "static/js/contacts.js:151 openContact"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -139304,9 +139304,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 188
+          "line": 192
         },
-        "source_selector": "static/js/contacts.js:188:21",
+        "source_selector": "static/js/contacts.js:192:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -139341,7 +139341,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 286
+              "line": 290
             },
             "status": "source-only",
             "tests": []
@@ -139349,7 +139349,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:280 renderRels"
+            "value": "static/js/contacts.js:284 renderRels"
           },
           "keys": [],
           "modality": "pointer",
@@ -139363,7 +139363,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 286
+              "line": 290
             },
             "status": "source-only",
             "tests": []
@@ -139371,7 +139371,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:280 renderRels"
+            "value": "static/js/contacts.js:284 renderRels"
           },
           "keys": [
             "Enter",
@@ -139408,7 +139408,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:280 renderRels"
+        "value": "static/js/contacts.js:284 renderRels"
       },
       "id": "dynamic.1d9062a1e5dc",
       "kind": "action",
@@ -139421,7 +139421,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:280 renderRels"
+          "static/js/contacts.js:284 renderRels"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -139462,9 +139462,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 286
+          "line": 290
         },
-        "source_selector": "static/js/contacts.js:286:22",
+        "source_selector": "static/js/contacts.js:290:22",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -139499,7 +139499,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 288
+              "line": 292
             },
             "status": "source-only",
             "tests": []
@@ -139507,7 +139507,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:280 renderRels"
+            "value": "static/js/contacts.js:284 renderRels"
           },
           "keys": [],
           "modality": "pointer",
@@ -139521,7 +139521,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 288
+              "line": 292
             },
             "status": "source-only",
             "tests": []
@@ -139529,7 +139529,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:280 renderRels"
+            "value": "static/js/contacts.js:284 renderRels"
           },
           "keys": [
             "Enter",
@@ -139566,7 +139566,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:280 renderRels"
+        "value": "static/js/contacts.js:284 renderRels"
       },
       "id": "dynamic.8bcfd63afff5",
       "kind": "action",
@@ -139579,7 +139579,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:280 renderRels"
+          "static/js/contacts.js:284 renderRels"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -139620,9 +139620,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 288
+          "line": 292
         },
-        "source_selector": "static/js/contacts.js:288:23",
+        "source_selector": "static/js/contacts.js:292:23",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -139657,7 +139657,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 332
+              "line": 336
             },
             "status": "source-only",
             "tests": []
@@ -139665,7 +139665,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:324 renderFields"
+            "value": "static/js/contacts.js:328 renderFields"
           },
           "keys": [],
           "modality": "pointer",
@@ -139679,7 +139679,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 332
+              "line": 336
             },
             "status": "source-only",
             "tests": []
@@ -139687,7 +139687,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:324 renderFields"
+            "value": "static/js/contacts.js:328 renderFields"
           },
           "keys": [
             "Enter",
@@ -139724,7 +139724,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:324 renderFields"
+        "value": "static/js/contacts.js:328 renderFields"
       },
       "id": "dynamic.ba3fc2bc6acf",
       "kind": "action",
@@ -139737,7 +139737,7 @@
           "source-local:/api/contacts/"
         ],
         "client_functions": [
-          "static/js/contacts.js:324 renderFields"
+          "static/js/contacts.js:328 renderFields"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -139778,9 +139778,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 332
+          "line": 336
         },
-        "source_selector": "static/js/contacts.js:332:24",
+        "source_selector": "static/js/contacts.js:336:24",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -139815,7 +139815,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 344
+              "line": 348
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -139836,7 +139836,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:340 showGroups"
+            "value": "static/js/contacts.js:344 showGroups"
           },
           "keys": [],
           "modality": "pointer",
@@ -139850,7 +139850,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 344
+              "line": 348
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -139871,7 +139871,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:340 showGroups"
+            "value": "static/js/contacts.js:344 showGroups"
           },
           "keys": [
             "Enter",
@@ -139907,7 +139907,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:340 showGroups"
+        "value": "static/js/contacts.js:344 showGroups"
       },
       "id": "dynamic.a6792af6ff0b",
       "kind": "action",
@@ -139921,7 +139921,7 @@
           "source-local:/api/contacts/groups/"
         ],
         "client_functions": [
-          "static/js/contacts.js:340 showGroups"
+          "static/js/contacts.js:344 showGroups"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -139962,9 +139962,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 344
+          "line": 348
         },
-        "source_selector": "static/js/contacts.js:344:25",
+        "source_selector": "static/js/contacts.js:348:25",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -139999,7 +139999,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 344
+              "line": 348
             },
             "status": "source-only",
             "tests": []
@@ -140007,7 +140007,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:340 showGroups"
+            "value": "static/js/contacts.js:344 showGroups"
           },
           "keys": [],
           "modality": "pointer",
@@ -140021,7 +140021,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 344
+              "line": 348
             },
             "status": "source-only",
             "tests": []
@@ -140029,7 +140029,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:340 showGroups"
+            "value": "static/js/contacts.js:344 showGroups"
           },
           "keys": [
             "Enter",
@@ -140065,7 +140065,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:340 showGroups"
+        "value": "static/js/contacts.js:344 showGroups"
       },
       "id": "dynamic.0cabac260778",
       "kind": "action",
@@ -140079,7 +140079,7 @@
           "source-local:/api/contacts/groups/"
         ],
         "client_functions": [
-          "static/js/contacts.js:340 showGroups"
+          "static/js/contacts.js:344 showGroups"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -140120,9 +140120,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 344
+          "line": 348
         },
-        "source_selector": "static/js/contacts.js:344:26",
+        "source_selector": "static/js/contacts.js:348:26",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -140157,7 +140157,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 358
+              "line": 362
             },
             "status": "source-only",
             "tests": []
@@ -140165,7 +140165,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:340 showGroups"
+            "value": "static/js/contacts.js:344 showGroups"
           },
           "keys": [],
           "modality": "pointer",
@@ -140179,7 +140179,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 358
+              "line": 362
             },
             "status": "source-only",
             "tests": []
@@ -140187,7 +140187,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:340 showGroups"
+            "value": "static/js/contacts.js:344 showGroups"
           },
           "keys": [
             "Enter",
@@ -140224,7 +140224,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:340 showGroups"
+        "value": "static/js/contacts.js:344 showGroups"
       },
       "id": "dynamic.d2105456d42a",
       "kind": "action",
@@ -140238,7 +140238,7 @@
           "source-local:/api/contacts/groups/"
         ],
         "client_functions": [
-          "static/js/contacts.js:340 showGroups"
+          "static/js/contacts.js:344 showGroups"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -140279,9 +140279,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 358
+          "line": 362
         },
-        "source_selector": "static/js/contacts.js:358:27",
+        "source_selector": "static/js/contacts.js:362:27",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -140316,7 +140316,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 379
+              "line": 383
             },
             "status": "source-only",
             "tests": []
@@ -140324,7 +140324,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:376 showDuplicates"
+            "value": "static/js/contacts.js:380 showDuplicates"
           },
           "keys": [],
           "modality": "pointer",
@@ -140338,7 +140338,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 379
+              "line": 383
             },
             "status": "source-only",
             "tests": []
@@ -140346,7 +140346,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:376 showDuplicates"
+            "value": "static/js/contacts.js:380 showDuplicates"
           },
           "keys": [
             "Enter",
@@ -140382,7 +140382,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:376 showDuplicates"
+        "value": "static/js/contacts.js:380 showDuplicates"
       },
       "id": "dynamic.4fc90a1451d3",
       "kind": "action",
@@ -140396,7 +140396,7 @@
           "source-local:/api/contacts/merge"
         ],
         "client_functions": [
-          "static/js/contacts.js:376 showDuplicates"
+          "static/js/contacts.js:380 showDuplicates"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -140437,9 +140437,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 379
+          "line": 383
         },
-        "source_selector": "static/js/contacts.js:379:28",
+        "source_selector": "static/js/contacts.js:383:28",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -140474,7 +140474,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 384
+              "line": 388
             },
             "status": "source-only",
             "tests": []
@@ -140482,7 +140482,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:376 showDuplicates"
+            "value": "static/js/contacts.js:380 showDuplicates"
           },
           "keys": [],
           "modality": "pointer",
@@ -140496,7 +140496,7 @@
             "source": {
               "file": "static/js/contacts.js",
               "kind": "control-source",
-              "line": 384
+              "line": 388
             },
             "status": "source-only",
             "tests": []
@@ -140504,7 +140504,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/contacts.js:376 showDuplicates"
+            "value": "static/js/contacts.js:380 showDuplicates"
           },
           "keys": [
             "Enter",
@@ -140541,7 +140541,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/contacts.js:376 showDuplicates"
+        "value": "static/js/contacts.js:380 showDuplicates"
       },
       "id": "dynamic.501768cfb636",
       "kind": "action",
@@ -140555,7 +140555,7 @@
           "source-local:/api/contacts/merge"
         ],
         "client_functions": [
-          "static/js/contacts.js:376 showDuplicates"
+          "static/js/contacts.js:380 showDuplicates"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -140596,9 +140596,9 @@
         "source": {
           "column": null,
           "file": "static/js/contacts.js",
-          "line": 384
+          "line": 388
         },
-        "source_selector": "static/js/contacts.js:384:29",
+        "source_selector": "static/js/contacts.js:388:29",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [

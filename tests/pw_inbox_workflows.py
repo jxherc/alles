@@ -368,7 +368,20 @@ def run():
                         "saved": context.request.get(endpoint).json(),
                     }
                 )
-                page.get_by_role("button", name="contacts", exact=True).click()
+                held_list = []
+
+                def hold_previous_list(route):
+                    if route.request.method == "GET":
+                        held_list.append(route)
+                    else:
+                        route.continue_()
+
+                page.route(base + "/api/contacts", hold_previous_list)
+                with page.expect_request(
+                    lambda req: req.url == base + "/api/contacts" and req.method == "GET"
+                ):
+                    page.get_by_role("button", name="contacts", exact=True).click()
+                assert len(held_list) == 1
                 passed()
 
                 begin("inbox.contact-list-error-retry")
@@ -377,9 +390,22 @@ def run():
                 )
                 page.locator("#contacts-search").fill(profile)
                 expect(page.get_by_role("alert")).to_contain_text("could not load contacts")
+                with page.expect_response(
+                    lambda response: (
+                        response.url == base + "/api/contacts" and response.status == 200
+                    )
+                ):
+                    held_list.pop().fulfill(
+                        status=200, content_type="application/json", body=json.dumps(contacts())
+                    )
+                page.evaluate(
+                    "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+                )
+                expect(page.get_by_role("alert")).to_contain_text("could not load contacts")
                 expect(page.get_by_text("no contacts", exact=True)).to_have_count(0)
                 assert context.request.get(endpoint).ok
                 shot("contact-list-error")
+                page.unroute(base + "/api/contacts", hold_previous_list)
                 page.unroute(base + "/api/contacts?*", handler)
                 page.get_by_role("button", name="retry", exact=True).click()
                 expect(row).to_be_visible()
