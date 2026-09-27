@@ -15,6 +15,7 @@ from core.database import (
     get_db,
 )
 from core.settings import load_settings
+from services import calendar_events
 
 router = APIRouter(prefix="/api")
 
@@ -49,39 +50,6 @@ def _fmt(e: CalendarEvent) -> dict:
         "meeting_url": e.meeting_url or "",
         "created_at": e.created_at.isoformat(),
     }
-
-
-def _default_duration() -> int:
-    """minutes to use when an event has a start but no end (8a). settings, else 60."""
-    from core.settings import load_settings
-
-    try:
-        v = int(load_settings().get("cal_default_duration_min") or 60)
-        return v if v > 0 else 60
-    except (ValueError, TypeError):
-        return 60
-
-
-def _plus_minutes(iso: str, minutes: int):
-    from datetime import datetime, timedelta
-
-    try:
-        return (datetime.fromisoformat(iso) + timedelta(minutes=minutes)).isoformat()
-    except (ValueError, TypeError):
-        return None
-
-
-def _default_cal(db) -> str:
-    c = (
-        db.query(Calendar).filter(Calendar.is_default == True).first()
-        or db.query(Calendar).order_by(Calendar.sort_order).first()
-    )
-    if not c:
-        from routes.calendars import seed_default_calendar
-
-        seed_default_calendar()
-        c = db.query(Calendar).filter(Calendar.is_default == True).first()
-    return c.id if c else ""
 
 
 @router.get("/calendar")
@@ -292,13 +260,13 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
     p = parse_event(body.text, language=load_settings().get("language", "en"))
     end = p["end_dt"]
     if not p["all_day"] and not end and p["start_dt"]:
-        end = _plus_minutes(p["start_dt"], _default_duration()) or end
+        end = calendar_events.plus_minutes(p["start_dt"], calendar_events.default_duration()) or end
     e = CalendarEvent(
         title=p["title"],
         start_dt=p["start_dt"],
         end_dt=end,
         all_day=p["all_day"],
-        calendar_id=_default_cal(db),  # else it's an orphan with no layer (can't filter/color)
+        calendar_id=calendar_events.default_calendar_id(db),
         recurrence=p.get("recurrence", ""),
         recur_until=p.get("recur_until"),
     )
@@ -326,28 +294,6 @@ class EventBody(BaseModel):
     recur_until: Optional[str] = None
     recur_except: list[str] = []
     meeting_url: str = ""
-
-
-def _validate_event(data):
-    from datetime import datetime
-
-    if not str(data.get("title") or "").strip():
-        raise HTTPException(400, "An event title is required.")
-    try:
-        start = datetime.fromisoformat(data.get("start_dt") or "")
-        end = datetime.fromisoformat(data["end_dt"]) if data.get("end_dt") else None
-        if end and (end.date() < start.date() if data.get("all_day") else end <= start):
-            raise HTTPException(400, "The end must be after the start.")
-    except (ValueError, TypeError):
-        raise HTTPException(400, "Use valid start and end dates with matching timezones.") from None
-
-
-def _event_columns(data):
-    return {
-        **data,
-        "reminders": json.dumps(data.get("reminders") or []),
-        "recur_except": json.dumps(data.get("recur_except") or []),
-    }
 
 
 def _occurrence_index(event, occ, time_zone):
@@ -416,16 +362,7 @@ def _occurrence_dates(event, day, time_zone):
 
 @router.post("/calendar")
 def create_event(body: EventBody, db: DbSession = Depends(get_db)):
-    data = body.model_dump()
-    data["calendar_id"] = data.get("calendar_id") or _default_cal(db)
-    if not data["all_day"] and not data.get("end_dt") and data.get("start_dt"):
-        data["end_dt"] = _plus_minutes(data["start_dt"], _default_duration()) or data.get("end_dt")
-    _validate_event(data)
-    e = CalendarEvent(**_event_columns(data))
-    db.add(e)
-    db.commit()
-    db.refresh(e)
-    return _fmt(e)
+    return _fmt(calendar_events.create_event(db, body.model_dump()))
 
 
 class EventPatch(BaseModel):
@@ -470,11 +407,11 @@ def update_event(
     old.pop("created_at")
     patch = body.model_dump(exclude_unset=True)
     data = {**old, **patch}
-    _validate_event(data)
+    calendar_events.validate_event(data)
     result = e
     try:
         if scope == "all":
-            for k, v in _event_columns(data).items():
+            for k, v in calendar_events.event_columns(data).items():
                 setattr(e, k, v)
         else:
             if not e.recurrence:
@@ -483,7 +420,7 @@ def update_event(
             for key, value in _occurrence_dates(old, day, time_zone).items():
                 if key not in patch:
                     data[key] = value
-            _validate_event(data)
+            calendar_events.validate_event(data)
             if scope == "this":
                 data.update(
                     recurrence="",
@@ -499,7 +436,7 @@ def update_event(
                     data["recur_count"] = old["recur_count"] - index
                 data["recur_except"] = [value for value in old["recur_except"] if value >= occ]
                 e.recur_until = (day - timedelta(days=1)).isoformat()
-            result = CalendarEvent(**_event_columns(data))
+            result = CalendarEvent(**calendar_events.event_columns(data))
             db.add(result)
         db.commit()
         db.refresh(result)
@@ -566,7 +503,7 @@ def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
     from services.ics import parse_ics
 
     n = 0
-    cid = _default_cal(db)  # land imports on the default layer instead of leaving them orphaned
+    cid = calendar_events.default_calendar_id(db)
     for ev in parse_ics(body.ics):
         db.add(
             CalendarEvent(
@@ -924,7 +861,7 @@ def create_booking_page(body: BookingPageBody, db: DbSession = Depends(get_db)):
         work_start=body.work_start,
         work_end=body.work_end,
         days_ahead=max(1, body.days_ahead),
-        calendar_id=body.calendar_id or _default_cal(db),
+        calendar_id=body.calendar_id or calendar_events.default_calendar_id(db),
     )
     db.add(b)
     db.commit()

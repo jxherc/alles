@@ -61265,6 +61265,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_mail_calendar_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 123
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_mail_calendar_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 124
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_minimal_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 104
@@ -61561,6 +61573,18 @@
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
                 "line": 93
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_mail_calendar_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 123
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_mail_calendar_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 124
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -169491,8 +169515,15 @@
               "kind": "control-source",
               "line": 683
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_mail_calendar_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 128
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
@@ -169513,8 +169544,15 @@
               "kind": "control-source",
               "line": 683
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_mail_calendar_capture.py",
+                "kind": "existing-test-control-reference",
+                "line": 128
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
@@ -250400,8 +250438,8 @@
   "summary": {
     "activation_path_evidence": {
       "external-blocked": 3,
-      "source-only": 2090,
-      "test-linked-unclassified": 624
+      "source-only": 2088,
+      "test-linked-unclassified": 626
     },
     "activation_paths": 2717,
     "controls": 1605,
