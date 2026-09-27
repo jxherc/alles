@@ -429,6 +429,7 @@ async def run():
     thread.start()
     scenarios = []
     try:
+        api("POST", "/api/setup/dismiss")
         endpoint = api(
             "POST",
             "/api/models/endpoint",

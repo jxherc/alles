@@ -35,17 +35,13 @@ test('the shell has exactly one global navigation trigger and no repeated home a
   assert.match(app, /document\.querySelector\('\.sidebar'\)\?\.setAttribute\('inert', ''\)/);
 });
 
-test('primary spaces keep one visible identity and clear the universal rail', () => {
-  assert.match(html, /class="aide-mobile-name">aide<\/span>/);
-  assert.match(css, /body\[data-space="aide"\] \.aide-mobile-name\s*\{[\s\S]*?display:\s*inline/);
-  assert.match(
-    css,
-    /andromeda-settings-panel\s*\{[\s\S]*?left:\s*calc\(52px \+ var\(--k-space-3\)\)/,
-  );
-  assert.match(
-    css,
-    /andromeda-idle-footer\s*\{[\s\S]*?left:\s*calc\(52px \+ var\(--k-space-3\)\)/,
-  );
+test('the app-name switcher moves to the visible header without a structural rail', () => {
+  assert.doesNotMatch(html, /id="space-rail"/);
+  assert.match(html, /id="app-drawer-label">alles<\/span>/);
+  assert.match(app, /function _syncShellTrigger\(root = null\)/);
+  assert.match(app, /target\.prepend\(trigger\)/);
+  assert.match(css, /\.shell-trigger-host \.specialist-app-name/);
+  assert.match(css, /\.andromeda-idle-footer\s*\{\s*left: var\(--k-space-3\)/);
 });
 
 test('the shell registry keeps three primary spaces and exactly nine specialist apps', () => {
@@ -177,8 +173,8 @@ test('busy state wins while a mutation disables its control to reject repeats', 
   );
 });
 
-test('body-level dialogs clear the universal rail without clipping their content', () => {
-  assert.match(css, /body\.afterlife-shell > :is\(\.modal-overlay, \.dialog-overlay\) \{\s*inset-inline: 52px 0/);
+test('body-level dialogs use the full viewport without rail offsets', () => {
+  assert.doesNotMatch(css, /inset-inline: 52px 0/);
   assert.match(css, /body\.afterlife-shell > #setup-wizard \{[\s\S]*?padding-inline: var\(--k-space-4\)/);
   assert.match(css, /body\.afterlife-shell > #setup-wizard \.setup-card \{\s*max-width: 100%/);
 });

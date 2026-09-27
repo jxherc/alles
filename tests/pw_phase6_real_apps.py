@@ -32,7 +32,7 @@ APPS = {
     "habits": "habits-view",
     "read": "read-view",
     "books": "books-view",
-    "health": "health-view",
+    "health": "health-group-view",
 }
 
 THEMES = {
@@ -178,14 +178,12 @@ def run() -> None:
                         rootOverflow: root.scrollWidth - root.clientWidth,
                         documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
                         sidebarDisplay: getComputedStyle(document.querySelector('.sidebar')).display,
-                        railDisplay: getComputedStyle(document.querySelector('#space-rail')).display,
+                        switcherVisible: (() => {
+                          const el = document.querySelector('#app-drawer-btn');
+                          return !!el && el.getBoundingClientRect().width >= 44;
+                        })(),
                         bodySubapp: document.body.classList.contains('is-subapp'),
                         bodyAide: document.body.classList.contains('is-aide'),
-                        crumbVisible: (() => {
-                          const el = document.querySelector('#app-crumb');
-                          const s = getComputedStyle(el);
-                          return s.display !== 'none' && s.visibility !== 'hidden';
-                        })(),
                         nativeControls: native.map(el => `${el.tagName.toLowerCase()}:${el.type || ''}:${el.id || el.className}`),
                         smallControls: readableControls.filter(item => item.size < 13).slice(0, 6),
                         titleSize: title && titleStyle.display !== 'none' && titleBox.width > 0
@@ -202,9 +200,9 @@ def run() -> None:
                 prefix = f"{size}/{theme_name}/{view}"
                 if not metrics["bodySubapp"] or metrics["bodyAide"]:
                     failures.append(f"{prefix}: wrong shell state {metrics}")
-                if metrics["sidebarDisplay"] != "none" or metrics["railDisplay"] != "none":
-                    failures.append(f"{prefix}: old global navigation is visible {metrics}")
-                if not metrics["crumbVisible"]:
+                if metrics["sidebarDisplay"] != "none":
+                    failures.append(f"{prefix}: old sidebar is visible {metrics}")
+                if not metrics["switcherVisible"]:
                     failures.append(f"{prefix}: app/home navigation is missing")
                 if metrics["documentOverflow"] > 1 or metrics["rootOverflow"] > 1:
                     failures.append(f"{prefix}: horizontal overflow {metrics}")

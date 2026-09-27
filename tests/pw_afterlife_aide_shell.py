@@ -298,12 +298,14 @@ def run() -> None:
                 route_projects,
             )
             page.route("**/api/project-folders*", route_project_folders)
+            dismissed = context.request.post(HOME + "/api/setup/dismiss")
+            assert dismissed.ok, dismissed.text()
             page.goto(HOME, wait_until="networkidle")
             page.locator("#app-drawer-btn").click()
             page.locator('.app-drawer-item[data-view="chat"]').click()
             page.wait_for_selector("#chat:visible")
 
-            assert page.locator(".aide-mobile-name").is_visible() is (width < 700)
+            assert not page.locator(".aide-mobile-name").is_visible()
 
             page.wait_for_function("document.documentElement.dataset.theme === 'light'")
             assert (
@@ -318,17 +320,25 @@ def run() -> None:
                 "el => el.getBoundingClientRect().height <= 160"
             )
 
-            assert page.locator("#space-rail").is_visible()
+            assert page.locator("#space-rail").count() == 0
             if width >= 700:
                 assert page.locator(".sidebar").is_visible()
             else:
                 assert not page.locator(".sidebar").is_visible()
                 page.locator("#sidebar-toggle-btn").click()
                 page.wait_for_selector(".sidebar:visible")
-            brand = page.locator(".sidebar-brand")
+            brand = page.locator("#app-drawer-btn")
             first_tool_icon = page.locator(".sidebar-nav .aide-tool-link svg").first
-            assert int(brand.evaluate("el => getComputedStyle(el).fontWeight")) <= 400
-            assert abs(brand.bounding_box()["x"] - first_tool_icon.bounding_box()["x"]) <= 1
+            assert brand.inner_text().strip().startswith("aide")
+            assert brand.bounding_box()["width"] >= 44
+            if width >= 700:
+                assert (
+                    abs(
+                        brand.locator("#app-drawer-label").bounding_box()["x"]
+                        - first_tool_icon.bounding_box()["x"]
+                    )
+                    <= 1
+                )
             assert (
                 int(
                     page.locator(".section-label").first.evaluate(
@@ -413,6 +423,7 @@ def run() -> None:
             assert page.locator("#proactive-view").count() == 0
             page.locator("#new-chat-btn").click()
             page.wait_for_selector("#chat:visible")
+            assert parse_qs(urlparse(page.url).query).get("view") == ["chat"]
             assert page.locator("body").get_attribute("data-space") == "aide"
             assert page.locator("#aide-conversation-name").inner_text().strip() == "new task"
             assert (
@@ -727,7 +738,7 @@ def run() -> None:
                 "full access\nno approval; host shell is unrestricted unless sandboxed",
                 "auto mode\nhandle safe work; ask at real risk",
                 "ask for approval\nask before each change",
-                "plan\nread-only — just make a plan, change nothing",
+                "plan\nread-only: just make a plan, change nothing",
             ]
             page.locator('#perm-menu [data-v="full_access"]').click()
             assert page.locator("#perm-mode-btn").inner_text().strip() == "full access"
@@ -781,9 +792,9 @@ def run() -> None:
             effort_items = effort_menu.locator('button[role="menuitemradio"]')
             assert effort_items.count() == 10
             assert effort_items.all_inner_texts() == [
-                "low\nquick & minimal — fewest turns",
+                "low\nquick & minimal: fewest turns",
                 "medium\nbalanced (default)",
-                "high\nthorough — more turns",
+                "high\nthorough: more turns",
                 "xhigh\nvery thorough",
                 "max\nmaximum turns",
                 "deep work\n48 turns · thorough checks · bounded helpers",

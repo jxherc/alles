@@ -65,7 +65,7 @@ Use 0, 4, 8, 12, 16, 24, 32, 48, and 64px. These values express relationship:
 - 48px: section separation;
 - 64px: major page-block separation.
 
-Fixed structural sizes are separate tokens: 52px universal rail and app header, 44px product controls
+Fixed structural sizes are separate tokens: 52px app header, 44px product controls
 and interactive rows, and 36px only for noninteractive dense data. Do not invent a spacing value to
 repair a layout; fix the layout rule.
 
@@ -87,8 +87,8 @@ No card lift, all-around shadow, glow, or shape change on hover.
 
 ## layout
 
-- universal navigation rail and app-owned primary header: 52px;
-- universal navigation target: 44px;
+- app-owned primary header: 52px;
+- app-name navigation target: at least 44px;
 - optional small-layout context or tab row: 44px;
 - content begins on the same top and side baselines inside its workspace shape;
 - page gutters: 16px small, 20px normal, 24px roomy;
