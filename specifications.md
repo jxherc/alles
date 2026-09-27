@@ -116,6 +116,8 @@ program, and compatibility links keep the older app names and subdomains working
   visibility, density, and pinned apps; the Home Settings action and the section's **edit** action open
   that pane directly. Needs you
   cannot be hidden, and loading, empty, partial, offline, and error states remain visible
+- Home capture creates tasks in Plan and uniquely named Markdown notes in Docs → Documents; an
+  unconfirmed save keeps the input so the owner can check before retrying
 
 ### activity
 **plain version:** one scrollable feed of *everything you did*, across every app, newest first. if today is what's coming up, activity is what already happened.
@@ -195,7 +197,7 @@ this is the most feature-dense app, so here's the full list:
 <p align="center"><img src="docs/screenshots/tasks.png" width="760" alt="tasks: natural-language to-dos with priorities, tags, and subtasks"></p>
 
 ### notes
-**plain version:** lightweight scratch notes (separate from the full docs app) for when you just want to jot something with zero ceremony. also where home's quick-capture "note" lands as a properly-named note.
+**plain version:** lightweight scratch notes for when you just want to jot something with zero ceremony. Home's quick-capture "note" instead creates a Markdown document in Docs → Documents.
 
 ### journal
 **plain version:** a daily diary: one entry a day, with mood, prompts, a streak, and a year-at-a-glance heatmap.

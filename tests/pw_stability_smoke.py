@@ -135,6 +135,26 @@ def run(device: str) -> None:
             expect(page.locator("#today-view")).to_be_visible()
             tasks = context.request.get(base + "/api/tasks").json()
             assert len([task for task in tasks if task["title"] == title]) == 1
+
+            mode = page.locator("#today-capture-mode")
+            if mode.get_attribute("aria-pressed") != "false":
+                mode.click()
+            note = f"browser smoke {device} note"
+            for suffix in ("", " 2"):
+                capture.fill(note)
+                with page.expect_response(
+                    lambda response: (
+                        response.url.endswith("/api/vault-md/file")
+                        and response.request.method == "POST"
+                    )
+                ) as note_response:
+                    page.locator('#today-capture [type="submit"]').click()
+                created = note_response.value.json()
+                path = f"{note}{suffix}.md"
+                assert created.get("created") is True and created["path"] == path, created
+                expect(capture).to_have_value("")
+                saved_note = context.request.get(base + "/api/vault-md/file", params={"path": path})
+                assert saved_note.ok and saved_note.json()["content"] == f"{note}\n"
             page.screenshot(path=str(output / "home-persisted.png"), full_page=True)
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
