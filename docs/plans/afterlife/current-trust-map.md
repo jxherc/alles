@@ -1,6 +1,6 @@
 # Afterlife - current trust and compatibility map
 
-- **Status:** code-audited and regression-locked; refreshed 2026-07-26
+- **Status:** code-audited and regression-locked; refreshed 2026-09-27
 - **Scope:** behavior shipped on the current `dev-afterlife` worktree
 - **Privacy rule:** built from source and synthetic/throwaway tests only; no owner database, vault,
   mail, connector, or file content was opened.
@@ -51,9 +51,9 @@ flowchart LR
 ## Route snapshot
 
 - 83 included FastAPI router modules
-- 889 HTTP method/path pairs
-- 872 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `e55ff3c7bd44ae47e760aa5a9621be2aef52ad6be331dcf82c402d767a476540`
+- 890 HTTP method/path pairs
+- 873 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `8d2e4059a4965f243a2bf8765bb8c03f91b4950e6418debb4451d2d43a52ec67`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
@@ -95,8 +95,9 @@ share/booking routes. Exact host ownership and parser markers are regression-tes
 
 ## Fresh evidence
 
-- Runtime enumeration on 2026-07-26 reproduced the locked 888-route digest and 871/2/15 grouping,
-  including the bodyless browser-disconnect route and POST-only context-handoff redemption.
+- Runtime enumeration on 2026-09-27 reproduced the locked 890-route digest and 873/2/15 grouping,
+  including the bodyless browser-disconnect route, POST-only context-handoff redemption, and the
+  conditional legacy Home preference import.
 - Scoped bearer tests prove independent API authentication, exact scope denial, revocation, malformed
   scope fail-closed behavior, and the recent-owner boundary.
 - Phase 7 local/WebDAV/S3 Files tests cover listing, operations, recovery, isolation, exact identity,
@@ -106,7 +107,7 @@ share/booking routes. Exact host ownership and parser markers are regression-tes
 - `tests/test_afterlife_phase0_inventory.py` locks the route snapshot, mapped-table inventory, root
   roles, and registered-job list to the current implementation.
 
-The stabilization task editor adds one authenticated read endpoint,
-`GET /api/tasks/draft-scope`, for opaque owner-scoped recovery namespaces. Removing
-that entry from the current route list reproduces the prior locked digest exactly;
-all 888 previous method/path pairs remain. The snapshot above includes this addition.
+The stabilization task editor added `GET /api/tasks/draft-scope` for opaque owner-scoped recovery
+namespaces. Home preference migration adds `POST /api/today/preferences/import-legacy`, which writes
+only when no current layout exists. Both routes are authenticated API endpoints; all 888 earlier
+method/path pairs remain.

@@ -30,8 +30,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 889)
-        self.assertEqual(digest, "e55ff3c7bd44ae47e760aa5a9621be2aef52ad6be331dcf82c402d767a476540")
+        self.assertEqual(len(rows), 890)
+        self.assertEqual(digest, "8d2e4059a4965f243a2bf8765bb8c03f91b4950e6418debb4451d2d43a52ec67")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -40,7 +40,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 872, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 873, "v1": 2, "public": 15})
 
     def test_phase_six_recovery_and_migration_routes_remain_wired(self):
         rows = set(_route_rows())
