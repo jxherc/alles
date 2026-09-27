@@ -4,6 +4,7 @@
 // patterns are ported from odysseus; the editor UI + apply engine are alles-native.
 import { initColorPickers } from './colorpicker.js';
 import { generateHarmony, lum as _lum, mix as _mix, mutedFor as _mutedFor } from './color.js';
+import { wireChoiceGroup } from './kokuen.js';
 import { toast } from './util.js';
 export { generateHarmony };
 
@@ -666,20 +667,22 @@ function _close() { document.getElementById('theme-editor-overlay')?.remove(); }
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function _swatch(name, c) {
-  return `<button class="te-preset${_draft.preset === name ? ' active' : ''}" data-preset="${name}" title="${name}">
+  const active = _draft.preset === name;
+  return `<button type="button" role="radio" aria-checked="${active}" tabindex="-1" class="te-preset${active ? ' active' : ''}" data-preset="${name}" title="${name}">
     <span class="te-preset-quad"><i style="background:${c.bg}"></i><i style="background:${c.panel}"></i><i style="background:${c.accent}"></i><i style="background:${c.text}"></i></span>
     <span class="te-preset-name">${name}</span></button>`;
 }
 
 function _seg(field, opts) {
-  return `<div class="te-seg" data-seg="${field}">${opts.map(o => `<button class="te-seg-opt${_draft[field] === o ? ' active' : ''}" data-val="${o}">${o}</button>`).join('')}</div>`;
+  const label = field === 'bgPattern' ? 'background pattern' : field;
+  return `<div class="te-seg" data-seg="${field}" role="radiogroup" aria-label="${label}">${opts.map(o => `<button type="button" role="radio" aria-checked="${_draft[field] === o}" tabindex="-1" class="te-seg-opt${_draft[field] === o ? ' active' : ''}" data-val="${o}">${o}</button>`).join('')}</div>`;
 }
 
 // the inline preset grid hides dark/light (they're the "default theme") and leads with a
 // single "default" tile that drops you back onto the base theme.
 function _defaultTile() {
   const active = isBasePreset(_draft.preset);
-  return `<button class="te-preset${active ? ' active' : ''}" data-preset="default" title="default">
+  return `<button type="button" role="radio" aria-checked="${active}" tabindex="-1" class="te-preset${active ? ' active' : ''}" data-preset="default" title="default">
     <span class="te-preset-quad"><i style="background:#0a0a0a"></i><i style="background:#0e0e0e"></i><i style="background:#818cf8"></i><i style="background:#e8e6e3"></i></span>
     <span class="te-preset-name">default</span></button>`;
 }
@@ -700,7 +703,7 @@ function _renderEditor() {
   m.innerHTML = `
     ${head}
     ${bodyOpen}
-      <div class="te-sec"><div class="te-sec-h">presets</div><div class="te-presets">${_presetGridHtml()}</div></div>
+      <div class="te-sec"><div class="te-sec-h">presets</div><div class="te-presets" role="radiogroup" aria-label="theme presets">${_presetGridHtml()}</div></div>
 
       <div class="te-sec"><div class="te-sec-h">colors</div><div class="te-colors">
         ${BASE_LABELS.map(([k, label]) => `<label class="te-color"><input type="color" data-color="${k}" value="${esc(c[k])}"><span>${label}</span></label>`).join('')}
@@ -708,8 +711,8 @@ function _renderEditor() {
 
       <div class="te-sec"><div class="te-sec-h">harmony: generate a palette from one color</div><div class="te-harmony">
         <input type="color" id="te-harmony-accent" value="${esc(c.accent)}">
-        <div class="te-seg" data-seg="harmony-type">${['complementary', 'analogous', 'triadic', 'monochromatic'].map((o, i) => `<button class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o.slice(0, 4)}</button>`).join('')}</div>
-        <div class="te-seg" data-seg="harmony-mode">${['dark', 'light'].map((o, i) => `<button class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o}</button>`).join('')}</div>
+        <div class="te-seg" data-seg="harmony-type" role="radiogroup" aria-label="harmony type">${['complementary', 'analogous', 'triadic', 'monochromatic'].map((o, i) => `<button type="button" role="radio" aria-label="${o}" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o.slice(0, 4)}</button>`).join('')}</div>
+        <div class="te-seg" data-seg="harmony-mode" role="radiogroup" aria-label="harmony mode">${['dark', 'light'].map((o, i) => `<button type="button" role="radio" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o}</button>`).join('')}</div>
         <button class="btn" id="te-harmony-gen">generate</button>
       </div></div>
 
@@ -745,28 +748,37 @@ function _renderEditor() {
 
 function _wireEditor(m) {
   initColorPickers(m);
+  m.querySelectorAll('.te-presets, .te-seg').forEach(group => wireChoiceGroup(group));
   m.querySelector('#te-close')?.addEventListener('click', _close);
   m.querySelector('#te-done')?.addEventListener('click', _close);
 
   m.querySelectorAll('.te-preset').forEach(b => b.onclick = () => {
+    const preset = b.dataset.preset;
     // default means the real alles base: black + purple.
-    if (b.dataset.preset === 'default') {
+    if (preset === 'default') {
       const a = resetToDefault('dark');
       _draft = a; _onEditorChange && _onEditorChange(_draft); _renderEditor();
+      m.querySelector('[data-preset="default"]')?.focus();
       return;
     }
-    const p = PRESETS[b.dataset.preset];
-    _draft.preset = b.dataset.preset;
+    const p = PRESETS[preset];
+    _draft.preset = preset;
     _draft.colors = { ...p.colors };
     // a preset OWNS its background: turn on the one it ships with, else clear any stale
     // pattern from the theme you switched away from (so 'default' etc. land on no bg).
     _draft.bgPattern = p.pattern || 'none';
     _commit(); _renderEditor();
+    [...m.querySelectorAll('.te-preset')].find(tile => tile.dataset.preset === preset)?.focus();
   });
 
   m.querySelectorAll('input[data-color]').forEach(inp => inp.addEventListener('input', () => {
     _draft.colors[inp.dataset.color] = inp.value;
     _draft.preset = 'custom';
+    m.querySelectorAll('.te-preset').forEach((tile, index) => {
+      tile.classList.remove('active');
+      tile.setAttribute('aria-checked', 'false');
+      tile.tabIndex = index === 0 ? 0 : -1;
+    });
     _commit();
   }));
 

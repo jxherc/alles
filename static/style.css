@@ -8137,9 +8137,9 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-sec { margin-bottom: 1.1rem; }
 .te-sec-h { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
 .te-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 0.5rem; }
-.te-preset { background: none; border: 1px solid var(--faint); border-radius: 4px; padding: 0.4rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; color: var(--muted); }
+.te-preset { background: none; border: 1px solid var(--faint); border-radius: 4px; min-height: 44px; padding: 0.4rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; color: var(--muted); }
 .te-preset:hover { border-color: var(--muted); color: var(--text); }
-.te-preset.active { border-color: var(--accent); color: var(--text); }
+.te-preset.active { background: var(--raised); border-color: var(--line-strong); color: var(--text); font-weight: 600; }
 .te-preset-quad { display: grid; grid-template-columns: 1fr 1fr; width: 38px; height: 38px; border-radius: 3px; overflow: hidden; border: 1px solid var(--faint); }
 .te-preset-quad i { display: block; }
 .te-preset-name { font-size: 0.75rem; }
@@ -8153,10 +8153,13 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-seg-opt:last-child { border-right: none; }
 .te-seg-opt:hover { color: var(--text); }
 .te-seg-opt.active { background: var(--accent); color: var(--bg); }
+.te-body .te-seg-opt { min-height: 44px; }
+.te-body .te-seg-opt.active { background: var(--raised); color: var(--text); font-weight: 600; }
 /* the background-pattern picker has many options now — let it wrap into a grid of chips */
 .te-seg[data-seg="bgPattern"] { display: flex; flex-wrap: wrap; gap: 4px; border: none; border-radius: 0; }
 .te-seg[data-seg="bgPattern"] .te-seg-opt { border: 1px solid var(--faint); border-radius: 4px; }
 .te-seg[data-seg="bgPattern"] .te-seg-opt.active { border-color: var(--accent); }
+.te-body .te-seg[data-seg="bgPattern"] .te-seg-opt.active { border-color: var(--line-strong); }
 .te-bg-extra { display: flex; gap: 1.2rem; align-items: center; margin-top: 0.6rem; flex-wrap: wrap; }
 .te-slider { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted); }
 .te-slider input[type=range] { -webkit-appearance: none; appearance: none; width: 110px; height: 4px; border-radius: 3px; background: var(--faint); outline: none; }
