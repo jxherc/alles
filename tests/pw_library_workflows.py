@@ -346,7 +346,6 @@ def run():
                 page.get_by_role("tab", name="saved", exact=True).click()
                 expect(page.locator(f'.read-card[data-id="{saved[0]["id"]}"]')).to_be_visible()
                 passed()
-                begin("library.saved-keyboard-reading")
                 item = context.request.post(
                     base + "/api/read/save-news",
                     data={
@@ -356,6 +355,25 @@ def run():
                         "publisher": "Fixture",
                     },
                 ).json()["item"]
+                begin("library.saved-news-source-label")
+                listed = {
+                    row["id"]: row
+                    for row in context.request.get(base + "/api/read").json()["items"]
+                }
+                assert listed[item["id"]]["source_kind"] == "saved_news"
+                assert listed[saved[0]["id"]]["source_kind"] == "read_later"
+                page.goto(base + "/?view=library", wait_until="networkidle")
+                expect(
+                    page.get_by_role("button", name=f"open saved news: {item['title']}")
+                ).to_be_visible()
+                expect(
+                    page.get_by_role(
+                        "button", name=f"open saved reading: {saved[0]['title']}"
+                    ).first
+                ).to_be_visible()
+                shot("saved-news-source-label")
+                passed()
+                begin("library.saved-keyboard-reading")
                 page.reload(wait_until="networkidle")
                 page.get_by_role("tab", name="saved", exact=True).click()
                 page.locator("#read-q").fill(profile + " saved reading")
