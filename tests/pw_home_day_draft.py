@@ -101,6 +101,18 @@ def run() -> None:
                 expect(page.locator("body")).to_have_class(re.compile(r"\bis-incognito\b"))
                 expect(page.locator("#composer-ta")).to_have_value(re.compile(MARKER))
                 expect(page.locator("#composer-ta")).to_be_focused()
+                permission = page.locator("#perm-mode-btn")
+                expect(permission).to_be_visible()
+                expect(permission).to_have_attribute("aria-label", re.compile(r"^permission: "))
+                box = permission.bounding_box()
+                assert box and box["width"] >= 44 and box["height"] >= 44, box
+                permission.click()
+                menu = page.locator("#perm-menu")
+                expect(menu).to_be_visible()
+                expect(menu.locator('[aria-checked="true"]')).to_have_count(1)
+                page.keyboard.press("Escape")
+                expect(menu).to_have_count(0)
+                expect(permission).to_be_focused()
                 expect(page.locator("#aide-model-choice")).to_be_visible()
                 if width == 390:
                     choice = page.locator("#aide-model-choice")
