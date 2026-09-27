@@ -133,6 +133,18 @@ def run() -> None:
                     "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 )
 
+            if width == 1440:
+                page.evaluate(
+                    """async () => {
+                      const { prepareLocalization } = await import('/static/js/i18n.js');
+                      await prepareLocalization({ language: 'fr' });
+                    }"""
+                )
+                assert (
+                    page.locator("#app-drawer .app-drawer-group h3").first.inner_text()
+                    == "espaces principaux"
+                )
+
             assert not errors, errors
             context.close()
         browser.close()
