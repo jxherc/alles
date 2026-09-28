@@ -1,10 +1,18 @@
 import asyncio
 import json
 import unittest
+from datetime import date, timedelta
 from unittest import mock
 
-from core.database import AutomationAttempt, AutomationRule, MailAccount, Task
-from services import automations
+from core.database import (
+    AutomationAttempt,
+    AutomationRule,
+    FinanceLedgerState,
+    MailAccount,
+    Subscription,
+    Task,
+)
+from services import actual_finance, automations
 from services.automations import _render, _trim
 from tests._client import ApiTest, VaultApiTest
 
@@ -174,6 +182,93 @@ class TrimTests(unittest.TestCase):
     def test_trim_noop_when_small(self):
         d = {"a": 1, "b": 2}
         self.assertIs(_trim(d, keep=200), d)
+
+
+class SubscriptionAuthorityTests(ApiTest):
+    def _rule(self, legacy_due, *, canonical):
+        db = self.db()
+        sub = Subscription(name="old plan", next_due=legacy_due, price=8)
+        rule = AutomationRule(
+            name="renewal",
+            trigger="sub_renewing",
+            trigger_arg="3",
+            action="create_task",
+            action_arg="{name}:{date}:{price}",
+        )
+        db.add_all([sub, rule])
+        if canonical:
+            db.add(
+                FinanceLedgerState(
+                    id="primary",
+                    mode="actual",
+                    active_run_id="run-automation",
+                    actual_budget_id="budget-automation",
+                    actual_sync_id="sync-automation",
+                    legacy_read_only=True,
+                )
+            )
+        db.commit()
+        result = sub.id, rule.id
+        db.close()
+        return result
+
+    def _state(self, rule_id):
+        db = self.db()
+        rule = db.get(AutomationRule, rule_id)
+        result = [task.title for task in db.query(Task).all()], json.loads(rule.state or "{}")
+        db.close()
+        return result
+
+    def test_legacy_subscription_rule_still_fires(self):
+        due = date.today().isoformat()
+        sid, rule_id = self._rule(due, canonical=False)
+        asyncio.run(automations.run_automations())
+        tasks, state = self._state(rule_id)
+        self.assertEqual(tasks, [f"old plan:{due}:8.0"])
+        self.assertIn(f"{sid}:{due}", state["done"])
+
+    def test_canonical_subscription_rule_uses_current_schedule(self):
+        due = date.today().isoformat()
+        sid, rule_id = self._rule((date.today() + timedelta(days=40)).isoformat(), canonical=True)
+        schedule = {
+            "id": sid,
+            "name": "current plan",
+            "next_due": due,
+            "price": 12,
+            "active": True,
+        }
+        with mock.patch.object(actual_finance, "subscription_schedules", return_value=[schedule]):
+            asyncio.run(automations.run_automations())
+        tasks, state = self._state(rule_id)
+        self.assertEqual(tasks, [f"current plan:{due}:12"])
+        self.assertIn(f"{sid}:{due}", state["done"])
+
+    def test_canonical_subscription_rule_ignores_frozen_due_date(self):
+        _sid, rule_id = self._rule(date.today().isoformat(), canonical=True)
+        schedule = {
+            "id": _sid,
+            "name": "current plan",
+            "next_due": (date.today() + timedelta(days=40)).isoformat(),
+            "price": 12,
+            "active": True,
+        }
+        with mock.patch.object(actual_finance, "subscription_schedules", return_value=[schedule]):
+            asyncio.run(automations.run_automations())
+        tasks, state = self._state(rule_id)
+        self.assertEqual(tasks, [])
+        self.assertNotIn("done", state)
+
+    def test_canonical_subscription_outage_does_not_fire_frozen_due_date(self):
+        _sid, rule_id = self._rule(date.today().isoformat(), canonical=True)
+        with mock.patch.object(
+            actual_finance,
+            "subscription_schedules",
+            side_effect=actual_finance.ActualFinanceUnavailable("offline"),
+        ):
+            asyncio.run(automations.run_automations())
+        tasks, state = self._state(rule_id)
+        self.assertEqual(tasks, [])
+        self.assertNotIn("done", state)
 
 
 class AutomationSafetyTests(ApiTest):
