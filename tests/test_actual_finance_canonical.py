@@ -1768,6 +1768,36 @@ class ActualFinanceServiceTests(ApiTest):
         self.assertEqual(row["base_opening_text"], "23.75")
         db.close()
 
+    def test_networth_history_uses_actual_opening_once(self):
+        self.actual["accounts"][0]["balance"] = 9875
+        self.actual["transactions"] = [
+            {
+                "id": "actual-opening",
+                "account": "actual-account",
+                "date": "20260701",
+                "amount": 10000,
+                "starting_balance_flag": True,
+            },
+            {
+                "id": "actual-spend",
+                "account": "actual-account",
+                "date": "20260712",
+                "amount": -125,
+                "starting_balance_flag": False,
+            },
+        ]
+        with patch("services.managed_actual.bridge_request", side_effect=self.bridge) as bridge:
+            response = self.client.get("/api/money/networth-history?months=2&as_of=2026-07-15")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json(),
+            [
+                {"month": "2026-06", "net_worth": 100.0},
+                {"month": "2026-07", "net_worth": 98.75},
+            ],
+        )
+        self.assertEqual(bridge.call_count, 1)
+
     def test_native_actual_entities_remain_resolvable_and_transfers_stay_paired(self):
         self.actual["accounts"].append(
             {
@@ -2947,6 +2977,62 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(rejected.status_code, 409, rejected.text)
         self.assertIn("reviewed base currency", rejected.text)
 
+    def test_canonical_networth_history_uses_one_snapshot_and_month_end_values(self):
+        db = self.db()
+        db.add(
+            Transaction(
+                account_id="legacy-account",
+                date="2026-04-01",
+                amount=999,
+                payee="frozen legacy row",
+            )
+        )
+        db.commit()
+        db.close()
+        actual = {"source": "one snapshot"}
+        accounts = [
+            {"id": "open-a", "opening": 100.0, "archived": False},
+            {"id": "open-b", "opening": 25.0, "archived": False},
+            {"id": "closed", "opening": 300.0, "archived": True},
+        ]
+        transactions = [
+            {"account_id": "open-a", "date": "2026-03-30", "amount": -10.0},
+            {"account_id": "open-a", "date": "2026-04-15", "amount": 50.0},
+            {"account_id": "open-b", "date": "2026-04-18", "amount": -5.0},
+            {"account_id": "closed", "date": "2026-04-18", "amount": 5.0},
+            {"account_id": "closed", "date": "2026-04-19", "amount": 90.0},
+            {"account_id": "open-a", "date": "2026-05-01", "amount": -3.0},
+        ]
+        with (
+            patch("routes.money.actual_finance.inspect", return_value=actual) as inspect,
+            patch("routes.money.actual_finance.accounts", return_value=accounts) as read_accounts,
+            patch(
+                "routes.money.actual_finance.transactions", return_value=transactions
+            ) as read_transactions,
+        ):
+            response = self.client.get("/api/money/networth-history?months=3&as_of=2026-05-12")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json(),
+            [
+                {"month": "2026-03", "net_worth": 115.0},
+                {"month": "2026-04", "net_worth": 160.0},
+                {"month": "2026-05", "net_worth": 157.0},
+            ],
+        )
+        inspect.assert_called_once()
+        self.assertIs(read_accounts.call_args.kwargs["actual"], actual)
+        self.assertIs(read_transactions.call_args.kwargs["actual"], actual)
+
+    def test_canonical_networth_history_reports_an_actual_outage(self):
+        with patch(
+            "routes.money.actual_finance.inspect",
+            side_effect=actual_finance.ActualFinanceUnavailable("Actual is unavailable"),
+        ):
+            response = self.client.get("/api/money/networth-history?months=6")
+        self.assertEqual(response.status_code, 503, response.text)
+        self.assertIn("Actual is unavailable", response.text)
+
     def test_non_ledger_finance_records_remain_writable_after_cutover(self):
         requests = (
             ("/api/money/holdings", {"symbol": "ALLES", "qty": 1, "price": 2}),
@@ -3046,7 +3132,6 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             "/api/money/envelope",
             "/api/money/age-of-money",
             "/api/money/forecast",
-            "/api/money/networth-history",
             "/api/money/income/summary",
             "/api/money/alerts",
         ):

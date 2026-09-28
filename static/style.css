@@ -4825,6 +4825,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .money-empty-title { font-size: 1.1rem; color: var(--text); margin-bottom: 0.3rem; }
 .money-empty-sub { font-size: 0.8rem; margin-bottom: 1.2rem; }
 .money-empty-sm { font-size: 0.75rem; color: var(--muted); padding: 0.6rem 0; }
+.money-history-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); }
 
 .money-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 0.9rem; }
 .ms-card { background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 0.7rem 0.85rem; display: flex; flex-direction: column; gap: 0.3rem; }

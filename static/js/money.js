@@ -284,7 +284,7 @@ async function load(fetcher = fetch) {
       request(`/api/money/envelope?month=${_month}`).catch(() => null),
       request('/api/money/age-of-money').catch(() => null),
       request(`/api/money/forecast?month=${_month}`).catch(() => null),
-      request('/api/money/networth-history?months=6').catch(() => []),
+      request('/api/money/networth-history?months=6').catch(() => null),
       request('/api/money/holdings').catch(() => null),
       request(`/api/money/alerts?month=${_month}`).catch(() => null),
     ]);
@@ -313,7 +313,7 @@ function render() {
         <button class="btn money-add-acct" id="money-add-acct">+ account</button></section>
       <section class="money-card" data-card="category"><h3>spending by category</h3>${catChart()}</section>
       <section class="money-card" data-card="trend"><h3>last 6 months</h3>${trendChart()}</section>
-      <section class="money-card" data-card="networth"><h3>net worth over time</h3>${networthCard()}</section>
+      <section class="money-card" data-card="networth"><h3 tabindex="-1">net worth over time</h3><div id="nw-history-content">${networthCard()}</div></section>
       <section class="money-card money-envelope" data-card="envelope"><h3>envelope budgeting${_aom && _aom.age != null ? ` <span class="aom" title="age of money: days between income arriving and being spent">age of money: ${_aom.age}d</span>` : ''}</h3>${envelopeCard()}</section>
       <section class="money-card" data-card="holdings"><h3>investments</h3>${holdingsCard()}</section>
       <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
@@ -359,6 +359,7 @@ function alertsStrip() {
 }
 
 function networthCard() {
+  if (_nwhist === null) return '<div class="money-empty-sm money-history-error" role="status">couldn\'t load history <button type="button" class="btn" id="nw-history-retry">retry</button></div>';
   const h = _nwhist || [];
   if (h.length < 2) return '<div class="money-empty-sm">not enough history yet</div>';
   const vals = h.map(x => x.net_worth);
@@ -371,6 +372,24 @@ function networthCard() {
     <div class="trend-labels">${labels}</div>
     <div class="nw-now">now: ${fmt(vals[vals.length - 1])}</div>
     <div class="nw-base"><input type="text" id="nw-base-cur" class="settings-input" placeholder="base (USD/EUR…)" style="width:120px"><button class="btn" id="nw-base-go">in base ↺</button><span id="nw-base-out" class="nw-base-out"></span></div>`;
+}
+
+async function retryNetworthHistory() {
+  const button = $('nw-history-retry');
+  button.disabled = true;
+  button.textContent = 'retrying…';
+  try { _nwhist = await api('/api/money/networth-history?months=6'); }
+  catch { _nwhist = null; }
+  const content = $('nw-history-content');
+  if (!content) return;
+  content.innerHTML = networthCard();
+  wireNetworthHistory();
+  ($('nw-history-retry') || document.querySelector('.money-card[data-card="networth"] h3'))?.focus();
+}
+
+function wireNetworthHistory() {
+  $('nw-base-go')?.addEventListener('click', runBaseNw);
+  $('nw-history-retry')?.addEventListener('click', retryNetworthHistory);
 }
 
 function goalsCard() {
@@ -725,7 +744,7 @@ function wire() {
   $('gl-add')?.addEventListener('click', addGoal);
   $('money-body').querySelectorAll('[data-del-goal]').forEach(b => b.addEventListener('click', () => delGoal(b.dataset.delGoal)));
   $('rp-run')?.addEventListener('click', runReport);
-  $('nw-base-go')?.addEventListener('click', runBaseNw);
+  wireNetworthHistory();
   _decorateCards();
   $('tx-transfer-toggle')?.addEventListener('click', () => {
     const f = $('txn-transfer'); if (!f) return;
