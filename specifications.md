@@ -281,6 +281,10 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
 - Money alerts use the active ledger for large purchases, watched transactions, upcoming bills,
   and low account balances. after cutover, they read one Actual snapshot plus local watches;
   variable bill amounts are not shown as zero, and a failed read offers retry instead of hiding alerts
+- the age-of-money figure FIFO-matches income to spending from the active ledger, excluding
+  transfers and account starting balances. after cutover it reads one Actual snapshot, and a
+  failed read shows retry instead of hiding the figure. envelope assignments and targets remain
+  unavailable after cutover; the Money card says so rather than claiming the envelope is empty
 - Aide's Finance account, transaction, and spending-read tools follow the active ledger; if Actual
   cannot be read after cutover, they return an error instead of quoting old balances or charges
 - the unified transaction JSON/CSV download also reads the active ledger, and fails if it cannot
