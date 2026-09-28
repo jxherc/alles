@@ -11,6 +11,7 @@ across runs (dedupe), and a new period (next renewal cycle) yields a new key.
 """
 
 import json
+import logging
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -45,6 +46,8 @@ CATEGORIES = (
     "mail",
     "journal",
 )
+_FINANCE_CATEGORIES = frozenset({"sub", "budget", "account"})
+log = logging.getLogger("alles.signals")
 
 
 def _journal_locked():
@@ -209,16 +212,42 @@ def _reminders(db, today, *, timezone_name=None):
     return out
 
 
-def _subs(db, today):
-    from routes.subscriptions import _parse as _sp
+def _subs(db, today, *, canonical=False, unavailable=None):
+    if canonical:
+        from services import actual_finance
 
-    out = []
-    for s in db.query(Subscription).filter(Subscription.active == True).all():  # noqa: E712
         try:
-            in_days = (_sp(s.next_due) - today).days
+            schedules = actual_finance.subscription_schedules(db)
+        except actual_finance.ActualFinanceError:
+            log.warning("canonical subscription signals unavailable")
+            if unavailable is not None:
+                unavailable.add("subscriptions")
+            return []
+        legacy = {row.id: row for row in db.query(Subscription).all()}
+        rows = [
+            (
+                item["id"],
+                actual_finance.subscription_display_name(item, legacy.get(item["id"])),
+                item["next_due"],
+                item["price"],
+                item["currency"],
+                legacy[item["id"]].remind_days if item["id"] in legacy else 0,
+            )
+            for item in schedules
+            if item["active"]
+        ]
+    else:
+        rows = [
+            (s.id, s.name, s.next_due, s.price, s.currency, s.remind_days)
+            for s in db.query(Subscription).filter(Subscription.active == True).all()  # noqa: E712
+        ]
+    out = []
+    for sid, name, next_due, price, currency, remind_days in rows:
+        try:
+            in_days = (date.fromisoformat(str(next_due)[:10]) - today).days
         except (TypeError, ValueError):
             continue
-        rd = max(0, s.remind_days or 0)
+        rd = max(0, remind_days or 0)
         # emit within the union of what consumers care about: today's 7-day window,
         # the user's own remind_days, and anything overdue (negative in_days).
         if in_days > max(7, rd):
@@ -235,17 +264,17 @@ def _subs(db, today):
         out.append(
             _sig(
                 "sub",
-                f"sub_renew:{s.id}:{s.next_due}",
+                f"sub_renew:{sid}:{next_due}",
                 u,
-                s.name,
+                name,
                 detail,
                 "subs",
                 {
-                    "id": s.id,
-                    "name": s.name,
+                    "id": sid,
+                    "name": name,
                     "in_days": in_days,
-                    "price": s.price,
-                    "currency": s.currency,
+                    "price": price,
+                    "currency": currency,
                     "remind_days": rd,
                 },
             )
@@ -574,16 +603,37 @@ _COLLECTORS = {
 }
 
 
-def gather(db, today=None, *, categories=None, timezone_name=None) -> list:
+def gather(db, today=None, *, categories=None, timezone_name=None, unavailable=None) -> list:
     """compute every current signal. `categories` limits the families (None = all).
     pure read - callers that want to roll subscriptions forward must do that
-    themselves before calling (today.py does)."""
+    themselves before calling (today.py does). `unavailable`, when supplied,
+    collects source names that could not be read; missing is not an empty result."""
     today = today or calendar_today(timezone_name)
     cats = set(categories) if categories else set(CATEGORIES)
+    missing = unavailable if unavailable is not None else set()
+    finance_rows = {}
+    if cats & _FINANCE_CATEGORIES:
+        from services import actual_finance
+
+        with actual_finance.AUTHORITY_LOCK:
+            try:
+                canonical = actual_finance.is_canonical(db)
+            except actual_finance.ActualFinanceError:
+                log.warning("Finance signals unavailable: ledger authority could not be read")
+                missing.add("finance")
+            else:
+                if "sub" in cats:
+                    finance_rows["sub"] = _subs(db, today, canonical=canonical, unavailable=missing)
+                if not canonical:
+                    for name in ("budget", "account"):
+                        if name in cats:
+                            finance_rows[name] = _COLLECTORS[name](db, today)
     out = []
     for name in CATEGORIES:
         if name in cats:
-            if name == "reminder":
+            if name in _FINANCE_CATEGORIES:
+                out.extend(finance_rows.get(name, ()))
+            elif name == "reminder":
                 out.extend(_reminders(db, today, timezone_name=timezone_name))
             else:
                 out.extend(_COLLECTORS[name](db, today))

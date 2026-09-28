@@ -2,15 +2,18 @@
 seeded with non-recurring, single-per-line data so ordering is unambiguous."""
 
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from core.database import (
     Book,
     CalendarEvent,
+    FinanceLedgerState,
     Habit,
     HealthEntry,
     Subscription,
     Task,
 )
+from services import actual_finance
 from services.briefing import compose_briefing
 from tests._client import ApiTest
 
@@ -20,6 +23,31 @@ def _iso(n):
 
 
 class BriefingSignalsTests(ApiTest):
+    def test_canonical_schedule_outage_is_not_an_all_clear(self):
+        db = self.db()
+        db.add(
+            FinanceLedgerState(
+                id="primary",
+                mode="actual",
+                active_run_id="run-briefing",
+                actual_budget_id="budget-briefing",
+                actual_sync_id="sync-briefing",
+                legacy_read_only=True,
+            )
+        )
+        db.add(Subscription(name="old plan", next_due=_iso(0), price=8))
+        db.commit()
+        with patch.object(
+            actual_finance,
+            "subscription_schedules",
+            side_effect=actual_finance.ActualFinanceUnavailable("offline"),
+        ):
+            result = compose_briefing(db, date.today())
+        db.close()
+        self.assertIn("subscriptions", result["partial_sources"])
+        self.assertIn("subscription status unavailable", result["body"])
+        self.assertNotIn("nothing on the agenda", result["body"])
+
     def _seed(self):
         d = self.db()
         d.add(CalendarEvent(title="lunch", start_dt=_iso(0) + "T12:00", all_day=False))

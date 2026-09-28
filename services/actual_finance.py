@@ -998,6 +998,13 @@ def _next_schedule_due(rule, provider_next="", *, today: date | None = None) -> 
     return current.isoformat()
 
 
+def subscription_display_name(schedule: dict, legacy) -> str:
+    name = str(schedule.get("name") or "subscription")
+    if legacy and name == f"Alles subscription: {legacy.name} [{legacy.id[:8]}]":
+        return legacy.name
+    return name
+
+
 @authority_guarded
 def subscription_schedules(
     db: Session,
