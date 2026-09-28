@@ -237,11 +237,18 @@ def names():
 @router.get("/ask")
 def ask_vault(q: str = "", db: DbSession = Depends(get_db)):
     """ask-anything over the vault — semantic retrieval via the shared text index."""
-    from routes.textindex import _collect_docs
     from services import textindex
 
     if not textindex.stats(db).get("doc"):
-        textindex.reindex_kind(db, "doc", _collect_docs())
+        try:
+            items = vault_md.indexable_documents()
+        except OSError as exc:
+            raise ApiError(
+                503,
+                "vault_index_unavailable",
+                "could not read every document; search index unchanged",
+            ) from exc
+        textindex.reindex_kind(db, "doc", items)
     hits = textindex.search(db, q, kind="doc", k=6) if q else []
     return {"q": q, "sources": hits}
 
