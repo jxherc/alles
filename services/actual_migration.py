@@ -75,6 +75,9 @@ def actual_checkpoint_sha256(actual: dict) -> str:
                 # Actual computes this occurrence from the durable schedule rule
                 # and today's date. Time passing is not a canonical ledger edit.
                 schedule.pop("next_date", None)
+                posting = schedule.get("posting")
+                if isinstance(posting, dict):
+                    posting.pop("pristine", None)
     stable = _stable_actual(checkpoint)
     return hashlib.sha256(_canonical(stable).encode()).hexdigest()
 
@@ -1433,13 +1436,12 @@ def _schedule_posting_matches(row: dict, expected: dict, categories: dict[str, d
     )
 
 
-def _restored_schedule_matches(
+def _schedule_identity_matches(
     row: dict,
     expected: dict,
     *,
     account_actual_ids: dict[str, str],
     payee_names: dict[str, str],
-    categories: dict[str, dict],
 ) -> bool:
     return (
         row.get("amount") == expected.get("amount_minor")
@@ -1449,9 +1451,85 @@ def _restored_schedule_matches(
         and payee_names.get(row.get("payee"), str(row.get("payee_name") or ""))
         == str(expected.get("payee") or expected.get("name") or "")
         and _normalized_schedule_date(row.get("date")) == _schedule_date(expected)
-        and _schedule_posting_matches(row, expected, categories)
         and str(row.get("amountOp") or "") == "is"
     )
+
+
+def _schedule_overlay_matches(row: dict, overlay: dict, categories: dict[str, dict]) -> bool:
+    category_id = overlay.get("category_id")
+    posting = row.get("posting") or {}
+    return (
+        overlay.get("version") == 1
+        and isinstance(category_id, str)
+        and (not category_id or category_id in categories)
+        and isinstance(overlay.get("notes"), str)
+        and type(overlay.get("posts_transaction")) is bool
+        and bool(row.get("posts_transaction")) == overlay["posts_transaction"]
+        and bool(posting.get("guarded"))
+        and str(posting.get("category") or "") == category_id
+        and str(posting.get("notes") or "") == overlay["notes"]
+    )
+
+
+def _restored_schedule_matches(
+    row: dict,
+    expected: dict,
+    *,
+    account_actual_ids: dict[str, str],
+    payee_names: dict[str, str],
+    categories: dict[str, dict],
+    overlay: object = None,
+) -> bool:
+    return _schedule_identity_matches(
+        row,
+        expected,
+        account_actual_ids=account_actual_ids,
+        payee_names=payee_names,
+    ) and (
+        (isinstance(overlay, dict) and _schedule_overlay_matches(row, overlay, categories))
+        if overlay is not None
+        else _schedule_posting_matches(row, expected, categories)
+    )
+
+
+def schedule_repair_baseline(db: Session, link: ActualEntityLink, actual: dict) -> dict:
+    """Reject repair when an old linked schedule or its source evidence changed."""
+    run = db.get(ActualMigrationRun, link.run_id)
+    if not run or run.status != "canonical":
+        raise ActualMigrationError("the canonical schedule migration snapshot is missing")
+    snapshot = _load_snapshot(run)
+    expected_rows = [
+        row
+        for row in snapshot.get("schedules") or []
+        if row.get("kind") == link.entity_kind and row.get("id") == link.source_id
+    ]
+    if len(expected_rows) != 1:
+        raise ActualMigrationError("the canonical schedule migration identity is missing")
+    expected = expected_rows[0]
+    try:
+        metadata = json.loads(link.metadata_json or "{}")
+    except (TypeError, ValueError) as exc:
+        raise ActualMigrationError("the canonical schedule link is unreadable") from exc
+    if not isinstance(metadata, dict):
+        raise ActualMigrationError("the canonical schedule link is unreadable")
+    metadata.pop("_update_intent", None)
+    if metadata != (expected.get("metadata") or {}):
+        raise ActualMigrationError("the canonical schedule link changed since cutover")
+    rows = [row for row in actual.get("schedules") or [] if row.get("id") == link.actual_id]
+    accounts = {
+        row.source_id: row.actual_id
+        for row in db.query(ActualEntityLink).filter_by(run_id=link.run_id, entity_kind="account")
+    }
+    payees = {
+        row.get("id"): str(row.get("name") or "")
+        for row in actual.get("payees") or []
+        if row.get("id")
+    }
+    if len(rows) != 1 or not _schedule_identity_matches(
+        rows[0], expected, account_actual_ids=accounts, payee_names=payees
+    ):
+        raise ActualMigrationError("Actual schedule changed since cutover; review it before repair")
+    return expected
 
 
 def validate_active_links(db: Session, actual: dict) -> dict:
@@ -1657,6 +1735,8 @@ def validate_active_links(db: Session, actual: dict) -> dict:
             present = actual_id in schedules
             group = "schedule"
             expected = snapshot_schedules.get((kind, link.source_id))
+            overlay = metadata.get("canonical_schedule")
+            source_metadata = {k: v for k, v in metadata.items() if k != "canonical_schedule"}
             if present and expected is None:
                 missing.append(
                     {
@@ -1666,13 +1746,15 @@ def validate_active_links(db: Session, actual: dict) -> dict:
                     }
                 )
             elif present and (
-                metadata != (expected.get("metadata") or {})
+                (overlay is not None and (kind != "recurring" or not isinstance(overlay, dict)))
+                or source_metadata != (expected.get("metadata") or {})
                 or not _restored_schedule_matches(
                     schedules[actual_id],
                     expected,
                     account_actual_ids=account_actual_ids,
                     payee_names=payee_names,
                     categories=categories,
+                    overlay=overlay,
                 )
             ):
                 missing.append(

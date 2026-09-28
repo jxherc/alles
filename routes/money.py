@@ -52,7 +52,10 @@ def _legacy_ledger_mutation(method: str, path: str) -> bool:
         normalized = normalized.removeprefix("api/money/")
     parts = normalized.split("/") if normalized else []
     return (
-        parts[:1] == ["recurring"]
+        (
+            parts[:1] == ["recurring"]
+            and not (method == "POST" and len(parts) == 3 and parts[2] == "repair")
+        )
         or (
             parts[:1] == ["envelope"]
             and parts
@@ -1138,6 +1141,20 @@ def create_recurring(body: RecurringBody, db: DbSession = Depends(get_db)):
     db.commit()
     db.refresh(r)
     return _rec(r)
+
+
+class RecurringRepairBody(BaseModel):
+    category_id: str = ""
+
+
+@router.post("/recurring/{rid}/repair")
+def repair_recurring(rid: str, body: RecurringRepairBody, db: DbSession = Depends(get_db)):
+    if not actual_finance.is_canonical(db):
+        raise HTTPException(409, "recurring schedule repair requires the Actual ledger")
+    try:
+        return actual_finance.repair_recurring_schedule(db, rid, body.category_id)
+    except actual_finance.ActualFinanceError as exc:
+        _actual_error(exc)
 
 
 @router.patch("/recurring/{rid}")

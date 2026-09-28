@@ -51,9 +51,9 @@ flowchart LR
 ## Route snapshot
 
 - 83 included FastAPI router modules
-- 892 HTTP method/path pairs
-- 875 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `8e04cab50a318b565d2308d1342d2c9e3e2e9895ca6952d559f41a65acb0288f`
+- 893 HTTP method/path pairs
+- 876 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `0c1d62354b70e8bb06f05f7608abbb262bc4424bcd4f59eaeffd4a5749b01718`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
@@ -95,11 +95,11 @@ share/booking routes. Exact host ownership and parser markers are regression-tes
 
 ## Fresh evidence
 
-- Runtime enumeration on 2026-09-28 reproduced the locked 892-route digest and 875/2/15 grouping.
-  The new authenticated `POST /api/money/envelope/target/bind` lets the owner choose a category
-  for a preserved funding target. Removing it reproduces the prior 891-route digest. The earlier
-  authenticated `GET /api/search/finance` reads Money and Subscriptions separately from fast
-  local palette search.
+- Runtime enumeration on 2026-09-28 reproduced the locked 893-route digest and 876/2/15 grouping.
+  The authenticated `POST /api/money/recurring/{rid}/repair` repairs one older linked Actual
+  schedule after explicit category choice. Removing it reproduces the prior 892-route digest.
+  The earlier `POST /api/money/envelope/target/bind` chooses a category for a preserved funding
+  target; `GET /api/search/finance` reads Money and Subscriptions for local palette search.
 - Scoped bearer tests prove independent API authentication, exact scope denial, revocation, malformed
   scope fail-closed behavior, and the recent-owner boundary.
 - Phase 7 local/WebDAV/S3 Files tests cover listing, operations, recovery, isolation, exact identity,

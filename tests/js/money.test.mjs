@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import vm from 'node:vm';
 
 const moneySource = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8');
 const styleSource = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
@@ -32,6 +33,36 @@ test('manual Finance creates reuse an identity only for the exact same payload',
 test('finance month headings format calendar months without local Date conversion', () => {
   assert.match(moneySource, /formatCalendarDate\(`\$\{m\}-01`/);
   assert.doesNotMatch(moneySource, /formatDate\(new Date\(y, mo - 1, 1\)/);
+});
+
+test('old Actual schedule repair chooses a category once and retries the saved choice', async () => {
+  const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+  const calls = [];
+  let choices = 0;
+  const context = vm.createContext({
+    location: { search: '' }, URLSearchParams,
+    api: async (path, options) => { calls.push({ path, options }); return {}; },
+    dlgChoose: async () => { choices += 1; return 'housing-id'; },
+    toast: () => {},
+  });
+  vm.runInContext(source + `
+    _canonicalLedger = true;
+    _envelope = { categories: [{ category_id: 'housing-id', category: 'housing', group: 'bills' }] };
+    _recurring = [{ id: 'old', payee: 'rent', category: 'housing', repair_needed: true }];
+    retryRecurring = async () => {};
+    globalThis.repair = repairRecurring;
+  `, context);
+  await context.repair({ dataset: { repairRec: 'old' }, disabled: false, textContent: '' });
+  assert.equal(choices, 1);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, '/api/money/recurring/old/repair');
+  assert.equal(calls[0].options.body.category_id, 'housing-id');
+
+  vm.runInContext("_recurring[0].repair_pending = true; _recurring[0].repair_category_id = 'housing-id'; _envelope = null;", context);
+  await context.repair({ dataset: { repairRec: 'old' }, disabled: false, textContent: '' });
+  assert.equal(choices, 1);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].options.body.category_id, 'housing-id');
 });
 
 test('finance dialogs, rows, and destructive actions expose complete interaction boundaries', () => {

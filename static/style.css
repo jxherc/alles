@@ -5029,9 +5029,16 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .tr-lbl { color: var(--muted); font-size: 0.78rem; }
 .tr-arrow { color: var(--accent); font-size: 0.9rem; }
 .recurs { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.5rem; }
+.recur-group { border-bottom: 1px solid var(--faint); }
+.recur-group:last-child { border-bottom: none; }
 .recur { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.15rem; border-bottom: 1px solid var(--faint); font-size: 0.76rem; }
+.recur-group .recur { border-bottom: none; }
 .recur:last-child { border-bottom: none; }
 .recur.paused { opacity: 0.55; }
+.recur-repair { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) var(--k-space-1, 4px); color: var(--muted); font-size: 13px; }
+.recur-repair span { flex: 1 1 180px; overflow-wrap: anywhere; }
+.recur-repair .btn { min-height: 44px; }
+.money-recurring-error { color: var(--error); font-size: 13px; margin: var(--k-space-2, 8px) 0; overflow-wrap: anywhere; }
 .rc-payee { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rc-amt.pos { color: var(--green); } .rc-amt.neg { color: var(--text); }
