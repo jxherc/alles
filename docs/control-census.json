@@ -189286,7 +189286,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 555
+                "line": 558
               }
             ]
           },
@@ -189327,7 +189327,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 555
+                "line": 558
               }
             ]
           },
@@ -190206,7 +190206,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 541
+                "line": 544
               }
             ]
           },
@@ -190247,7 +190247,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 541
+                "line": 544
               }
             ]
           },
