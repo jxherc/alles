@@ -1769,6 +1769,10 @@ class ActualFinanceServiceTests(ApiTest):
         db.close()
 
     def test_networth_history_uses_actual_opening_once(self):
+        db = self.db()
+        db.add(Account(id="legacy-account", name="CIBC", opening=100.0))
+        db.commit()
+        db.close()
         self.actual["accounts"][0]["balance"] = 9875
         self.actual["transactions"] = [
             {
@@ -1798,7 +1802,11 @@ class ActualFinanceServiceTests(ApiTest):
         )
         self.assertEqual(bridge.call_count, 1)
 
-    def test_networth_history_follows_a_changed_native_opening_balance(self):
+    def test_networth_history_follows_a_changed_migrated_opening_balance(self):
+        db = self.db()
+        db.add(Account(id="legacy-account", name="CIBC", opening=100.0))
+        db.commit()
+        db.close()
         self.actual["accounts"][0]["balance"] = 14875
         self.actual["transactions"] = [
             {
@@ -1826,6 +1834,108 @@ class ActualFinanceServiceTests(ApiTest):
                 {"month": "2026-07", "net_worth": 148.75},
             ],
         )
+
+    def test_networth_history_dates_new_actual_openings_without_redating_legacy(self):
+        db = self.db()
+        db.add(Account(id="legacy-account", name="CIBC", opening=100.0))
+        db.commit()
+        db.close()
+        self.actual["accounts"].append(
+            {
+                "id": "actual-native-opening",
+                "name": "new account",
+                "offbudget": False,
+                "closed": False,
+                "balance": 3500,
+            }
+        )
+        self.actual["transactions"] = [
+            {
+                "id": "legacy-opening",
+                "account": "actual-account",
+                "date": "20260808",
+                "amount": 10000,
+                "starting_balance_flag": True,
+            },
+            {
+                "id": "native-opening",
+                "account": "actual-native-opening",
+                "date": "20260808",
+                "amount": 4000,
+                "starting_balance_flag": True,
+            },
+            {
+                "id": "native-spend",
+                "account": "actual-native-opening",
+                "date": "20260912",
+                "amount": -500,
+                "starting_balance_flag": False,
+            },
+        ]
+        with patch("services.managed_actual.bridge_request", side_effect=self.bridge) as bridge:
+            response = self.client.get("/api/money/networth-history?months=3&as_of=2026-09-15")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json(),
+            [
+                {"month": "2026-07", "net_worth": 100.0},
+                {"month": "2026-08", "net_worth": 140.0},
+                {"month": "2026-09", "net_worth": 135.0},
+            ],
+        )
+        self.assertEqual(bridge.call_count, 1)
+
+    def test_networth_history_dates_post_cutover_linked_opening_entries(self):
+        db = self.db()
+        db.add(Account(id="legacy-account", name="CIBC", opening=100.0))
+        db.add(
+            ActualEntityLink(
+                run_id="run-1",
+                entity_kind="account",
+                source_id="new-account",
+                actual_id="actual-new-account",
+                metadata_json='{"base_amount_text":"30.00","source":"actual_identity"}',
+            )
+        )
+        db.commit()
+        db.close()
+        self.actual["accounts"].append(
+            {
+                "id": "actual-new-account",
+                "name": "new savings",
+                "offbudget": False,
+                "closed": False,
+                "balance": 2500,
+            }
+        )
+        self.actual["transactions"] = [
+            {
+                "id": "new-opening",
+                "account": "actual-new-account",
+                "date": "20260831",
+                "amount": 3000,
+                "starting_balance_flag": True,
+            },
+            {
+                "id": "new-opening-adjustment",
+                "account": "actual-new-account",
+                "date": "20260902",
+                "amount": -500,
+                "starting_balance_flag": True,
+            },
+        ]
+        with patch("services.managed_actual.bridge_request", side_effect=self.bridge) as bridge:
+            response = self.client.get("/api/money/networth-history?months=3&as_of=2026-09-15")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json(),
+            [
+                {"month": "2026-07", "net_worth": 100.0},
+                {"month": "2026-08", "net_worth": 130.0},
+                {"month": "2026-09", "net_worth": 125.0},
+            ],
+        )
+        self.assertEqual(bridge.call_count, 1)
 
     def test_native_actual_entities_remain_resolvable_and_transfers_stay_paired(self):
         self.actual["accounts"].append(

@@ -16,8 +16,9 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from core.database import ActualEntityLink, FinanceLedgerState
+from core.database import Account, ActualEntityLink, FinanceLedgerState
 from services import finance_currency, managed_actual
+from services.money_stats import networth_history as _networth_history
 
 
 class ActualFinanceError(RuntimeError):
@@ -882,6 +883,58 @@ def transactions(
             }
         )
     return rows
+
+
+@authority_guarded
+def networth_history(
+    db: Session,
+    *,
+    end_month: str,
+    months: int,
+    actual: dict | None = None,
+    bridge_request=None,
+) -> list[dict]:
+    """Keep migrated openings as a baseline; date new Actual openings."""
+    actual = actual or inspect(db, bridge_request=bridge_request)
+    mapped_accounts = accounts(db, actual=actual)
+    mapped_transactions = transactions(db, actual=actual)
+    starting_rows = [
+        row for row in actual.get("transactions") or [] if row.get("starting_balance_flag")
+    ]
+    if not starting_rows:
+        return _networth_history(
+            mapped_accounts, mapped_transactions, end_month=end_month, months=months
+        )
+    legacy_ids = {account_id for (account_id,) in db.query(Account.id).all()}
+    new_accounts = {
+        str(row.get("actual_id") or ""): row
+        for row in mapped_accounts
+        if row["id"] not in legacy_ids
+    }
+    dated_openings = []
+    dated_account_ids = set()
+    for row in starting_rows:
+        account = new_accounts.get(str(row.get("account") or row.get("account_id") or ""))
+        if not account:
+            continue
+        dated_account_ids.add(account["id"])
+        dated_openings.append(
+            {
+                "account_id": account["id"],
+                "date": _required_date(row.get("date"), "opening balance date"),
+                "amount": _major_from_minor(int(row.get("amount") or 0), "opening balance"),
+            }
+        )
+    history_accounts = [
+        {**row, "opening": 0.0} if row["id"] in dated_account_ids else row
+        for row in mapped_accounts
+    ]
+    return _networth_history(
+        history_accounts,
+        mapped_transactions + dated_openings,
+        end_month=end_month,
+        months=months,
+    )
 
 
 @authority_guarded

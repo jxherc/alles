@@ -1618,20 +1618,17 @@ def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(g
     y, m = _ym(end_month)
     if actual_finance.is_canonical(db):
         try:
-            actual = actual_finance.inspect(db)
-            accounts = actual_finance.accounts(db, actual=actual)
-            transactions = actual_finance.transactions(db, actual=actual)
+            return actual_finance.networth_history(db, end_month=f"{y:04d}-{m:02d}", months=months)
         except actual_finance.ActualFinanceError as exc:
             _actual_error(exc)
-    else:
-        accounts = [
-            {"id": row.id, "opening": row.opening, "archived": row.archived}
-            for row in db.query(Account).all()
-        ]
-        transactions = [
-            {"account_id": row.account_id, "date": row.date, "amount": row.amount}
-            for row in db.query(Transaction).all()
-        ]
+    accounts = [
+        {"id": row.id, "opening": row.opening, "archived": row.archived}
+        for row in db.query(Account).all()
+    ]
+    transactions = [
+        {"account_id": row.account_id, "date": row.date, "amount": row.amount}
+        for row in db.query(Transaction).all()
+    ]
     return _networth_history(accounts, transactions, end_month=f"{y:04d}-{m:02d}", months=months)
 
 
