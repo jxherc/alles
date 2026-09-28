@@ -1,7 +1,9 @@
 import unittest
 
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import IntegrityError
 
+from core.database import Base
 from core.migrations import m0017_photo_sources
 from core.migrations.runner import run_migrations
 
@@ -38,6 +40,36 @@ class PhotoSourceMigrationTest(unittest.TestCase):
                         "VALUES ('apple-2','apple_photos','asset-1:photo')"
                     )
                 )
+
+    def test_model_schema_enforces_the_same_source_identity(self):
+        engine = create_engine("sqlite://")
+        try:
+            Base.metadata.create_all(engine)
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "INSERT INTO photos(id,filename) VALUES "
+                        "('upload-1','upload-1.png'), ('upload-2','upload-2.png')"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "INSERT INTO photos(id,filename,source,source_id) "
+                        "VALUES ('apple-1','apple-1.png','apple_photos','asset-1:photo')"
+                    )
+                )
+                with self.assertRaisesRegex(
+                    IntegrityError,
+                    r"UNIQUE constraint failed: photos.source, photos.source_id",
+                ):
+                    conn.execute(
+                        text(
+                            "INSERT INTO photos(id,filename,source,source_id) "
+                            "VALUES ('apple-2','apple-2.png','apple_photos','asset-1:photo')"
+                        )
+                    )
+        finally:
+            engine.dispose()
 
 
 if __name__ == "__main__":

@@ -751,6 +751,15 @@ class Album(Base):
 
 class Photo(Base):
     __tablename__ = "photos"
+    __table_args__ = (
+        Index(
+            "ux_photos_source_id",
+            "source",
+            "source_id",
+            unique=True,
+            sqlite_where=text("source_id IS NOT NULL AND source_id != ''"),
+        ),
+    )
     id = Column(String, primary_key=True, default=_uid)
     filename = Column(String, nullable=False)  # stored original: uid.ext
     thumb = Column(String, default="")  # uid.jpg in .thumbs
