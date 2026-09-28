@@ -185990,7 +185990,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "nw-history-retry",
+        "name": "alerts-retry",
         "relationships": {},
         "role": "native button"
       },
@@ -186001,7 +186001,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 404
+              "line": 394
             },
             "status": "source-only",
             "tests": []
@@ -186009,7 +186009,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:403 networthCard"
+            "value": "static/js/money.js:392 alertsStrip"
           },
           "keys": [],
           "modality": "pointer",
@@ -186023,7 +186023,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 404
+              "line": 394
             },
             "status": "source-only",
             "tests": []
@@ -186031,7 +186031,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:403 networthCard"
+            "value": "static/js/money.js:392 alertsStrip"
           },
           "keys": [
             "Enter",
@@ -186067,7 +186067,162 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:403 networthCard"
+        "value": "static/js/money.js:392 alertsStrip"
+      },
+      "id": "dynamic.71a0ba11c07b",
+      "kind": "action",
+      "label": {
+        "source": "id",
+        "value": "alerts-retry"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/money.js:392 alertsStrip"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "source-template may render zero to many instances",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": "#alerts-retry",
+        "source": {
+          "column": null,
+          "file": "static/js/money.js",
+          "line": 394
+        },
+        "source_selector": "static/js/money.js:394:18",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "nw-history-retry",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/money.js",
+              "kind": "control-source",
+              "line": 425
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/money.js:424 networthCard"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/money.js",
+              "kind": "control-source",
+              "line": 425
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/money.js:424 networthCard"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "finance.actual-ledger",
+      "flags": [
+        "dynamic-template"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/money.js:424 networthCard"
       },
       "id": "dynamic.b3e7d174fc52",
       "kind": "action",
@@ -186078,7 +186233,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:403 networthCard"
+          "static/js/money.js:424 networthCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -186119,9 +186274,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 404
+          "line": 425
         },
-        "source_selector": "static/js/money.js:404:18",
+        "source_selector": "static/js/money.js:425:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -186156,7 +186311,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 416
+              "line": 437
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -186171,7 +186326,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:403 networthCard"
+            "value": "static/js/money.js:424 networthCard"
           },
           "keys": [
             "native editing keys"
@@ -186206,7 +186361,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:403 networthCard"
+        "value": "static/js/money.js:424 networthCard"
       },
       "id": "dynamic.5646f4d47452",
       "kind": "field",
@@ -186217,7 +186372,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:403 networthCard"
+          "static/js/money.js:424 networthCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -186258,9 +186413,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 416
+          "line": 437
         },
-        "source_selector": "static/js/money.js:416:19",
+        "source_selector": "static/js/money.js:437:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -186288,7 +186443,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 416
+              "line": 437
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -186303,7 +186458,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:403 networthCard"
+            "value": "static/js/money.js:424 networthCard"
           },
           "keys": [],
           "modality": "pointer",
@@ -186317,7 +186472,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 416
+              "line": 437
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -186332,7 +186487,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:403 networthCard"
+            "value": "static/js/money.js:424 networthCard"
           },
           "keys": [
             "Enter",
@@ -186368,7 +186523,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:403 networthCard"
+        "value": "static/js/money.js:424 networthCard"
       },
       "id": "dynamic.064786841a4c",
       "kind": "action",
@@ -186379,7 +186534,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:403 networthCard"
+          "static/js/money.js:424 networthCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -186420,9 +186575,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 416
+          "line": 437
         },
-        "source_selector": "static/js/money.js:416:20",
+        "source_selector": "static/js/money.js:437:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -186457,7 +186612,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 444
+              "line": 465
             },
             "status": "source-only",
             "tests": []
@@ -186465,7 +186620,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:437 goalsCard"
+            "value": "static/js/money.js:458 goalsCard"
           },
           "keys": [],
           "modality": "pointer",
@@ -186479,7 +186634,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 444
+              "line": 465
             },
             "status": "source-only",
             "tests": []
@@ -186487,7 +186642,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:437 goalsCard"
+            "value": "static/js/money.js:458 goalsCard"
           },
           "keys": [
             "Enter",
@@ -186524,7 +186679,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:437 goalsCard"
+        "value": "static/js/money.js:458 goalsCard"
       },
       "id": "dynamic.dafa46f5b4d8",
       "kind": "action",
@@ -186535,7 +186690,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:437 goalsCard"
+          "static/js/money.js:458 goalsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -186576,9 +186731,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 444
+          "line": 465
         },
-        "source_selector": "static/js/money.js:444:21",
+        "source_selector": "static/js/money.js:465:22",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -186613,7 +186768,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 451
+              "line": 472
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -186634,7 +186789,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:437 goalsCard"
+            "value": "static/js/money.js:458 goalsCard"
           },
           "keys": [
             "native editing keys"
@@ -186669,7 +186824,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:437 goalsCard"
+        "value": "static/js/money.js:458 goalsCard"
       },
       "id": "dynamic.52ec2e796168",
       "kind": "field",
@@ -186680,7 +186835,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:437 goalsCard"
+          "static/js/money.js:458 goalsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -186721,9 +186876,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 451
+          "line": 472
         },
-        "source_selector": "static/js/money.js:451:22",
+        "source_selector": "static/js/money.js:472:23",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -186751,7 +186906,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 453
+              "line": 474
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -186772,7 +186927,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:437 goalsCard"
+            "value": "static/js/money.js:458 goalsCard"
           },
           "keys": [
             "native editing keys"
@@ -186807,7 +186962,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:437 goalsCard"
+        "value": "static/js/money.js:458 goalsCard"
       },
       "id": "dynamic.7b9c306bfb85",
       "kind": "field",
@@ -186818,7 +186973,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:437 goalsCard"
+          "static/js/money.js:458 goalsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -186859,9 +187014,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 453
+          "line": 474
         },
-        "source_selector": "static/js/money.js:453:23",
+        "source_selector": "static/js/money.js:474:24",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -186889,7 +187044,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 454
+              "line": 475
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -186910,7 +187065,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:437 goalsCard"
+            "value": "static/js/money.js:458 goalsCard"
           },
           "keys": [
             "native editing keys"
@@ -186945,7 +187100,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:437 goalsCard"
+        "value": "static/js/money.js:458 goalsCard"
       },
       "id": "dynamic.b85468552ab0",
       "kind": "field",
@@ -186956,7 +187111,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:437 goalsCard"
+          "static/js/money.js:458 goalsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -186997,9 +187152,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 454
+          "line": 475
         },
-        "source_selector": "static/js/money.js:454:24",
+        "source_selector": "static/js/money.js:475:25",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -187027,7 +187182,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 455
+              "line": 476
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -187048,7 +187203,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:437 goalsCard"
+            "value": "static/js/money.js:458 goalsCard"
           },
           "keys": [
             "native editing keys"
@@ -187083,7 +187238,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:437 goalsCard"
+        "value": "static/js/money.js:458 goalsCard"
       },
       "id": "dynamic.3291cff837fd",
       "kind": "field",
@@ -187094,7 +187249,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:437 goalsCard"
+          "static/js/money.js:458 goalsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -187135,9 +187290,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 455
+          "line": 476
         },
-        "source_selector": "static/js/money.js:455:25",
+        "source_selector": "static/js/money.js:476:26",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -187165,7 +187320,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 456
+              "line": 477
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -187180,7 +187335,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:437 goalsCard"
+            "value": "static/js/money.js:458 goalsCard"
           },
           "keys": [],
           "modality": "pointer",
@@ -187194,7 +187349,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 456
+              "line": 477
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -187209,7 +187364,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:437 goalsCard"
+            "value": "static/js/money.js:458 goalsCard"
           },
           "keys": [
             "Enter",
@@ -187245,7 +187400,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:437 goalsCard"
+        "value": "static/js/money.js:458 goalsCard"
       },
       "id": "dynamic.3ab8e022b4d6",
       "kind": "action",
@@ -187256,7 +187411,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:437 goalsCard"
+          "static/js/money.js:458 goalsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -187297,9 +187452,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 456
+          "line": 477
         },
-        "source_selector": "static/js/money.js:456:26",
+        "source_selector": "static/js/money.js:477:27",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -187334,7 +187489,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 464
+              "line": 485
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -187349,7 +187504,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:460 reportsCard"
+            "value": "static/js/money.js:481 reportsCard"
           },
           "keys": [],
           "modality": "pointer",
@@ -187363,7 +187518,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 464
+              "line": 485
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -187378,7 +187533,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:460 reportsCard"
+            "value": "static/js/money.js:481 reportsCard"
           },
           "keys": [
             "Enter",
@@ -187414,7 +187569,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:460 reportsCard"
+        "value": "static/js/money.js:481 reportsCard"
       },
       "id": "dynamic.550cac6f4938",
       "kind": "action",
@@ -187425,7 +187580,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:460 reportsCard"
+          "static/js/money.js:481 reportsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -187466,9 +187621,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 464
+          "line": 485
         },
-        "source_selector": "static/js/money.js:464:27",
+        "source_selector": "static/js/money.js:485:28",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -187503,7 +187658,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 465
+              "line": 486
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -187524,7 +187679,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:460 reportsCard"
+            "value": "static/js/money.js:481 reportsCard"
           },
           "keys": [
             "Enter"
@@ -187559,7 +187714,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:460 reportsCard"
+        "value": "static/js/money.js:481 reportsCard"
       },
       "id": "dynamic.8ff6131b8d54",
       "kind": "link",
@@ -187570,7 +187725,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:460 reportsCard"
+          "static/js/money.js:481 reportsCard"
         ],
         "external_destination": "#",
         "server_owner": "not-declared-in-template-source"
@@ -187611,9 +187766,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 465
+          "line": 486
         },
-        "source_selector": "static/js/money.js:465:28",
+        "source_selector": "static/js/money.js:486:29",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -187641,7 +187796,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 478
+              "line": 499
             },
             "status": "source-only",
             "tests": []
@@ -187649,7 +187804,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:470 holdingsCard"
+            "value": "static/js/money.js:491 holdingsCard"
           },
           "keys": [],
           "modality": "pointer",
@@ -187663,7 +187818,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 478
+              "line": 499
             },
             "status": "source-only",
             "tests": []
@@ -187671,7 +187826,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:470 holdingsCard"
+            "value": "static/js/money.js:491 holdingsCard"
           },
           "keys": [
             "Enter",
@@ -187708,7 +187863,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:470 holdingsCard"
+        "value": "static/js/money.js:491 holdingsCard"
       },
       "id": "dynamic.1d067cfd5f5e",
       "kind": "action",
@@ -187719,7 +187874,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:470 holdingsCard"
+          "static/js/money.js:491 holdingsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -187760,9 +187915,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 478
+          "line": 499
         },
-        "source_selector": "static/js/money.js:478:29",
+        "source_selector": "static/js/money.js:499:30",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -187797,7 +187952,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 486
+              "line": 507
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -187818,7 +187973,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:470 holdingsCard"
+            "value": "static/js/money.js:491 holdingsCard"
           },
           "keys": [
             "native editing keys"
@@ -187853,7 +188008,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:470 holdingsCard"
+        "value": "static/js/money.js:491 holdingsCard"
       },
       "id": "dynamic.9159bbef60c4",
       "kind": "field",
@@ -187864,7 +188019,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:470 holdingsCard"
+          "static/js/money.js:491 holdingsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -187905,9 +188060,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 486
+          "line": 507
         },
-        "source_selector": "static/js/money.js:486:30",
+        "source_selector": "static/js/money.js:507:31",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -187935,7 +188090,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 487
+              "line": 508
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -187956,7 +188111,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:470 holdingsCard"
+            "value": "static/js/money.js:491 holdingsCard"
           },
           "keys": [
             "native editing keys"
@@ -187991,7 +188146,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:470 holdingsCard"
+        "value": "static/js/money.js:491 holdingsCard"
       },
       "id": "dynamic.064c1b1bd2b1",
       "kind": "field",
@@ -188002,7 +188157,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:470 holdingsCard"
+          "static/js/money.js:491 holdingsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -188043,9 +188198,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 487
+          "line": 508
         },
-        "source_selector": "static/js/money.js:487:31",
+        "source_selector": "static/js/money.js:508:32",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -188073,7 +188228,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 488
+              "line": 509
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -188094,7 +188249,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:470 holdingsCard"
+            "value": "static/js/money.js:491 holdingsCard"
           },
           "keys": [
             "native editing keys"
@@ -188129,7 +188284,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:470 holdingsCard"
+        "value": "static/js/money.js:491 holdingsCard"
       },
       "id": "dynamic.57537fc270a2",
       "kind": "field",
@@ -188140,7 +188295,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:470 holdingsCard"
+          "static/js/money.js:491 holdingsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -188181,9 +188336,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 488
+          "line": 509
         },
-        "source_selector": "static/js/money.js:488:32",
+        "source_selector": "static/js/money.js:509:33",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -188211,7 +188366,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 489
+              "line": 510
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -188232,7 +188387,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:470 holdingsCard"
+            "value": "static/js/money.js:491 holdingsCard"
           },
           "keys": [
             "native editing keys"
@@ -188267,7 +188422,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:470 holdingsCard"
+        "value": "static/js/money.js:491 holdingsCard"
       },
       "id": "dynamic.17886f15f807",
       "kind": "field",
@@ -188278,7 +188433,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:470 holdingsCard"
+          "static/js/money.js:491 holdingsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -188319,9 +188474,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 489
+          "line": 510
         },
-        "source_selector": "static/js/money.js:489:33",
+        "source_selector": "static/js/money.js:510:34",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -188349,7 +188504,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 490
+              "line": 511
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -188364,7 +188519,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:470 holdingsCard"
+            "value": "static/js/money.js:491 holdingsCard"
           },
           "keys": [],
           "modality": "pointer",
@@ -188378,7 +188533,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 490
+              "line": 511
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -188393,7 +188548,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:470 holdingsCard"
+            "value": "static/js/money.js:491 holdingsCard"
           },
           "keys": [
             "Enter",
@@ -188429,7 +188584,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:470 holdingsCard"
+        "value": "static/js/money.js:491 holdingsCard"
       },
       "id": "dynamic.89fdff95b56d",
       "kind": "action",
@@ -188440,7 +188595,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:470 holdingsCard"
+          "static/js/money.js:491 holdingsCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -188481,9 +188636,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 490
+          "line": 511
         },
-        "source_selector": "static/js/money.js:490:34",
+        "source_selector": "static/js/money.js:511:35",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -188518,7 +188673,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 498
+              "line": 519
             },
             "status": "source-only",
             "tests": []
@@ -188526,7 +188681,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:494 accountsList"
+            "value": "static/js/money.js:515 accountsList"
           },
           "keys": [],
           "modality": "pointer",
@@ -188540,7 +188695,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 498
+              "line": 519
             },
             "status": "source-only",
             "tests": []
@@ -188548,7 +188703,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:494 accountsList"
+            "value": "static/js/money.js:515 accountsList"
           },
           "keys": [
             "Enter",
@@ -188585,7 +188740,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:494 accountsList"
+        "value": "static/js/money.js:515 accountsList"
       },
       "id": "dynamic.c93c1a76f6a4",
       "kind": "action",
@@ -188596,7 +188751,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:494 accountsList"
+          "static/js/money.js:515 accountsList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -188637,9 +188792,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 498
+          "line": 519
         },
-        "source_selector": "static/js/money.js:498:35",
+        "source_selector": "static/js/money.js:519:36",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -188674,7 +188829,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 499
+              "line": 520
             },
             "status": "source-only",
             "tests": []
@@ -188682,7 +188837,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:494 accountsList"
+            "value": "static/js/money.js:515 accountsList"
           },
           "keys": [],
           "modality": "pointer",
@@ -188696,7 +188851,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 499
+              "line": 520
             },
             "status": "source-only",
             "tests": []
@@ -188704,7 +188859,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:494 accountsList"
+            "value": "static/js/money.js:515 accountsList"
           },
           "keys": [
             "Enter",
@@ -188741,7 +188896,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:494 accountsList"
+        "value": "static/js/money.js:515 accountsList"
       },
       "id": "dynamic.62b4c5f67dee",
       "kind": "action",
@@ -188752,7 +188907,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:494 accountsList"
+          "static/js/money.js:515 accountsList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -188793,9 +188948,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 499
+          "line": 520
         },
-        "source_selector": "static/js/money.js:499:36",
+        "source_selector": "static/js/money.js:520:37",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -188830,7 +188985,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 503
+              "line": 524
             },
             "status": "source-only",
             "tests": []
@@ -188838,7 +188993,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:494 accountsList"
+            "value": "static/js/money.js:515 accountsList"
           },
           "keys": [
             "native editing keys"
@@ -188873,7 +189028,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:494 accountsList"
+        "value": "static/js/money.js:515 accountsList"
       },
       "id": "dynamic.8352a8762952",
       "kind": "field",
@@ -188884,7 +189039,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:494 accountsList"
+          "static/js/money.js:515 accountsList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -188925,9 +189080,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 503
+          "line": 524
         },
-        "source_selector": "static/js/money.js:503:37",
+        "source_selector": "static/js/money.js:524:38",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -188955,7 +189110,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 504
+              "line": 525
             },
             "status": "source-only",
             "tests": []
@@ -188963,7 +189118,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:494 accountsList"
+            "value": "static/js/money.js:515 accountsList"
           },
           "keys": [],
           "modality": "pointer",
@@ -188977,7 +189132,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 504
+              "line": 525
             },
             "status": "source-only",
             "tests": []
@@ -188985,7 +189140,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:494 accountsList"
+            "value": "static/js/money.js:515 accountsList"
           },
           "keys": [
             "Enter",
@@ -189022,7 +189177,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:494 accountsList"
+        "value": "static/js/money.js:515 accountsList"
       },
       "id": "dynamic.35335f0049a3",
       "kind": "action",
@@ -189033,7 +189188,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:494 accountsList"
+          "static/js/money.js:515 accountsList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -189074,9 +189229,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 504
+          "line": 525
         },
-        "source_selector": "static/js/money.js:504:38",
+        "source_selector": "static/js/money.js:525:39",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -189111,7 +189266,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 553
+              "line": 574
             },
             "status": "source-only",
             "tests": []
@@ -189119,7 +189274,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:541 envelopeCard"
+            "value": "static/js/money.js:562 envelopeCard"
           },
           "keys": [],
           "modality": "pointer",
@@ -189133,7 +189288,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 553
+              "line": 574
             },
             "status": "source-only",
             "tests": []
@@ -189141,7 +189296,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:541 envelopeCard"
+            "value": "static/js/money.js:562 envelopeCard"
           },
           "keys": [
             "Enter",
@@ -189178,7 +189333,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:541 envelopeCard"
+        "value": "static/js/money.js:562 envelopeCard"
       },
       "id": "dynamic.c52a3bb788a4",
       "kind": "action",
@@ -189189,7 +189344,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:541 envelopeCard"
+          "static/js/money.js:562 envelopeCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -189230,9 +189385,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 553
+          "line": 574
         },
-        "source_selector": "static/js/money.js:553:39",
+        "source_selector": "static/js/money.js:574:40",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -189267,7 +189422,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 554
+              "line": 575
             },
             "status": "source-only",
             "tests": []
@@ -189275,7 +189430,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:541 envelopeCard"
+            "value": "static/js/money.js:562 envelopeCard"
           },
           "keys": [
             "native editing keys"
@@ -189311,7 +189466,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:541 envelopeCard"
+        "value": "static/js/money.js:562 envelopeCard"
       },
       "id": "dynamic.6ffb776e4382",
       "kind": "field",
@@ -189322,7 +189477,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:541 envelopeCard"
+          "static/js/money.js:562 envelopeCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -189363,9 +189518,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 554
+          "line": 575
         },
-        "source_selector": "static/js/money.js:554:40",
+        "source_selector": "static/js/money.js:575:41",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -189393,7 +189548,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 563
+              "line": 584
             },
             "status": "source-only",
             "tests": []
@@ -189401,7 +189556,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:541 envelopeCard"
+            "value": "static/js/money.js:562 envelopeCard"
           },
           "keys": [
             "native editing keys"
@@ -189436,7 +189591,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:541 envelopeCard"
+        "value": "static/js/money.js:562 envelopeCard"
       },
       "id": "dynamic.599bf1e8b66d",
       "kind": "field",
@@ -189447,7 +189602,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:541 envelopeCard"
+          "static/js/money.js:562 envelopeCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -189488,9 +189643,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 563
+          "line": 584
         },
-        "source_selector": "static/js/money.js:563:41",
+        "source_selector": "static/js/money.js:584:42",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -189518,7 +189673,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 563
+              "line": 584
             },
             "status": "source-only",
             "tests": []
@@ -189526,7 +189681,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:541 envelopeCard"
+            "value": "static/js/money.js:562 envelopeCard"
           },
           "keys": [
             "native editing keys"
@@ -189561,7 +189716,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:541 envelopeCard"
+        "value": "static/js/money.js:562 envelopeCard"
       },
       "id": "dynamic.c4459fc01445",
       "kind": "field",
@@ -189572,7 +189727,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:541 envelopeCard"
+          "static/js/money.js:562 envelopeCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -189613,9 +189768,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 563
+          "line": 584
         },
-        "source_selector": "static/js/money.js:563:42",
+        "source_selector": "static/js/money.js:584:43",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -189643,7 +189798,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 563
+              "line": 584
             },
             "status": "source-only",
             "tests": []
@@ -189651,7 +189806,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:541 envelopeCard"
+            "value": "static/js/money.js:562 envelopeCard"
           },
           "keys": [],
           "modality": "pointer",
@@ -189665,7 +189820,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 563
+              "line": 584
             },
             "status": "source-only",
             "tests": []
@@ -189673,7 +189828,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:541 envelopeCard"
+            "value": "static/js/money.js:562 envelopeCard"
           },
           "keys": [
             "Enter",
@@ -189709,7 +189864,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:541 envelopeCard"
+        "value": "static/js/money.js:562 envelopeCard"
       },
       "id": "dynamic.88fe346828c5",
       "kind": "action",
@@ -189720,7 +189875,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:541 envelopeCard"
+          "static/js/money.js:562 envelopeCard"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -189761,9 +189916,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 563
+          "line": 584
         },
-        "source_selector": "static/js/money.js:563:43",
+        "source_selector": "static/js/money.js:584:44",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -189798,7 +189953,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 576
+              "line": 597
             },
             "status": "source-only",
             "tests": []
@@ -189806,7 +189961,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:566 budgetsList"
+            "value": "static/js/money.js:587 budgetsList"
           },
           "keys": [],
           "modality": "pointer",
@@ -189820,7 +189975,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 576
+              "line": 597
             },
             "status": "source-only",
             "tests": []
@@ -189828,7 +189983,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:566 budgetsList"
+            "value": "static/js/money.js:587 budgetsList"
           },
           "keys": [
             "Enter",
@@ -189865,7 +190020,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:566 budgetsList"
+        "value": "static/js/money.js:587 budgetsList"
       },
       "id": "dynamic.81ad8c39a850",
       "kind": "action",
@@ -189876,7 +190031,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:566 budgetsList"
+          "static/js/money.js:587 budgetsList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -189917,9 +190072,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 576
+          "line": 597
         },
-        "source_selector": "static/js/money.js:576:44",
+        "source_selector": "static/js/money.js:597:45",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -189954,7 +190109,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 589
+              "line": 610
             },
             "status": "source-only",
             "tests": []
@@ -189962,7 +190117,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:582 rulesList"
+            "value": "static/js/money.js:603 rulesList"
           },
           "keys": [],
           "modality": "pointer",
@@ -189976,7 +190131,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 589
+              "line": 610
             },
             "status": "source-only",
             "tests": []
@@ -189984,7 +190139,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:582 rulesList"
+            "value": "static/js/money.js:603 rulesList"
           },
           "keys": [
             "Enter",
@@ -190021,7 +190176,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:582 rulesList"
+        "value": "static/js/money.js:603 rulesList"
       },
       "id": "dynamic.7a2b3c50d183",
       "kind": "action",
@@ -190032,7 +190187,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:582 rulesList"
+          "static/js/money.js:603 rulesList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -190073,9 +190228,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 589
+          "line": 610
         },
-        "source_selector": "static/js/money.js:589:45",
+        "source_selector": "static/js/money.js:610:46",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -190110,7 +190265,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 595
+              "line": 616
             },
             "status": "source-only",
             "tests": []
@@ -190118,7 +190273,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:593 _ruleForm"
+            "value": "static/js/money.js:614 _ruleForm"
           },
           "keys": [
             "native editing keys"
@@ -190153,7 +190308,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:593 _ruleForm"
+        "value": "static/js/money.js:614 _ruleForm"
       },
       "id": "dynamic.bdd4489a54e7",
       "kind": "field",
@@ -190164,7 +190319,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:593 _ruleForm"
+          "static/js/money.js:614 _ruleForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -190205,9 +190360,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 595
+          "line": 616
         },
-        "source_selector": "static/js/money.js:595:46",
+        "source_selector": "static/js/money.js:616:47",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -190235,7 +190390,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 597
+              "line": 618
             },
             "status": "source-only",
             "tests": []
@@ -190243,7 +190398,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:593 _ruleForm"
+            "value": "static/js/money.js:614 _ruleForm"
           },
           "keys": [
             "native editing keys"
@@ -190278,7 +190433,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:593 _ruleForm"
+        "value": "static/js/money.js:614 _ruleForm"
       },
       "id": "dynamic.7dae46dd1ee2",
       "kind": "field",
@@ -190289,7 +190444,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:593 _ruleForm"
+          "static/js/money.js:614 _ruleForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -190330,9 +190485,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 597
+          "line": 618
         },
-        "source_selector": "static/js/money.js:597:47",
+        "source_selector": "static/js/money.js:618:48",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -190360,7 +190515,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 598
+              "line": 619
             },
             "status": "source-only",
             "tests": []
@@ -190368,7 +190523,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:593 _ruleForm"
+            "value": "static/js/money.js:614 _ruleForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -190382,7 +190537,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 598
+              "line": 619
             },
             "status": "source-only",
             "tests": []
@@ -190390,7 +190545,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:593 _ruleForm"
+            "value": "static/js/money.js:614 _ruleForm"
           },
           "keys": [
             "Enter",
@@ -190426,7 +190581,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:593 _ruleForm"
+        "value": "static/js/money.js:614 _ruleForm"
       },
       "id": "dynamic.2a141c89d820",
       "kind": "action",
@@ -190437,7 +190592,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:593 _ruleForm"
+          "static/js/money.js:614 _ruleForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -190478,9 +190633,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 598
+          "line": 619
         },
-        "source_selector": "static/js/money.js:598:48",
+        "source_selector": "static/js/money.js:619:49",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -190515,7 +190670,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 605
+              "line": 626
             },
             "status": "source-only",
             "tests": []
@@ -190523,7 +190678,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:604 recurringList"
+            "value": "static/js/money.js:625 recurringList"
           },
           "keys": [],
           "modality": "pointer",
@@ -190537,7 +190692,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 605
+              "line": 626
             },
             "status": "source-only",
             "tests": []
@@ -190545,7 +190700,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:604 recurringList"
+            "value": "static/js/money.js:625 recurringList"
           },
           "keys": [
             "Enter",
@@ -190581,7 +190736,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:604 recurringList"
+        "value": "static/js/money.js:625 recurringList"
       },
       "id": "dynamic.7059b5ed5e46",
       "kind": "action",
@@ -190592,7 +190747,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:604 recurringList"
+          "static/js/money.js:625 recurringList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -190633,9 +190788,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 605
+          "line": 626
         },
-        "source_selector": "static/js/money.js:605:49",
+        "source_selector": "static/js/money.js:626:50",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -190670,7 +190825,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 612
+              "line": 633
             },
             "status": "source-only",
             "tests": []
@@ -190678,7 +190833,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:604 recurringList"
+            "value": "static/js/money.js:625 recurringList"
           },
           "keys": [],
           "modality": "pointer",
@@ -190692,7 +190847,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 612
+              "line": 633
             },
             "status": "source-only",
             "tests": []
@@ -190700,7 +190855,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:604 recurringList"
+            "value": "static/js/money.js:625 recurringList"
           },
           "keys": [
             "Enter",
@@ -190737,7 +190892,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:604 recurringList"
+        "value": "static/js/money.js:625 recurringList"
       },
       "id": "dynamic.196c81dd5df0",
       "kind": "action",
@@ -190748,7 +190903,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:604 recurringList"
+          "static/js/money.js:625 recurringList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -190789,9 +190944,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 612
+          "line": 633
         },
-        "source_selector": "static/js/money.js:612:50",
+        "source_selector": "static/js/money.js:633:51",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -190826,7 +190981,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 613
+              "line": 634
             },
             "status": "source-only",
             "tests": []
@@ -190834,7 +190989,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:604 recurringList"
+            "value": "static/js/money.js:625 recurringList"
           },
           "keys": [],
           "modality": "pointer",
@@ -190848,7 +191003,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 613
+              "line": 634
             },
             "status": "source-only",
             "tests": []
@@ -190856,7 +191011,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:604 recurringList"
+            "value": "static/js/money.js:625 recurringList"
           },
           "keys": [
             "Enter",
@@ -190893,7 +191048,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:604 recurringList"
+        "value": "static/js/money.js:625 recurringList"
       },
       "id": "dynamic.9d492598dc10",
       "kind": "action",
@@ -190904,7 +191059,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:604 recurringList"
+          "static/js/money.js:625 recurringList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -190945,9 +191100,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 613
+          "line": 634
         },
-        "source_selector": "static/js/money.js:613:51",
+        "source_selector": "static/js/money.js:634:52",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -190982,7 +191137,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 624
+              "line": 645
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -190997,7 +191152,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:617 _recurringForm"
+            "value": "static/js/money.js:638 _recurringForm"
           },
           "keys": [
             "native editing keys"
@@ -191032,7 +191187,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:617 _recurringForm"
+        "value": "static/js/money.js:638 _recurringForm"
       },
       "id": "dynamic.2ea34bab22b4",
       "kind": "field",
@@ -191043,7 +191198,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:617 _recurringForm"
+          "static/js/money.js:638 _recurringForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -191084,9 +191239,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 624
+          "line": 645
         },
-        "source_selector": "static/js/money.js:624:52",
+        "source_selector": "static/js/money.js:645:53",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -191114,7 +191269,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 625
+              "line": 646
             },
             "status": "source-only",
             "tests": []
@@ -191122,7 +191277,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:617 _recurringForm"
+            "value": "static/js/money.js:638 _recurringForm"
           },
           "keys": [
             "native editing keys"
@@ -191157,7 +191312,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:617 _recurringForm"
+        "value": "static/js/money.js:638 _recurringForm"
       },
       "id": "dynamic.8235f853fcea",
       "kind": "field",
@@ -191168,7 +191323,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:617 _recurringForm"
+          "static/js/money.js:638 _recurringForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -191209,9 +191364,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 625
+          "line": 646
         },
-        "source_selector": "static/js/money.js:625:53",
+        "source_selector": "static/js/money.js:646:54",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -191239,7 +191394,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 627
+              "line": 648
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -191260,7 +191415,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:617 _recurringForm"
+            "value": "static/js/money.js:638 _recurringForm"
           },
           "keys": [
             "native editing keys"
@@ -191295,7 +191450,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:617 _recurringForm"
+        "value": "static/js/money.js:638 _recurringForm"
       },
       "id": "dynamic.77fda37c1272",
       "kind": "field",
@@ -191306,7 +191461,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:617 _recurringForm"
+          "static/js/money.js:638 _recurringForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -191347,9 +191502,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 627
+          "line": 648
         },
-        "source_selector": "static/js/money.js:627:54",
+        "source_selector": "static/js/money.js:648:55",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -191377,7 +191532,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 631
+              "line": 652
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -191385,32 +191540,32 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 87
+                "line": 99
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 274
+                "line": 272
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 292
+                "line": 290
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 305
+                "line": 303
               }
             ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:617 _recurringForm"
+            "value": "static/js/money.js:638 _recurringForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -191424,7 +191579,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 631
+              "line": 652
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -191432,32 +191587,32 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 87
+                "line": 99
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 274
+                "line": 272
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 292
+                "line": 290
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 305
+                "line": 303
               }
             ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:617 _recurringForm"
+            "value": "static/js/money.js:638 _recurringForm"
           },
           "keys": [
             "Enter",
@@ -191493,7 +191648,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:617 _recurringForm"
+        "value": "static/js/money.js:638 _recurringForm"
       },
       "id": "dynamic.6e4bb4527ed4",
       "kind": "action",
@@ -191504,7 +191659,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:617 _recurringForm"
+          "static/js/money.js:638 _recurringForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -191545,9 +191700,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 631
+          "line": 652
         },
-        "source_selector": "static/js/money.js:631:55",
+        "source_selector": "static/js/money.js:652:56",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -191582,7 +191737,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 641
+              "line": 662
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -191639,7 +191794,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:635 addTxnRow"
+            "value": "static/js/money.js:656 addTxnRow"
           },
           "keys": [
             "native editing keys"
@@ -191674,7 +191829,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:635 addTxnRow"
+        "value": "static/js/money.js:656 addTxnRow"
       },
       "id": "dynamic.c132072e9710",
       "kind": "field",
@@ -191685,7 +191840,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:635 addTxnRow"
+          "static/js/money.js:656 addTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -191726,9 +191881,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 641
+          "line": 662
         },
-        "source_selector": "static/js/money.js:641:56",
+        "source_selector": "static/js/money.js:662:57",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -191756,7 +191911,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 642
+              "line": 663
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -191789,7 +191944,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:635 addTxnRow"
+            "value": "static/js/money.js:656 addTxnRow"
           },
           "keys": [
             "native editing keys"
@@ -191824,7 +191979,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:635 addTxnRow"
+        "value": "static/js/money.js:656 addTxnRow"
       },
       "id": "dynamic.7f82d1956665",
       "kind": "field",
@@ -191835,7 +191990,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:635 addTxnRow"
+          "static/js/money.js:656 addTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -191876,9 +192031,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 642
+          "line": 663
         },
-        "source_selector": "static/js/money.js:642:57",
+        "source_selector": "static/js/money.js:663:58",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -191906,7 +192061,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 643
+              "line": 664
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -191921,7 +192076,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:635 addTxnRow"
+            "value": "static/js/money.js:656 addTxnRow"
           },
           "keys": [
             "native editing keys"
@@ -191956,7 +192111,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:635 addTxnRow"
+        "value": "static/js/money.js:656 addTxnRow"
       },
       "id": "dynamic.bc3a2529d9c5",
       "kind": "field",
@@ -191967,7 +192122,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:635 addTxnRow"
+          "static/js/money.js:656 addTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -192008,9 +192163,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 643
+          "line": 664
         },
-        "source_selector": "static/js/money.js:643:58",
+        "source_selector": "static/js/money.js:664:59",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -192038,7 +192193,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 645
+              "line": 666
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -192089,7 +192244,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:635 addTxnRow"
+            "value": "static/js/money.js:656 addTxnRow"
           },
           "keys": [
             "native editing keys"
@@ -192124,7 +192279,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:635 addTxnRow"
+        "value": "static/js/money.js:656 addTxnRow"
       },
       "id": "dynamic.127bd61c3da4",
       "kind": "field",
@@ -192135,7 +192290,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:635 addTxnRow"
+          "static/js/money.js:656 addTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -192176,9 +192331,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 645
+          "line": 666
         },
-        "source_selector": "static/js/money.js:645:59",
+        "source_selector": "static/js/money.js:666:60",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -192206,7 +192361,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 646
+              "line": 667
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -192239,7 +192394,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:635 addTxnRow"
+            "value": "static/js/money.js:656 addTxnRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -192253,7 +192408,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 646
+              "line": 667
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -192286,7 +192441,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:635 addTxnRow"
+            "value": "static/js/money.js:656 addTxnRow"
           },
           "keys": [
             "Enter",
@@ -192322,7 +192477,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:635 addTxnRow"
+        "value": "static/js/money.js:656 addTxnRow"
       },
       "id": "dynamic.ce18d0d29d49",
       "kind": "action",
@@ -192333,7 +192488,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:635 addTxnRow"
+          "static/js/money.js:656 addTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -192374,9 +192529,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 646
+          "line": 667
         },
-        "source_selector": "static/js/money.js:646:60",
+        "source_selector": "static/js/money.js:667:61",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -192411,7 +192566,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 647
+              "line": 668
             },
             "status": "source-only",
             "tests": []
@@ -192419,7 +192574,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:635 addTxnRow"
+            "value": "static/js/money.js:656 addTxnRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -192433,7 +192588,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 647
+              "line": 668
             },
             "status": "source-only",
             "tests": []
@@ -192441,7 +192596,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:635 addTxnRow"
+            "value": "static/js/money.js:656 addTxnRow"
           },
           "keys": [
             "Enter",
@@ -192477,7 +192632,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:635 addTxnRow"
+        "value": "static/js/money.js:656 addTxnRow"
       },
       "id": "dynamic.1fc73921ef80",
       "kind": "action",
@@ -192488,7 +192643,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:635 addTxnRow"
+          "static/js/money.js:656 addTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -192529,9 +192684,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 647
+          "line": 668
         },
-        "source_selector": "static/js/money.js:647:61",
+        "source_selector": "static/js/money.js:668:62",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -192566,7 +192721,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 661
+              "line": 682
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -192587,7 +192742,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:651 transferRow"
+            "value": "static/js/money.js:672 transferRow"
           },
           "keys": [
             "native editing keys"
@@ -192622,7 +192777,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:651 transferRow"
+        "value": "static/js/money.js:672 transferRow"
       },
       "id": "dynamic.cfd143dbf15f",
       "kind": "field",
@@ -192633,7 +192788,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:651 transferRow"
+          "static/js/money.js:672 transferRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -192674,9 +192829,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 661
+          "line": 682
         },
-        "source_selector": "static/js/money.js:661:62",
+        "source_selector": "static/js/money.js:682:63",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -192704,7 +192859,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 662
+              "line": 683
             },
             "status": "source-only",
             "tests": []
@@ -192712,7 +192867,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:651 transferRow"
+            "value": "static/js/money.js:672 transferRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -192726,7 +192881,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 662
+              "line": 683
             },
             "status": "source-only",
             "tests": []
@@ -192734,7 +192889,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:651 transferRow"
+            "value": "static/js/money.js:672 transferRow"
           },
           "keys": [
             "Enter",
@@ -192770,7 +192925,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:651 transferRow"
+        "value": "static/js/money.js:672 transferRow"
       },
       "id": "dynamic.5c2a3d9e2bfe",
       "kind": "action",
@@ -192781,7 +192936,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:651 transferRow"
+          "static/js/money.js:672 transferRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -192822,9 +192977,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 662
+          "line": 683
         },
-        "source_selector": "static/js/money.js:662:63",
+        "source_selector": "static/js/money.js:683:64",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -192859,7 +193014,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 669
+              "line": 690
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -192874,7 +193029,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:666 txnList"
+            "value": "static/js/money.js:687 txnList"
           },
           "keys": [],
           "modality": "pointer",
@@ -192888,7 +193043,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 669
+              "line": 690
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -192903,7 +193058,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:666 txnList"
+            "value": "static/js/money.js:687 txnList"
           },
           "keys": [
             "Enter",
@@ -192939,7 +193094,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:666 txnList"
+        "value": "static/js/money.js:687 txnList"
       },
       "id": "dynamic.11ad6a360de6",
       "kind": "action",
@@ -192950,7 +193105,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:666 txnList"
+          "static/js/money.js:687 txnList"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -192991,9 +193146,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 669
+          "line": 690
         },
-        "source_selector": "static/js/money.js:669:64",
+        "source_selector": "static/js/money.js:690:65",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -193028,7 +193183,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 685
+              "line": 706
             },
             "status": "source-only",
             "tests": []
@@ -193036,7 +193191,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [],
           "modality": "pointer",
@@ -193050,7 +193205,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 685
+              "line": 706
             },
             "status": "source-only",
             "tests": []
@@ -193058,7 +193213,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [
             "Enter",
@@ -193095,7 +193250,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:679 _renderTxnMain"
+        "value": "static/js/money.js:700 _renderTxnMain"
       },
       "id": "dynamic.66b93fdc2e78",
       "kind": "action",
@@ -193106,7 +193261,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:679 _renderTxnMain"
+          "static/js/money.js:700 _renderTxnMain"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -193147,9 +193302,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 685
+          "line": 706
         },
-        "source_selector": "static/js/money.js:685:65",
+        "source_selector": "static/js/money.js:706:66",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -193184,7 +193339,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 688
+              "line": 709
             },
             "status": "source-only",
             "tests": []
@@ -193192,7 +193347,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [],
           "modality": "pointer",
@@ -193206,7 +193361,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 688
+              "line": 709
             },
             "status": "source-only",
             "tests": []
@@ -193214,7 +193369,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [
             "Enter",
@@ -193251,7 +193406,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:679 _renderTxnMain"
+        "value": "static/js/money.js:700 _renderTxnMain"
       },
       "id": "dynamic.f8979de1a34d",
       "kind": "action",
@@ -193262,7 +193417,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:679 _renderTxnMain"
+          "static/js/money.js:700 _renderTxnMain"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -193303,9 +193458,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 688
+          "line": 709
         },
-        "source_selector": "static/js/money.js:688:66",
+        "source_selector": "static/js/money.js:709:67",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -193340,7 +193495,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 689
+              "line": 710
             },
             "status": "source-only",
             "tests": []
@@ -193348,7 +193503,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [],
           "modality": "pointer",
@@ -193362,7 +193517,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 689
+              "line": 710
             },
             "status": "source-only",
             "tests": []
@@ -193370,7 +193525,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [
             "Enter",
@@ -193407,7 +193562,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:679 _renderTxnMain"
+        "value": "static/js/money.js:700 _renderTxnMain"
       },
       "id": "dynamic.7c8711a9d0dc",
       "kind": "action",
@@ -193418,7 +193573,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:679 _renderTxnMain"
+          "static/js/money.js:700 _renderTxnMain"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -193459,9 +193614,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 689
+          "line": 710
         },
-        "source_selector": "static/js/money.js:689:67",
+        "source_selector": "static/js/money.js:710:68",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -193496,7 +193651,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 690
+              "line": 711
             },
             "status": "source-only",
             "tests": []
@@ -193504,7 +193659,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [],
           "modality": "pointer",
@@ -193518,7 +193673,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 690
+              "line": 711
             },
             "status": "source-only",
             "tests": []
@@ -193526,7 +193681,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [
             "Enter",
@@ -193563,7 +193718,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:679 _renderTxnMain"
+        "value": "static/js/money.js:700 _renderTxnMain"
       },
       "id": "dynamic.10daebafe5e3",
       "kind": "action",
@@ -193574,7 +193729,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:679 _renderTxnMain"
+          "static/js/money.js:700 _renderTxnMain"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -193615,9 +193770,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 690
+          "line": 711
         },
-        "source_selector": "static/js/money.js:690:68",
+        "source_selector": "static/js/money.js:711:69",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -193652,7 +193807,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 692
+              "line": 713
             },
             "status": "source-only",
             "tests": []
@@ -193660,7 +193815,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [
             "Enter"
@@ -193696,7 +193851,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:679 _renderTxnMain"
+        "value": "static/js/money.js:700 _renderTxnMain"
       },
       "id": "dynamic.98416799922a",
       "kind": "link",
@@ -193707,7 +193862,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:679 _renderTxnMain"
+          "static/js/money.js:700 _renderTxnMain"
         ],
         "external_destination": "/api/uploads/${esc(t.receipt_id)}",
         "server_owner": "not-declared-in-template-source"
@@ -193748,9 +193903,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 692
+          "line": 713
         },
-        "source_selector": "static/js/money.js:692:69",
+        "source_selector": "static/js/money.js:713:70",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -193778,7 +193933,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 693
+              "line": 714
             },
             "status": "source-only",
             "tests": []
@@ -193786,7 +193941,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [],
           "modality": "pointer",
@@ -193800,7 +193955,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 693
+              "line": 714
             },
             "status": "source-only",
             "tests": []
@@ -193808,7 +193963,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [
             "Enter",
@@ -193845,7 +194000,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:679 _renderTxnMain"
+        "value": "static/js/money.js:700 _renderTxnMain"
       },
       "id": "dynamic.5bbc6aa9f555",
       "kind": "action",
@@ -193856,7 +194011,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:679 _renderTxnMain"
+          "static/js/money.js:700 _renderTxnMain"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -193897,9 +194052,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 693
+          "line": 714
         },
-        "source_selector": "static/js/money.js:693:70",
+        "source_selector": "static/js/money.js:714:71",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -193934,7 +194089,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 705
+              "line": 726
             },
             "status": "source-only",
             "tests": []
@@ -193942,7 +194097,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [],
           "modality": "pointer",
@@ -193956,7 +194111,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 705
+              "line": 726
             },
             "status": "source-only",
             "tests": []
@@ -193964,7 +194119,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [
             "Enter",
@@ -194001,7 +194156,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:679 _renderTxnMain"
+        "value": "static/js/money.js:700 _renderTxnMain"
       },
       "id": "dynamic.7eeacb48c02d",
       "kind": "action",
@@ -194012,7 +194167,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:679 _renderTxnMain"
+          "static/js/money.js:700 _renderTxnMain"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -194053,9 +194208,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 705
+          "line": 726
         },
-        "source_selector": "static/js/money.js:705:71",
+        "source_selector": "static/js/money.js:726:72",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -194090,7 +194245,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 706
+              "line": 727
             },
             "status": "source-only",
             "tests": []
@@ -194098,7 +194253,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [],
           "modality": "pointer",
@@ -194112,7 +194267,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 706
+              "line": 727
             },
             "status": "source-only",
             "tests": []
@@ -194120,7 +194275,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:679 _renderTxnMain"
+            "value": "static/js/money.js:700 _renderTxnMain"
           },
           "keys": [
             "Enter",
@@ -194157,7 +194312,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:679 _renderTxnMain"
+        "value": "static/js/money.js:700 _renderTxnMain"
       },
       "id": "dynamic.efc6efbb8e2e",
       "kind": "action",
@@ -194168,7 +194323,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:679 _renderTxnMain"
+          "static/js/money.js:700 _renderTxnMain"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -194209,9 +194364,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 706
+          "line": 727
         },
-        "source_selector": "static/js/money.js:706:72",
+        "source_selector": "static/js/money.js:727:73",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -194246,7 +194401,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 713
+              "line": 734
             },
             "status": "source-only",
             "tests": []
@@ -194254,7 +194409,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [
             "native editing keys"
@@ -194290,7 +194445,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:710 splitEditorRow"
+        "value": "static/js/money.js:731 splitEditorRow"
       },
       "id": "dynamic.2b5d213783e9",
       "kind": "field",
@@ -194301,7 +194456,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:710 splitEditorRow"
+          "static/js/money.js:731 splitEditorRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -194342,9 +194497,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 713
+          "line": 734
         },
-        "source_selector": "static/js/money.js:713:73",
+        "source_selector": "static/js/money.js:734:74",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -194372,7 +194527,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 714
+              "line": 735
             },
             "status": "source-only",
             "tests": []
@@ -194380,7 +194535,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [
             "native editing keys"
@@ -194416,7 +194571,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:710 splitEditorRow"
+        "value": "static/js/money.js:731 splitEditorRow"
       },
       "id": "dynamic.576689566b1e",
       "kind": "field",
@@ -194427,7 +194582,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:710 splitEditorRow"
+          "static/js/money.js:731 splitEditorRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -194468,9 +194623,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 714
+          "line": 735
         },
-        "source_selector": "static/js/money.js:714:74",
+        "source_selector": "static/js/money.js:735:75",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -194498,7 +194653,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 715
+              "line": 736
             },
             "status": "source-only",
             "tests": []
@@ -194506,7 +194661,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -194520,7 +194675,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 715
+              "line": 736
             },
             "status": "source-only",
             "tests": []
@@ -194528,7 +194683,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [
             "Enter",
@@ -194565,7 +194720,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:710 splitEditorRow"
+        "value": "static/js/money.js:731 splitEditorRow"
       },
       "id": "dynamic.fb0d1c1a1e7f",
       "kind": "action",
@@ -194576,7 +194731,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:710 splitEditorRow"
+          "static/js/money.js:731 splitEditorRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -194617,9 +194772,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 715
+          "line": 736
         },
-        "source_selector": "static/js/money.js:715:75",
+        "source_selector": "static/js/money.js:736:76",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -194654,7 +194809,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 721
+              "line": 742
             },
             "status": "source-only",
             "tests": []
@@ -194662,7 +194817,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -194676,7 +194831,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 721
+              "line": 742
             },
             "status": "source-only",
             "tests": []
@@ -194684,7 +194839,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [
             "Enter",
@@ -194720,7 +194875,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:710 splitEditorRow"
+        "value": "static/js/money.js:731 splitEditorRow"
       },
       "id": "dynamic.acb664c9ea42",
       "kind": "action",
@@ -194731,7 +194886,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:710 splitEditorRow"
+          "static/js/money.js:731 splitEditorRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -194772,9 +194927,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 721
+          "line": 742
         },
-        "source_selector": "static/js/money.js:721:76",
+        "source_selector": "static/js/money.js:742:77",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -194809,7 +194964,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 722
+              "line": 743
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -194824,7 +194979,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -194838,7 +194993,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 722
+              "line": 743
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -194853,7 +195008,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [
             "Enter",
@@ -194889,7 +195044,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:710 splitEditorRow"
+        "value": "static/js/money.js:731 splitEditorRow"
       },
       "id": "dynamic.0065604020c9",
       "kind": "action",
@@ -194900,7 +195055,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:710 splitEditorRow"
+          "static/js/money.js:731 splitEditorRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -194941,9 +195096,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 722
+          "line": 743
         },
-        "source_selector": "static/js/money.js:722:77",
+        "source_selector": "static/js/money.js:743:78",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -194978,7 +195133,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 723
+              "line": 744
             },
             "status": "source-only",
             "tests": []
@@ -194986,7 +195141,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -195000,7 +195155,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 723
+              "line": 744
             },
             "status": "source-only",
             "tests": []
@@ -195008,7 +195163,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:710 splitEditorRow"
+            "value": "static/js/money.js:731 splitEditorRow"
           },
           "keys": [
             "Enter",
@@ -195044,7 +195199,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:710 splitEditorRow"
+        "value": "static/js/money.js:731 splitEditorRow"
       },
       "id": "dynamic.4e9e3b606882",
       "kind": "action",
@@ -195055,7 +195210,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:710 splitEditorRow"
+          "static/js/money.js:731 splitEditorRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -195096,9 +195251,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 723
+          "line": 744
         },
-        "source_selector": "static/js/money.js:723:78",
+        "source_selector": "static/js/money.js:744:79",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -195133,7 +195288,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 734
+              "line": 755
             },
             "status": "source-only",
             "tests": []
@@ -195141,7 +195296,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:728 editTxnRow"
+            "value": "static/js/money.js:749 editTxnRow"
           },
           "keys": [
             "native editing keys"
@@ -195177,7 +195332,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:728 editTxnRow"
+        "value": "static/js/money.js:749 editTxnRow"
       },
       "id": "dynamic.202754e758d9",
       "kind": "field",
@@ -195188,7 +195343,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:728 editTxnRow"
+          "static/js/money.js:749 editTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -195229,9 +195384,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 734
+          "line": 755
         },
-        "source_selector": "static/js/money.js:734:79",
+        "source_selector": "static/js/money.js:755:80",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -195259,7 +195414,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 735
+              "line": 756
             },
             "status": "source-only",
             "tests": []
@@ -195267,7 +195422,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:728 editTxnRow"
+            "value": "static/js/money.js:749 editTxnRow"
           },
           "keys": [
             "native editing keys"
@@ -195303,7 +195458,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:728 editTxnRow"
+        "value": "static/js/money.js:749 editTxnRow"
       },
       "id": "dynamic.3be2746c5da2",
       "kind": "field",
@@ -195314,7 +195469,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:728 editTxnRow"
+          "static/js/money.js:749 editTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -195355,9 +195510,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 735
+          "line": 756
         },
-        "source_selector": "static/js/money.js:735:80",
+        "source_selector": "static/js/money.js:756:81",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -195385,7 +195540,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 737
+              "line": 758
             },
             "status": "source-only",
             "tests": []
@@ -195393,7 +195548,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:728 editTxnRow"
+            "value": "static/js/money.js:749 editTxnRow"
           },
           "keys": [
             "native editing keys"
@@ -195429,7 +195584,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:728 editTxnRow"
+        "value": "static/js/money.js:749 editTxnRow"
       },
       "id": "dynamic.b8e672bd1569",
       "kind": "field",
@@ -195440,7 +195595,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:728 editTxnRow"
+          "static/js/money.js:749 editTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -195481,9 +195636,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 737
+          "line": 758
         },
-        "source_selector": "static/js/money.js:737:81",
+        "source_selector": "static/js/money.js:758:82",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -195511,7 +195666,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 738
+              "line": 759
             },
             "status": "source-only",
             "tests": []
@@ -195519,7 +195674,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:728 editTxnRow"
+            "value": "static/js/money.js:749 editTxnRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -195533,7 +195688,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 738
+              "line": 759
             },
             "status": "source-only",
             "tests": []
@@ -195541,7 +195696,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:728 editTxnRow"
+            "value": "static/js/money.js:749 editTxnRow"
           },
           "keys": [
             "Enter",
@@ -195578,7 +195733,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:728 editTxnRow"
+        "value": "static/js/money.js:749 editTxnRow"
       },
       "id": "dynamic.58a11868cba8",
       "kind": "action",
@@ -195589,7 +195744,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:728 editTxnRow"
+          "static/js/money.js:749 editTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -195630,9 +195785,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 738
+          "line": 759
         },
-        "source_selector": "static/js/money.js:738:82",
+        "source_selector": "static/js/money.js:759:83",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -195667,7 +195822,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 739
+              "line": 760
             },
             "status": "source-only",
             "tests": []
@@ -195675,7 +195830,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:728 editTxnRow"
+            "value": "static/js/money.js:749 editTxnRow"
           },
           "keys": [],
           "modality": "pointer",
@@ -195689,7 +195844,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 739
+              "line": 760
             },
             "status": "source-only",
             "tests": []
@@ -195697,7 +195852,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:728 editTxnRow"
+            "value": "static/js/money.js:749 editTxnRow"
           },
           "keys": [
             "Enter",
@@ -195734,7 +195889,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:728 editTxnRow"
+        "value": "static/js/money.js:749 editTxnRow"
       },
       "id": "dynamic.ad9408d0c37e",
       "kind": "action",
@@ -195745,7 +195900,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:728 editTxnRow"
+          "static/js/money.js:749 editTxnRow"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -195786,9 +195941,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 739
+          "line": 760
         },
-        "source_selector": "static/js/money.js:739:83",
+        "source_selector": "static/js/money.js:760:84",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -195823,7 +195978,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 746
+              "line": 767
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -195856,7 +196011,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:744 _accountForm"
+            "value": "static/js/money.js:765 _accountForm"
           },
           "keys": [
             "native editing keys"
@@ -195891,7 +196046,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:744 _accountForm"
+        "value": "static/js/money.js:765 _accountForm"
       },
       "id": "dynamic.ce195dc20cf4",
       "kind": "field",
@@ -195902,7 +196057,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:744 _accountForm"
+          "static/js/money.js:765 _accountForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -195943,9 +196098,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 746
+          "line": 767
         },
-        "source_selector": "static/js/money.js:746:84",
+        "source_selector": "static/js/money.js:767:85",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -195973,7 +196128,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 748
+              "line": 769
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -196006,7 +196161,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:744 _accountForm"
+            "value": "static/js/money.js:765 _accountForm"
           },
           "keys": [
             "native editing keys"
@@ -196041,7 +196196,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:744 _accountForm"
+        "value": "static/js/money.js:765 _accountForm"
       },
       "id": "dynamic.8d8dc4aaa983",
       "kind": "field",
@@ -196052,7 +196207,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:744 _accountForm"
+          "static/js/money.js:765 _accountForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -196093,9 +196248,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 748
+          "line": 769
         },
-        "source_selector": "static/js/money.js:748:85",
+        "source_selector": "static/js/money.js:769:86",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -196123,7 +196278,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 749
+              "line": 770
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -196168,7 +196323,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:744 _accountForm"
+            "value": "static/js/money.js:765 _accountForm"
           },
           "keys": [
             "native editing keys"
@@ -196203,7 +196358,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:744 _accountForm"
+        "value": "static/js/money.js:765 _accountForm"
       },
       "id": "dynamic.822a14055825",
       "kind": "field",
@@ -196214,7 +196369,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:744 _accountForm"
+          "static/js/money.js:765 _accountForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -196255,9 +196410,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 749
+          "line": 770
         },
-        "source_selector": "static/js/money.js:749:86",
+        "source_selector": "static/js/money.js:770:87",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -196285,7 +196440,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 750
+              "line": 771
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -196312,7 +196467,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:744 _accountForm"
+            "value": "static/js/money.js:765 _accountForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -196326,7 +196481,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 750
+              "line": 771
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -196353,7 +196508,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:744 _accountForm"
+            "value": "static/js/money.js:765 _accountForm"
           },
           "keys": [
             "Enter",
@@ -196389,7 +196544,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:744 _accountForm"
+        "value": "static/js/money.js:765 _accountForm"
       },
       "id": "dynamic.f9f3b2240818",
       "kind": "action",
@@ -196400,7 +196555,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:744 _accountForm"
+          "static/js/money.js:765 _accountForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -196441,9 +196596,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 750
+          "line": 771
         },
-        "source_selector": "static/js/money.js:750:87",
+        "source_selector": "static/js/money.js:771:88",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -196478,7 +196633,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 755
+              "line": 776
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -196493,7 +196648,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:753 _budgetForm"
+            "value": "static/js/money.js:774 _budgetForm"
           },
           "keys": [
             "native editing keys"
@@ -196528,7 +196683,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:753 _budgetForm"
+        "value": "static/js/money.js:774 _budgetForm"
       },
       "id": "dynamic.0c6e6454de26",
       "kind": "field",
@@ -196539,7 +196694,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:753 _budgetForm"
+          "static/js/money.js:774 _budgetForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -196580,9 +196735,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 755
+          "line": 776
         },
-        "source_selector": "static/js/money.js:755:88",
+        "source_selector": "static/js/money.js:776:89",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -196610,7 +196765,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 756
+              "line": 777
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -196625,7 +196780,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:753 _budgetForm"
+            "value": "static/js/money.js:774 _budgetForm"
           },
           "keys": [
             "native editing keys"
@@ -196660,7 +196815,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:753 _budgetForm"
+        "value": "static/js/money.js:774 _budgetForm"
       },
       "id": "dynamic.6a2142655a39",
       "kind": "field",
@@ -196671,7 +196826,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:753 _budgetForm"
+          "static/js/money.js:774 _budgetForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -196712,9 +196867,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 756
+          "line": 777
         },
-        "source_selector": "static/js/money.js:756:89",
+        "source_selector": "static/js/money.js:777:90",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -196742,7 +196897,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 757
+              "line": 778
             },
             "status": "source-only",
             "tests": []
@@ -196750,7 +196905,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:753 _budgetForm"
+            "value": "static/js/money.js:774 _budgetForm"
           },
           "keys": [],
           "modality": "pointer",
@@ -196764,7 +196919,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 757
+              "line": 778
             },
             "status": "source-only",
             "tests": []
@@ -196772,7 +196927,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:753 _budgetForm"
+            "value": "static/js/money.js:774 _budgetForm"
           },
           "keys": [
             "Enter",
@@ -196808,7 +196963,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:753 _budgetForm"
+        "value": "static/js/money.js:774 _budgetForm"
       },
       "id": "dynamic.77cdb321279f",
       "kind": "action",
@@ -196819,7 +196974,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:753 _budgetForm"
+          "static/js/money.js:774 _budgetForm"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -196860,9 +197015,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 757
+          "line": 778
         },
-        "source_selector": "static/js/money.js:757:90",
+        "source_selector": "static/js/money.js:778:91",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -196897,7 +197052,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 967
+              "line": 989
             },
             "status": "source-only",
             "tests": []
@@ -196905,7 +197060,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:964 attachReceipt"
+            "value": "static/js/money.js:986 attachReceipt"
           },
           "keys": [
             "native editing keys"
@@ -196942,7 +197097,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:964 attachReceipt"
+        "value": "static/js/money.js:986 attachReceipt"
       },
       "id": "dynamic.005a4879f992",
       "kind": "field",
@@ -196955,7 +197110,7 @@
           "source-local:/api/uploads"
         ],
         "client_functions": [
-          "static/js/money.js:964 attachReceipt"
+          "static/js/money.js:986 attachReceipt"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -196996,9 +197151,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 967
+          "line": 989
         },
-        "source_selector": "static/js/money.js:967:91",
+        "source_selector": "static/js/money.js:989:92",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -197026,7 +197181,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 1131
+              "line": 1153
             },
             "status": "source-only",
             "tests": []
@@ -197034,7 +197189,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:1125 _decorateCards"
+            "value": "static/js/money.js:1147 _decorateCards"
           },
           "keys": [],
           "modality": "pointer",
@@ -197048,7 +197203,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 1131
+              "line": 1153
             },
             "status": "source-only",
             "tests": []
@@ -197056,7 +197211,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:1125 _decorateCards"
+            "value": "static/js/money.js:1147 _decorateCards"
           },
           "keys": [
             "Enter",
@@ -197094,7 +197249,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:1125 _decorateCards"
+        "value": "static/js/money.js:1147 _decorateCards"
       },
       "id": "dynamic.0785de64373b",
       "kind": "action",
@@ -197105,7 +197260,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:1125 _decorateCards"
+          "static/js/money.js:1147 _decorateCards"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -197146,9 +197301,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 1131
+          "line": 1153
         },
-        "source_selector": "static/js/money.js:1131:92",
+        "source_selector": "static/js/money.js:1153:93",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -197183,7 +197338,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 1142
+              "line": 1164
             },
             "status": "source-only",
             "tests": []
@@ -197191,7 +197346,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:1125 _decorateCards"
+            "value": "static/js/money.js:1147 _decorateCards"
           },
           "keys": [],
           "modality": "pointer",
@@ -197205,7 +197360,7 @@
             "source": {
               "file": "static/js/money.js",
               "kind": "control-source",
-              "line": 1142
+              "line": 1164
             },
             "status": "source-only",
             "tests": []
@@ -197213,7 +197368,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/money.js:1125 _decorateCards"
+            "value": "static/js/money.js:1147 _decorateCards"
           },
           "keys": [
             "Enter",
@@ -197251,7 +197406,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/money.js:1125 _decorateCards"
+        "value": "static/js/money.js:1147 _decorateCards"
       },
       "id": "dynamic.4cb86dec65b8",
       "kind": "action",
@@ -197262,7 +197417,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/money.js:1125 _decorateCards"
+          "static/js/money.js:1147 _decorateCards"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -197303,9 +197458,9 @@
         "source": {
           "column": null,
           "file": "static/js/money.js",
-          "line": 1142
+          "line": 1164
         },
-        "source_selector": "static/js/money.js:1142:93",
+        "source_selector": "static/js/money.js:1164:94",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -251989,19 +252144,19 @@
   "summary": {
     "activation_path_evidence": {
       "external-blocked": 3,
-      "source-only": 2098,
+      "source-only": 2100,
       "test-linked-unclassified": 631
     },
-    "activation_paths": 2732,
-    "controls": 1613,
-    "dynamic_templates": 934,
+    "activation_paths": 2734,
+    "controls": 1614,
+    "dynamic_templates": 935,
     "event_listener_types": {
       "abort": 1,
       "animationend": 1,
       "beforeunload": 4,
       "blur": 9,
       "change": 52,
-      "click": 786,
+      "click": 787,
       "close": 1,
       "contextmenu": 2,
       "controllerchange": 1,
@@ -252043,7 +252198,7 @@
     "flags": {
       "anonymous-source-anchor": 829,
       "cross-feature-owner": 63,
-      "dynamic-template": 934,
+      "dynamic-template": 935,
       "inline-handler": 24,
       "unknown-label": 80
     },

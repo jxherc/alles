@@ -3365,12 +3365,147 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(response.status_code, 503, response.text)
         self.assertIn("Actual is unavailable", response.text)
 
+    def test_canonical_alerts_use_one_actual_snapshot_and_local_watches(self):
+        db = self.db()
+        db.query(RecurringTxn).one().next_date = "2026-07-19"
+        db.add(
+            Transaction(
+                account_id="legacy-account",
+                date="2026-07-18",
+                amount=-999,
+                payee="frozen purchase",
+                category="groceries",
+            )
+        )
+        db.add_all(
+            [
+                ActualEntityLink(
+                    run_id="run-route",
+                    entity_kind="account",
+                    source_id="legacy-account",
+                    actual_id="actual-account",
+                    metadata_json='{"low_balance":"80"}',
+                ),
+                ActualEntityLink(
+                    run_id="run-route",
+                    entity_kind="subscription",
+                    source_id="legacy-subscription",
+                    actual_id="actual-subscription",
+                    metadata_json="{}",
+                ),
+            ]
+        )
+        db.commit()
+        db.close()
+        watch = self.client.post(
+            "/api/money/watches", json={"kind": "category", "value": "groceries"}
+        )
+        self.assertEqual(watch.status_code, 200, watch.text)
+        actual = {
+            "accounts": [
+                {
+                    "id": "actual-account",
+                    "name": "current checking",
+                    "balance": 500,
+                    "closed": False,
+                }
+            ],
+            "transactions": [
+                {
+                    "id": "current-purchase",
+                    "account": "actual-account",
+                    "date": "2026-07-18",
+                    "amount": -25000,
+                    "payee_name": "market",
+                    "category_name": "groceries",
+                },
+                {
+                    "id": "current-transfer",
+                    "account": "actual-account",
+                    "date": "2026-07-18",
+                    "amount": -50000,
+                    "transfer_id": "partner-transfer",
+                },
+            ],
+            "schedules": [
+                {
+                    "id": "current-bill",
+                    "name": "utilities",
+                    "amount": -6000,
+                    "posts_transaction": True,
+                    "next_date": "2026-07-21",
+                },
+                {
+                    "id": "range-bill",
+                    "name": "variable bill",
+                    "amount": {"num1": -4000, "num2": -7000},
+                    "amountOp": "isbetween",
+                    "posts_transaction": True,
+                    "next_date": "2026-07-20",
+                },
+                {
+                    "id": "approx-bill",
+                    "name": "approximate bill",
+                    "amount": -5000,
+                    "amountOp": "isapprox",
+                    "posts_transaction": True,
+                    "next_date": "2026-07-22",
+                },
+                {
+                    "id": "actual-subscription",
+                    "name": "subscription",
+                    "amount": -1000,
+                    "posts_transaction": True,
+                    "next_date": "2026-07-20",
+                },
+            ],
+        }
+        with patch("routes.money.actual_finance.inspect", return_value=actual) as inspect:
+            response = self.client.get("/api/money/alerts?month=2026-07&big=200&as_of=2026-07-18")
+        self.assertEqual(response.status_code, 200, response.text)
+        inspect.assert_called_once()
+        data = response.json()
+        self.assertEqual([row["id"] for row in data["large_purchases"]], ["current-purchase"])
+        self.assertEqual([row["id"] for row in data["watch_hits"]], ["current-purchase"])
+        self.assertEqual(
+            {row["id"] for row in data["upcoming_bills"]},
+            {"current-bill", "range-bill", "approx-bill"},
+        )
+        self.assertEqual(
+            next(row for row in data["upcoming_bills"] if row["id"] == "range-bill")["amount"], None
+        )
+        self.assertEqual(
+            next(row for row in data["upcoming_bills"] if row["id"] == "approx-bill")[
+                "amount_kind"
+            ],
+            "approx",
+        )
+        self.assertEqual(
+            data["low_balance"],
+            [
+                {
+                    "id": "legacy-account",
+                    "name": "current checking",
+                    "balance": 5.0,
+                    "threshold": 80.0,
+                }
+            ],
+        )
+
+    def test_canonical_alerts_report_actual_outage_without_frozen_fallback(self):
+        with patch(
+            "routes.money.actual_finance.inspect",
+            side_effect=actual_finance.ActualFinanceUnavailable("Actual is unavailable"),
+        ):
+            response = self.client.get("/api/money/alerts?month=2026-07")
+        self.assertEqual(response.status_code, 503, response.text)
+        self.assertIn("Actual is unavailable", response.text)
+
     def test_stale_legacy_analytics_fail_closed_after_actual_cutover(self):
         for path in (
             "/api/money/envelope",
             "/api/money/age-of-money",
             "/api/money/income/summary",
-            "/api/money/alerts",
         ):
             with self.subTest(path=path):
                 response = self.client.get(path)
