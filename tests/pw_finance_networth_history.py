@@ -276,6 +276,7 @@ def run():
                 "to_be_budgeted": 90,
                 "categories": [
                     {
+                        "category_id": "food-id",
                         "category": "food",
                         "group": "living",
                         "assigned": 60,
@@ -284,6 +285,7 @@ def run():
                         "target": None,
                     }
                 ],
+                "pending_assignments": [],
             }
             page.route(
                 "**/api/money/envelope?*",
@@ -487,6 +489,39 @@ def run():
                     )
 
             page.route("**/api/money/envelope?*", canonical_envelope)
+            assignment_writes = []
+            assignment_failures = 1
+
+            def canonical_assignment(route):
+                nonlocal assignment_failures
+                payload = route.request.post_data_json
+                assignment_writes.append(payload)
+                assert payload["category_id"] == "food-id"
+                assert payload["expected_amount"] in {60, 75}
+                if assignment_failures:
+                    assignment_failures -= 1
+                    route.fulfill(
+                        status=503,
+                        body='{"detail":"Actual assignment unavailable"}',
+                        content_type="application/json",
+                    )
+                    return
+                canonical_envelope_month["categories"][0]["assigned"] = payload["amount"]
+                canonical_envelope_month["pending_assignments"] = []
+                route.fulfill(
+                    status=200,
+                    body=json.dumps(
+                        {
+                            "category_id": "food-id",
+                            "category": "food",
+                            "month": canonical_envelope_month["month"],
+                            "assigned": payload["amount"],
+                        }
+                    ),
+                    content_type="application/json",
+                )
+
+            page.route("**/api/money/envelope/assign", canonical_assignment)
             page.reload(wait_until="networkidle")
             use_light_theme_on_phone()
             envelope_card = page.locator('.money-card[data-card="envelope"]')
@@ -526,22 +561,70 @@ def run():
             else:
                 envelope_retry.press("Enter")
             expect(envelope_card).to_contain_text("spending caps are separate")
-            expect(
-                envelope_card.locator('.env-row[data-cat="food"] .env-assigned')
-            ).to_contain_text("60")
-            expect(
-                envelope_card.locator('.env-row[data-cat="food"] .env-assigned .sr-only')
-            ).to_have_text("assigned this month:")
+            assignment_input = envelope_card.locator(
+                '.env-row[data-category-id="food-id"] .env-assign'
+            )
+            expect(assignment_input).to_have_value("60")
+            expect(assignment_input).to_have_attribute(
+                "aria-label", "assigned this month for living / food"
+            )
+            assert assignment_input.bounding_box()["height"] >= 44
             expect(envelope_card.locator('.env-row[data-cat="food"] .env-spent')).to_contain_text(
                 "10"
             )
             expect(envelope_card.locator('.env-row[data-cat="food"] .env-avail')).to_contain_text(
                 "100"
             )
-            expect(
-                envelope_card.locator("#env-assign-btn, .env-assign, .env-tgt-btn")
-            ).to_have_count(0)
+            expect(envelope_card.locator("#env-assign-btn, .env-tgt-btn")).to_have_count(0)
             expect(envelope_card.locator("h3")).to_be_focused()
+            if profile == "phone":
+                assignment_input.tap()
+            else:
+                assignment_input.click()
+            assignment_input.fill("75")
+            assignment_input.press("Tab")
+            expect(assignment_input).to_have_value("75")
+            expect(envelope_card.locator("#env-save-status")).to_contain_text("save not confirmed")
+            retry_save = envelope_card.get_by_role("button", name="retry same amount", exact=True)
+            if profile == "phone":
+                retry_save.tap()
+            else:
+                retry_save.click()
+            expect(envelope_card.locator("#env-save-status")).to_be_empty()
+            expect(assignment_input).to_be_focused()
+            assert (
+                assignment_writes[0]
+                == assignment_writes[1]
+                == {
+                    "category_id": "food-id",
+                    "month": canonical_envelope_month["month"],
+                    "amount": 75,
+                    "expected_amount": 60,
+                }
+            )
+            canonical_envelope_month["pending_assignments"] = [
+                {
+                    "category_id": "food-id",
+                    "category": "food",
+                    "assigned": 80,
+                    "expected_assigned": 75,
+                }
+            ]
+            page.reload(wait_until="networkidle")
+            envelope_card = page.locator('.money-card[data-card="envelope"]')
+            pending_retry = envelope_card.get_by_role("button", name="retry the same amount")
+            expect(pending_retry).to_be_visible()
+            expect(
+                envelope_card.locator('.env-row[data-category-id="food-id"] .env-assign')
+            ).to_have_count(0)
+            if profile == "phone":
+                pending_retry.tap()
+            else:
+                pending_retry.click()
+            expect(
+                envelope_card.locator('.env-row[data-category-id="food-id"] .env-assign')
+            ).to_have_value("80")
+            assert assignment_writes[-1]["expected_amount"] == 75
             assert envelope_card.evaluate(
                 "element => element.scrollWidth <= element.clientWidth + 1"
             )

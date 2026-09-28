@@ -7,7 +7,7 @@ import { webcrypto } from 'node:crypto';
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
 
-function harness(values = {}) {
+function harness(values = {}, { canonical = false } = {}) {
   const elements = new Map();
   const requests = [], notices = [];
   const get = id => {
@@ -31,6 +31,7 @@ function harness(values = {}) {
     dlgFields: async () => ({ amount: values['target-amount'] }),
   });
   vm.runInContext(source + `
+    _canonicalLedger = ${canonical};
     load = async () => {};
     globalThis.subject = { addAccount, addTxn, saveTxn, doTransfer, runReconcile,
       addGoal, addHolding, addBudget, addRecurring, assignEnvelope, setEnvTarget,
@@ -38,6 +39,17 @@ function harness(values = {}) {
   `, context);
   return { ...context.subject, requests, notices, get };
 }
+
+test('canonical assignment sends stable category identity and the observed amount', async () => {
+  const h = harness(valid, { canonical: true });
+  assert.equal(await h.assignEnvelope('food', '25.50', 'food-id', '10.00'), true);
+  assert.equal(h.requests[0].url, '/api/money/envelope/assign');
+  assert.equal(h.requests[0].body.category_id, 'food-id');
+  assert.equal(h.requests[0].body.amount, 25.5);
+  assert.equal(h.requests[0].body.expected_amount, 10);
+  assert.equal(await h.assignEnvelope('food', '30.00'), false);
+  assert.equal(h.requests.length, 2);
+});
 
 const valid = {
   'af-name': 'checking', 'af-kind': 'checking', 'tx-amt': '12.34',

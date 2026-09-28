@@ -1390,6 +1390,7 @@ def envelope(db: Session, month: str, *, bridge_request=None) -> dict:
         return _major_from_minor(value, f"budget {key}")
 
     rows = []
+    seen_category_ids = set()
     for group in selected["categoryGroups"]:
         if not isinstance(group, dict) or not isinstance(group.get("categories"), list):
             raise ActualFinanceError("Actual budget month is incomplete")
@@ -1401,10 +1402,13 @@ def envelope(db: Session, month: str, *, bridge_request=None) -> dict:
             if category.get("is_income"):
                 continue
             name = str(category.get("name") or "").strip()
-            if not name:
+            category_id = str(category.get("id") or "").strip()
+            if not name or not category_id or category_id in seen_category_ids:
                 raise ActualFinanceError("Actual budget month is incomplete")
+            seen_category_ids.add(category_id)
             rows.append(
                 {
+                    "category_id": category_id,
                     "category": name,
                     "group": str(group.get("name") or ""),
                     "assigned": amount(category, "budgeted"),
@@ -1413,13 +1417,166 @@ def envelope(db: Session, month: str, *, bridge_request=None) -> dict:
                     "target": None,
                 }
             )
-    rows.sort(key=lambda row: (row["group"].casefold(), row["category"].casefold()))
+    rows.sort(
+        key=lambda row: (row["group"].casefold(), row["category"].casefold(), row["category_id"])
+    )
+    pending_assignments = []
+    for link in _links(db, "budget_assignment"):
+        pending = _link_metadata(link).get("_update_intent") or {}
+        if not pending or pending.get("month") != month:
+            continue
+        category_id = str(pending.get("category_id") or "")
+        category = next((row for row in rows if row["category_id"] == category_id), None)
+        if (
+            category is None
+            or type(pending.get("amount_minor")) is not int
+            or type(pending.get("previous_minor")) is not int
+        ):
+            raise ActualFinanceError("a pending Actual assignment needs review")
+        pending_assignments.append(
+            {
+                "category_id": category_id,
+                "category": category["category"],
+                "assigned": _major_from_minor(pending["amount_minor"], "pending assignment"),
+                "expected_assigned": _major_from_minor(
+                    pending["previous_minor"], "previous assignment"
+                ),
+            }
+        )
     return {
         "month": month,
         "income": amount(selected, "totalIncome"),
         "assigned_total": -amount(selected, "totalBudgeted"),
         "to_be_budgeted": amount(selected, "toBudget"),
         "categories": rows,
+        "pending_assignments": pending_assignments,
+    }
+
+
+@authority_guarded
+def set_envelope_assignment(
+    db: Session,
+    month: str,
+    category_id: str,
+    amount,
+    expected_amount,
+    *,
+    bridge_request=None,
+) -> dict:
+    """Set one Actual month slot, keeping the provider result recoverable."""
+    month = _validated_budget_month(month)
+    category_id = str(category_id or "").strip()
+    if not category_id:
+        raise ActualFinanceError("an existing spending category is required")
+    if expected_amount is None:
+        raise ActualFinanceError("the previous assigned amount is required; reload Finance")
+    amount_minor = _minor(amount, "assigned amount")
+    expected_minor = _minor(expected_amount, "previous assigned amount")
+    for cap in _links(db, "budget_limit"):
+        cap_metadata = _link_metadata(cap)
+        if cap_metadata.get("_update_intent") or (
+            cap_metadata.get("_delete_intent") and cap_metadata.get("managed_month")
+        ):
+            raise ActualFinanceError(
+                "an older spending-cap write is uncertain; finish that cap retry before assigning money"
+            )
+    target = f"{month}:{category_id}"
+    fingerprint = _request_fingerprint(
+        "set_envelope_assignment",
+        {"target": target, "amount_minor": amount_minor, "expected_minor": expected_minor},
+    )
+
+    current_month = envelope(db, month, bridge_request=bridge_request)
+    category = next(
+        (row for row in current_month["categories"] if row["category_id"] == category_id),
+        None,
+    )
+    if category is None:
+        raise ActualFinanceError("assignment requires one existing spending category in Actual")
+    current_minor = _minor(category["assigned"], "current assigned amount")
+    matches = [
+        row
+        for row in _links(db, "budget_assignment")
+        if row.actual_id == target or _deletion_target(_link_metadata(row)) == target
+    ]
+    if len(matches) > 1:
+        raise ActualFinanceError("Actual assignment has more than one identity link")
+    if current_minor == amount_minor == 0 and (
+        not matches or _link_metadata(matches[0]).get("_deleted")
+    ):
+        return {
+            "category_id": category_id,
+            "category": category["category"],
+            "month": month,
+            "assigned": 0.0,
+        }
+    link = (
+        matches[0]
+        if matches
+        else _ensure_deletion_link(db, "budget_assignment", f"actual-budget:{target}", target)
+    )
+    metadata = _link_metadata(link)
+    if metadata.get("_delete_intent"):
+        raise ActualFinanceError("Actual assignment deletion is incomplete")
+    pending = metadata.get("_update_intent") or {}
+    if pending:
+        if pending.get("fingerprint") != fingerprint:
+            raise ActualFinanceError("assignment retry does not match its pending write")
+        if current_minor not in {pending.get("previous_minor"), amount_minor}:
+            raise ActualFinanceError("assignment changed during an uncertain write; review Actual")
+    elif current_minor != amount_minor:
+        if current_minor != expected_minor:
+            raise ActualFinanceError("assignment changed; reload Finance before saving")
+        metadata.pop("_deleted", None)
+        metadata["_update_intent"] = {
+            "version": 1,
+            "fingerprint": fingerprint,
+            "month": month,
+            "category_id": category_id,
+            "previous_minor": current_minor,
+            "amount_minor": amount_minor,
+        }
+        link.actual_id = target
+        link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+        db.commit()
+
+    if current_minor != amount_minor:
+        result = _request(
+            db,
+            {
+                "command": "write",
+                "action": "set_budget_assignment",
+                "month": month,
+                "category_id": category_id,
+                "amount_minor": amount_minor,
+            },
+            bridge_request=bridge_request,
+        )
+        if (
+            not isinstance(result, dict)
+            or result.get("category_id") != category_id
+            or result.get("amount_minor") != amount_minor
+        ):
+            raise ActualFinanceError("Actual assignment write could not be confirmed")
+
+    confirmed = envelope(db, month, bridge_request=bridge_request)
+    confirmed_category = next(
+        (row for row in confirmed["categories"] if row["category_id"] == category_id), None
+    )
+    if confirmed_category is None or _minor(confirmed_category["assigned"]) != amount_minor:
+        raise ActualFinanceError("Actual assignment write could not be confirmed")
+    metadata = _link_metadata(link)
+    metadata.pop("_update_intent", None)
+    metadata.pop("_deleted", None)
+    metadata["canonical_assignment"] = {"amount_minor": amount_minor}
+    link.actual_id = target
+    link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+    db.commit()
+    return {
+        "category_id": category_id,
+        "category": confirmed_category["category"],
+        "month": month,
+        "assigned": confirmed_category["assigned"],
     }
 
 

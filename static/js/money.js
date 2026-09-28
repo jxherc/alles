@@ -33,6 +33,7 @@ let _month = _monthFromUrl() || _thisMonth();
 let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];
 let _recurringError = false, _canonicalLedger = false;
 let _envelope = null, _aom = null;   // YNAB envelope view + age of money (4b)
+const _envAssignmentBusy = new Set();
 let _forecast = null, _nwhist = [], _holdings = null, _alerts = null;   // Simplifi (4c)
 let _forecastError = 'couldn\'t load forecast';
 let _goals = [];   // savings/debt goals (4d)
@@ -577,23 +578,27 @@ function envelopeCard() {
   const tbb = e.to_be_budgeted || 0;
   const banner = `<div class="env-tbb ${tbb < 0 ? 'over' : (tbb > 0 ? 'pos' : '')}">
     <span class="env-tbb-num">${signed(tbb)}</span><span class="env-tbb-lbl">to be budgeted</span></div>`;
-  const readOnly = _canonicalLedger;
-  const rows = (e.categories || []).filter(c => c.assigned || c.spent || c.available || c.target).map(c => {
+  const targetsUnavailable = _canonicalLedger;
+  const pending = _canonicalLedger ? (e.pending_assignments || []) : [];
+  const rows = (e.categories || []).filter(c => _canonicalLedger || c.assigned || c.spent || c.available || c.target).map(c => {
     const av = c.available || 0;
-    const tgt = !readOnly && c.target
+    const pendingWrite = pending.find(item => item.category_id === c.category_id);
+    const label = _canonicalLedger && c.group ? `${c.group} / ${c.category}` : c.category;
+    const tgt = !targetsUnavailable && c.target
       ? `<div class="env-target"><div class="env-target-bar" style="width:${Math.min(100, (c.target.funded || 0) * 100)}%"></div><span class="env-target-lbl">${Math.round((c.target.funded || 0) * 100)}% of ${fmt(c.target.amount)}${c.target.date ? ` by ${esc(c.target.date)}` : ''}</span></div>`
       : '';
-    return `<div class="env-row" data-cat="${esc(c.category)}">
-      <span class="env-cat">${esc(c.category)}${readOnly ? '' : ` <button class="env-tgt-btn" data-cat="${esc(c.category)}" title="set a funding target">🎯</button>`}</span>
-      ${readOnly ? `<span class="env-assigned" title="assigned this month"><span class="sr-only">assigned this month: </span>${fmt(c.assigned || 0)}</span>` : `<input type="text" class="settings-input env-assign" data-cat="${esc(c.category)}" value="${c.assigned || 0}" inputmode="decimal" title="assigned this month">`}
-      <span class="env-spent" title="spent this month"><span class="sr-only">spent this month: </span>${fmt(c.spent || 0)}</span>
-      <span class="env-avail ${av < 0 ? 'neg' : 'pos'}" title="available (rolls over)"><span class="sr-only">available: </span>${fmt(av)}</span>
+    return `<div class="env-row" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}">
+      <span class="env-cat">${esc(label)}${targetsUnavailable ? '' : ` <button class="env-tgt-btn" data-cat="${esc(c.category)}" title="set a funding target">🎯</button>`}</span>
+      ${pendingWrite ? `<span class="env-assigned" title="save not confirmed">${fmt(c.assigned || 0)}</span>` : `<label class="env-assignment"><span class="env-input-label">assigned</span><input type="text" class="settings-input env-assign" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}" data-expected="${c.assigned || 0}" value="${c.assigned || 0}" inputmode="decimal" aria-label="assigned this month for ${esc(label)}"></label>`}
+      <span class="env-spent" title="spent this month"><span class="sr-only">spent this month: </span><span class="env-stat-label" aria-hidden="true">spent </span>${fmt(c.spent || 0)}</span>
+      <span class="env-avail ${av < 0 ? 'neg' : 'pos'}" title="available (rolls over)"><span class="sr-only">available: </span><span class="env-stat-label" aria-hidden="true">available </span>${fmt(av)}</span>
+      ${pendingWrite ? `<div class="env-pending" role="status">save not confirmed for ${esc(label)}. <button type="button" class="btn" data-env-retry="${esc(c.category_id)}" data-amount="${pendingWrite.assigned}" data-expected="${pendingWrite.expected_assigned}">retry the same amount</button></div>` : ''}
       ${tgt}
     </div>`;
   }).join('');
-  if (readOnly) return banner + `<p class="money-recurring-note">monthly assignments are read-only here. spending caps are separate; funding targets aren't available yet.</p>` +
+  if (targetsUnavailable) return banner + `<p class="money-recurring-note">assignments use Actual. spending caps are separate; funding targets aren't available yet.</p><div id="env-save-status" role="status" class="env-save-status"></div>` +
     (rows ? `<div class="env-rows"><div class="env-row env-head" aria-hidden="true"><span>category</span><span>assigned</span><span>spent</span><span>available</span></div>${rows}</div>`
-      : '<div class="money-empty-sm">no assigned, spent, or carried-over categories this month</div>');
+      : '<div class="money-empty-sm">no spending categories yet. add a categorized transaction first</div>');
   return banner + (rows
     ? `<div class="env-rows">${rows}</div>`
     : '<div class="money-empty-sm">assign money to a category to start budgeting</div>') +
@@ -1186,18 +1191,45 @@ function _decorateCards() {
     chip.style.display = '';
   } else if (chip) { chip.style.display = 'none'; }
 }
-async function assignEnvelope(category, amount) {
+async function assignEnvelope(category, amount, categoryId = '', expectedAmount = null) {
   category = (category || '').trim();
-  if (!category) { toast('name a category', 'error'); return false; }
+  if (!category && !_canonicalLedger) { toast('name a category', 'error'); return false; }
   amount = _decimal(amount, 0);
   if (!_validAmounts(amount)) return false;
+  const key = `${_month}:${categoryId || category}`;
+  if (_envAssignmentBusy.has(key)) return false;
+  _envAssignmentBusy.add(key);
   try {
-    await api('/api/money/envelope/assign', { method: 'PUT', body: { category, month: _month, amount } });
-    _envelope = await api(`/api/money/envelope?month=${_month}`).catch(() => _envelope);
+    const body = _canonicalLedger
+      ? { category_id: categoryId, month: _month, amount, expected_amount: _decimal(expectedAmount) }
+      : { category, month: _month, amount };
+    if (_canonicalLedger && (!categoryId || !_validAmounts(body.expected_amount))) return false;
+    await api('/api/money/envelope/assign', { method: 'PUT', body });
+    _envelope = await api(`/api/money/envelope?month=${_month}`).catch(() => null);
     const card = $('money-body').querySelector('.money-envelope');
-    if (card) { card.innerHTML = envelopeHeading() + envelopeCard(); _wireEnvelope(); }
+    if (card) {
+      card.innerHTML = envelopeHeading() + envelopeCard(); _wireEnvelope();
+      [...card.querySelectorAll('.env-assign')]
+        .find(input => input.dataset.categoryId === categoryId)?.focus();
+      if (!_envelope) card.querySelector('#env-retry')?.focus();
+    }
     return true;
-  } catch { toast('assign failed', 'error'); return false; }
+  } catch (error) {
+    const status = $('env-save-status');
+    if (status) {
+      const stale = error?.message?.includes('changed; reload');
+      status.textContent = stale
+        ? 'assignment changed. reload Finance before saving again.'
+        : 'save not confirmed. keep this amount and retry the same save.';
+      if (!stale) {
+        status.insertAdjacentHTML('beforeend', '<button type="button" class="btn" data-env-retry-save>retry same amount</button>');
+        status.querySelector('[data-env-retry-save]').addEventListener(
+          'click', () => assignEnvelope(category, amount, categoryId, expectedAmount),
+        );
+      }
+    } else toast('assign failed', 'error');
+    return false;
+  } finally { _envAssignmentBusy.delete(key); }
 }
 
 async function retryAgeOfMoney() {
@@ -1231,7 +1263,13 @@ function _wireEnvelope() {
   });
   $('env-retry')?.addEventListener('click', retryEnvelope);
   $('money-body').querySelectorAll('.env-assign').forEach(inp =>
-    inp.addEventListener('change', () => assignEnvelope(inp.dataset.cat, inp.value)));
+    inp.addEventListener('change', () => assignEnvelope(
+      inp.dataset.cat, inp.value, inp.dataset.categoryId, inp.dataset.expected,
+    )));
+  $('money-body').querySelectorAll('[data-env-retry]').forEach(button =>
+    button.addEventListener('click', () => assignEnvelope(
+      '', button.dataset.amount, button.dataset.envRetry, button.dataset.expected,
+    )));
   $('env-assign-btn')?.addEventListener('click', async () => {
     if (!await assignEnvelope($('env-new-cat')?.value, $('env-new-amt')?.value)) return;
     if ($('env-new-cat')) $('env-new-cat').value = '';

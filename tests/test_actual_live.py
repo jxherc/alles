@@ -648,6 +648,63 @@ class ActualLiveGateTests(unittest.TestCase):
                 )
                 self.assertEqual(food["budgeted"], 30000)
                 self.assertIsInstance(food["balance"], int)
+                assigned = managed_actual.bridge_request(
+                    {
+                        "command": "write",
+                        "budget_id": migrated["budget_id"],
+                        "sync_id": migrated["sync_id"],
+                        "action": "set_budget_assignment",
+                        "month": "2026-07",
+                        "category_id": food["id"],
+                        "amount_minor": 25000,
+                    },
+                    timeout=180,
+                )
+                self.assertEqual(assigned["category_id"], food["id"])
+                edited_month = managed_actual.bridge_request(
+                    {
+                        "command": "budget_month",
+                        "month": "2026-07",
+                        "budget_id": migrated["budget_id"],
+                        "sync_id": migrated["sync_id"],
+                    },
+                    timeout=180,
+                )
+                edited_food = next(
+                    category
+                    for group in edited_month["categoryGroups"]
+                    for category in group["categories"]
+                    if category["id"] == food["id"]
+                )
+                self.assertEqual(edited_food["budgeted"], 25000)
+                managed_actual.bridge_request(
+                    {
+                        "command": "write",
+                        "budget_id": migrated["budget_id"],
+                        "sync_id": migrated["sync_id"],
+                        "action": "set_budget_assignment",
+                        "month": "2026-08",
+                        "category_id": food["id"],
+                        "amount_minor": 1234,
+                    },
+                    timeout=180,
+                )
+                next_month = managed_actual.bridge_request(
+                    {
+                        "command": "budget_month",
+                        "month": "2026-08",
+                        "budget_id": migrated["budget_id"],
+                        "sync_id": migrated["sync_id"],
+                    },
+                    timeout=180,
+                )
+                self.assertTrue(
+                    any(
+                        category.get("id") == food["id"] and category.get("budgeted") == 1234
+                        for group in next_month["categoryGroups"]
+                        for category in group["categories"]
+                    )
+                )
                 self.assertEqual(len(actual["accounts"]), 2)
                 self.assertEqual(
                     sum(bool(row.get("starting_balance_flag")) for row in actual["transactions"]),
@@ -771,7 +828,21 @@ class ActualLiveGateTests(unittest.TestCase):
                         == 1
                         and all(restored_transfer)
                         and restored_transfer[0].get("transfer_id") == transfer["to_id"]
-                        and restored_transfer[1].get("transfer_id") == transfer["from_id"],
+                        and restored_transfer[1].get("transfer_id") == transfer["from_id"]
+                        and any(
+                            category.get("id") == food["id"] and category.get("budgeted") == 25000
+                            for month in readback["budget_months"]
+                            if month.get("month") == "2026-07"
+                            for group in month.get("categoryGroups") or []
+                            for category in group.get("categories") or []
+                        )
+                        and any(
+                            category.get("id") == food["id"] and category.get("budgeted") == 1234
+                            for month in readback["budget_months"]
+                            if month.get("month") == "2026-08"
+                            for group in month.get("categoryGroups") or []
+                            for category in group.get("categories") or []
+                        ),
                         "transactions": len(readback["transactions"]),
                     }
 

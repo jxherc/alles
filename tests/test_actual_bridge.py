@@ -127,6 +127,17 @@ class ActualBridgeTests(unittest.TestCase):
         self.assertIn("if (!reconciliationRequired)", create_transfer)
         self.assertEqual(create_transfer.count("await api.deleteTransaction("), 1)
         self.assertIn("reciprocalPairs.length !== 2", create_transfer)
+
+        assignment = source[
+            source.index("if (request.action === 'set_budget_assignment')") : source.index(
+                "if (request.action === 'clear_budget')"
+            )
+        ]
+        self.assertIn("item.id === categoryId && !item.is_income", assignment)
+        self.assertIn(
+            "await api.setBudgetAmount(request.month, categoryId, amountMinor)", assignment
+        )
+        self.assertNotIn("ensureCategory", assignment)
         self.assertIn("Actual transfer reconciliation requires owner review", create_transfer)
         self.assertLess(
             create_transfer.index("if (!importedId)"),
