@@ -61,3 +61,8 @@ The September 27 app-name switcher removes the persistent rail and its border. T
 canonical audit now has 71 nested-boundary warnings rather than 72; small-type stays
 at 120 and there are no hard errors. The digest is refreshed for that removal and the
 shifted source lines. Rendered desktop/phone and settings checks remain separate proof.
+
+The later neutral Settings controls shifted source positions in `static/kokuen.css`.
+Comparing the installed canonical linter's findings before and after that change found
+the same 191 severity/rule/message tuples, with no added or removed warning meanings.
+Only the line-sensitive digest was refreshed; rendered Settings checks remain separate.
