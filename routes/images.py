@@ -5,9 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Message, ModelEndpoint, Photo, Session, get_db
-from routes.photos import _fmt
-from services import photos_store as ps
+from core.database import Message, ModelEndpoint, Session, get_db
+from services.photo_records import format_photo, save_generated_photos
 
 router = APIRouter(prefix="/api/images")
 
@@ -48,30 +47,13 @@ async def generate_image(body: GenBody, db: DbSession = Depends(get_db)):
             502, "the endpoint returned no image (does it support image generation?)"
         )
 
-    saved = []
-    for i, raw in enumerate(imgs):
-        try:
-            info = ps.import_image(raw, f"generated-{i + 1}.png")
-        except ValueError:
-            continue
-        p = Photo(
-            filename=info["filename"],
-            thumb=info["thumb"],
-            original_name=(body.prompt[:60] or "generated") + ".png",
-            caption=body.prompt,
-            source="generated",
-            width=info["width"],
-            height=info["height"],
-            taken_at=info["taken_at"],
-            exif=info["exif"],
-        )
-        db.add(p)
-        db.commit()
-        db.refresh(p)
-        saved.append(_fmt(p))
-    if not saved:
+    try:
+        photos = save_generated_photos(db, imgs, body.prompt)
+    except OSError as exc:
+        raise HTTPException(503, "generated image couldn't be saved; please retry") from exc
+    if not photos:
         raise HTTPException(502, "generated image couldn't be saved")
-    return {"images": saved}
+    return {"images": [format_photo(photo) for photo in photos]}
 
 
 class ChatImageBody(BaseModel):
@@ -127,32 +109,12 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
         )
         return {"content": md, "doc_id": None, "doc_title": title, "images": []}
 
-    saved = []
-    for i, raw in enumerate(imgs):
-        try:
-            info = ps.import_image(raw, f"generated-{i + 1}.png")
-        except Exception:
-            continue  # provider handed back junk/non-image bytes for this one — skip it
-        saved.append(
-            Photo(
-                filename=info["filename"],
-                thumb=info["thumb"],
-                original_name=(body.prompt[:60] or "generated") + ".png",
-                caption=body.prompt,
-                source="generated",
-                width=info["width"],
-                height=info["height"],
-                taken_at=info["taken_at"],
-                exif=info["exif"],
-            )
-        )
+    try:
+        saved = save_generated_photos(db, imgs, body.prompt)
+    except OSError as exc:
+        raise HTTPException(503, "generated image couldn't be saved; please retry") from exc
     if not saved:
         raise HTTPException(502, "generated image couldn't be saved")
-    for p in saved:
-        db.add(p)
-    db.commit()
-    for p in saved:
-        db.refresh(p)
 
     img_md = "\n\n".join(f"![{alt}](/api/photos/original/{p.id})" for p in saved)
 
