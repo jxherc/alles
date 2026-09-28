@@ -321,7 +321,7 @@ function render() {
   }
   b.innerHTML =
     summaryCards() +
-    alertsStrip() +
+    `<div id="money-alerts-content" role="status" tabindex="-1">${alertsStrip()}</div>` +
     `<div class="money-grid">
       <section class="money-card" data-card="accounts"><h3>accounts</h3>${accountsList()}<div id="money-acct-form-wrap"></div>
         <button class="btn money-add-acct" id="money-add-acct">+ account</button></section>
@@ -390,14 +390,35 @@ function wireForecast() {
 }
 
 function alertsStrip() {
-  const a = _alerts; if (!a) return '';
+  const a = _alerts;
+  if (!a) return '<div class="money-alerts money-history-error">couldn\'t load alerts <button type="button" class="btn" id="alerts-retry">retry</button></div>';
   const items = [];
-  (a.upcoming_bills || []).forEach(b => items.push(`<span class="alert-chip bill">📅 ${esc(b.payee)} ${signed(b.amount)} in ${b.days}d</span>`));
+  (a.upcoming_bills || []).forEach(b => {
+    const amount = b.amount == null ? 'amount varies' : `${b.amount_kind === 'approx' ? '≈' : ''}${signed(b.amount)}`;
+    items.push(`<span class="alert-chip bill">📅 ${esc(b.payee)} ${amount} in ${b.days}d</span>`);
+  });
   (a.large_purchases || []).forEach(p => items.push(`<span class="alert-chip big">⚠ large: ${esc(p.payee) || esc(p.category) || '—'} ${signed(p.amount)}</span>`));
   (a.watch_hits || []).forEach(w => items.push(`<span class="alert-chip watch">👁 ${esc(w.watch)}: ${esc(w.payee) || '—'} ${signed(w.amount)}</span>`));
   (a.low_balance || []).forEach(l => items.push(`<span class="alert-chip big">🔻 ${esc(l.name)} low: ${fmt(l.balance)} < ${fmt(l.threshold)}</span>`));
   if (!items.length) return '';
   return `<div class="money-alerts">${items.join('')}</div>`;
+}
+
+async function retryAlerts() {
+  const button = $('alerts-retry');
+  button.disabled = true;
+  button.textContent = 'retrying…';
+  try { _alerts = await api(`/api/money/alerts?month=${_month}`); }
+  catch { _alerts = null; }
+  const content = $('money-alerts-content');
+  if (!content) return;
+  content.innerHTML = alertsStrip() || '<div class="money-empty-sm">no alerts right now</div>';
+  wireAlerts();
+  (_alerts ? content : $('alerts-retry'))?.focus();
+}
+
+function wireAlerts() {
+  $('alerts-retry')?.addEventListener('click', retryAlerts);
 }
 
 function networthCard() {
@@ -789,6 +810,7 @@ function wire() {
   $('money-body').querySelectorAll('[data-del-goal]').forEach(b => b.addEventListener('click', () => delGoal(b.dataset.delGoal)));
   $('rp-run')?.addEventListener('click', runReport);
   wireForecast();
+  wireAlerts();
   wireNetworthHistory();
   _decorateCards();
   $('tx-transfer-toggle')?.addEventListener('click', () => {
