@@ -261,6 +261,60 @@ def run():
                     page.locator("#read-q").fill("")
                 expect(page.locator(".legacy-load-note")).to_have_count(0)
                 passed()
+                begin("library.read-selection")
+                filters = page.locator('.read-filter-choices [role="radio"]')
+                feeds = page.locator("#read-feeds-btn")
+                expect(filters.first).to_have_attribute("aria-checked", "true")
+                filters.nth(3).click()
+                expect(filters.nth(3)).to_have_attribute("aria-checked", "true")
+                feeds.click()
+                expect(feeds).to_have_attribute("aria-pressed", "true")
+                expect(filters.nth(3)).to_have_attribute("aria-checked", "true")
+                visual = page.evaluate("""() => {
+                    const radio = document.querySelector('.read-filter-choices [role="radio"][aria-checked="true"]');
+                    const feeds = document.querySelector('#read-feeds-btn');
+                    const token = name => {
+                        const probe = document.createElement('span');
+                        probe.style.color = `var(${name})`;
+                        radio.parentElement.append(probe);
+                        const color = getComputedStyle(probe).color;
+                        probe.remove();
+                        return color;
+                    };
+                    const style = node => {
+                        const value = getComputedStyle(node);
+                        return {color: value.color, background: value.backgroundColor,
+                                border: value.borderTopColor};
+                    };
+                    return {radio: style(radio), feeds: style(feeds),
+                            text: token('--k-text'), raised: token('--k-raised'),
+                            line: token('--k-line-strong'), accent: token('--k-accent')};
+                }""")
+                for name in ("radio", "feeds"):
+                    assert visual[name]["color"] == visual["text"], visual
+                    assert visual[name]["background"] == visual["raised"], visual
+                    assert visual[name]["border"] == visual["line"], visual
+                    assert visual[name]["border"] != visual["accent"], visual
+                for control in (filters.nth(3), feeds):
+                    box = control.bounding_box()
+                    assert box and box["width"] >= 44 and box["height"] >= 44, box
+                shot("read-feeds-selected")
+                feeds.focus()
+                feeds.press("Enter")
+                expect(feeds).to_have_attribute("aria-pressed", "false")
+                expect(filters.nth(3)).to_have_attribute("aria-checked", "true")
+                if profile == "desktop":
+                    page.evaluate("document.documentElement.style.zoom = '2'")
+                    assert page.evaluate(
+                        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+                    )
+                    expect(filters.nth(3)).to_be_visible()
+                    expect(feeds).to_be_visible()
+                    page.evaluate("document.documentElement.style.zoom = ''")
+                filters.first.click()
+                expect(filters.first).to_have_attribute("aria-checked", "true")
+                shot("read-selection")
+                passed()
                 begin("library.saved-url-recovery")
                 save_url = f"http://127.0.0.1:1/library-{profile}"
                 page.locator("#read-url").fill(save_url)
@@ -372,6 +426,28 @@ def run():
                     ).first
                 ).to_be_visible()
                 shot("saved-news-source-label")
+                passed()
+                begin("library.read-tag-selection")
+                page.get_by_role("tab", name="saved", exact=True).click()
+                page.locator(f'.read-card[data-id="{item["id"]}"] .read-tag').first.click()
+                active_tag = page.locator(".read-tagfilter .read-tag.active")
+                expect(active_tag).to_be_visible()
+                assert active_tag.evaluate(
+                    "node => getComputedStyle(node).color"
+                ) == active_tag.evaluate(
+                    """node => {
+                        const probe = document.createElement('span');
+                        probe.style.color = 'var(--k-text)';
+                        node.parentElement.append(probe);
+                        const color = getComputedStyle(probe).color;
+                        probe.remove();
+                        return color;
+                    }"""
+                )
+                shot("read-tag-selected")
+                page.locator("#read-tag-clear").click()
+                expect(active_tag).to_have_count(0)
+                page.get_by_role("tab", name="overview", exact=True).click()
                 passed()
                 begin("library.overview-opens-book")
                 keyboard_reach(f'.specialist-library-row[aria-label="open book: {title}"]')
