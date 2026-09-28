@@ -52442,6 +52442,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 131
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 155
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_token_glyph.py",
                 "kind": "existing-test-control-reference",
                 "line": 132
@@ -52875,6 +52887,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 131
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 155
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_token_glyph.py",
                 "kind": "existing-test-control-reference",
                 "line": 132
@@ -53305,6 +53329,18 @@
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
                 "line": 387
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 131
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 155
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -55530,6 +55566,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 156
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase4_aide_andromeda.py",
                 "kind": "existing-test-control-reference",
                 "line": 422
@@ -55634,6 +55676,12 @@
                 "file": "tests/pw_aide_continuity.py",
                 "kind": "existing-test-control-reference",
                 "line": 311
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 156
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -55747,6 +55795,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 156
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_phase4_aide_andromeda.py",
                 "kind": "existing-test-control-reference",
                 "line": 422
@@ -55854,6 +55908,12 @@
                 "file": "tests/pw_aide_continuity.py",
                 "kind": "existing-test-control-reference",
                 "line": 311
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_image_retry.py",
+                "kind": "existing-test-control-reference",
+                "line": 156
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -133813,6 +133873,164 @@
           "line": 773
         },
         "source_selector": "static/js/chat.js:773:17",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "retry image",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/chat.js",
+              "kind": "control-source",
+              "line": 933
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/chat.js:884 _sendImage"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/chat.js",
+              "kind": "control-source",
+              "line": 933
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/chat.js:884 _sendImage"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "aide.conversation-and-execution",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/chat.js:884 _sendImage"
+      },
+      "id": "dynamic.4b57c89cc32b",
+      "kind": "action",
+      "label": {
+        "source": "text",
+        "value": "retry image"
+      },
+      "path": {
+        "api": [
+          "source-local:/api/images/chat"
+        ],
+        "client_functions": [
+          "static/js/chat.js:884 _sendImage"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "source-template may render zero to many instances",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/chat.js",
+          "line": 933
+        },
+        "source_selector": "static/js/chat.js:933:18",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -250914,19 +251132,19 @@
   "summary": {
     "activation_path_evidence": {
       "external-blocked": 3,
-      "source-only": 2088,
+      "source-only": 2090,
       "test-linked-unclassified": 629
     },
-    "activation_paths": 2720,
-    "controls": 1607,
-    "dynamic_templates": 928,
+    "activation_paths": 2722,
+    "controls": 1608,
+    "dynamic_templates": 929,
     "event_listener_types": {
       "abort": 1,
       "animationend": 1,
       "beforeunload": 4,
       "blur": 9,
       "change": 52,
-      "click": 781,
+      "click": 782,
       "close": 1,
       "contextmenu": 2,
       "controllerchange": 1,
@@ -250966,9 +251184,9 @@
       "wheel": 1
     },
     "flags": {
-      "anonymous-source-anchor": 826,
+      "anonymous-source-anchor": 827,
       "cross-feature-owner": 63,
-      "dynamic-template": 928,
+      "dynamic-template": 929,
       "inline-handler": 24,
       "unknown-label": 80
     },
