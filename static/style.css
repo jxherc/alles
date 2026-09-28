@@ -4946,6 +4946,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 
 /* 4c — forecast, net worth, holdings, alerts, dashboard */
 .money-alerts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
+#money-alerts-content:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .alert-chip { font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 4px; border: 1px solid var(--faint); }
 .alert-chip.bill { color: var(--accent); }
 .alert-chip.big { color: var(--error); border-color: var(--error); }

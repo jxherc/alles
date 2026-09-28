@@ -74,6 +74,18 @@ def run():
                     console_errors.append(message.text) if message.type == "error" else None
                 ),
             )
+
+            def use_light_theme_on_phone():
+                if profile != "phone":
+                    return
+                page.evaluate(
+                    """async () => {
+                      const { applyAppearance, PRESETS } = await import('/static/js/theme.js');
+                      applyAppearance({ preset: 'light', colors: PRESETS.light.colors });
+                    }"""
+                )
+                expect(page.locator("html")).to_have_attribute("data-theme", "light")
+
             page.goto(finance, wait_until="networkidle")
             money_tab = page.locator('#finance-tabs [data-group-section="money"]')
             if money_tab.get_attribute("aria-selected") != "true":
@@ -86,14 +98,7 @@ def run():
             expect(recurring_card).to_contain_text("test rent")
             expect(recurring_card.locator("#rc-add")).to_be_visible()
             expect(recurring_card.locator("[data-toggle-rec]")).to_have_count(1)
-            if profile == "phone":
-                page.evaluate(
-                    """async () => {
-                      const { applyAppearance, PRESETS } = await import('/static/js/theme.js');
-                      applyAppearance({ preset: 'light', colors: PRESETS.light.colors });
-                    }"""
-                )
-                expect(page.locator("html")).to_have_attribute("data-theme", "light")
+            use_light_theme_on_phone()
             card.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-history-{profile}.png"))
 
@@ -113,14 +118,7 @@ def run():
 
             page.route("**/api/money/networth-history?*", history)
             page.reload(wait_until="networkidle")
-            if profile == "phone":
-                page.evaluate(
-                    """async () => {
-                      const { applyAppearance, PRESETS } = await import('/static/js/theme.js');
-                      applyAppearance({ preset: 'light', colors: PRESETS.light.colors });
-                    }"""
-                )
-                expect(page.locator("html")).to_have_attribute("data-theme", "light")
+            use_light_theme_on_phone()
             card = page.locator('.money-card[data-card="networth"]')
             retry = card.get_by_role("button", name="retry", exact=True)
             expect(retry).to_be_visible()
@@ -303,6 +301,120 @@ def run():
             recurring_card = page.locator('.money-card[data-card="recurring"]')
             expect(recurring_card).to_contain_text("no auto-post schedules in Actual")
             expect(recurring_card.locator("#rc-add")).to_have_count(0)
+
+            alert_failures = 2
+            alerts_empty = False
+            current_alerts = {
+                "upcoming_bills": [
+                    {
+                        "id": "variable-bill",
+                        "payee": "variable utilities",
+                        "amount": None,
+                        "amount_kind": "range",
+                        "days": 2,
+                    },
+                    {
+                        "id": "approx-bill",
+                        "payee": "approximate rent",
+                        "amount": -50,
+                        "amount_kind": "approx",
+                        "days": 3,
+                    },
+                ],
+                "large_purchases": [
+                    {"id": "actual-purchase", "payee": "current market", "amount": -250}
+                ],
+                "watch_hits": [
+                    {
+                        "id": "actual-purchase",
+                        "watch": "groceries",
+                        "payee": "current market",
+                        "amount": -250,
+                    }
+                ],
+                "low_balance": [
+                    {
+                        "id": "actual-account",
+                        "name": "current checking",
+                        "balance": 5,
+                        "threshold": 80,
+                    }
+                ],
+            }
+
+            def canonical_alerts(route):
+                nonlocal alert_failures, alerts_empty
+                if alert_failures:
+                    alert_failures -= 1
+                    route.fulfill(
+                        status=503,
+                        body='{"detail":"Actual alerts unavailable"}',
+                        content_type="application/json",
+                    )
+                else:
+                    payload = (
+                        {key: [] for key in current_alerts} if alerts_empty else current_alerts
+                    )
+                    route.fulfill(
+                        status=200,
+                        body=json.dumps(payload),
+                        content_type="application/json",
+                    )
+
+            page.route("**/api/money/alerts?*", canonical_alerts)
+            page.reload(wait_until="networkidle")
+            use_light_theme_on_phone()
+            alert_content = page.locator("#money-alerts-content")
+            alert_retry = alert_content.get_by_role("button", name="retry", exact=True)
+            expect(alert_retry).to_be_visible()
+            expect(alert_content).to_contain_text("couldn't load alerts")
+            expect(alert_content).not_to_contain_text("no alerts right now")
+            assert alert_retry.bounding_box()["height"] >= 44
+            alert_content.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-alerts-unavailable-{profile}.png"))
+            if profile == "phone":
+                alert_retry.tap()
+            else:
+                alert_retry.click()
+            alert_retry = alert_content.get_by_role("button", name="retry", exact=True)
+            expect(alert_retry).to_be_focused()
+            if profile == "phone":
+                alert_retry.tap()
+            else:
+                alert_retry.press("Enter")
+            expect(alert_content).to_contain_text("variable utilities amount varies")
+            expect(alert_content).to_contain_text("approximate rent ≈")
+            expect(alert_content).to_contain_text("current market")
+            expect(alert_content).to_contain_text("current checking low")
+            expect(alert_content).to_be_focused()
+            assert alert_content.evaluate(
+                "element => element.scrollWidth <= element.clientWidth + 1"
+            )
+            if profile == "desktop":
+                page.evaluate("document.documentElement.style.zoom = '2'")
+                assert alert_content.evaluate(
+                    "element => element.scrollWidth <= element.clientWidth + 1"
+                )
+                page.evaluate("document.documentElement.style.zoom = '1'")
+            alert_content.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-alerts-current-{profile}.png"))
+
+            alerts_empty = True
+            alert_failures = 1
+            page.reload(wait_until="networkidle")
+            use_light_theme_on_phone()
+            alert_content = page.locator("#money-alerts-content")
+            alert_retry = alert_content.get_by_role("button", name="retry", exact=True)
+            if profile == "phone":
+                alert_retry.tap()
+            else:
+                alert_retry.click()
+            expect(alert_content).to_contain_text("no alerts right now")
+            expect(alert_content).to_be_focused()
+            alert_content.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-alerts-empty-{profile}.png"))
+            page.reload(wait_until="networkidle")
+            expect(page.locator("#money-alerts-content")).to_be_empty()
             if profile == "desktop":
                 page.evaluate("document.documentElement.style.zoom = '2'")
                 assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
@@ -310,6 +422,9 @@ def run():
                     "element => element.scrollWidth <= element.clientWidth + 1"
                 )
                 assert recurring_card.evaluate(
+                    "element => element.scrollWidth <= element.clientWidth + 1"
+                )
+                assert page.locator("#money-alerts-content").evaluate(
                     "element => element.scrollWidth <= element.clientWidth + 1"
                 )
             assert failures == 0
@@ -324,6 +439,7 @@ def run():
                     "outage_retry": True,
                     "forecast_outage_retry": True,
                     "recurring_canonical_read_and_retry": True,
+                    "alerts_canonical_read_and_retry": True,
                     "keyboard_or_touch": True,
                     "reduced_motion": True,
                     "console_errors": console_errors,

@@ -278,6 +278,9 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   subscription schedules. a failed read shows retry rather than an empty list. schedule changes
   in Finance remain unavailable after cutover until canonical writes can preserve the old
   category/notes behavior and recover safely from uncertain provider results
+- Money alerts use the active ledger for large purchases, watched transactions, upcoming bills,
+  and low account balances. after cutover, they read one Actual snapshot plus local watches;
+  variable bill amounts are not shown as zero, and a failed read offers retry instead of hiding alerts
 - Aide's Finance account, transaction, and spending-read tools follow the active ledger; if Actual
   cannot be read after cutover, they return an error instead of quoting old balances or charges
 - the unified transaction JSON/CSV download also reads the active ledger, and fails if it cannot

@@ -1808,62 +1808,117 @@ def delete_watch(wid: str, db: DbSession = Depends(get_db)):
 
 @router.get("/alerts")
 def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession = Depends(get_db)):
-    _require_actual_backed_analytics(db, "Finance alerts")
     if not month:
         month = date.today().strftime("%Y-%m")
     try:
         as_of_d = date.fromisoformat(as_of) if as_of else date.today()
     except ValueError:
         as_of_d = date.today()
+    if actual_finance.is_canonical(db):
+        try:
+            actual = actual_finance.inspect(db)
+            transactions = actual_finance.transactions(db, actual=actual)
+            schedules = actual_finance.recurring_schedules(db, actual=actual)
+            accounts = actual_finance.accounts(db, actual=actual)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+    else:
+        balances = _balances(db)
+        transactions = [
+            {
+                "id": row.id,
+                "date": row.date,
+                "transfer_id": row.transfer_id,
+                "amount": row.amount,
+                "payee": row.payee,
+                "category": row.category,
+            }
+            for row in db.query(Transaction).filter(Transaction.date.like(f"{month}%")).all()
+        ]
+        schedules = [
+            {
+                "id": row.id,
+                "payee": row.payee,
+                "category": row.category,
+                "amount": row.amount,
+                "next_date": row.next_date,
+                "active": row.active,
+            }
+            for row in db.query(RecurringTxn).filter(RecurringTxn.active == True).all()  # noqa: E712
+        ]
+        accounts = [
+            {
+                "id": row.id,
+                "name": row.name,
+                "archived": row.archived,
+                "low_balance": row.low_balance,
+                "balance": (row.opening or 0.0) + balances.get(row.id, 0.0),
+            }
+            for row in db.query(Account).all()
+        ]
     watches = db.query(Watch).all()
     large, watch_hits = [], []
-    for t in db.query(Transaction).filter(Transaction.date.like(f"{month}%")).all():
-        if t.transfer_id:
+    for txn in transactions:
+        if (txn.get("date") or "")[:7] != month or txn.get("transfer_id"):
             continue
-        amt = t.amount or 0.0
+        amt = txn.get("amount") or 0.0
         if amt < 0 and abs(amt) >= big:
             large.append(
                 {
-                    "id": t.id,
-                    "payee": t.payee,
+                    "id": txn["id"],
+                    "payee": txn.get("payee"),
                     "amount": amt,
-                    "date": t.date,
-                    "category": t.category,
+                    "date": txn.get("date"),
+                    "category": txn.get("category"),
                 }
             )
         for w in watches:
-            hay = (t.category if w.kind == "category" else t.payee) or ""
+            hay = (txn.get("category") if w.kind == "category" else txn.get("payee")) or ""
             if w.value and w.value.lower() in hay.lower():
                 watch_hits.append(
-                    {"id": t.id, "payee": t.payee, "amount": amt, "date": t.date, "watch": w.value}
+                    {
+                        "id": txn["id"],
+                        "payee": txn.get("payee"),
+                        "amount": amt,
+                        "date": txn.get("date"),
+                        "watch": w.value,
+                    }
                 )
                 break
     upcoming = []
-    for r in db.query(RecurringTxn).filter(RecurringTxn.active == True).all():  # noqa: E712
+    for schedule in schedules:
+        if not schedule.get("active"):
+            continue
         try:
-            d = date.fromisoformat(r.next_date)
+            d = date.fromisoformat(schedule.get("next_date") or "")
         except (ValueError, TypeError):
             continue
         days = (d - as_of_d).days
         if 0 <= days <= 7:
             upcoming.append(
                 {
-                    "id": r.id,
-                    "payee": r.payee or r.category or "bill",
-                    "amount": r.amount,
-                    "date": r.next_date,
+                    "id": schedule["id"],
+                    "payee": schedule.get("payee") or schedule.get("category") or "bill",
+                    "amount": schedule.get("amount"),
+                    "amount_kind": schedule.get("amount_kind", "exact"),
+                    "date": schedule["next_date"],
                     "days": days,
                 }
             )
     low_balance = []
-    bal = _balances(db)
-    for a in db.query(Account).all():
-        if a.archived or not (a.low_balance and a.low_balance > 0):
+    for account in accounts:
+        threshold = account.get("low_balance") or 0.0
+        if account.get("archived") or threshold <= 0:
             continue
-        cur = round((a.opening or 0.0) + bal.get(a.id, 0.0), 2)
-        if cur < a.low_balance:
+        current = round(account.get("balance") or 0.0, 2)
+        if current < threshold:
             low_balance.append(
-                {"id": a.id, "name": a.name, "balance": cur, "threshold": a.low_balance}
+                {
+                    "id": account["id"],
+                    "name": account["name"],
+                    "balance": current,
+                    "threshold": threshold,
+                }
             )
     return {
         "large_purchases": large,
