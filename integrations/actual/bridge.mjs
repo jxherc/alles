@@ -75,6 +75,11 @@ const SAFE_BRIDGE_ERRORS = new Set([
   'Actual recurring repair posting state changed; review it first',
   'Actual recurring repair did not preserve the schedule',
   'Actual recurring repair posting rule did not verify',
+  'Actual recurring posting requires one existing schedule',
+  'Actual recurring posting schedule changed; review it first',
+  'Actual recurring posting rule changed; review it first',
+  'Actual recurring posting state changed; review it first',
+  'Actual recurring posting did not preserve the schedule',
 ]);
 const PRIVATE_REQUEST_KEY_FRAGMENTS = [
   'password', 'token', 'secret', 'authorization', 'server_url', 'data_dir',
@@ -317,6 +322,59 @@ async function repairSchedulePosting(request) {
     throw new Error('Actual recurring repair posting rule did not verify');
   }
   return { id, posts_transaction: after.posts_transaction, posting: afterPosting };
+}
+
+async function setSchedulePosting(request) {
+  const id = String(request.actual_id || '').trim();
+  const target = request.active;
+  const previous = request.previous_posts_transaction;
+  if (typeof target !== 'boolean' || typeof previous !== 'boolean') {
+    throw new Error('Actual recurring posting state changed; review it first');
+  }
+  const matches = (await api.getSchedules()).filter(row => row.id === id);
+  if (matches.length !== 1) throw new Error('Actual recurring posting requires one existing schedule');
+  const schedule = matches[0];
+  const expected = request.expected_schedule || {};
+  if (schedule.completed || !schedule.account || schedule.name !== expected.name
+    || schedule.account !== expected.account || schedule.payee !== expected.payee
+    || schedule.amount !== expected.amount || schedule.amountOp !== expected.amountOp
+    || schedule.rule !== expected.rule
+    || JSON.stringify(schedule.date) !== JSON.stringify(expected.date)) {
+    throw new Error('Actual recurring posting schedule changed; review it first');
+  }
+  const categoryId = String(request.category_id || '').trim();
+  const notes = String(request.notes || '');
+  const rule = (await api.getRules()).find(row => row.id === schedule.rule);
+  const posting = schedulePosting(schedule, rule);
+  if (!posting.guarded || posting.category !== (categoryId || null) || posting.notes !== notes) {
+    throw new Error('Actual recurring posting rule changed; review it first');
+  }
+  if (categoryId) {
+    const categories = (await api.getCategories()).filter(row => row.id === categoryId && !row.is_income);
+    if (categories.length !== 1) throw new Error('Actual recurring posting rule changed; review it first');
+  }
+  if (typeof schedule.posts_transaction !== 'boolean'
+    || (!request.allow_retry && schedule.posts_transaction !== previous)
+    || (request.allow_retry && ![previous, target].includes(schedule.posts_transaction))) {
+    throw new Error('Actual recurring posting state changed; review it first');
+  }
+  const nextDate = schedule.next_date;
+  if (schedule.posts_transaction !== target) {
+    await api.updateSchedule(id, { posts_transaction: target });
+    await api.sync();
+  }
+  const after = (await api.getSchedules()).find(row => row.id === id);
+  const afterRule = (await api.getRules()).find(row => row.id === after?.rule);
+  const afterPosting = after && schedulePosting(after, afterRule);
+  if (!after || after.posts_transaction !== target || after.next_date !== nextDate
+    || after.rule !== schedule.rule || JSON.stringify(after.date) !== JSON.stringify(schedule.date)) {
+    throw new Error('Actual recurring posting did not preserve the schedule');
+  }
+  if (!afterPosting?.guarded || afterPosting.category !== (categoryId || null)
+    || afterPosting.notes !== notes) {
+    throw new Error('Actual recurring posting rule changed; review it first');
+  }
+  return { id, posts_transaction: after.posts_transaction };
 }
 
 async function configureSchedulePosting(scheduleId, categoryId, notes) {
@@ -950,6 +1008,7 @@ async function write(request) {
     return { month: request.month, category_id: categoryId, amount_minor: amountMinor };
   }
   if (request.action === 'repair_recurring_schedule') return repairSchedulePosting(request);
+  if (request.action === 'set_recurring_posting') return setSchedulePosting(request);
   if (request.action === 'clear_budget') {
     const categoryId = String(request.category_id || '').trim();
     if (!categoryId) throw new Error('Actual budget category id is required');
@@ -973,7 +1032,7 @@ async function write(request) {
 }
 
 async function handle(request) {
-  if (request.command === 'capabilities') return { repair_recurring_schedule: 1 };
+  if (request.command === 'capabilities') return { repair_recurring_schedule: 1, set_recurring_posting: 1 };
   if (request.command === 'versions') return {
     api: packageVersion('@actual-app/api'),
     cli: packageVersion('@actual-app/cli'),

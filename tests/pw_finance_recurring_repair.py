@@ -53,7 +53,16 @@ def run() -> None:
                 reduced_motion="reduce",
                 service_workers="block",
             )
-            state = {"phase": "needed", "lose_next": False, "posts": [], "errors": []}
+            state = {
+                "phase": "needed",
+                "lose_next": False,
+                "posts": [],
+                "posting_active": True,
+                "posting_pending": False,
+                "lose_posting_next": False,
+                "toggles": [],
+                "errors": [],
+            }
             page = context.new_page()
             page.on("pageerror", lambda error: state["errors"].append(str(error)))
             page.on(
@@ -76,14 +85,34 @@ def run() -> None:
                         "notes": "lease",
                         "cycle": "monthly",
                         "next_date": "2026-10-01",
-                        "active": state["phase"] != "pending",
+                        "active": state["posting_active"] and state["phase"] != "pending",
                         "repair_needed": state["phase"] != "repaired",
                         "repair_pending": state["phase"] == "pending",
                         "repair_category_id": "housing-id" if state["phase"] == "pending" else "",
+                        "manageable": state["phase"] == "repaired",
+                        "posting_pending": state["posting_pending"],
+                        "posting_target_active": False if state["posting_pending"] else None,
                     }
                     route.fulfill(
                         status=200, content_type="application/json", body=json.dumps([row])
                     )
+                elif path == "/api/money/recurring/old-rent" and route.request.method == "PATCH":
+                    body = route.request.post_data_json
+                    state["toggles"].append(body)
+                    state["posting_active"] = body["active"]
+                    if state["lose_posting_next"]:
+                        state["lose_posting_next"] = False
+                        state["posting_pending"] = True
+                        route.fulfill(
+                            status=503,
+                            content_type="application/json",
+                            body='{"detail":"response lost after Actual changed posting"}',
+                        )
+                    else:
+                        state["posting_pending"] = False
+                        route.fulfill(
+                            status=200, content_type="application/json", body='{"id":"old-rent"}'
+                        )
                 elif path == "/api/money/recurring/old-rent/repair":
                     body = route.request.post_data_json
                     state["posts"].append(body)
@@ -182,8 +211,25 @@ def run() -> None:
             page.get_by_role("button", name="retry repair").click()
             expect(page.get_by_role("button", name="retry repair")).to_have_count(0)
             assert state["posts"] == [{"category_id": "housing-id"}] * 3
+            pause = page.get_by_role("button", name="pause", exact=True)
+            expect(pause).to_be_visible()
+            assert pause.evaluate("element => element.getBoundingClientRect().height") >= 44
+            state["lose_posting_next"] = True
+            pause.focus()
+            page.keyboard.press("Enter")
+            expect(page.get_by_role("button", name="retry pause")).to_be_focused()
+            expect(page.locator(".money-recurring-error")).to_contain_text("pause not confirmed")
+            page.screenshot(
+                path=str(output / f"recurring-pause-{profile}-pending.png"), full_page=True
+            )
+            page.reload(wait_until="networkidle")
+            page.get_by_role("button", name="retry pause").click()
+            expect(page.get_by_role("button", name="resume", exact=True)).to_be_focused()
+            page.get_by_role("button", name="resume", exact=True).click()
+            expect(page.get_by_role("button", name="pause", exact=True)).to_be_visible()
+            assert state["toggles"] == [{"active": False}, {"active": False}, {"active": True}]
             expected_503 = "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
-            assert state["errors"] in ([], [expected_503]), state["errors"]
+            assert all(error == expected_503 for error in state["errors"]), state["errors"]
             card = page.locator('.money-card[data-card="recurring"]')
             assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
             page.screenshot(

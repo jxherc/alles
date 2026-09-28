@@ -65,6 +65,35 @@ test('old Actual schedule repair chooses a category once and retries the saved c
   assert.equal(calls[1].options.body.category_id, 'housing-id');
 });
 
+test('canonical recurring pause retries only the saved provider posting choice', async () => {
+  const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+  const calls = [];
+  const context = vm.createContext({
+    location: { search: '' }, URLSearchParams,
+    api: async (path, options) => { calls.push({ path, options }); return {}; },
+    toast: () => {},
+  });
+  vm.runInContext(source + `
+    _canonicalLedger = true;
+    _recurring = [
+      { id: 'linked', payee: 'rent', active: true, manageable: true },
+      { id: 'native', payee: 'native', active: true, manageable: false },
+    ];
+    retryRecurring = async () => {};
+    globalThis.toggle = toggleRecurring;
+  `, context);
+  await context.toggle({ dataset: { toggleRec: 'native' }, disabled: false });
+  assert.equal(calls.length, 0);
+  await context.toggle({ dataset: { toggleRec: 'linked' }, disabled: false, textContent: '' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, '/api/money/recurring/linked');
+  assert.equal(calls[0].options.body.active, false);
+  vm.runInContext('_recurring[0].active = false; _recurring[0].posting_pending = true; _recurring[0].posting_target_active = false;', context);
+  await context.toggle({ dataset: { toggleRec: 'linked' }, disabled: false, textContent: '' });
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].options.body.active, false);
+});
+
 test('finance dialogs, rows, and destructive actions expose complete interaction boundaries', () => {
   assert.match(moneySource, /createFocusBoundary\(dialog/);
   assert.match(moneySource, /requestWithRecentOwner\(fetch, path, init\)/);

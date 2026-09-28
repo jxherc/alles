@@ -1492,8 +1492,10 @@ def _restored_schedule_matches(
     )
 
 
-def schedule_repair_baseline(db: Session, link: ActualEntityLink, actual: dict) -> dict:
-    """Reject repair when an old linked schedule or its source evidence changed."""
+def schedule_repair_baseline(
+    db: Session, link: ActualEntityLink, actual: dict, *, allow_overlay: bool = False
+) -> dict:
+    """Reject a linked schedule whose migration identity or source evidence changed."""
     run = db.get(ActualMigrationRun, link.run_id)
     if not run or run.status != "canonical":
         raise ActualMigrationError("the canonical schedule migration snapshot is missing")
@@ -1513,6 +1515,8 @@ def schedule_repair_baseline(db: Session, link: ActualEntityLink, actual: dict) 
     if not isinstance(metadata, dict):
         raise ActualMigrationError("the canonical schedule link is unreadable")
     metadata.pop("_update_intent", None)
+    if allow_overlay:
+        metadata.pop("canonical_schedule", None)
     if metadata != (expected.get("metadata") or {}):
         raise ActualMigrationError("the canonical schedule link changed since cutover")
     rows = [row for row in actual.get("schedules") or [] if row.get("id") == link.actual_id]

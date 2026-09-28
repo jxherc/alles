@@ -319,6 +319,37 @@ class ActualScheduleProbeTests(unittest.TestCase):
                 self.assertEqual(selected["next_date"], setup["next_date"])
                 self.assertEqual(selected["posting"]["category"], setup["category"])
                 self.assertEqual(selected["posting"]["notes"], "repaired note")
+                toggle = {
+                    "command": "write",
+                    "action": "set_recurring_posting",
+                    "budget_id": created["budget_id"],
+                    "actual_id": setup["id"],
+                    "category_id": setup["category"],
+                    "notes": "repaired note",
+                    "expected_schedule": {**setup["expected_schedule"], "rule": selected["rule"]},
+                    "previous_posts_transaction": True,
+                    "active": False,
+                }
+                paused = managed_actual.bridge_request(toggle, timeout=180)
+                self.assertFalse(paused["posts_transaction"])
+                with self.assertRaisesRegex(managed_actual.ManagedActualError, "state changed"):
+                    managed_actual.bridge_request(toggle, timeout=180)
+                paused_retry = managed_actual.bridge_request(
+                    {**toggle, "allow_retry": True}, timeout=180
+                )
+                self.assertFalse(paused_retry["posts_transaction"])
+                resumed = managed_actual.bridge_request(
+                    {**toggle, "previous_posts_transaction": False, "active": True},
+                    timeout=180,
+                )
+                self.assertTrue(resumed["posts_transaction"])
+                toggled = managed_actual.bridge_request(
+                    {"command": "inspect", "budget_id": created["budget_id"]}, timeout=180
+                )
+                self.assertEqual(len(toggled["schedules"]), len(before["schedules"]))
+                selected = next(row for row in toggled["schedules"] if row["id"] == setup["id"])
+                self.assertEqual(selected["next_date"], setup["next_date"])
+                self.assertTrue(selected["posting"]["guarded"])
                 changed = subprocess.run(
                     ["node", "--input-type=module", "-e", _EDIT_REPAIRED_RULE],
                     input=json.dumps(
@@ -348,6 +379,10 @@ class ActualScheduleProbeTests(unittest.TestCase):
                     managed_actual.bridge_request(
                         {**request, "allow_paused_retry": True}, timeout=180
                     )
+                with self.assertRaisesRegex(
+                    managed_actual.ManagedActualError, "posting rule changed"
+                ):
+                    managed_actual.bridge_request(toggle, timeout=180)
         finally:
             if old_data is None:
                 os.environ.pop("ALLES_DATA", None)
