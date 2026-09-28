@@ -164,7 +164,9 @@ class ManagedActualTests(unittest.TestCase):
     def test_install_candidate_removes_npm_executable_links_after_scripts_run(self):
         destination = Path(self.tmp.name) / "candidate"
 
-        def install(_command, **_kwargs):
+        def install(command, **_kwargs):
+            if command[0] != "npm":
+                return mock.Mock(returncode=0)
             executable_links = destination / "node_modules" / ".bin"
             executable_links.mkdir(parents=True)
             (destination / "node_modules" / "tool.js").write_text("tool", encoding="utf-8")
@@ -184,9 +186,25 @@ class ManagedActualTests(unittest.TestCase):
                 runner=runner,
                 bridge_call=lambda *_a, **_k: versions,
             )
-        self.assertNotIn("--no-bin-links", runner.call_args.args[0])
+        self.assertNotIn("--no-bin-links", runner.call_args_list[0].args[0])
+        self.assertEqual(runner.call_args_list[1].args[0][0], "node")
         self.assertFalse((destination / "node_modules" / ".bin").exists())
         self.assertEqual(list(path for path in destination.rglob("*") if path.is_symlink()), [])
+
+    def test_install_candidate_rejects_missing_native_dependencies(self):
+        destination = Path(self.tmp.name) / "candidate"
+        versions = mock.Mock()
+
+        def install(command, **_kwargs):
+            return mock.Mock(returncode=0 if command[0] == "npm" else 1)
+
+        with self.assertRaisesRegex(managed_actual.ManagedActualError, "native dependencies"):
+            managed_actual._install_candidate(
+                destination,
+                runner=install,
+                bridge_call=versions,
+            )
+        versions.assert_not_called()
 
     def test_install_candidate_rejects_symlinks_outside_npm_bin_directories(self):
         destination = Path(self.tmp.name) / "candidate"
