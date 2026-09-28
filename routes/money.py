@@ -1475,7 +1475,17 @@ def envelope(month: str = "", db: DbSession = Depends(get_db)):
 @router.get("/age-of-money")
 def age_of_money(db: DbSession = Depends(get_db)):
     """FIFO-match income to spending; amount-weighted average age (days) of recent spending."""
-    _require_actual_backed_analytics(db, "age of money")
+    if actual_finance.is_canonical(db):
+        try:
+            actual = actual_finance.inspect(db)
+            transactions = actual_finance.transactions(db, actual=actual)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+    else:
+        transactions = [
+            {"date": row.date, "amount": row.amount, "transfer_id": row.transfer_id}
+            for row in db.query(Transaction).all()
+        ]
 
     def _d(s):
         try:
@@ -1484,12 +1494,14 @@ def age_of_money(db: DbSession = Depends(get_db)):
             return None
 
     # skip txns with a junk date so one bad import row can't 500 the whole endpoint
-    txns = [t for t in db.query(Transaction).all() if not t.transfer_id and _d(t.date)]
+    txns = [t for t in transactions if not t.get("transfer_id") and _d(t.get("date"))]
     incomes = sorted(
-        ([t.date, t.amount] for t in txns if (t.amount or 0.0) > 0), key=lambda x: x[0]
+        ([t["date"], t["amount"]] for t in txns if (t.get("amount") or 0.0) > 0),
+        key=lambda x: x[0],
     )
     expenses = sorted(
-        ([t.date, -(t.amount or 0.0)] for t in txns if (t.amount or 0.0) < 0), key=lambda x: x[0]
+        ([t["date"], -(t.get("amount") or 0.0)] for t in txns if (t.get("amount") or 0.0) < 0),
+        key=lambda x: x[0],
     )
     queue = [list(i) for i in incomes]  # [date, remaining]
     batches = []  # (expense_date, age_days, amount)
