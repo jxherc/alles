@@ -42,6 +42,17 @@ def run():
                 },
             )
             assert transaction.ok, transaction.text()
+        recurring = requests.post(
+            base + "/api/money/recurring",
+            data={
+                "account_id": account_id,
+                "amount": -30,
+                "payee": "test rent",
+                "cycle": "monthly",
+                "next_date": (date.today() + timedelta(days=45)).isoformat(),
+            },
+        )
+        assert recurring.ok, recurring.text()
         requests.dispose()
         results = []
         for profile in ("desktop", "phone"):
@@ -71,6 +82,10 @@ def run():
             expect(card.locator(".nw-svg")).to_be_visible()
             expect(card.locator(".nw-now")).to_contain_text("120")
             assert card.locator(".trend-labels span").count() == 6
+            recurring_card = page.locator('.money-card[data-card="recurring"]')
+            expect(recurring_card).to_contain_text("test rent")
+            expect(recurring_card.locator("#rc-add")).to_be_visible()
+            expect(recurring_card.locator("[data-toggle-rec]")).to_have_count(1)
             if profile == "phone":
                 page.evaluate(
                     """async () => {
@@ -198,10 +213,103 @@ def run():
                 retry_forecast.click()
             expect(projection.locator(".ms-val")).to_contain_text("120")
             assert schedule_failures == 0
+
+            def canonical_summary(route):
+                response = route.fetch()
+                payload = response.json()
+                payload["ledger"] = "actual"
+                route.fulfill(
+                    status=response.status,
+                    body=json.dumps(payload),
+                    content_type="application/json",
+                )
+
+            recurring_failures = 2
+            recurring_empty = False
+            canonical_schedules = [
+                {
+                    "id": "actual-rent",
+                    "payee": "rent in Actual",
+                    "amount": -30,
+                    "amount_kind": "exact",
+                    "cycle": "monthly",
+                    "next_date": "2026-10-01",
+                    "active": True,
+                },
+                {
+                    "id": "actual-range",
+                    "payee": "variable utilities",
+                    "amount": None,
+                    "amount_kind": "range",
+                    "cycle": "actual",
+                    "next_date": "",
+                    "active": False,
+                },
+            ]
+
+            def canonical_recurring(route):
+                nonlocal recurring_failures, recurring_empty
+                if recurring_failures:
+                    recurring_failures -= 1
+                    route.fulfill(
+                        status=503,
+                        body='{"detail":"Actual schedules unavailable"}',
+                        content_type="application/json",
+                    )
+                else:
+                    route.fulfill(
+                        status=200,
+                        body=json.dumps([] if recurring_empty else canonical_schedules),
+                        content_type="application/json",
+                    )
+
+            page.route("**/api/money/summary?*", canonical_summary)
+            page.route("**/api/money/recurring", canonical_recurring)
+            page.reload(wait_until="networkidle")
+            recurring_card = page.locator('.money-card[data-card="recurring"]')
+            recurring_retry = recurring_card.get_by_role("button", name="retry", exact=True)
+            expect(recurring_retry).to_be_visible()
+            expect(recurring_card).to_contain_text("couldn't load schedules")
+            expect(recurring_card).not_to_contain_text("nothing recurring")
+            expect(recurring_card.locator("#rc-add")).to_have_count(0)
+            assert recurring_retry.bounding_box()["height"] >= 44
+            recurring_card.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-recurring-unavailable-{profile}.png"))
+            if profile == "phone":
+                recurring_retry.tap()
+            else:
+                recurring_retry.click()
+            recurring_retry = recurring_card.get_by_role("button", name="retry", exact=True)
+            expect(recurring_retry).to_be_focused()
+            if profile == "phone":
+                recurring_retry.tap()
+            else:
+                recurring_retry.press("Enter")
+            expect(recurring_card).to_contain_text("rent in Actual")
+            expect(recurring_card).to_contain_text("variable utilities")
+            expect(recurring_card).to_contain_text("range")
+            expect(recurring_card).to_contain_text("editing in Finance isn't available yet")
+            expect(recurring_card.locator("#rc-add")).to_have_count(0)
+            expect(recurring_card.locator("[data-toggle-rec], [data-del-rec]")).to_have_count(0)
+            expect(recurring_card.get_by_role("heading", name="recurring")).to_be_focused()
+            assert recurring_card.evaluate(
+                "element => element.scrollWidth <= element.clientWidth + 1"
+            )
+            recurring_card.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-recurring-readonly-{profile}.png"))
+
+            recurring_empty = True
+            page.reload(wait_until="networkidle")
+            recurring_card = page.locator('.money-card[data-card="recurring"]')
+            expect(recurring_card).to_contain_text("no auto-post schedules in Actual")
+            expect(recurring_card.locator("#rc-add")).to_have_count(0)
             if profile == "desktop":
                 page.evaluate("document.documentElement.style.zoom = '2'")
                 assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
                 assert projection.evaluate(
+                    "element => element.scrollWidth <= element.clientWidth + 1"
+                )
+                assert recurring_card.evaluate(
                     "element => element.scrollWidth <= element.clientWidth + 1"
                 )
             assert failures == 0
@@ -215,6 +323,7 @@ def run():
                     "month_end_history": True,
                     "outage_retry": True,
                     "forecast_outage_retry": True,
+                    "recurring_canonical_read_and_retry": True,
                     "keyboard_or_touch": True,
                     "reduced_motion": True,
                     "console_errors": console_errors,
