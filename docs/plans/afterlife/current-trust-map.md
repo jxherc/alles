@@ -1,6 +1,6 @@
 # Afterlife - current trust and compatibility map
 
-- **Status:** code-audited and regression-locked; refreshed 2026-09-27
+- **Status:** code-audited and regression-locked; refreshed 2026-09-28
 - **Scope:** behavior shipped on the current `dev-afterlife` worktree
 - **Privacy rule:** built from source and synthetic/throwaway tests only; no owner database, vault,
   mail, connector, or file content was opened.
@@ -51,9 +51,9 @@ flowchart LR
 ## Route snapshot
 
 - 83 included FastAPI router modules
-- 890 HTTP method/path pairs
-- 873 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `8d2e4059a4965f243a2bf8765bb8c03f91b4950e6418debb4451d2d43a52ec67`
+- 891 HTTP method/path pairs
+- 874 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `14b739bae03cd5a6a73cfca5314fba834853b5905b91430c34f7e74ead5dc5f3`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
@@ -95,9 +95,10 @@ share/booking routes. Exact host ownership and parser markers are regression-tes
 
 ## Fresh evidence
 
-- Runtime enumeration on 2026-09-27 reproduced the locked 890-route digest and 873/2/15 grouping,
-  including the bodyless browser-disconnect route, POST-only context-handoff redemption, and the
-  conditional legacy Home preference import.
+- Runtime enumeration on 2026-09-28 reproduced the locked 891-route digest and 874/2/15 grouping.
+  The only addition to the prior snapshot is authenticated `GET /api/search/finance`, which reads
+  Money and Subscriptions separately from fast local palette search. Removing that one route from
+  the enumeration reproduces the prior 890-route digest.
 - Scoped bearer tests prove independent API authentication, exact scope denial, revocation, malformed
   scope fail-closed behavior, and the recent-owner boundary.
 - Phase 7 local/WebDAV/S3 Files tests cover listing, operations, recovery, isolation, exact identity,
