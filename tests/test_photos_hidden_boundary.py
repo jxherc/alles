@@ -89,6 +89,52 @@ class HiddenPhotosBoundaryTests(ApiTest):
         self.assertEqual(self.client.get(f"/api/photos/thumb/{pid}").status_code, 200)
         self.assertEqual(self.client.get(f"/api/photos/original/{pid}").status_code, 200)
 
+    def test_secondary_vault_unlock_does_not_open_hidden_photos(self):
+        pid = self.photo()
+        main_token = self.unlock()
+        pw = secrets.token_urlsafe(24)
+        created = self.client.post(
+            "/api/vault/vaults",
+            json={"name": "travel", "password": pw},
+            headers={"X-Vault-Token": main_token},
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+        secondary = self.client.post(
+            "/api/vault/unlock",
+            json={
+                "vault_id": created.json()["id"],
+                "password": pw,
+            },
+        )
+        self.assertEqual(secondary.status_code, 200, secondary.text)
+        headers = {"X-Vault-Token": secondary.json()["token"]}
+        self.assertEqual(self.client.get("/api/photos/hidden", headers=headers).status_code, 403)
+        self.assertEqual(
+            self.client.get(f"/api/photos/original/{pid}", headers=headers).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.patch(
+                f"/api/photos/{pid}", json={"caption": "changed"}, headers=headers
+            ).status_code,
+            403,
+        )
+        db = self.db()
+        self.assertEqual(db.get(Photo, pid).caption, "")
+        db.close()
+
+        marked = self.client.patch(
+            f"/api/vault/vaults/{created.json()['id']}",
+            json={"travel_safe": True},
+            headers=headers,
+        )
+        self.assertEqual(marked.status_code, 200, marked.text)
+        travel = self.client.put(
+            "/api/vault/travel-mode", json={"on": True}, headers={"X-Vault-Token": main_token}
+        )
+        self.assertEqual(travel.status_code, 200, travel.text)
+        self.assertEqual(self.client.get("/api/photos/hidden", headers=headers).status_code, 403)
+
     def test_hidden_records_stay_out_of_normal_duplicate_and_stack_views(self):
         cover = self.photo("hidden-cover.png", checksum="same")
         member = self.photo("hidden-member.png", checksum="same")
