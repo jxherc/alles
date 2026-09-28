@@ -585,9 +585,9 @@ function envelopeCard() {
       : '';
     return `<div class="env-row" data-cat="${esc(c.category)}">
       <span class="env-cat">${esc(c.category)}${readOnly ? '' : ` <button class="env-tgt-btn" data-cat="${esc(c.category)}" title="set a funding target">🎯</button>`}</span>
-      ${readOnly ? `<span class="env-assigned" title="assigned this month">${fmt(c.assigned || 0)}</span>` : `<input type="text" class="settings-input env-assign" data-cat="${esc(c.category)}" value="${c.assigned || 0}" inputmode="decimal" title="assigned this month">`}
-      <span class="env-spent" title="spent this month">${fmt(c.spent || 0)}</span>
-      <span class="env-avail ${av < 0 ? 'neg' : 'pos'}" title="available (rolls over)">${fmt(av)}</span>
+      ${readOnly ? `<span class="env-assigned" title="assigned this month"><span class="sr-only">assigned this month: </span>${fmt(c.assigned || 0)}</span>` : `<input type="text" class="settings-input env-assign" data-cat="${esc(c.category)}" value="${c.assigned || 0}" inputmode="decimal" title="assigned this month">`}
+      <span class="env-spent" title="spent this month"><span class="sr-only">spent this month: </span>${fmt(c.spent || 0)}</span>
+      <span class="env-avail ${av < 0 ? 'neg' : 'pos'}" title="available (rolls over)"><span class="sr-only">available: </span>${fmt(av)}</span>
       ${tgt}
     </div>`;
   }).join('');

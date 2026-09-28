@@ -531,6 +531,9 @@ def run():
             expect(
                 envelope_card.locator('.env-row[data-cat="food"] .env-assigned')
             ).to_contain_text("60")
+            expect(
+                envelope_card.locator('.env-row[data-cat="food"] .env-assigned .sr-only')
+            ).to_have_text("assigned this month:")
             expect(envelope_card.locator('.env-row[data-cat="food"] .env-spent')).to_contain_text(
                 "10"
             )
