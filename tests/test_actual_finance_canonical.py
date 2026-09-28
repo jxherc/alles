@@ -1798,6 +1798,35 @@ class ActualFinanceServiceTests(ApiTest):
         )
         self.assertEqual(bridge.call_count, 1)
 
+    def test_networth_history_follows_a_changed_native_opening_balance(self):
+        self.actual["accounts"][0]["balance"] = 14875
+        self.actual["transactions"] = [
+            {
+                "id": "actual-opening",
+                "account": "actual-account",
+                "date": "20260701",
+                "amount": 15000,
+                "starting_balance_flag": True,
+            },
+            {
+                "id": "actual-spend",
+                "account": "actual-account",
+                "date": "20260712",
+                "amount": -125,
+                "starting_balance_flag": False,
+            },
+        ]
+        with patch("services.managed_actual.bridge_request", side_effect=self.bridge):
+            response = self.client.get("/api/money/networth-history?months=2&as_of=2026-07-15")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json(),
+            [
+                {"month": "2026-06", "net_worth": 150.0},
+                {"month": "2026-07", "net_worth": 148.75},
+            ],
+        )
+
     def test_native_actual_entities_remain_resolvable_and_transfers_stay_paired(self):
         self.actual["accounts"].append(
             {

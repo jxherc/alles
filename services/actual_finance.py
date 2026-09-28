@@ -746,9 +746,15 @@ def accounts(
             if evidence.get("base_amount_text") not in {None, ""}
             else native_opening_text
         )
-        opening_major = _major_from_minor(
-            _minor(base_opening_text, "opening balance"), "opening balance"
+        # The linked text preserves migration evidence, but Actual's starting
+        # balance is the live ledger value when the owner changes it there.
+        actual_id = str(row.get("id") or "")
+        opening_minor = (
+            native_opening_minor[actual_id]
+            if actual_id in native_opening_minor
+            else _minor(base_opening_text, "opening balance")
         )
+        opening_major = _major_from_minor(opening_minor, "opening balance")
         low_balance_major = _major_from_minor(
             _minor(evidence.get("low_balance") or 0, "low balance"), "low balance"
         )
