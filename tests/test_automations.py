@@ -204,6 +204,20 @@ class AutomationSafetyTests(ApiTest):
         self.assertEqual(db.query(AutomationAttempt).count(), 1)
         db.close()
 
+    def test_blank_task_action_fails_without_saving_an_empty_record(self):
+        db, rule = self._rule(action_arg="   ")
+        result = asyncio.run(automations._fire(db, rule, {"dedupe": "blank task"}))
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(db.query(Task).count(), 0)
+        db.close()
+
+    def test_task_action_trims_its_rendered_title(self):
+        db, rule = self._rule(action_arg="  follow up  ")
+        result = asyncio.run(automations._fire(db, rule, {"dedupe": "trimmed task"}))
+        self.assertEqual(result["status"], "succeeded")
+        self.assertEqual(db.query(Task).one().title, "follow up")
+        db.close()
+
     def test_uncertain_push_is_never_retried_automatically(self):
         db, rule = self._rule(action="push", action_arg="ping")
         delivery = mock.AsyncMock(

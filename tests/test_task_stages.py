@@ -3,6 +3,21 @@ from tests._client import ApiTest
 
 
 class TaskStageApiTest(ApiTest):
+    def test_blank_create_or_rename_does_not_save_a_task(self):
+        for title in ("", "   "):
+            with self.subTest(title=title):
+                response = self.client.post("/api/tasks", json={"title": title})
+                self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.get("/api/tasks").json(), [])
+
+        task = self.client.post("/api/tasks", json={"title": "  keep this  "}).json()
+        self.assertEqual(task["title"], "keep this")
+        response = self.client.patch(f"/api/tasks/{task['id']}", json={"title": "   "})
+        self.assertEqual(response.status_code, 400)
+        saved = self.client.get("/api/tasks").json()
+        self.assertEqual(len(saved), 1)
+        self.assertEqual(saved[0]["title"], "keep this")
+
     def test_new_task_defaults_to_backlog_without_changing_done_contract(self):
         task = self.client.post("/api/tasks", json={"title": "one"}).json()
         self.assertEqual(task["stage"], "backlog")
