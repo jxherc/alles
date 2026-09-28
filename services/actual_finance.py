@@ -885,26 +885,15 @@ def transactions(
     return rows
 
 
-@authority_guarded
-def networth_history(
-    db: Session,
-    *,
-    end_month: str,
-    months: int,
-    actual: dict | None = None,
-    bridge_request=None,
-) -> list[dict]:
-    """Keep migrated openings as a baseline; date new Actual openings."""
-    actual = actual or inspect(db, bridge_request=bridge_request)
+def networth_rows(db: Session, actual: dict) -> tuple[list[dict], list[dict]]:
+    """Mapped ledger rows with dated openings for new Actual accounts."""
     mapped_accounts = accounts(db, actual=actual)
     mapped_transactions = transactions(db, actual=actual)
     starting_rows = [
         row for row in actual.get("transactions") or [] if row.get("starting_balance_flag")
     ]
     if not starting_rows:
-        return _networth_history(
-            mapped_accounts, mapped_transactions, end_month=end_month, months=months
-        )
+        return mapped_accounts, mapped_transactions
     legacy_ids = {account_id for (account_id,) in db.query(Account.id).all()}
     new_accounts = {
         str(row.get("actual_id") or ""): row
@@ -929,11 +918,23 @@ def networth_history(
         {**row, "opening": 0.0} if row["id"] in dated_account_ids else row
         for row in mapped_accounts
     ]
+    return history_accounts, mapped_transactions + dated_openings
+
+
+@authority_guarded
+def networth_history(
+    db: Session,
+    *,
+    end_month: str,
+    months: int,
+    actual: dict | None = None,
+    bridge_request=None,
+) -> list[dict]:
+    """Keep migrated openings as a baseline; date new Actual openings."""
+    actual = actual or inspect(db, bridge_request=bridge_request)
+    history_accounts, history_transactions = networth_rows(db, actual)
     return _networth_history(
-        history_accounts,
-        mapped_transactions + dated_openings,
-        end_month=end_month,
-        months=months,
+        history_accounts, history_transactions, end_month=end_month, months=months
     )
 
 
@@ -1050,6 +1051,21 @@ def _add_schedule_months(value: date, months: int, anchor: int) -> date:
     return date(year, month, min(anchor, calendar.monthrange(year, month)[1]))
 
 
+def _schedule_anchor(rule, start: date) -> int:
+    patterns = rule.get("patterns") if isinstance(rule, dict) else None
+    if not patterns:
+        return start.day
+    if not isinstance(patterns, list) or len(patterns) != 1:
+        raise ActualFinanceError("the Actual schedule day pattern is unsupported")
+    pattern = patterns[0]
+    if not isinstance(pattern, dict) or pattern.get("type") != "day":
+        raise ActualFinanceError("the Actual schedule day pattern is unsupported")
+    value = pattern.get("value")
+    if type(value) is not int or (value != -1 and not 1 <= value <= 31):
+        raise ActualFinanceError("the Actual schedule day pattern is unsupported")
+    return 31 if value == -1 else value
+
+
 def _next_schedule_due(rule, provider_next="", *, today: date | None = None) -> str:
     """Prefer Actual's computed occurrence, otherwise advance its stable rule anchor."""
     if provider_next:
@@ -1063,7 +1079,7 @@ def _next_schedule_due(rule, provider_next="", *, today: date | None = None) -> 
     except ValueError as exc:
         raise ActualFinanceError("the Actual schedule start date is invalid") from exc
     target = today or date.today()
-    anchor = current.day
+    anchor = _schedule_anchor(rule, current)
     if current >= target:
         return current.isoformat()
     if cycle in {"daily", "weekly", "custom"}:
@@ -1087,6 +1103,49 @@ def subscription_display_name(schedule: dict, legacy) -> str:
     if legacy and name == f"Alles subscription: {legacy.name} [{legacy.id[:8]}]":
         return legacy.name
     return name
+
+
+def forecast_schedules(db: Session, actual: dict, *, as_of: date) -> list[dict]:
+    """Active posting schedules, excluding subscriptions forecast elsewhere."""
+    _recurring_sources, recurring_public, recurring_metadata = _maps(db, "recurring")
+    subscription_ids = {link.actual_id for link in _links(db, "subscription")}
+    payee_names = {row.get("id"): row.get("name") for row in actual.get("payees") or []}
+    rows = []
+    for row in actual.get("schedules") or []:
+        actual_id = str(row.get("id") or "")
+        if (
+            actual_id in subscription_ids
+            or not row.get("posts_transaction")
+            or row.get("completed")
+        ):
+            continue
+        rule = row.get("date")
+        cycle, cycle_days, start_text = _schedule_cycle(rule)
+        try:
+            anchor = _schedule_anchor(rule, date.fromisoformat(start_text))
+        except ValueError as exc:
+            raise ActualFinanceError("the Actual schedule start date is invalid") from exc
+        provider_next = row.get("next_date")
+        if provider_next:
+            next_text = _required_date(provider_next, "schedule next occurrence")
+            if date.fromisoformat(next_text) <= as_of:
+                provider_next = ""
+        next_date = _next_schedule_due(rule, provider_next, today=as_of + timedelta(days=1))
+        metadata = recurring_metadata.get(actual_id, {})
+        rows.append(
+            {
+                "id": recurring_public.get(actual_id, actual_id),
+                "next_date": next_date,
+                "anchor_day": anchor,
+                "cycle": cycle,
+                "cycle_days": cycle_days,
+                "amount": _major_from_minor(int(row.get("amount") or 0), "schedule amount"),
+                "payee": payee_names.get(row.get("payee"))
+                or str(row.get("name") or metadata.get("category") or "recurring"),
+                "active": True,
+            }
+        )
+    return rows
 
 
 @authority_guarded

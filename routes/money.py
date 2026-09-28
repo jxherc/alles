@@ -32,6 +32,7 @@ from services import actual_finance, finance_currency, finance_requests, fx
 from services.money_stats import balance_deltas as _balances
 from services.money_stats import distribute_expense as _distribute
 from services.money_stats import finite_amount as _fin
+from services.money_stats import net_worth_at as _net_worth_at
 from services.money_stats import networth_history as _networth_history
 from services.money_stats import spending_by_category as _spending_by_cat
 
@@ -1533,18 +1534,6 @@ def _last_day(month):
     return date(y, m, _cal.monthrange(y, m)[1])
 
 
-def _net_worth_at(db, accounts, date_str, txns=None):
-    """opening balances + every txn dated on/before date_str (running net worth)."""
-    aset = {a.id for a in accounts if not a.archived}
-    nw = sum((a.opening or 0.0) for a in accounts if not a.archived)
-    if txns is None:
-        txns = db.query(Transaction).all()
-    for t in txns:
-        if t.account_id in aset and (t.date or "") <= date_str:
-            nw += t.amount or 0.0
-    return round(nw, 2)
-
-
 @router.get("/forecast")
 def forecast(
     month: str = "",
@@ -1555,7 +1544,6 @@ def forecast(
 ):
     """project the end-of-month balance from today's balance + remaining recurring txns. 2b adds
     a per-category projection (`categories`) + what-if (`skip` comma payees, `income_delta`)."""
-    _require_actual_backed_analytics(db, "forecast")
     if not month:
         month = date.today().strftime("%Y-%m")
     try:
@@ -1563,33 +1551,63 @@ def forecast(
     except ValueError:
         as_of_d = date.today()
     end = _last_day(month)
-    accounts = db.query(Account).all()
-    start = _net_worth_at(db, accounts, as_of_d.isoformat())
+    from services import forecast as forecast_svc
+
+    if actual_finance.is_canonical(db):
+        try:
+            actual = actual_finance.inspect(db)
+            accounts, transactions = actual_finance.networth_rows(db, actual)
+            schedules = actual_finance.forecast_schedules(db, actual, as_of=as_of_d)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+        categories = forecast_svc.category_averages_from_rows(accounts, transactions, as_of=as_of_d)
+    else:
+        accounts = [
+            {"id": row.id, "opening": row.opening, "archived": row.archived}
+            for row in db.query(Account).all()
+        ]
+        transactions = [
+            {"account_id": row.account_id, "date": row.date, "amount": row.amount}
+            for row in db.query(Transaction).all()
+        ]
+        schedules = [
+            {
+                "next_date": row.next_date,
+                "anchor_day": row.anchor_day,
+                "cycle": row.cycle,
+                "cycle_days": row.cycle_days,
+                "amount": row.amount,
+                "payee": row.payee or row.category or "recurring",
+                "active": row.active,
+            }
+            for row in db.query(RecurringTxn).filter(RecurringTxn.active == True).all()  # noqa: E712
+        ]
+        categories = forecast_svc.category_averages(db, as_of=as_of_d)
+    start = _net_worth_at(accounts, transactions, as_of_d.isoformat())
     occ = []
-    for r in db.query(RecurringTxn).filter(RecurringTxn.active == True).all():  # noqa: E712
-        if not r.next_date:
+    for r in schedules:
+        if not r["next_date"] or not r["active"]:
             continue
         try:
-            d = date.fromisoformat(r.next_date)
+            d = date.fromisoformat(r["next_date"])
         except ValueError:
             continue
-        anchor = r.anchor_day or d.day
+        anchor = r["anchor_day"] or d.day
         guard = 0
         while d <= as_of_d and guard < 600:
-            d = _advance(d, r.cycle, r.cycle_days or 30, anchor)
+            d = _advance(d, r["cycle"], r["cycle_days"] or 30, anchor)
             guard += 1
         while d <= end and guard < 600:
             occ.append(
                 {
                     "date": d.isoformat(),
-                    "amount": r.amount or 0.0,
-                    "payee": r.payee or r.category or "recurring",
+                    "amount": r["amount"] or 0.0,
+                    "payee": r["payee"],
                 }
             )
-            d = _advance(d, r.cycle, r.cycle_days or 30, anchor)
+            d = _advance(d, r["cycle"], r["cycle_days"] or 30, anchor)
             guard += 1
     occ.sort(key=lambda x: x["date"])
-    from services import forecast as forecast_svc
 
     skip_payees = [s.strip() for s in skip.split(",") if s.strip()]
     occ = forecast_svc.apply_scenario(
@@ -1608,7 +1626,7 @@ def forecast(
         "projected": round(bal, 2),
         "recurring": occ,
         "line": line,
-        "categories": forecast_svc.category_averages(db, as_of=as_of_d),
+        "categories": categories,
     }
 
 
