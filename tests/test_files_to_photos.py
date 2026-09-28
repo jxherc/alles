@@ -1,12 +1,16 @@
 import base64
 import tempfile
+import threading
+import unittest
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
 from PIL import Image
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
 
-from core.database import Photo, StorageLocation
+from core.database import Base, FileOperation, FileOperationPathClaim, Photo, StorageLocation
 from services import file_operations, files_to_photos
 from tests._client import ApiTest
 
@@ -446,10 +450,140 @@ class FilesToPhotosTests(ApiTest):
         )
         db = self.db()
         self.assertEqual(db.query(Photo).count(), 0)
+        self.assertEqual(db.query(FileOperationPathClaim).count(), 0)
         db.close()
+
+    def test_send_rejects_an_owned_path_then_succeeds_after_release(self):
+        (self.files / "image.png").write_bytes(PNG)
+        db = self.db()
+        location = db.get(StorageLocation, "local-media")
+        location.access = "read_only"
+        db.commit()
+        with file_operations.direct_mutation_claim(db, location, "image.png"):
+            blocked = self.client.post(
+                "/api/files/to-photos",
+                json={"location_id": "local-media", "path": "image.png"},
+            )
+            self.assertEqual(blocked.status_code, 409, blocked.text)
+            self.assertIn("already in use", blocked.json()["detail"])
+        db.close()
+
+        retry = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "image.png"},
+        )
+        self.assertEqual(retry.status_code, 200, retry.text)
+        self.assertEqual(retry.json()["imported"], 1)
+
+
+class FilesToPhotosConcurrencyTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.base = Path(self.temp.name)
+        self.files = self.base / "files"
+        self.photos = self.base / "photos"
+        self.files.mkdir()
+        self.photos.mkdir()
+        (self.photos / ".thumbs").mkdir()
+        self.engine = create_engine(
+            f"sqlite:///{self.base / 'race.db'}",
+            connect_args={"check_same_thread": False, "timeout": 2},
+        )
+
+        @event.listens_for(self.engine, "connect")
+        def configure_sqlite(connection, _record):
+            connection.execute("pragma journal_mode=wal")
+            connection.execute("pragma busy_timeout=2000")
+
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(bind=self.engine, autoflush=False)
+        with self.Session() as db:
+            db.add(
+                StorageLocation(
+                    id="local-media",
+                    name="local media",
+                    kind="local",
+                    access="managed",
+                    root_path=str(self.files),
+                    enabled=True,
+                )
+            )
+            db.commit()
+        self.photos_patch = mock.patch("services.photos_store.photos_dir", return_value=self.photos)
+        self.files_data_patch = mock.patch(
+            "services.file_operations.data_dir", return_value=self.base
+        )
+        self.photos_patch.start()
+        self.files_data_patch.start()
+
+    def tearDown(self):
+        self.files_data_patch.stop()
+        self.photos_patch.stop()
+        self.engine.dispose()
+        self.temp.cleanup()
+
+    def test_send_claim_prevents_rename_between_media_copy_and_photo_row(self):
+        (self.files / "image.png").write_bytes(PNG)
+        reached_row = threading.Event()
+        finish_import = threading.Event()
+        send_result = {}
+        original_photo = files_to_photos._photo
+
+        def pause_before_row(*args, **kwargs):
+            reached_row.set()
+            if not finish_import.wait(10):
+                raise TimeoutError("send did not resume")
+            return original_photo(*args, **kwargs)
+
+        def send():
+            with self.Session() as db:
+                try:
+                    send_result["value"] = files_to_photos.import_from_files(
+                        db, location_id="local-media", path="image.png"
+                    )
+                except Exception as exc:
+                    send_result["error"] = exc
+
+        with mock.patch.object(files_to_photos, "_photo", side_effect=pause_before_row):
+            worker = threading.Thread(target=send)
+            worker.start()
+            try:
+                self.assertTrue(reached_row.wait(5), "send did not reach Photo row creation")
+                with self.Session() as db:
+                    rename = file_operations.enqueue(
+                        db,
+                        action="rename",
+                        source_location_id="local-media",
+                        source_path="image.png",
+                        destination_location_id="local-media",
+                        destination_path="renamed.png",
+                    )
+                    rename_id = rename.id
+                    with self.assertRaisesRegex(
+                        file_operations.FileOperationError, "already in use"
+                    ):
+                        file_operations.run(db, rename)
+                    self.assertTrue((self.files / "image.png").exists())
+                    self.assertFalse((self.files / "renamed.png").exists())
+            finally:
+                finish_import.set()
+                worker.join(timeout=10)
+
+        self.assertFalse(worker.is_alive())
+        self.assertNotIn("error", send_result)
+        self.assertEqual(send_result["value"]["imported"], 1)
+        with self.Session() as db:
+            self.assertEqual(
+                file_operations.retry(db, db.get(FileOperation, rename_id)).state, "completed"
+            )
+            resent = files_to_photos.import_from_files(
+                db, location_id="local-media", path="renamed.png"
+            )
+            self.assertEqual(resent["imported"], 0)
+            self.assertEqual(resent["skipped"], 1)
+            self.assertEqual(db.query(Photo).count(), 1)
+            self.assertEqual(db.query(Photo).one().source_id, "local-media:renamed.png")
 
 
 if __name__ == "__main__":
-    import unittest
-
     unittest.main()

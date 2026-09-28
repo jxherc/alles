@@ -74,6 +74,11 @@ def import_from_files(
     normalized = storage_locations.normalize_path(path)
     if not normalized:
         raise FilesToPhotosError("path required")
+    with file_operations.direct_mutation_claim(db, location, normalized):
+        return _import_claimed(db, location=location, normalized=normalized, album_id=album_id)
+
+
+def _import_claimed(db, *, location, normalized: str, album_id: str) -> dict:
     temporary = None
     if location.kind == "local":
         root = storage_backends.local_path(location, normalized)
