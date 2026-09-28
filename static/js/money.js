@@ -332,7 +332,7 @@ function render() {
       <section class="money-card" data-card="holdings"><h3>investments</h3>${holdingsCard()}</section>
       <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
       <section class="money-card" data-card="reports"><h3>reports</h3>${reportsCard()}</section>
-      <section class="money-card" data-card="budgets"><h3>budgets</h3>${budgetsList()}${_budgetForm()}</section>
+      <section class="money-card" data-card="budgets"><h3>spending caps</h3>${budgetsList()}${_budgetForm()}</section>
       <section class="money-card" data-card="recurring"><h3 tabindex="-1">recurring</h3><div id="recurring-content">${recurringList()}${_recurringForm()}</div></section>
       <section class="money-card" data-card="rules"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
      </div>` +
@@ -591,7 +591,7 @@ function envelopeCard() {
       ${tgt}
     </div>`;
   }).join('');
-  if (readOnly) return banner + `<p class="money-recurring-note">read-only here. Finance budgets change these same Actual amounts; funding targets aren't available.</p>` +
+  if (readOnly) return banner + `<p class="money-recurring-note">monthly assignments are read-only here. spending caps are separate; funding targets aren't available yet.</p>` +
     (rows ? `<div class="env-rows"><div class="env-row env-head" aria-hidden="true"><span>category</span><span>assigned</span><span>spent</span><span>available</span></div>${rows}</div>`
       : '<div class="money-empty-sm">no assigned, spent, or carried-over categories this month</div>');
   return banner + (rows
@@ -601,7 +601,7 @@ function envelopeCard() {
 }
 
 function budgetsList() {
-  if (!_budgets.length) return '<div class="money-empty-sm">no budgets: cap a category\'s monthly spend</div>';
+  if (!_budgets.length) return '<div class="money-empty-sm">no spending caps yet</div>';
   const byCat = {}; (_sum?.budgets || []).forEach(b => byCat[b.category] = b);
   return `<div class="budgets">` + _budgets.map(b => {
     const spent = byCat[b.category]?.spent || 0;
@@ -789,7 +789,7 @@ function _accountForm() {
 }
 function _budgetForm() {
   return `<div class="budget-form">
-    <input type="text" id="bf-cat" class="settings-input" placeholder="category" style="flex:1;min-width:110px">
+    <input type="text" id="bf-cat" class="settings-input" placeholder="${_canonicalLedger ? 'Actual category' : 'category'}" style="flex:1;min-width:110px">
     <input type="text" id="bf-amt" class="settings-input" placeholder="monthly cap" inputmode="decimal" style="width:120px">
     <button class="btn" id="bf-add">set</button>
   </div>`;
@@ -1259,10 +1259,10 @@ async function addBudget() {
   if (!_validAmounts(limit_amt)) return;
   if (!category) { toast('pick a category', 'error'); return; }
   try { await api('/api/money/budgets', { method: 'POST', body: { category, limit_amt } }); await load(); }
-  catch { toast('couldn\'t set budget', 'error'); }
+  catch (error) { toast(error.message?.includes('budget cap requires one existing spending category') ? 'use one existing spending category in Actual' : 'couldn\'t set spending cap', 'error'); }
 }
 async function delBudget(id) {
-  if (!await dlgConfirm('delete this monthly budget?')) return;
+  if (!await dlgConfirm('remove this spending cap?')) return;
   try { await api(`/api/money/budgets/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
 }

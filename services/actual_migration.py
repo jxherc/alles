@@ -1625,16 +1625,6 @@ def validate_active_links(db: Session, actual: dict) -> dict:
         elif kind == "budget_limit":
             present = actual_id in categories
             group = "budget_limit"
-            managed_month = str(metadata.get("managed_month") or "")
-            limit_minor = metadata.get("limit_minor")
-            if (
-                present
-                and managed_month
-                and budget_slots.get((managed_month, actual_id)) != limit_minor
-            ):
-                missing.append(
-                    {"kind": kind, "source_id": link.source_id, "content_mismatch": True}
-                )
         elif kind == "transfer":
             left_id, separator, right_id = actual_id.partition(":")
             left = transactions.get(left_id)

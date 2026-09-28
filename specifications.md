@@ -285,8 +285,10 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   transfers and account starting balances. after cutover it reads one Actual snapshot, and a
   failed read shows retry instead of hiding the figure. the Money envelope card reads Actual's
   budget-month totals, category assignments, spending, and rollover balances after cutover;
-  a failed read offers retry. this card is read-only: Finance budget caps use the same Actual
-  budget amounts, while separate envelope editing and funding targets remain unavailable
+  a failed read offers retry. this card is read-only: monthly assignments stay in Actual;
+  Finance spending caps are separate, persistent Alles sidecars bound to Actual spending categories.
+  changing or removing a cap does not rewrite a month's assignment. funding targets remain
+  unavailable after cutover
 - Aide's Finance account, transaction, and spending-read tools follow the active ledger; if Actual
   cannot be read after cutover, they return an error instead of quoting old balances or charges
 - the unified transaction JSON/CSV download also reads the active ledger, and fails if it cannot
