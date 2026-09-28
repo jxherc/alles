@@ -93,7 +93,20 @@ def _notes(db):
 
 
 def _transactions(db):
+    from types import SimpleNamespace
+
     from core.database import Transaction
+    from services import actual_finance
+
+    with actual_finance.AUTHORITY_LOCK:
+        if actual_finance.is_canonical(db):
+            snapshot = actual_finance.inspect(db)
+            transactions = [
+                SimpleNamespace(**row) for row in actual_finance.transactions(db, actual=snapshot)
+            ]
+            transactions.sort(key=lambda row: row.date)
+        else:
+            transactions = db.query(Transaction).order_by(Transaction.date.asc()).all()
 
     return [
         {
@@ -105,7 +118,7 @@ def _transactions(db):
             "tags": t.tags or "",
             "notes": t.notes or "",
         }
-        for t in db.query(Transaction).order_by(Transaction.date.asc()).all()
+        for t in transactions
     ]
 
 

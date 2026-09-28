@@ -269,6 +269,8 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   showing frozen pre-cutover numbers
 - Aide's Finance account, transaction, and spending-read tools follow the active ledger; if Actual
   cannot be read after cutover, they return an error instead of quoting old balances or charges
+- the unified transaction JSON/CSV download also reads the active ledger, and fails if it cannot
+  verify that source instead of exporting frozen pre-cutover rows
 
 <p align="center"><img src="docs/screenshots/money.png" width="760" alt="money: accounts, spending by category, budgets, and a 6-month trend"></p>
 

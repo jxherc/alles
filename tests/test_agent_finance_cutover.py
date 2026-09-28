@@ -59,7 +59,13 @@ class AgentFinanceCutoverTests(ApiTest):
             "balance": 100,
             "archived": False,
         }
-        closed = {**account, "id": "closed-account", "name": "closed bank", "balance": 40, "archived": True}
+        closed = {
+            **account,
+            "id": "closed-account",
+            "name": "closed bank",
+            "balance": 40,
+            "archived": True,
+        }
         current = {
             "id": "current-txn",
             "account_id": account["id"],
@@ -90,7 +96,9 @@ class AgentFinanceCutoverTests(ApiTest):
         }
         with (
             mock.patch.object(actual_finance, "inspect", return_value=snapshot) as inspect,
-            mock.patch.object(actual_finance, "accounts", return_value=[account, closed]) as accounts,
+            mock.patch.object(
+                actual_finance, "accounts", return_value=[account, closed]
+            ) as accounts,
             mock.patch.object(
                 actual_finance, "transactions", return_value=[current, transfer, closed_charge]
             ) as transactions,
