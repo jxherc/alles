@@ -32,6 +32,7 @@ from services import actual_finance, finance_currency, finance_requests, fx
 from services.money_stats import balance_deltas as _balances
 from services.money_stats import distribute_expense as _distribute
 from services.money_stats import finite_amount as _fin
+from services.money_stats import networth_history as _networth_history
 from services.money_stats import spending_by_category as _spending_by_cat
 
 
@@ -1613,33 +1614,25 @@ def forecast(
 
 @router.get("/networth-history")
 def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(get_db)):
-    _require_actual_backed_analytics(db, "net worth history")
     end_month = as_of[:7] if as_of else date.today().strftime("%Y-%m")
-    accounts = db.query(Account).all()
-    aset = {a.id for a in accounts if not a.archived}
-    base = sum((a.opening or 0.0) for a in accounts if not a.archived)
-    # sort our txns once, then sweep cumulatively across month boundaries instead of
-    # re-scanning the whole txn list per month (was O(months * txns))
-    txns = sorted(
-        (t for t in db.query(Transaction).all() if t.account_id in aset),
-        key=lambda t: t.date or "",
-    )
     y, m = _ym(end_month)
-    seq = []
-    for _ in range(max(1, months)):
-        seq.append(f"{y:04d}-{m:02d}")
-        m -= 1
-        if m == 0:
-            m, y = 12, y - 1
-    out = []
-    nw, i = base, 0
-    for mo in reversed(seq):  # oldest -> newest so the running total only moves forward
-        cutoff = _last_day(mo).isoformat()
-        while i < len(txns) and (txns[i].date or "") <= cutoff:
-            nw += txns[i].amount or 0.0
-            i += 1
-        out.append({"month": mo, "net_worth": round(nw, 2)})
-    return out
+    if actual_finance.is_canonical(db):
+        try:
+            actual = actual_finance.inspect(db)
+            accounts = actual_finance.accounts(db, actual=actual)
+            transactions = actual_finance.transactions(db, actual=actual)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
+    else:
+        accounts = [
+            {"id": row.id, "opening": row.opening, "archived": row.archived}
+            for row in db.query(Account).all()
+        ]
+        transactions = [
+            {"account_id": row.account_id, "date": row.date, "amount": row.amount}
+            for row in db.query(Transaction).all()
+        ]
+    return _networth_history(accounts, transactions, end_month=f"{y:04d}-{m:02d}", months=months)
 
 
 def _holding(h):
