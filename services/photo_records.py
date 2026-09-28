@@ -1,6 +1,8 @@
 """Photo row creation and response shape shared by Photos and image generation."""
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from sqlalchemy.orm import Session
 
@@ -32,8 +34,9 @@ def format_photo(photo: Photo) -> dict:
     }
 
 
-def save_generated_photos(db: Session, images: list[bytes], prompt: str) -> list[Photo]:
-    """Save one generated batch; a failed write leaves no committed Photo rows."""
+@contextmanager
+def generated_photo_batch(db: Session, images: list[bytes], prompt: str) -> Iterator[list[Photo]]:
+    """Commit imported Photos with the caller's other rows, or remove new media."""
     created_files: list[tuple[str, str]] = []
     photos: list[Photo] = []
     try:
@@ -61,8 +64,10 @@ def save_generated_photos(db: Session, images: list[bytes], prompt: str) -> list
             )
         if photos:
             db.add_all(photos)
+            db.flush()
+        yield photos
+        if photos:
             db.commit()
-        return photos
     except Exception:
         try:
             db.rollback()

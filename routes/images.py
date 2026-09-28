@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -6,9 +7,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Message, ModelEndpoint, Session, get_db
-from services.photo_records import format_photo, save_generated_photos
+from services.photo_records import format_photo, generated_photo_batch
 
 router = APIRouter(prefix="/api/images")
+log = logging.getLogger("alles.images")
 
 
 def _alt(s: str) -> str:
@@ -48,11 +50,11 @@ async def generate_image(body: GenBody, db: DbSession = Depends(get_db)):
         )
 
     try:
-        photos = save_generated_photos(db, imgs, body.prompt)
+        with generated_photo_batch(db, imgs, body.prompt) as photos:
+            if not photos:
+                raise HTTPException(502, "generated image couldn't be saved")
     except OSError as exc:
         raise HTTPException(503, "generated image couldn't be saved; please retry") from exc
-    if not photos:
-        raise HTTPException(502, "generated image couldn't be saved")
     return {"images": [format_photo(photo) for photo in photos]}
 
 
@@ -110,15 +112,28 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
         return {"content": md, "doc_id": None, "doc_title": title, "images": []}
 
     try:
-        saved = save_generated_photos(db, imgs, body.prompt)
+        with generated_photo_batch(db, imgs, body.prompt) as saved:
+            if not saved:
+                raise HTTPException(502, "generated image couldn't be saved")
+            img_md = "\n\n".join(f"![{alt}](/api/photos/original/{p.id})" for p in saved)
+            assistant = Message(
+                session_id=s.id,
+                role="assistant",
+                content=f"{img_md}\n\n`image generated` · {title}",
+                meta=json.dumps({"model": body.model, "image": True, "note_id": None}),
+            )
+            db.add(Message(session_id=s.id, role="user", content=body.prompt))
+            db.add(assistant)
+            if not s.name or s.name == "new chat":
+                s.name = title
+            s.message_count = (s.message_count or 0) + 2
+            s.last_message_at = datetime.now(UTC).replace(tzinfo=None)
     except OSError as exc:
         raise HTTPException(503, "generated image couldn't be saved; please retry") from exc
-    if not saved:
-        raise HTTPException(502, "generated image couldn't be saved")
 
-    img_md = "\n\n".join(f"![{alt}](/api/photos/original/{p.id})" for p in saved)
+    image_links = [{"id": p.id, "original": f"/api/photos/original/{p.id}"} for p in saved]
 
-    # Docs is an extra copy; its outage must not discard the generated image or chat turn.
+    # Docs is an extra copy, filed only after the Photo and chat turn are durable.
     from services import notes_vault
 
     try:
@@ -129,36 +144,28 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
         )
     except OSError:
         note = None
+    note_id = note["id"] if note else None
+    note_status = "✓ saved to notes" if note else "couldn't save to notes"
+    assistant_md = f"{img_md}\n\n`{note_status}` · {title}"
+    try:
+        assistant.content = assistant_md
+        assistant.meta = json.dumps({"model": body.model, "image": True, "note_id": note_id})
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        log.warning("could not record generated image note status: %s", type(exc).__name__)
+
     if note:
         try:
             from services import personal_index
 
-            personal_index.index_record(db, "note", note["id"])
+            personal_index.index_record(db, "note", note_id)
         except Exception:
             pass
-
-    note_id = note["id"] if note else None
-    note_status = "✓ saved to notes" if note else "couldn't save to notes"
-    assistant_md = f"{img_md}\n\n`{note_status}` · {title}"
-
-    db.add(Message(session_id=s.id, role="user", content=body.prompt))
-    db.add(
-        Message(
-            session_id=s.id,
-            role="assistant",
-            content=assistant_md,
-            meta=json.dumps({"model": body.model, "image": True, "note_id": note_id}),
-        )
-    )
-    if not s.name or s.name == "new chat":
-        s.name = title
-    s.message_count = (s.message_count or 0) + 2  # we added BOTH a user + an assistant message
-    s.last_message_at = datetime.now(UTC).replace(tzinfo=None)
-    db.commit()
 
     return {
         "content": assistant_md,
         "doc_id": note_id,  # frontend uses this as a "saved" flag + to rename the chat
         "doc_title": title,
-        "images": [{"id": p.id, "original": f"/api/photos/original/{p.id}"} for p in saved],
+        "images": image_links,
     }

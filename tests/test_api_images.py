@@ -223,6 +223,158 @@ class ImagesApiTest(VaultApiTest):
         self.assertEqual(notes_vault.all_notes(), [])
         db.close()
 
+    def test_chat_image_message_write_failure_leaves_no_photo_or_note(self):
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from PIL import Image
+        from starlette.testclient import TestClient
+
+        from app import app
+        from core.database import Message, Photo, get_db
+        from core.database import Session as ChatSession
+        from services import notes_vault
+
+        buf = BytesIO()
+        Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
+        db = self.db()
+        endpoint = ModelEndpoint(name="image provider", base_url="http://x", enabled=True)
+        chat = ChatSession(name="new chat")
+        db.add_all([endpoint, chat])
+        db.commit()
+        endpoint_id, chat_id = endpoint.id, chat.id
+        db.close()
+
+        async def fake_generate(*_args, **_kwargs):
+            return [buf.getvalue()]
+
+        request_db = self.db()
+        commit = request_db.commit
+
+        def fail_chat_commit():
+            if any(isinstance(row, Message) for row in request_db.new):
+                raise OSError("chat database write failed")
+            return commit()
+
+        def use_request_db():
+            yield request_db
+
+        previous_override = app.dependency_overrides.get(get_db)
+        app.dependency_overrides[get_db] = use_request_db
+        client = TestClient(app, raise_server_exceptions=False)
+        try:
+            with (
+                TemporaryDirectory() as temp,
+                patch("services.photos_store.photos_dir", return_value=Path(temp)),
+                patch("services.imagegen.generate", side_effect=fake_generate),
+                patch.object(request_db, "commit", side_effect=fail_chat_commit),
+            ):
+                response = client.post(
+                    "/api/images/chat",
+                    json={
+                        "session_id": chat_id,
+                        "endpoint_id": endpoint_id,
+                        "prompt": "a red square",
+                    },
+                )
+                request_db.rollback()
+                media_count = len(list(Path(temp).rglob("*.png"))) + len(
+                    list(Path(temp).rglob("*.jpg"))
+                )
+        finally:
+            client.close()
+            request_db.close()
+            if previous_override is None:
+                app.dependency_overrides.pop(get_db, None)
+            else:
+                app.dependency_overrides[get_db] = previous_override
+
+        db = self.db()
+        actual = {
+            "status": response.status_code,
+            "media": media_count,
+            "photos": db.query(Photo).count(),
+            "messages": db.query(Message).filter_by(session_id=chat_id).count(),
+            "message_count": db.get(ChatSession, chat_id).message_count,
+            "notes": len(notes_vault.all_notes()),
+        }
+        self.assertEqual(
+            actual,
+            {"status": 503, "media": 0, "photos": 0, "messages": 0, "message_count": 0, "notes": 0},
+        )
+        db.close()
+        self.assertEqual(self.client.get(f"/api/sessions/{chat_id}/history").json()["messages"], [])
+
+    def test_chat_image_note_status_write_failure_keeps_saved_turn(self):
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from PIL import Image
+        from sqlalchemy import event
+        from sqlalchemy.orm import Session as DbSession
+
+        from core.database import Message, Photo
+        from core.database import Session as ChatSession
+        from services import notes_vault
+
+        buf = BytesIO()
+        Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
+        db = self.db()
+        endpoint = ModelEndpoint(name="image provider", base_url="http://x", enabled=True)
+        chat = ChatSession(name="new chat")
+        db.add_all([endpoint, chat])
+        db.commit()
+        endpoint_id, chat_id = endpoint.id, chat.id
+        db.close()
+
+        async def fake_generate(*_args, **_kwargs):
+            return [buf.getvalue()]
+
+        def fail_note_status(db, _flush_context, _instances):
+            if any(isinstance(row, Message) for row in db.dirty):
+                raise OSError("note status database write failed")
+
+        with (
+            TemporaryDirectory() as temp,
+            patch("services.photos_store.photos_dir", return_value=Path(temp)),
+            patch("services.imagegen.generate", side_effect=fake_generate),
+        ):
+            event.listen(DbSession, "before_flush", fail_note_status)
+            try:
+                response = self.client.post(
+                    "/api/images/chat",
+                    json={
+                        "session_id": chat_id,
+                        "endpoint_id": endpoint_id,
+                        "prompt": "a red square",
+                    },
+                )
+            finally:
+                event.remove(DbSession, "before_flush", fail_note_status)
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertIn("saved to notes", response.json()["content"])
+            self.assertEqual(len(response.json()["images"]), 1)
+            self.assertEqual(
+                self.client.get(response.json()["images"][0]["original"]).status_code, 200
+            )
+
+        db = self.db()
+        self.assertEqual(db.query(Photo).count(), 1)
+        messages = db.query(Message).filter_by(session_id=chat_id).order_by(Message.timestamp).all()
+        self.assertEqual(len(messages), 2)
+        self.assertIn("image generated", messages[1].content)
+        self.assertIsNone(messages[1].meta_dict()["note_id"])
+        self.assertEqual(db.get(ChatSession, chat_id).message_count, 2)
+        self.assertEqual(len(notes_vault.all_notes()), 1)
+        db.close()
+        history = self.client.get(f"/api/sessions/{chat_id}/history").json()
+        self.assertEqual(len(history["messages"]), 2)
+        self.assertIn("image generated", history["messages"][1]["content"])
+
     def test_image_model_detection(self):
         for mid in [
             "dall-e-3",
@@ -353,6 +505,9 @@ class ImagesApiTest(VaultApiTest):
         self.assertEqual(d.get(Sess, sid).name, "a red square")
         self.assertEqual(self.client.get("/api/gallery").json()["items"][0]["owner"], "photos")
         d.close()
+        history = self.client.get(f"/api/sessions/{sid}/history").json()
+        self.assertIn("saved to notes", history["messages"][1]["content"])
+        self.assertEqual(history["messages"][1]["meta"]["note_id"], j["doc_id"])
 
     def test_chat_image_incognito_leaves_no_trace(self):
         try:
