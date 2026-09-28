@@ -65,6 +65,19 @@ The spike also found an important naming detail: the 26.7.0 API's `downloadBudge
 budget `groupId` as the sync ID, not the `cloudFileId`. The production bridge must test and record this
 against every pinned upgrade.
 
+## 2026-09-28 live revalidation
+
+On Node 26.7.0 with [npm 12's install-script policy](https://docs.npmjs.com/cli/install/),
+`npm ci` can finish while native dependency scripts are blocked. The
+managed bundle now approves only the locked `bcrypt@6.0.0` and `better-sqlite3@12.11.1` scripts and
+loads both native modules before accepting an install. A throwaway install started and stopped healthy.
+
+The official `getBudgets()` listing includes a local file with an `id` and a separate remote entry for
+the same synced budget. The bridge now uses local entries for local identity and checks the remote
+identity separately; a remote-only staging retry downloads the same sync ID for reconciliation rather
+than creating another budget. The isolated create/delete/retry and migration/write/backup/restore live
+gates passed. No owner data was used.
+
 ## Production gate implementation
 
 - [x] package lock, license inventory, supported-runtime installation, and managed update/rollback;
