@@ -269,6 +269,30 @@ def run():
                     )
 
             page.route("**/api/money/summary?*", canonical_summary)
+            canonical_envelope_month = {
+                "month": month_start.strftime("%Y-%m"),
+                "income": 200,
+                "assigned_total": 60,
+                "to_be_budgeted": 90,
+                "categories": [
+                    {
+                        "category": "food",
+                        "group": "living",
+                        "assigned": 60,
+                        "spent": 10,
+                        "available": 100,
+                        "target": None,
+                    }
+                ],
+            }
+            page.route(
+                "**/api/money/envelope?*",
+                lambda route: route.fulfill(
+                    status=200,
+                    body=json.dumps(canonical_envelope_month),
+                    content_type="application/json",
+                ),
+            )
             page.route("**/api/money/recurring", canonical_recurring)
             page.reload(wait_until="networkidle")
             recurring_card = page.locator('.money-card[data-card="recurring"]')
@@ -444,38 +468,78 @@ def run():
                     )
 
             page.route("**/api/money/age-of-money", canonical_age)
-            page.route(
-                "**/api/money/envelope?*",
-                lambda route: route.fulfill(
-                    status=409,
-                    body='{"detail":"canonical envelope writes unavailable"}',
-                    content_type="application/json",
-                ),
-            )
+            envelope_failures = 2
+
+            def canonical_envelope(route):
+                nonlocal envelope_failures
+                if envelope_failures:
+                    envelope_failures -= 1
+                    route.fulfill(
+                        status=503,
+                        body='{"detail":"Actual budget month unavailable"}',
+                        content_type="application/json",
+                    )
+                else:
+                    route.fulfill(
+                        status=200,
+                        body=json.dumps(canonical_envelope_month),
+                        content_type="application/json",
+                    )
+
+            page.route("**/api/money/envelope?*", canonical_envelope)
             page.reload(wait_until="networkidle")
             use_light_theme_on_phone()
             envelope_card = page.locator('.money-card[data-card="envelope"]')
-            age_retry = envelope_card.get_by_role("button", name="retry", exact=True)
+            age_retry = envelope_card.locator("#age-retry")
+            envelope_retry = envelope_card.locator("#env-retry")
             expect(age_retry).to_be_visible()
+            expect(envelope_retry).to_be_visible()
             expect(envelope_card).to_contain_text("couldn't load age of money")
-            expect(envelope_card).to_contain_text(
-                "envelope budgeting isn't available with Actual yet"
-            )
-            expect(envelope_card).not_to_contain_text("no envelope data")
+            expect(envelope_card).to_contain_text("couldn't load Actual's budget month")
+            expect(
+                envelope_card.locator("#env-assign-btn, .env-assign, .env-tgt-btn")
+            ).to_have_count(0)
             assert age_retry.bounding_box()["height"] >= 44
+            assert envelope_retry.bounding_box()["height"] >= 44
             envelope_card.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-age-unavailable-{profile}.png"))
             if profile == "phone":
                 age_retry.tap()
             else:
                 age_retry.click()
-            age_retry = envelope_card.get_by_role("button", name="retry", exact=True)
+            age_retry = envelope_card.locator("#age-retry")
             expect(age_retry).to_be_focused()
             if profile == "phone":
                 age_retry.tap()
             else:
                 age_retry.press("Enter")
             expect(envelope_card).to_contain_text("age of money: 10d")
+            expect(envelope_card.locator("h3")).to_be_focused()
+            envelope_retry = envelope_card.locator("#env-retry")
+            if profile == "phone":
+                envelope_retry.tap()
+            else:
+                envelope_retry.click()
+            expect(envelope_retry).to_be_focused()
+            if profile == "phone":
+                envelope_retry.tap()
+            else:
+                envelope_retry.press("Enter")
+            expect(envelope_card).to_contain_text(
+                "Finance budgets change these same Actual amounts"
+            )
+            expect(
+                envelope_card.locator('.env-row[data-cat="food"] .env-assigned')
+            ).to_contain_text("60")
+            expect(envelope_card.locator('.env-row[data-cat="food"] .env-spent')).to_contain_text(
+                "10"
+            )
+            expect(envelope_card.locator('.env-row[data-cat="food"] .env-avail')).to_contain_text(
+                "100"
+            )
+            expect(
+                envelope_card.locator("#env-assign-btn, .env-assign, .env-tgt-btn")
+            ).to_have_count(0)
             expect(envelope_card.locator("h3")).to_be_focused()
             assert envelope_card.evaluate(
                 "element => element.scrollWidth <= element.clientWidth + 1"
@@ -488,7 +552,7 @@ def run():
             page.reload(wait_until="networkidle")
             use_light_theme_on_phone()
             envelope_card = page.locator('.money-card[data-card="envelope"]')
-            age_retry = envelope_card.get_by_role("button", name="retry", exact=True)
+            age_retry = envelope_card.locator("#age-retry")
             if profile == "phone":
                 age_retry.tap()
             else:
@@ -513,6 +577,7 @@ def run():
                     "element => element.scrollWidth <= element.clientWidth + 1"
                 )
             assert failures == 0
+            assert envelope_failures == 0
             assert not page_errors, page_errors
             assert all("503" in message or "409" in message for message in console_errors), (
                 console_errors
@@ -526,6 +591,7 @@ def run():
                     "recurring_canonical_read_and_retry": True,
                     "alerts_canonical_read_and_retry": True,
                     "age_canonical_read_and_retry": True,
+                    "envelope_canonical_read_and_retry": True,
                     "keyboard_or_touch": True,
                     "reduced_motion": True,
                     "console_errors": console_errors,

@@ -817,6 +817,10 @@ async function handle(request) {
     await loadBudget(request);
     return inspectBudget();
   }
+  if (request.command === 'budget_month') {
+    await loadBudget(request);
+    return api.getBudgetMonth(request.month);
+  }
   if (request.command === 'write') return write(request);
   if (request.command === 'readback') {
     await loadBudget(request, { dataDir: request.fresh_data_dir, preferSync: true });
