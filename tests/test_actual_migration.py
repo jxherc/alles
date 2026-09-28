@@ -1486,6 +1486,46 @@ class ActualMigrationTests(ApiTest):
             "notes": "repaired lease",
         }
         self.assertTrue(actual_migration.validate_active_links(db, upgraded)["ok"])
+        paused = copy.deepcopy(upgraded)
+        paused["schedules"][0]["posts_transaction"] = False
+        recurring_link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 1,
+                    "category_id": "c1",
+                    "notes": "repaired lease",
+                    "posts_transaction": False,
+                }
+            }
+        )
+        db.flush()
+        self.assertTrue(actual_migration.validate_active_links(db, paused)["ok"])
+        recurring_link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 1,
+                    "category_id": "c1",
+                    "notes": "repaired lease",
+                    "posts_transaction": True,
+                },
+                "_update_intent": {"action": "set_recurring_posting", "version": 1},
+            }
+        )
+        db.flush()
+        pending_result = actual_migration.validate_active_links(db, paused)
+        self.assertFalse(pending_result["ok"])
+        self.assertTrue(any(row.get("pending_update") for row in pending_result["invalid_links"]))
+        recurring_link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 1,
+                    "category_id": "c1",
+                    "notes": "repaired lease",
+                    "posts_transaction": True,
+                }
+            }
+        )
+        db.flush()
         for malformed in ({}, {"version": 2}, "invalid"):
             recurring_link.metadata_json = json.dumps({"canonical_schedule": malformed})
             db.flush()

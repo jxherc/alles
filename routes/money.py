@@ -55,6 +55,7 @@ def _legacy_ledger_mutation(method: str, path: str) -> bool:
         (
             parts[:1] == ["recurring"]
             and not (method == "POST" and len(parts) == 3 and parts[2] == "repair")
+            and not (method == "PATCH" and len(parts) == 2)
         )
         or (
             parts[:1] == ["envelope"]
@@ -1159,6 +1160,13 @@ def repair_recurring(rid: str, body: RecurringRepairBody, db: DbSession = Depend
 
 @router.patch("/recurring/{rid}")
 def update_recurring(rid: str, body: dict, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        if set(body) != {"active"} or type(body["active"]) is not bool:
+            raise HTTPException(409, "only pause or resume is available for canonical schedules")
+        try:
+            return actual_finance.set_recurring_posting(db, rid, body["active"])
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     _require_legacy_ledger_write(db)
     r = db.get(RecurringTxn, rid)
     if not r:

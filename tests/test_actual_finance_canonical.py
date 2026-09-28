@@ -4200,6 +4200,172 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(response.json(), {"id": "legacy-rent"})
         self.assertEqual(repair.call_args.args[1:], ("legacy-rent", "housing-id"))
 
+    def test_linked_recurring_pause_recovers_lost_response_without_new_schedule(self):
+        db = self.db()
+        snapshot = {
+            "schedules": [
+                {
+                    "kind": "recurring",
+                    "id": "legacy-rent",
+                    "name": "Alles recurring: rent [legacy-r]",
+                    "account_id": "legacy-account",
+                    "payee": "landlord",
+                    "amount_minor": -500,
+                    "next_date": "2026-10-01",
+                    "cycle": "monthly",
+                    "cycle_days": 30,
+                    "active": True,
+                    "posts_transaction": True,
+                    "metadata": {
+                        "category": "housing",
+                        "notes": "lease",
+                        "posting_rule_version": 1,
+                    },
+                }
+            ]
+        }
+        path = actual_migration._write_snapshot("run-route", snapshot)
+        db.add(
+            ActualMigrationRun(
+                id="run-route",
+                status="canonical",
+                base_currency_code="CAD",
+                snapshot_sha256=actual_migration.snapshot_sha256(snapshot),
+                snapshot_path=str(path),
+            )
+        )
+        link = ActualEntityLink(
+            run_id="run-route",
+            entity_kind="recurring",
+            source_id="legacy-rent",
+            actual_id="actual-rent",
+            metadata_json=json.dumps(snapshot["schedules"][0]["metadata"]),
+        )
+        db.add(link)
+        db.add(
+            ActualEntityLink(
+                run_id="run-route",
+                entity_kind="account",
+                source_id="legacy-account",
+                actual_id="actual-account",
+                metadata_json="{}",
+            )
+        )
+        db.commit()
+        actual = {
+            "accounts": [{"id": "actual-account", "name": "checking"}],
+            "transactions": [],
+            "payees": [{"id": "landlord-id", "name": "landlord"}],
+            "categories": [{"id": "housing-id", "name": "housing", "is_income": False}],
+            "category_groups": [],
+            "schedules": [
+                {
+                    "id": "actual-rent",
+                    "name": "Alles recurring: rent [legacy-r]",
+                    "account": "actual-account",
+                    "payee": "landlord-id",
+                    "amount": -500,
+                    "amountOp": "is",
+                    "date": {"start": "2026-10-01", "frequency": "monthly", "interval": 1},
+                    "next_date": "2026-10-01",
+                    "completed": False,
+                    "posts_transaction": True,
+                    "posting": {"guarded": True, "category": "housing-id", "notes": "lease"},
+                }
+            ],
+            "budget_months": [],
+        }
+        backups = []
+        writes = []
+
+        def backup():
+            backups.append(True)
+            return {"ok": True, "backup_id": f"pre-toggle-{len(backups)}"}
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"set_recurring_posting": 1}
+            if payload["command"] == "inspect":
+                return actual
+            self.assertEqual(payload["action"], "set_recurring_posting")
+            writes.append(payload)
+            actual["schedules"][0]["posts_transaction"] = payload["active"]
+            if len(writes) == 1:
+                raise managed_actual.ManagedActualError("response lost")
+            return {"id": "actual-rent", "posts_transaction": payload["active"]}
+
+        actual["categories"].append(
+            {"id": "another-housing", "name": "housing", "is_income": False}
+        )
+        self.assertFalse(actual_finance.recurring_schedules(db, actual=actual)[0]["manageable"])
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "ambiguous"):
+            actual_finance.set_recurring_posting(
+                db, "legacy-rent", False, bridge_request=bridge, backup_fn=backup
+            )
+        actual["categories"].pop()
+        self.assertTrue(actual_finance.recurring_schedules(db, actual=actual)[0]["manageable"])
+        with self.assertRaises(actual_finance.ActualFinanceUnavailable):
+            actual_finance.set_recurring_posting(
+                db, "legacy-rent", False, bridge_request=bridge, backup_fn=backup
+            )
+        pending = actual_finance.recurring_schedules(db, actual=actual)[0]
+        self.assertTrue(pending["posting_pending"])
+        self.assertFalse(pending["posting_target_active"])
+        self.assertFalse(pending["active"])
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "pending"):
+            actual_finance.set_recurring_posting(
+                db, "legacy-rent", True, bridge_request=bridge, backup_fn=backup
+            )
+        paused = actual_finance.set_recurring_posting(
+            db, "legacy-rent", False, bridge_request=bridge, backup_fn=backup
+        )
+        self.assertFalse(paused["active"])
+        self.assertFalse(paused["posting_pending"])
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(len(writes), 2)
+        self.assertEqual(link.actual_id, "actual-rent")
+        self.assertEqual(actual["schedules"][0]["next_date"], "2026-10-01")
+        self.assertFalse(json.loads(link.metadata_json)["canonical_schedule"]["posts_transaction"])
+        resumed = actual_finance.set_recurring_posting(
+            db, "legacy-rent", True, bridge_request=bridge, backup_fn=backup
+        )
+        self.assertTrue(resumed["active"])
+        self.assertEqual(len(backups), 2)
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "linked Alles schedule"):
+            actual_finance.set_recurring_posting(
+                db, "native-schedule", False, bridge_request=bridge, backup_fn=backup
+            )
+        saved_metadata = link.metadata_json
+        malformed = json.loads(saved_metadata)
+        malformed["canonical_schedule"]["posts_transaction"] = {}
+        link.metadata_json = json.dumps(malformed)
+        db.flush()
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "posting rule changed"):
+            actual_finance.recurring_schedules(db, actual=actual)
+        link.metadata_json = saved_metadata
+        db.flush()
+        actual["schedules"][0]["posting"]["guarded"] = False
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "posting rule"):
+            actual_finance.set_recurring_posting(
+                db, "legacy-rent", False, bridge_request=bridge, backup_fn=backup
+            )
+        self.assertEqual(len(backups), 2)
+        db.close()
+
+    def test_canonical_recurring_patch_allows_only_posting_switch(self):
+        with patch(
+            "routes.money.actual_finance.set_recurring_posting",
+            return_value={"id": "legacy-rent", "active": False},
+        ) as update:
+            response = self.client.patch("/api/money/recurring/legacy-rent", json={"active": False})
+            extra = self.client.patch(
+                "/api/money/recurring/legacy-rent",
+                json={"active": False, "amount": 1},
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(extra.status_code, 409, extra.text)
+        self.assertEqual(update.call_args.args[1:], ("legacy-rent", False))
+
     def test_canonical_alerts_use_one_actual_snapshot_and_local_watches(self):
         db = self.db()
         db.query(RecurringTxn).one().next_date = "2026-07-19"
