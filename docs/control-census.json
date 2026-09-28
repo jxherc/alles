@@ -58450,6 +58450,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_search_finance.py",
+                "kind": "existing-test-control-reference",
+                "line": 102
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
                 "line": 50
@@ -58610,7 +58616,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/search.js:193 click"
+            "value": "static/js/search.js:204 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -58663,7 +58669,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/search.js:193 click"
+            "value": "static/js/search.js:204 click"
           },
           "keys": [
             "Enter",
@@ -58696,7 +58702,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/search.js:193 click"
+        "value": "static/js/search.js:204 click"
       },
       "id": "static.3eab9620bb15",
       "kind": "action",
@@ -206902,7 +206908,7 @@
             "source": {
               "file": "static/js/search.js",
               "kind": "control-source",
-              "line": 244
+              "line": 286
             },
             "status": "source-only",
             "tests": []
@@ -206910,7 +206916,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/search.js:242 _option"
+            "value": "static/js/search.js:284 _option"
           },
           "keys": [],
           "modality": "pointer",
@@ -206924,7 +206930,7 @@
             "source": {
               "file": "static/js/search.js",
               "kind": "control-source",
-              "line": 244
+              "line": 286
             },
             "status": "source-only",
             "tests": []
@@ -206932,7 +206938,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/search.js:242 _option"
+            "value": "static/js/search.js:284 _option"
           },
           "keys": [
             "Enter",
@@ -206968,7 +206974,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/search.js:242 _option"
+        "value": "static/js/search.js:284 _option"
       },
       "id": "dynamic.4373069a2bb1",
       "kind": "choice",
@@ -206979,7 +206985,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/search.js:242 _option"
+          "static/js/search.js:284 _option"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -207020,9 +207026,9 @@
         "source": {
           "column": null,
           "file": "static/js/search.js",
-          "line": 244
+          "line": 286
         },
-        "source_selector": "static/js/search.js:244:1",
+        "source_selector": "static/js/search.js:286:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [

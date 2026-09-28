@@ -298,7 +298,7 @@ test('mail polling settings cannot block the specialist state from settling', ()
 test('Activity waits for its summary request before specialist state settles', () => {
   assert.match(
     specialistSources.activity,
-    /render\(d\.events \|\| \[\]\);\s*await loadSummary\(want, fetcher\)/,
+    /render\(d\.events \|\| \[\], d\.partial_sources \|\| \[\], fetcher\);[\s\S]{0,180}await loadSummary\(want, fetcher, sequence\)/,
   );
 });
 

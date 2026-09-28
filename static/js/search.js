@@ -1,6 +1,8 @@
 import { filterCommands } from './palette.js';
 
 let _debounce = null;
+let _financeDebounce = null;
+let _financeController = null;
 let _requestSequence = 0;
 let _optionSequence = 0;
 let _activeIndex = -1;
@@ -53,6 +55,12 @@ function _renderIdle() {
   _renderState('idle', 'type to search apps, docs, tasks, messages, and more');
 }
 
+function _cancelFinance() {
+  clearTimeout(_financeDebounce);
+  _financeController?.abort();
+  _financeController = null;
+}
+
 export function openSearch() {
   const modal = _modal();
   const input = _input();
@@ -61,6 +69,7 @@ export function openSearch() {
     _searchOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   }
   clearTimeout(_debounce);
+  _cancelFinance();
   _requestSequence += 1;
   _lastQ = '';
   modal.style.display = 'flex';
@@ -76,6 +85,7 @@ export function closeSearch({ restoreFocus = true } = {}) {
   if (!modal) return;
   const wasOpen = modal.style.display !== 'none';
   clearTimeout(_debounce);
+  _cancelFinance();
   _requestSequence += 1;
   modal.style.display = 'none';
   input?.setAttribute('aria-expanded', 'false');
@@ -147,6 +157,7 @@ export function initSearch() {
 
   input.addEventListener('input', () => {
     clearTimeout(_debounce);
+    _cancelFinance();
     _requestSequence += 1;
     const query = input.value.trim();
     if (!query) {
@@ -223,7 +234,12 @@ async function _runSearch(query) {
       return;
     }
     const data = await response.json();
-    if (requestId === _requestSequence) _renderResults(data, query);
+    if (requestId === _requestSequence) {
+      _renderResults(data, query);
+      if (data.finance_status === 'pending') {
+        _financeDebounce = setTimeout(() => _runFinanceSearch(query, requestId, data), 500);
+      }
+    }
   } catch {
     if (requestId === _requestSequence) {
       _renderResults({}, query, {
@@ -231,6 +247,32 @@ async function _runSearch(query) {
         message: 'search failed. check the connection and try again',
       });
     }
+  }
+}
+
+async function _runFinanceSearch(query, requestId, local) {
+  if (requestId !== _requestSequence) return;
+  const controller = new AbortController();
+  _financeController = controller;
+  try {
+    const response = await fetch(`/api/search/finance?q=${encodeURIComponent(query)}`, {
+      signal: controller.signal,
+    });
+    if (requestId !== _requestSequence) return;
+    if (!response.ok) {
+      _renderResults({ ...local, finance_status: 'unavailable' }, query, null, true);
+      return;
+    }
+    const finance = await response.json();
+    if (requestId === _requestSequence) {
+      _renderResults({ ...local, ...finance, finance_status: 'ready' }, query, null, true);
+    }
+  } catch (error) {
+    if (requestId === _requestSequence && error.name !== 'AbortError') {
+      _renderResults({ ...local, finance_status: 'unavailable' }, query, null, true);
+    }
+  } finally {
+    if (_financeController === controller) _financeController = null;
   }
 }
 
@@ -265,13 +307,16 @@ function _actionRail(query) {
     </div>`;
 }
 
-function _renderResults(data, query, status = null) {
+function _renderResults(data, query, status = null, preserveSelection = false) {
   const {
     chats = [], notes = [], tasks = [], calendar = [], contacts = [], memories = [], mail = [],
     money = [], subs = [], photos = [], books = [], read = [], habits = [], watch = [],
   } = data || {};
   const container = _results();
   if (!container) return;
+  const selected = preserveSelection ? _availableOptions()[_activeIndex] : null;
+  const selectedKey = selected ? [selected.dataset.type, selected.dataset.id,
+    selected.dataset.path, selected.dataset.view, selected.dataset.act].join('|') : null;
   _optionSequence = 0;
 
   const navHits = query ? filterCommands(window._navCommands || [], query).slice(0, 6) : [];
@@ -294,12 +339,20 @@ function _renderResults(data, query, status = null) {
 
   const state = status
     ? `<div class="search-state search-state--${status.state}" role="status">${_esc(status.message)}</div>`
+    : data?.finance_status === 'pending'
+      ? '<div class="search-state search-state--loading" role="status">searching finance… local search is ready</div>'
+      : data?.finance_status === 'unavailable'
+        ? '<div class="search-state search-state--unavailable" role="status">finance search is unavailable. local search still works</div>'
     : !matches
-      ? '<div class="search-state search-state--empty" role="status">no local matches. choose an action below</div>'
+      ? '<div class="search-state search-state--empty" role="status">no matches. choose an action below</div>'
       : '';
   container.setAttribute('aria-busy', 'false');
   container.innerHTML = state + _actionRail(query) + matches;
-  _setActive(0, false);
+  const options = _availableOptions();
+  const selectedIndex = selectedKey === null ? -1 : options.findIndex(option =>
+    [option.dataset.type, option.dataset.id, option.dataset.path,
+      option.dataset.view, option.dataset.act].join('|') === selectedKey);
+  _setActive(selectedIndex < 0 ? 0 : selectedIndex, false);
 }
 
 function _fromName(from) {
