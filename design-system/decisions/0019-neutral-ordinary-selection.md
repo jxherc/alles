@@ -21,3 +21,13 @@ preview swatches still show each theme's real colors; Books' separate shelf sele
 styling until that workbench is reviewed. Settings mode and accent changes refresh the inline editor's
 draft so its next edit cannot reapply an older theme. Desktop and phone behavior in both themes,
 keyboard selection, reduced motion, and 200% layout are checked on isolated data.
+
+Library Read is the next bounded follow-through. Its reading filters and feeds toggle use
+raised/strong-line/text roles; the active tag uses text weight. Existing radio, pressed, and filter
+feedback remain.
+The feeds control is separate from the filter radio group: opening it must not clear or change an
+archived, unread, starred, or all selection. Read's filter handler now binds only to the filter group,
+not every button sharing the visual chip class. The isolated Library browser gate checks the selected
+filter before and after feeds opens and closes, both themes on desktop and phone, keyboard activation,
+44px targets, selected tag, and desktop 200% layout. This decision does not recolor other
+Library/Health choices or semantic permission, failure, and success signals.
