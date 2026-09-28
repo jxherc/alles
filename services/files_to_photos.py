@@ -102,12 +102,22 @@ def import_from_files(
                 .filter(
                     Photo.source == "files",
                     Photo.source_id == source_id,
-                    Photo.checksum == expected["checksum"],
                 )
                 .first()
             )
             if existing:
-                skipped.append({"path": source_path, "photo_id": existing.id})
+                if existing.checksum != expected["checksum"]:
+                    failed.append(
+                        {
+                            "path": source_path,
+                            "error": (
+                                "file changed since it was sent to Photos; earlier photo kept. "
+                                "upload this version in Photos to keep both"
+                            ),
+                        }
+                    )
+                else:
+                    skipped.append({"path": source_path, "photo_id": existing.id})
                 continue
             created = None
             try:

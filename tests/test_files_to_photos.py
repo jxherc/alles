@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
+from PIL import Image
+
 from core.database import Photo, StorageLocation
 from services import file_operations, files_to_photos
 from tests._client import ApiTest
@@ -76,6 +78,100 @@ class FilesToPhotosTests(ApiTest):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].source, "files")
         self.assertEqual(rows[0].source_id, "local-media:image.png")
+        db.close()
+
+    def test_changed_source_keeps_original_photo_and_reports_conflict(self):
+        source = self.files / "image.png"
+        source.write_bytes(PNG)
+        first = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "image.png"},
+        )
+        self.assertEqual(first.json()["imported"], 1)
+
+        db = self.db()
+        photo = db.query(Photo).one()
+        photo.favorite = True
+        photo.hidden = True
+        db.commit()
+        original_id = photo.id
+        original_name = photo.filename
+        original_thumb = photo.thumb
+        original_checksum = photo.checksum
+        db.close()
+        original_media = {
+            path.relative_to(self.photos): path.read_bytes()
+            for path in self.photos.rglob("*")
+            if path.is_file()
+        }
+
+        Image.new("RGB", (2, 2), "red").save(source)
+        response = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "image.png"},
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertFalse(result["ok"])
+        self.assertFalse(result["partial"])
+        self.assertEqual(result["imported"], 0)
+        self.assertEqual(result["skipped"], 0)
+        self.assertEqual(len(result["failed"]), 1)
+        self.assertEqual(result["failed"][0]["path"], "image.png")
+        self.assertIn("file changed since it was sent to Photos", result["failed"][0]["error"])
+        self.assertNotIn("UNIQUE constraint", result["failed"][0]["error"])
+        db = self.db()
+        rows = db.query(Photo).all()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].id, original_id)
+        self.assertEqual(rows[0].filename, original_name)
+        self.assertEqual(rows[0].thumb, original_thumb)
+        self.assertEqual(rows[0].checksum, original_checksum)
+        self.assertTrue(rows[0].favorite)
+        self.assertTrue(rows[0].hidden)
+        db.close()
+        self.assertEqual(
+            {
+                path.relative_to(self.photos): path.read_bytes()
+                for path in self.photos.rglob("*")
+                if path.is_file()
+            },
+            original_media,
+        )
+
+    def test_changed_folder_item_does_not_stop_new_items(self):
+        folder = self.files / "album"
+        folder.mkdir()
+        source = folder / "one.png"
+        source.write_bytes(PNG)
+        first = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "album"},
+        )
+        self.assertEqual(first.json()["imported"], 1)
+
+        Image.new("RGB", (2, 2), "red").save(source)
+        (folder / "two.png").write_bytes(PNG)
+        response = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "album"},
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertFalse(result["ok"])
+        self.assertTrue(result["partial"])
+        self.assertEqual(result["imported"], 1)
+        self.assertEqual(result["skipped"], 0)
+        self.assertEqual([item["path"] for item in result["failed"]], ["album/one.png"])
+        self.assertIn("file changed since it was sent to Photos", result["failed"][0]["error"])
+        db = self.db()
+        rows = db.query(Photo).order_by(Photo.source_id).all()
+        self.assertEqual(
+            [row.source_id for row in rows],
+            ["local-media:album/one.png", "local-media:album/two.png"],
+        )
         db.close()
 
     def test_source_modification_time_is_converted_from_unix_time_in_utc(self):
