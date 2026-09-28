@@ -97,8 +97,8 @@ def _request(db: Session, payload: dict, *, timeout: int = 180, bridge_request=N
 
 
 @authority_guarded
-def inspect(db: Session, *, bridge_request=None) -> dict:
-    return _request(db, {"command": "inspect"}, bridge_request=bridge_request)
+def inspect(db: Session, *, timeout: int = 180, bridge_request=None) -> dict:
+    return _request(db, {"command": "inspect"}, timeout=timeout, bridge_request=bridge_request)
 
 
 def _links(db: Session, kind: str) -> list[ActualEntityLink]:

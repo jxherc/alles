@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session as DbSession
 
@@ -18,10 +18,12 @@ from core.database import (
     Transaction,
     get_db,
 )
+from services import actual_finance
 
 router = APIRouter(prefix="/api")
 
 _LIMIT = 8
+_FINANCE_BRIDGE_TIMEOUT = 8
 
 
 def _snip(text: str, ql: str, span: int = 120) -> str:
@@ -57,7 +59,108 @@ def _search_vault(q: str, limit: int) -> list[dict]:
     return out
 
 
-# GET /api/search — one search across every alles app
+def _finance_match(q: str, *values) -> bool:
+    return any(q in str(value or "").casefold() for value in values)
+
+
+def _legacy_finance_search(db: DbSession, pat: str) -> dict:
+    txns = (
+        db.query(Transaction)
+        .filter(
+            or_(
+                Transaction.payee.ilike(pat, escape="\\"),
+                Transaction.category.ilike(pat, escape="\\"),
+                Transaction.notes.ilike(pat, escape="\\"),
+            )
+        )
+        .order_by(Transaction.date.desc())
+        .limit(_LIMIT)
+        .all()
+    )
+    subs = (
+        db.query(Subscription)
+        .filter(
+            or_(
+                Subscription.name.ilike(pat, escape="\\"),
+                Subscription.category.ilike(pat, escape="\\"),
+            )
+        )
+        .limit(_LIMIT)
+        .all()
+    )
+    return {
+        "money": [
+            {
+                "id": t.id,
+                "payee": t.payee or t.category or "transaction",
+                "amount": t.amount,
+                "when": (t.date or "")[:10],
+            }
+            for t in txns
+        ],
+        "subs": [
+            {"id": s.id, "name": s.name, "snippet": f"{s.currency}{s.price:g} · {s.cycle}"}
+            for s in subs
+        ],
+    }
+
+
+def _canonical_finance_search(db: DbSession, q: str) -> dict:
+    snapshot = actual_finance.inspect(db, timeout=_FINANCE_BRIDGE_TIMEOUT)
+    txns = actual_finance.transactions(db, actual=snapshot)
+    schedules = actual_finance.subscription_schedules(db, actual=snapshot)
+    legacy = {row.id: row for row in db.query(Subscription).all()}
+    matched_txns = [
+        row
+        for row in txns
+        if _finance_match(q, row.get("payee"), row.get("category"), row.get("notes"))
+    ]
+    matched_txns.sort(key=lambda row: row.get("date") or "", reverse=True)
+    matched_schedules = []
+    for row in schedules:
+        old = legacy.get(row["id"])
+        name = actual_finance.subscription_display_name(row, old)
+        metadata = row.get("metadata") or {}
+        category = metadata.get("category") or (old.category if old else "")
+        if _finance_match(q, name, category):
+            matched_schedules.append((row, name))
+    return {
+        "money": [
+            {
+                "id": row["id"],
+                "payee": row.get("payee") or row.get("category") or "transaction",
+                "amount": row["amount"],
+                "when": (row.get("date") or "")[:10],
+            }
+            for row in matched_txns[:_LIMIT]
+        ],
+        "subs": [
+            {
+                "id": row["id"],
+                "name": name,
+                "snippet": f"{row['currency']} {row['price']:g} · {row['cycle']}",
+            }
+            for row, name in matched_schedules[:_LIMIT]
+        ],
+    }
+
+
+@router.get("/search/finance")
+def finance_search(q: str = Query(""), db: DbSession = Depends(get_db)):
+    if not q.strip():
+        return {"money": [], "subs": []}
+    pat = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    with actual_finance.AUTHORITY_LOCK:
+        try:
+            if actual_finance.is_canonical(db):
+                return _canonical_finance_search(db, q.casefold())
+            return _legacy_finance_search(db, pat)
+        except actual_finance.ActualFinanceUnavailable as exc:
+            raise HTTPException(503, "finance search is unavailable") from exc
+        except actual_finance.ActualFinanceError as exc:
+            raise HTTPException(503, "finance search authority is unavailable") from exc
+
+
 @router.get("/search/fts")
 def fts_search(
     q: str = Query(""), kind: str = "", limit: int = 20, db: DbSession = Depends(get_db)
@@ -95,6 +198,7 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     pat = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
     ql = q.lower()
     res = dict(empty)
+    res["finance_status"] = "pending"
 
     # chats — session names + message bodies
     by_name = (
@@ -167,47 +271,6 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
         res["memories"] = search_memories(q, top_k=_LIMIT)
     except Exception:
         res["memories"] = []
-
-    # money — transactions by payee/category/notes
-    txns = (
-        db.query(Transaction)
-        .filter(
-            or_(
-                Transaction.payee.ilike(pat, escape="\\"),
-                Transaction.category.ilike(pat, escape="\\"),
-                Transaction.notes.ilike(pat, escape="\\"),
-            )
-        )
-        .order_by(Transaction.date.desc())
-        .limit(_LIMIT)
-        .all()
-    )
-    res["money"] = [
-        {
-            "id": t.id,
-            "payee": t.payee or t.category or "transaction",
-            "amount": t.amount,
-            "when": (t.date or "")[:10],
-        }
-        for t in txns
-    ]
-
-    # subscriptions — by name/category
-    subs = (
-        db.query(Subscription)
-        .filter(
-            or_(
-                Subscription.name.ilike(pat, escape="\\"),
-                Subscription.category.ilike(pat, escape="\\"),
-            )
-        )
-        .limit(_LIMIT)
-        .all()
-    )
-    res["subs"] = [
-        {"id": s.id, "name": s.name, "snippet": f"{s.currency}{s.price:g} · {s.cycle}"}
-        for s in subs
-    ]
 
     # photos — by original filename
     photos = (
