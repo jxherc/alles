@@ -3270,7 +3270,6 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         for path in (
             "/api/money/envelope",
             "/api/money/age-of-money",
-            "/api/money/forecast",
             "/api/money/income/summary",
             "/api/money/alerts",
         ):
@@ -3278,6 +3277,156 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 409, response.text)
                 self.assertIn("canonical ledger", response.text)
+
+    def test_forecast_uses_one_actual_snapshot_and_posting_schedules(self):
+        db = self.db()
+        recurring_id = db.query(RecurringTxn.id).one()[0]
+        db.add_all(
+            [
+                ActualEntityLink(
+                    run_id="run-route",
+                    entity_kind="account",
+                    source_id="legacy-account",
+                    actual_id="actual-account",
+                    metadata_json='{"base_amount_text":"100","original_amount_text":"100"}',
+                ),
+                ActualEntityLink(
+                    run_id="run-route",
+                    entity_kind="recurring",
+                    source_id=recurring_id,
+                    actual_id="rent-schedule",
+                    metadata_json='{"category":"housing"}',
+                ),
+                ActualEntityLink(
+                    run_id="run-route",
+                    entity_kind="subscription",
+                    source_id="legacy-subscription",
+                    actual_id="subscription-schedule",
+                    metadata_json="{}",
+                ),
+            ]
+        )
+        db.commit()
+        db.close()
+        actual = {
+            "accounts": [
+                {"id": "actual-account", "name": "checking", "balance": 7000},
+                {"id": "native-account", "name": "cash", "balance": 5000},
+            ],
+            "transactions": [
+                {
+                    "id": "expense",
+                    "account": "actual-account",
+                    "date": "20260510",
+                    "amount": -3000,
+                    "category_name": "groceries",
+                },
+                {
+                    "id": "opening-native",
+                    "account": "native-account",
+                    "date": "20260615",
+                    "amount": 5000,
+                    "starting_balance_flag": True,
+                },
+            ],
+            "payees": [{"id": "rent-payee", "name": "rent"}],
+            "schedules": [
+                {
+                    "id": "rent-schedule",
+                    "name": "Alles recurring: rent",
+                    "account": "actual-account",
+                    "payee": "rent-payee",
+                    "amount": -3000,
+                    "posts_transaction": True,
+                    "date": {
+                        "start": "2026-05-31",
+                        "frequency": "monthly",
+                        "interval": 1,
+                        "patterns": [{"type": "day", "value": -1}],
+                    },
+                    "next_date": "2026-06-30",
+                },
+                {
+                    "id": "subscription-schedule",
+                    "name": "subscription",
+                    "account": "actual-account",
+                    "amount": -700,
+                    "posts_transaction": True,
+                    "date": {"start": "2026-06-10", "frequency": "monthly", "interval": 1},
+                },
+                {
+                    "id": "native-schedule",
+                    "name": "salary",
+                    "account": "actual-account",
+                    "amount": 1000,
+                    "posts_transaction": True,
+                    "date": {"start": "2026-06-25", "frequency": "monthly", "interval": 1},
+                },
+                {
+                    "id": "paused-schedule",
+                    "name": "paused",
+                    "account": "actual-account",
+                    "amount": -900,
+                    "posts_transaction": True,
+                    "completed": True,
+                    "date": {"start": "2026-06-05", "frequency": "monthly", "interval": 1},
+                },
+            ],
+        }
+        with patch("routes.money.actual_finance.inspect", return_value=actual) as inspect:
+            response = self.client.get("/api/money/forecast?month=2026-06&as_of=2026-06-01")
+            self.assertEqual(response.status_code, 200, response.text)
+            payload = response.json()
+            self.assertEqual(payload["start_balance"], 70.0)
+            self.assertEqual(payload["projected"], 50.0)
+            self.assertEqual(payload["categories"], {"groceries": 10.0})
+            self.assertEqual(
+                [(row["payee"], row["date"]) for row in payload["recurring"]],
+                [("salary", "2026-06-25"), ("rent", "2026-06-30")],
+            )
+            inspect.assert_called_once()
+            later = self.client.get(
+                "/api/money/forecast?month=2026-06&as_of=2026-06-20&skip=rent&income_delta=5"
+            )
+            self.assertEqual(later.status_code, 200, later.text)
+            self.assertEqual(later.json()["start_balance"], 120.0)
+            self.assertEqual(later.json()["projected"], 135.0)
+            actual["schedules"][0]["next_date"] = "2026-05-31"
+            stale_next = self.client.get("/api/money/forecast?month=2026-06&as_of=2026-06-01")
+            self.assertEqual(stale_next.status_code, 200, stale_next.text)
+            self.assertEqual(stale_next.json()["projected"], 50.0)
+            self.assertEqual(stale_next.json()["recurring"][-1]["date"], "2026-06-30")
+            self.assertEqual(inspect.call_count, 3)
+        db = self.db()
+        self.assertEqual(db.query(RecurringTxn).one().next_date, "2020-01-01")
+        db.close()
+
+    def test_forecast_reports_actual_outage_or_unknown_recurrence(self):
+        with patch(
+            "routes.money.actual_finance.inspect",
+            side_effect=actual_finance.ActualFinanceUnavailable("Actual is unavailable"),
+        ):
+            unavailable = self.client.get("/api/money/forecast?month=2026-06")
+        self.assertEqual(unavailable.status_code, 503, unavailable.text)
+        actual = {
+            "accounts": [],
+            "transactions": [],
+            "payees": [],
+            "schedules": [
+                {
+                    "id": "unknown",
+                    "name": "bill",
+                    "account": "account",
+                    "posts_transaction": True,
+                    "amount": -100,
+                    "date": {"start": "2026-06-10", "frequency": "monthly", "interval": 2},
+                }
+            ],
+        }
+        with patch("routes.money.actual_finance.inspect", return_value=actual):
+            unknown = self.client.get("/api/money/forecast?month=2026-06&as_of=2026-06-01")
+        self.assertEqual(unknown.status_code, 409, unknown.text)
+        self.assertIn("cannot be represented exactly", unknown.text)
 
     def test_canonical_reconcile_includes_the_opening_balance(self):
         actual = {"accounts": [], "transactions": []}

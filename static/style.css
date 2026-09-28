@@ -4832,6 +4832,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .ms-label { font-size: 0.75rem; color: var(--muted); text-transform: lowercase; letter-spacing: 0.03em; }
 .ms-val { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .ms-val.pos { color: var(--green); } .ms-val.neg { color: var(--error); }
+.ms-card[data-forecast] { min-height: 110px; }
+.ms-unavailable { font-size: 0.75rem; color: var(--muted); }
+.ms-retry { align-self: flex-start; min-height: 44px; }
 
 .money-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-bottom: 0.7rem; }
 .money-card { background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 0.85rem 1rem; }

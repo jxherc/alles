@@ -130,9 +130,52 @@ def run():
             assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
             card.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-history-recovered-{profile}.png"))
+
+            forecast_failures = 2
+
+            def forecast(route):
+                nonlocal forecast_failures
+                if forecast_failures:
+                    forecast_failures -= 1
+                    route.fulfill(
+                        status=503,
+                        body='{"detail":"forecast unavailable"}',
+                        content_type="application/json",
+                    )
+                else:
+                    route.continue_()
+
+            page.route("**/api/money/forecast?*", forecast)
+            page.reload(wait_until="networkidle")
+            projection = page.locator("[data-forecast]")
+            retry_forecast = projection.get_by_role("button", name="retry", exact=True)
+            expect(retry_forecast).to_be_visible()
+            expect(projection).to_contain_text("couldn't load forecast")
+            assert retry_forecast.bounding_box()["height"] >= 44
+            projection.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-forecast-unavailable-{profile}.png"))
+            if profile == "phone":
+                retry_forecast.tap()
+            else:
+                retry_forecast.click()
+            retry_forecast = projection.get_by_role("button", name="retry", exact=True)
+            expect(retry_forecast).to_be_focused()
+            if profile == "phone":
+                retry_forecast.tap()
+            else:
+                retry_forecast.press("Enter")
+            expect(projection.locator(".ms-val")).to_contain_text("120")
+            expect(projection).to_be_focused()
+            assert projection.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
+            assert forecast_failures == 0
+            projection.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-forecast-recovered-{profile}.png"))
             if profile == "desktop":
                 page.evaluate("document.documentElement.style.zoom = '2'")
                 assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
+                assert projection.evaluate(
+                    "element => element.scrollWidth <= element.clientWidth + 1"
+                )
             assert failures == 0
             assert not page_errors, page_errors
             assert all("503" in message for message in console_errors), console_errors
@@ -141,6 +184,7 @@ def run():
                     "profile": profile,
                     "month_end_history": True,
                     "outage_retry": True,
+                    "forecast_outage_retry": True,
                     "keyboard_or_touch": True,
                     "reduced_motion": True,
                     "console_errors": console_errors,

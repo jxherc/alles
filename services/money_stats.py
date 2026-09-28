@@ -55,6 +55,16 @@ def networth_history(accounts, transactions, *, end_month, months):
     return result
 
 
+def net_worth_at(accounts, transactions, on_date):
+    """Balance of open accounts from openings and transactions through one date."""
+    open_accounts = {row["id"] for row in accounts if not row["archived"]}
+    total = sum((row["opening"] or 0.0) for row in accounts if not row["archived"])
+    for row in transactions:
+        if row["account_id"] in open_accounts and (row["date"] or "") <= on_date:
+            total += row["amount"] or 0.0
+    return round(total, 2)
+
+
 def distribute_expense(txn, splits_by_txn, by):
     """Add one expense transaction to category totals, honoring split remainders."""
     amt = txn.amount or 0.0
