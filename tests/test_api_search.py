@@ -80,7 +80,9 @@ class SearchApiTest(ApiTest):
         )
         d.commit()
         d.close()
-        r = self.client.get("/api/search", params={"q": "zptest"}).json()
+        local = self.client.get("/api/search", params={"q": "zptest"}).json()
+        self.assertEqual(local["finance_status"], "pending")
+        r = self.client.get("/api/search/finance", params={"q": "zptest"}).json()
         self.assertEqual([t["payee"] for t in r["money"]], ["zptest grocer"])
         self.assertEqual([s["name"] for s in r["subs"]], ["zptest plus"])
 
@@ -183,7 +185,7 @@ class SearchApiTest(ApiTest):
         )
         d.commit()
         d.close()
-        r = self.client.get("/api/search", params={"q": "zpcat_groceries"}).json()
+        r = self.client.get("/api/search/finance", params={"q": "zpcat_groceries"}).json()
         self.assertEqual(len(r["money"]), 1)
 
     def test_result_shape_money_entry(self):
@@ -201,7 +203,7 @@ class SearchApiTest(ApiTest):
         )
         d.commit()
         d.close()
-        r = self.client.get("/api/search", params={"q": "zpshape payee"}).json()
+        r = self.client.get("/api/search/finance", params={"q": "zpshape payee"}).json()
         entry = r["money"][0]
         self.assertIn("id", entry)
         self.assertIn("payee", entry)

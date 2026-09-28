@@ -592,7 +592,7 @@ run from a hidden Aide Research toggle.
 | **ctrl/cmd + enter** | send |
 | **ctrl/cmd + b / i / e / k** | (in docs) bold / italic / inline-code / link |
 
-shortcuts are remappable in settings. global search is one command palette across the whole suite: chats, docs, **mail** (over the local header cache, instant), tasks, calendar, contacts, memories, **money**, **subscriptions**, and **photos**, grouped by app, and clicking a result jumps to it in its app (even on another subdomain). it also carries two **action rails**: **ask aide** opens the query in Aide, while **search with Andromeda** opens the normal links-first search page. deeper research continues in Aide after approval.
+shortcuts are remappable in settings. global search is one command palette across the whole suite: chats, docs, **mail** (over the local header cache, instant), tasks, calendar, contacts, memories, **money**, **subscriptions**, and **photos**, grouped by app, and clicking a result jumps to it in its app (even on another subdomain). local matches appear first; Finance matches follow through a separate read from the active ledger, with a visible unavailable state if that read fails. it also carries two **action rails**: **ask aide** opens the query in Aide, while **search with Andromeda** opens the normal links-first search page. deeper research continues in Aide after approval.
 
 ---
 
