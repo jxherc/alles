@@ -10,7 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Album, Face, Person, Photo, TrashItem, get_db
-from routes.vault import _ctx
+from routes.vault import DEFAULT_VAULT, _ctx
 from services import photos_store as ps
 from services import trash
 
@@ -22,22 +22,27 @@ def _hidden_token(request: Request) -> str:
     return request.headers.get("X-Vault-Token") or request.cookies.get(_HIDDEN_COOKIE, "")
 
 
+def _require_hidden_vault(request: Request, db: DbSession) -> None:
+    _, vault_id = _ctx(_hidden_token(request), db)
+    if vault_id != DEFAULT_VAULT:
+        raise HTTPException(403, "vault locked")
+
+
 def _require_hidden_access(photo: Photo, request: Request, db: DbSession) -> None:
     if photo.hidden:
-        _ctx(_hidden_token(request), db)
+        _require_hidden_vault(request, db)
 
 
 def _require_hidden_rows(rows: list[Photo], request: Request, db: DbSession) -> None:
     if any(photo.hidden for photo in rows):
-        _ctx(_hidden_token(request), db)
+        _require_hidden_vault(request, db)
 
 
 def _has_hidden_access(request: Request, db: DbSession) -> bool:
-    token = _hidden_token(request)
-    if not token:
+    if not _hidden_token(request):
         return False
     try:
-        _ctx(token, db)
+        _require_hidden_vault(request, db)
     except HTTPException:
         return False
     return True
@@ -353,7 +358,7 @@ def list_archive(db: DbSession = Depends(get_db)):
 @router.get("/hidden")
 def list_hidden(request: Request, response: Response, db: DbSession = Depends(get_db)):
     """the hidden/locked album — only reachable with a valid vault unlock token (7a)."""
-    _ctx(_hidden_token(request), db)
+    _require_hidden_vault(request, db)
     response.headers["Cache-Control"] = "no-store"
     if request.headers.get("X-Vault-Token"):
         response.set_cookie(
