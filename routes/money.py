@@ -1353,6 +1353,8 @@ def upsert_budget(body: BudgetBody, db: DbSession = Depends(get_db)):
 @router.delete("/budgets/{bid}")
 def delete_budget(bid: str, db: DbSession = Depends(get_db)):
     if actual_finance.is_canonical(db):
+        if not bid.startswith(("actual-budget-cap:", "actual-tag-budget:")):
+            raise HTTPException(409, "only spending caps can be removed here")
         try:
             return actual_finance.clear_budget(db, bid)
         except actual_finance.ActualFinanceError as exc:

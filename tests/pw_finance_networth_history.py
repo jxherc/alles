@@ -525,9 +525,7 @@ def run():
                 envelope_retry.tap()
             else:
                 envelope_retry.press("Enter")
-            expect(envelope_card).to_contain_text(
-                "Finance budgets change these same Actual amounts"
-            )
+            expect(envelope_card).to_contain_text("spending caps are separate")
             expect(
                 envelope_card.locator('.env-row[data-cat="food"] .env-assigned')
             ).to_contain_text("60")
@@ -547,6 +545,12 @@ def run():
             assert envelope_card.evaluate(
                 "element => element.scrollWidth <= element.clientWidth + 1"
             )
+            cap_card = page.locator('.money-card[data-card="budgets"]')
+            expect(cap_card.locator("h3")).to_contain_text("spending caps")
+            expect(cap_card.locator("#bf-cat")).to_have_attribute("placeholder", "Actual category")
+            assert cap_card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
+            cap_card.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-spending-caps-{profile}.png"))
             envelope_card.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-age-current-{profile}.png"))
 

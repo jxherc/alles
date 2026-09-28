@@ -44,7 +44,7 @@ test('finance dialogs, rows, and destructive actions expose complete interaction
     'delete this transaction',
     'delete this goal',
     'delete this holding',
-    'delete this monthly budget',
+    'remove this spending cap',
     'delete this categorization rule',
   ]) assert.match(moneySource, new RegExp(consequence));
   assert.match(styleSource, /#money-view :where\(button, a\.btn\)[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
