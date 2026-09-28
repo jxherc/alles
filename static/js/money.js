@@ -33,6 +33,7 @@ let _month = _monthFromUrl() || _thisMonth();
 let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];
 let _envelope = null, _aom = null;   // YNAB envelope view + age of money (4b)
 let _forecast = null, _nwhist = [], _holdings = null, _alerts = null;   // Simplifi (4c)
+let _forecastError = 'couldn\'t load forecast';
 let _goals = [];   // savings/debt goals (4d)
 let _searchResults = null;   // array when a search/filter is active, else null
 let _searchTimer = null;
@@ -283,7 +284,7 @@ async function load(fetcher = fetch) {
       request('/api/money/rules').catch(() => []),
       request(`/api/money/envelope?month=${_month}`).catch(() => null),
       request('/api/money/age-of-money').catch(() => null),
-      request(`/api/money/forecast?month=${_month}`).catch(() => null),
+      request(`/api/money/forecast?month=${_month}`).catch(error => { _forecastError = forecastFailure(error); return null; }),
       request('/api/money/networth-history?months=6').catch(() => null),
       request('/api/money/holdings').catch(() => null),
       request(`/api/money/alerts?month=${_month}`).catch(() => null),
@@ -349,7 +350,13 @@ function summaryCards() {
 
 function forecastCard() {
   return `<div class="ms-card" data-forecast tabindex="-1"><span class="ms-label">projected · month-end</span>
-    ${_forecast ? `<span class="ms-val ${_forecast.projected < 0 ? 'neg' : ''}">${fmt(_forecast.projected)}</span>` : '<span class="ms-unavailable" role="status">couldn\'t load forecast</span><button type="button" class="btn ms-retry" id="forecast-retry">retry</button>'}</div>`;
+    ${_forecast ? `<span class="ms-val ${_forecast.projected < 0 ? 'neg' : ''}">${fmt(_forecast.projected)}</span>` : `<span class="ms-unavailable" role="status">${esc(_forecastError)}</span><button type="button" class="btn ms-retry" id="forecast-retry">retry</button>`}</div>`;
+}
+
+function forecastFailure(error) {
+  return error?.status === 409 && /schedule|recurrence/i.test(error.message)
+    ? 'fix Actual schedule'
+    : 'couldn\'t load forecast';
 }
 
 async function retryForecast() {
@@ -357,7 +364,7 @@ async function retryForecast() {
   button.disabled = true;
   button.textContent = 'retrying…';
   try { _forecast = await api(`/api/money/forecast?month=${_month}`); }
-  catch { _forecast = null; }
+  catch (error) { _forecast = null; _forecastError = forecastFailure(error); }
   const card = document.querySelector('[data-forecast]');
   if (!card) return;
   card.outerHTML = forecastCard();

@@ -1120,6 +1120,10 @@ def forecast_schedules(db: Session, actual: dict, *, as_of: date) -> list[dict]:
         ):
             continue
         rule = row.get("date")
+        if isinstance(rule, dict) and rule.get("endMode", "never") != "never":
+            raise ActualFinanceError("the Actual schedule end rule cannot be forecast exactly")
+        if isinstance(rule, dict) and rule.get("skipWeekend"):
+            raise ActualFinanceError("the Actual schedule weekend rule cannot be forecast exactly")
         cycle, cycle_days, start_text = _schedule_cycle(rule)
         try:
             anchor = _schedule_anchor(rule, date.fromisoformat(start_text))

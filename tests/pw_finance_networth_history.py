@@ -170,6 +170,34 @@ def run():
             assert forecast_failures == 0
             projection.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-forecast-recovered-{profile}.png"))
+
+            schedule_failures = 1
+
+            def schedule_rule(route):
+                nonlocal schedule_failures
+                if schedule_failures:
+                    schedule_failures -= 1
+                    route.fulfill(
+                        status=409,
+                        body='{"detail":"the Actual schedule end rule cannot be forecast exactly"}',
+                        content_type="application/json",
+                    )
+                else:
+                    route.continue_()
+
+            page.route("**/api/money/forecast?*", schedule_rule)
+            page.reload(wait_until="networkidle")
+            projection = page.locator("[data-forecast]")
+            expect(projection).to_contain_text("fix Actual schedule")
+            projection.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-forecast-schedule-{profile}.png"))
+            retry_forecast = projection.get_by_role("button", name="retry", exact=True)
+            if profile == "phone":
+                retry_forecast.tap()
+            else:
+                retry_forecast.click()
+            expect(projection.locator(".ms-val")).to_contain_text("120")
+            assert schedule_failures == 0
             if profile == "desktop":
                 page.evaluate("document.documentElement.style.zoom = '2'")
                 assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
@@ -178,7 +206,9 @@ def run():
                 )
             assert failures == 0
             assert not page_errors, page_errors
-            assert all("503" in message for message in console_errors), console_errors
+            assert all("503" in message or "409" in message for message in console_errors), (
+                console_errors
+            )
             results.append(
                 {
                     "profile": profile,

@@ -3427,6 +3427,28 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             unknown = self.client.get("/api/money/forecast?month=2026-06&as_of=2026-06-01")
         self.assertEqual(unknown.status_code, 409, unknown.text)
         self.assertIn("cannot be represented exactly", unknown.text)
+        actual["schedules"][0]["date"] = {
+            "start": "2026-06-10",
+            "frequency": "monthly",
+            "interval": 1,
+            "endMode": "on_date",
+            "endDate": "2026-06-10",
+        }
+        with patch("routes.money.actual_finance.inspect", return_value=actual):
+            ended = self.client.get("/api/money/forecast?month=2026-06&as_of=2026-06-01")
+        self.assertEqual(ended.status_code, 409, ended.text)
+        self.assertIn("end rule cannot be forecast exactly", ended.text)
+        actual["schedules"][0]["date"] = {
+            "start": "2026-06-10",
+            "frequency": "monthly",
+            "interval": 1,
+            "endMode": "never",
+            "skipWeekend": True,
+        }
+        with patch("routes.money.actual_finance.inspect", return_value=actual):
+            shifted = self.client.get("/api/money/forecast?month=2026-06&as_of=2026-06-01")
+        self.assertEqual(shifted.status_code, 409, shifted.text)
+        self.assertIn("weekend rule cannot be forecast exactly", shifted.text)
 
     def test_canonical_reconcile_includes_the_opening_balance(self):
         actual = {"accounts": [], "transactions": []}
