@@ -1,4 +1,4 @@
-from datetime import UTC, date
+from datetime import date
 from hashlib import sha256
 from pathlib import Path
 from typing import Optional
@@ -10,20 +10,11 @@ from sqlalchemy.orm import Session as DbSession
 
 from core.database import DB_PATH, Task, get_db
 from core.settings import load_settings
-from services.task_nl import advance, parse_task, reschedule_date
+from services.task_nl import parse_task, reschedule_date
+from services.task_status import TASK_STAGES, apply_status
+from services.task_status import normalize_stage as _stage
 
 router = APIRouter(prefix="/api")
-
-TASK_STAGES = {"backlog", "next", "doing", "waiting", "done"}
-
-
-def _stage(value: str, done: bool = False) -> str:
-    if done:
-        return "done"
-    normalized = str(value or "backlog").strip().lower()
-    if normalized not in TASK_STAGES or normalized == "done":
-        return "backlog"
-    return normalized
 
 
 def _validate_stage(value) -> str:
@@ -390,42 +381,14 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
             detail = {"code": "task_conflict", "fields": conflicts, "current": _fmt(t)}
             db.rollback()
             raise HTTPException(409, detail)
-    spawned = None
     if "stage" in body:
         body["stage"] = _validate_stage(body["stage"])
         body["done"] = body["stage"] == "done"
     elif "done" in body:
         body["done"] = bool(body["done"])
-        body["stage"] = (
-            "done"
-            if body["done"]
-            else "backlog"
-            if _stage(getattr(t, "stage", ""), bool(t.done)) == "done"
-            else _stage(getattr(t, "stage", ""), False)
-        )
-    # stamp/clear the completion time as done flips (powers the activity feed)
-    if "done" in body and bool(body["done"]) != bool(t.done):
-        from datetime import datetime
-
-        t.completed_at = datetime.now(UTC).replace(tzinfo=None) if body["done"] else None
-    if body.get("done") and not t.done and t.repeat and t.due_date:
-        # completing a recurring task rolls it forward to the next occurrence
-        anchor = t.anchor_day or (int(t.due_date[8:10]) if len(t.due_date) >= 10 else None)
-        nxt = advance(t.due_date, t.repeat, anchor)
-        if nxt:
-            spawned = Task(
-                title=t.title,
-                priority=t.priority,
-                due_date=nxt,
-                repeat=t.repeat,
-                anchor_day=anchor,
-                tags=t.tags,
-                project=t.project,
-                notes=t.notes,
-                parent_id=t.parent_id,
-                stage="backlog",
-            )
-            db.add(spawned)
+    spawned = (
+        apply_status(db, t, stage=body.get("stage"), done=body["done"]) if "done" in body else None
+    )
     # priority/sort_order feed an int sort key in _ordered — a non-int gets stored then 500s
     # every list/tree/search path, so coerce up front and reject junk with a 400
     for numf in ("priority", "sort_order"):
@@ -435,7 +398,6 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
             except (TypeError, ValueError):
                 raise HTTPException(400, f"{numf} must be an integer")
     for f in (
-        "done",
         "title",
         "priority",
         "due_date",
@@ -445,7 +407,6 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
         "project",
         "sort_order",
         "parent_id",
-        "stage",
     ):
         if f in body:
             setattr(t, f, body[f])
