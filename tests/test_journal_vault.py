@@ -120,11 +120,11 @@ class JournalVaultTests(VaultApiTest):
     # ── regressions (found in QA) ───────────────────────────────────────────────
     def test_journal_not_collected_as_doc(self):
         # privacy: diary daily notes must never enter the ungated "doc" index
-        from routes.textindex import _collect_docs
+        from services.vault_md import indexable_documents
 
         self._mirror_on()
         self.client.put("/api/journal/2026-06-29", json={"content": "DIARYSECRET here"})
-        rels = [r for r, _ in _collect_docs()]
+        rels = [r for r, _ in indexable_documents()]
         self.assertNotIn("Journal/2026-06-29.md", rels)
 
     def test_journal_secret_not_in_doc_search(self):

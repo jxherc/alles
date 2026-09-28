@@ -160,13 +160,12 @@ def _run_vault_transfer(operation):
 def _reindex_after_vault_switch() -> None:
     try:
         from core.database import SessionLocal
-        from routes.textindex import _collect_docs
-        from services import personal_index, textindex
+        from services import personal_index, textindex, vault_md
 
         db = SessionLocal()
         try:
             personal_index.reindex_source(db, "note")
-            textindex.reindex_kind(db, "doc", _collect_docs())
+            textindex.reindex_kind(db, "doc", vault_md.indexable_documents())
         finally:
             db.close()
     except Exception as exc:
