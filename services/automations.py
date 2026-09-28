@@ -313,6 +313,35 @@ def _digest(db) -> str:
     return compose_briefing(db)["body"]
 
 
+def _subscription_trigger_rows():
+    """Read the active subscription source in a worker-owned session."""
+    from core.database import Subscription
+    from services import actual_finance
+
+    db = SessionLocal()
+    try:
+        with actual_finance.AUTHORITY_LOCK:
+            if actual_finance.is_canonical(db):
+                schedules = actual_finance.subscription_schedules(db)
+                legacy = {row.id: row for row in db.query(Subscription).all()}
+                return [
+                    (
+                        item["id"],
+                        actual_finance.subscription_display_name(item, legacy.get(item["id"])),
+                        item["next_due"],
+                        item["price"],
+                    )
+                    for item in schedules
+                    if item["active"]
+                ]
+            return [
+                (sub.id, sub.name, sub.next_due, sub.price)
+                for sub in db.query(Subscription).filter(Subscription.active == True).all()  # noqa: E712
+            ]
+    finally:
+        db.close()
+
+
 async def run_automations():
     """called from the background loop every tick (~30s)."""
     db = SessionLocal()
@@ -337,23 +366,22 @@ async def run_automations():
                             db.commit()
 
                 elif rule.trigger == "sub_renewing":
-                    from core.database import Subscription
-                    from routes.subscriptions import _parse as sub_parse
-
                     days = int(rule.trigger_arg or 3)
                     done = st.get("done", {})
-                    for s in db.query(Subscription).filter(Subscription.active == True).all():
-                        key = f"{s.id}:{s.next_due}"
+                    for sid, name, next_due, price in await asyncio.to_thread(
+                        _subscription_trigger_rows
+                    ):
+                        key = f"{sid}:{next_due}"
                         if key in done:
                             continue
-                        if 0 <= (sub_parse(s.next_due) - today).days <= days:
+                        if 0 <= (date.fromisoformat(str(next_due)[:10]) - today).days <= days:
                             result = await _fire(
                                 db,
                                 rule,
                                 {
-                                    "name": s.name,
-                                    "date": s.next_due,
-                                    "price": s.price,
+                                    "name": name,
+                                    "date": next_due,
+                                    "price": price,
                                     "dedupe": key,
                                 },
                             )
