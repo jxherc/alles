@@ -121,6 +121,39 @@ def tree() -> dict:
     return {"path": str(base), "items": walk(base)}
 
 
+def indexable_documents() -> list[tuple[str, str]]:
+    """Read a complete Docs snapshot before replacing its search index."""
+    from services import journal_vault
+
+    base = root_dir()
+    items = []
+
+    def fail_scan(error: OSError) -> None:
+        raise error  # os.walk otherwise drops unreadable folders silently
+
+    for folder, dirs, files in os.walk(base, onerror=fail_scan, followlinks=False):
+        parent = Path(folder)
+        dirs[:] = [
+            name
+            for name in dirs
+            if not name.startswith((".", "_"))
+            and not (parent == base and name == "Notes")
+            and not (parent / name).is_symlink()
+        ]
+        for name in files:
+            if not name.endswith(".md") or name.startswith((".", "_")):
+                continue
+            path = parent / name
+            if path.is_symlink():
+                continue  # never index an alias outside Docs or into private Notes
+            rel = path.relative_to(base).as_posix()
+            if journal_vault.is_daily(rel):
+                continue
+            # A partial snapshot would make reindex_kind delete valid old search rows.
+            items.append((rel, path.read_text("utf-8", errors="replace")))
+    return items
+
+
 def read(rel: str) -> dict:
     p = _safe(rel)
     if not p.exists() or not p.is_file():
@@ -895,7 +928,11 @@ def _all_md() -> list[Path]:
     return [
         p
         for p in base.rglob("*")
-        if p.is_file() and _is_md(p) and not p.name.startswith(".") and not _in_sys_dir(p)
+        if not p.is_symlink()
+        and p.is_file()
+        and _is_md(p)
+        and not p.name.startswith(".")
+        and not _in_sys_dir(p)
     ]
 
 

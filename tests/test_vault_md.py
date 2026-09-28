@@ -107,6 +107,17 @@ class VaultTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 vault_md.delete("outside/secret.md")
 
+    def test_discovery_does_not_follow_an_external_markdown_symlink(self):
+        with tempfile.TemporaryDirectory() as outside:
+            secret = Path(outside) / "secret.md"
+            secret.write_text("syntheticprivate [[old]] #secret", "utf-8")
+            (Path(self.tmp.name) / "linked.md").symlink_to(secret)
+
+            self.assertNotIn("linked", vault_md.note_names())
+            self.assertEqual(vault_md.full_text_search("syntheticprivate"), [])
+            self.assertEqual(vault_md.rewrite_links("old", "new"), [])
+            self.assertEqual(secret.read_text("utf-8"), "syntheticprivate [[old]] #secret")
+
     def test_search_ranks_prefix(self):
         vault_md.create("alpha.md")
         vault_md.create("beta-alpha.md")

@@ -1,3 +1,4 @@
+import os
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -89,6 +90,81 @@ class TextIndexApiTests(ApiTest):
         self.assertGreaterEqual(r["docs"], 2)
         hits = self.client.get("/api/index/search", params={"q": "tango"}).json()["hits"]
         self.assertTrue(any(h["ref"] == "b.md" for h in hits))
+
+    def test_reindex_read_error_preserves_existing_search_results(self):
+        self._save("keep.md", "searchable owner text")
+        base = Path(self.tmp.name)
+        (base / "new.md").write_text("new document text", "utf-8")
+        original_read_text = Path.read_text
+
+        def read_text(path, *args, **kwargs):
+            if path.name == "keep.md":
+                raise OSError("document temporarily unavailable")
+            return original_read_text(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", read_text):
+            response = self.client.post("/api/index/reindex")
+
+        self.assertEqual(response.status_code, 503, response.text)
+        hits = self.client.get(
+            "/api/index/search", params={"q": "searchable", "kind": "doc"}
+        ).json()["hits"]
+        self.assertTrue(any(hit["ref"] == "keep.md" for hit in hits))
+        self.assertEqual(self.db().query(IndexChunk).filter_by(ref="new.md").count(), 0)
+
+        retried = self.client.post("/api/index/reindex")
+        self.assertEqual(retried.status_code, 200, retried.text)
+        self.assertGreater(self.db().query(IndexChunk).filter_by(ref="new.md").count(), 0)
+
+    def test_reindex_folder_scan_error_preserves_existing_search_results(self):
+        self._save("folder/keep.md", "searchable folder text")
+        blocked = (Path(self.tmp.name) / "folder").resolve()
+        original_scandir = os.scandir
+
+        def scandir(path):
+            if Path(path).resolve() == blocked:
+                raise PermissionError("folder temporarily unavailable")
+            return original_scandir(path)
+
+        with mock.patch("os.scandir", side_effect=scandir):
+            response = self.client.post("/api/index/reindex")
+
+        self.assertEqual(response.status_code, 503, response.text)
+        hits = self.client.get(
+            "/api/index/search", params={"q": "searchable", "kind": "doc"}
+        ).json()["hits"]
+        self.assertTrue(any(hit["ref"] == "folder/keep.md" for hit in hits))
+
+    def test_reindex_does_not_follow_a_document_symlink_outside_the_vault(self):
+        base = Path(self.tmp.name)
+        with tempfile.TemporaryDirectory() as outside:
+            external = Path(outside) / "outside.md"
+            external.write_text("synthetic private phrase", "utf-8")
+            (base / "linked.md").symlink_to(external)
+
+            response = self.client.post("/api/index/reindex")
+            self.assertEqual(response.status_code, 200, response.text)
+            hits = self.client.get(
+                "/api/index/search", params={"q": "synthetic private phrase", "kind": "doc"}
+            ).json()["hits"]
+            self.assertFalse(any(hit["ref"] == "linked.md" for hit in hits))
+
+    def test_reindex_skips_a_circular_markdown_symlink(self):
+        loop = Path(self.tmp.name) / "loop.md"
+        loop.symlink_to(loop.name)
+
+        response = self.client.post("/api/index/reindex")
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["docs"], 0)
+
+    def test_ask_does_not_seed_a_partial_document_index(self):
+        (Path(self.tmp.name) / "unreadable.md").write_text("private test text", "utf-8")
+        with mock.patch.object(Path, "read_text", side_effect=OSError("read failed")):
+            response = self.client.get("/api/vault-md/ask", params={"q": "private"})
+
+        self.assertEqual(response.status_code, 503, response.text)
+        self.assertEqual(self.db().query(IndexChunk).filter_by(kind="doc").count(), 0)
 
     def test_api_search_empty_q(self):
         self._save("e.md", "whiskey xray")
