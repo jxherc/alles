@@ -1,5 +1,6 @@
 """Finance spending totals, category anomalies, and merchant insights."""
 
+import calendar
 import math
 from collections import defaultdict
 
@@ -25,6 +26,33 @@ def balance_deltas(db):
     for account_id, total in rows:
         by_account[account_id] = finite_amount(total or 0.0)
     return by_account
+
+
+def networth_history(accounts, transactions, *, end_month, months):
+    """Month-end net worth from one ledger's opening balances and dated transactions."""
+    open_accounts = {row["id"] for row in accounts if not row["archived"]}
+    balance = sum((row["opening"] or 0.0) for row in accounts if not row["archived"])
+    rows = sorted(
+        (row for row in transactions if row["account_id"] in open_accounts),
+        key=lambda row: row["date"] or "",
+    )
+    year, month = (int(part) for part in end_month.split("-"))
+    sequence = []
+    for _ in range(max(1, months)):
+        sequence.append(f"{year:04d}-{month:02d}")
+        month -= 1
+        if month == 0:
+            month, year = 12, year - 1
+    result = []
+    index = 0
+    for period in reversed(sequence):
+        period_year, period_month = int(period[:4]), int(period[5:7])
+        cutoff = f"{period}-{calendar.monthrange(period_year, period_month)[1]:02d}"
+        while index < len(rows) and (rows[index]["date"] or "") <= cutoff:
+            balance += rows[index]["amount"] or 0.0
+            index += 1
+        result.append({"month": period, "net_worth": round(balance, 2)})
+    return result
 
 
 def distribute_expense(txn, splits_by_txn, by):

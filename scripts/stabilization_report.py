@@ -75,6 +75,7 @@ BROWSER_SUITES = {
     "specialist": (
         "health-workflows",
         "finance-workflows",
+        "finance-networth-history",
         "library-workflows",
         "inbox-workflows",
         "vault-backup",
@@ -117,6 +118,7 @@ BROWSER_SUITES = {
         "aide-questions",
         "health-workflows",
         "finance-workflows",
+        "finance-networth-history",
         "library-workflows",
         "inbox-workflows",
         "vault-backup",
