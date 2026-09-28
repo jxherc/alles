@@ -1555,7 +1555,10 @@ async def execute(name: str, args: dict) -> dict:
     if name == "task_add":
         return await _task_add(args.get("title", ""))
     if name == "task_done":
-        return await _task_done(args.get("id", ""), bool(args.get("done", True)))
+        done = args.get("done", True)
+        if not isinstance(done, bool):
+            return {"output": "done must be a boolean", "error": True}
+        return await _task_done(args.get("id", ""), done)
     if name == "book_add":
         return await _book_add(args)
     if name == "books_list":
@@ -1796,13 +1799,14 @@ async def _task_add(title):
 
 async def _task_done(tid, done):
     from core.database import SessionLocal, Task
+    from services.task_status import apply_status
 
     db = SessionLocal()
     try:
         t = db.get(Task, tid)
         if not t:
             return {"output": "task not found", "error": True}
-        t.done = done
+        apply_status(db, t, done=done)
         db.commit()
         return {"output": f"task {tid} marked {'done' if done else 'not done'}"}
     finally:

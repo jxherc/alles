@@ -1,7 +1,10 @@
+import asyncio
 import unittest
 
+from core.database import Task
 from routes import search
 from services import agent_tools as at
+from tests._client import ApiTest
 
 
 class CrossAppToolTests(unittest.TestCase):
@@ -131,6 +134,70 @@ class CrossAppToolTests(unittest.TestCase):
                     self.assertEqual(
                         at.decide_permission(tool, arguments, mode, []), decisions[risk]
                     )
+
+
+class TaskToolApiTests(ApiTest):
+    def test_aide_completion_keeps_recurring_task_and_activity_rules(self):
+        task = self.client.post(
+            "/api/tasks",
+            json={
+                "title": "pay rent",
+                "due_date": "2026-01-31",
+                "repeat": "monthly",
+                "stage": "doing",
+            },
+        ).json()
+
+        result = asyncio.run(at.execute("task_done", {"id": task["id"], "done": True}))
+        self.assertNotIn("error", result)
+        with self.db() as db:
+            original = db.get(Task, task["id"])
+            self.assertTrue(original.done)
+            self.assertEqual(original.stage, "done")
+            self.assertIsNotNone(original.completed_at)
+            next_task = db.query(Task).filter(Task.id != task["id"]).one()
+            self.assertEqual(next_task.due_date, "2026-02-28")
+            self.assertEqual(next_task.anchor_day, 31)
+            self.assertFalse(next_task.done)
+            self.assertEqual(next_task.stage, "backlog")
+
+        timeline = self.client.get("/api/timeline", params={"types": "task", "days": 7})
+        self.assertEqual(timeline.status_code, 200)
+        self.assertTrue(
+            any(
+                item["id"] == task["id"] and item["subtitle"] == "completed"
+                for item in timeline.json()["events"]
+            )
+        )
+
+        asyncio.run(at.execute("task_done", {"id": task["id"], "done": True}))
+        with self.db() as db:
+            self.assertEqual(db.query(Task).count(), 2)
+
+    def test_aide_reopen_clears_completion_without_resetting_active_work(self):
+        task = self.client.post(
+            "/api/tasks", json={"title": "finish report", "stage": "doing"}
+        ).json()
+        asyncio.run(at.execute("task_done", {"id": task["id"], "done": False}))
+        with self.db() as db:
+            self.assertEqual(db.get(Task, task["id"]).stage, "doing")
+
+        self.client.patch(f"/api/tasks/{task['id']}", json={"done": True})
+        asyncio.run(at.execute("task_done", {"id": task["id"], "done": False}))
+        with self.db() as db:
+            reopened = db.get(Task, task["id"])
+            self.assertFalse(reopened.done)
+            self.assertEqual(reopened.stage, "backlog")
+            self.assertIsNone(reopened.completed_at)
+
+    def test_aide_rejects_non_boolean_completion_without_changing_task(self):
+        task = self.client.post("/api/tasks", json={"title": "leave open"}).json()
+
+        result = asyncio.run(at.execute("task_done", {"id": task["id"], "done": "false"}))
+
+        self.assertTrue(result.get("error"))
+        with self.db() as db:
+            self.assertFalse(db.get(Task, task["id"]).done)
 
 
 class SearchHelperTests(unittest.TestCase):
