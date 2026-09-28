@@ -35,6 +35,18 @@ try {
     payee, account, amount: -500, amountOp: 'is',
     date: {start: '2026-10-01', frequency: 'monthly', interval: 1, endMode: 'never'},
   });
+  let duplicateNameRejected = false;
+  let duplicateNameError = '';
+  try {
+    await api.createSchedule({
+      name: 'probe old rent', posts_transaction: false,
+      payee, account, amount: -500, amountOp: 'is',
+      date: {start: '2026-10-01', frequency: 'monthly', interval: 1, endMode: 'never'},
+    });
+  } catch (error) {
+    duplicateNameRejected = true;
+    duplicateNameError = String(error?.message || error);
+  }
   const oldBefore = (await api.getSchedules()).find(row => row.id === oldId);
   const oldRule = (await api.getRules()).find(row => row.id === oldBefore.rule);
   await api.updateSchedule(oldId, {posts_transaction: false});
@@ -83,6 +95,9 @@ try {
     scheduled: scheduled.map(row => ({category: row.category, schedule: row.schedule, notes: row.notes})),
     old_scheduled: oldScheduled.map(row => ({category: row.category, schedule: row.schedule, notes: row.notes})),
     expected_category: category,
+    duplicate_name_rejected: duplicateNameRejected,
+    duplicate_name_error: duplicateNameError,
+    same_name_count: (await api.getSchedules()).filter(row => row.name === 'probe old rent').length,
   }));
 } catch (error) {
   console.log('ALLES_PROBE_RESULT=' + JSON.stringify({error: String(error?.message || error)}));
@@ -201,6 +216,11 @@ class ActualScheduleProbeTests(unittest.TestCase):
                 self.assertFalse(output["before"]["posts_transaction"])
                 self.assertTrue(output["after"]["posts_transaction"])
                 self.assertEqual(output["before"]["next_date"], output["after"]["next_date"])
+                self.assertTrue(output["duplicate_name_rejected"])
+                self.assertRegex(
+                    output["duplicate_name_error"].lower(), "name|unique|exist|duplicate"
+                )
+                self.assertEqual(output["same_name_count"], 1)
                 self.assertTrue(output["old_before"]["posts_transaction"])
                 self.assertEqual(
                     output["old_rule_conditions"],
