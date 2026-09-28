@@ -3,6 +3,7 @@ being refactored onto services.signals. ids are random uuids so we compare the
 stable fields (titles, times, order, counts, in_days)."""
 
 from datetime import UTC, date, datetime, timedelta
+from unittest.mock import patch
 
 from core.database import (
     Account,
@@ -202,5 +203,64 @@ class TodayGoldenTests(ApiTest):
         d = self.db()
         try:
             self.assertEqual(d.query(Transaction).count(), 2)
+        finally:
+            d.close()
+
+    def test_future_date_preview_does_not_post_subscription_charges(self):
+        d = self.db()
+        account = Account(name="Checking", opening=100, currency="CAD")
+        finance_currency.prepare_account(account)
+        d.add(account)
+        d.commit()
+        due = _iso(-1)
+        sub = Subscription(
+            name="backup",
+            price=7.5,
+            currency="CAD",
+            cycle="monthly",
+            active=True,
+            next_due=due,
+            account_id=account.id,
+        )
+        finance_currency.prepare_subscription(sub)
+        d.add(sub)
+        d.commit()
+        sid = sub.id
+        d.close()
+
+        future = (date.today() + timedelta(days=65)).isoformat()
+        response = self.client.get("/api/today", params={"date": future})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["date"], future)
+
+        d = self.db()
+        try:
+            self.assertEqual(d.get(Subscription, sid).next_due, due)
+            self.assertEqual(d.query(Transaction).count(), 0)
+        finally:
+            d.close()
+
+    def test_viewer_timezone_does_not_post_a_renewal_early(self):
+        today = date.today().isoformat()
+        viewer_day = (date.today() + timedelta(days=1)).isoformat()
+        d = self.db()
+        sub = Subscription(
+            name="backup", price=7.5, currency="CAD", cycle="monthly", active=True, next_due=today
+        )
+        d.add(sub)
+        d.commit()
+        sid = sub.id
+        d.close()
+
+        with patch(
+            "routes.today.signals.calendar_today", return_value=date.fromisoformat(viewer_day)
+        ):
+            response = self.client.get(
+                "/api/today", params={"date": viewer_day, "timezone": "Pacific/Kiritimati"}
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        d = self.db()
+        try:
+            self.assertEqual(d.get(Subscription, sid).next_due, today)
         finally:
             d.close()
