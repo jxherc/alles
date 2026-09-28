@@ -281,8 +281,10 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   schedules in already-canonical budgets. for an older linked recurring schedule, Finance offers
   an explicit category choice and in-place posting-rule repair after a verified Actual backup.
   it keeps the schedule ID, amount, dates, and prior posting state; an interrupted repair stays
-  visible with a retry of the saved category. other schedule changes in Finance remain unavailable
-  until canonical writes can recover safely from uncertain provider results
+  visible with a retry of the saved category. linked schedules with a verified guarded rule can
+  pause or resume Actual posting without changing their recurrence, using a saved retry for an
+  uncertain response. unlinked native schedules and unrepaired old schedules stay read-only;
+  create, edit, and delete in Finance remain unavailable until their canonical writes recover safely
 - Money alerts use the active ledger for large purchases, watched transactions, upcoming bills,
   and low account balances. after cutover, they read one Actual snapshot plus local watches;
   variable bill amounts are not shown as zero, and a failed read offers retry instead of hiding alerts
