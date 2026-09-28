@@ -844,6 +844,22 @@ def _install_candidate(
     if result.returncode != 0:
         raise ManagedActualError("pinned Actual dependency installation failed")
     _remove_install_executable_links(destination)
+    native_check = runner(
+        [
+            "node",
+            "-e",
+            "new (require('better-sqlite3'))(':memory:').close(); "
+            "require('bcrypt').hashSync('check', 4)",
+        ],
+        cwd=destination,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+        env=actual_bridge._environment(),
+    )
+    if native_check.returncode != 0:
+        raise ManagedActualError("pinned Actual native dependencies failed to load")
     versions = bridge_call({"command": "versions"}, script=destination / "bridge.mjs", timeout=30)
     if any(versions.get(key) != VERSION for key in ("api", "cli", "sync_server")):
         raise ManagedActualError("installed Actual versions do not match the reviewed lock")
