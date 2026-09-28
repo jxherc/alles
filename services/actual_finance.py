@@ -16,7 +16,7 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from core.database import Account, ActualEntityLink, FinanceLedgerState
+from core.database import Account, ActualEntityLink, FinanceLedgerState, FundingTarget
 from services import finance_currency, managed_actual
 from services.money_stats import networth_history as _networth_history
 
@@ -1367,6 +1367,66 @@ def _validated_budget_month(value) -> str:
     return month
 
 
+def _funding_target_data(db: Session, categories: list[dict]) -> list[dict]:
+    """Attach ID-bound targets and expose old unbound rows for owner review."""
+    by_id = {row["category_id"]: row for row in categories}
+    claimed_sources = set()
+    linked_categories = set()
+    unbound = []
+    for link in _links(db, "funding_target"):
+        claimed_sources.add(link.source_id)
+        metadata = _link_metadata(link)
+        if metadata.get("_deleted"):
+            continue
+        amount_minor = metadata.get("amount_minor")
+        target_date = metadata.get("target_date")
+        if (
+            type(amount_minor) is not int
+            or amount_minor <= 0
+            or amount_minor > MAX_CENT_SAFE_MINOR
+            or not isinstance(target_date, str)
+        ):
+            raise ActualFinanceError("a funding target needs review")
+        target = by_id.get(link.actual_id)
+        if target is None:
+            unbound.append(
+                {
+                    "id": link.source_id,
+                    "category": str(metadata.get("category_name") or "missing category"),
+                    "amount": _major_from_minor(amount_minor, "funding target"),
+                    "date": target_date,
+                    "reason": "linked category is missing",
+                }
+            )
+            continue
+        if link.actual_id in linked_categories:
+            raise ActualFinanceError("more than one funding target is linked to a category")
+        linked_categories.add(link.actual_id)
+        amount = _major_from_minor(amount_minor, "funding target")
+        target["target"] = {
+            "id": link.source_id,
+            "amount": amount,
+            "date": target_date,
+            "funded": round(max(0.0, target["available"]) / amount, 4),
+        }
+    for row in db.query(FundingTarget).order_by(FundingTarget.category, FundingTarget.id).all():
+        if row.id in claimed_sources:
+            continue
+        amount_minor = _minor(row.amount, "old funding target")
+        if amount_minor <= 0:
+            raise ActualFinanceError("an old funding target needs review")
+        unbound.append(
+            {
+                "id": row.id,
+                "category": row.category,
+                "amount": _major_from_minor(amount_minor, "old funding target"),
+                "date": row.target_date or "",
+                "reason": "choose an Actual category",
+            }
+        )
+    return unbound
+
+
 @authority_guarded
 def envelope(db: Session, month: str, *, bridge_request=None) -> dict:
     """Read Actual's own budget-month totals and category balances."""
@@ -1420,6 +1480,7 @@ def envelope(db: Session, month: str, *, bridge_request=None) -> dict:
     rows.sort(
         key=lambda row: (row["group"].casefold(), row["category"].casefold(), row["category_id"])
     )
+    unbound_targets = _funding_target_data(db, rows)
     pending_assignments = []
     for link in _links(db, "budget_assignment"):
         pending = _link_metadata(link).get("_update_intent") or {}
@@ -1449,7 +1510,164 @@ def envelope(db: Session, month: str, *, bridge_request=None) -> dict:
         "assigned_total": -amount(selected, "totalBudgeted"),
         "to_be_budgeted": amount(selected, "toBudget"),
         "categories": rows,
+        "unbound_targets": unbound_targets,
         "pending_assignments": pending_assignments,
+    }
+
+
+@authority_guarded
+def set_funding_target(
+    db: Session,
+    category_id: str,
+    amount,
+    target_date: str = "",
+    *,
+    bridge_request=None,
+) -> dict:
+    """Write one local target; Actual's monthly assignment is never changed."""
+    category_id = str(category_id or "").strip()
+    amount_minor = _minor(amount, "funding target")
+    if amount_minor < 0:
+        raise ActualFinanceError("funding target cannot be negative; use zero to clear it")
+    target_date = str(target_date or "").strip() if amount_minor else ""
+    if target_date:
+        if not _ISO_DATE.fullmatch(target_date):
+            raise ActualFinanceError("funding target date must be YYYY-MM-DD")
+        target_date = _required_date(target_date, "funding target date")
+    if not category_id:
+        raise ActualFinanceError("an existing spending category is required")
+    current = envelope(db, date.today().strftime("%Y-%m"), bridge_request=bridge_request)
+    category = next(
+        (row for row in current["categories"] if row["category_id"] == category_id), None
+    )
+    if category is None:
+        raise ActualFinanceError("funding target requires an existing spending category")
+    links = _links(db, "funding_target")
+    active = [row for row in links if row.actual_id == category_id]
+    if len(active) > 1:
+        raise ActualFinanceError("more than one funding target is linked to this category")
+    retired = [
+        row
+        for row in links
+        if not row.actual_id and _deletion_target(_link_metadata(row)) == category_id
+    ]
+    link = active[0] if active else retired[0] if retired else None
+    if amount_minor == 0:
+        if link is None:
+            return {"category_id": category_id, "target": None}
+        if link in active:
+            metadata = _link_metadata(link)
+            metadata["_deleted"] = {"version": 1, "actual_id": category_id}
+            link.actual_id = ""
+            link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+            db.commit()
+        return {"category_id": category_id, "target": None}
+    if link is None:
+        link = ActualEntityLink(
+            run_id=_state(db).active_run_id,
+            entity_kind="funding_target",
+            source_id=f"actual-native:funding_target:{category_id}",
+            actual_id=category_id,
+        )
+        db.add(link)
+    metadata = _link_metadata(link)
+    metadata.pop("_deleted", None)
+    metadata.update(
+        {
+            "category_name": category["category"],
+            "amount_minor": amount_minor,
+            "target_date": target_date,
+            "source": metadata.get("source") or "alles_funding_target",
+        }
+    )
+    link.actual_id = category_id
+    link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+    db.commit()
+    return {
+        "category_id": category_id,
+        "target": {
+            "amount": _major_from_minor(amount_minor, "funding target"),
+            "date": metadata["target_date"],
+        },
+    }
+
+
+@authority_guarded
+def bind_funding_target(
+    db: Session,
+    target_id: str,
+    category_id: str,
+    *,
+    bridge_request=None,
+) -> dict:
+    """Bind a preserved old target only after the owner picks an Actual ID."""
+    target_id = str(target_id or "").strip()
+    category_id = str(category_id or "").strip()
+    if not target_id or not category_id:
+        raise ActualFinanceError("target and spending category are required")
+    current = envelope(db, date.today().strftime("%Y-%m"), bridge_request=bridge_request)
+    category = next(
+        (row for row in current["categories"] if row["category_id"] == category_id), None
+    )
+    if category is None:
+        raise ActualFinanceError("funding target requires an existing spending category")
+    links = _links(db, "funding_target")
+    matches = [row for row in links if row.source_id == target_id]
+    if len(matches) > 1:
+        raise ActualFinanceError("funding target has more than one identity link")
+    link = matches[0] if matches else None
+    if (
+        link is not None
+        and link.actual_id == category_id
+        and not _link_metadata(link).get("_deleted")
+    ):
+        metadata = _link_metadata(link)
+        return {
+            "category_id": category_id,
+            "target": {
+                "amount": _major_from_minor(metadata["amount_minor"], "funding target"),
+                "date": metadata["target_date"],
+            },
+        }
+    if category["target"]:
+        raise ActualFinanceError("that category already has a funding target")
+    if link is None:
+        old = db.get(FundingTarget, target_id)
+        if old is None:
+            raise ActualFinanceError("old funding target no longer exists")
+        amount_minor = _minor(old.amount, "old funding target")
+        if amount_minor <= 0:
+            raise ActualFinanceError("old funding target amount needs review")
+        link = ActualEntityLink(
+            run_id=_state(db).active_run_id,
+            entity_kind="funding_target",
+            source_id=old.id,
+            actual_id=category_id,
+            metadata_json=json.dumps(
+                {
+                    "category_name": old.category,
+                    "amount_minor": amount_minor,
+                    "target_date": old.target_date or "",
+                    "source": "legacy_funding_target",
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+        )
+        db.add(link)
+    else:
+        metadata = _link_metadata(link)
+        if metadata.get("_deleted"):
+            raise ActualFinanceError("deleted funding target cannot be rebound")
+        link.actual_id = category_id
+    db.commit()
+    metadata = _link_metadata(link)
+    return {
+        "category_id": category_id,
+        "target": {
+            "amount": _major_from_minor(metadata["amount_minor"], "funding target"),
+            "date": metadata["target_date"],
+        },
     }
 
 

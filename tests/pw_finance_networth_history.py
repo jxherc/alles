@@ -283,6 +283,33 @@ def run():
                         "spent": 10,
                         "available": 100,
                         "target": None,
+                    },
+                    {
+                        "category_id": "vacation-id",
+                        "category": "vacation",
+                        "group": "plans",
+                        "assigned": 0,
+                        "spent": 0,
+                        "available": 0,
+                        "target": None,
+                    },
+                    {
+                        "category_id": "books-id",
+                        "category": "books",
+                        "group": "plans",
+                        "assigned": 0,
+                        "spent": 0,
+                        "available": 0,
+                        "target": None,
+                    },
+                ],
+                "unbound_targets": [
+                    {
+                        "id": "old-target",
+                        "category": "old vacation",
+                        "amount": 100,
+                        "date": "2027-01-01",
+                        "reason": "choose an Actual category",
                     }
                 ],
                 "pending_assignments": [],
@@ -522,6 +549,69 @@ def run():
                 )
 
             page.route("**/api/money/envelope/assign", canonical_assignment)
+            target_failures = 1
+            target_writes = []
+
+            def canonical_target(route):
+                nonlocal target_failures
+                payload = route.request.post_data_json
+                target_writes.append(payload)
+                if target_failures:
+                    target_failures -= 1
+                    route.fulfill(
+                        status=503,
+                        body='{"detail":"target save unavailable"}',
+                        content_type="application/json",
+                    )
+                    return
+                target = next(
+                    row
+                    for row in canonical_envelope_month["categories"]
+                    if row["category_id"] == payload["category_id"]
+                )
+                target["target"] = (
+                    {
+                        "id": "actual-native:funding_target:food-id",
+                        "amount": payload["amount"],
+                        "date": payload["target_date"],
+                        "funded": 0.5,
+                    }
+                    if payload["amount"]
+                    else None
+                )
+                route.fulfill(
+                    status=200,
+                    body=json.dumps(
+                        {"category_id": payload["category_id"], "target": target["target"]}
+                    ),
+                    content_type="application/json",
+                )
+
+            def canonical_target_bind(route):
+                payload = route.request.post_data_json
+                assert payload["target_id"] == "old-target"
+                assert payload["category_id"] in {"vacation-id", "books-id"}
+                canonical_envelope_month["categories"][1]["target"] = None
+                destination = next(
+                    row
+                    for row in canonical_envelope_month["categories"]
+                    if row["category_id"] == payload["category_id"]
+                )
+                destination["target"] = {
+                    "id": "old-target",
+                    "amount": 100,
+                    "date": "2027-01-01",
+                    "funded": 0,
+                }
+                canonical_envelope_month["unbound_targets"] = []
+                route.fulfill(
+                    status=200,
+                    body=json.dumps({"category_id": payload["category_id"]}),
+                    content_type="application/json",
+                )
+
+            page.route("**/api/money/envelope/target/bind", canonical_target_bind)
+            page.route("**/api/money/envelope/target", canonical_target)
             page.reload(wait_until="networkidle")
             use_light_theme_on_phone()
             envelope_card = page.locator('.money-card[data-card="envelope"]')
@@ -560,7 +650,7 @@ def run():
                 envelope_retry.tap()
             else:
                 envelope_retry.press("Enter")
-            expect(envelope_card).to_contain_text("spending caps are separate")
+            expect(envelope_card).to_contain_text("spending caps and funding targets stay separate")
             assignment_input = envelope_card.locator(
                 '.env-row[data-category-id="food-id"] .env-assign'
             )
@@ -575,7 +665,10 @@ def run():
             expect(envelope_card.locator('.env-row[data-cat="food"] .env-avail')).to_contain_text(
                 "100"
             )
-            expect(envelope_card.locator("#env-assign-btn, .env-tgt-btn")).to_have_count(0)
+            expect(envelope_card.locator("#env-assign-btn")).to_have_count(0)
+            expect(envelope_card.locator(".env-tgt-btn")).to_have_count(3)
+            assert envelope_card.locator(".env-tgt-btn").first.bounding_box()["height"] >= 44
+            assert envelope_card.locator(".env-bind-target").bounding_box()["height"] >= 44
             expect(envelope_card.locator("h3")).to_be_focused()
             if profile == "phone":
                 assignment_input.tap()
@@ -625,6 +718,68 @@ def run():
                 envelope_card.locator('.env-row[data-category-id="food-id"] .env-assign')
             ).to_have_value("80")
             assert assignment_writes[-1]["expected_amount"] == 75
+            food_target = envelope_card.get_by_role(
+                "button", name="set funding target for living / food"
+            )
+            if profile == "phone":
+                food_target.tap()
+            else:
+                food_target.press("Enter")
+            target_dialog = page.get_by_role(
+                "dialog", name="funding target for living / food (0 clears it)"
+            )
+            target_date_field = target_dialog.get_by_label("by date (YYYY-MM-DD, optional)")
+            assert target_date_field.bounding_box()["width"] >= 200
+            assert target_date_field.bounding_box()["height"] >= 44
+            page.screenshot(path=str(artifacts / f"finance-target-editor-{profile}.png"))
+            target_dialog.get_by_label("target amount").fill("200")
+            target_date_field.fill("2027-02-01")
+            page.screenshot(path=str(artifacts / f"finance-target-editor-filled-{profile}.png"))
+            target_dialog.get_by_role("button", name="save").click()
+            expect(envelope_card.locator("#env-target-status")).to_contain_text("couldn't save")
+            food_target.click()
+            target_dialog = page.get_by_role(
+                "dialog", name="funding target for living / food (0 clears it)"
+            )
+            expect(target_dialog.get_by_label("target amount")).to_have_value("200")
+            expect(target_dialog.get_by_label("by date (YYYY-MM-DD, optional)")).to_have_value(
+                "2027-02-01"
+            )
+            target_dialog.get_by_role("button", name="save").click()
+            expect(envelope_card).to_contain_text("target CAD200.00 by 2027-02-01")
+            assert target_writes[0]["category_id"] == target_writes[1]["category_id"] == "food-id"
+            choose_category = envelope_card.get_by_role("button", name="choose category")
+            if profile == "phone":
+                choose_category.tap()
+            else:
+                choose_category.press("Enter")
+            picker = page.get_by_role("dialog", name="choose the category for old vacation")
+            picker.get_by_role("button", name="plans / vacation").press("Enter")
+            expect(envelope_card.locator(".env-unbound")).to_have_count(0)
+            expect(envelope_card).to_contain_text("target CAD100.00 by 2027-01-01")
+            expect(
+                envelope_card.get_by_role("button", name="edit funding target for plans / vacation")
+            ).to_be_focused()
+            envelope_card.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-target-bound-{profile}.png"))
+            move_target = envelope_card.locator(
+                '.env-row[data-category-id="vacation-id"] .env-move-target'
+            )
+            assert move_target.bounding_box()["height"] >= 44
+            if profile == "phone":
+                move_target.tap()
+            else:
+                move_target.press("Enter")
+            mover = page.get_by_role("dialog", name="choose the category for plans / vacation")
+            mover.get_by_role("button", name="plans / books").press("Enter")
+            expect(
+                envelope_card.locator('.env-row[data-category-id="vacation-id"]')
+            ).not_to_contain_text("target CAD100.00")
+            expect(envelope_card.locator('.env-row[data-category-id="books-id"]')).to_contain_text(
+                "target CAD100.00 by 2027-01-01"
+            )
+            envelope_card.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-target-moved-{profile}.png"))
             assert envelope_card.evaluate(
                 "element => element.scrollWidth <= element.clientWidth + 1"
             )

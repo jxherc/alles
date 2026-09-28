@@ -7,7 +7,7 @@ import { webcrypto } from 'node:crypto';
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
 
-function harness(values = {}, { canonical = false } = {}) {
+function harness(values = {}, { canonical = false, targetEditor = null, apiHandler = null } = {}) {
   const elements = new Map();
   const requests = [], notices = [];
   const get = id => {
@@ -22,13 +22,13 @@ function harness(values = {}, { canonical = false } = {}) {
     ? { querySelector: field => get(edits[field.match(/data-f="(.+)"/)[1]]) }
     : null;
   const context = vm.createContext({
-    document: { getElementById: get }, location: { search: '' }, URLSearchParams,
+    document: { getElementById: get, querySelectorAll: () => [] }, location: { search: '' }, URLSearchParams,
     crypto: webcrypto, TextEncoder,
     sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     getDropdownValue: el => el?.dataset.value,
     toast: (...args) => notices.push(args),
-    api: async (url, options = {}) => { requests.push({ url, ...options }); return {}; },
-    dlgFields: async () => ({ amount: values['target-amount'] }),
+    api: async (url, options = {}) => { requests.push({ url, ...options }); return apiHandler ? apiHandler(url, options) : {}; },
+    dlgFields: targetEditor || (async () => ({ amount: values['target-amount'] })),
   });
   vm.runInContext(source + `
     _canonicalLedger = ${canonical};
@@ -49,6 +49,34 @@ test('canonical assignment sends stable category identity and the observed amoun
   assert.equal(h.requests[0].body.expected_amount, 10);
   assert.equal(await h.assignEnvelope('food', '30.00'), false);
   assert.equal(h.requests.length, 2);
+});
+
+test('canonical funding target sends the category ID without changing the assignment', async () => {
+  const h = harness({ 'target-amount': '120.50' }, { canonical: true });
+  await h.setEnvTarget('food', 'food-id');
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.requests[0].url, '/api/money/envelope/target');
+  assert.equal(h.requests[0].body.category_id, 'food-id');
+  assert.equal(h.requests[0].body.amount, 120.5);
+  assert.equal(h.requests[0].body.category, 'food');
+});
+
+test('failed legacy target drafts stay with their category', async () => {
+  const editors = [];
+  const h = harness({}, {
+    targetEditor: async (title, defs) => {
+      editors.push({ title, amount: defs[0].value, date: defs[1].value });
+      return editors.length === 1 ? { amount: '75', date: '2027-02-01' } : null;
+    },
+    apiHandler: async url => { if (url === '/api/money/envelope/target') throw new Error('offline'); },
+  });
+  await h.setEnvTarget('food');
+  await h.setEnvTarget('rent');
+  await h.setEnvTarget('food');
+  assert.equal(editors[1].amount, '');
+  assert.equal(editors[1].date, '');
+  assert.equal(editors[2].amount, '75');
+  assert.equal(editors[2].date, '2027-02-01');
 });
 
 const valid = {

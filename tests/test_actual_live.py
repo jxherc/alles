@@ -355,7 +355,7 @@ def _snapshot():
         ],
         "transactions": transactions,
         "transfer_pairs": [{"id": "x1", "left": transactions[1], "right": transactions[2]}],
-        "category_names": ["food", "transfer", "housing"],
+        "category_names": ["food", "transfer", "housing", "future trip"],
         "payee_names": ["market", "cash", "CIBC chequing", "landlord"],
         "budget_assignments": [
             {
@@ -384,7 +384,19 @@ def _snapshot():
         ],
         "subscriptions": [],
         "subscription_payments": [],
-        "sidecar_links": [],
+        "sidecar_links": [
+            {
+                "kind": "funding_target",
+                "source_id": "legacy-target",
+                "actual_id": "sidecar:funding_target:legacy-target",
+                "metadata": {
+                    "category_name": "future trip",
+                    "amount_minor": 12000,
+                    "target_date": "2027-06-01",
+                    "source": "legacy_funding_target",
+                },
+            }
+        ],
     }
 
 
@@ -595,18 +607,33 @@ class ActualLiveGateTests(unittest.TestCase):
                 self.assertFalse(absent["deleted"])
                 self.assertTrue(absent["verified_absent"])
                 migration_marker = f"Alles staged {uuid.uuid4()}"
+                snapshot = _snapshot()
                 migrated = managed_actual.bridge_request(
                     {
                         "command": "migrate",
                         "budget_name": migration_marker,
                         "operation_marker": migration_marker,
                         "replace_existing_staging": True,
-                        "snapshot": _snapshot(),
+                        "snapshot": snapshot,
                     },
                     timeout=300,
                 )
-                parity = actual_migration.reconcile(_snapshot(), migrated)
+                migrated["links"] = [
+                    *(migrated.get("links") or []),
+                    *actual_migration._bind_sidecar_links(snapshot, migrated),
+                ]
+                parity = actual_migration.reconcile(snapshot, migrated)
                 self.assertTrue(parity["pass"], parity)
+                target_link = next(
+                    row for row in migrated["links"] if row["kind"] == "funding_target"
+                )
+                self.assertTrue(
+                    any(
+                        row.get("id") == target_link["actual_id"]
+                        and row.get("name") == "future trip"
+                        for row in migrated["actual"]["categories"]
+                    )
+                )
                 upgraded = _upgraded_snapshot(Path(root) / "upgraded-ledger.sqlite3")
                 upgraded_marker = f"Alles staged {uuid.uuid4()}"
                 upgraded_result = managed_actual.bridge_request(

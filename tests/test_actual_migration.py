@@ -13,6 +13,7 @@ from core.database import (
     Budget,
     BudgetAssignment,
     FinanceLedgerState,
+    FundingTarget,
     MoneyFxEvidence,
     RecurringTxn,
     SubPayment,
@@ -980,6 +981,78 @@ class ActualMigrationTests(ApiTest):
             row for row in report["checks"] if row["name"] == "persistent budget cap bindings"
         )
         self.assertFalse(check["pass"])
+        db.close()
+
+    def test_fresh_stage_preserves_target_only_category_and_binds_target(self):
+        db = self.db()
+        target = FundingTarget(category="vacation", amount=400, target_date="2027-01-01")
+        db.add(target)
+        db.commit()
+        snapshot = actual_migration.build_snapshot(db, base_currency_code="CAD")
+        self.assertIn("vacation", snapshot["category_names"])
+        sidecar = next(row for row in snapshot["sidecar_links"] if row["kind"] == "funding_target")
+        self.assertEqual(sidecar["metadata"]["amount_minor"], 40000)
+        result = self._bridge_result(snapshot)
+        bound = actual_migration._bind_sidecar_links(snapshot, result)
+        target_link = next(row for row in bound if row["kind"] == "funding_target")
+        self.assertEqual(target_link["source_id"], target.id)
+        self.assertEqual(
+            next(
+                row["name"]
+                for row in result["actual"]["categories"]
+                if row["id"] == target_link["actual_id"]
+            ),
+            "vacation",
+        )
+        report = actual_migration.reconcile(
+            snapshot, {"actual": result["actual"], "links": [*result["links"], *bound]}
+        )
+        self.assertTrue(report["pass"], report)
+        replacement = copy.deepcopy(result["actual"])
+        replacement["categories"].append({"id": "duplicate-vacation", "name": "vacation"})
+        with self.assertRaisesRegex(actual_migration.ActualMigrationError, "not uniquely bound"):
+            actual_migration._bind_sidecar_links(snapshot, {"actual": replacement})
+        db.close()
+
+    def test_restore_requires_original_target_category_id_not_same_name(self):
+        db = self.db()
+        state = db.get(FinanceLedgerState, "primary")
+        if state is None:
+            state = FinanceLedgerState(id="primary", base_currency_code="CAD")
+            db.add(state)
+        state.mode = "actual"
+        state.active_run_id = "target-restore-run"
+        db.add(
+            ActualEntityLink(
+                run_id="target-restore-run",
+                entity_kind="funding_target",
+                source_id="old-target",
+                actual_id="original-id",
+                metadata_json=json.dumps(
+                    {
+                        "category_name": "vacation",
+                        "amount_minor": 40000,
+                        "target_date": "2027-01-01",
+                    }
+                ),
+            )
+        )
+        db.commit()
+        restored = {
+            "accounts": [],
+            "transactions": [],
+            "payees": [],
+            "categories": [{"id": "original-id", "name": "renamed"}],
+            "category_groups": [],
+            "schedules": [],
+            "budget_months": [],
+        }
+        self.assertTrue(actual_migration.validate_active_links(db, restored)["ok"])
+        restored["categories"][0]["id"] = "replacement-id"
+        restored["categories"][0]["name"] = "vacation"
+        result = actual_migration.validate_active_links(db, restored)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["invalid_links"][0]["source_id"], "old-target")
         db.close()
 
     def test_reconcile_requires_budget_assignment_source_and_target_bijection(self):
