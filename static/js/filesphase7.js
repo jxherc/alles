@@ -617,6 +617,15 @@ async function renderDetails(item) {
   const panel = $('files-detail-panel');
   const host = $('files-detail-content');
   if (!panel || !host) return;
+  const importKey = `${locationId}:${key}`;
+  if (panel.dataset.photoImportKey !== importKey) {
+    const feedback = $('files-photo-import-feedback');
+    if (feedback) {
+      feedback.replaceChildren();
+      feedback.hidden = true;
+    }
+    panel.dataset.photoImportKey = importKey;
+  }
   panel.hidden = false;
   const offline = state.offline.get(path);
   const offlineState = item.offline_state || item.state || offline?.state || '';
@@ -746,7 +755,15 @@ function closeDetails() {
   const panel = $('files-detail-panel');
   const wasOpen = Boolean(panel && !panel.hidden);
   state.current = null;
-  if (panel) panel.hidden = true;
+  if (panel) {
+    panel.hidden = true;
+    delete panel.dataset.photoImportKey;
+  }
+  const feedback = $('files-photo-import-feedback');
+  if (feedback) {
+    feedback.replaceChildren();
+    feedback.hidden = true;
+  }
   renderItems();
   state.detailReturnPath = '';
   if (!wasOpen || !returnPath) return;
@@ -976,14 +993,44 @@ function photosImportMessage(result) {
 }
 
 async function sendToPhotos(item) {
+  const panel = $('files-detail-panel');
+  const feedback = $('files-photo-import-feedback');
+  const button = panel?.querySelector('[data-detail-action="photos"]');
+  const locationId = state.locationId;
+  const path = item.path || item.normalized_path;
+  const importKey = `${locationId}:${itemKey(item)}`;
+  if (!button || !feedback || panel.dataset.photoImportKey !== importKey || button.disabled) return;
+  button.disabled = true;
+  feedback.hidden = false;
+  feedback.textContent = 'sending to Photos…';
   try {
     const result = await request('/api/files/to-photos', jsonOptions('POST', {
-      location_id: state.locationId,
-      path: item.path || item.normalized_path,
+      location_id: locationId,
+      path,
     }));
-    toast(photosImportMessage(result), result.failed?.length ? 'error' : 'success');
+    const summary = photosImportMessage(result);
+    if (panel.dataset.photoImportKey === importKey && !panel.hidden) {
+      const heading = document.createElement('p');
+      heading.textContent = summary;
+      feedback.replaceChildren(heading);
+      if (result.failed?.length) {
+        const list = document.createElement('ul');
+        for (const failure of result.failed) {
+          const entry = document.createElement('li');
+          entry.textContent = `${failure.path}: ${failure.error}`;
+          list.append(entry);
+        }
+        feedback.append(list);
+      }
+    }
+    toast(summary, result.failed?.length ? 'error' : 'success');
   } catch (error) {
+    if (panel.dataset.photoImportKey === importKey && !panel.hidden) feedback.textContent = error.message;
     toast(error.message, 'error');
+  } finally {
+    if (panel.dataset.photoImportKey === importKey && !panel.hidden) {
+      panel.querySelector('[data-detail-action="photos"]')?.removeAttribute('disabled');
+    }
   }
 }
 
