@@ -1130,7 +1130,7 @@ class ActualMigrationTests(ApiTest):
         self.assertEqual(db.get(FinanceLedgerState, "primary").mode, "actual")
         db.close()
 
-    def test_rollback_checkpoint_ignores_only_the_computed_schedule_occurrence(self):
+    def test_rollback_checkpoint_ignores_computed_schedule_read_fields(self):
         actual = {
             "accounts": [{"id": "account-1", "name": "chequing"}],
             "transactions": [],
@@ -1157,6 +1157,10 @@ class ActualMigrationTests(ApiTest):
         advanced = copy.deepcopy(actual)
         advanced["schedules"][0]["next_date"] = "2026-10-01"
         advanced["schedules"][1]["next_date"] = "2026-07-01"
+        self.assertEqual(actual_migration.actual_checkpoint_sha256(advanced), checkpoint)
+        advanced["schedules"][0]["posting"] = {"pristine": True}
+        actual["schedules"][0]["posting"] = {}
+        checkpoint = actual_migration.actual_checkpoint_sha256(actual)
         self.assertEqual(actual_migration.actual_checkpoint_sha256(advanced), checkpoint)
         advanced["schedules"][0]["amount"] = -2500
         self.assertNotEqual(actual_migration.actual_checkpoint_sha256(advanced), checkpoint)
@@ -1459,6 +1463,57 @@ class ActualMigrationTests(ApiTest):
         }
         valid_result = actual_migration.validate_active_links(db, valid)
         self.assertTrue(valid_result["ok"], valid_result)
+        recurring_link = (
+            db.query(ActualEntityLink)
+            .filter_by(entity_kind="recurring", source_id="source-recurring")
+            .one()
+        )
+        recurring_link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 1,
+                    "category_id": "c1",
+                    "notes": "repaired lease",
+                    "posts_transaction": True,
+                }
+            }
+        )
+        db.flush()
+        upgraded = copy.deepcopy(valid)
+        upgraded["schedules"][0]["posting"] = {
+            "guarded": True,
+            "category": "c1",
+            "notes": "repaired lease",
+        }
+        self.assertTrue(actual_migration.validate_active_links(db, upgraded)["ok"])
+        for malformed in ({}, {"version": 2}, "invalid"):
+            recurring_link.metadata_json = json.dumps({"canonical_schedule": malformed})
+            db.flush()
+            self.assertFalse(actual_migration.validate_active_links(db, upgraded)["ok"])
+        recurring_link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 1,
+                    "category_id": "c1",
+                    "notes": "repaired lease",
+                    "posts_transaction": True,
+                }
+            }
+        )
+        db.flush()
+        for field, value in (
+            ("guarded", False),
+            ("category", "wrong"),
+            ("notes", "wrong"),
+        ):
+            altered = copy.deepcopy(upgraded)
+            altered["schedules"][0]["posting"][field] = value
+            self.assertFalse(actual_migration.validate_active_links(db, altered)["ok"], field)
+        half_done = copy.deepcopy(upgraded)
+        half_done["schedules"][0]["posts_transaction"] = False
+        self.assertFalse(actual_migration.validate_active_links(db, half_done)["ok"])
+        recurring_link.metadata_json = "{}"
+        db.flush()
         assignment_link = (
             db.query(ActualEntityLink)
             .filter_by(entity_kind="budget_assignment", source_id="source-budget")
@@ -1513,6 +1568,25 @@ class ActualMigrationTests(ApiTest):
             .filter_by(entity_kind="subscription", source_id="source-subscription")
             .one()
         )
+        subscription_link.metadata_json = json.dumps(
+            {
+                "category": "software",
+                "canonical_schedule": {
+                    "version": 1,
+                    "category_id": "c1",
+                    "notes": "",
+                    "posts_transaction": True,
+                },
+            }
+        )
+        db.flush()
+        wrong_kind = copy.deepcopy(valid)
+        wrong_kind["schedules"][1]["posting"] = {
+            "guarded": True,
+            "category": "c1",
+            "notes": "",
+        }
+        self.assertFalse(actual_migration.validate_active_links(db, wrong_kind)["ok"])
         subscription_link.metadata_json = "{}"
         db.flush()
         metadata_mismatch = actual_migration.validate_active_links(db, valid)

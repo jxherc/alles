@@ -68,6 +68,13 @@ const SAFE_BRIDGE_ERRORS = new Set([
   'Actual partial transfer cleanup could not be verified',
   'Actual budget category name is required',
   'Actual budget category id is required',
+  'Actual recurring repair requires one existing schedule',
+  'Actual recurring repair schedule changed; review it first',
+  'Actual recurring repair requires an existing spending category',
+  'Actual recurring repair linked rule changed; review it first',
+  'Actual recurring repair posting state changed; review it first',
+  'Actual recurring repair did not preserve the schedule',
+  'Actual recurring repair posting rule did not verify',
 ]);
 const PRIVATE_REQUEST_KEY_FRAGMENTS = [
   'password', 'token', 'secret', 'authorization', 'server_url', 'data_dir',
@@ -217,14 +224,99 @@ function schedulePosting(schedule, rule) {
       action.op === 'set' && ['category', 'notes'].includes(action.field)
       && !action.options?.formula && !action.options?.template
     ));
+  const expectedConditions = [
+    { op: 'is', field: 'payee', type: 'id', value: schedule.payee },
+    { op: 'is', field: 'account', type: 'id', value: schedule.account },
+    { op: 'isapprox', field: 'date', type: 'date', value: schedule.date },
+    { op: 'is', field: 'amount', type: 'number', value: schedule.amount },
+  ];
+  const generatedConditions = expectedConditions.every((expected, index) => {
+    const current = rule?.conditions?.[index];
+    return current?.op === expected.op && current.field === expected.field
+      && current.type === expected.type
+      && JSON.stringify(current.value) === JSON.stringify(expected.value);
+  });
+  const pristine = rule?.conditionsOp === 'and'
+    && actions.length === 1 && linked.length === 1
+    && rule.conditions?.length === expectedConditions.length
+    && generatedConditions;
+  const guard = rule?.conditions?.[expectedConditions.length];
   return {
+    pristine: Boolean(pristine),
     guarded: Boolean(rule?.conditionsOp === 'and'
-      && rule.conditions?.some(condition => condition.op === 'is'
-        && condition.field === 'notes' && condition.value === marker)
+      && rule.conditions?.length === expectedConditions.length + 1
+      && generatedConditions
+      && guard.op === 'is' && guard.field === 'notes' && guard.value === marker
       && safeActions),
     category: categories.length === 1 ? categories[0].value : null,
     notes: notes.length === 1 ? notes[0].value : '',
   };
+}
+
+async function repairSchedulePosting(request) {
+  const id = String(request.actual_id || '').trim();
+  const categoryId = String(request.category_id || '').trim();
+  const notes = String(request.notes || '');
+  const matches = (await api.getSchedules()).filter(row => row.id === id);
+  if (matches.length !== 1) throw new Error('Actual recurring repair requires one existing schedule');
+  const schedule = matches[0];
+  const expected = request.expected_schedule || {};
+  if (schedule.completed || !schedule.account || schedule.name !== expected.name
+    || schedule.account !== expected.account || schedule.payee !== expected.payee
+    || schedule.amount !== expected.amount || schedule.amountOp !== expected.amountOp
+    || JSON.stringify(schedule.date) !== JSON.stringify(expected.date)) {
+    throw new Error('Actual recurring repair schedule changed; review it first');
+  }
+  if (categoryId) {
+    const categories = (await api.getCategories()).filter(row => row.id === categoryId && !row.is_income);
+    if (categories.length !== 1) {
+      throw new Error('Actual recurring repair requires an existing spending category');
+    }
+  }
+  const rule = (await api.getRules()).find(row => row.id === schedule.rule);
+  const posting = schedulePosting(schedule, rule);
+  const configured = posting.guarded && posting.category === (categoryId || null)
+    && posting.notes === notes;
+  if (!posting.pristine && !configured) {
+    throw new Error('Actual recurring repair linked rule changed; review it first');
+  }
+  const wasPosting = request.original_posts_transaction === true;
+  if ((!wasPosting && schedule.posts_transaction)
+    || (wasPosting && !schedule.posts_transaction && request.allow_paused_retry !== true)) {
+    throw new Error('Actual recurring repair posting state changed; review it first');
+  }
+  const nextDate = schedule.next_date;
+  if (posting.pristine) {
+    if (schedule.posts_transaction) {
+      await api.updateSchedule(id, { posts_transaction: false });
+      await api.sync();
+    }
+    await configureSchedulePosting(id, categoryId, notes);
+    await api.sync();
+  }
+  const configuredSchedule = (await api.getSchedules()).find(row => row.id === id);
+  const configuredRule = (await api.getRules()).find(row => row.id === configuredSchedule?.rule);
+  const verified = configuredSchedule && schedulePosting(configuredSchedule, configuredRule);
+  if (!verified?.guarded || verified.category !== (categoryId || null)
+    || verified.notes !== notes) {
+    throw new Error('Actual recurring repair posting rule did not verify');
+  }
+  if (configuredSchedule.posts_transaction !== wasPosting) {
+    await api.updateSchedule(id, { posts_transaction: wasPosting });
+    await api.sync();
+  }
+  const after = (await api.getSchedules()).find(row => row.id === id);
+  const afterRule = (await api.getRules()).find(row => row.id === after?.rule);
+  const afterPosting = after && schedulePosting(after, afterRule);
+  if (!after || after.posts_transaction !== wasPosting || after.next_date !== nextDate
+    || JSON.stringify(after.date) !== JSON.stringify(schedule.date)) {
+    throw new Error('Actual recurring repair did not preserve the schedule');
+  }
+  if (!afterPosting?.guarded || afterPosting.category !== (categoryId || null)
+    || afterPosting.notes !== notes) {
+    throw new Error('Actual recurring repair posting rule did not verify');
+  }
+  return { id, posts_transaction: after.posts_transaction, posting: afterPosting };
 }
 
 async function configureSchedulePosting(scheduleId, categoryId, notes) {
@@ -857,6 +949,7 @@ async function write(request) {
     await api.sync();
     return { month: request.month, category_id: categoryId, amount_minor: amountMinor };
   }
+  if (request.action === 'repair_recurring_schedule') return repairSchedulePosting(request);
   if (request.action === 'clear_budget') {
     const categoryId = String(request.category_id || '').trim();
     if (!categoryId) throw new Error('Actual budget category id is required');
@@ -880,6 +973,7 @@ async function write(request) {
 }
 
 async function handle(request) {
+  if (request.command === 'capabilities') return { repair_recurring_schedule: 1 };
   if (request.command === 'versions') return {
     api: packageVersion('@actual-app/api'),
     cli: packageVersion('@actual-app/cli'),
