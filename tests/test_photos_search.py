@@ -6,6 +6,7 @@ from unittest import mock
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from starlette.requests import Request
 
 from core.database import Photo
 from routes import photos as P
@@ -148,7 +149,9 @@ class EditSaveTests(unittest.TestCase):
         png = base64.b64encode(b"PNGDATA").decode()
         with mock.patch.object(P.ps, "import_image", lambda raw, name: self._FAKE):
             res = P.edit_save(
-                P.EditSaveBody(data_url="data:image/png;base64," + png, name="edited.png"), db
+                P.EditSaveBody(data_url="data:image/png;base64," + png, name="edited.png"),
+                Request({"type": "http"}),
+                db,
             )
         self.assertEqual(res["original_name"], "edited.png")
         self.assertEqual(db.query(Photo).count(), 1)
@@ -157,7 +160,11 @@ class EditSaveTests(unittest.TestCase):
         from fastapi import HTTPException
 
         with self.assertRaises(HTTPException):  # non-base64 chars → empty/garbage → 400
-            P.edit_save(P.EditSaveBody(data_url="data:image/png;base64,!!!!"), _mkdb(self))
+            P.edit_save(
+                P.EditSaveBody(data_url="data:image/png;base64,!!!!"),
+                Request({"type": "http"}),
+                _mkdb(self),
+            )
 
 
 if __name__ == "__main__":
