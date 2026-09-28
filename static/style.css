@@ -7534,6 +7534,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .newest-only-label { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.03em; white-space: nowrap; }
 .img-gen-status { color: var(--muted); font-size: 0.82rem; animation: imgpulse 1.4s ease-in-out infinite; }
 @keyframes imgpulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.9; } }
+.img-gen-retry { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; padding: 0 12px; color: var(--text); background: var(--panel); border: 1px solid var(--faint); }
+@media (prefers-reduced-motion: reduce) { .img-gen-status { animation: none; opacity: 1; } }
 
 /* mail overhaul */
 .mail-head {

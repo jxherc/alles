@@ -78,6 +78,7 @@ COMMANDS = {
     "shell-app-name": ("tests/pw_shell_app_name.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     "aide-composer": ("tests/pw_aide_composer.py",),
+    "aide-image-retry": ("tests/pw_aide_image_retry.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),
     **{
         f"surfaces-{device}-{theme}": ("tests/pw_stability_surfaces.py", device, theme)

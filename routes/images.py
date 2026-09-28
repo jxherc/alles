@@ -1,12 +1,15 @@
+import hashlib
 import json
 import logging
 from datetime import UTC, datetime
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Message, ModelEndpoint, Session, get_db
+from core.database import Message, ModelEndpoint, Photo, Session, get_db
 from services.photo_records import format_photo, generated_photo_batch
 
 router = APIRouter(prefix="/api/images")
@@ -65,6 +68,44 @@ class ChatImageBody(BaseModel):
     endpoint_id: str = ""
     size: str = "1024x1024"
     n: int = 1
+    request_id: str = ""
+
+
+def _image_request(body: ChatImageBody) -> tuple[str, str] | tuple[None, None]:
+    if not body.request_id:
+        return None, None
+    try:
+        identity = str(UUID(body.request_id))
+        if body.request_id.lower() != identity:
+            raise ValueError
+    except ValueError as exc:
+        raise HTTPException(400, "request_id must be a canonical UUID") from exc
+    payload = json.dumps(
+        body.model_dump(exclude={"request_id"}), sort_keys=True, separators=(",", ":")
+    )
+    return f"image-request:{identity}", hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _saved_chat_image(db: DbSession, key: str, fingerprint: str, title: str) -> dict | None:
+    assistant = db.get(Message, key)
+    if assistant is None:
+        return None
+    meta = assistant.meta_dict()
+    if assistant.role != "assistant" or meta.get("image_request_hash") != fingerprint:
+        raise HTTPException(409, "this request_id was already used with different values")
+    photo_ids = meta.get("photo_ids")
+    if not isinstance(photo_ids, list) or not photo_ids:
+        raise HTTPException(409, "this image request has no recoverable result")
+    if any(
+        (photo := db.get(Photo, pid)) is None or photo.deleted_at is not None for pid in photo_ids
+    ):
+        raise HTTPException(410, "the image from this request was deleted")
+    return {
+        "content": assistant.content,
+        "doc_id": meta.get("note_id"),
+        "doc_title": title,
+        "images": [{"id": pid, "original": f"/api/photos/original/{pid}"} for pid in photo_ids],
+    }
 
 
 # POST /api/images/chat — generate from inside a chat thread. drops the image into
@@ -79,6 +120,12 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
     s = incognito.get_session(body.session_id) or db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
+    request_key, fingerprint = _image_request(body) if not s.incognito else (None, None)
+    title = body.prompt.strip()[:60] or "generated image"
+    if request_key:
+        replay = _saved_chat_image(db, request_key, fingerprint, title)
+        if replay is not None:
+            return replay
     ep = (
         db.get(ModelEndpoint, body.endpoint_id)
         if body.endpoint_id
@@ -99,7 +146,6 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
         )
 
     alt = _alt(body.prompt)
-    title = body.prompt.strip()[:60] or "generated image"
 
     # incognito → leave no trace anywhere: don't touch the gallery/documents/history,
     # just inline the image as a data-uri so it shows in the (ephemeral) thread.
@@ -116,19 +162,36 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
             if not saved:
                 raise HTTPException(502, "generated image couldn't be saved")
             img_md = "\n\n".join(f"![{alt}](/api/photos/original/{p.id})" for p in saved)
+            assistant_meta = {
+                "model": body.model,
+                "image": True,
+                "note_id": None,
+                "photo_ids": [p.id for p in saved],
+            }
+            if request_key:
+                assistant_meta["image_request_hash"] = fingerprint
             assistant = Message(
                 session_id=s.id,
                 role="assistant",
                 content=f"{img_md}\n\n`image generated` · {title}",
-                meta=json.dumps({"model": body.model, "image": True, "note_id": None}),
+                meta=json.dumps(assistant_meta),
             )
+            if request_key:
+                assistant.id = request_key
             db.add(Message(session_id=s.id, role="user", content=body.prompt))
             db.add(assistant)
             if not s.name or s.name == "new chat":
                 s.name = title
             s.message_count = (s.message_count or 0) + 2
             s.last_message_at = datetime.now(UTC).replace(tzinfo=None)
-    except OSError as exc:
+    except IntegrityError as exc:
+        # The photo batch has rolled back and removed this request's imported files.
+        if request_key:
+            replay = _saved_chat_image(db, request_key, fingerprint, title)
+            if replay is not None:
+                return replay
+        raise HTTPException(503, "generated image couldn't be saved; please retry") from exc
+    except (OSError, SQLAlchemyError) as exc:
         raise HTTPException(503, "generated image couldn't be saved; please retry") from exc
 
     image_links = [{"id": p.id, "original": f"/api/photos/original/{p.id}"} for p in saved]
@@ -149,7 +212,8 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
     assistant_md = f"{img_md}\n\n`{note_status}` · {title}"
     try:
         assistant.content = assistant_md
-        assistant.meta = json.dumps({"model": body.model, "image": True, "note_id": note_id})
+        assistant_meta["note_id"] = note_id
+        assistant.meta = json.dumps(assistant_meta)
         db.commit()
     except Exception as exc:
         db.rollback()
