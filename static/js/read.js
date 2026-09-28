@@ -237,7 +237,7 @@ function _wire(body) {
     let t = null;
     qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { _q = qEl.value.trim(); loadRead(); }, 300); });
   }
-  body.querySelectorAll('.read-chip').forEach(c => c.addEventListener('click', () => { _filter = c.dataset.filter; loadRead(); }));
+  body.querySelectorAll('.read-filter-choices .read-chip').forEach(c => c.addEventListener('click', () => { _filter = c.dataset.filter; loadRead(); }));
 
   // click a tag to filter by it; stop the click bubbling up to the card-open handler
   body.querySelectorAll('.read-card .read-tag').forEach(t => t.addEventListener('click', e => {
