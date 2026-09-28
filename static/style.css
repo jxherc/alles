@@ -4980,7 +4980,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .env-tbb-lbl { font-size: 0.75rem; color: var(--muted); }
 .env-rows { display: flex; flex-direction: column; gap: 0.3rem; }
 .env-row { display: grid; grid-template-columns: 1fr 70px 82px 82px; gap: 0.4rem; align-items: center; font-size: 0.76rem; }
-.env-head { color: var(--muted); font-size: 0.7rem; }
+.env-head { color: var(--muted); font-size: 0.75rem; }
 .env-head span:not(:first-child), .env-assigned { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .env-cat { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .env-assign { height: 26px; text-align: right; }
