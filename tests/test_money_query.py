@@ -3,6 +3,7 @@
 import datetime
 import os
 import unittest
+from types import SimpleNamespace
 
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
@@ -130,6 +131,17 @@ class AnswerTests(unittest.TestCase):
         out = mq.answer(self.s, "compare groceries this month vs last month", today=TODAY)
         self.assertIn("30", out)
         self.assertIn("50", out)
+
+    def test_supplied_rows_compare_without_reading_the_local_ledger(self):
+        self._txn("2026-06-05", -999.0, "stale", "old")
+        rows = [
+            SimpleNamespace(date="2026-06-05", amount=-12.0, payee="new", category="coffee"),
+            SimpleNamespace(date="2026-05-05", amount=-20.0, payee="new", category="coffee"),
+        ]
+        out = mq.answer(None, "compare this month vs last month", today=TODAY, rows=rows)
+        self.assertIn("this month: spent 12.00", out)
+        self.assertIn("vs last month: spent 20.00", out)
+        self.assertNotIn("999", out)
 
 
 if __name__ == "__main__":

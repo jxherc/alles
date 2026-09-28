@@ -16,6 +16,7 @@ import shlex
 import shutil
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import urlparse
 
 import httpx
@@ -2322,15 +2323,37 @@ async def _money_query(query):
     from datetime import date
 
     from core.database import Account, SessionLocal, Transaction
+    from services import actual_finance
+    from services import money_query as mq
 
     db = SessionLocal()
     try:
-        accts = db.query(Account).filter_by(archived=False).all()
-        txns = db.query(Transaction).all()
-        bal = {a.id: (a.opening or 0.0) for a in accts}
-        txns = [t for t in txns if t.account_id in bal]  # scope to non-archived accounts
-        for t in txns:
-            if t.account_id in bal:
+        try:
+            with actual_finance.AUTHORITY_LOCK:
+                canonical = actual_finance.is_canonical(db)
+                if canonical:
+                    snapshot = actual_finance.inspect(db)
+                    accts = [
+                        SimpleNamespace(**row)
+                        for row in actual_finance.accounts(db, actual=snapshot)
+                        if not row["archived"]
+                    ]
+                    source_txns = [
+                        SimpleNamespace(**row)
+                        for row in actual_finance.transactions(db, actual=snapshot)
+                    ]
+                else:
+                    accts = db.query(Account).filter_by(archived=False).all()
+                    source_txns = db.query(Transaction).all()
+        except actual_finance.ActualFinanceError:
+            return {"output": "finance is unavailable; try again later", "error": True}
+
+        bal = {a.id: (a.balance if canonical else a.opening or 0.0) for a in accts}
+        if canonical:
+            txns = [t for t in source_txns if not t.transfer_id]
+        else:
+            txns = [t for t in source_txns if t.account_id in bal]
+            for t in txns:
                 bal[t.account_id] += t.amount or 0.0
         lines = [f"{a.name} ({a.kind}): {a.currency}{bal[a.id]:.2f}" for a in accts]
         net = sum(bal.values())
@@ -2354,9 +2377,7 @@ async def _money_query(query):
             + "\n".join(f"  {c}: {v:.2f}" for c, v in top)
         )
         if (query or "").strip():
-            from services import money_query as mq
-
-            out += "\n\n" + mq.answer(db, query)  # 2a - temporal + merchant + compare NL answer
+            out += "\n\n" + mq.answer(db, query, rows=txns)
         return {"output": out, "error": False}
     finally:
         db.close()
@@ -2452,27 +2473,52 @@ async def _files_operation_undo(operation_id):
 
 async def _finance_accounts_list():
     from core.database import Account, SessionLocal, Transaction
+    from services import actual_finance
 
     db = SessionLocal()
     try:
-        accounts = db.query(Account).filter(Account.archived == False).order_by(Account.name).all()  # noqa: E712
-        rows = []
-        for account in accounts:
-            balance = float(account.opening or 0) + sum(
-                float(value or 0)
-                for (value,) in db.query(Transaction.amount)
-                .filter(Transaction.account_id == account.id)
-                .all()
-            )
-            rows.append(
-                {
-                    "id": account.id,
-                    "name": account.name,
-                    "kind": account.kind,
-                    "currency": account.currency,
-                    "balance": round(balance, 2),
-                }
-            )
+        try:
+            with actual_finance.AUTHORITY_LOCK:
+                if actual_finance.is_canonical(db):
+                    snapshot = actual_finance.inspect(db)
+                    rows = [
+                        {
+                            "id": account["id"],
+                            "name": account["name"],
+                            "kind": account["kind"],
+                            "currency": account["currency"],
+                            "balance": round(account["balance"], 2),
+                        }
+                        for account in actual_finance.accounts(db, actual=snapshot)
+                        if not account["archived"]
+                    ]
+                    rows.sort(key=lambda row: row["name"])
+                else:
+                    accounts = (
+                        db.query(Account)
+                        .filter(Account.archived == False)
+                        .order_by(Account.name)
+                        .all()
+                    )  # noqa: E712
+                    rows = []
+                    for account in accounts:
+                        balance = float(account.opening or 0) + sum(
+                            float(value or 0)
+                            for (value,) in db.query(Transaction.amount)
+                            .filter(Transaction.account_id == account.id)
+                            .all()
+                        )
+                        rows.append(
+                            {
+                                "id": account.id,
+                                "name": account.name,
+                                "kind": account.kind,
+                                "currency": account.currency,
+                                "balance": round(balance, 2),
+                            }
+                        )
+        except actual_finance.ActualFinanceError:
+            return {"output": "finance is unavailable; try again later", "error": True}
         return {"output": json.dumps({"accounts": rows}, ensure_ascii=False), "accounts": rows}
     finally:
         db.close()
@@ -2480,23 +2526,58 @@ async def _finance_accounts_list():
 
 async def _finance_transactions_list(args):
     from core.database import SessionLocal, Transaction
+    from services import actual_finance
 
     account_id = str(args.get("account_id") or "").strip()
     query_text = str(args.get("query") or "").strip()
     limit = max(1, min(int(args.get("limit") or 50), 100))
     db = SessionLocal()
     try:
-        query = db.query(Transaction)
-        if account_id:
-            query = query.filter(Transaction.account_id == account_id)
-        if query_text:
-            like = f"%{query_text}%"
-            query = query.filter(
-                (Transaction.payee.ilike(like))
-                | (Transaction.category.ilike(like))
-                | (Transaction.note.ilike(like))
-            )
-        txns = query.order_by(Transaction.date.desc(), Transaction.id.desc()).limit(limit).all()
+        try:
+            with actual_finance.AUTHORITY_LOCK:
+                if actual_finance.is_canonical(db):
+                    snapshot = actual_finance.inspect(db)
+                    txns = [
+                        SimpleNamespace(**row)
+                        for row in actual_finance.transactions(db, actual=snapshot)
+                    ]
+                    if account_id:
+                        txns = [txn for txn in txns if txn.account_id == account_id]
+                    if query_text:
+                        needle = query_text.casefold()
+                        txns = [
+                            txn
+                            for txn in txns
+                            if any(
+                                needle in str(value or "").casefold()
+                                for value in (txn.payee, txn.category, txn.notes)
+                            )
+                        ]
+                    txns = sorted(txns, key=lambda txn: (txn.date, txn.id), reverse=True)[:limit]
+                else:
+                    query = db.query(Transaction)
+                    if account_id:
+                        query = query.filter(Transaction.account_id == account_id)
+                    if query_text:
+                        like = (
+                            "%"
+                            + query_text.replace("\\", "\\\\")
+                            .replace("%", "\\%")
+                            .replace("_", "\\_")
+                            + "%"
+                        )
+                        query = query.filter(
+                            (Transaction.payee.ilike(like, escape="\\"))
+                            | (Transaction.category.ilike(like, escape="\\"))
+                            | (Transaction.notes.ilike(like, escape="\\"))
+                        )
+                    txns = (
+                        query.order_by(Transaction.date.desc(), Transaction.id.desc())
+                        .limit(limit)
+                        .all()
+                    )
+        except actual_finance.ActualFinanceError:
+            return {"output": "finance is unavailable; try again later", "error": True}
         rows = [
             {
                 "id": txn.id,
