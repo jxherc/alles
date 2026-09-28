@@ -283,8 +283,10 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   variable bill amounts are not shown as zero, and a failed read offers retry instead of hiding alerts
 - the age-of-money figure FIFO-matches income to spending from the active ledger, excluding
   transfers and account starting balances. after cutover it reads one Actual snapshot, and a
-  failed read shows retry instead of hiding the figure. envelope assignments and targets remain
-  unavailable after cutover; the Money card says so rather than claiming the envelope is empty
+  failed read shows retry instead of hiding the figure. the Money envelope card reads Actual's
+  budget-month totals, category assignments, spending, and rollover balances after cutover;
+  a failed read offers retry. this card is read-only: Finance budget caps use the same Actual
+  budget amounts, while separate envelope editing and funding targets remain unavailable
 - Aide's Finance account, transaction, and spending-read tools follow the active ledger; if Actual
   cannot be read after cutover, they return an error instead of quoting old balances or charges
 - the unified transaction JSON/CSV download also reads the active ledger, and fails if it cannot

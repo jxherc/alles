@@ -1416,9 +1416,13 @@ def set_target(body: TargetBody, db: DbSession = Depends(get_db)):
 
 @router.get("/envelope")
 def envelope(month: str = "", db: DbSession = Depends(get_db)):
-    _require_actual_backed_analytics(db, "envelope budgeting")
     if not month:
         month = date.today().strftime("%Y-%m")
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.envelope(db, month)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     # fetch txns + splits once and reuse — both _spending_by_cat calls and the income sum below
     # otherwise each call re-scanned the whole Transaction + TxnSplit tables (4b perf)
     all_txns = db.query(Transaction).all()

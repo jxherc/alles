@@ -629,6 +629,25 @@ class ActualLiveGateTests(unittest.TestCase):
                     },
                     timeout=180,
                 )
+                budget_month = managed_actual.bridge_request(
+                    {
+                        "command": "budget_month",
+                        "month": "2026-07",
+                        "budget_id": migrated["budget_id"],
+                        "sync_id": migrated["sync_id"],
+                    },
+                    timeout=180,
+                )
+                self.assertEqual(budget_month["month"], "2026-07")
+                self.assertIsInstance(budget_month["toBudget"], int)
+                food = next(
+                    category
+                    for group in budget_month["categoryGroups"]
+                    for category in group["categories"]
+                    if category["name"] == "food"
+                )
+                self.assertEqual(food["budgeted"], 30000)
+                self.assertIsInstance(food["balance"], int)
                 self.assertEqual(len(actual["accounts"]), 2)
                 self.assertEqual(
                     sum(bool(row.get("starting_balance_flag")) for row in actual["transactions"]),
