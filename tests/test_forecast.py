@@ -63,6 +63,28 @@ class HelperTests(unittest.TestCase):
         avg = forecast.category_averages(self.s, months=3, as_of=TODAY)
         self.assertAlmostEqual(avg["groceries"], 20.0)  # only the 60, /3 months
 
+    def test_category_averages_from_canonical_rows_excludes_transfers_and_closed_accounts(self):
+        accounts = [
+            {"id": "open", "archived": False},
+            {"id": "closed", "archived": True},
+        ]
+        transactions = [
+            {"account_id": "open", "date": "2026-05-10", "amount": -30, "category": "food"},
+            {
+                "account_id": "open",
+                "date": "2026-05-11",
+                "amount": -50,
+                "category": "food",
+                "transfer_id": "transfer",
+            },
+            {"account_id": "closed", "date": "2026-05-12", "amount": -90, "category": "food"},
+            {"account_id": "open", "date": "2026-05-13", "amount": 200, "category": "salary"},
+        ]
+        self.assertEqual(
+            forecast.category_averages_from_rows(accounts, transactions, as_of=TODAY),
+            {"food": 10.0},
+        )
+
     def test_scenario_skip_removes_occurrence(self):
         occ = [
             {"date": "2026-06-25", "amount": -15.0, "payee": "netflix"},

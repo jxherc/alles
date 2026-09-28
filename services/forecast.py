@@ -25,11 +25,13 @@ def category_averages(db, *, months=3, as_of=None):
     from core.database import Account, Transaction
 
     as_of = as_of or date.today()
-    periods = set(_recent_months(as_of, months))
-    accts = {a.id for a in db.query(Account).filter_by(archived=False).all()}
+    accounts = [
+        {"id": row.id, "archived": row.archived}
+        for row in db.query(Account).filter_by(archived=False).all()
+    ]
+    accts = {row["id"] for row in accounts}
     if not accts:
         return {}
-    totals = {}
     # Historical averages exclude archived accounts, unlike current spending totals.
     # Apply the narrower predicates in SQL before scanning transaction history.
     rows = (
@@ -41,11 +43,37 @@ def category_averages(db, *, months=3, as_of=None):
         )
         .all()
     )
-    for t in rows:
-        if (t.date or "")[:7] in periods:
-            c = t.category or "uncategorized"
-            totals[c] = totals.get(c, 0.0) + (-(t.amount or 0.0))
-    return {c: round(v / months, 2) for c, v in totals.items()}
+    transactions = [
+        {
+            "account_id": row.account_id,
+            "date": row.date,
+            "amount": row.amount,
+            "category": row.category,
+            "transfer_id": row.transfer_id,
+        }
+        for row in rows
+    ]
+    return category_averages_from_rows(accounts, transactions, months=months, as_of=as_of)
+
+
+def category_averages_from_rows(accounts, transactions, *, months=3, as_of=None):
+    """Same category projection for either mapped Finance ledger."""
+    as_of = as_of or date.today()
+    periods = set(_recent_months(as_of, months))
+    accts = {row["id"] for row in accounts if not row["archived"]}
+    totals = {}
+    for row in transactions:
+        amount = row["amount"] or 0.0
+        if (
+            row["account_id"] not in accts
+            or amount >= 0
+            or row.get("transfer_id")
+            or (row["date"] or "")[:7] not in periods
+        ):
+            continue
+        category = row.get("category") or "uncategorized"
+        totals[category] = totals.get(category, 0.0) - amount
+    return {category: round(total / months, 2) for category, total in totals.items()}
 
 
 def apply_scenario(occ, *, skip_payees=(), income_delta=0.0, at=None):

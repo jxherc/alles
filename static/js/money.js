@@ -343,8 +343,30 @@ function summaryCards() {
     <div class="ms-card"><span class="ms-label">income · this month</span><span class="ms-val pos">${fmt(s.income)}</span></div>
     <div class="ms-card"><span class="ms-label">spent · this month</span><span class="ms-val neg">${fmt(s.expense)}</span></div>
     <div class="ms-card"><span class="ms-label">net</span><span class="ms-val ${s.net >= 0 ? 'pos' : 'neg'}">${signed(s.net || 0)}</span></div>
-    ${_forecast ? `<div class="ms-card"><span class="ms-label">projected · month-end</span><span class="ms-val ${(_forecast.projected || 0) < 0 ? 'neg' : ''}">${fmt(_forecast.projected || 0)}</span></div>` : ''}
+    ${forecastCard()}
   </div>`;
+}
+
+function forecastCard() {
+  return `<div class="ms-card" data-forecast tabindex="-1"><span class="ms-label">projected · month-end</span>
+    ${_forecast ? `<span class="ms-val ${_forecast.projected < 0 ? 'neg' : ''}">${fmt(_forecast.projected)}</span>` : '<span class="ms-unavailable" role="status">couldn\'t load forecast</span><button type="button" class="btn ms-retry" id="forecast-retry">retry</button>'}</div>`;
+}
+
+async function retryForecast() {
+  const button = $('forecast-retry');
+  button.disabled = true;
+  button.textContent = 'retrying…';
+  try { _forecast = await api(`/api/money/forecast?month=${_month}`); }
+  catch { _forecast = null; }
+  const card = document.querySelector('[data-forecast]');
+  if (!card) return;
+  card.outerHTML = forecastCard();
+  wireForecast();
+  (_forecast ? document.querySelector('[data-forecast]') : $('forecast-retry'))?.focus();
+}
+
+function wireForecast() {
+  $('forecast-retry')?.addEventListener('click', retryForecast);
 }
 
 function alertsStrip() {
@@ -744,6 +766,7 @@ function wire() {
   $('gl-add')?.addEventListener('click', addGoal);
   $('money-body').querySelectorAll('[data-del-goal]').forEach(b => b.addEventListener('click', () => delGoal(b.dataset.delGoal)));
   $('rp-run')?.addEventListener('click', runReport);
+  wireForecast();
   wireNetworthHistory();
   _decorateCards();
   $('tx-transfer-toggle')?.addEventListener('click', () => {

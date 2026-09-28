@@ -271,6 +271,9 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   Actual snapshot after cutover. new Actual accounts enter the history on their dated starting-
   balance entries; migrated accounts keep the old opening baseline because their original opening
   dates are unknown. a failed history read shows a retry action instead of claiming no history
+- the Money month-end forecast uses the active ledger. after cutover, one Actual snapshot supplies
+  the balance, three-month category averages, and active posting schedules; subscription renewals
+  remain in their separate forecast. the projected card offers retry when this read is unavailable
 - Aide's Finance account, transaction, and spending-read tools follow the active ledger; if Actual
   cannot be read after cutover, they return an error instead of quoting old balances or charges
 - the unified transaction JSON/CSV download also reads the active ledger, and fails if it cannot
