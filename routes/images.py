@@ -82,7 +82,7 @@ class ChatImageBody(BaseModel):
 
 
 # POST /api/images/chat — generate from inside a chat thread. drops the image into
-# the conversation, saves it to the gallery AND files it as a document, and persists
+# the conversation, saves it to Photos, tries to file it in Docs, and persists
 # the turn so it survives a reload. returns the assistant markdown the UI renders.
 @router.post("/chat")
 async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db)):
@@ -152,22 +152,28 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
 
     img_md = "\n\n".join(f"![{alt}](/api/photos/original/{p.id})" for p in saved)
 
-    # file it in the vault (notes — the live docs app) too so it's easy to find later
+    # Docs is an extra copy; its outage must not discard the generated image or chat turn.
     from services import notes_vault
 
-    note = notes_vault.create(
-        title=title,
-        content=f"# {title}\n\n*image · {body.model or ep.name}*\n\n{img_md}\n",
-        tags=["image"],
-    )
     try:
-        from services import personal_index
+        note = notes_vault.create(
+            title=title,
+            content=f"# {title}\n\n*image · {body.model or ep.name}*\n\n{img_md}\n",
+            tags=["image"],
+        )
+    except OSError:
+        note = None
+    if note:
+        try:
+            from services import personal_index
 
-        personal_index.index_record(db, "note", note["id"])
-    except Exception:
-        pass
+            personal_index.index_record(db, "note", note["id"])
+        except Exception:
+            pass
 
-    assistant_md = f"{img_md}\n\n`✓ saved to notes` · {title}"
+    note_id = note["id"] if note else None
+    note_status = "✓ saved to notes" if note else "couldn't save to notes"
+    assistant_md = f"{img_md}\n\n`{note_status}` · {title}"
 
     db.add(Message(session_id=s.id, role="user", content=body.prompt))
     db.add(
@@ -175,7 +181,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
             session_id=s.id,
             role="assistant",
             content=assistant_md,
-            meta=json.dumps({"model": body.model, "image": True, "note_id": note["id"]}),
+            meta=json.dumps({"model": body.model, "image": True, "note_id": note_id}),
         )
     )
     if not s.name or s.name == "new chat":
@@ -186,7 +192,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
 
     return {
         "content": assistant_md,
-        "doc_id": note["id"],  # frontend uses this as a "saved" flag + to rename the chat
+        "doc_id": note_id,  # frontend uses this as a "saved" flag + to rename the chat
         "doc_title": title,
         "images": [{"id": p.id, "original": f"/api/photos/original/{p.id}"} for p in saved],
     }

@@ -201,3 +201,55 @@ class ImagesApiTest(VaultApiTest):
         d = self.db()
         self.assertEqual(d.query(Message).filter_by(session_id=sid).count(), 0)
         d.close()
+
+    def test_chat_image_keeps_the_turn_when_notes_cannot_save(self):
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from PIL import Image
+
+        from core.database import Message, Photo
+        from core.database import Session as Sess
+        from services import notes_vault
+
+        buf = BytesIO()
+        Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
+        db = self.db()
+        endpoint = ModelEndpoint(name="image provider", base_url="http://x", enabled=True)
+        session = Sess(name="new chat")
+        db.add_all([endpoint, session])
+        db.commit()
+        session_id, endpoint_id = session.id, endpoint.id
+        db.close()
+
+        async def fake_generate(*_args, **_kwargs):
+            return [buf.getvalue()]
+
+        with (
+            TemporaryDirectory() as temp,
+            patch("services.photos_store.photos_dir", return_value=Path(temp)),
+            patch("services.imagegen.generate", side_effect=fake_generate),
+            patch.object(notes_vault, "create", side_effect=OSError("notes unavailable")),
+        ):
+            response = self.client.post(
+                "/api/images/chat",
+                json={
+                    "session_id": session_id,
+                    "endpoint_id": endpoint_id,
+                    "prompt": "a red square",
+                },
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            result = response.json()
+            self.assertIsNone(result["doc_id"])
+            self.assertIn("couldn't save to notes", result["content"])
+            self.assertEqual(len(result["images"]), 1)
+            self.assertEqual(self.client.get(result["images"][0]["original"]).status_code, 200)
+
+            db = self.db()
+            self.assertEqual(db.query(Photo).count(), 1)
+            self.assertEqual(db.query(Message).filter_by(session_id=session_id).count(), 2)
+            self.assertEqual(db.get(Sess, session_id).message_count, 2)
+            db.close()
