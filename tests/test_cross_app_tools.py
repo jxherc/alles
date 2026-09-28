@@ -137,6 +137,21 @@ class CrossAppToolTests(unittest.TestCase):
 
 
 class TaskToolApiTests(ApiTest):
+    def test_aide_add_rejects_invalid_titles_without_saving_a_task(self):
+        for title in ("", "   ", None, 7):
+            with self.subTest(title=title):
+                result = asyncio.run(at.execute("task_add", {"title": title}))
+                self.assertTrue(result.get("error"), result)
+        self.assertEqual(self.client.get("/api/tasks").json(), [])
+
+    def test_aide_add_uses_the_same_clean_title_seen_in_plan(self):
+        result = asyncio.run(at.execute("task_add", {"title": "  call mom  "}))
+        self.assertNotIn("error", result)
+        tasks = self.client.get("/api/tasks").json()
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["title"], "call mom")
+        self.assertEqual(tasks[0]["stage"], "backlog")
+
     def test_aide_completion_keeps_recurring_task_and_activity_rules(self):
         task = self.client.post(
             "/api/tasks",

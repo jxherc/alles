@@ -218,9 +218,12 @@ class TaskBody(BaseModel):
 
 @router.post("/tasks")
 def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(400, "empty title")
     stage = _validate_stage(body.stage)
     fields = dict(
-        title=body.title,
+        title=title,
         priority=body.priority,
         due_date=body.due_date,
         parent_id=body.parent_id,
@@ -232,7 +235,7 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
         done=stage == "done",
     )
     if body.nl:
-        p = parse_task(body.title, language=load_settings().get("language", "en"))
+        p = parse_task(title, language=load_settings().get("language", "en"))
         fields["title"] = p["title"]
         fields["priority"] = max(body.priority, p["priority"])
         fields["due_date"] = body.due_date or p["due_date"]
@@ -381,6 +384,11 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
             detail = {"code": "task_conflict", "fields": conflicts, "current": _fmt(t)}
             db.rollback()
             raise HTTPException(409, detail)
+    if "title" in body:
+        title = body["title"]
+        if not isinstance(title, str) or not title.strip():
+            raise HTTPException(400, "empty title")
+        body["title"] = title.strip()
     if "stage" in body:
         body["stage"] = _validate_stage(body["stage"])
         body["done"] = body["stage"] == "done"
