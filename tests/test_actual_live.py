@@ -379,8 +379,22 @@ def _snapshot():
                 "cycle_days": 30,
                 "active": True,
                 "posts_transaction": True,
-                "metadata": {"category": "housing"},
-            }
+                "metadata": {"category": "housing", "posting_rule_version": 1},
+            },
+            {
+                "kind": "recurring",
+                "id": "r2",
+                "name": "paused rent",
+                "account_id": "a1",
+                "payee": "landlord",
+                "amount_minor": -30000,
+                "next_date": "2026-10-15",
+                "cycle": "monthly",
+                "cycle_days": 30,
+                "active": False,
+                "posts_transaction": True,
+                "metadata": {"category": "housing", "notes": "paused", "posting_rule_version": 1},
+            },
         ],
         "subscriptions": [],
         "subscription_payments": [],
@@ -624,6 +638,16 @@ class ActualLiveGateTests(unittest.TestCase):
                 ]
                 parity = actual_migration.reconcile(snapshot, migrated)
                 self.assertTrue(parity["pass"], parity)
+                schedule_ids = {
+                    row["source_id"]: row["actual_id"]
+                    for row in migrated["links"]
+                    if row["kind"] == "recurring"
+                }
+                staged_schedules = {row["id"]: row for row in migrated["actual"]["schedules"]}
+                self.assertTrue(staged_schedules[schedule_ids["r1"]]["posts_transaction"])
+                self.assertFalse(staged_schedules[schedule_ids["r2"]]["posts_transaction"])
+                self.assertTrue(staged_schedules[schedule_ids["r1"]]["posting"]["guarded"])
+                self.assertEqual(staged_schedules[schedule_ids["r2"]]["posting"]["notes"], "paused")
                 target_link = next(
                     row for row in migrated["links"] if row["kind"] == "funding_target"
                 )
@@ -847,6 +871,16 @@ class ActualLiveGateTests(unittest.TestCase):
                         restored_by_id.get(transfer["from_id"]),
                         restored_by_id.get(transfer["to_id"]),
                     )
+                    restored_schedules = {row["id"]: row for row in readback["schedules"]}
+                    active_schedule = restored_schedules.get(schedule_ids["r1"], {})
+                    paused_schedule = restored_schedules.get(schedule_ids["r2"], {})
+                    schedules_ok = (
+                        active_schedule.get("posts_transaction") is True
+                        and paused_schedule.get("posts_transaction") is False
+                        and (active_schedule.get("posting") or {}).get("guarded") is True
+                        and (paused_schedule.get("posting") or {}).get("guarded") is True
+                        and (paused_schedule.get("posting") or {}).get("notes") == "paused"
+                    )
                     return {
                         "ok": sum(
                             row.get("imported_id") == "live:post-cutover"
@@ -869,12 +903,15 @@ class ActualLiveGateTests(unittest.TestCase):
                             if month.get("month") == "2026-08"
                             for group in month.get("categoryGroups") or []
                             for category in group.get("categories") or []
-                        ),
+                        )
+                        and schedules_ok,
+                        "schedules_ok": schedules_ok,
                         "transactions": len(readback["transactions"]),
                     }
 
                 restored = managed_actual.restore(backup["backup_id"], verify_fn=verify_restored)
                 self.assertTrue(restored["readback"]["ok"])
+                self.assertTrue(restored["readback"]["schedules_ok"])
         finally:
             if old_data is None:
                 os.environ.pop("ALLES_DATA", None)

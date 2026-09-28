@@ -2217,6 +2217,17 @@ class ActualFinanceServiceTests(ApiTest):
         self.assertEqual(rows[0]["next_due"], "2026-08-05")
         self.assertEqual(rows[0]["account_id"], "legacy-account")
         self.assertEqual(rows[0]["metadata"]["category"], "software")
+        self.assertTrue(rows[0]["active"])
+        link = db.query(ActualEntityLink).filter_by(entity_kind="subscription").one()
+        link.metadata_json = '{"active":false,"category":"software","posting_rule_version":1}'
+        db.commit()
+        self.assertFalse(
+            actual_finance.subscription_schedules(db, bridge_request=self.bridge)[0]["active"]
+        )
+        self.actual["schedules"][0]["posts_transaction"] = True
+        self.assertTrue(
+            actual_finance.subscription_schedules(db, bridge_request=self.bridge)[0]["active"]
+        )
         db.close()
 
     def test_actual_subscription_recurrence_is_exact_or_fails_closed(self):
@@ -3947,6 +3958,53 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             response = self.client.get("/api/money/recurring")
         self.assertEqual(response.status_code, 503, response.text)
         self.assertIn("Actual is unavailable", response.text)
+
+    def test_canonical_recurring_keeps_managed_paused_schedule_and_reads_its_posting_rule(self):
+        db = self.db()
+        legacy_id = db.query(RecurringTxn.id).one()[0]
+        db.add(
+            ActualEntityLink(
+                run_id="run-route",
+                entity_kind="recurring",
+                source_id=legacy_id,
+                actual_id="paused-schedule",
+                metadata_json='{"category":"old housing","notes":"old note","posting_rule_version":1}',
+            )
+        )
+        db.commit()
+        db.close()
+        actual = {
+            "categories": [{"id": "housing-id", "name": "housing"}],
+            "schedules": [
+                {
+                    "id": "paused-schedule",
+                    "name": f"Alles recurring: rent [{legacy_id[:8]}]",
+                    "account": "actual-account",
+                    "amount": -2000,
+                    "amountOp": "is",
+                    "date": {"start": "2026-10-01", "frequency": "monthly", "interval": 1},
+                    "next_date": "2026-10-01",
+                    "completed": False,
+                    "posts_transaction": False,
+                    "posting": {"guarded": True, "category": "housing-id", "notes": "new note"},
+                }
+            ],
+        }
+        with patch("routes.money.actual_finance.inspect", return_value=actual):
+            response = self.client.get("/api/money/recurring")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(response.json()), 1)
+        row = response.json()[0]
+        self.assertEqual(row["id"], legacy_id)
+        self.assertFalse(row["active"])
+        self.assertEqual(row["category"], "housing")
+        self.assertEqual(row["notes"], "new note")
+
+        actual["schedules"][0]["posting"]["guarded"] = False
+        with patch("routes.money.actual_finance.inspect", return_value=actual):
+            unsafe = self.client.get("/api/money/recurring")
+        self.assertEqual(unsafe.status_code, 409, unsafe.text)
+        self.assertIn("posting rule is missing", unsafe.text)
 
     def test_canonical_alerts_use_one_actual_snapshot_and_local_watches(self):
         db = self.db()

@@ -274,10 +274,12 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
 - the Money month-end forecast uses the active ledger. after cutover, one Actual snapshot supplies
   the balance, three-month category averages, and active posting schedules; subscription renewals
   remain in their separate forecast. the projected card offers retry when this read is unavailable
-- the Money recurring list reads current Actual auto-post schedules after cutover, excluding
-  subscription schedules. a failed read shows retry rather than an empty list. schedule changes
-  in Finance remain unavailable after cutover until canonical writes can preserve the old
-  category/notes behavior and recover safely from uncertain provider results
+- the Money recurring list reads current Actual auto-post schedules and linked paused schedules
+  after cutover, excluding subscription schedules. a failed read shows retry rather than an empty
+  list. new cutovers stage schedules with posting off, verify a schedule-only Actual rule that sets
+  category and notes, then enable posting for active schedules. this does not silently rewrite
+  schedules in already-canonical budgets. schedule changes in Finance remain unavailable until
+  canonical writes can recover safely from uncertain provider results
 - Money alerts use the active ledger for large purchases, watched transactions, upcoming bills,
   and low account balances. after cutover, they read one Actual snapshot plus local watches;
   variable bill amounts are not shown as zero, and a failed read offers retry instead of hiding alerts
