@@ -228,6 +228,7 @@ class ImagesApiTest(VaultApiTest):
         from pathlib import Path
         from tempfile import TemporaryDirectory
         from unittest.mock import patch
+        from uuid import uuid4
 
         from PIL import Image
         from starlette.testclient import TestClient
@@ -246,6 +247,12 @@ class ImagesApiTest(VaultApiTest):
         db.commit()
         endpoint_id, chat_id = endpoint.id, chat.id
         db.close()
+        body = {
+            "session_id": chat_id,
+            "endpoint_id": endpoint_id,
+            "prompt": "a red square",
+            "request_id": str(uuid4()),
+        }
 
         async def fake_generate(*_args, **_kwargs):
             return [buf.getvalue()]
@@ -273,11 +280,7 @@ class ImagesApiTest(VaultApiTest):
             ):
                 response = client.post(
                     "/api/images/chat",
-                    json={
-                        "session_id": chat_id,
-                        "endpoint_id": endpoint_id,
-                        "prompt": "a red square",
-                    },
+                    json=body,
                 )
                 request_db.rollback()
                 media_count = len(list(Path(temp).rglob("*.png"))) + len(
@@ -306,6 +309,181 @@ class ImagesApiTest(VaultApiTest):
         )
         db.close()
         self.assertEqual(self.client.get(f"/api/sessions/{chat_id}/history").json()["messages"], [])
+        with (
+            TemporaryDirectory() as temp,
+            patch("services.photos_store.photos_dir", return_value=Path(temp)),
+            patch("services.imagegen.generate", side_effect=fake_generate),
+        ):
+            retry = self.client.post("/api/images/chat", json=body)
+            self.assertEqual(retry.status_code, 200, retry.text)
+        db = self.db()
+        self.assertEqual(db.query(Photo).count(), 1)
+        self.assertEqual(db.query(Message).filter_by(session_id=chat_id).count(), 2)
+        db.close()
+
+    def test_chat_image_replays_one_request_without_regenerating(self):
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from uuid import uuid4
+
+        from PIL import Image
+
+        from core.database import Message, Photo
+        from core.database import Session as ChatSession
+        from services import notes_vault
+
+        buf = BytesIO()
+        Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
+        db = self.db()
+        endpoint = ModelEndpoint(name="image provider", base_url="http://x", enabled=True)
+        chat = ChatSession(name="new chat")
+        db.add_all([endpoint, chat])
+        db.commit()
+        endpoint_id, chat_id = endpoint.id, chat.id
+        db.close()
+
+        async def fake_generate(*_args, **_kwargs):
+            return [buf.getvalue()]
+
+        body = {
+            "session_id": chat_id,
+            "endpoint_id": endpoint_id,
+            "prompt": "a red square",
+            "request_id": str(uuid4()),
+        }
+        with (
+            TemporaryDirectory() as temp,
+            patch("services.photos_store.photos_dir", return_value=Path(temp)),
+            patch("services.imagegen.generate", side_effect=fake_generate) as generate,
+        ):
+            first = self.client.post("/api/images/chat", json=body)
+            replay = self.client.post("/api/images/chat", json=body)
+            self.assertEqual(first.status_code, 200, first.text)
+            self.assertEqual(replay.status_code, 200, replay.text)
+            self.assertEqual(replay.json(), first.json())
+            self.assertEqual(generate.call_count, 1)
+            invalid = self.client.post(
+                "/api/images/chat", json={**body, "request_id": "not-a-uuid"}
+            )
+            self.assertEqual(invalid.status_code, 400)
+            self.assertEqual(generate.call_count, 1)
+            conflict = self.client.post(
+                "/api/images/chat", json={**body, "prompt": "a blue square"}
+            )
+            self.assertEqual(conflict.status_code, 409)
+            self.assertEqual(generate.call_count, 1)
+
+            deliberate_repeat = self.client.post(
+                "/api/images/chat", json={**body, "request_id": str(uuid4())}
+            )
+            self.assertEqual(deliberate_repeat.status_code, 200, deliberate_repeat.text)
+            self.assertNotEqual(deliberate_repeat.json()["images"], first.json()["images"])
+            self.assertEqual(generate.call_count, 2)
+
+            deleted = self.client.delete(f"/api/photos/{first.json()['images'][0]['id']}")
+            self.assertEqual(deleted.status_code, 200, deleted.text)
+            gone = self.client.post("/api/images/chat", json=body)
+            self.assertEqual(gone.status_code, 410)
+            self.assertEqual(generate.call_count, 2)
+
+        db = self.db()
+        self.assertEqual(db.query(Photo).count(), 2)
+        self.assertEqual(db.query(Message).filter_by(session_id=chat_id).count(), 4)
+        self.assertEqual(db.get(ChatSession, chat_id).message_count, 4)
+        self.assertEqual(len(notes_vault.all_notes()), 2)
+        db.close()
+
+    def test_chat_image_concurrent_retry_keeps_one_photo_and_turn(self):
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from threading import Barrier
+        from unittest.mock import patch
+        from uuid import uuid4
+
+        from PIL import Image
+        from sqlalchemy import create_engine
+        from starlette.testclient import TestClient
+
+        import core.database as database
+        from app import app
+        from core.database import Message, Photo
+        from core.database import Session as ChatSession
+        from services import notes_vault
+
+        def png(color):
+            buf = BytesIO()
+            Image.new("RGB", (4, 4), color).save(buf, "PNG")
+            return buf.getvalue()
+
+        outputs = iter([png((200, 30, 30)), png((30, 30, 200))])
+        barrier = Barrier(2)
+
+        async def fake_generate(*_args, **_kwargs):
+            image = next(outputs)
+            await asyncio.to_thread(barrier.wait, timeout=10)
+            return [image]
+
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "photos" / ".thumbs").mkdir(parents=True)
+            file_engine = create_engine(
+                f"sqlite:///{root / 'images.db'}",
+                connect_args={"check_same_thread": False, "timeout": 10},
+            )
+            database.Base.metadata.create_all(file_engine)
+            database.engine = file_engine
+            database.SessionLocal.configure(bind=file_engine)
+            try:
+                db = self.db()
+                endpoint = ModelEndpoint(name="image provider", base_url="http://x", enabled=True)
+                chat = ChatSession(name="new chat")
+                db.add_all([endpoint, chat])
+                db.commit()
+                body = {
+                    "session_id": chat.id,
+                    "endpoint_id": endpoint.id,
+                    "prompt": "a red square",
+                    "request_id": str(uuid4()),
+                }
+                chat_id = chat.id
+                db.close()
+
+                def post():
+                    client = TestClient(app)
+                    try:
+                        return client.post("/api/images/chat", json=body)
+                    finally:
+                        client.close()
+
+                with (
+                    patch("services.photos_store.photos_dir", return_value=root / "photos"),
+                    patch("services.imagegen.generate", side_effect=fake_generate) as generate,
+                    ThreadPoolExecutor(max_workers=2) as pool,
+                ):
+                    first = pool.submit(post)
+                    second = pool.submit(post)
+                    responses = [first.result(timeout=20), second.result(timeout=20)]
+                self.assertEqual([response.status_code for response in responses], [200, 200])
+                self.assertEqual(responses[0].json()["images"], responses[1].json()["images"])
+                self.assertEqual(generate.call_count, 2)
+
+                db = self.db()
+                self.assertEqual(db.query(Photo).count(), 1)
+                self.assertEqual(db.query(Message).filter_by(session_id=chat_id).count(), 2)
+                self.assertEqual(db.get(ChatSession, chat_id).message_count, 2)
+                self.assertEqual(len(notes_vault.all_notes()), 1)
+                self.assertEqual(len(list((root / "photos").rglob("*.png"))), 1)
+                self.assertEqual(len(list((root / "photos").rglob("*.jpg"))), 1)
+                db.close()
+            finally:
+                database.SessionLocal.configure(bind=self.eng)
+                database.engine = self.eng
+                file_engine.dispose()
 
     def test_chat_image_note_status_write_failure_keeps_saved_turn(self):
         from io import BytesIO

@@ -839,11 +839,11 @@ export function hideConnBanner() {
   if (b) b.style.display = 'none';
 }
 
-function setStreaming(val) {
+function setStreaming(val, stoppable = true) {
   _streaming = val;
   document.getElementById('send-btn').disabled = val;
   const stop = document.getElementById('stop-btn');
-  stop.classList.toggle('visible', val);
+  stop.classList.toggle('visible', val && stoppable);
 }
 
 
@@ -867,49 +867,85 @@ function _looksLikeImageRequest(t) {
   return /\b(draw|generate|create|make|render|paint|design|produce)\b[^.!?]*\b(image|picture|pic|photo|drawing|art|artwork|illustration|logo|icon|wallpaper|poster|painting|portrait|render)\b/.test(s);
 }
 
+function _newImageRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 // image-gen turn: same chat thread, but hit the image endpoint. backend saves the
 // pic to the gallery + a document and persists the turn, so it survives a reload.
 // `target` is {endpointId, model} — the primary (legacy) or the companion image slot.
 async function _sendImage(prompt, sessionId, fresh, target) {
   const sel = target || getSelected();
   prompt = prompt.replace(/^\/(image|img|draw|gen)\s+/i, '');   // drop the slash lead-in if any
+  const request = { session_id: sessionId, prompt, model: sel.model, endpoint_id: sel.endpointId,
+    request_id: _newImageRequestId() };
   showMessages();
   appendUserMsg(prompt);
   clearAttachments();
   scrollDown();
-  setStreaming(true);
   const { body } = createStreamingAiRow();
-  const status = document.createElement('div');
-  status.className = 'ai-content img-gen-status';
-  status.textContent = 'generating image…';
-  body.appendChild(status);
-  scrollDown();
-  try {
-    const r = await fetch('/api/images/chat', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, prompt, model: sel.model, endpoint_id: sel.endpointId }),
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'generation failed');
-    body.innerHTML = '';
-    const content = document.createElement('div');
-    content.className = 'ai-content';
-    content.innerHTML = mdToHtml(d.content);
-    body.appendChild(content);
-    body.classList.add('done');
-    if (fresh && d.doc_id && d.doc_title) updateSessionName(sessionId, d.doc_title);
-    toast(d.doc_id ? 'saved to notes' : 'image generated', 'success');
-  } catch (e) {
-    body.innerHTML = '';
-    const err = document.createElement('div');
-    err.className = 'ai-content';
-    err.textContent = 'image generation failed: ' + (e.message || '');
-    body.appendChild(err);
-    toast(e.message || 'generation failed', 'error');
-  } finally {
-    setStreaming(false);
+  let error, retry;
+  const send = async (again = false) => {
+    setStreaming(true, false);
+    if (again) {
+      retry.setAttribute('aria-disabled', 'true');
+      retry.textContent = 'retrying…';
+      error.setAttribute('role', 'status');
+      error.textContent = 'checking saved image…';
+    } else {
+      const status = document.createElement('div');
+      status.className = 'ai-content img-gen-status';
+      status.setAttribute('role', 'status');
+      status.textContent = 'generating image…';
+      body.replaceChildren(status);
+    }
     scrollDown();
-  }
+    try {
+      const r = await fetch('/api/images/chat', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'generation failed');
+      const content = document.createElement('div');
+      content.className = 'ai-content';
+      content.innerHTML = mdToHtml(d.content);
+      body.replaceChildren(content);
+      body.classList.add('done');
+      if (again) {
+        content.tabIndex = -1;
+        content.focus({ preventScroll: true });
+      }
+      if (fresh && d.doc_id && d.doc_title) updateSessionName(sessionId, d.doc_title);
+      toast(d.doc_id ? 'saved to notes' : 'image generated', 'success');
+    } catch (e) {
+      if (!error) {
+        error = document.createElement('div');
+        error.className = 'ai-content';
+        const template = document.createElement('template');
+        template.innerHTML = '<button type="button" class="act-btn img-gen-retry">retry image</button>';
+        retry = template.content.firstElementChild;
+        retry.addEventListener('click', () => { if (!_streaming) void send(true); });
+      }
+      error.setAttribute('role', 'alert');
+      error.textContent = 'could not confirm image: ' + (e.message || 'request failed');
+      retry.removeAttribute('aria-disabled');
+      retry.textContent = 'retry image';
+      if (!again) body.replaceChildren(error, retry);
+      toast(e.message || 'generation failed', 'error');
+    } finally {
+      setStreaming(false);
+      scrollDown();
+    }
+  };
+  await send();
 }
 
 
