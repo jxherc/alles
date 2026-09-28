@@ -781,6 +781,16 @@ async function write(request) {
     await api.sync();
     return { month: request.month, category_id: categoryId, category_name: name, amount_minor: amountMinor };
   }
+  if (request.action === 'set_budget_assignment') {
+    const categoryId = String(request.category_id || '').trim();
+    const categories = await api.getCategories();
+    const matches = categories.filter(item => item.id === categoryId && !item.is_income);
+    if (matches.length !== 1) throw new Error('Actual spending category was not found');
+    const amountMinor = safeMinor(request.amount_minor, 'assigned amount');
+    await api.setBudgetAmount(request.month, categoryId, amountMinor);
+    await api.sync();
+    return { month: request.month, category_id: categoryId, amount_minor: amountMinor };
+  }
   if (request.action === 'clear_budget') {
     const categoryId = String(request.category_id || '').trim();
     if (!categoryId) throw new Error('Actual budget category id is required');

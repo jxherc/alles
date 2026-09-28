@@ -1610,7 +1610,22 @@ def validate_active_links(db: Session, actual: dict) -> dict:
             present = bool(separator) and (month, category_id) in budget_slots
             group = "budget_assignment"
             expected = snapshot_budgets.get(link.source_id)
-            if present and expected is None:
+            if "canonical_assignment" in metadata:
+                canonical = metadata["canonical_assignment"]
+                canonical_minor = (
+                    canonical.get("amount_minor") if isinstance(canonical, dict) else None
+                )
+                expected_minor = (
+                    canonical_minor
+                    if type(canonical_minor) is int
+                    and abs(canonical_minor) <= actual_finance.MAX_CENT_SAFE_MINOR
+                    else None
+                )
+            elif expected is not None:
+                expected_minor = expected.get("amount_minor")
+            else:
+                expected_minor = None
+            if present and expected_minor is None:
                 missing.append(
                     {
                         "kind": kind,
@@ -1618,7 +1633,7 @@ def validate_active_links(db: Session, actual: dict) -> dict:
                         "content_checkpoint_missing": True,
                     }
                 )
-            elif present and budget_slots.get((month, category_id)) != expected.get("amount_minor"):
+            elif present and budget_slots.get((month, category_id)) != expected_minor:
                 missing.append(
                     {"kind": kind, "source_id": link.source_id, "content_mismatch": True}
                 )

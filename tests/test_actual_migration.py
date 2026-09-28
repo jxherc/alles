@@ -1379,6 +1379,22 @@ class ActualMigrationTests(ApiTest):
         }
         valid_result = actual_migration.validate_active_links(db, valid)
         self.assertTrue(valid_result["ok"], valid_result)
+        assignment_link = (
+            db.query(ActualEntityLink)
+            .filter_by(entity_kind="budget_assignment", source_id="source-budget")
+            .one()
+        )
+        assignment_link.metadata_json = '{"canonical_assignment":{"amount_minor":6000}}'
+        db.flush()
+        edited = copy.deepcopy(valid)
+        edited["budget_months"][0]["categoryGroups"][0]["categories"][0]["budgeted"] = 6000
+        self.assertTrue(actual_migration.validate_active_links(db, edited)["ok"])
+        self.assertFalse(actual_migration.validate_active_links(db, valid)["ok"])
+        assignment_link.metadata_json = '{"canonical_assignment":{"amount_minor":"6000"}}'
+        db.flush()
+        self.assertFalse(actual_migration.validate_active_links(db, edited)["ok"])
+        assignment_link.metadata_json = "{}"
+        db.flush()
         altered_opening = copy.deepcopy(valid)
         altered_opening["transactions"][0]["amount"] = 249
         opening_result = actual_migration.validate_active_links(db, altered_opening)

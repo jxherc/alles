@@ -53,7 +53,7 @@ def _legacy_ledger_mutation(method: str, path: str) -> bool:
     parts = normalized.split("/") if normalized else []
     return (
         parts[:1] == ["recurring"]
-        or parts[:1] == ["envelope"]
+        or (parts[:1] == ["envelope"] and parts != ["envelope", "assign"])
         or parts in (["rules", "apply"], ["tag-rules", "apply"])
         or (
             parts[:1] == ["transactions"]
@@ -1369,13 +1369,26 @@ def delete_budget(bid: str, db: DbSession = Depends(get_db)):
 
 # ── envelope budgeting (YNAB), 4b ─────────────────────────────────────────────
 class AssignBody(BaseModel):
-    category: str
+    category: str = ""
+    category_id: str = ""
     amount: float = 0.0
+    expected_amount: float | None = None
     month: str = ""
 
 
 @router.put("/envelope/assign")
 def assign_envelope(body: AssignBody, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.set_envelope_assignment(
+                db,
+                (body.month or "").strip() or date.today().strftime("%Y-%m"),
+                body.category_id,
+                body.amount,
+                body.expected_amount,
+            )
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     _require_legacy_ledger_write(db)
     cat = (body.category or "").strip()
     if not cat:
