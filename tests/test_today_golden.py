@@ -138,3 +138,69 @@ class TodayGoldenTests(ApiTest):
             self.assertGreater(date.fromisoformat(sub.next_due), date.today())
         finally:
             d.close()
+
+    def test_today_posts_every_overdue_subscription_on_first_load(self):
+        d = self.db()
+        account = Account(name="Checking", opening=100, currency="CAD")
+        finance_currency.prepare_account(account)
+        d.add(account)
+        d.commit()
+        due = _iso(-1)
+        subscriptions = []
+        for name, price in (("backup", 7.5), ("music", 4.0)):
+            sub = Subscription(
+                name=name,
+                price=price,
+                currency="CAD",
+                cycle="monthly",
+                active=True,
+                next_due=due,
+                account_id=account.id,
+            )
+            finance_currency.prepare_subscription(sub)
+            d.add(sub)
+            subscriptions.append(sub)
+        unreviewed = Subscription(
+            name="unreviewed",
+            price=9.0,
+            currency="CAD",
+            cycle="monthly",
+            active=True,
+            next_due=due,
+            account_id=account.id,
+        )
+        finance_currency.prepare_subscription(unreviewed)
+        unreviewed.currency = "$"
+        unreviewed.original_currency_code = "XXX"
+        unreviewed.base_price_text = ""
+        unreviewed.base_currency_code = ""
+        unreviewed.fx_rate_text = ""
+        d.add(unreviewed)
+        d.commit()
+        ids = [sub.id for sub in subscriptions]
+        unreviewed_id = unreviewed.id
+        account_id = account.id
+        d.close()
+
+        response = self.client.get("/api/today", params={"date": date.today().isoformat()})
+        self.assertEqual(response.status_code, 200, response.text)
+
+        d = self.db()
+        try:
+            transactions = d.query(Transaction).filter(Transaction.account_id == account_id).all()
+            self.assertEqual({txn.payee for txn in transactions}, {"backup", "music"})
+            self.assertEqual(len(transactions), 2)
+            for sid in ids:
+                sub = d.get(Subscription, sid)
+                self.assertEqual(sub.last_posted_due, due)
+                self.assertGreater(date.fromisoformat(sub.next_due), date.today())
+            self.assertEqual(d.get(Subscription, unreviewed_id).next_due, due)
+        finally:
+            d.close()
+
+        self.client.get("/api/today", params={"date": date.today().isoformat()})
+        d = self.db()
+        try:
+            self.assertEqual(d.query(Transaction).count(), 2)
+        finally:
+            d.close()

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from core.database import Subscription, Task, get_db
 from core.settings import load_settings, save_settings
-from services import signals
+from services import actual_finance, signals
 from services.recovery_consistency import recovery_consistency_lock
 from services.signals import (
     _event_occurs_on,  # noqa: F401  re-export for routes.today._event_occurs_on
@@ -134,9 +134,17 @@ def today_view(
     # roll overdue subs forward first (a write) so signals reads fresh next_due
     from routes.subscriptions import _roll_and_post
 
-    subs = db.query(Subscription).filter(Subscription.active == True).all()  # noqa: E712
-    if any(_roll_and_post(s, today, db) for s in subs):
-        db.commit()
+    with actual_finance.AUTHORITY_LOCK:
+        subs = db.query(Subscription).filter(Subscription.active == True).all()  # noqa: E712
+        changed = False
+        for sub in subs:
+            try:
+                changed = _roll_and_post(sub, today, db) or changed
+            except HTTPException as exc:
+                if exc.status_code != 409:
+                    raise
+        if changed:
+            db.commit()
 
     g = signals.by_category(
         signals.gather(
