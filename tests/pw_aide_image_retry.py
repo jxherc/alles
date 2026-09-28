@@ -5,6 +5,7 @@ import io
 import json
 import os
 import sqlite3
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -15,6 +16,9 @@ from playwright.sync_api import expect, sync_playwright
 
 
 def run():
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from services.appearance import from_legacy
+
     data = Path(os.environ["ALLES_DATA"]).resolve()
     run_id = os.environ["ALLES_TEST_RUN_ID"]
     assert os.environ["ALLES_TEST_DATA"] == "1"
@@ -86,6 +90,7 @@ def run():
                             return response.json()
 
                         request("POST", "/api/setup/dismiss")
+                        request("PUT", "/api/appearance", from_legacy(theme, None))
                         endpoint = request(
                             "POST",
                             "/api/models/endpoint",
@@ -128,6 +133,7 @@ def run():
                             f"localStorage.setItem('aide-image-model', {json.dumps(slot)})"
                         )
                         page.goto(f"/?view=chat#{session_id}", wait_until="networkidle")
+                        assert (page.locator("html").get_attribute("data-theme") or "dark") == theme
                         expect(page.locator("#composer-ta")).to_be_visible()
                         backdrop = page.locator("#nav-backdrop")
                         if backdrop.is_visible():

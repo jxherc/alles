@@ -52444,13 +52444,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 131
+                "line": 137
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 155
+                "line": 161
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -52889,13 +52889,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 131
+                "line": 137
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 155
+                "line": 161
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53334,13 +53334,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 131
+                "line": 137
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 155
+                "line": 161
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -55568,7 +55568,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 156
+                "line": 162
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -55681,7 +55681,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 156
+                "line": 162
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -55797,7 +55797,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 156
+                "line": 162
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -55913,7 +55913,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_image_retry.py",
                 "kind": "existing-test-control-reference",
-                "line": 156
+                "line": 162
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
