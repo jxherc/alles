@@ -171,10 +171,11 @@ async function allTransactions(accounts) {
 
 async function inspectBudget() {
   const accounts = await api.getAccounts();
-  const [payees, categories, categoryGroups, schedules, months, transactions] = await Promise.all([
+  const [payees, categories, categoryGroups, schedules, rules, months, transactions] = await Promise.all([
     api.getPayees(), api.getCategories(), api.getCategoryGroups(),
-    api.getSchedules(), api.getBudgetMonths(), allTransactions(accounts),
+    api.getSchedules(), api.getRules(), api.getBudgetMonths(), allTransactions(accounts),
   ]);
+  const rulesById = new Map(rules.map(rule => [rule.id, rule]));
   const payeeNames = new Map(payees.map(item => [item.id, item.name]));
   const categoryNames = new Map(categories.map(item => [item.id, item.name]));
   const balances = {};
@@ -194,9 +195,72 @@ async function inspectBudget() {
     payees,
     categories,
     category_groups: categoryGroups,
-    schedules,
+    schedules: schedules.map(schedule => ({
+      ...schedule,
+      posting: schedulePosting(schedule, rulesById.get(schedule.rule)),
+    })),
     budget_months: budgetMonths,
   };
+}
+
+function schedulePosting(schedule, rule) {
+  const marker = `alles:schedule-only:${schedule.id}`;
+  const actions = rule?.actions || [];
+  const matches = (field) => actions.filter(action => action.op === 'set' && action.field === field);
+  const categories = matches('category');
+  const notes = matches('notes');
+  const linked = actions.filter(action => action.op === 'link-schedule' && action.value === schedule.id);
+  const safeActions = linked.length === 1 && categories.length <= 1 && notes.length <= 1
+    && actions.every(action => (
+      action.op === 'link-schedule' && action.value === schedule.id
+    ) || (
+      action.op === 'set' && ['category', 'notes'].includes(action.field)
+      && !action.options?.formula && !action.options?.template
+    ));
+  return {
+    guarded: Boolean(rule?.conditionsOp === 'and'
+      && rule.conditions?.some(condition => condition.op === 'is'
+        && condition.field === 'notes' && condition.value === marker)
+      && safeActions),
+    category: categories.length === 1 ? categories[0].value : null,
+    notes: notes.length === 1 ? notes[0].value : '',
+  };
+}
+
+async function configureSchedulePosting(scheduleId, categoryId, notes) {
+  const schedule = (await api.getSchedules()).find(row => row.id === scheduleId);
+  if (!schedule || schedule.posts_transaction) {
+    throw new Error('Actual schedule posting must be configured before activation');
+  }
+  const rule = (await api.getRules()).find(row => row.id === schedule.rule);
+  if (!rule || rule.conditionsOp !== 'and'
+    || rule.actions?.length !== 1
+    || rule.actions[0].op !== 'link-schedule'
+    || rule.actions[0].value !== scheduleId) {
+    throw new Error('Actual schedule linked rule is not in its new-schedule state');
+  }
+  const actions = [...rule.actions];
+  if (categoryId) actions.push({ op: 'set', field: 'category', value: categoryId });
+  if (notes) actions.push({ op: 'set', field: 'notes', value: notes });
+  // Actual 26.7.0 bypasses this condition for attached posts; manual matches cannot run these actions.
+  await api.updateRule({
+    ...rule,
+    conditions: [...rule.conditions, {
+      op: 'is', field: 'notes', value: `alles:schedule-only:${scheduleId}`,
+    }],
+    actions,
+  });
+  const updated = (await api.getRules()).find(row => row.id === schedule.rule);
+  const posting = schedulePosting(schedule, updated);
+  if (!posting.guarded || posting.category !== (categoryId || null)
+    || posting.notes !== (notes || '')) {
+    throw new Error('Actual schedule posting rule did not verify');
+  }
+  const current = (await api.getSchedules()).find(row => row.id === scheduleId);
+  if (!current || current.next_date !== schedule.next_date
+    || JSON.stringify(current.date) !== JSON.stringify(schedule.date)) {
+    throw new Error('Actual schedule recurrence changed during posting setup');
+  }
 }
 
 async function ensureCategory(name, categoryMap, groupId) {
@@ -522,19 +586,21 @@ async function migrate(request) {
     for (const row of snapshot.schedules) {
       const accountId = row.account_id ? accountMap.get(row.account_id) : undefined;
       const payee = await ensurePayee(row.payee || row.name, payeeMap);
-      // Actual 26.7.0's APIScheduleEntity has no category field. Keep the source
-      // category in the immutable entity-link metadata rather than passing an
-      // unsupported property that createSchedule() cannot persist or reconcile.
+      const categoryId = await ensureCategory(row.metadata?.category, categoryMap, categoryGroupId);
+      // Keep posting off until its linked rule can supply category and notes.
       const actualId = await api.createSchedule({
         name: row.name,
-        posts_transaction: Boolean(row.posts_transaction),
-        completed: !row.active,
+        posts_transaction: false,
         payee,
         account: accountId,
         amount: safeMinor(row.amount_minor, 'schedule amount'),
         amountOp: 'is',
         date: dateRule(row),
       });
+      await configureSchedulePosting(actualId, categoryId, row.metadata?.notes || '');
+      if (row.posts_transaction && row.active) {
+        await api.updateSchedule(actualId, { posts_transaction: true });
+      }
       entityLinks.push({ kind: row.kind, source_id: row.id, actual_id: actualId, metadata: row.metadata });
     }
 

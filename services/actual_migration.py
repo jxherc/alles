@@ -470,6 +470,7 @@ def build_snapshot(
             "active": bool(row.active),
             "posts_transaction": bool(row.account_id),
             "metadata": {
+                "posting_rule_version": 1,
                 "category": row.category,
                 "notes": row.notes,
                 "last_posted": row.last_posted,
@@ -503,6 +504,8 @@ def build_snapshot(
             "active": bool(row.active),
             "posts_transaction": bool(row.account_id),
             "metadata": {
+                "posting_rule_version": 1,
+                "active": bool(row.active),
                 "category": row.category,
                 "original_price_text": row.original_price_text,
                 "original_currency_code": original_currency,
@@ -897,8 +900,7 @@ def reconcile(snapshot: dict, result: dict) -> dict:
                 == (expected["payee"] or expected["name"])
                 and _normalized_schedule_date(actual_schedule.get("date"))
                 == _schedule_date(expected)
-                and bool(actual_schedule.get("completed")) == (not expected["active"])
-                and bool(actual_schedule.get("posts_transaction")) == expected["posts_transaction"]
+                and _schedule_posting_matches(actual_schedule, expected, actual_category_rows)
                 and (actual_schedule.get("amountOp") or "") == "is"
                 and (link.get("metadata") or {}) == expected["metadata"]
             ):
@@ -1412,12 +1414,32 @@ def _restored_transaction_matches(row: dict, expected: dict) -> bool:
     return True
 
 
+def _schedule_posting_matches(row: dict, expected: dict, categories: dict[str, dict]) -> bool:
+    metadata = expected.get("metadata") or {}
+    if metadata.get("posting_rule_version") != 1:
+        return bool(row.get("completed")) == (not bool(expected.get("active"))) and bool(
+            row.get("posts_transaction")
+        ) == bool(expected.get("posts_transaction"))
+    posting = row.get("posting") or {}
+    category_id = posting.get("category")
+    category = categories.get(category_id, {}) if category_id else {}
+    return (
+        bool(row.get("posts_transaction"))
+        == bool(expected.get("posts_transaction") and expected.get("active"))
+        and bool(posting.get("guarded"))
+        and (not category_id or category_id in categories)
+        and str(category.get("name") or "") == str(metadata.get("category") or "")
+        and str(posting.get("notes") or "") == str(metadata.get("notes") or "")
+    )
+
+
 def _restored_schedule_matches(
     row: dict,
     expected: dict,
     *,
     account_actual_ids: dict[str, str],
     payee_names: dict[str, str],
+    categories: dict[str, dict],
 ) -> bool:
     return (
         row.get("amount") == expected.get("amount_minor")
@@ -1427,8 +1449,7 @@ def _restored_schedule_matches(
         and payee_names.get(row.get("payee"), str(row.get("payee_name") or ""))
         == str(expected.get("payee") or expected.get("name") or "")
         and _normalized_schedule_date(row.get("date")) == _schedule_date(expected)
-        and bool(row.get("completed")) == (not bool(expected.get("active")))
-        and bool(row.get("posts_transaction")) == bool(expected.get("posts_transaction"))
+        and _schedule_posting_matches(row, expected, categories)
         and str(row.get("amountOp") or "") == "is"
     )
 
@@ -1651,6 +1672,7 @@ def validate_active_links(db: Session, actual: dict) -> dict:
                     expected,
                     account_actual_ids=account_actual_ids,
                     payee_names=payee_names,
+                    categories=categories,
                 )
             ):
                 missing.append(
