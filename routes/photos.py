@@ -13,6 +13,7 @@ from core.database import Album, Face, Person, Photo, TrashItem, get_db
 from routes.vault import DEFAULT_VAULT, _ctx
 from services import photos_store as ps
 from services import trash
+from services.photo_records import format_photo as _fmt
 
 router = APIRouter(prefix="/api/photos")
 _HIDDEN_COOKIE = "alles_hidden_photos"
@@ -56,10 +57,6 @@ def _private_media_headers(photo: Photo) -> dict[str, str]:
     )
 
 
-def _kw_list(s) -> list[str]:
-    return [k for k in (s or "").split(",") if k]
-
-
 def _norm_kw(kws) -> str:
     """lowercase, trim, drop blanks, dedup (order-stable) → csv."""
     seen, out = set(), []
@@ -69,30 +66,6 @@ def _norm_kw(kws) -> str:
             seen.add(k)
             out.append(k)
     return ",".join(out)
-
-
-def _fmt(p: Photo) -> dict:
-    return {
-        "id": p.id,
-        "thumb": f"/api/photos/thumb/{p.id}",
-        "original": f"/api/photos/original/{p.id}",
-        "width": p.width,
-        "height": p.height,
-        "taken_at": p.taken_at.isoformat() if p.taken_at else None,
-        "favorite": p.favorite,
-        "album_id": p.album_id,
-        "original_name": p.original_name,
-        "caption": p.caption or "",
-        "keywords": _kw_list(p.keywords),
-        "hidden": bool(p.hidden),
-        "archived": bool(p.archived),
-        "is_video": bool(p.is_video),
-        "aspect_ratio": p.aspect_ratio
-        or ((p.width / p.height) if (p.width and p.height) else None),
-        "preview": ("data:image/jpeg;base64," + p.preview) if p.preview else "",
-        "stack_id": p.stack_id,
-        "exif": json.loads(p.exif or "{}"),
-    }
 
 
 def _attach_stacks(out, db):

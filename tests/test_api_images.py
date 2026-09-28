@@ -38,7 +38,7 @@ class ImagesApiTest(VaultApiTest):
         db.close()
 
         async def fake_generate(*_args, **_kwargs):
-            return [buf.getvalue()]
+            return [buf.getvalue(), b"not an image"]
 
         prompt = "a red square with a very long descriptive prompt that should not be cut off"
         with (
@@ -50,6 +50,7 @@ class ImagesApiTest(VaultApiTest):
                 "/api/images/generate", json={"endpoint_id": endpoint_id, "prompt": prompt}
             )
             self.assertEqual(result.status_code, 200, result.text)
+            self.assertEqual(len(result.json()["images"]), 1)
             photo_id = result.json()["images"][0]["id"]
             creations = self.client.get("/api/gallery").json()["items"]
             self.assertEqual(len(creations), 1)
@@ -59,8 +60,167 @@ class ImagesApiTest(VaultApiTest):
             self.assertEqual(self.client.get(creations[0]["url"]).content, buf.getvalue())
 
         db = self.db()
-        self.assertEqual(db.get(Photo, photo_id).source, "generated")
+        photo = db.get(Photo, photo_id)
+        self.assertEqual(photo.source, "generated")
+        self.assertTrue(photo.checksum)
+        self.assertEqual(photo.aspect_ratio, 1)
+        self.assertTrue(photo.preview)
         self.assertEqual(db.query(GalleryImage).count(), 0)
+        db.close()
+
+    def test_generate_second_media_write_failure_leaves_no_partial_photo(self):
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from PIL import Image
+
+        from core.database import Photo
+        from services import photos_store
+
+        buf = BytesIO()
+        Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
+        db = self.db()
+        endpoint = ModelEndpoint(name="image provider", base_url="http://x", enabled=True)
+        db.add(endpoint)
+        db.commit()
+        endpoint_id = endpoint.id
+        db.close()
+
+        async def fake_generate(*_args, **_kwargs):
+            return [buf.getvalue(), buf.getvalue()]
+
+        import_image = photos_store.import_image
+        calls = 0
+
+        def second_write_fails(data, name):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("photos disk is full")
+            return import_image(data, name)
+
+        with (
+            TemporaryDirectory() as temp,
+            patch("services.photos_store.photos_dir", return_value=Path(temp)),
+            patch("services.imagegen.generate", side_effect=fake_generate),
+        ):
+            with patch("services.photos_store.import_image", side_effect=second_write_fails):
+                response = self.client.post(
+                    "/api/images/generate",
+                    json={"endpoint_id": endpoint_id, "prompt": "two squares"},
+                )
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(list(Path(temp).rglob("*.png")), [])
+            self.assertEqual(list(Path(temp).rglob("*.jpg")), [])
+            db = self.db()
+            self.assertEqual(db.query(Photo).count(), 0)
+            db.close()
+            retry = self.client.post(
+                "/api/images/generate", json={"endpoint_id": endpoint_id, "prompt": "two squares"}
+            )
+            self.assertEqual(retry.status_code, 200, retry.text)
+            self.assertEqual(len(retry.json()["images"]), 2)
+
+        db = self.db()
+        self.assertEqual(db.query(Photo).count(), 2)
+        db.close()
+
+    def test_generate_database_write_failure_cleans_media(self):
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from PIL import Image
+
+        from core.database import Photo
+        from services.photo_records import Session
+
+        buf = BytesIO()
+        Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
+        db = self.db()
+        endpoint = ModelEndpoint(name="image provider", base_url="http://x", enabled=True)
+        db.add(endpoint)
+        db.commit()
+        endpoint_id = endpoint.id
+        db.close()
+
+        async def fake_generate(*_args, **_kwargs):
+            return [buf.getvalue()]
+
+        with (
+            TemporaryDirectory() as temp,
+            patch("services.photos_store.photos_dir", return_value=Path(temp)),
+            patch("services.imagegen.generate", side_effect=fake_generate),
+            patch.object(Session, "commit", side_effect=OSError("database write failed")),
+        ):
+            response = self.client.post(
+                "/api/images/generate", json={"endpoint_id": endpoint_id, "prompt": "one square"}
+            )
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(list(Path(temp).rglob("*.png")), [])
+            self.assertEqual(list(Path(temp).rglob("*.jpg")), [])
+
+        db = self.db()
+        self.assertEqual(db.query(Photo).count(), 0)
+        db.close()
+
+    def test_chat_image_storage_failure_keeps_chat_and_photos_empty(self):
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from PIL import Image
+
+        from core.database import Message, Photo
+        from core.database import Session as ChatSession
+        from services import notes_vault, photos_store
+
+        buf = BytesIO()
+        Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
+        db = self.db()
+        endpoint = ModelEndpoint(name="image provider", base_url="http://x", enabled=True)
+        chat = ChatSession(name="new chat")
+        db.add_all([endpoint, chat])
+        db.commit()
+        endpoint_id, chat_id = endpoint.id, chat.id
+        db.close()
+
+        async def fake_generate(*_args, **_kwargs):
+            return [buf.getvalue(), buf.getvalue()]
+
+        import_image = photos_store.import_image
+        calls = 0
+
+        def second_write_fails(data, name):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("photos disk is full")
+            return import_image(data, name)
+
+        with (
+            TemporaryDirectory() as temp,
+            patch("services.photos_store.photos_dir", return_value=Path(temp)),
+            patch("services.imagegen.generate", side_effect=fake_generate),
+            patch("services.photos_store.import_image", side_effect=second_write_fails),
+        ):
+            response = self.client.post(
+                "/api/images/chat",
+                json={"session_id": chat_id, "endpoint_id": endpoint_id, "prompt": "two squares"},
+            )
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(list(Path(temp).rglob("*.png")), [])
+            self.assertEqual(list(Path(temp).rglob("*.jpg")), [])
+
+        db = self.db()
+        self.assertEqual(db.query(Photo).count(), 0)
+        self.assertEqual(db.query(Message).filter_by(session_id=chat_id).count(), 0)
+        self.assertEqual(db.get(ChatSession, chat_id).message_count, 0)
+        self.assertEqual(notes_vault.all_notes(), [])
         db.close()
 
     def test_image_model_detection(self):
