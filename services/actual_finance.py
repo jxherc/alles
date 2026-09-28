@@ -1118,19 +1118,35 @@ def recurring_schedules(
     _recurring_sources, recurring_public, recurring_metadata = _maps(db, "recurring")
     subscription_ids = {link.actual_id for link in _links(db, "subscription")}
     payee_names = {row.get("id"): row.get("name") for row in actual.get("payees") or []}
+    category_names = {
+        str(row.get("id")): str(row.get("name") or "")
+        for row in actual.get("categories") or []
+        if row.get("id")
+    }
     seen = set()
     rows = []
     for row in actual.get("schedules") or []:
-        if not row.get("posts_transaction"):
-            continue
         actual_id = str(row.get("id") or "")
         if not actual_id or actual_id in seen:
             raise ActualFinanceError("the Actual schedule identity is missing or duplicated")
         seen.add(actual_id)
-        if actual_id in subscription_ids:
+        if actual_id in subscription_ids or (
+            not row.get("posts_transaction") and actual_id not in recurring_public
+        ):
             continue
         source_id = recurring_public.get(actual_id, actual_id)
         metadata = recurring_metadata.get(actual_id, {})
+        category = str(metadata.get("category") or "")
+        notes = str(metadata.get("notes") or "")
+        if metadata.get("posting_rule_version") == 1:
+            posting = row.get("posting") or {}
+            if not posting.get("guarded"):
+                raise ActualFinanceError("a managed Actual schedule posting rule is missing")
+            category_id = str(posting.get("category") or "")
+            if category_id and category_id not in category_names:
+                raise ActualFinanceError("a managed Actual schedule category is missing")
+            category = category_names.get(category_id, "")
+            notes = str(posting.get("notes") or "")
         name = str(row.get("name") or "").strip()
         migrated_name = "Alles recurring: "
         migrated_suffix = f" [{source_id[:8]}]"
@@ -1140,9 +1156,7 @@ def recurring_schedules(
             and name.endswith(migrated_suffix)
         ):
             name = name[len(migrated_name) : -len(migrated_suffix)]
-        payee = name or str(
-            payee_names.get(row.get("payee")) or metadata.get("category") or "recurring"
-        )
+        payee = name or str(payee_names.get(row.get("payee")) or category or "recurring")
 
         amount_op = str(row.get("amountOp") or "is")
         minor = row.get("amount")
@@ -1182,13 +1196,13 @@ def recurring_schedules(
                 "account_id": account_public.get(row.get("account"), row.get("account") or ""),
                 "amount": amount,
                 "amount_kind": amount_kind,
-                "category": str(metadata.get("category") or ""),
+                "category": category,
                 "payee": payee,
-                "notes": str(metadata.get("notes") or ""),
+                "notes": notes,
                 "cycle": cycle,
                 "cycle_days": cycle_days,
                 "next_date": next_date,
-                "active": not bool(row.get("completed")),
+                "active": bool(row.get("posts_transaction")) and not bool(row.get("completed")),
                 "last_posted": "",
             }
         )
@@ -1263,6 +1277,12 @@ def subscription_schedules(
         cycle, cycle_days, _start = _schedule_cycle(row.get("date"))
         next_due = _next_schedule_due(row.get("date"), row.get("next_date"))
         amount_minor = abs(int(row.get("amount") or 0))
+        schedule_metadata = metadata.get(actual_id, {})
+        if row.get("account") and schedule_metadata.get("posting_rule_version") == 1:
+            active = bool(row.get("posts_transaction"))
+        else:
+            active = bool(schedule_metadata.get("active", True))
+        active = active and not bool(row.get("completed"))
         rows.append(
             {
                 "id": source_id,
@@ -1273,9 +1293,9 @@ def subscription_schedules(
                 "cycle": cycle,
                 "cycle_days": cycle_days,
                 "next_due": next_due,
-                "active": not bool(row.get("completed")),
+                "active": active,
                 "account_id": account_public.get(row.get("account"), row.get("account") or ""),
-                "metadata": metadata.get(actual_id, {}),
+                "metadata": schedule_metadata,
             }
         )
     return rows

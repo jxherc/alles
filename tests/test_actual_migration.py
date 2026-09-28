@@ -192,8 +192,13 @@ class ActualMigrationTests(ApiTest):
                     "payee": named_payee_ids[row["payee"] or row["name"]],
                     "date": actual_migration._schedule_date(row),
                     "next_date": row["next_date"],
-                    "completed": not row["active"],
-                    "posts_transaction": row["posts_transaction"],
+                    "completed": False,
+                    "posts_transaction": bool(row["posts_transaction"] and row["active"]),
+                    "posting": {
+                        "guarded": True,
+                        "category": category_ids.get(row["metadata"].get("category")),
+                        "notes": row["metadata"].get("notes") or "",
+                    },
                     "amountOp": "is",
                 }
             )
@@ -934,10 +939,12 @@ class ActualMigrationTests(ApiTest):
             "account": lambda row: row.__setitem__("account", "wrong"),
             "payee": lambda row: row.__setitem__("payee", "wrong"),
             "cadence": lambda row: row["date"].__setitem__("interval", 9),
-            "active state": lambda row: row.__setitem__("completed", not row["completed"]),
             "posting": lambda row: row.__setitem__(
                 "posts_transaction", not row["posts_transaction"]
             ),
+            "posting guard": lambda row: row["posting"].__setitem__("guarded", False),
+            "posting category": lambda row: row["posting"].__setitem__("category", "wrong"),
+            "posting notes": lambda row: row["posting"].__setitem__("notes", "wrong"),
             "amount operator": lambda row: row.__setitem__("amountOp", "isapprox"),
         }
         for label, mutate in mutations.items():
