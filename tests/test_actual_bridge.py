@@ -23,8 +23,36 @@ class ActualBridgeTests(unittest.TestCase):
                 "@actual-app/sync-server": "26.7.0",
             },
         )
+        self.assertEqual(
+            package["allowScripts"],
+            {"bcrypt@6.0.0": True, "better-sqlite3@12.11.1": True},
+        )
         self.assertTrue(actual_bridge.lockfile().is_file())
         self.assertTrue(actual_bridge.bridge_script().is_file())
+
+    def test_budget_listing_keeps_local_files_separate_from_remote_entries(self):
+        source = actual_bridge.bridge_script().read_text("utf-8")
+        helper = source[
+            source.index("async function listLocalBudgets") : source.index(
+                "async function managedCategoryGroupName"
+            )
+        ]
+        self.assertIn("item.state !== 'remote'", helper)
+        self.assertIn("typeof item.id === 'string'", helper)
+        creation = source[
+            source.index("async function createBudget") : source.index("async function migrate")
+        ]
+        deletion = source[
+            source.index("async function deleteStagedBudget") : source.index(
+                "async function migrate"
+            )
+        ]
+        self.assertIn("await listLocalBudgets()", creation)
+        self.assertIn("await listLocalBudgets()", deletion)
+        self.assertLess(
+            creation.index("await api.downloadBudget(syncId"),
+            creation.index("client.send('create-budget'"),
+        )
 
     def test_bridge_staging_and_transfer_guards_are_ordered_before_mutation(self):
         source = actual_bridge.bridge_script().read_text("utf-8")
