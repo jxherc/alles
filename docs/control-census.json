@@ -5017,7 +5017,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 101
+                "line": 107
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5346,7 +5346,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 101
+                "line": 107
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -61388,13 +61388,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 99
+                "line": 105
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 100
+                "line": 106
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -61699,13 +61699,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 99
+                "line": 105
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 100
+                "line": 106
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -63636,7 +63636,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 108
+                "line": 114
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -63809,7 +63809,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 108
+                "line": 114
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -228580,19 +228580,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 121
+                "line": 127
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 230
+                "line": 236
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 317
+                "line": 323
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -228924,19 +228924,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 179
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_plan_workflows.py",
-                "kind": "existing-test-control-reference",
-                "line": 192
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_plan_workflows.py",
-                "kind": "existing-test-control-reference",
-                "line": 193
+                "line": 185
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -228948,55 +228936,67 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 203
+                "line": 199
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 208
+                "line": 204
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 220
+                "line": 209
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 229
+                "line": 214
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 237
+                "line": 226
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 246
+                "line": 235
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 256
+                "line": 243
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 269
+                "line": 252
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 270
+                "line": 262
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 275
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_plan_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 276
               }
             ]
           },
@@ -229142,19 +229142,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 161
+                "line": 167
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 165
+                "line": 171
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 170
+                "line": 176
               }
             ]
           },
@@ -229585,13 +229585,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 166
+                "line": 172
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 171
+                "line": 177
               }
             ]
           },
@@ -230235,43 +230235,43 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 173
+                "line": 179
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 199
+                "line": 205
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 209
+                "line": 215
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 232
+                "line": 238
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 272
+                "line": 278
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 313
+                "line": 319
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 322
+                "line": 328
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -230342,43 +230342,43 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 173
+                "line": 179
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 199
+                "line": 205
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 209
+                "line": 215
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 232
+                "line": 238
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 272
+                "line": 278
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 313
+                "line": 319
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 322
+                "line": 328
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -230544,49 +230544,49 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 94
+                "line": 100
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 227
+                "line": 233
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 228
+                "line": 234
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 267
+                "line": 273
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 268
+                "line": 274
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 277
+                "line": 283
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 319
+                "line": 325
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 320
+                "line": 326
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -230639,49 +230639,49 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 94
+                "line": 100
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 227
+                "line": 233
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 228
+                "line": 234
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 267
+                "line": 273
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 268
+                "line": 274
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 277
+                "line": 283
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 319
+                "line": 325
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_plan_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 320
+                "line": 326
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",

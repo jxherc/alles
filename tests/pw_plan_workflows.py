@@ -6,8 +6,11 @@ and a delayed PATCH are simulated; successful edit/move paths include reload che
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
@@ -21,6 +24,9 @@ def run():
     assert os.environ.get("ALLES_TEST_DATA") == "1"
     assert (data / ".alles-test-owner").read_text().strip() == run_id
     require_server_ownership(base, run_id)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from services import agent_tools
+
     output = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     output.mkdir(parents=True, exist_ok=True)
     records = []
@@ -375,6 +381,53 @@ def run():
                 passed(
                     "simulated failed move leaves stage unchanged; keyboard retry persists after reload"
                 )
+
+                begin("plan.aide-recurring-completion")
+                repeat_title = f"monthly aide check {profile}"
+                response = context.request.post(
+                    base + "/api/tasks",
+                    data={
+                        "title": repeat_title,
+                        "due_date": "2026-01-31",
+                        "repeat": "monthly",
+                        "stage": "doing",
+                    },
+                )
+                assert response.ok, response.text()
+                repeat_id = response.json()["id"]
+                ids.append(repeat_id)
+                # Playwright's sync API owns this thread's event loop.
+                with ThreadPoolExecutor(max_workers=1) as worker:
+                    result = worker.submit(
+                        lambda: asyncio.run(
+                            agent_tools.execute("task_done", {"id": repeat_id, "done": True})
+                        )
+                    ).result(timeout=15)
+                assert not result.get("error"), result
+                completed = context.request.get(base + "/api/tasks/done").json()
+                assert any(
+                    task["id"] == repeat_id and task["stage"] == "done" for task in completed
+                )
+                active = [
+                    task
+                    for task in context.request.get(base + "/api/tasks").json()
+                    if task["title"] == repeat_title
+                ]
+                assert len(active) == 1 and active[0]["due_date"] == "2026-02-28", active
+                next_id = active[0]["id"]
+                ids.append(next_id)
+                page.goto(base + "/?view=plan", wait_until="networkidle")
+                page.get_by_role("tab", name="tasks", exact=True).click()
+                search = page.get_by_role("textbox", name="search tasks…", exact=True)
+                with page.expect_response(lambda r: "/api/tasks/search?" in r.url):
+                    search.fill(repeat_title)
+                expect(page.locator(f'.task-item[data-id="{next_id}"]')).to_be_visible()
+                assert page.evaluate(
+                    "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+                )
+                shot("aide-recurring-task")
+                passed("Aide tool completion creates the next Task; Plan shows it after reload")
+
                 assert not events["page_errors"], events
                 assert not events["failed_requests"], events
                 assert events["http_errors"] == expected_http, events
