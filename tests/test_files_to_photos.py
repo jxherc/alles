@@ -80,6 +80,190 @@ class FilesToPhotosTests(ApiTest):
         self.assertEqual(rows[0].source_id, "local-media:image.png")
         db.close()
 
+    def test_files_rename_keeps_the_same_photo_source_and_local_choices(self):
+        (self.files / "image.png").write_bytes(PNG)
+        first = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "image.png"},
+        )
+        self.assertEqual(first.json()["imported"], 1)
+        photo_id = first.json()["items"][0]["photo_id"]
+        db = self.db()
+        photo = db.get(Photo, photo_id)
+        photo.favorite = True
+        photo.hidden = True
+        db.commit()
+        db.close()
+
+        renamed = self.client.post(
+            "/api/files/rename",
+            json={"location_id": "local-media", "path": "image.png", "to": "renamed.png"},
+        )
+        self.assertEqual(renamed.status_code, 200, renamed.text)
+        second = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "renamed.png"},
+        )
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertEqual(second.json()["imported"], 0)
+        self.assertEqual(second.json()["skipped"], 1)
+        self.assertEqual(second.json()["items"][0]["photo_id"], photo_id)
+        db = self.db()
+        rows = db.query(Photo).all()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].source_id, "local-media:renamed.png")
+        self.assertTrue(rows[0].favorite)
+        self.assertTrue(rows[0].hidden)
+        db.close()
+
+    def test_folder_move_and_undo_keep_child_photo_identity(self):
+        folder = self.files / "album"
+        folder.mkdir()
+        (folder / "image.png").write_bytes(PNG)
+        other = self.base / "other"
+        other.mkdir()
+        db = self.db()
+        db.add(
+            StorageLocation(
+                id="other-media",
+                name="other media",
+                kind="local",
+                access="managed",
+                root_path=str(other),
+                enabled=True,
+            )
+        )
+        db.commit()
+        db.close()
+        first = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "album"},
+        )
+        self.assertEqual(first.json()["imported"], 1)
+        photo_id = first.json()["items"][0]["photo_id"]
+
+        moved = self.client.post(
+            "/api/files/operations",
+            json={
+                "action": "move",
+                "source_location_id": "local-media",
+                "source_path": "album",
+                "destination_location_id": "other-media",
+                "destination_path": "moved",
+            },
+        )
+        self.assertEqual(moved.status_code, 200, moved.text)
+        self.assertEqual(moved.json()["state"], "completed")
+        second = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "other-media", "path": "moved"},
+        )
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertEqual(second.json()["imported"], 0)
+        self.assertEqual(second.json()["items"][0]["photo_id"], photo_id)
+        db = self.db()
+        self.assertEqual(db.get(Photo, photo_id).source_id, "other-media:moved/image.png")
+        db.close()
+
+        undone = self.client.post(f"/api/files/operations/{moved.json()['id']}/undo")
+        self.assertEqual(undone.status_code, 200, undone.text)
+        third = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "album"},
+        )
+        self.assertEqual(third.status_code, 200, third.text)
+        self.assertEqual(third.json()["imported"], 0)
+        self.assertEqual(third.json()["items"][0]["photo_id"], photo_id)
+        db = self.db()
+        self.assertEqual(db.query(Photo).count(), 1)
+        self.assertEqual(db.get(Photo, photo_id).source_id, "local-media:album/image.png")
+        db.close()
+
+    def test_rename_keeps_both_photos_when_destination_source_key_exists(self):
+        (self.files / "one.png").write_bytes(PNG)
+        Image.new("RGB", (2, 2), "red").save(self.files / "two.png")
+        for path in ("one.png", "two.png"):
+            response = self.client.post(
+                "/api/files/to-photos",
+                json={"location_id": "local-media", "path": path},
+            )
+            self.assertEqual(response.json()["imported"], 1)
+        (self.files / "two.png").unlink()
+        db = self.db()
+        original = {row.source_id: (row.id, row.filename) for row in db.query(Photo).all()}
+        db.close()
+
+        renamed = self.client.post(
+            "/api/files/rename",
+            json={"location_id": "local-media", "path": "one.png", "to": "two.png"},
+        )
+        self.assertEqual(renamed.status_code, 200, renamed.text)
+        second = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "two.png"},
+        )
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertFalse(second.json()["ok"])
+        self.assertIn("file changed", second.json()["failed"][0]["error"])
+        db = self.db()
+        self.assertEqual(
+            {row.source_id: (row.id, row.filename) for row in db.query(Photo).all()},
+            original,
+        )
+        db.close()
+
+    def test_rename_does_not_rekey_similar_names_or_sql_wildcards(self):
+        for folder_name in ("a%_", "aXY"):
+            folder = self.files / folder_name
+            folder.mkdir()
+            (folder / "one.png").write_bytes(PNG)
+            response = self.client.post(
+                "/api/files/to-photos",
+                json={"location_id": "local-media", "path": folder_name},
+            )
+            self.assertEqual(response.json()["imported"], 1)
+        renamed = self.client.post(
+            "/api/files/rename",
+            json={"location_id": "local-media", "path": "a%_", "to": "new"},
+        )
+        self.assertEqual(renamed.status_code, 200, renamed.text)
+        db = self.db()
+        self.assertEqual(
+            {row.source_id for row in db.query(Photo).all()},
+            {"local-media:new/one.png", "local-media:aXY/one.png"},
+        )
+        db.close()
+
+    def test_files_copy_does_not_take_the_original_photo_source_key(self):
+        (self.files / "image.png").write_bytes(PNG)
+        first = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "image.png"},
+        )
+        self.assertEqual(first.json()["imported"], 1)
+        copied = self.client.post(
+            "/api/files/operations",
+            json={
+                "action": "copy",
+                "source_location_id": "local-media",
+                "source_path": "image.png",
+                "destination_location_id": "local-media",
+                "destination_path": "copy.png",
+            },
+        )
+        self.assertEqual(copied.status_code, 200, copied.text)
+        second = self.client.post(
+            "/api/files/to-photos",
+            json={"location_id": "local-media", "path": "copy.png"},
+        )
+        self.assertEqual(second.json()["imported"], 1)
+        db = self.db()
+        self.assertEqual(
+            {row.source_id for row in db.query(Photo).all()},
+            {"local-media:image.png", "local-media:copy.png"},
+        )
+        db.close()
+
     def test_changed_source_keeps_original_photo_and_reports_conflict(self):
         source = self.files / "image.png"
         source.write_bytes(PNG)
