@@ -5821,6 +5821,27 @@ body[data-app="files"] #files-view .files-detail-actions {
   padding: 0 var(--k-space-1) var(--k-space-3);
 }
 
+body[data-app="files"] #files-view .files-photo-import-feedback {
+  padding: var(--k-space-3) var(--k-space-2);
+  color: var(--k-muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+body[data-app="files"] #files-view .files-photo-import-feedback[hidden] {
+  display: none;
+}
+
+body[data-app="files"] #files-view .files-photo-import-feedback p {
+  margin: 0;
+}
+
+body[data-app="files"] #files-view .files-photo-import-feedback ul {
+  margin: var(--k-space-2) 0 0;
+  padding-left: var(--k-space-4);
+  color: var(--k-danger);
+}
+
 body[data-app="files"] #files-view .files-detail-meta {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);

@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
+from PIL import Image
 from playwright.sync_api import Browser, Page, sync_playwright
 
 PORT = os.environ.get("PORT", "8971")
@@ -313,6 +314,9 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     page.wait_for_function(
         "document.querySelector('#toast-container')?.textContent.includes('Photos')"
     )
+    page.wait_for_function(
+        "document.querySelector('#files-photo-import-feedback')?.textContent.includes('1 item sent to Photos')"
+    )
     page.locator('[data-detail-action="rename"]').click()
     page.locator(".dialog-overlay input").fill("renamed.png")
     page.locator(".dialog-overlay [data-dialog-confirm]").click()
@@ -349,6 +353,37 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     )
     page.locator('[data-files-view="all"]').click()
     page.wait_for_selector('#files-list .file-row[data-path="renamed.png"]', timeout=15_000)
+
+    # A changed source is an explicit conflict; the earlier Photo stays put.
+    page.locator("#files-upload-input").set_input_files(
+        files=[{"name": "changed.png", "mimeType": "image/png", "buffer": PNG}]
+    )
+    changed_row = page.locator('#files-list .file-row[data-path="changed.png"]')
+    changed_row.wait_for()
+    changed_row.focus()
+    page.keyboard.press("Enter")
+    page.locator('[data-detail-action="photos"]').click()
+    page.wait_for_function(
+        "document.querySelector('#files-photo-import-feedback')?.textContent.includes('1 item sent to Photos')"
+    )
+    Image.new("RGB", (2, 2), "red").save(DATA / "files" / "changed.png")
+    page.locator('[data-detail-action="photos"]').click()
+    page.wait_for_function(
+        "document.querySelector('#files-photo-import-feedback')?.textContent.includes('file changed since it was sent to Photos')"
+    )
+    assert page.locator("#files-photo-import-feedback li").count() == 1
+    assert "changed.png" in page.locator("#files-photo-import-feedback li").inner_text()
+    assert "UNIQUE constraint" not in page.locator("#files-photo-import-feedback").inner_text()
+    page.screenshot(path=str(ARTIFACTS / "desktop-photos-conflict.png"), full_page=True)
+    page.locator('[data-detail-action="star"]').click()
+    page.wait_for_function(
+        "document.querySelector('[data-detail-action=\"star\"]')?.textContent === 'unstar'"
+    )
+    assert (
+        "file changed since it was sent to Photos"
+        in page.locator("#files-photo-import-feedback").inner_text()
+    )
+    page.locator("#files-detail-close").click()
 
     page.locator("#files-select-all").click()
     assert page.locator("#files-selection-bar").is_visible()
@@ -695,6 +730,17 @@ def _mobile(browser: Browser, errors: list[str]) -> None:
     assert page.locator("#files-detail-panel").is_visible()
     page.locator("#files-detail-close").click()
     assert page.locator("#files-detail-panel").is_hidden()
+    page.locator('#files-list .file-row[data-path="changed.png"] [data-file-open]').click()
+    conflict = page.locator('[data-detail-action="photos"]')
+    conflict.focus()
+    page.keyboard.press("Enter")
+    page.wait_for_function(
+        "document.querySelector('#files-photo-import-feedback')?.textContent.includes('file changed since it was sent to Photos')"
+    )
+    assert page.locator("#files-photo-import-feedback li").is_visible()
+    _no_overflow(page)
+    page.screenshot(path=str(ARTIFACTS / "phone-photos-conflict.png"), full_page=True)
+    page.locator("#files-detail-close").click()
     for theme in ("dark", "light"):
         page.evaluate(
             "theme => import('/static/js/theme.js').then(m => m.resetToDefault(theme))", theme
