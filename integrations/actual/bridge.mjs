@@ -213,9 +213,13 @@ async function managedBudgetIdentity(request) {
   if (syncId) return syncId;
   const budgetId = String(request.budget_id || '').trim();
   if (!budgetId) throw new Error('Actual managed category group requires a budget identity');
-  const matches = (await api.getBudgets()).filter(item => item.id === budgetId);
+  const matches = (await listLocalBudgets()).filter(item => item.id === budgetId);
   if (matches.length > 1) throw new Error('Actual local budget identity is not unique');
   return String(matches[0]?.groupId || '').trim() || budgetId;
+}
+
+async function listLocalBudgets() {
+  return (await api.getBudgets()).filter(item => item.state !== 'remote' && typeof item.id === 'string' && item.id);
 }
 
 async function managedCategoryGroupName(request) {
@@ -274,8 +278,21 @@ async function createBudget(request) {
   if (!markerPattern.test(marker) || String(request.budget_name || '') !== marker) {
     throw new Error('Actual budget creation requires its stable operation marker');
   }
-  let matches = (await api.getBudgets()).filter(item => item.name === marker);
-  if (matches.length > 1) throw new Error('Actual budget creation marker is not unique');
+  const listed = await api.getBudgets();
+  const remoteMatches = listed.filter(item => item.state === 'remote' && item.name === marker);
+  let matches = listed.filter(item => item.state !== 'remote' && item.id && item.name === marker);
+  if (matches.length > 1 || remoteMatches.length > 1) {
+    throw new Error('Actual budget creation marker is not unique');
+  }
+  if (!matches.length && remoteMatches.length) {
+    const syncId = String(remoteMatches[0].groupId || '').trim();
+    if (!syncId) throw new Error('Actual budget creation marker is not unique');
+    await api.downloadBudget(syncId, { password: String(request.password || '') });
+    matches = (await listLocalBudgets()).filter(item => item.name === marker);
+  }
+  if (matches.length > 1 || (remoteMatches.length && matches[0]?.groupId !== remoteMatches[0].groupId)) {
+    throw new Error('Actual budget creation marker is not unique');
+  }
   let creationAttempted = false;
   let budget = matches[0] || null;
   try {
@@ -290,7 +307,7 @@ async function createBudget(request) {
     } else {
       creationAttempted = true;
       await client.send('create-budget', { budgetName: marker });
-      matches = (await api.getBudgets()).filter(item => item.name === marker);
+      matches = (await listLocalBudgets()).filter(item => item.name === marker);
       if (matches.length !== 1) throw new Error('created Actual budget id was not uniquely discoverable');
       [budget] = matches;
     }
@@ -299,7 +316,7 @@ async function createBudget(request) {
       if (upload?.error) throw new Error('new Actual budget could not be uploaded');
     }
     await api.sync();
-    matches = (await api.getBudgets()).filter(item => item.name === marker);
+    matches = (await listLocalBudgets()).filter(item => item.name === marker);
     if (matches.length !== 1) throw new Error('created Actual budget id was not uniquely discoverable');
     [budget] = matches;
     if (request.server_url && !budget.groupId) {
@@ -319,7 +336,7 @@ async function createBudget(request) {
     if (!creationAttempted) throw error;
     let stagedBudget = null;
     try {
-      matches = (await api.getBudgets()).filter(item => item.name === marker);
+      matches = (await listLocalBudgets()).filter(item => item.name === marker);
       if (matches.length === 1) {
         [budget] = matches;
         stagedBudget = {
@@ -354,7 +371,7 @@ async function removeCreatedBudget(client, created) {
   });
   if (result !== 'ok') throw new Error('failed to remove incomplete Actual staging budget');
   const syncId = String(created.sync_id || '').trim();
-  const remainingLocal = (await api.getBudgets()).filter(item => (
+  const remainingLocal = (await listLocalBudgets()).filter(item => (
     (created.budget_id && item.id === created.budget_id)
       || (syncId && String(item.groupId || '') === syncId)
   ));
@@ -369,10 +386,10 @@ async function deleteStagedBudget(request) {
   const syncId = String(request.sync_id || '').trim();
   if (!budgetId && !syncId) throw new Error('budget_id or sync_id is required');
   const client = await initActualClient(request);
-  let localBudgets = await api.getBudgets();
+  let localBudgets = await listLocalBudgets();
   if (!budgetId && syncId && !localBudgets.some(item => String(item.groupId || '') === syncId)) {
     await api.downloadBudget(syncId, { password: String(request.password || '') });
-    localBudgets = await api.getBudgets();
+    localBudgets = await listLocalBudgets();
   }
   const idMatches = localBudgets.filter(item => item.id === budgetId);
   const syncMatches = syncId
@@ -381,6 +398,9 @@ async function deleteStagedBudget(request) {
   const remoteMatches = await remoteBudgetMatches(client, syncId);
   if (idMatches.length > 1 || syncMatches.length > 1 || remoteMatches.length > 1) {
     throw new Error('Actual staged budget identity is not unique');
+  }
+  if (syncId && !idMatches.length && !syncMatches.length && !remoteMatches.length) {
+    return { budget_id: budgetId, sync_id: syncId, deleted: false, verified_absent: true };
   }
   if (budgetId && idMatches.length !== 1) {
     throw new Error('Actual staged budget id no longer matches');
@@ -395,9 +415,6 @@ async function deleteStagedBudget(request) {
   const [remoteBudget] = remoteMatches;
   if (localBudget && remoteBudget && String(localBudget.cloudFileId || '') !== String(remoteBudget.fileId || '')) {
     throw new Error('Actual staged budget sync identity changed');
-  }
-  if (!localBudget && !remoteBudget) {
-    return { budget_id: budgetId, sync_id: syncId, deleted: false, verified_absent: true };
   }
   await removeCreatedBudget(client, {
     budget_id: localBudget?.id || '',

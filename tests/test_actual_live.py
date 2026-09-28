@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+import uuid
 from decimal import Decimal
 from pathlib import Path
 from unittest import mock
@@ -15,7 +16,7 @@ from unittest import mock
 from sqlalchemy import create_engine, text
 
 from core.migrations import m0037_finance_currency_import_foundation
-from services import actual_migration, managed_actual
+from services import actual_bridge, actual_migration, managed_actual
 
 
 def _managed_server_script() -> str:
@@ -547,12 +548,40 @@ class ActualLiveGateTests(unittest.TestCase):
                 installed = managed_actual.install()
                 self.assertTrue(installed["healthy"])
                 self.assertEqual(installed["version"], "26.7.0")
+                cleanup_marker = f"Alles staged {uuid.uuid4()}"
                 cleanup_budget = managed_actual.bridge_request(
                     {
                         "command": "create_budget",
-                        "budget_name": "Alles incomplete staging cleanup gate",
+                        "budget_name": cleanup_marker,
+                        "operation_marker": cleanup_marker,
                     },
                     timeout=180,
+                )
+                self.assertTrue(cleanup_budget["budget_id"])
+                self.assertTrue(cleanup_budget["sync_id"])
+                fresh_client = Path(root) / "fresh-client"
+                fresh_client.mkdir()
+                with self.assertRaises(actual_bridge.ActualBridgeError) as pending:
+                    actual_bridge.call(
+                        {
+                            "command": "create_budget",
+                            "budget_name": cleanup_marker,
+                            "operation_marker": cleanup_marker,
+                            "replace_existing_staging": True,
+                            "data_dir": str(fresh_client),
+                            "server_url": managed_actual.managed_url(),
+                            "password": managed_actual._managed_password(),
+                        },
+                        script=managed_actual.app_dir() / "bridge.mjs",
+                        timeout=180,
+                    )
+                self.assertEqual(pending.exception.code, "actual_stage_reconciliation_required")
+                self.assertEqual(
+                    pending.exception.details["staged_budget"],
+                    {
+                        "budget_id": cleanup_budget["budget_id"],
+                        "sync_id": cleanup_budget["sync_id"],
+                    },
                 )
                 cleanup_request = {
                     "command": "delete_staged_budget",
@@ -565,10 +594,13 @@ class ActualLiveGateTests(unittest.TestCase):
                 absent = managed_actual.bridge_request(cleanup_request, timeout=180)
                 self.assertFalse(absent["deleted"])
                 self.assertTrue(absent["verified_absent"])
+                migration_marker = f"Alles staged {uuid.uuid4()}"
                 migrated = managed_actual.bridge_request(
                     {
                         "command": "migrate",
-                        "budget_name": "Alles Stage 8 live gate",
+                        "budget_name": migration_marker,
+                        "operation_marker": migration_marker,
+                        "replace_existing_staging": True,
                         "snapshot": _snapshot(),
                     },
                     timeout=300,
@@ -576,10 +608,13 @@ class ActualLiveGateTests(unittest.TestCase):
                 parity = actual_migration.reconcile(_snapshot(), migrated)
                 self.assertTrue(parity["pass"], parity)
                 upgraded = _upgraded_snapshot(Path(root) / "upgraded-ledger.sqlite3")
+                upgraded_marker = f"Alles staged {uuid.uuid4()}"
                 upgraded_result = managed_actual.bridge_request(
                     {
                         "command": "migrate",
-                        "budget_name": "Alles Stage 8 upgraded-ledger gate",
+                        "budget_name": upgraded_marker,
+                        "operation_marker": upgraded_marker,
+                        "replace_existing_staging": True,
                         "snapshot": upgraded,
                     },
                     timeout=300,
