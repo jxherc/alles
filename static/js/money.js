@@ -1,7 +1,7 @@
 // money: accounts, transactions, budgets, and a couple of charts. plain SVG for
 // the charts (no chart lib), api() helper for the fetches.
 import { api, toast } from './util.js';
-import { confirm as dlgConfirm, fields as dlgFields } from './dialog.js';
+import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
 import { formatCalendarDate, formatDate, formatNumber } from './i18n.js';
@@ -34,6 +34,8 @@ let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _ru
 let _recurringError = false, _canonicalLedger = false;
 let _envelope = null, _aom = null;   // YNAB envelope view + age of money (4b)
 const _envAssignmentBusy = new Set();
+const _targetDrafts = new Map();
+let _targetStatus = '';
 let _forecast = null, _nwhist = [], _holdings = null, _alerts = null;   // Simplifi (4c)
 let _forecastError = 'couldn\'t load forecast';
 let _goals = [];   // savings/debt goals (4d)
@@ -578,17 +580,16 @@ function envelopeCard() {
   const tbb = e.to_be_budgeted || 0;
   const banner = `<div class="env-tbb ${tbb < 0 ? 'over' : (tbb > 0 ? 'pos' : '')}">
     <span class="env-tbb-num">${signed(tbb)}</span><span class="env-tbb-lbl">to be budgeted</span></div>`;
-  const targetsUnavailable = _canonicalLedger;
   const pending = _canonicalLedger ? (e.pending_assignments || []) : [];
   const rows = (e.categories || []).filter(c => _canonicalLedger || c.assigned || c.spent || c.available || c.target).map(c => {
     const av = c.available || 0;
     const pendingWrite = pending.find(item => item.category_id === c.category_id);
     const label = _canonicalLedger && c.group ? `${c.group} / ${c.category}` : c.category;
-    const tgt = !targetsUnavailable && c.target
-      ? `<div class="env-target"><div class="env-target-bar" style="width:${Math.min(100, (c.target.funded || 0) * 100)}%"></div><span class="env-target-lbl">${Math.round((c.target.funded || 0) * 100)}% of ${fmt(c.target.amount)}${c.target.date ? ` by ${esc(c.target.date)}` : ''}</span></div>`
-      : '';
+    const tgt = c.target ? (_canonicalLedger
+      ? `<div class="env-target-note"><span>target ${fmt(c.target.amount)}${c.target.date ? ` by ${esc(c.target.date)}` : ''} · ${Math.round((c.target.funded || 0) * 100)}% funded</span>${c.target.id ? `<button type="button" class="btn env-move-target" data-target-id="${esc(c.target.id)}">change category</button>` : ''}</div>`
+      : `<div class="env-target"><div class="env-target-bar" style="width:${Math.min(100, (c.target.funded || 0) * 100)}%"></div><span class="env-target-lbl">${Math.round((c.target.funded || 0) * 100)}% of ${fmt(c.target.amount)}${c.target.date ? ` by ${esc(c.target.date)}` : ''}</span></div>`) : '';
     return `<div class="env-row" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}">
-      <span class="env-cat">${esc(label)}${targetsUnavailable ? '' : ` <button class="env-tgt-btn" data-cat="${esc(c.category)}" title="set a funding target">🎯</button>`}</span>
+      <div class="env-cat"><span class="env-cat-name" title="${esc(label)}">${esc(label)}</span><button type="button" class="env-tgt-btn" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}" aria-label="${c.target ? 'edit' : 'set'} funding target for ${esc(label)}">${c.target ? 'edit target' : 'set target'}</button></div>
       ${pendingWrite ? `<span class="env-assigned" title="save not confirmed">${fmt(c.assigned || 0)}</span>` : `<label class="env-assignment"><span class="env-input-label">assigned</span><input type="text" class="settings-input env-assign" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}" data-expected="${c.assigned || 0}" value="${c.assigned || 0}" inputmode="decimal" aria-label="assigned this month for ${esc(label)}"></label>`}
       <span class="env-spent" title="spent this month"><span class="sr-only">spent this month: </span><span class="env-stat-label" aria-hidden="true">spent </span>${fmt(c.spent || 0)}</span>
       <span class="env-avail ${av < 0 ? 'neg' : 'pos'}" title="available (rolls over)"><span class="sr-only">available: </span><span class="env-stat-label" aria-hidden="true">available </span>${fmt(av)}</span>
@@ -596,9 +597,13 @@ function envelopeCard() {
       ${tgt}
     </div>`;
   }).join('');
-  if (targetsUnavailable) return banner + `<p class="money-recurring-note">assignments use Actual. spending caps are separate; funding targets aren't available yet.</p><div id="env-save-status" role="status" class="env-save-status"></div>` +
+  if (_canonicalLedger) {
+    const unbound = (e.unbound_targets || []).map(target => `<div class="env-unbound-row" data-target-id="${esc(target.id)}"><span>${esc(target.category)} · ${fmt(target.amount)}${target.date ? ` by ${esc(target.date)}` : ''}</span><button type="button" class="btn env-bind-target" data-target-id="${esc(target.id)}">choose category</button></div>`).join('');
+    return banner + `<p class="money-recurring-note">assignments use Actual. spending caps and funding targets stay separate.</p><div id="env-save-status" role="status" class="env-save-status"></div><div id="env-target-status" role="status" class="env-target-status">${esc(_targetStatus)}</div>` +
     (rows ? `<div class="env-rows"><div class="env-row env-head" aria-hidden="true"><span>category</span><span>assigned</span><span>spent</span><span>available</span></div>${rows}</div>`
-      : '<div class="money-empty-sm">no spending categories yet. add a categorized transaction first</div>');
+      : '<div class="money-empty-sm">no spending categories yet. add a categorized transaction first</div>') +
+      (unbound ? `<section class="env-unbound"><h4>targets needing a category</h4><p>these old targets are saved, but their Actual category isn't known. choose one to use each target.</p>${unbound}</section>` : '');
+  }
   return banner + (rows
     ? `<div class="env-rows">${rows}</div>`
     : '<div class="money-empty-sm">assign money to a category to start budgeting</div>') +
@@ -1276,20 +1281,62 @@ function _wireEnvelope() {
     if ($('env-new-amt')) $('env-new-amt').value = '';
   });
   $('money-body').querySelectorAll('.env-tgt-btn').forEach(b =>
-    b.addEventListener('click', () => setEnvTarget(b.dataset.cat)));
+    b.addEventListener('click', () => setEnvTarget(b.dataset.cat, b.dataset.categoryId)));
+  $('money-body').querySelectorAll('.env-bind-target').forEach(b =>
+    b.addEventListener('click', () => bindEnvTarget(b.dataset.targetId)));
+  $('money-body').querySelectorAll('.env-move-target').forEach(b =>
+    b.addEventListener('click', () => bindEnvTarget(b.dataset.targetId)));
 }
-async function setEnvTarget(category) {
-  const v = await dlgFields(`funding target for "${category}" (amount 0 clears it)`, [
-    { id: 'amount', label: 'target amount', value: '' },
-    { id: 'date', label: 'by date (YYYY-MM-DD, optional)', value: '' },
+async function setEnvTarget(category, categoryId = '') {
+  const current = _canonicalLedger
+    ? (_envelope?.categories || []).find(row => row.category_id === categoryId) : null;
+  const label = current?.group ? `${current.group} / ${current.category}` : category;
+  const draftKey = categoryId || `legacy:${category}`;
+  const draft = _targetDrafts.get(draftKey) || {};
+  const v = await dlgFields(`funding target for ${label} (0 clears it)`, [
+    { id: 'amount', label: 'target amount', value: draft.amount ?? current?.target?.amount ?? '' },
+    { id: 'date', label: 'by date (YYYY-MM-DD, optional)', value: draft.date ?? current?.target?.date ?? '' },
   ]);
   if (!v) return;
   const amount = _decimal(v.amount, 0);
   if (!_validAmounts(amount)) return;
+  if (_canonicalLedger && amount < 0) { toast('use 0 to clear a target', 'error'); return; }
   try {
-    await api('/api/money/envelope/target', { method: 'PUT', body: { category, amount, target_date: (v.date || '').trim() } });
+    await api('/api/money/envelope/target', { method: 'PUT', body: { category, category_id: categoryId, amount, target_date: (v.date || '').trim() } });
+    _targetDrafts.delete(draftKey);
+    _targetStatus = '';
     await load();
-  } catch { toast('failed to set target', 'error'); }
+    [...document.querySelectorAll('.env-tgt-btn')].find(button => _canonicalLedger
+      ? button.dataset.categoryId === categoryId : button.dataset.cat === category)?.focus();
+  } catch {
+    _targetDrafts.set(draftKey, { amount: v.amount, date: v.date });
+    _targetStatus = `couldn't save the target for ${label}. reopen it to retry; your values are kept.`;
+    if ($('env-target-status')) $('env-target-status').textContent = _targetStatus;
+    else toast('couldn\'t save target', 'error');
+  }
+}
+async function bindEnvTarget(targetId) {
+  const unbound = (_envelope?.unbound_targets || []).find(row => row.id === targetId);
+  const bound = (_envelope?.categories || []).find(row => row.target?.id === targetId);
+  if (!unbound && !bound) return;
+  const label = unbound ? unbound.category : (bound.group ? `${bound.group} / ${bound.category}` : bound.category);
+  const categories = (_envelope?.categories || []).filter(row => !row.target);
+  if (!categories.length) { toast('no unused spending category is available', 'error'); return; }
+  const names = categories.map(row => row.group ? `${row.group} / ${row.category}` : row.category);
+  const selected = await dlgChoose(`choose the category for ${label}`, categories.map((row, index) => ({
+    value: row.category_id,
+    label: names.filter(name => name === names[index]).length > 1 ? `${names[index]} (${row.category_id.slice(-6)})` : names[index],
+  })));
+  if (!selected) return;
+  try {
+    await api('/api/money/envelope/target/bind', { method: 'POST', body: { target_id: targetId, category_id: selected } });
+    _targetStatus = '';
+    await load();
+    [...document.querySelectorAll('.env-tgt-btn')].find(button => button.dataset.categoryId === selected)?.focus();
+  } catch {
+    _targetStatus = `couldn't change the category for ${label}. the target is still saved; try again.`;
+    if ($('env-target-status')) $('env-target-status').textContent = _targetStatus;
+  }
 }
 async function addBudget() {
   const category = $('bf-cat')?.value.trim();

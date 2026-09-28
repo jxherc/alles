@@ -17,6 +17,7 @@ from core.database import (
     FinanceImportBatch,
     FinanceImportRow,
     FinanceLedgerState,
+    FundingTarget,
     RecurringTxn,
     SubPayment,
     Subscription,
@@ -175,6 +176,182 @@ class ActualFinanceServiceTests(ApiTest):
                 bridge_request=lambda *_args, **_kwargs: {"month": "2026-09"},
             )
         db.close()
+
+    def test_old_target_stays_unbound_until_owner_picks_an_id(self):
+        month = {
+            "month": date.today().strftime("%Y-%m"),
+            "toBudget": 0,
+            "totalIncome": 0,
+            "totalBudgeted": 0,
+            "categoryGroups": [
+                {
+                    "name": "living",
+                    "categories": [
+                        {"id": "food-1", "name": "food", "budgeted": 0, "spent": 0, "balance": 2500}
+                    ],
+                },
+                {
+                    "name": "other",
+                    "categories": [
+                        {"id": "food-2", "name": "food", "budgeted": 0, "spent": 0, "balance": 0}
+                    ],
+                },
+            ],
+        }
+        calls = []
+
+        def bridge(payload, *, timeout):
+            calls.append(payload["command"])
+            self.assertEqual(payload["command"], "budget_month")
+            return month
+
+        db = self.db()
+        old = FundingTarget(category="food", amount=100, target_date="2026-12-01")
+        db.add(old)
+        db.commit()
+        old_id = old.id
+        before = actual_finance.envelope(db, month["month"], bridge_request=bridge)
+        self.assertEqual([row["target"] for row in before["categories"]], [None, None])
+        self.assertEqual(before["unbound_targets"][0]["id"], old_id)
+
+        actual_finance.bind_funding_target(db, old_id, "food-2", bridge_request=bridge)
+        month["categoryGroups"][1]["categories"][0]["name"] = "groceries"
+        bound = actual_finance.envelope(db, month["month"], bridge_request=bridge)
+        self.assertEqual(bound["unbound_targets"], [])
+        self.assertIsNone(bound["categories"][0]["target"])
+        self.assertEqual(bound["categories"][1]["category"], "groceries")
+        self.assertEqual(bound["categories"][1]["target"]["amount"], 100.0)
+        self.assertEqual(bound["categories"][1]["target"]["funded"], 0.0)
+
+        actual_finance.set_funding_target(
+            db, "food-2", "150.00", "2027-01-01", bridge_request=bridge
+        )
+        edited = actual_finance.envelope(db, month["month"], bridge_request=bridge)
+        self.assertEqual(edited["categories"][1]["target"]["amount"], 150.0)
+        self.assertEqual(edited["categories"][1]["target"]["date"], "2027-01-01")
+        self.assertEqual(edited["categories"][1]["target"]["id"], old_id)
+        self.assertEqual(db.get(FundingTarget, old_id).amount, 100.0)
+        actual_finance.bind_funding_target(db, old_id, "food-1", bridge_request=bridge)
+        moved = actual_finance.envelope(db, month["month"], bridge_request=bridge)
+        self.assertEqual(moved["categories"][0]["target"]["amount"], 150.0)
+        self.assertIsNone(moved["categories"][1]["target"])
+        actual_finance.set_funding_target(db, "food-1", 0, bridge_request=bridge)
+        cleared = actual_finance.envelope(db, month["month"], bridge_request=bridge)
+        self.assertIsNone(cleared["categories"][0]["target"])
+        self.assertEqual(cleared["unbound_targets"], [])
+        self.assertTrue(all(command == "budget_month" for command in calls))
+        db.close()
+
+    def test_missing_linked_target_category_is_reviewable_not_name_rebound(self):
+        month = {
+            "month": date.today().strftime("%Y-%m"),
+            "toBudget": 0,
+            "totalIncome": 0,
+            "totalBudgeted": 0,
+            "categoryGroups": [
+                {
+                    "name": "new group",
+                    "categories": [
+                        {
+                            "id": "replacement",
+                            "name": "food",
+                            "budgeted": 0,
+                            "spent": 0,
+                            "balance": 0,
+                        }
+                    ],
+                }
+            ],
+        }
+        db = self.db()
+        db.add(
+            ActualEntityLink(
+                run_id="run-1",
+                entity_kind="funding_target",
+                source_id="old-target",
+                actual_id="missing-original",
+                metadata_json=json.dumps(
+                    {
+                        "category_name": "food",
+                        "amount_minor": 5000,
+                        "target_date": "2026-12-01",
+                    }
+                ),
+            )
+        )
+        db.commit()
+
+        def bridge(*_args, **_kwargs):
+            return month
+
+        current = actual_finance.envelope(db, month["month"], bridge_request=bridge)
+        self.assertIsNone(current["categories"][0]["target"])
+        self.assertEqual(current["unbound_targets"][0]["reason"], "linked category is missing")
+        actual_finance.bind_funding_target(db, "old-target", "replacement", bridge_request=bridge)
+        self.assertEqual(
+            actual_finance.envelope(db, month["month"], bridge_request=bridge)["categories"][0][
+                "target"
+            ]["amount"],
+            50.0,
+        )
+        db.close()
+
+    def test_target_route_writes_local_sidecar_and_rejects_income_id(self):
+        month = {
+            "month": date.today().strftime("%Y-%m"),
+            "toBudget": 0,
+            "totalIncome": 0,
+            "totalBudgeted": 0,
+            "categoryGroups": [
+                {
+                    "name": "living",
+                    "categories": [
+                        {
+                            "id": "food-id",
+                            "name": "food",
+                            "budgeted": 0,
+                            "spent": 0,
+                            "balance": 5000,
+                        },
+                        {
+                            "id": "salary-id",
+                            "name": "salary",
+                            "is_income": True,
+                            "budgeted": 0,
+                            "spent": 0,
+                            "balance": 0,
+                        },
+                    ],
+                }
+            ],
+        }
+        with patch("services.actual_finance._request", return_value=month) as provider:
+            saved = self.client.put(
+                "/api/money/envelope/target",
+                json={"category_id": "food-id", "amount": 100, "target_date": "2026-12-01"},
+            )
+            self.assertEqual(saved.status_code, 200, saved.text)
+            current = self.client.get("/api/money/envelope", params={"month": month["month"]})
+            self.assertEqual(current.status_code, 200, current.text)
+            self.assertEqual(current.json()["categories"][0]["target"]["funded"], 0.5)
+            bad_date = self.client.put(
+                "/api/money/envelope/target",
+                json={"category_id": "food-id", "amount": 200, "target_date": "2026-02-30"},
+            )
+            self.assertEqual(bad_date.status_code, 409, bad_date.text)
+            self.assertEqual(
+                self.client.get("/api/money/envelope", params={"month": month["month"]}).json()[
+                    "categories"
+                ][0]["target"]["amount"],
+                100,
+            )
+            income = self.client.put(
+                "/api/money/envelope/target", json={"category_id": "salary-id", "amount": 1}
+            )
+            self.assertEqual(income.status_code, 409, income.text)
+        self.assertTrue(
+            all(call.args[1]["command"] == "budget_month" for call in provider.call_args_list)
+        )
 
     def test_assignment_uses_category_id_and_retries_a_lost_response(self):
         month = {
