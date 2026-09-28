@@ -12,6 +12,7 @@ from core.database import (
     Account,
     ActualEntityLink,
     Budget,
+    BudgetAssignment,
     CategoryRule,
     FinanceImportBatch,
     FinanceImportRow,
@@ -154,6 +155,7 @@ class ActualFinanceServiceTests(ApiTest):
             result["categories"],
             [
                 {
+                    "category_id": "food-id",
                     "category": "food",
                     "group": "living",
                     "assigned": 60.0,
@@ -172,6 +174,171 @@ class ActualFinanceServiceTests(ApiTest):
                 "2026-09",
                 bridge_request=lambda *_args, **_kwargs: {"month": "2026-09"},
             )
+        db.close()
+
+    def test_assignment_uses_category_id_and_retries_a_lost_response(self):
+        month = {
+            "month": "2026-09",
+            "toBudget": 10000,
+            "totalIncome": 10000,
+            "totalBudgeted": 0,
+            "categoryGroups": [
+                {
+                    "name": "living",
+                    "categories": [
+                        {"id": "food-id", "name": "food", "budgeted": 0, "spent": 0, "balance": 0},
+                    ],
+                },
+                {
+                    "name": "other",
+                    "categories": [
+                        {
+                            "id": "other-food",
+                            "name": "food",
+                            "budgeted": 0,
+                            "spent": 0,
+                            "balance": 0,
+                        },
+                    ],
+                },
+            ],
+        }
+        writes = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "budget_month":
+                return month
+            self.assertEqual(payload["action"], "set_budget_assignment")
+            writes.append(payload)
+            month["categoryGroups"][0]["categories"][0]["budgeted"] = payload["amount_minor"]
+            if len(writes) == 1:
+                raise managed_actual.ManagedActualError("response lost after sync")
+            return {"category_id": "food-id", "amount_minor": payload["amount_minor"]}
+
+        db = self.db()
+        with self.assertRaises(actual_finance.ActualFinanceUnavailable):
+            actual_finance.set_envelope_assignment(
+                db, "2026-09", "food-id", "50.00", "0.00", bridge_request=bridge
+            )
+        pending = actual_finance.envelope(db, "2026-09", bridge_request=bridge)
+        self.assertEqual(len(pending["pending_assignments"]), 1)
+        self.assertEqual(pending["pending_assignments"][0]["category_id"], "food-id")
+        month["categoryGroups"][0]["categories"][0]["name"] = "groceries"
+        result = actual_finance.set_envelope_assignment(
+            db, "2026-09", "food-id", "50.00", "0.00", bridge_request=bridge
+        )
+        self.assertEqual(result["assigned"], 50.0)
+        self.assertEqual(result["category"], "groceries")
+        self.assertEqual(len(writes), 1)
+        self.assertEqual(writes[0]["category_id"], "food-id")
+        self.assertEqual(month["categoryGroups"][1]["categories"][0]["budgeted"], 0)
+        link = db.query(ActualEntityLink).filter_by(entity_kind="budget_assignment").one()
+        self.assertEqual(
+            json.loads(link.metadata_json)["canonical_assignment"]["amount_minor"], 5000
+        )
+        self.assertNotIn("_update_intent", json.loads(link.metadata_json))
+        db.close()
+
+    def test_assignment_rejects_a_stale_amount_and_missing_category(self):
+        month = {
+            "month": "2026-09",
+            "toBudget": 0,
+            "totalIncome": 0,
+            "totalBudgeted": 0,
+            "categoryGroups": [
+                {
+                    "name": "living",
+                    "categories": [
+                        {
+                            "id": "food-id",
+                            "name": "food",
+                            "budgeted": 1500,
+                            "spent": 0,
+                            "balance": 1500,
+                        },
+                    ],
+                }
+            ],
+        }
+        writes = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "budget_month":
+                return month
+            writes.append(payload)
+            return {}
+
+        db = self.db()
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "changed; reload"):
+            actual_finance.set_envelope_assignment(
+                db, "2026-09", "food-id", 20, 0, bridge_request=bridge
+            )
+        with self.assertRaisesRegex(
+            actual_finance.ActualFinanceError, "existing spending category"
+        ):
+            actual_finance.set_envelope_assignment(
+                db, "2026-09", "missing-id", 20, 0, bridge_request=bridge
+            )
+        self.assertEqual(writes, [])
+        db.close()
+
+    def test_assignment_waits_for_an_older_cap_write_that_could_clear_it(self):
+        db = self.db()
+        db.add(
+            ActualEntityLink(
+                run_id="run-1",
+                entity_kind="budget_limit",
+                source_id="legacy-cap",
+                actual_id="food-id",
+                metadata_json='{"category":"food","managed_month":"2026-09","_update_intent":{"fingerprint":"old"}}',
+            )
+        )
+        db.commit()
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "cap retry"):
+            actual_finance.set_envelope_assignment(
+                db,
+                "2026-09",
+                "food-id",
+                20,
+                0,
+                bridge_request=lambda *_args, **_kwargs: self.fail("provider write was reached"),
+            )
+        db.close()
+
+    def test_zero_assignment_does_not_claim_an_untouched_actual_month(self):
+        month = {
+            "month": "2026-09",
+            "toBudget": 0,
+            "totalIncome": 0,
+            "totalBudgeted": 0,
+            "categoryGroups": [
+                {
+                    "name": "living",
+                    "categories": [
+                        {
+                            "id": "food-id",
+                            "name": "food",
+                            "budgeted": 0,
+                            "spent": 0,
+                            "balance": 0,
+                        }
+                    ],
+                }
+            ],
+        }
+
+        def bridge(payload, *, timeout):
+            self.assertEqual(payload["command"], "budget_month")
+            return month
+
+        db = self.db()
+        result = actual_finance.set_envelope_assignment(
+            db, "2026-09", "food-id", 0, 0, bridge_request=bridge
+        )
+        self.assertEqual(result["assigned"], 0)
+        self.assertEqual(
+            db.query(ActualEntityLink).filter_by(entity_kind="budget_assignment").count(), 0
+        )
         db.close()
 
     def test_fake_bridge_preserves_the_requested_transaction_date(self):
@@ -3001,6 +3168,32 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(db.query(Budget).count(), 0)
         db.close()
 
+    def test_canonical_envelope_assignment_route_uses_actual_without_legacy_write(self):
+        canonical = {
+            "category_id": "food-id",
+            "category": "food",
+            "month": "2026-09",
+            "assigned": 25.0,
+        }
+        with patch(
+            "routes.money.actual_finance.set_envelope_assignment", return_value=canonical
+        ) as write:
+            response = self.client.put(
+                "/api/money/envelope/assign",
+                json={
+                    "category_id": "food-id",
+                    "month": "2026-09",
+                    "amount": 25,
+                    "expected_amount": 0,
+                },
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json(), canonical)
+        self.assertEqual(write.call_args.args[1:5], ("2026-09", "food-id", 25.0, 0.0))
+        db = self.db()
+        self.assertEqual(db.query(BudgetAssignment).count(), 0)
+        db.close()
+
     def test_authority_lookup_errors_block_legacy_writes(self):
         db = self.db()
         with patch(
@@ -3410,7 +3603,6 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
                 self.assertEqual(response.status_code, 409, response.text)
         for method, path in (
             ("put", "/api/money/transactions/legacy/splits"),
-            ("put", "/api/money/envelope/assign"),
             ("put", "/api/money/envelope/target"),
             ("patch", "/api/money/recurring/legacy"),
             ("delete", "/api/money/recurring/legacy"),
