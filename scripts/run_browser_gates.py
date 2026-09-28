@@ -44,6 +44,7 @@ COMMANDS = {
     "files-upload-recovery": ("tests/pw_files_upload_recovery.py",),
     "files-transfer-clearance": ("tests/pw_files_transfer_clearance.py",),
     "gallery-workflows": ("tests/pw_gallery_workflows.py",),
+    "gallery-hidden": ("tests/pw_gallery_hidden.py",),
     "plan-workflows": ("tests/pw_plan_workflows.py",),
     "plan-recovery": ("tests/pw_plan_recovery.py",),
     "calendar-workflows": ("tests/pw_calendar_workflows.py",),

@@ -147,15 +147,19 @@ def run():
 
             try:
                 begin("navigation-and-empty")
-                page.goto(base + "/?view=files", wait_until="networkidle")
+                page.goto(base + "/?view=today", wait_until="networkidle")
                 if page.get_by_role("button", name="exit setup", exact=True).is_visible():
                     page.get_by_role("button", name="exit setup", exact=True).click()
+                page.locator("#today-settings").click()
+                page.locator('.s-nav-item[data-pane="themes"]').click()
+                with page.expect_response(
+                    lambda r: r.url.endswith("/api/appearance") and r.request.method == "PUT"
+                ) as appearance:
+                    page.locator(f'[data-theme-mode="{theme}"]').click()
+                assert appearance.value.ok
+                page.locator("#settings-modal-close").click()
+                page.goto(base + "/?view=files", wait_until="networkidle")
                 page.get_by_role("tab", name="gallery", exact=True).click()
-                page.get_by_role("button", name="open alles navigation", exact=True).click()
-                page.get_by_role("button", name="settings", exact=True).click()
-                page.get_by_role("button", name="appearance", exact=True).click()
-                page.get_by_role("button", name=theme, exact=True).first.click()
-                page.get_by_role("button", name="close settings", exact=True).click()
                 if not saved():
                     expect(page.locator("#photos-grid")).to_contain_text("gallery empty")
                 shot("initial")

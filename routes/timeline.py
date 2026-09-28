@@ -146,7 +146,14 @@ def _aggregate(db, want: set, days: int) -> list:
             )
 
     if "photo" in want:
-        for p in db.query(Photo).all():
+        for p in (
+            db.query(Photo)
+            .filter(
+                Photo.deleted_at == None,  # noqa: E711
+                (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+            )
+            .all()
+        ):
             pd = _dt(p.taken_at or p.created_at)
             if pd and pd >= cutoff:
                 out.append(
