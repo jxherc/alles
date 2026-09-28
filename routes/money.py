@@ -53,7 +53,11 @@ def _legacy_ledger_mutation(method: str, path: str) -> bool:
     parts = normalized.split("/") if normalized else []
     return (
         parts[:1] == ["recurring"]
-        or (parts[:1] == ["envelope"] and parts != ["envelope", "assign"])
+        or (
+            parts[:1] == ["envelope"]
+            and parts
+            not in (["envelope", "assign"], ["envelope", "target"], ["envelope", "target", "bind"])
+        )
         or parts in (["rules", "apply"], ["tag-rules", "apply"])
         or (
             parts[:1] == ["transactions"]
@@ -1404,13 +1408,21 @@ def assign_envelope(body: AssignBody, db: DbSession = Depends(get_db)):
 
 
 class TargetBody(BaseModel):
-    category: str
+    category: str = ""
+    category_id: str = ""
     amount: float = 0.0
     target_date: str = ""
 
 
 @router.put("/envelope/target")
 def set_target(body: TargetBody, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.set_funding_target(
+                db, body.category_id, body.amount, body.target_date
+            )
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     _require_legacy_ledger_write(db)
     cat = (body.category or "").strip()
     if not cat:
@@ -1427,6 +1439,21 @@ def set_target(body: TargetBody, db: DbSession = Depends(get_db)):
     db.add(row)
     db.commit()
     return {"category": cat, "target": {"amount": row.amount, "date": row.target_date}}
+
+
+class BindTargetBody(BaseModel):
+    target_id: str
+    category_id: str
+
+
+@router.post("/envelope/target/bind")
+def bind_target(body: BindTargetBody, db: DbSession = Depends(get_db)):
+    if not actual_finance.is_canonical(db):
+        raise HTTPException(409, "funding target binding is only needed after Actual cutover")
+    try:
+        return actual_finance.bind_funding_target(db, body.target_id, body.category_id)
+    except actual_finance.ActualFinanceError as exc:
+        _actual_error(exc)
 
 
 @router.get("/envelope")

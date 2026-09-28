@@ -122,8 +122,8 @@ export function choose(title, options) {
     const titleId = `dialog-title-${++dialogSequence}`;
     ov.innerHTML = `<div class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
       <div class="dialog-msg" id="${titleId}">${_esc(title)}</div>
-      <div class="dialog-choices">${options.map(option => `<button type="button" class="btn" data-dialog-confirm data-value="${_esc(option.value)}">${_esc(option.label)}</button>`).join('')}
-      <button type="button" class="btn" data-dialog-cancel>cancel</button></div>
+      <div class="dialog-choices">${options.map(option => `<button type="button" class="btn" data-dialog-confirm data-value="${_esc(option.value)}">${_esc(option.label)}</button>`).join('')}</div>
+      <div class="dialog-btns"><button type="button" class="btn" data-dialog-cancel>cancel</button></div>
     </div>`;
     document.body.appendChild(ov);
     _wireDialog(ov, resolve, button => button.dataset.value);

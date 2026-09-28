@@ -21,6 +21,7 @@ from core.database import (
     Budget,
     BudgetAssignment,
     FinanceLedgerState,
+    FundingTarget,
     MoneyFxEvidence,
     RecurringTxn,
     SubPayment,
@@ -348,6 +349,7 @@ def build_snapshot(
     # Legacy Finance has no category or payee entity tables: these values are
     # deliberately plain display strings. Actual receives the same unique name
     # set in one Alles-managed category group, so no source identity is merged.
+    funding_targets = db.query(FundingTarget).order_by(FundingTarget.id).all()
     category_names = sorted(
         {
             value
@@ -355,6 +357,7 @@ def build_snapshot(
                 *(row["category"] for row in transactions),
                 *(row.category for row in db.query(Budget).all()),
                 *(row.category for row in db.query(BudgetAssignment).all()),
+                *(row.category for row in funding_targets),
                 *(row.category for row in db.query(RecurringTxn).all()),
                 *(row.category for row in db.query(Subscription).all()),
             ]
@@ -387,6 +390,24 @@ def build_snapshot(
             }
         )
     sidecar_links = []
+    for row in funding_targets:
+        category = str(row.category or "").strip()
+        amount_minor = _minor(row.amount, f"funding target {row.id}")
+        if not category or amount_minor <= 0:
+            raise ActualMigrationError(f"funding target {row.id} needs a category and amount")
+        sidecar_links.append(
+            {
+                "kind": "funding_target",
+                "source_id": row.id,
+                "actual_id": f"sidecar:funding_target:{row.id}",
+                "metadata": {
+                    "category_name": category,
+                    "amount_minor": amount_minor,
+                    "target_date": row.target_date or "",
+                    "source": "legacy_funding_target",
+                },
+            }
+        )
     current_month = today.strftime("%Y-%m")
     for row in db.query(Budget).order_by(Budget.id).all():
         if (row.tag or "").strip():
@@ -901,7 +922,7 @@ def reconcile(snapshot: dict, result: dict) -> dict:
         for row in links
         if row["kind"].startswith("tag_")
         or row["kind"].startswith("budget_")
-        or row["kind"] == "subscription_payment"
+        or row["kind"] in {"subscription_payment", "funding_target"}
     }
     sidecar_evidence_ok = sum(
         1
@@ -923,6 +944,27 @@ def reconcile(snapshot: dict, result: dict) -> dict:
         ).get("name")
         == row["metadata"]["category"]
     )
+    expected_funding_targets = [
+        row for row in snapshot.get("sidecar_links") or [] if row["kind"] == "funding_target"
+    ]
+    funding_target_binding_ok = sum(
+        1
+        for row in expected_funding_targets
+        if (sidecar_links.get((row["kind"], row["source_id"]), {}).get("metadata") or {})
+        == row["metadata"]
+        and not actual_category_rows.get(
+            sidecar_links.get((row["kind"], row["source_id"]), {}).get("actual_id", ""),
+            {},
+        ).get("is_income")
+        and actual_category_rows.get(
+            sidecar_links.get((row["kind"], row["source_id"]), {}).get("actual_id", ""),
+            {},
+        ).get("name")
+        == row["metadata"]["category_name"]
+    )
+    bound_target_ids = [row.get("actual_id") for row in link_by_kind["funding_target"]]
+    if len(bound_target_ids) != len(set(bound_target_ids)):
+        funding_target_binding_ok = -1
     checks = [
         _check("accounts", len(snapshot["accounts"]), len(account_links)),
         _check("account identity bijection", True, account_identity_ok),
@@ -976,6 +1018,11 @@ def reconcile(snapshot: dict, result: dict) -> dict:
             len(expected_budget_limits),
             budget_limit_binding_ok,
         ),
+        _check(
+            "funding target bindings",
+            len(expected_funding_targets),
+            funding_target_binding_ok,
+        ),
     ]
     return {"pass": all(row["pass"] for row in checks), "checks": checks}
 
@@ -1021,17 +1068,21 @@ def _bind_sidecar_links(snapshot: dict, result: dict) -> list[dict]:
     for row in (result.get("actual") or {}).get("categories") or []:
         category_id = str(row.get("id") or "")
         name = str(row.get("name") or "")
-        if category_id and name:
+        if category_id and name and not row.get("is_income"):
             categories[name.casefold()].append(category_id)
     bound = []
     for row in snapshot.get("sidecar_links") or []:
         item = {**row, "metadata": dict(row.get("metadata") or {})}
-        if item["kind"] == "budget_limit":
-            name = str(item["metadata"].get("category") or "").strip()
+        if item["kind"] in {"budget_limit", "funding_target"}:
+            name_field = "category" if item["kind"] == "budget_limit" else "category_name"
+            name = str(item["metadata"].get(name_field) or "").strip()
             matches = categories.get(name.casefold(), [])
             if len(matches) != 1:
+                label = (
+                    "persistent budget cap" if item["kind"] == "budget_limit" else "funding target"
+                )
                 raise ActualMigrationError(
-                    f"persistent budget cap category {name or '(blank)'} is not uniquely bound in Actual"
+                    f"{label} category {name or '(blank)'} is not uniquely bound in Actual"
                 )
             item["actual_id"] = matches[0]
         bound.append(item)
@@ -1640,6 +1691,19 @@ def validate_active_links(db: Session, actual: dict) -> dict:
         elif kind == "budget_limit":
             present = actual_id in categories
             group = "budget_limit"
+        elif kind == "funding_target":
+            amount_minor = metadata.get("amount_minor")
+            present = actual_id in categories
+            group = "funding_target"
+            if (
+                type(amount_minor) is not int
+                or amount_minor <= 0
+                or amount_minor > actual_finance.MAX_CENT_SAFE_MINOR
+                or not isinstance(metadata.get("target_date"), str)
+            ):
+                missing.append(
+                    {"kind": kind, "source_id": link.source_id, "content_checkpoint_missing": True}
+                )
         elif kind == "transfer":
             left_id, separator, right_id = actual_id.partition(":")
             left = transactions.get(left_id)

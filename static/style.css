@@ -4982,7 +4982,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .env-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 82px 82px; gap: var(--k-space-2, 8px); align-items: center; font-size: 13px; }
 .env-head { color: var(--muted); font-size: 0.75rem; }
 .env-head span:not(:first-child), .env-assigned { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.env-cat { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.env-cat { display: flex; align-items: center; gap: var(--k-space-2, 8px); min-width: 0; color: var(--text); }
+.env-cat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .env-assignment { display: block; min-width: 0; }
 .env-input-label, .env-stat-label { display: none; }
 .env-assign { min-height: 44px; width: 100%; box-sizing: border-box; text-align: right; }
@@ -4994,13 +4995,22 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .env-target { grid-column: 1 / -1; position: relative; height: 14px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-bottom: 0.2rem; }
 .env-target-bar { height: 100%; background: var(--accent); opacity: 0.5; }
 .env-target-lbl { position: absolute; left: 0.5rem; top: 0; font-size: 0.75rem; color: var(--muted); line-height: 14px; }
+.env-target-note { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--k-space-2, 8px); color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.env-target-status:not(:empty) { color: var(--error); margin-bottom: var(--k-space-2, 8px); font-size: 12px; }
+.env-unbound { margin-top: var(--k-space-4, 16px); }
+.env-unbound h4 { margin: 0 0 var(--k-space-1, 4px); color: var(--text); font-size: 13px; font-weight: 580; }
+.env-unbound p { margin: 0 0 var(--k-space-2, 8px); color: var(--muted); font-size: 12px; }
+.env-unbound-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--k-space-2, 8px); padding-block: var(--k-space-1, 4px); font-size: 13px; }
+.env-unbound-row span { min-width: 0; overflow-wrap: anywhere; }
 .env-add { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
-.env-tgt-btn { background: none; border: none; cursor: pointer; font-size: 0.75rem; opacity: 0.5; padding: 0; }
-.env-tgt-btn:hover { opacity: 1; }
+.env-tgt-btn, .env-bind-target, .env-move-target { min-height: 44px; }
+.env-tgt-btn { flex-shrink: 0; background: none; border: none; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; padding-inline: var(--k-space-2, 8px); }
+.env-tgt-btn:hover, .env-tgt-btn:focus-visible { color: var(--text); }
 @media (max-width: 620px) {
   .env-row { grid-template-columns: minmax(0, 1fr) minmax(96px, auto); row-gap: var(--k-space-1, 4px); padding-block: var(--k-space-2, 8px); }
   .env-head { display: none; }
-  .env-cat { white-space: normal; overflow: visible; }
+  .env-cat { flex-wrap: wrap; }
+  .env-cat-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
   .env-input-label, .env-stat-label { display: inline; color: var(--muted); font-size: 12px; }
   .env-assignment { text-align: right; }
   .env-input-label { display: block; }
@@ -6264,7 +6274,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-chk-row[aria-checked="true"] .chk { background: var(--accent); }
 .cal-editor .cal-sw { width: 44px; height: 44px; min-width: 44px; display: inline-grid; place-items: center; background: transparent; color: var(--text); border-radius: 3px; }
 .cal-editor .cal-sw:not(.cal-sw-def)::before { content: ''; width: 18px; height: 18px; background: var(--cal-swatch); border-radius: 50%; }
-.dialog-choices { display: flex; flex-direction: column; gap: 0.5rem; }
+.dialog-choices { display: flex; flex-direction: column; gap: 0.5rem; max-height: min(60dvh, 480px); overflow-y: auto; }
+.dialog-choices .btn { min-height: 44px; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .cal-ed-actions { flex-wrap: wrap; }
 .cal-ed-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.5rem; }
 @media (max-width: 720px) {

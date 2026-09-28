@@ -289,7 +289,10 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   spending-category ID, checks the amount first seen by the editor, and keeps uncertain writes
   available for an exact retry. Finance spending caps are separate, persistent Alles sidecars
   bound to Actual spending categories; changing or removing a cap does not rewrite a month's
-  assignment. funding targets remain unavailable after cutover
+  assignment. funding target amounts and dates remain Alles sidecars bound to stable Actual
+  spending-category IDs; new dates must be valid calendar dates. fresh cutovers bind targets
+  during staging. targets from older cutovers remain visible for an explicit category choice
+  rather than being guessed from a name, and a linked target can be moved to another category
 - Aide's Finance account, transaction, and spending-read tools follow the active ledger; if Actual
   cannot be read after cutover, they return an error instead of quoting old balances or charges
 - the unified transaction JSON/CSV download also reads the active ledger, and fails if it cannot
