@@ -3,9 +3,10 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
+from sqlalchemy import literal, select, union_all
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import GalleryImage, _uid, get_db
+from core.database import GalleryImage, Photo, _uid, get_db
 from core.settings import data_dir
 
 router = APIRouter(prefix="/api")
@@ -33,6 +34,7 @@ def thumbs_dir() -> Path:
 def _fmt(img: GalleryImage) -> dict:
     return {
         "id": img.id,
+        "owner": "gallery",
         "filename": img.filename,
         "prompt": img.prompt,
         "tags": img.tags,
@@ -40,6 +42,20 @@ def _fmt(img: GalleryImage) -> dict:
         "url": f"/api/gallery/file/{img.filename}",
         "thumb": f"/api/gallery/thumb/{img.id}",
         "created_at": img.created_at.isoformat(),
+    }
+
+
+def _fmt_generated(photo: Photo) -> dict:
+    return {
+        "id": photo.id,
+        "owner": "photos",
+        "filename": photo.filename,
+        "prompt": photo.caption or photo.original_name.removesuffix(".png"),
+        "tags": "",
+        "source": "generated",
+        "url": f"/api/photos/original/{photo.id}",
+        "thumb": f"/api/photos/thumb/{photo.id}",
+        "created_at": photo.created_at.isoformat(),
     }
 
 
@@ -51,11 +67,52 @@ def list_images(
 ):
     limit = max(1, min(limit or 48, _PAGE_MAX))
     offset = max(0, offset)
-    q = db.query(GalleryImage).order_by(GalleryImage.created_at.desc(), GalleryImage.id.desc())
-    rows = q.offset(offset).limit(limit).all()
+    candidates = union_all(
+        select(
+            GalleryImage.id.label("id"),
+            GalleryImage.created_at.label("created_at"),
+            literal("gallery").label("owner"),
+        ),
+        select(
+            Photo.id,
+            Photo.created_at,
+            literal("photos"),
+        ).where(Photo.source == "generated", Photo.deleted_at.is_(None), Photo.hidden.is_not(True)),
+    ).subquery()
+    page = (
+        db.query(candidates.c.id, candidates.c.owner)
+        .order_by(candidates.c.created_at.desc(), candidates.c.id.desc(), candidates.c.owner.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    gallery_ids = [row.id for row in page if row.owner == "gallery"]
+    photo_ids = [row.id for row in page if row.owner == "photos"]
+    items = {}
+    if gallery_ids:
+        items.update(
+            {
+                ("gallery", row.id): _fmt(row)
+                for row in db.query(GalleryImage).filter(GalleryImage.id.in_(gallery_ids)).all()
+            }
+        )
+    if photo_ids:
+        items.update(
+            {
+                ("photos", row.id): _fmt_generated(row)
+                for row in db.query(Photo)
+                .filter(
+                    Photo.id.in_(photo_ids),
+                    Photo.source == "generated",
+                    Photo.deleted_at.is_(None),
+                    Photo.hidden.is_not(True),
+                )
+                .all()
+            }
+        )
     return {
-        "items": [_fmt(r) for r in rows],
-        "next": offset + limit if len(rows) == limit else None,
+        "items": [items[(row.owner, row.id)] for row in page if (row.owner, row.id) in items],
+        "next": offset + limit if len(page) == limit else None,
     }
 
 

@@ -6276,33 +6276,31 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-scope-cancel { color: var(--muted); }
 
 /* ── gallery ── */
+#gallery-scan-btn { margin-left: auto; margin-right: 8px; }
 .gallery-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 0.5rem;
 }
 .gallery-item {
-  position: relative; aspect-ratio: 1;
+  display: flex; flex-direction: column; min-width: 0;
   overflow: hidden; border-radius: 3px;
-  border: 1px solid var(--faint); cursor: pointer;
+  border: 1px solid var(--faint);
 }
+.gallery-open { display: block; aspect-ratio: 1; overflow: hidden; }
+.gallery-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
 .gallery-item img {
-  width: 100%; height: 100%; object-fit: cover;
-  transition: transform 0.2s;
+  display: block; width: 100%; height: 100%; object-fit: cover;
 }
-.gallery-item:hover img { transform: scale(1.03); }
-.gallery-overlay {
-  position: absolute; inset: 0;
-  background: rgba(0,0,0,0.6);
-  display: flex; flex-direction: column; justify-content: flex-end;
-  padding: 0.5rem;
-  opacity: 0; transition: opacity 0.2s;
+.gallery-info {
+  display: flex; flex: 1; flex-direction: column; align-items: flex-start;
+  gap: 4px; padding: 8px;
 }
-.gallery-item:hover .gallery-overlay { opacity: 1; }
 .gallery-prompt {
-  font-size: 0.75rem; color: #fff;
-  line-height: 1.4; margin-bottom: 0.3rem;
+  color: var(--text); font-size: 0.8rem; line-height: 1.4;
+  overflow-wrap: anywhere;
 }
+.gallery-del { min-height: 44px; margin-top: auto; padding-inline: 0; font-size: 0.85rem; }
 .gallery-more { grid-column: 1 / -1; justify-self: center; margin: 0.4rem 0; }
 
 /* ── slash cheatsheet ── */
@@ -8428,6 +8426,9 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 }
 .search-prompt-input:focus { border-color: var(--muted); }
 
+.gallery-upload-caption-label {
+  display: block; color: var(--muted); font-size: 0.8rem;
+}
 .gallery-prompt-input {
   width: 100%;
   background: none;

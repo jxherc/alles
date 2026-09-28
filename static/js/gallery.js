@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { confirm as confirmDialog } from './dialog.js';
 
 let _images = [];
 let _next = 0;
@@ -19,8 +20,12 @@ export async function loadGallery(reset = true) {
     _next = Array.isArray(d) ? null : d.next;
     renderGallery();
   } catch {
-    if (reset) _images = [];
-    renderGallery('gallery failed to load');
+    if (reset) {
+      _images = [];
+      renderGallery('could not load creations');
+    } else {
+      toast('could not load more images. try again.', 'error');
+    }
   } finally {
     _loading = false;
   }
@@ -31,35 +36,53 @@ function renderGallery(msg = '') {
   if (!grid) return;
 
   if (msg) {
-    grid.innerHTML = `<div class="page-empty">${esc(msg)}</div>`;
+    grid.innerHTML = `<div class="page-empty" role="status">${esc(msg)}${msg === 'could not load creations' ? ' <button type="button" class="btn" id="gallery-retry">retry</button>' : ''}</div>`;
+    document.getElementById('gallery-retry')?.addEventListener('click', () => loadGallery());
     return;
   }
 
   if (!_images.length) {
-    grid.innerHTML = '<div class="page-empty">ai gallery empty - upload an image</div>';
+    grid.innerHTML = '<div class="page-empty">no images yet - generate one in Aide or upload one</div>';
     return;
   }
 
-  grid.innerHTML = _images.map(img => `
-    <div class="gallery-item" data-id="${img.id}">
-      <img src="${img.thumb || img.url}" alt="${esc(img.prompt)}" loading="lazy" decoding="async" data-full="${img.url}">
-      <div class="gallery-overlay">
-        ${img.prompt ? `<div class="gallery-prompt">${esc(img.prompt.slice(0, 80))}</div>` : ''}
-        <button class="gallery-del act-btn" data-id="${img.id}">delete</button>
+  grid.innerHTML = _images.map(img => {
+    const prompt = String(img.prompt || '');
+    const label = prompt || 'image';
+    const ownedByPhotos = img.owner === 'photos';
+    const removeLabel = ownedByPhotos ? 'move to trash' : 'delete permanently';
+    return `
+    <div class="gallery-item" data-id="${esc(img.id)}">
+      <a class="gallery-open" href="${esc(img.url)}" target="_blank" rel="noopener" aria-label="open ${esc(label)}">
+        <img src="${esc(img.thumb || img.url)}" alt="" loading="lazy" decoding="async">
+      </a>
+      <div class="gallery-info">
+        ${prompt ? `<div class="gallery-prompt" title="${esc(prompt)}">${esc(prompt.slice(0, 80))}</div>` : ''}
+        <button type="button" class="gallery-del act-btn" data-id="${esc(img.id)}" data-owner="${ownedByPhotos ? 'photos' : 'gallery'}" aria-label="${removeLabel} ${esc(label)}">${removeLabel}</button>
       </div>
-    </div>`).join('') + (_next != null ? '<button class="btn gallery-more" id="gallery-more-btn">load more</button>' : '');
-
-  grid.querySelectorAll('.gallery-item img').forEach(img => {
-    img.addEventListener('click', () => {
-      window.open(img.dataset.full || img.src, '_blank');
-    });
-  });
+    </div>`;
+  }).join('') + (_next != null ? '<button type="button" class="btn gallery-more" id="gallery-more-btn">load more</button>' : '');
 
   grid.querySelectorAll('.gallery-del').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/gallery/${btn.dataset.id}`, { method: 'DELETE' });
-      await loadGallery();
+      const photo = btn.dataset.owner === 'photos';
+      const message = photo
+        ? 'move this generated image to Photos trash? you can restore it there.'
+        : 'delete this uploaded image permanently? it cannot be restored.';
+      if (!await confirmDialog(message)) return;
+      btn.disabled = true;
+      try {
+        const endpoint = photo ? '/api/photos/' : '/api/gallery/';
+        const r = await fetch(endpoint + encodeURIComponent(btn.dataset.id), { method: 'DELETE' });
+        if (!r.ok) throw new Error(`server returned ${r.status}`);
+        await loadGallery();
+        (document.querySelector('#gallery-grid .gallery-open') || document.getElementById('gallery-upload-btn'))?.focus();
+        toast(photo ? 'moved to Photos trash' : 'image deleted', 'success');
+      } catch {
+        btn.disabled = false;
+        toast('could not remove image. try again.', 'error');
+      }
     });
   });
 

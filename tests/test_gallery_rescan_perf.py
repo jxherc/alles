@@ -1,11 +1,12 @@
 import io
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
 import routes.gallery as gallery
-from core.database import GalleryImage
+from core.database import GalleryImage, Photo
 from services import photos_store
 from tests._client import ApiTest
 
@@ -60,6 +61,39 @@ class GalleryRescanPerfTest(ApiTest):
         d = self.client.get("/api/gallery?offset=0&limit=20").json()
         self.assertEqual(len(d["items"]), 20)
         self.assertEqual(d["next"], 20)
+
+    def test_mixed_gallery_deep_page_and_large_offset(self):
+        start = datetime(2026, 9, 27, 12)
+        db = self.db()
+        try:
+            for i in range(60):
+                db.add(
+                    GalleryImage(
+                        id=f"g{i:03}",
+                        filename=f"g{i:03}.png",
+                        created_at=start + timedelta(minutes=2 * i),
+                    )
+                )
+                db.add(
+                    Photo(
+                        id=f"p{i:03}",
+                        filename=f"p{i:03}.png",
+                        source="generated",
+                        created_at=start + timedelta(minutes=2 * i + 1),
+                    )
+                )
+            db.commit()
+        finally:
+            db.close()
+
+        page = self.client.get("/api/gallery?offset=100&limit=20").json()
+        expected = [id for i in range(9, -1, -1) for id in (f"p{i:03}", f"g{i:03}")]
+        self.assertEqual([item["id"] for item in page["items"]], expected)
+        self.assertEqual(page["next"], 120)
+        self.assertEqual(
+            self.client.get("/api/gallery?offset=1000000000&limit=20").json(),
+            {"items": [], "next": None},
+        )
 
 
 class PhotosRescanTest(ApiTest):

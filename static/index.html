@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=327">
+<link rel="stylesheet" href="/static/style.css?v=328">
   <link rel="stylesheet" href="/static/kokuen.css?v=24">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -541,13 +541,13 @@
     <!-- aide gallery view (AI image generation — lives inside aide) -->
     <div class="page-view" id="gallery-view" style="display:none">
         <div class="page-view-head">
-          <span class="page-view-title">gallery</span>
+          <span class="page-view-title">creations</span>
           <input type="file" id="gallery-file-input" accept="image/*" style="display:none">
           <button type="button" class="btn" id="gallery-scan-btn">scan</button>
           <button type="button" class="btn primary" id="gallery-upload-btn">+ upload</button>
         </div>
       <div class="page-view-body">
-        <input type="text" id="gallery-prompt-input" placeholder="prompt / caption (optional)" class="gallery-prompt-input">
+        <label class="gallery-upload-caption-label">caption for upload (optional)<input type="text" id="gallery-prompt-input" class="gallery-prompt-input"></label>
         <div class="gallery-grid" id="gallery-grid"></div>
       </div>
     </div>
@@ -2795,7 +2795,7 @@
 </div>
 
 <script type="module">
-const _v = '327';
+const _v = '328';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
