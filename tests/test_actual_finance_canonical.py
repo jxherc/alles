@@ -3501,10 +3501,92 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(response.status_code, 503, response.text)
         self.assertIn("Actual is unavailable", response.text)
 
+    def test_canonical_age_of_money_uses_current_transactions_not_frozen_rows(self):
+        db = self.db()
+        db.add_all(
+            [
+                Transaction(
+                    account_id="legacy-account",
+                    date="2026-07-01",
+                    amount=100,
+                    payee="frozen income",
+                ),
+                Transaction(
+                    account_id="legacy-account",
+                    date="2026-07-02",
+                    amount=-100,
+                    payee="frozen expense",
+                ),
+            ]
+        )
+        db.commit()
+        db.close()
+        actual = {
+            "accounts": [{"id": "current-account", "name": "current checking", "balance": 0}],
+            "transactions": [
+                {
+                    "id": "opening",
+                    "account": "current-account",
+                    "date": "20260701",
+                    "amount": 100000,
+                    "starting_balance_flag": True,
+                },
+                {
+                    "id": "income",
+                    "account": "current-account",
+                    "date": "20260701",
+                    "amount": 10000,
+                },
+                {
+                    "id": "expense-1",
+                    "account": "current-account",
+                    "date": "20260711",
+                    "amount": -2500,
+                },
+                {
+                    "id": "transfer",
+                    "account": "current-account",
+                    "date": "20260712",
+                    "amount": -5000,
+                    "transfer_id": "transfer-partner",
+                },
+                {
+                    "id": "expense-2",
+                    "account": "current-account",
+                    "date": "20260721",
+                    "amount": -2500,
+                },
+            ],
+        }
+        with patch("routes.money.actual_finance.inspect", return_value=actual) as inspect:
+            response = self.client.get("/api/money/age-of-money")
+        self.assertEqual(response.status_code, 200, response.text)
+        inspect.assert_called_once()
+        self.assertEqual(response.json(), {"age": 15, "sample": 2})
+
+    def test_canonical_age_of_money_distinguishes_empty_from_provider_outage(self):
+        actual = {
+            "accounts": [],
+            "transactions": [
+                {"id": "expense", "date": "20260711", "amount": -2500},
+                {"id": "later-income", "date": "20260721", "amount": 10000},
+            ],
+        }
+        with patch("routes.money.actual_finance.inspect", return_value=actual):
+            response = self.client.get("/api/money/age-of-money")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json(), {"age": None, "sample": 0})
+        with patch(
+            "routes.money.actual_finance.inspect",
+            side_effect=actual_finance.ActualFinanceUnavailable("Actual is unavailable"),
+        ):
+            unavailable = self.client.get("/api/money/age-of-money")
+        self.assertEqual(unavailable.status_code, 503, unavailable.text)
+        self.assertIn("Actual is unavailable", unavailable.text)
+
     def test_stale_legacy_analytics_fail_closed_after_actual_cutover(self):
         for path in (
             "/api/money/envelope",
-            "/api/money/age-of-money",
             "/api/money/income/summary",
         ):
             with self.subTest(path=path):

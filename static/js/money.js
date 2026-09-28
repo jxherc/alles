@@ -328,7 +328,7 @@ function render() {
       <section class="money-card" data-card="category"><h3>spending by category</h3>${catChart()}</section>
       <section class="money-card" data-card="trend"><h3>last 6 months</h3>${trendChart()}</section>
       <section class="money-card" data-card="networth"><h3 tabindex="-1">net worth over time</h3><div id="nw-history-content">${networthCard()}</div></section>
-      <section class="money-card money-envelope" data-card="envelope"><h3>envelope budgeting${_aom && _aom.age != null ? ` <span class="aom" title="age of money: days between income arriving and being spent">age of money: ${_aom.age}d</span>` : ''}</h3>${envelopeCard()}</section>
+      <section class="money-card money-envelope" data-card="envelope">${envelopeHeading()}${envelopeCard()}</section>
       <section class="money-card" data-card="holdings"><h3>investments</h3>${holdingsCard()}</section>
       <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
       <section class="money-card" data-card="reports"><h3>reports</h3>${reportsCard()}</section>
@@ -559,9 +559,19 @@ function trendChart() {
     <div class="trend-legend"><span class="lg-inc">income</span><span class="lg-exp">spent</span></div>`;
 }
 
+function ageOfMoneyStatus() {
+  if (!_aom) return '<span class="aom aom-error">couldn\'t load age of money <button type="button" class="btn" id="age-retry">retry</button></span>';
+  if (_aom.age == null) return '<span class="aom aom-empty">age of money: not enough data</span>';
+  return `<span class="aom" title="days between income arriving and being spent">age of money: ${esc(_aom.age)}d</span>`;
+}
+
+function envelopeHeading() {
+  return `<h3 tabindex="-1">envelope budgeting<span id="money-age-content" role="status">${ageOfMoneyStatus()}</span></h3>`;
+}
+
 function envelopeCard() {
   const e = _envelope;
-  if (!e) return '<div class="money-empty-sm">no envelope data</div>';
+  if (!e) return `<div class="money-empty-sm" role="status">${_canonicalLedger ? "envelope budgeting isn't available with Actual yet" : "couldn't load envelope data; reload Finance to try again"}</div>`;
   const tbb = e.to_be_budgeted || 0;
   const banner = `<div class="env-tbb ${tbb < 0 ? 'over' : (tbb > 0 ? 'pos' : '')}">
     <span class="env-tbb-num">${signed(tbb)}</span><span class="env-tbb-lbl">to be budgeted</span></div>`;
@@ -1179,11 +1189,27 @@ async function assignEnvelope(category, amount) {
     await api('/api/money/envelope/assign', { method: 'PUT', body: { category, month: _month, amount } });
     _envelope = await api(`/api/money/envelope?month=${_month}`).catch(() => _envelope);
     const card = $('money-body').querySelector('.money-envelope');
-    if (card) { card.innerHTML = `<h3>envelope budgeting${_aom && _aom.age != null ? ` <span class="aom">age of money: ${_aom.age}d</span>` : ''}</h3>` + envelopeCard(); _wireEnvelope(); }
+    if (card) { card.innerHTML = envelopeHeading() + envelopeCard(); _wireEnvelope(); }
     return true;
   } catch { toast('assign failed', 'error'); return false; }
 }
+
+async function retryAgeOfMoney() {
+  const button = $('age-retry');
+  button.disabled = true;
+  button.textContent = 'retrying…';
+  try { _aom = await api('/api/money/age-of-money'); }
+  catch { _aom = null; }
+  const content = $('money-age-content');
+  if (!content) return;
+  content.innerHTML = ageOfMoneyStatus();
+  (_aom ? content.closest('h3') : $('age-retry'))?.focus();
+}
+
 function _wireEnvelope() {
+  $('money-age-content')?.addEventListener('click', event => {
+    if (event.target.closest('#age-retry')) retryAgeOfMoney();
+  });
   $('money-body').querySelectorAll('.env-assign').forEach(inp =>
     inp.addEventListener('change', () => assignEnvelope(inp.dataset.cat, inp.value)));
   $('env-assign-btn')?.addEventListener('click', async () => {

@@ -4970,6 +4970,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 
 /* 4b — envelope budgeting */
 .money-envelope .aom { font-size: 0.75rem; color: var(--accent); font-weight: normal; margin-left: 0.4rem; }
+.money-envelope .aom-error { color: var(--muted); display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); }
+.money-envelope .aom-empty { color: var(--muted); }
+.money-envelope h3:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .env-tbb { display: flex; align-items: baseline; gap: 0.4rem; padding: 0.4rem 0.55rem; border: 1px solid var(--faint); border-radius: 3px; margin-bottom: 0.5rem; }
 .env-tbb-num { font-size: 1rem; font-variant-numeric: tabular-nums; }
 .env-tbb.pos .env-tbb-num { color: var(--green); }

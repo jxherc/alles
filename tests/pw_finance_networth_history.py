@@ -98,6 +98,13 @@ def run():
             expect(recurring_card).to_contain_text("test rent")
             expect(recurring_card.locator("#rc-add")).to_be_visible()
             expect(recurring_card.locator("[data-toggle-rec]")).to_have_count(1)
+            envelope_card = page.locator('.money-card[data-card="envelope"]')
+            expect(envelope_card.locator("h3")).to_contain_text("age of money:")
+            envelope_card.locator("#env-new-cat").fill("food")
+            envelope_card.locator("#env-new-amt").fill("10")
+            envelope_card.locator("#env-assign-btn").click()
+            expect(envelope_card.locator('.env-row[data-cat="food"]')).to_be_visible()
+            expect(envelope_card.locator("h3")).to_contain_text("age of money:")
             use_light_theme_on_phone()
             card.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-history-{profile}.png"))
@@ -415,6 +422,81 @@ def run():
             page.screenshot(path=str(artifacts / f"finance-alerts-empty-{profile}.png"))
             page.reload(wait_until="networkidle")
             expect(page.locator("#money-alerts-content")).to_be_empty()
+
+            age_failures = 2
+            age_empty = False
+
+            def canonical_age(route):
+                nonlocal age_failures, age_empty
+                if age_failures:
+                    age_failures -= 1
+                    route.fulfill(
+                        status=503,
+                        body='{"detail":"Actual age unavailable"}',
+                        content_type="application/json",
+                    )
+                else:
+                    payload = {"age": None, "sample": 0} if age_empty else {"age": 10, "sample": 1}
+                    route.fulfill(
+                        status=200,
+                        body=json.dumps(payload),
+                        content_type="application/json",
+                    )
+
+            page.route("**/api/money/age-of-money", canonical_age)
+            page.route(
+                "**/api/money/envelope?*",
+                lambda route: route.fulfill(
+                    status=409,
+                    body='{"detail":"canonical envelope writes unavailable"}',
+                    content_type="application/json",
+                ),
+            )
+            page.reload(wait_until="networkidle")
+            use_light_theme_on_phone()
+            envelope_card = page.locator('.money-card[data-card="envelope"]')
+            age_retry = envelope_card.get_by_role("button", name="retry", exact=True)
+            expect(age_retry).to_be_visible()
+            expect(envelope_card).to_contain_text("couldn't load age of money")
+            expect(envelope_card).to_contain_text(
+                "envelope budgeting isn't available with Actual yet"
+            )
+            expect(envelope_card).not_to_contain_text("no envelope data")
+            assert age_retry.bounding_box()["height"] >= 44
+            envelope_card.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-age-unavailable-{profile}.png"))
+            if profile == "phone":
+                age_retry.tap()
+            else:
+                age_retry.click()
+            age_retry = envelope_card.get_by_role("button", name="retry", exact=True)
+            expect(age_retry).to_be_focused()
+            if profile == "phone":
+                age_retry.tap()
+            else:
+                age_retry.press("Enter")
+            expect(envelope_card).to_contain_text("age of money: 10d")
+            expect(envelope_card.locator("h3")).to_be_focused()
+            assert envelope_card.evaluate(
+                "element => element.scrollWidth <= element.clientWidth + 1"
+            )
+            envelope_card.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-age-current-{profile}.png"))
+
+            age_empty = True
+            age_failures = 1
+            page.reload(wait_until="networkidle")
+            use_light_theme_on_phone()
+            envelope_card = page.locator('.money-card[data-card="envelope"]')
+            age_retry = envelope_card.get_by_role("button", name="retry", exact=True)
+            if profile == "phone":
+                age_retry.tap()
+            else:
+                age_retry.click()
+            expect(envelope_card).to_contain_text("age of money: not enough data")
+            expect(envelope_card.locator("h3")).to_be_focused()
+            envelope_card.scroll_into_view_if_needed()
+            page.screenshot(path=str(artifacts / f"finance-age-empty-{profile}.png"))
             if profile == "desktop":
                 page.evaluate("document.documentElement.style.zoom = '2'")
                 assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
@@ -425,6 +507,9 @@ def run():
                     "element => element.scrollWidth <= element.clientWidth + 1"
                 )
                 assert page.locator("#money-alerts-content").evaluate(
+                    "element => element.scrollWidth <= element.clientWidth + 1"
+                )
+                assert envelope_card.evaluate(
                     "element => element.scrollWidth <= element.clientWidth + 1"
                 )
             assert failures == 0
@@ -440,6 +525,7 @@ def run():
                     "forecast_outage_retry": True,
                     "recurring_canonical_read_and_retry": True,
                     "alerts_canonical_read_and_retry": True,
+                    "age_canonical_read_and_retry": True,
                     "keyboard_or_touch": True,
                     "reduced_motion": True,
                     "console_errors": console_errors,
