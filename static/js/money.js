@@ -571,23 +571,29 @@ function envelopeHeading() {
 
 function envelopeCard() {
   const e = _envelope;
-  if (!e) return `<div class="money-empty-sm" role="status">${_canonicalLedger ? "envelope budgeting isn't available with Actual yet" : "couldn't load envelope data; reload Finance to try again"}</div>`;
+  if (!e) return _canonicalLedger
+    ? `<div class="money-empty-sm" role="status">couldn't load Actual's budget month <button type="button" class="btn" id="env-retry">retry</button></div>`
+    : `<div class="money-empty-sm" role="status">couldn't load envelope data; reload Finance to try again</div>`;
   const tbb = e.to_be_budgeted || 0;
   const banner = `<div class="env-tbb ${tbb < 0 ? 'over' : (tbb > 0 ? 'pos' : '')}">
     <span class="env-tbb-num">${signed(tbb)}</span><span class="env-tbb-lbl">to be budgeted</span></div>`;
+  const readOnly = _canonicalLedger;
   const rows = (e.categories || []).filter(c => c.assigned || c.spent || c.available || c.target).map(c => {
     const av = c.available || 0;
-    const tgt = c.target
+    const tgt = !readOnly && c.target
       ? `<div class="env-target"><div class="env-target-bar" style="width:${Math.min(100, (c.target.funded || 0) * 100)}%"></div><span class="env-target-lbl">${Math.round((c.target.funded || 0) * 100)}% of ${fmt(c.target.amount)}${c.target.date ? ` by ${esc(c.target.date)}` : ''}</span></div>`
       : '';
     return `<div class="env-row" data-cat="${esc(c.category)}">
-      <span class="env-cat">${esc(c.category)} <button class="env-tgt-btn" data-cat="${esc(c.category)}" title="set a funding target">🎯</button></span>
-      <input type="text" class="settings-input env-assign" data-cat="${esc(c.category)}" value="${c.assigned || 0}" inputmode="decimal" title="assigned this month">
+      <span class="env-cat">${esc(c.category)}${readOnly ? '' : ` <button class="env-tgt-btn" data-cat="${esc(c.category)}" title="set a funding target">🎯</button>`}</span>
+      ${readOnly ? `<span class="env-assigned" title="assigned this month">${fmt(c.assigned || 0)}</span>` : `<input type="text" class="settings-input env-assign" data-cat="${esc(c.category)}" value="${c.assigned || 0}" inputmode="decimal" title="assigned this month">`}
       <span class="env-spent" title="spent this month">${fmt(c.spent || 0)}</span>
       <span class="env-avail ${av < 0 ? 'neg' : 'pos'}" title="available (rolls over)">${fmt(av)}</span>
       ${tgt}
     </div>`;
   }).join('');
+  if (readOnly) return banner + `<p class="money-recurring-note">read-only here. Finance budgets change these same Actual amounts; funding targets aren't available.</p>` +
+    (rows ? `<div class="env-rows"><div class="env-row env-head" aria-hidden="true"><span>category</span><span>assigned</span><span>spent</span><span>available</span></div>${rows}</div>`
+      : '<div class="money-empty-sm">no assigned, spent, or carried-over categories this month</div>');
   return banner + (rows
     ? `<div class="env-rows">${rows}</div>`
     : '<div class="money-empty-sm">assign money to a category to start budgeting</div>') +
@@ -1206,10 +1212,24 @@ async function retryAgeOfMoney() {
   (_aom ? content.closest('h3') : $('age-retry'))?.focus();
 }
 
+async function retryEnvelope() {
+  const button = $('env-retry');
+  button.disabled = true;
+  button.textContent = 'retrying…';
+  try { _envelope = await api(`/api/money/envelope?month=${_month}`); }
+  catch { _envelope = null; }
+  const card = $('money-body').querySelector('.money-envelope');
+  if (!card) return;
+  card.innerHTML = envelopeHeading() + envelopeCard();
+  _wireEnvelope();
+  (_envelope ? card.querySelector('h3') : $('env-retry'))?.focus();
+}
+
 function _wireEnvelope() {
   $('money-age-content')?.addEventListener('click', event => {
     if (event.target.closest('#age-retry')) retryAgeOfMoney();
   });
+  $('env-retry')?.addEventListener('click', retryEnvelope);
   $('money-body').querySelectorAll('.env-assign').forEach(inp =>
     inp.addEventListener('change', () => assignEnvelope(inp.dataset.cat, inp.value)));
   $('env-assign-btn')?.addEventListener('click', async () => {

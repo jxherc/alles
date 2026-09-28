@@ -1395,6 +1395,75 @@ def budgets(
     )
 
 
+def _validated_budget_month(value) -> str:
+    month = str(value or "")
+    if len(month) != 7 or month[4] != "-" or not month.replace("-", "").isdigit():
+        raise ActualFinanceError("budget month must be YYYY-MM")
+    try:
+        parsed = date.fromisoformat(f"{month}-01")
+    except ValueError:
+        raise ActualFinanceError("budget month must be a valid calendar month") from None
+    if parsed.strftime("%Y-%m") != month:
+        raise ActualFinanceError("budget month must be a valid calendar month")
+    return month
+
+
+@authority_guarded
+def envelope(db: Session, month: str, *, bridge_request=None) -> dict:
+    """Read Actual's own budget-month totals and category balances."""
+    month = _validated_budget_month(month)
+    selected = _request(
+        db,
+        {"command": "budget_month", "month": month},
+        bridge_request=bridge_request,
+    )
+    if (
+        not isinstance(selected, dict)
+        or selected.get("month") != month
+        or not isinstance(selected.get("categoryGroups"), list)
+    ):
+        raise ActualFinanceError("Actual budget month is incomplete")
+
+    def amount(row: dict, key: str) -> float:
+        value = row.get(key)
+        if type(value) is not int:
+            raise ActualFinanceError("Actual budget month is incomplete")
+        return _major_from_minor(value, f"budget {key}")
+
+    rows = []
+    for group in selected["categoryGroups"]:
+        if not isinstance(group, dict) or not isinstance(group.get("categories"), list):
+            raise ActualFinanceError("Actual budget month is incomplete")
+        if group.get("is_income"):
+            continue
+        for category in group["categories"]:
+            if not isinstance(category, dict):
+                raise ActualFinanceError("Actual budget month is incomplete")
+            if category.get("is_income"):
+                continue
+            name = str(category.get("name") or "").strip()
+            if not name:
+                raise ActualFinanceError("Actual budget month is incomplete")
+            rows.append(
+                {
+                    "category": name,
+                    "group": str(group.get("name") or ""),
+                    "assigned": amount(category, "budgeted"),
+                    "spent": -amount(category, "spent"),
+                    "available": amount(category, "balance"),
+                    "target": None,
+                }
+            )
+    rows.sort(key=lambda row: (row["group"].casefold(), row["category"].casefold()))
+    return {
+        "month": month,
+        "income": amount(selected, "totalIncome"),
+        "assigned_total": -amount(selected, "totalBudgeted"),
+        "to_be_budgeted": amount(selected, "toBudget"),
+        "categories": rows,
+    }
+
+
 @authority_guarded
 def set_budget(
     db: Session,
@@ -1407,15 +1476,7 @@ def set_budget(
     name = str(category or "").strip()
     if not name:
         raise ActualFinanceError("budget category is required")
-    month = str(month or "")
-    if len(month) != 7 or month[4] != "-" or not month.replace("-", "").isdigit():
-        raise ActualFinanceError("budget month must be YYYY-MM")
-    try:
-        parsed_month = date.fromisoformat(f"{month}-01")
-    except ValueError:
-        raise ActualFinanceError("budget month must be a valid calendar month") from None
-    if parsed_month.strftime("%Y-%m") != month:
-        raise ActualFinanceError("budget month must be a valid calendar month")
+    month = _validated_budget_month(month)
     amount_minor = _minor(amount, "budget amount")
     link = _budget_limit_link(db, category_name=name)
     prior_metadata = _link_metadata(link) if link else {}

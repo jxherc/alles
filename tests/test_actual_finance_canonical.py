@@ -107,6 +107,73 @@ class ActualFinanceServiceTests(ApiTest):
             actual_finance._account_currency("$", "CAD")
         self.assertEqual(actual_finance._account_currency("", "CAD"), "CAD")
 
+    def test_envelope_uses_actual_budget_month_balances_and_rollover(self):
+        calls = []
+
+        def bridge(payload, *, timeout):
+            calls.append(payload)
+            return {
+                "month": "2026-09",
+                "toBudget": 9000,
+                "totalIncome": 20000,
+                "totalBudgeted": -6000,
+                "categoryGroups": [
+                    {
+                        "name": "living",
+                        "categories": [
+                            {
+                                "id": "food-id",
+                                "name": "food",
+                                "is_income": False,
+                                "budgeted": 6000,
+                                "spent": -1000,
+                                "balance": 10000,
+                            },
+                            {
+                                "id": "salary-id",
+                                "name": "salary",
+                                "is_income": True,
+                                "budgeted": 0,
+                                "spent": 20000,
+                                "balance": 0,
+                            },
+                        ],
+                    }
+                ],
+            }
+
+        db = self.db()
+        result = actual_finance.envelope(db, "2026-09", bridge_request=bridge)
+        db.close()
+        self.assertEqual(calls[0]["command"], "budget_month")
+        self.assertEqual(calls[0]["month"], "2026-09")
+        self.assertEqual(result["to_be_budgeted"], 90.0)
+        self.assertEqual(result["income"], 200.0)
+        self.assertEqual(result["assigned_total"], 60.0)
+        self.assertEqual(
+            result["categories"],
+            [
+                {
+                    "category": "food",
+                    "group": "living",
+                    "assigned": 60.0,
+                    "spent": 10.0,
+                    "available": 100.0,
+                    "target": None,
+                }
+            ],
+        )
+
+    def test_envelope_rejects_incomplete_actual_month_instead_of_showing_zero(self):
+        db = self.db()
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "budget month"):
+            actual_finance.envelope(
+                db,
+                "2026-09",
+                bridge_request=lambda *_args, **_kwargs: {"month": "2026-09"},
+            )
+        db.close()
+
     def test_fake_bridge_preserves_the_requested_transaction_date(self):
         created = self.bridge(
             {
@@ -3585,14 +3652,33 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertIn("Actual is unavailable", unavailable.text)
 
     def test_stale_legacy_analytics_fail_closed_after_actual_cutover(self):
-        for path in (
-            "/api/money/envelope",
-            "/api/money/income/summary",
-        ):
+        for path in ("/api/money/income/summary",):
             with self.subTest(path=path):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 409, response.text)
                 self.assertIn("canonical ledger", response.text)
+
+    def test_canonical_envelope_routes_to_actual_and_reports_outage(self):
+        expected = {
+            "month": "2026-09",
+            "income": 200.0,
+            "assigned_total": 60.0,
+            "to_be_budgeted": 90.0,
+            "categories": [],
+        }
+        with patch("routes.money.actual_finance.envelope", return_value=expected) as read:
+            response = self.client.get("/api/money/envelope?month=2026-09")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json(), expected)
+        read.assert_called_once()
+        self.assertEqual(read.call_args.args[1], "2026-09")
+
+        with patch(
+            "routes.money.actual_finance.envelope",
+            side_effect=actual_finance.ActualFinanceUnavailable("Actual is unavailable"),
+        ):
+            unavailable = self.client.get("/api/money/envelope?month=2026-09")
+        self.assertEqual(unavailable.status_code, 503, unavailable.text)
 
     def test_forecast_uses_one_actual_snapshot_and_posting_schedules(self):
         db = self.db()
