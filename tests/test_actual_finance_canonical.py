@@ -3248,6 +3248,7 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         ):
             response = self.client.get("/api/money/summary?month=2026-07")
         self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["ledger"], "actual")
         budgets = {row["category"]: row for row in response.json()["budgets"]}
         self.assertEqual(budgets["food"]["spent"], 12.5)
         self.assertEqual(budgets["food"]["limit"], 40.0)
@@ -3258,13 +3259,111 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(listed.status_code, 200, listed.text)
         self.assertEqual(listed.json(), [actual_budget, tag_budget])
 
-    def test_legacy_recurring_reads_fail_closed_after_actual_cutover(self):
-        response = self.client.get("/api/money/recurring")
-        self.assertEqual(response.status_code, 409, response.text)
-        self.assertIn("canonical ledger", response.text)
+    def test_canonical_recurring_reads_current_actual_schedules_without_legacy_posting(self):
+        db = self.db()
+        legacy_id = db.query(RecurringTxn.id).one()[0]
+        db.add_all(
+            [
+                ActualEntityLink(
+                    run_id="run-route",
+                    entity_kind="account",
+                    source_id="legacy-account",
+                    actual_id="actual-account",
+                    metadata_json="{}",
+                ),
+                ActualEntityLink(
+                    run_id="run-route",
+                    entity_kind="recurring",
+                    source_id=legacy_id,
+                    actual_id="actual-rent",
+                    metadata_json='{"category":"housing","notes":"first of month"}',
+                ),
+                ActualEntityLink(
+                    run_id="run-route",
+                    entity_kind="subscription",
+                    source_id="legacy-subscription",
+                    actual_id="actual-subscription",
+                    metadata_json="{}",
+                ),
+            ]
+        )
+        db.commit()
+        db.close()
+        actual = {
+            "payees": [{"id": "rent-payee", "name": "rent"}],
+            "schedules": [
+                {
+                    "id": "actual-rent",
+                    "name": f"Alles recurring: rent [{legacy_id[:8]}]",
+                    "account": "actual-account",
+                    "payee": "rent-payee",
+                    "amount": -25000,
+                    "amountOp": "is",
+                    "posts_transaction": True,
+                    "next_date": "2026-10-01",
+                    "date": {"start": "2026-09-01", "frequency": "monthly", "interval": 1},
+                },
+                {
+                    "id": "native-range",
+                    "name": "variable utilities",
+                    "account": "actual-account",
+                    "amount": {"num1": -8000, "num2": -12000},
+                    "amountOp": "isbetween",
+                    "posts_transaction": True,
+                    "next_date": "2026-10-15",
+                    "date": {"start": "2026-09-15", "frequency": "monthly", "interval": 2},
+                },
+                {
+                    "id": "paused-native",
+                    "name": "paused salary",
+                    "account": "actual-account",
+                    "amount": 90000,
+                    "posts_transaction": True,
+                    "completed": True,
+                    "date": {"start": "2026-09-15", "frequency": "weekly", "interval": 1},
+                },
+                {
+                    "id": "actual-subscription",
+                    "name": "subscription",
+                    "amount": -999,
+                    "posts_transaction": True,
+                },
+                {
+                    "id": "manual",
+                    "name": "manual reminder",
+                    "posts_transaction": False,
+                },
+            ],
+        }
+        with patch("routes.money.actual_finance.inspect", return_value=actual) as inspect:
+            response = self.client.get("/api/money/recurring")
+        self.assertEqual(response.status_code, 200, response.text)
+        inspect.assert_called_once()
+        rows = {row["id"]: row for row in response.json()}
+        self.assertEqual(set(rows), {legacy_id, "native-range", "paused-native"})
+        self.assertEqual(rows[legacy_id]["account_id"], "legacy-account")
+        self.assertEqual(rows[legacy_id]["payee"], "rent")
+        self.assertEqual(rows[legacy_id]["amount"], -250.0)
+        self.assertEqual(rows[legacy_id]["category"], "housing")
+        self.assertEqual(rows[legacy_id]["next_date"], "2026-10-01")
+        self.assertEqual(rows["native-range"]["amount"], None)
+        self.assertEqual(rows["native-range"]["amount_kind"], "range")
+        self.assertEqual(rows["native-range"]["cycle"], "actual")
+        self.assertFalse(rows["paused-native"]["active"])
+        self.assertEqual(rows["paused-native"]["next_date"], "")
         db = self.db()
         self.assertEqual(db.query(RecurringTxn).one().next_date, "2020-01-01")
+        self.assertEqual(db.query(Transaction).count(), 0)
         db.close()
+
+    def test_canonical_recurring_read_reports_actual_outage(self):
+        with patch(
+            "routes.money.actual_finance.inspect",
+            side_effect=actual_finance.ActualFinanceUnavailable("Actual is unavailable"),
+        ):
+            response = self.client.get("/api/money/recurring")
+        self.assertEqual(response.status_code, 503, response.text)
+        self.assertIn("Actual is unavailable", response.text)
 
     def test_stale_legacy_analytics_fail_closed_after_actual_cutover(self):
         for path in (

@@ -1105,6 +1105,96 @@ def subscription_display_name(schedule: dict, legacy) -> str:
     return name
 
 
+@authority_guarded
+def recurring_schedules(
+    db: Session,
+    *,
+    actual: dict | None = None,
+    bridge_request=None,
+) -> list[dict]:
+    """Read Actual auto-post schedules without consulting the frozen recurring ledger."""
+    actual = actual if actual is not None else inspect(db, bridge_request=bridge_request)
+    _account_sources, account_public, _account_metadata = _maps(db, "account")
+    _recurring_sources, recurring_public, recurring_metadata = _maps(db, "recurring")
+    subscription_ids = {link.actual_id for link in _links(db, "subscription")}
+    payee_names = {row.get("id"): row.get("name") for row in actual.get("payees") or []}
+    seen = set()
+    rows = []
+    for row in actual.get("schedules") or []:
+        if not row.get("posts_transaction"):
+            continue
+        actual_id = str(row.get("id") or "")
+        if not actual_id or actual_id in seen:
+            raise ActualFinanceError("the Actual schedule identity is missing or duplicated")
+        seen.add(actual_id)
+        if actual_id in subscription_ids:
+            continue
+        source_id = recurring_public.get(actual_id, actual_id)
+        metadata = recurring_metadata.get(actual_id, {})
+        name = str(row.get("name") or "").strip()
+        migrated_name = "Alles recurring: "
+        migrated_suffix = f" [{source_id[:8]}]"
+        if (
+            actual_id in recurring_public
+            and name.startswith(migrated_name)
+            and name.endswith(migrated_suffix)
+        ):
+            name = name[len(migrated_name) : -len(migrated_suffix)]
+        payee = name or str(
+            payee_names.get(row.get("payee")) or metadata.get("category") or "recurring"
+        )
+
+        amount_op = str(row.get("amountOp") or "is")
+        minor = row.get("amount")
+        amount = (
+            _major_from_minor(minor, "schedule amount")
+            if amount_op in {"is", "isapprox"} and type(minor) is int
+            else None
+        )
+        amount_kind = (
+            "approx"
+            if amount_op == "isapprox" and amount is not None
+            else "exact"
+            if amount_op == "is" and amount is not None
+            else "range"
+            if amount_op == "isbetween"
+            else "variable"
+        )
+        rule = row.get("date")
+        cycle, cycle_days = "actual", 0
+        if (
+            isinstance(rule, dict)
+            and rule.get("endMode", "never") == "never"
+            and not rule.get("skipWeekend")
+        ):
+            try:
+                candidate, days, start = _schedule_cycle(rule)
+                _schedule_anchor(rule, date.fromisoformat(start))
+                cycle, cycle_days = candidate, days
+            except (ActualFinanceError, ValueError):
+                pass
+        next_date = (
+            _required_date(row["next_date"], "schedule next date") if row.get("next_date") else ""
+        )
+        rows.append(
+            {
+                "id": source_id,
+                "account_id": account_public.get(row.get("account"), row.get("account") or ""),
+                "amount": amount,
+                "amount_kind": amount_kind,
+                "category": str(metadata.get("category") or ""),
+                "payee": payee,
+                "notes": str(metadata.get("notes") or ""),
+                "cycle": cycle,
+                "cycle_days": cycle_days,
+                "next_date": next_date,
+                "active": not bool(row.get("completed")),
+                "last_posted": "",
+            }
+        )
+    return sorted(rows, key=lambda row: (row["next_date"] or "9999-12-31", row["id"]))
+
+
 def forecast_schedules(db: Session, actual: dict, *, as_of: date) -> list[dict]:
     """Active posting schedules, excluding subscriptions forecast elsewhere."""
     _recurring_sources, recurring_public, recurring_metadata = _maps(db, "recurring")

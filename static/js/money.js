@@ -31,6 +31,7 @@ function _setMonthUrl() { try { const u = new URL(location.href); u.searchParams
 
 let _month = _monthFromUrl() || _thisMonth();
 let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];
+let _recurringError = false, _canonicalLedger = false;
 let _envelope = null, _aom = null;   // YNAB envelope view + age of money (4b)
 let _forecast = null, _nwhist = [], _holdings = null, _alerts = null;   // Simplifi (4c)
 let _forecastError = 'couldn\'t load forecast';
@@ -273,9 +274,8 @@ async function load(fetcher = fetch) {
   _setMonthUrl();
   _searchResults = null;   // month change / reload clears any active search
   try {
-    // post any due recurring txns FIRST (and advance them) so the balances,
-    // transactions and summary we read next all reflect them — no stale first load
-    _recurring = await request('/api/money/recurring').catch(() => []);
+    // Legacy reads post due entries before balances; Actual owns posting after cutover.
+    await readRecurring(request);
     [_accounts, _txns, _budgets, _sum, _rules, _envelope, _aom, _forecast, _nwhist, _holdings, _alerts] = await Promise.all([
       request('/api/money/accounts'),
       request(`/api/money/transactions?month=${_month}`),
@@ -290,9 +290,22 @@ async function load(fetcher = fetch) {
       request(`/api/money/alerts?month=${_month}`).catch(() => null),
     ]);
     _goals = (await request('/api/money/goals').catch(() => null))?.goals || [];
+    _canonicalLedger = _sum?.ledger === 'actual';
     _cur = _sum?.currency || (_accounts[0]?.currency) || '$';
   } catch { $('money-body').innerHTML = '<div class="money-empty">failed to load</div>'; return; }
   render();
+}
+
+async function readRecurring(request) {
+  try {
+    const rows = await request('/api/money/recurring');
+    if (!Array.isArray(rows)) throw new Error('invalid schedule list');
+    _recurring = rows;
+    _recurringError = false;
+  } catch {
+    _recurring = [];
+    _recurringError = true;
+  }
 }
 
 // ── render ────────────────────────────────────────────────────────────────────
@@ -320,7 +333,7 @@ function render() {
       <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
       <section class="money-card" data-card="reports"><h3>reports</h3>${reportsCard()}</section>
       <section class="money-card" data-card="budgets"><h3>budgets</h3>${budgetsList()}${_budgetForm()}</section>
-      <section class="money-card" data-card="recurring"><h3>recurring</h3>${recurringList()}${_recurringForm()}</section>
+      <section class="money-card" data-card="recurring"><h3 tabindex="-1">recurring</h3><div id="recurring-content">${recurringList()}${_recurringForm()}</div></section>
       <section class="money-card" data-card="rules"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
      </div>` +
     `<section class="money-card money-txns">
@@ -586,22 +599,24 @@ function _ruleForm() {
   </div>`;
 }
 
-const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', custom: '·custom' };
+const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', custom: '·custom', actual: '·Actual' };
 
 function recurringList() {
-  if (!_recurring.length) return '<div class="money-empty-sm">nothing recurring: add rent, salary, a loan…</div>';
-  const an = {}; _accounts.forEach(a => an[a.id] = a.name);
+  if (_recurringError) return '<div class="money-empty-sm money-history-error" role="status">couldn\'t load schedules <button type="button" class="btn" id="recurring-retry">retry</button></div>';
+  if (!_recurring.length) return `<div class="money-empty-sm">${_canonicalLedger ? 'no auto-post schedules in Actual' : 'nothing recurring: add rent, salary, a loan…'}</div>`;
   return `<div class="recurs">` + _recurring.map(r => `
-    <div class="recur ${r.active ? '' : 'paused'}" data-id="${r.id}">
+    <div class="recur ${r.active ? '' : 'paused'}" data-id="${esc(r.id)}">
       <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
-      <span class="rc-amt ${r.amount >= 0 ? 'pos' : 'neg'}">${signed(r.amount)}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
-      <span class="rc-next" title="next post">${r.active ? esc((r.next_date || '').slice(5)) : 'paused'}</span>
-      <button class="btn rc-toggle" data-toggle-rec="${r.id}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
-      <button class="tx-del" data-del-rec="${r.id}" title="delete">×</button>
+      <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? 'range' : 'varies') : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount)}`}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
+      <span class="rc-next" title="${r.next_date ? `next post ${esc(r.next_date)}` : 'next date unavailable'}">${r.active ? (r.next_date ? esc(r.next_date.slice(5)) : 'unknown') : (_canonicalLedger ? 'inactive' : 'paused')}</span>
+      ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
+      <button class="tx-del" data-del-rec="${esc(r.id)}" title="delete">×</button>`}
     </div>`).join('') + `</div>`;
 }
 
 function _recurringForm() {
+  if (_recurringError) return '';
+  if (_canonicalLedger) return '<p class="money-recurring-note">Actual owns these schedules; editing in Finance isn\'t available yet.</p>';
   if (!_accounts.length) return '';
   const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const first = _accounts[0]?.id || '';
@@ -791,13 +806,32 @@ function wire() {
   $('money-body').querySelectorAll('[data-rc-acct]').forEach(b => b.addEventListener('click', () => toggleReconcile(b.dataset.rcAcct)));
   $('money-body').querySelectorAll('[data-rc-run]').forEach(b => b.addEventListener('click', () => runReconcile(b.dataset.rcRun)));
   $('money-body').querySelectorAll('[data-del-budget]').forEach(b => b.addEventListener('click', () => delBudget(b.dataset.delBudget)));
-  $('rc-add')?.addEventListener('click', addRecurring);
-  $('money-body').querySelectorAll('[data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
-  $('money-body').querySelectorAll('[data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b.dataset.toggleRec)));
+  wireRecurring();
   $('rl-add')?.addEventListener('click', addRule);
   $('rl-cat')?.addEventListener('keydown', e => { if (e.key === 'Enter') addRule(); });
   $('rules-apply')?.addEventListener('click', applyRules);
   $('money-body').querySelectorAll('[data-del-rule]').forEach(b => b.addEventListener('click', () => delRule(b.dataset.delRule)));
+}
+
+async function retryRecurring() {
+  const button = $('recurring-retry');
+  button.disabled = true;
+  button.textContent = 'retrying…';
+  await readRecurring(api);
+  const content = $('recurring-content');
+  if (!content) return;
+  content.innerHTML = recurringList() + _recurringForm();
+  wireRecurring();
+  ($('recurring-retry') || document.querySelector('.money-card[data-card="recurring"] h3'))?.focus();
+}
+
+function wireRecurring() {
+  $('recurring-retry')?.addEventListener('click', retryRecurring);
+  document.querySelectorAll('#recurring-content .custom-select').forEach(initCustomDropdown);
+  document.querySelectorAll('#recurring-content .date-input').forEach(initDatePicker);
+  $('rc-add')?.addEventListener('click', addRecurring);
+  document.querySelectorAll('#recurring-content [data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
+  document.querySelectorAll('#recurring-content [data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b.dataset.toggleRec)));
 }
 
 // wire the txn row buttons within a root (the whole #txn-rows list); called on full

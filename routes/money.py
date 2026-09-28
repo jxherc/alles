@@ -1084,7 +1084,11 @@ def _rec(r):
 
 @router.get("/recurring")
 def list_recurring(db: DbSession = Depends(get_db)):
-    _require_actual_backed_analytics(db, "recurring schedules")
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.recurring_schedules(db)
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     _post_due_recurring(db)
     rows = db.query(RecurringTxn).order_by(RecurringTxn.next_date.asc()).all()
     return [_rec(r) for r in rows]
@@ -2190,6 +2194,7 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
             for value in months
         ]
         return {
+            "ledger": "actual",
             "month": month,
             "net_worth": round(net_worth, 2),
             "income": round(income, 2),
@@ -2270,6 +2275,7 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
     ]
 
     return {
+        "ledger": "alles",
         "month": month,
         "net_worth": round(net_worth, 2),
         "income": round(income, 2),

@@ -37,6 +37,7 @@ class MoneySummaryTests(unittest.TestCase):
 
     def test_income_expense_net(self):
         s = money.summary("2026-06", self._seed())
+        self.assertEqual(s["ledger"], "alles")
         self.assertEqual(s["income"], 2000.0)
         self.assertEqual(s["expense"], 80.0)  # only June expenses
         self.assertEqual(s["net"], 1920.0)
