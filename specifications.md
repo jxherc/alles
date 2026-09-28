@@ -274,6 +274,10 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
 - the Money month-end forecast uses the active ledger. after cutover, one Actual snapshot supplies
   the balance, three-month category averages, and active posting schedules; subscription renewals
   remain in their separate forecast. the projected card offers retry when this read is unavailable
+- the Money recurring list reads current Actual auto-post schedules after cutover, excluding
+  subscription schedules. a failed read shows retry rather than an empty list. schedule changes
+  in Finance remain unavailable after cutover until canonical writes can preserve the old
+  category/notes behavior and recover safely from uncertain provider results
 - Aide's Finance account, transaction, and spending-read tools follow the active ledger; if Actual
   cannot be read after cutover, they return an error instead of quoting old balances or charges
 - the unified transaction JSON/CSV download also reads the active ledger, and fails if it cannot
