@@ -1,20 +1,73 @@
-"""2c - spending anomaly detection: category spend spikes vs history + new merchants.
-pure + testable; reuses 2b (forecast.category_averages) and 2a (money_query._norm_payee).
-"""
+"""Finance spending totals, category anomalies, and merchant insights."""
 
+import math
+from collections import defaultdict
+
+from sqlalchemy import func
+
+from core.database import Transaction, TxnSplit
 from services.forecast import _recent_months, category_averages
 from services.money_query import _norm_payee
+
+
+def finite_amount(value):
+    """Keep a corrupt numeric row from breaking Finance read responses."""
+    return value if isinstance(value, (int, float)) and math.isfinite(value) else 0.0
+
+
+def balance_deltas(db):
+    by_account = defaultdict(float)
+    rows = (
+        db.query(Transaction.account_id, func.sum(Transaction.amount))
+        .group_by(Transaction.account_id)
+        .all()
+    )
+    for account_id, total in rows:
+        by_account[account_id] = finite_amount(total or 0.0)
+    return by_account
+
+
+def distribute_expense(txn, splits_by_txn, by):
+    """Add one expense transaction to category totals, honoring split remainders."""
+    amt = txn.amount or 0.0
+    splits = splits_by_txn.get(txn.id)
+    if splits:
+        covered = 0.0
+        for split in splits:
+            by[split.category or "uncategorized"] += split.amount or 0.0
+            covered += split.amount or 0.0
+        remainder = round(-amt - covered, 2)
+        if remainder > 0:
+            by[txn.category or "uncategorized"] += remainder
+    else:
+        by[txn.category or "uncategorized"] += -amt
+
+
+def spending_by_category(db, month, upto=False, txns=None, splits_by_txn=None):
+    """Expense totals for one month, or cumulatively through it with ``upto=True``."""
+    if splits_by_txn is None:
+        splits_by_txn = defaultdict(list)
+        for split in db.query(TxnSplit).all():
+            splits_by_txn[split.txn_id].append(split)
+    by = defaultdict(float)
+    rows = txns if txns is not None else db.query(Transaction).all()
+    for txn in rows:
+        if txn.transfer_id or (txn.amount or 0.0) >= 0:
+            continue
+        txn_month = (txn.date or "")[:7]
+        if (txn_month > month) if upto else (txn_month != month):
+            continue
+        distribute_expense(txn, splits_by_txn, by)
+    return by
 
 
 def category_anomalies(db, *, as_of, months=3, ratio=1.5, min_amount=50.0, cur=None):
     """categories whose THIS-month spend is >= ratio x the historical monthly average.
     pass `cur` (this month's spend-by-category) to reuse an already-computed dict and
     skip a redundant full transaction scan."""
-    from routes.money import _spending_by_cat
-
     avg = category_averages(db, months=months, as_of=as_of)
     if cur is None:
-        cur = _spending_by_cat(db, as_of.strftime("%Y-%m"))
+        cur = spending_by_category(db, as_of.strftime("%Y-%m"))
     out = []
     for cat, spent in cur.items():
         base = avg.get(cat, 0.0)
@@ -40,8 +93,8 @@ def new_merchants(db, *, as_of, months=3, min_amount=20.0):
     prior = set(_recent_months(as_of, months))
     accts = {a.id for a in db.query(Account).filter_by(archived=False).all()}
     cur_m, prior_m = {}, set()
-    # spend / transfer / account predicates in sql (consistent with _spending_by_cat) so we don't
-    # scan income + transfers + archived-account rows in python
+    # Merchant insights exclude archived accounts; current spending totals include them.
+    # Apply the narrower predicates in SQL before inspecting merchant names.
     rows = (
         db.query(Transaction)
         .filter(

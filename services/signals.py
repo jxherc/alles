@@ -344,10 +344,10 @@ def _health(db, today):
 
 
 def _budget(db, today):
-    from routes.money import _spending_by_cat
+    from services.money_stats import spending_by_category
 
     month = today.strftime("%Y-%m")
-    spent = _spending_by_cat(db, month)
+    spent = spending_by_category(db, month)
     out = []
     by_tag = None
     for b in db.query(Budget).all():
@@ -420,9 +420,9 @@ def _anomalies(db, today, month, spent):
 
 
 def _accounts(db, today):
-    from routes.money import _balances
+    from services.money_stats import balance_deltas
 
-    bal = _balances(db)
+    bal = balance_deltas(db)
     out = []
     out.extend(_tax_reminder(db, today))  # 2f - quarterly estimated-tax set-aside (gated)
     for a in db.query(Account).filter(Account.archived == False).all():  # noqa: E712
