@@ -129,22 +129,25 @@ def today_view(
         signals.calendar_zone(timezone_q)
     except (KeyError, ValueError):
         raise HTTPException(400, "timezone must be a valid IANA name")
-    today = _safe_date(date_q, timezone_q) if date_q else signals.calendar_today(timezone_q)
+    current_day = signals.calendar_today(timezone_q)
+    today = _safe_date(date_q, timezone_q) if date_q else current_day
 
-    # roll overdue subs forward first (a write) so signals reads fresh next_due
-    from routes.subscriptions import _roll_and_post
+    # Date previews are reads; only the current-day view advances Finance's ledger.
+    if today == current_day:
+        from routes.subscriptions import _roll_and_post
 
-    with actual_finance.AUTHORITY_LOCK:
-        subs = db.query(Subscription).filter(Subscription.active == True).all()  # noqa: E712
-        changed = False
-        for sub in subs:
-            try:
-                changed = _roll_and_post(sub, today, db) or changed
-            except HTTPException as exc:
-                if exc.status_code != 409:
-                    raise
-        if changed:
-            db.commit()
+        finance_day = date.today()
+        with actual_finance.AUTHORITY_LOCK:
+            subs = db.query(Subscription).filter(Subscription.active == True).all()  # noqa: E712
+            changed = False
+            for sub in subs:
+                try:
+                    changed = _roll_and_post(sub, finance_day, db) or changed
+                except HTTPException as exc:
+                    if exc.status_code != 409:
+                        raise
+            if changed:
+                db.commit()
 
     g = signals.by_category(
         signals.gather(
