@@ -348,7 +348,7 @@ async function loadHidden() {
   _killMap(); _repaint = null;
   let r = await fetch('/api/photos/hidden', { headers: _vaultTok ? { 'X-Vault-Token': _vaultTok } : {} });
   if (r.status === 403) {
-    const pw = await dlgPrompt('vault master password to view the hidden album:');
+    const pw = await dlgPrompt('vault master password to view the hidden album:', '', { secret: true });
     if (!pw) { grid.innerHTML = `<div class="photos-empty">${_si('lock')} hidden album is locked</div>`; return; }
     try {
       const u = await fetch('/api/vault/unlock', {
@@ -1044,6 +1044,7 @@ export function initPhotos() {
     await closeLightbox();
     openEditor(photo.original, {
       name: photo.original_name || 'photo.png',
+      sourcePhotoId: photo.id,
       onSaved: _reloadPhotos,
     });
   });
@@ -1100,7 +1101,9 @@ export function initPhotos() {
   $('photos-fav-btn')?.addEventListener('click', async () => {
     if (!_cur) return;
     const fav = !_cur.favorite;
-    await fetch('/api/photos/' + _cur.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: fav }) });
+    try {
+      await _response(await fetch('/api/photos/' + _cur.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: fav }) }));
+    } catch { toast('favorite could not be saved', 'error'); return; }
     _cur.favorite = fav;
     _setFavBtn(fav);
     const cell = document.querySelector(`.photos-cell[data-id="${_cur.id}"]`);
@@ -1112,7 +1115,8 @@ export function initPhotos() {
   });
   $('photos-del-btn')?.addEventListener('click', async () => {
     if (!_cur || !await _discardCaption() || !await dlgConfirm('delete this image?')) return;
-    await fetch('/api/photos/' + _cur.id, { method: 'DELETE' });
+    try { await _response(await fetch('/api/photos/' + _cur.id, { method: 'DELETE' })); }
+    catch { toast('delete failed', 'error'); return; }
     closeLightbox(); _reloadPhotos();
   });
   $('photos-meta-save')?.addEventListener('click', async () => {
@@ -1141,9 +1145,11 @@ export function initPhotos() {
   $('photos-hide-btn')?.addEventListener('click', async () => {
     if (!_cur || !await _discardCaption()) return;
     const hide = !_cur.hidden;
-    await fetch('/api/photos/' + _cur.id, {
-      method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hidden: hide }),
-    });
+    try {
+      await _response(await fetch('/api/photos/' + _cur.id, {
+        method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hidden: hide }),
+      }));
+    } catch { toast('hidden state could not be saved', 'error'); return; }
     _cur.hidden = hide;
     closeLightbox(); _reloadPhotos();
   });

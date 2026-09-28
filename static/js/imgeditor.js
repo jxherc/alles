@@ -63,7 +63,7 @@ export function openEditor(url, opts = {}) {
     tool: 'adjust', brush: { size: 8, color: '#ff3b30' },
     drawing: false, lastX: 0, lastY: 0,
     crop: null, history: [],
-    name: opts.name || 'edited.png', onSaved: opts.onSaved || null,
+    name: opts.name || 'edited.png', sourcePhotoId: opts.sourcePhotoId || null, onSaved: opts.onSaved || null,
   };
   const st = S;
 
@@ -298,10 +298,10 @@ async function exportImage(download) {
   try {
     const r = await fetch('/api/photos/edit-save', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ data_url: dataUrl, name: S.name }),
+      body: JSON.stringify({ data_url: dataUrl, name: S.name, source_photo_id: S.sourcePhotoId }),
     });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'save failed');
-    toast('saved to gallery', 'success');
+    toast('saved', 'success');
     const cb = S.onSaved;
     closeEditor();
     if (cb) cb();

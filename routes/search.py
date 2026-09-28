@@ -212,7 +212,11 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
     # photos — by original filename
     photos = (
         db.query(Photo)
-        .filter(Photo.original_name.ilike(pat, escape="\\"))
+        .filter(
+            Photo.original_name.ilike(pat, escape="\\"),
+            Photo.deleted_at == None,  # noqa: E711
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+        )
         .order_by(Photo.created_at.desc())
         .limit(_LIMIT)
         .all()

@@ -4889,6 +4889,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_gallery_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 153
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_health_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 92
@@ -5203,6 +5209,12 @@
                 "file": "tests/pw_finance_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 206
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_gallery_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 153
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -47580,7 +47592,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1152 click"
+            "value": "static/js/photos.js:1158 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -47609,7 +47621,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1152 click"
+            "value": "static/js/photos.js:1158 click"
           },
           "keys": [
             "Enter",
@@ -47642,7 +47654,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1152 click"
+        "value": "static/js/photos.js:1158 click"
       },
       "id": "static.f66b15c143d7",
       "kind": "action",
@@ -48767,7 +48779,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 482
+                "line": 486
               }
             ]
           },
@@ -48796,7 +48808,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 482
+                "line": 486
               }
             ]
           },
@@ -50657,7 +50669,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1163 change"
+            "value": "static/js/photos.js:1169 change"
           },
           "keys": [
             "native editing keys"
@@ -50681,7 +50693,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1163 change"
+            "value": "static/js/photos.js:1169 change"
           },
           "keys": [
             "value selection keys or pointer"
@@ -50713,7 +50725,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1163 change"
+        "value": "static/js/photos.js:1169 change"
       },
       "id": "static.2a24549ebaef",
       "kind": "field",
@@ -50809,7 +50821,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1164 change"
+            "value": "static/js/photos.js:1170 change"
           },
           "keys": [
             "native editing keys"
@@ -50833,7 +50845,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1164 change"
+            "value": "static/js/photos.js:1170 change"
           },
           "keys": [
             "value selection keys or pointer"
@@ -50865,7 +50877,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1164 change"
+        "value": "static/js/photos.js:1170 change"
       },
       "id": "static.4b0c980a918c",
       "kind": "field",
@@ -50961,7 +50973,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1165 click"
+            "value": "static/js/photos.js:1171 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -50983,7 +50995,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1165 click"
+            "value": "static/js/photos.js:1171 click"
           },
           "keys": [
             "Enter",
@@ -51016,7 +51028,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1165 click"
+        "value": "static/js/photos.js:1171 click"
       },
       "id": "static.263cc497c800",
       "kind": "action",
@@ -59013,9 +59025,15 @@
             "tests": [
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_gallery_hidden.py",
+                "kind": "existing-test-control-reference",
+                "line": 96
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 218
+                "line": 222
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -59066,9 +59084,15 @@
             "tests": [
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_gallery_hidden.py",
+                "kind": "existing-test-control-reference",
+                "line": 96
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 218
+                "line": 222
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -59234,7 +59258,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1100 click"
+            "value": "static/js/photos.js:1101 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -59263,7 +59287,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1100 click"
+            "value": "static/js/photos.js:1101 click"
           },
           "keys": [
             "Enter",
@@ -59296,7 +59320,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1100 click"
+        "value": "static/js/photos.js:1101 click"
       },
       "id": "static.33bb00e59308",
       "kind": "action",
@@ -59398,7 +59422,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1070 click"
+            "value": "static/js/photos.js:1071 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -59427,7 +59451,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1070 click"
+            "value": "static/js/photos.js:1071 click"
           },
           "keys": [
             "Enter",
@@ -59460,7 +59484,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1070 click"
+        "value": "static/js/photos.js:1071 click"
       },
       "id": "static.cfe1f2a983e0",
       "kind": "action",
@@ -59562,7 +59586,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1141 click"
+            "value": "static/js/photos.js:1145 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -59591,7 +59615,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1141 click"
+            "value": "static/js/photos.js:1145 click"
           },
           "keys": [
             "Enter",
@@ -59624,7 +59648,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1141 click"
+        "value": "static/js/photos.js:1145 click"
       },
       "id": "static.7ff3da388d8c",
       "kind": "action",
@@ -59996,7 +60020,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1069 click"
+            "value": "static/js/photos.js:1070 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -60025,7 +60049,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1069 click"
+            "value": "static/js/photos.js:1070 click"
           },
           "keys": [
             "Enter",
@@ -60058,7 +60082,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1069 click"
+        "value": "static/js/photos.js:1070 click"
       },
       "id": "static.63dfddc2168e",
       "kind": "action",
@@ -60166,7 +60190,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1113 click"
+            "value": "static/js/photos.js:1116 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -60201,7 +60225,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1113 click"
+            "value": "static/js/photos.js:1116 click"
           },
           "keys": [
             "Enter",
@@ -60234,7 +60258,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1113 click"
+        "value": "static/js/photos.js:1116 click"
       },
       "id": "static.f9a32112b2a3",
       "kind": "action",
@@ -60336,7 +60360,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1065 click"
+            "value": "static/js/photos.js:1066 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -60365,7 +60389,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1065 click"
+            "value": "static/js/photos.js:1066 click"
           },
           "keys": [
             "Enter",
@@ -60398,7 +60422,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1065 click"
+        "value": "static/js/photos.js:1066 click"
       },
       "id": "static.d88c45603fd7",
       "kind": "action",
@@ -60500,7 +60524,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1066 click"
+            "value": "static/js/photos.js:1067 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -60529,7 +60553,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1066 click"
+            "value": "static/js/photos.js:1067 click"
           },
           "keys": [
             "Enter",
@@ -60562,7 +60586,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1066 click"
+        "value": "static/js/photos.js:1067 click"
       },
       "id": "static.2b627a23bc82",
       "kind": "action",
@@ -60657,31 +60681,31 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 408
+                "line": 412
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 413
+                "line": 417
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 425
+                "line": 429
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 432
+                "line": 436
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 441
+                "line": 445
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -60820,7 +60844,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_gallery_workflows.py",
                 "kind": "existing-test-control-reference",
-                "line": 409
+                "line": 413
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -60966,7 +60990,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1118 click"
+            "value": "static/js/photos.js:1122 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -60995,7 +61019,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/photos.js:1118 click"
+            "value": "static/js/photos.js:1122 click"
           },
           "keys": [
             "Enter",
@@ -61028,7 +61052,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/photos.js:1118 click"
+        "value": "static/js/photos.js:1122 click"
       },
       "id": "static.f88aa1e69616",
       "kind": "action",
@@ -63525,6 +63549,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_gallery_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 160
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_health_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 102
@@ -63683,6 +63713,12 @@
                 "file": "tests/pw_finance_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 213
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_gallery_workflows.py",
+                "kind": "existing-test-control-reference",
+                "line": 160
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -200735,7 +200771,7 @@
             "source": {
               "file": "static/js/photos.js",
               "kind": "control-source",
-              "line": 1188
+              "line": 1194
             },
             "status": "source-only",
             "tests": []
@@ -200743,7 +200779,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/photos.js:1179 openPhotoTrash"
+            "value": "static/js/photos.js:1185 openPhotoTrash"
           },
           "keys": [
             "Enter"
@@ -200778,7 +200814,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/photos.js:1179 openPhotoTrash"
+        "value": "static/js/photos.js:1185 openPhotoTrash"
       },
       "id": "dynamic.3c115706ddb6",
       "kind": "link",
@@ -200792,7 +200828,7 @@
           "source-local:/api/photos/trash"
         ],
         "client_functions": [
-          "static/js/photos.js:1179 openPhotoTrash"
+          "static/js/photos.js:1185 openPhotoTrash"
         ],
         "external_destination": "#",
         "server_owner": "not-declared-in-template-source"
@@ -200833,9 +200869,9 @@
         "source": {
           "column": null,
           "file": "static/js/photos.js",
-          "line": 1188
+          "line": 1194
         },
-        "source_selector": "static/js/photos.js:1188:17",
+        "source_selector": "static/js/photos.js:1194:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -200863,7 +200899,7 @@
             "source": {
               "file": "static/js/photos.js",
               "kind": "control-source",
-              "line": 1192
+              "line": 1198
             },
             "status": "source-only",
             "tests": []
@@ -200871,7 +200907,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/photos.js:1179 openPhotoTrash"
+            "value": "static/js/photos.js:1185 openPhotoTrash"
           },
           "keys": [],
           "modality": "pointer",
@@ -200885,7 +200921,7 @@
             "source": {
               "file": "static/js/photos.js",
               "kind": "control-source",
-              "line": 1192
+              "line": 1198
             },
             "status": "source-only",
             "tests": []
@@ -200893,7 +200929,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/photos.js:1179 openPhotoTrash"
+            "value": "static/js/photos.js:1185 openPhotoTrash"
           },
           "keys": [
             "Enter",
@@ -200930,7 +200966,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/photos.js:1179 openPhotoTrash"
+        "value": "static/js/photos.js:1185 openPhotoTrash"
       },
       "id": "dynamic.52b2a3694611",
       "kind": "action",
@@ -200944,7 +200980,7 @@
           "source-local:/api/photos/trash"
         ],
         "client_functions": [
-          "static/js/photos.js:1179 openPhotoTrash"
+          "static/js/photos.js:1185 openPhotoTrash"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -200985,9 +201021,9 @@
         "source": {
           "column": null,
           "file": "static/js/photos.js",
-          "line": 1192
+          "line": 1198
         },
-        "source_selector": "static/js/photos.js:1192:18",
+        "source_selector": "static/js/photos.js:1198:18",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [

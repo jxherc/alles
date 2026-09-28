@@ -3,18 +3,52 @@ import json
 from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Album, Face, Person, Photo, TrashItem, get_db
-from routes.vault import _master_pw
+from routes.vault import _ctx
 from services import photos_store as ps
 from services import trash
 
 router = APIRouter(prefix="/api/photos")
+_HIDDEN_COOKIE = "alles_hidden_photos"
+
+
+def _hidden_token(request: Request) -> str:
+    return request.headers.get("X-Vault-Token") or request.cookies.get(_HIDDEN_COOKIE, "")
+
+
+def _require_hidden_access(photo: Photo, request: Request, db: DbSession) -> None:
+    if photo.hidden:
+        _ctx(_hidden_token(request), db)
+
+
+def _require_hidden_rows(rows: list[Photo], request: Request, db: DbSession) -> None:
+    if any(photo.hidden for photo in rows):
+        _ctx(_hidden_token(request), db)
+
+
+def _has_hidden_access(request: Request, db: DbSession) -> bool:
+    token = _hidden_token(request)
+    if not token:
+        return False
+    try:
+        _ctx(token, db)
+    except HTTPException:
+        return False
+    return True
+
+
+def _private_media_headers(photo: Photo) -> dict[str, str]:
+    return (
+        {"Cache-Control": "no-store", "Cross-Origin-Resource-Policy": "same-origin"}
+        if photo.hidden
+        else {}
+    )
 
 
 def _kw_list(s) -> list[str]:
@@ -63,16 +97,24 @@ def _attach_stacks(out, db):
     ]
     if not cover_ids:
         return out
-    counts = dict(
-        db.query(Photo.stack_id, func.count(Photo.id))
-        .filter(Photo.stack_id.in_(cover_ids), Photo.deleted_at == None)  # noqa: E711
-        .group_by(Photo.stack_id)
+    groups = (
+        db.query(Photo.stack_id, Photo.hidden, func.count(Photo.id))
+        .filter(
+            Photo.stack_id.in_(cover_ids),
+            Photo.deleted_at == None,  # noqa: E711
+        )
+        .group_by(Photo.stack_id, Photo.hidden)
         .all()
     )
+    counts = {}
+    for stack_id, hidden, count in groups:
+        key = (stack_id, bool(hidden))
+        counts[key] = counts.get(key, 0) + count
     for m in out["moments"]:
         for it in m["items"]:
-            if it["id"] in counts:
-                it["stack_count"] = counts[it["id"]]
+            key = (it["id"], it["hidden"])
+            if key in counts:
+                it["stack_count"] = counts[key]
     return out
 
 
@@ -172,8 +214,16 @@ def list_photos(
     if favorites:
         q = q.filter(Photo.favorite == True)  # noqa: E712
     q = _apply_filters(q, type, camera, from_, to)
-    # collapse stacks: show only covers + un-stacked photos
-    q = q.filter((Photo.stack_id == None) | (Photo.stack_id == Photo.id))  # noqa: E711
+    # A visible member must not disappear when its stack cover is hidden or trashed.
+    visible_covers = db.query(Photo.id).filter(
+        Photo.deleted_at == None,  # noqa: E711
+        (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+    )
+    q = q.filter(
+        (Photo.stack_id == None)  # noqa: E711
+        | (Photo.stack_id == Photo.id)
+        | (~Photo.stack_id.in_(visible_covers))
+    )
     if limit and limit > 0:
         # paged: order in sql (newest first, id as a stable tiebreak) and slice
         q = q.order_by(func.coalesce(Photo.taken_at, Photo.created_at).desc(), Photo.id.desc())
@@ -209,7 +259,11 @@ def duplicates(db: DbSession = Depends(get_db)):
     """byte-identical live photos grouped by sha256 (2+ per group). oldest first = suggested keep."""
     rows = (
         db.query(Photo)
-        .filter(Photo.deleted_at == None, Photo.checksum != None)  # noqa: E711
+        .filter(
+            Photo.deleted_at == None,  # noqa: E711
+            Photo.checksum != None,  # noqa: E711
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+        )
         .all()
     )
     groups = {}
@@ -229,7 +283,7 @@ class StackBody(BaseModel):
 
 
 @router.post("/stack")
-def stack(body: StackBody, db: DbSession = Depends(get_db)):
+def stack(body: StackBody, request: Request, db: DbSession = Depends(get_db)):
     """group photos under one cover (largest by area). pulls in members of any stack touched."""
     ids = set(body.ids)
     rows = db.query(Photo).filter(Photo.id.in_(ids), Photo.deleted_at.is_(None)).all()
@@ -244,6 +298,7 @@ def stack(body: StackBody, db: DbSession = Depends(get_db)):
             .all()
         }
         rows = db.query(Photo).filter(Photo.id.in_(ids), Photo.deleted_at.is_(None)).all()
+    _require_hidden_rows(rows, request, db)
     cover = max(rows, key=lambda p: (p.width or 0) * (p.height or 0))
     for p in rows:
         p.stack_id = cover.id
@@ -256,20 +311,26 @@ class StackIdBody(BaseModel):
 
 
 @router.post("/unstack")
-def unstack(body: StackIdBody, db: DbSession = Depends(get_db)):
+def unstack(body: StackIdBody, request: Request, db: DbSession = Depends(get_db)):
     p = db.get(Photo, body.id)
     if not p:
         raise HTTPException(404)
     sid = p.stack_id or p.id
+    _require_hidden_rows([p, *db.query(Photo).filter(Photo.stack_id == sid).all()], request, db)
     db.query(Photo).filter(Photo.stack_id == sid).update({Photo.stack_id: None})
     db.commit()
     return {"ok": True}
 
 
 @router.get("/stack/{cover_id}")
-def stack_members(cover_id: str, db: DbSession = Depends(get_db)):
+def stack_members(cover_id: str, request: Request, db: DbSession = Depends(get_db)):
     """all photos in a stack, cover first — used to expand a stack in the viewer."""
+    cover = db.get(Photo, cover_id)
+    if not cover:
+        raise HTTPException(404)
+    _require_hidden_access(cover, request, db)
     rows = db.query(Photo).filter(Photo.stack_id == cover_id, Photo.deleted_at == None).all()  # noqa: E711
+    rows = [photo for photo in rows if bool(photo.hidden) == bool(cover.hidden)]
     rows.sort(key=lambda p: (p.id != cover_id, p.taken_at or p.created_at or datetime.min))
     return {"items": [_fmt(p) for p in rows]}
 
@@ -290,8 +351,19 @@ def list_archive(db: DbSession = Depends(get_db)):
 
 
 @router.get("/hidden")
-def list_hidden(db: DbSession = Depends(get_db), _pw: str = Depends(_master_pw)):
+def list_hidden(request: Request, response: Response, db: DbSession = Depends(get_db)):
     """the hidden/locked album — only reachable with a valid vault unlock token (7a)."""
+    _ctx(_hidden_token(request), db)
+    response.headers["Cache-Control"] = "no-store"
+    if request.headers.get("X-Vault-Token"):
+        response.set_cookie(
+            _HIDDEN_COOKIE,
+            request.headers["X-Vault-Token"],
+            path="/api/photos",
+            httponly=True,
+            secure=request.url.scheme == "https",
+            samesite="strict",
+        )
     rows = (
         db.query(Photo)
         .filter(Photo.deleted_at == None, Photo.hidden == True)  # noqa: E711,E712
@@ -341,11 +413,22 @@ def clip_status(db: DbSession = Depends(get_db)):
     from services import clip
 
     av = clip.available()
-    indexed = db.query(Photo).filter(Photo.clip != None).count() if av else 0  # noqa: E711
+    indexed = (
+        db.query(Photo)
+        .filter(
+            Photo.clip != None,  # noqa: E711
+            Photo.deleted_at == None,  # noqa: E711
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+        )
+        .count()
+        if av
+        else 0
+    )
     total = (
         db.query(Photo)
         .filter(
             Photo.deleted_at == None,  # noqa: E711
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
             (Photo.is_video == False) | (Photo.is_video == None),  # noqa: E711,E712
         )
         .count()
@@ -400,8 +483,29 @@ def _person_counts(db, person_ids=None):
 
 def _cover_face(db, per) -> str | None:
     if per.cover_face_id:
-        return per.cover_face_id
-    f = db.query(Face.id).filter(Face.person_id == per.id).order_by(Face.det_score.desc()).first()
+        visible = (
+            db.query(Face.id)
+            .join(Photo, Photo.id == Face.photo_id)
+            .filter(
+                Face.id == per.cover_face_id,
+                Photo.deleted_at == None,  # noqa: E711
+                (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+            )
+            .first()
+        )
+        if visible:
+            return visible[0]
+    f = (
+        db.query(Face.id)
+        .join(Photo, Photo.id == Face.photo_id)
+        .filter(
+            Face.person_id == per.id,
+            Photo.deleted_at == None,  # noqa: E711
+            (Photo.hidden == False) | (Photo.hidden == None),  # noqa: E711,E712
+        )
+        .order_by(Face.det_score.desc())
+        .first()
+    )
     return f[0] if f else None
 
 
@@ -411,11 +515,17 @@ def faces_status(db: DbSession = Depends(get_db)):
     from services import faces
 
     av = faces.available()
-    scanned = db.query(Photo).filter(Photo.faces_at != None).count() if av else 0  # noqa: E711
+    visible = (Photo.hidden == False) | (Photo.hidden == None)  # noqa: E711,E712
+    scanned = (
+        db.query(Photo).filter(Photo.faces_at != None, Photo.deleted_at == None, visible).count()  # noqa: E711
+        if av
+        else 0
+    )
     total = (
         db.query(Photo)
         .filter(
             Photo.deleted_at == None,  # noqa: E711
+            visible,
             (Photo.is_video == False) | (Photo.is_video == None),  # noqa: E711,E712
         )
         .count()
@@ -424,8 +534,23 @@ def faces_status(db: DbSession = Depends(get_db)):
         "available": av,
         "scanned": scanned,
         "total": total,
-        "people": db.query(Person).filter(Person.hidden == False).count() if av else 0,  # noqa: E712
-        "faces": db.query(Face).count() if av else 0,
+        "people": (
+            db.query(func.count(func.distinct(Face.person_id)))
+            .join(Person, Person.id == Face.person_id)
+            .join(Photo, Photo.id == Face.photo_id)
+            .filter(Person.hidden == False, Photo.deleted_at == None, visible)  # noqa: E711,E712
+            .scalar()
+            if av
+            else 0
+        ),
+        "faces": (
+            db.query(Face)
+            .join(Photo, Photo.id == Face.photo_id)
+            .filter(Photo.deleted_at == None, visible)  # noqa: E711
+            .count()
+            if av
+            else 0
+        ),
     }
 
 
@@ -533,8 +658,12 @@ def merge_people(body: MergeBody, db: DbSession = Depends(get_db)):
 
 
 @router.get("/photo/{pid}/faces")
-def photo_faces(pid: str, db: DbSession = Depends(get_db)):
+def photo_faces(pid: str, request: Request, db: DbSession = Depends(get_db)):
     """faces found in one photo, with their person — drives the face chips in the lightbox."""
+    photo = db.get(Photo, pid)
+    if not photo:
+        raise HTTPException(404)
+    _require_hidden_access(photo, request, db)
     rows = db.query(Face).filter(Face.photo_id == pid).order_by(Face.det_score.desc()).all()
     pmap = {}
     pids = {f.person_id for f in rows if f.person_id}
@@ -555,7 +684,7 @@ def photo_faces(pid: str, db: DbSession = Depends(get_db)):
 
 
 @router.get("/face/{fid}")
-def face_crop(fid: str, db: DbSession = Depends(get_db)):
+def face_crop(fid: str, request: Request, db: DbSession = Depends(get_db)):
     """a square-ish crop of a single face, for avatars + chips. padded a little past the bbox."""
     from PIL import Image, ImageOps
 
@@ -565,6 +694,7 @@ def face_crop(fid: str, db: DbSession = Depends(get_db)):
     p = db.get(Photo, f.photo_id)
     if not p:
         raise HTTPException(404)
+    _require_hidden_access(p, request, db)
     op = ps.original_path(p.filename)
     if not op.is_file():
         raise HTTPException(404)
@@ -586,7 +716,9 @@ def face_crop(fid: str, db: DbSession = Depends(get_db)):
     return Response(
         content=buf.getvalue(),
         media_type="image/jpeg",
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers=_private_media_headers(p)
+        if p.hidden
+        else {"Cache-Control": "public, max-age=86400"},
     )
 
 
@@ -721,13 +853,19 @@ def memories(date: str = Query(""), db: DbSession = Depends(get_db)):
 class EditSaveBody(BaseModel):
     data_url: str
     name: str = "edited.png"
+    source_photo_id: str | None = None
 
 
 @router.post("/edit-save")
-def edit_save(body: EditSaveBody, db: DbSession = Depends(get_db)):
+def edit_save(body: EditSaveBody, request: Request, db: DbSession = Depends(get_db)):
     """save an edited image (a canvas data-url from the editor) as a new photo."""
     import base64
 
+    source = db.get(Photo, body.source_photo_id) if body.source_photo_id else None
+    if body.source_photo_id and not source:
+        raise HTTPException(404)
+    if source:
+        _require_hidden_access(source, request, db)
     du = body.data_url or ""
     if "," in du:
         du = du.split(",", 1)[1]
@@ -752,6 +890,7 @@ def edit_save(body: EditSaveBody, db: DbSession = Depends(get_db)):
         aspect_ratio=info.get("aspect_ratio"),
         preview=info.get("preview", ""),
         checksum=info.get("checksum"),
+        hidden=bool(source.hidden) if source else False,
     )
     db.add(p)
     db.commit()
@@ -873,30 +1012,34 @@ def sync_macos_job(job_id: str):
 
 
 @router.get("/thumb/{pid}")
-def thumb(pid: str, db: DbSession = Depends(get_db)):
+def thumb(pid: str, request: Request, db: DbSession = Depends(get_db)):
     p = db.get(Photo, pid)
     if not p:
         raise HTTPException(404)
+    _require_hidden_access(p, request, db)
     tp = ps.thumb_path(p.thumb)
     if tp and tp.is_file():
-        return FileResponse(str(tp))
+        return FileResponse(str(tp), headers=_private_media_headers(p))
     if p.is_video:
         raise HTTPException(404)
     op = ps.original_path(p.filename)  # fall back to the original if no thumb
     if op.is_file():
-        return FileResponse(str(op))
+        return FileResponse(str(op), headers=_private_media_headers(p))
     raise HTTPException(404)
 
 
 @router.get("/original/{pid}")
-def original(pid: str, download: bool = False, db: DbSession = Depends(get_db)):
+def original(pid: str, request: Request, download: bool = False, db: DbSession = Depends(get_db)):
     p = db.get(Photo, pid)
     if not p:
         raise HTTPException(404)
+    _require_hidden_access(p, request, db)
     op = ps.original_path(p.filename)
     if not op.is_file():
         raise HTTPException(404)
-    return FileResponse(str(op), filename=p.original_name if download else None)
+    return FileResponse(
+        str(op), filename=p.original_name if download else None, headers=_private_media_headers(p)
+    )
 
 
 def _native_asset_rows(db, photo: Photo) -> list[Photo]:
@@ -913,13 +1056,14 @@ def _native_asset_rows(db, photo: Photo) -> list[Photo]:
 
 
 @router.delete("/{pid}")
-def delete_photo(pid: str, db: DbSession = Depends(get_db)):
+def delete_photo(pid: str, request: Request, db: DbSession = Depends(get_db)):
     p = db.get(Photo, pid)
     if not p:
         raise HTTPException(404)
     # A Live Photo's still and motion are one source asset. Keep them together
     # through trash/restore so a deleted cover cannot strand an invisible motion row.
     rows = _native_asset_rows(db, p)
+    _require_hidden_rows(rows, request, db)
     now = datetime.now(UTC).replace(tzinfo=None)
     trashed = [row for row in rows if row.deleted_at is None]
     for row in trashed:
@@ -931,13 +1075,15 @@ def delete_photo(pid: str, db: DbSession = Depends(get_db)):
 
 
 @router.get("/trash")
-def photo_trash(db: DbSession = Depends(get_db)):
+def photo_trash(request: Request, db: DbSession = Depends(get_db)):
     rows = (
         db.query(Photo)
         .filter(Photo.deleted_at != None)  # noqa: E711
         .order_by(Photo.deleted_at.desc())
         .all()
     )
+    if not _has_hidden_access(request, db):
+        rows = [p for p in rows if not p.hidden]
     return [
         {
             "id": p.id,
@@ -952,11 +1098,12 @@ def photo_trash(db: DbSession = Depends(get_db)):
 
 
 @router.post("/{pid}/restore")
-def restore_photo(pid: str, db: DbSession = Depends(get_db)):
+def restore_photo(pid: str, request: Request, db: DbSession = Depends(get_db)):
     p = db.get(Photo, pid)
     if not p or p.deleted_at is None:
         raise HTTPException(404)
     rows = _native_asset_rows(db, p)
+    _require_hidden_rows(rows, request, db)
     refs = [row.id for row in rows]
     for row in rows:
         row.deleted_at = None
@@ -977,10 +1124,12 @@ class PatchPhoto(BaseModel):
 
 
 @router.patch("/{pid}")
-def patch_photo(pid: str, body: PatchPhoto, db: DbSession = Depends(get_db)):
+def patch_photo(pid: str, body: PatchPhoto, request: Request, db: DbSession = Depends(get_db)):
     p = db.get(Photo, pid)
     if not p:
         raise HTTPException(404)
+    linked_rows = _native_asset_rows(db, p)
+    _require_hidden_rows(linked_rows, request, db)
     if body.favorite is not None:
         p.favorite = body.favorite
     if body.album_id is not None:
@@ -990,7 +1139,7 @@ def patch_photo(pid: str, body: PatchPhoto, db: DbSession = Depends(get_db)):
     if body.keywords is not None:
         p.keywords = _norm_kw(body.keywords)
     if body.hidden is not None:
-        for linked in _native_asset_rows(db, p):
+        for linked in linked_rows:
             linked.hidden = body.hidden
     if body.archived is not None:
         p.archived = body.archived
@@ -1018,7 +1167,7 @@ class BatchBody(BaseModel):
 
 
 @router.post("/batch")
-def batch(body: BatchBody, db: DbSession = Depends(get_db)):
+def batch(body: BatchBody, request: Request, db: DbSession = Depends(get_db)):
     """act on many photos in one call — favorite/archive/hide/move-to-album/delete/restore.
     keeps multi-select snappy (one round-trip, not N)."""
     if body.action not in _BATCH_ACTIONS:
@@ -1033,6 +1182,7 @@ def batch(body: BatchBody, db: DbSession = Depends(get_db)):
             for linked in _native_asset_rows(db, row):
                 expanded[linked.id] = linked
         rows = list(expanded.values())
+    _require_hidden_rows(rows, request, db)
     for p in rows:
         if a == "favorite":
             p.favorite = True
@@ -1093,11 +1243,13 @@ def add_album(body: AlbumBody, db: DbSession = Depends(get_db)):
 
 
 @router.delete("/albums/{aid}")
-def del_album(aid: str, db: DbSession = Depends(get_db)):
+def del_album(aid: str, request: Request, db: DbSession = Depends(get_db)):
     a = db.get(Album, aid)
     if not a:
         raise HTTPException(404)
-    for p in db.query(Photo).filter(Photo.album_id == aid).all():
+    rows = db.query(Photo).filter(Photo.album_id == aid).all()
+    _require_hidden_rows(rows, request, db)
+    for p in rows:
         p.album_id = None
     db.delete(a)
     db.commit()
