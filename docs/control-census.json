@@ -48113,13 +48113,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/test_photokit_gallery.py",
                 "kind": "existing-test-control-reference",
-                "line": 19
+                "line": 20
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/test_photokit_gallery.py",
                 "kind": "existing-test-control-reference",
-                "line": 20
+                "line": 21
               }
             ]
           },
@@ -48172,13 +48172,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/test_photokit_gallery.py",
                 "kind": "existing-test-control-reference",
-                "line": 19
+                "line": 20
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/test_photokit_gallery.py",
                 "kind": "existing-test-control-reference",
-                "line": 20
+                "line": 21
               }
             ]
           },
