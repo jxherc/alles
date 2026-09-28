@@ -30,8 +30,8 @@ def category_averages(db, *, months=3, as_of=None):
     if not accts:
         return {}
     totals = {}
-    # push the spend/transfer/account predicates into sql (same rule as routes/money._spending_by_cat)
-    # so we don't drag income + transfers + archived-account rows into python every call
+    # Historical averages exclude archived accounts, unlike current spending totals.
+    # Apply the narrower predicates in SQL before scanning transaction history.
     rows = (
         db.query(Transaction)
         .filter(

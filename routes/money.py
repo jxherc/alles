@@ -29,6 +29,10 @@ from core.database import (
     get_db,
 )
 from services import actual_finance, finance_currency, finance_requests, fx
+from services.money_stats import balance_deltas as _balances
+from services.money_stats import distribute_expense as _distribute
+from services.money_stats import finite_amount as _fin
+from services.money_stats import spending_by_category as _spending_by_cat
 
 
 def _actual_error(exc: actual_finance.ActualFinanceError):
@@ -176,26 +180,6 @@ def _advance(d: date, cycle: str, cycle_days: int, anchor: int | None = None) ->
 
 
 # ── accounts ────────────────────────────────────────────────────────────────
-def _fin(x):
-    """non-finite (nan/inf) amounts brick JSON serialization + every money read. coerce to 0 on the
-    read path so one poisoned row can't take down the whole section, and reject them on input."""
-    return x if isinstance(x, (int, float)) and math.isfinite(x) else 0.0
-
-
-def _balances(db):
-    from sqlalchemy import func
-
-    bal = defaultdict(float)
-    rows = (
-        db.query(Transaction.account_id, func.sum(Transaction.amount))
-        .group_by(Transaction.account_id)
-        .all()
-    )
-    for acct_id, total in rows:
-        bal[acct_id] = _fin(total or 0.0)
-    return bal
-
-
 def _acct(a, balance):
     return {
         "id": a.id,
@@ -398,41 +382,6 @@ def _rules(db):
 
 def _tag_rules(db):
     return db.query(TagRule).order_by(TagRule.created_at.asc()).all()
-
-
-def _distribute(t, splits_by_txn, by):
-    """add one expense txn's magnitude into `by` (cat→spent), honoring splits."""
-    amt = t.amount or 0.0
-    sp = splits_by_txn.get(t.id)
-    if sp:
-        covered = 0.0
-        for s in sp:
-            by[s.category or "uncategorized"] += s.amount or 0.0
-            covered += s.amount or 0.0
-        rem = round(-amt - covered, 2)
-        if rem > 0:
-            by[(t.category or "uncategorized")] += rem
-    else:
-        by[(t.category or "uncategorized")] += -amt
-
-
-def _spending_by_cat(db, month, upto=False, txns=None, splits_by_txn=None):
-    """expense per category for a month (or cumulatively through it, `upto=True`),
-    honoring splits + excluding transfers. shared by summary + the envelope view (4b)."""
-    if splits_by_txn is None:
-        splits_by_txn = defaultdict(list)
-        for s in db.query(TxnSplit).all():
-            splits_by_txn[s.txn_id].append(s)
-    by = defaultdict(float)
-    _txns = txns if txns is not None else db.query(Transaction).all()
-    for t in _txns:
-        if t.transfer_id or (t.amount or 0.0) >= 0:
-            continue
-        mo = (t.date or "")[:7]
-        if (mo > month) if upto else (mo != month):
-            continue
-        _distribute(t, splits_by_txn, by)
-    return by
 
 
 # ── transactions ──────────────────────────────────────────────────────────────
