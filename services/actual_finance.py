@@ -1136,9 +1136,40 @@ def recurring_schedules(
             continue
         source_id = recurring_public.get(actual_id, actual_id)
         metadata = recurring_metadata.get(actual_id, {})
+        pending = metadata.get("_update_intent")
+        if pending is not None and (
+            not isinstance(pending, dict)
+            or pending.get("version") != 1
+            or pending.get("action") != "repair_recurring_schedule"
+            or not isinstance(pending.get("category_id"), str)
+            or type(pending.get("posts_transaction")) is not bool
+            or not isinstance(pending.get("backup_id"), str)
+            or not pending.get("backup_id")
+        ):
+            raise ActualFinanceError("a recurring schedule repair intent is invalid")
         category = str(metadata.get("category") or "")
         notes = str(metadata.get("notes") or "")
-        if metadata.get("posting_rule_version") == 1:
+        overlay = metadata.get("canonical_schedule")
+        if overlay is not None and (not isinstance(overlay, dict) or overlay.get("version") != 1):
+            raise ActualFinanceError("the recurring schedule repair record is invalid")
+        if isinstance(overlay, dict) and overlay.get("version") == 1:
+            posting = row.get("posting") or {}
+            category_id = overlay.get("category_id")
+            if (
+                not isinstance(category_id, str)
+                or not isinstance(overlay.get("notes"), str)
+                or type(overlay.get("posts_transaction")) is not bool
+                or not posting.get("guarded")
+                or str(posting.get("category") or "") != category_id
+                or str(posting.get("notes") or "") != str(overlay.get("notes") or "")
+                or bool(row.get("posts_transaction")) != overlay.get("posts_transaction")
+            ):
+                raise ActualFinanceError("the repaired Actual schedule posting rule changed")
+            if category_id and category_id not in category_names:
+                raise ActualFinanceError("a repaired Actual schedule category is missing")
+            category = category_names.get(category_id, "")
+            notes = str(overlay.get("notes") or "")
+        elif metadata.get("posting_rule_version") == 1:
             posting = row.get("posting") or {}
             if not posting.get("guarded"):
                 raise ActualFinanceError("a managed Actual schedule posting rule is missing")
@@ -1204,9 +1235,208 @@ def recurring_schedules(
                 "next_date": next_date,
                 "active": bool(row.get("posts_transaction")) and not bool(row.get("completed")),
                 "last_posted": "",
+                "repair_needed": bool(
+                    pending
+                    or (
+                        actual_id in recurring_public
+                        and row.get("account")
+                        and not row.get("completed")
+                        and metadata.get("posting_rule_version") != 1
+                        and not overlay
+                    )
+                ),
+                "repair_pending": bool(pending),
+                "repair_category_id": pending["category_id"] if pending else "",
             }
         )
+    for actual_id, metadata in recurring_metadata.items():
+        if metadata.get("_update_intent") and actual_id not in seen:
+            raise ActualFinanceError("a recurring schedule repair lost its Actual schedule")
     return sorted(rows, key=lambda row: (row["next_date"] or "9999-12-31", row["id"]))
+
+
+@authority_guarded
+def repair_recurring_schedule(
+    db: Session,
+    source_id: str,
+    category_id: str,
+    *,
+    bridge_request=None,
+    backup_fn=managed_actual.backup,
+) -> dict:
+    """Upgrade one old linked schedule without changing its Actual identity."""
+    from services import actual_migration
+
+    matches = [row for row in _links(db, "recurring") if row.source_id == source_id]
+    if len(matches) != 1 or not matches[0].actual_id:
+        raise ActualFinanceError("only a linked old recurring schedule can be repaired")
+    link = matches[0]
+    metadata = _link_metadata(link)
+    category_id = str(category_id or "").strip()
+    if metadata.get("posting_rule_version") == 1:
+        raise ActualFinanceError("this recurring schedule already has its posting rule")
+    overlay = metadata.get("canonical_schedule")
+    if overlay is not None:
+        if not isinstance(overlay, dict) or overlay.get("version") != 1:
+            raise ActualFinanceError("the recurring schedule repair record is invalid")
+        if overlay.get("category_id") != category_id:
+            raise ActualFinanceError(
+                "this recurring schedule is already repaired with another category"
+            )
+        rows = [
+            row
+            for row in recurring_schedules(db, bridge_request=bridge_request)
+            if row["id"] == source_id
+        ]
+        if len(rows) != 1:
+            raise ActualFinanceError("the repaired recurring schedule is missing")
+        return rows[0]
+    if metadata.get("category") and not category_id:
+        raise ActualFinanceError("choose an existing Actual spending category for this schedule")
+    fingerprint = _request_fingerprint(
+        "repair_recurring_schedule",
+        {
+            "source_id": source_id,
+            "actual_id": link.actual_id,
+            "category_id": category_id,
+            "notes": str(metadata.get("notes") or ""),
+        },
+    )
+    pending = metadata.get("_update_intent")
+    if pending is not None and (not isinstance(pending, dict) or not pending):
+        raise ActualFinanceError("the recurring schedule repair intent is invalid")
+    pending = pending or {}
+    was_pending = bool(pending)
+    if pending and (
+        pending.get("version") != 1
+        or pending.get("action") != "repair_recurring_schedule"
+        or pending.get("fingerprint") != fingerprint
+        or pending.get("category_id") != category_id
+        or type(pending.get("posts_transaction")) is not bool
+        or not isinstance(pending.get("backup_id"), str)
+        or not pending["backup_id"]
+    ):
+        raise ActualFinanceError("schedule repair retry does not match its durable intent")
+
+    try:
+        capabilities = _request(db, {"command": "capabilities"}, bridge_request=bridge_request)
+    except ActualFinanceUnavailable as exc:
+        raise ActualFinanceUnavailable(
+            "managed Actual is unavailable or needs its bridge update before schedule repair"
+        ) from exc
+    if not isinstance(capabilities, dict) or capabilities.get("repair_recurring_schedule") != 1:
+        raise ActualFinanceError("update managed Actual before repairing recurring schedules")
+
+    actual = inspect(db, bridge_request=bridge_request)
+    try:
+        baseline = actual_migration.schedule_repair_baseline(db, link, actual)
+    except actual_migration.ActualMigrationError as exc:
+        raise ActualFinanceError(str(exc)) from exc
+    if pending and pending["posts_transaction"] != bool(baseline.get("posts_transaction")):
+        raise ActualFinanceError("schedule repair retry does not match its original posting state")
+    rows = [row for row in actual.get("schedules") or [] if row.get("id") == link.actual_id]
+    schedule = rows[0]
+    if schedule.get("completed") or not schedule.get("account"):
+        raise ActualFinanceError("the Actual schedule cannot post and needs review")
+    if type(schedule.get("amount")) is not int or not schedule["amount"]:
+        raise ActualFinanceError("the Actual schedule amount needs review")
+    category_matches = (
+        [
+            row
+            for row in actual.get("categories") or []
+            if row.get("id") == category_id and not row.get("is_income")
+        ]
+        if category_id
+        else []
+    )
+    if category_id and len(category_matches) != 1:
+        raise ActualFinanceError("choose an existing Actual spending category for this schedule")
+    posting = schedule.get("posting") or {}
+    configured = bool(
+        posting.get("guarded")
+        and str(posting.get("category") or "") == category_id
+        and str(posting.get("notes") or "") == str(metadata.get("notes") or "")
+    )
+    if not posting.get("pristine") and not (pending and configured):
+        raise ActualFinanceError("the Actual schedule rule changed; review it before repair")
+    if not pending and bool(schedule.get("posts_transaction")) != bool(
+        baseline.get("posts_transaction")
+    ):
+        raise ActualFinanceError(
+            "the Actual schedule posting state changed; review it before repair"
+        )
+
+    if not pending:
+        try:
+            backup = backup_fn()
+        except managed_actual.ManagedActualError as exc:
+            raise ActualFinanceUnavailable(str(exc)) from exc
+        backup_id = str(backup.get("backup_id") or "") if isinstance(backup, dict) else ""
+        if not isinstance(backup, dict) or backup.get("ok") is not True or not backup_id:
+            raise ActualFinanceError("schedule repair needs a verified Actual backup")
+        metadata["_update_intent"] = {
+            "version": 1,
+            "action": "repair_recurring_schedule",
+            "fingerprint": fingerprint,
+            "category_id": category_id,
+            "posts_transaction": bool(schedule.get("posts_transaction")),
+            "backup_id": backup_id,
+        }
+        link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+        db.commit()
+        pending = metadata["_update_intent"]
+
+    expected_schedule = {
+        key: schedule.get(key) for key in ("name", "account", "payee", "amount", "amountOp", "date")
+    }
+    result = _request(
+        db,
+        {
+            "command": "write",
+            "action": "repair_recurring_schedule",
+            "actual_id": link.actual_id,
+            "category_id": category_id,
+            "notes": str(metadata.get("notes") or ""),
+            "expected_schedule": expected_schedule,
+            "original_posts_transaction": pending["posts_transaction"],
+            "allow_paused_retry": was_pending,
+        },
+        bridge_request=bridge_request,
+    )
+    if not isinstance(result, dict) or result.get("id") != link.actual_id:
+        raise ActualFinanceError("Actual schedule repair result did not match its identity")
+    confirmed = inspect(db, bridge_request=bridge_request)
+    try:
+        actual_migration.schedule_repair_baseline(db, link, confirmed)
+    except actual_migration.ActualMigrationError as exc:
+        raise ActualFinanceError(str(exc)) from exc
+    confirmed_rows = [
+        row for row in confirmed.get("schedules") or [] if row.get("id") == link.actual_id
+    ]
+    if len(confirmed_rows) != 1:
+        raise ActualFinanceError("Actual schedule repair lost its identity")
+    current = confirmed_rows[0]
+    current_posting = current.get("posting") or {}
+    if (
+        bool(current.get("posts_transaction")) != pending["posts_transaction"]
+        or not current_posting.get("guarded")
+        or str(current_posting.get("category") or "") != category_id
+        or str(current_posting.get("notes") or "") != str(metadata.get("notes") or "")
+    ):
+        raise ActualFinanceError("Actual schedule repair could not be confirmed")
+    metadata.pop("_update_intent", None)
+    metadata["canonical_schedule"] = {
+        "version": 1,
+        "category_id": category_id,
+        "notes": str(metadata.get("notes") or ""),
+        "posts_transaction": pending["posts_transaction"],
+    }
+    link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+    db.commit()
+    readback = [row for row in recurring_schedules(db, actual=confirmed) if row["id"] == source_id]
+    if len(readback) != 1:
+        raise ActualFinanceError("the repaired recurring schedule could not be read back")
+    return readback[0]
 
 
 def forecast_schedules(db: Session, actual: dict, *, as_of: date) -> list[dict]:

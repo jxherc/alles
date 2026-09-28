@@ -32,6 +32,7 @@ function _setMonthUrl() { try { const u = new URL(location.href); u.searchParams
 let _month = _monthFromUrl() || _thisMonth();
 let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];
 let _recurringError = false, _canonicalLedger = false;
+let _recurringStatus = '';
 let _envelope = null, _aom = null;   // YNAB envelope view + age of money (4b)
 const _envAssignmentBusy = new Set();
 const _targetDrafts = new Map();
@@ -278,6 +279,7 @@ async function load(fetcher = fetch) {
   _searchResults = null;   // month change / reload clears any active search
   try {
     // Legacy reads post due entries before balances; Actual owns posting after cutover.
+    _recurringStatus = '';
     await readRecurring(request);
     [_accounts, _txns, _budgets, _sum, _rules, _envelope, _aom, _forecast, _nwhist, _holdings, _alerts] = await Promise.all([
       request('/api/money/accounts'),
@@ -651,14 +653,14 @@ const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: 
 function recurringList() {
   if (_recurringError) return '<div class="money-empty-sm money-history-error" role="status">couldn\'t load schedules <button type="button" class="btn" id="recurring-retry">retry</button></div>';
   if (!_recurring.length) return `<div class="money-empty-sm">${_canonicalLedger ? 'no auto-post schedules in Actual' : 'nothing recurring: add rent, salary, a loan…'}</div>`;
-  return `<div class="recurs">` + _recurring.map(r => `
-    <div class="recur ${r.active ? '' : 'paused'}" data-id="${esc(r.id)}">
+  return `${_recurringStatus ? `<p class="money-recurring-error" role="status">${esc(_recurringStatus)}</p>` : ''}<div class="recurs">` + _recurring.map(r => `
+    <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending ? '' : 'paused'}">
       <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
       <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? 'range' : 'varies') : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount)}`}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
       <span class="rc-next" title="${r.next_date ? `next post ${esc(r.next_date)}` : 'next date unavailable'}">${r.active ? (r.next_date ? esc(r.next_date.slice(5)) : 'unknown') : (_canonicalLedger ? 'inactive' : 'paused')}</span>
       ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
       <button class="tx-del" data-del-rec="${esc(r.id)}" title="delete">×</button>`}
-    </div>`).join('') + `</div>`;
+    </div>${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}</div>`).join('') + `</div>`;
 }
 
 function _recurringForm() {
@@ -863,8 +865,10 @@ function wire() {
 
 async function retryRecurring() {
   const button = $('recurring-retry');
-  button.disabled = true;
-  button.textContent = 'retrying…';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'retrying…';
+  }
   await readRecurring(api);
   const content = $('recurring-content');
   if (!content) return;
@@ -880,6 +884,7 @@ function wireRecurring() {
   $('rc-add')?.addEventListener('click', addRecurring);
   document.querySelectorAll('#recurring-content [data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
   document.querySelectorAll('#recurring-content [data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b.dataset.toggleRec)));
+  document.querySelectorAll('#recurring-content [data-repair-rec]').forEach(b => b.addEventListener('click', () => repairRecurring(b)));
 }
 
 // wire the txn row buttons within a root (the whole #txn-rows list); called on full
@@ -1376,6 +1381,50 @@ async function toggleRecurring(id) {
   const r = _recurring.find(x => x.id === id);
   try { await api(`/api/money/recurring/${id}`, { method: 'PATCH', body: { active: !r.active } }); await load(); }
   catch { toast('update failed', 'error'); }
+}
+async function repairRecurring(button) {
+  const r = _recurring.find(row => row.id === button.dataset.repairRec);
+  if (!r?.repair_needed || !_canonicalLedger || button.disabled) return;
+  let categoryId = r.repair_category_id;
+  if (!r.repair_pending) {
+    let categories = _envelope?.categories;
+    if (!Array.isArray(categories)) {
+      try { categories = (await api(`/api/money/envelope?month=${_month}`)).categories; }
+      catch { categories = null; }
+    }
+    if (!Array.isArray(categories)) {
+      _recurringStatus = 'could not load Actual categories. retry when Actual is available.';
+      await retryRecurring();
+      return;
+    }
+    const names = categories.map(row => row.group ? `${row.group} / ${row.category}` : row.category);
+    const options = categories.map((row, index) => ({
+      value: row.category_id,
+      label: names.filter(name => name === names[index]).length > 1
+        ? `${names[index]} (${row.category_id.slice(-6)})` : names[index],
+    }));
+    if (!r.category) options.unshift({ value: '', label: 'leave uncategorized' });
+    if (!options.length) {
+      _recurringStatus = 'add a spending category in Actual before repairing this schedule.';
+      await retryRecurring();
+      return;
+    }
+    categoryId = await dlgChoose(`choose the Actual category for ${r.payee}`, options);
+    if (categoryId === null) return;
+  }
+  button.disabled = true;
+  button.textContent = 'repairing…';
+  try {
+    await api(`/api/money/recurring/${encodeURIComponent(r.id)}/repair`, {
+      method: 'POST', body: { category_id: categoryId },
+    });
+    _recurringStatus = '';
+    await retryRecurring();
+    toast('posting repaired', 'success');
+  } catch (error) {
+    _recurringStatus = `repair not confirmed for ${r.payee}: ${error.message || 'retry the saved choice'}`;
+    await retryRecurring();
+  }
 }
 async function addRule() {
   const match = $('rl-match')?.value.trim();

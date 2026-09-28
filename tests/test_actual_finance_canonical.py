@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from core.database import (
     Account,
     ActualEntityLink,
+    ActualMigrationRun,
     Budget,
     BudgetAssignment,
     CategoryRule,
@@ -25,7 +26,7 @@ from core.database import (
     Transaction,
 )
 from routes import finance_imports as finance_import_routes
-from services import actual_finance, managed_actual
+from services import actual_finance, actual_migration, managed_actual
 from tests._client import ApiTest
 
 
@@ -4005,6 +4006,199 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             unsafe = self.client.get("/api/money/recurring")
         self.assertEqual(unsafe.status_code, 409, unsafe.text)
         self.assertIn("posting rule is missing", unsafe.text)
+
+    def test_old_recurring_schedule_repair_retries_a_lost_provider_response(self):
+        db = self.db()
+        snapshot = {
+            "schedules": [
+                {
+                    "kind": "recurring",
+                    "id": "legacy-rent",
+                    "name": "old rent",
+                    "account_id": "legacy-account",
+                    "payee": "landlord",
+                    "amount_minor": -500,
+                    "next_date": "2026-10-01",
+                    "cycle": "monthly",
+                    "cycle_days": 30,
+                    "active": True,
+                    "posts_transaction": True,
+                    "metadata": {"category": "housing", "notes": "lease"},
+                }
+            ]
+        }
+        path = actual_migration._write_snapshot("run-route", snapshot)
+        db.add(
+            ActualMigrationRun(
+                id="run-route",
+                status="canonical",
+                base_currency_code="CAD",
+                snapshot_sha256=actual_migration.snapshot_sha256(snapshot),
+                snapshot_path=str(path),
+            )
+        )
+        link = ActualEntityLink(
+            run_id="run-route",
+            entity_kind="recurring",
+            source_id="legacy-rent",
+            actual_id="actual-rent",
+            metadata_json='{"category":"housing","notes":"lease"}',
+        )
+        db.add(link)
+        db.add(
+            ActualEntityLink(
+                run_id="run-route",
+                entity_kind="account",
+                source_id="legacy-account",
+                actual_id="actual-account",
+                metadata_json="{}",
+            )
+        )
+        db.commit()
+        actual = {
+            "accounts": [{"id": "actual-account", "name": "checking"}],
+            "transactions": [],
+            "payees": [{"id": "landlord-id", "name": "landlord"}],
+            "categories": [{"id": "housing-id", "name": "housing", "is_income": False}],
+            "category_groups": [],
+            "schedules": [
+                {
+                    "id": "actual-rent",
+                    "name": "old rent",
+                    "account": "actual-account",
+                    "payee": "landlord-id",
+                    "amount": -500,
+                    "amountOp": "is",
+                    "date": {"start": "2026-10-01", "frequency": "monthly", "interval": 1},
+                    "next_date": "2026-10-01",
+                    "completed": False,
+                    "posts_transaction": True,
+                    "posting": {"pristine": True, "guarded": False},
+                }
+            ],
+            "budget_months": [],
+        }
+        backups = []
+        writes = []
+        supported = {"repair_recurring_schedule": 1}
+
+        def backup():
+            backups.append(True)
+            return {"ok": True, "backup_id": "pre-repair"}
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return supported
+            if payload["command"] == "inspect":
+                return actual
+            self.assertEqual(payload["action"], "repair_recurring_schedule")
+            writes.append(payload)
+            self.assertEqual(
+                json.loads(link.metadata_json)["_update_intent"]["backup_id"], "pre-repair"
+            )
+            row = actual["schedules"][0]
+            row["posting"] = {
+                "pristine": False,
+                "guarded": True,
+                "category": "housing-id",
+                "notes": "lease",
+            }
+            if len(writes) == 1:
+                row["posts_transaction"] = False
+                raise managed_actual.ManagedActualError("response lost")
+            row["posts_transaction"] = True
+            return {"id": "actual-rent"}
+
+        supported.clear()
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "update managed Actual"):
+            actual_finance.repair_recurring_schedule(
+                db, "legacy-rent", "housing-id", bridge_request=bridge, backup_fn=backup
+            )
+        self.assertFalse(backups)
+        supported["repair_recurring_schedule"] = 1
+        actual["schedules"][0]["posting"]["pristine"] = False
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "rule changed"):
+            actual_finance.repair_recurring_schedule(
+                db, "legacy-rent", "housing-id", bridge_request=bridge, backup_fn=backup
+            )
+        actual["schedules"][0]["posting"]["pristine"] = True
+        actual["schedules"][0]["amount"] = -501
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "changed since cutover"):
+            actual_finance.repair_recurring_schedule(
+                db, "legacy-rent", "housing-id", bridge_request=bridge, backup_fn=backup
+            )
+        actual["schedules"][0]["amount"] = -500
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "spending category"):
+            actual_finance.repair_recurring_schedule(
+                db, "legacy-rent", "missing-id", bridge_request=bridge, backup_fn=backup
+            )
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "verified Actual backup"):
+            actual_finance.repair_recurring_schedule(
+                db, "legacy-rent", "housing-id", bridge_request=bridge, backup_fn=lambda: None
+            )
+        self.assertFalse(backups)
+        self.assertFalse(writes)
+
+        with self.assertRaises(actual_finance.ActualFinanceUnavailable):
+            actual_finance.repair_recurring_schedule(
+                db, "legacy-rent", "housing-id", bridge_request=bridge, backup_fn=backup
+            )
+        self.assertEqual(len(backups), 1)
+        pending = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertEqual(len(pending), 1)
+        self.assertTrue(pending[0]["repair_needed"])
+        self.assertTrue(pending[0]["repair_pending"])
+        self.assertEqual(pending[0]["repair_category_id"], "housing-id")
+        self.assertFalse(pending[0]["active"])
+        saved_pending = json.loads(link.metadata_json)
+        for key, value in (("version", 2), ("posts_transaction", False)):
+            altered = json.loads(json.dumps(saved_pending))
+            altered["_update_intent"][key] = value
+            link.metadata_json = json.dumps(altered)
+            db.flush()
+            with self.assertRaisesRegex(actual_finance.ActualFinanceError, "retry does not match"):
+                actual_finance.repair_recurring_schedule(
+                    db, "legacy-rent", "housing-id", bridge_request=bridge, backup_fn=backup
+                )
+        link.metadata_json = json.dumps(saved_pending)
+        db.flush()
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "retry does not match"):
+            actual_finance.repair_recurring_schedule(
+                db, "legacy-rent", "other-id", bridge_request=bridge, backup_fn=backup
+            )
+        result = actual_finance.repair_recurring_schedule(
+            db, "legacy-rent", "housing-id", bridge_request=bridge, backup_fn=backup
+        )
+        self.assertEqual(len(backups), 1)
+        self.assertFalse(writes[0]["allow_paused_retry"])
+        self.assertTrue(writes[1]["allow_paused_retry"])
+        self.assertEqual(result["id"], "legacy-rent")
+        self.assertEqual(result["category"], "housing")
+        self.assertEqual(result["notes"], "lease")
+        self.assertFalse(result["repair_needed"])
+        self.assertFalse(result["repair_pending"])
+        saved = json.loads(link.metadata_json)
+        self.assertNotIn("_update_intent", saved)
+        self.assertEqual(saved["canonical_schedule"]["category_id"], "housing-id")
+        self.assertEqual(link.actual_id, "actual-rent")
+        link.metadata_json = json.dumps({**saved, "canonical_schedule": {"version": 2}})
+        db.flush()
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "repair record is invalid"):
+            actual_finance.recurring_schedules(db, actual=actual)
+        db.close()
+
+    def test_canonical_recurring_repair_route_is_explicit(self):
+        with patch(
+            "routes.money.actual_finance.repair_recurring_schedule",
+            return_value={"id": "legacy-rent"},
+        ) as repair:
+            response = self.client.post(
+                "/api/money/recurring/legacy-rent/repair",
+                json={"category_id": "housing-id"},
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json(), {"id": "legacy-rent"})
+        self.assertEqual(repair.call_args.args[1:], ("legacy-rent", "housing-id"))
 
     def test_canonical_alerts_use_one_actual_snapshot_and_local_watches(self):
         db = self.db()
