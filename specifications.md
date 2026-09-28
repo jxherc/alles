@@ -267,6 +267,8 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   unconfirmed cleanup blocks the next stage until the same identity is safely retried
 - legacy analytics that are not yet calculated from Actual fail closed after cutover instead of
   showing frozen pre-cutover numbers
+- Aide's Finance account, transaction, and spending-read tools follow the active ledger; if Actual
+  cannot be read after cutover, they return an error instead of quoting old balances or charges
 
 <p align="center"><img src="docs/screenshots/money.png" width="760" alt="money: accounts, spending by category, budgets, and a 6-month trend"></p>
 

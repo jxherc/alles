@@ -115,12 +115,20 @@ def _period_txns(db, start, end):
     )
 
 
-def answer(db, query, today=None):
+def answer(db, query, today=None, *, rows=None):
     """a narrative answer to a spending question: period total + top categories + merchants,
-    with an optional comparison to the preceding period."""
+    with an optional comparison to the preceding period. Supplied rows bypass the local ledger."""
     today = today or date.today()
     start, end, label = parse_period(query, today)
-    txns = _period_txns(db, start, end)
+
+    def period_txns(period_start, period_end):
+        if rows is None:
+            return _period_txns(db, period_start, period_end)
+        lo = period_start.isoformat()
+        hi = (period_end + timedelta(days=1)).isoformat()
+        return [t for t in rows if lo <= (t.date or "") < hi]
+
+    txns = period_txns(start, end)
     spend = [t for t in txns if (t.amount or 0) < 0]
     spent = sum(-(t.amount or 0.0) for t in spend)
     lines = [f"{label}: spent {spent:.2f} across {len(spend)} transactions"]
@@ -133,7 +141,7 @@ def answer(db, query, today=None):
     q = (query or "").lower()
     if any(k in q for k in ("compare", " vs ", "vs.", "month-over-month", "month over month")):
         pstart, pend, plabel = _prev_period(start, end, label)
-        ptxns = _period_txns(db, pstart, pend)
+        ptxns = period_txns(pstart, pend)
         pspent = sum(-(t.amount or 0.0) for t in ptxns if (t.amount or 0) < 0)
         delta = spent - pspent
         lines.append(f"vs {plabel}: spent {pspent:.2f} ({'+' if delta >= 0 else ''}{delta:.2f})")
