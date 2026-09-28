@@ -1,3 +1,4 @@
+import secrets
 import sys
 import unittest
 from datetime import datetime
@@ -77,9 +78,13 @@ class PhotoKitGalleryApiTest(ApiTest):
         db.close()
         self.assertEqual(self.client.get("/api/photos/search?q=private-motion").json()["count"], 0)
 
-        response = self.client.post(
-            "/api/photos/batch", json={"ids": [still_id], "action": "unhide"}
-        )
+        unhide = {"ids": [still_id], "action": "unhide"}
+        self.assertEqual(self.client.post("/api/photos/batch", json=unhide).status_code, 403)
+        unlock = self.client.post("/api/vault/unlock", json={"password": secrets.token_urlsafe(24)})
+        self.assertEqual(unlock.status_code, 200, unlock.text)
+        headers = {"X-Vault-Token": unlock.json()["token"]}
+        response = self.client.post("/api/photos/batch", json=unhide, headers=headers)
+        self.client.post("/api/vault/lock", headers=headers)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["count"], 2)
