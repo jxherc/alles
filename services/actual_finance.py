@@ -1289,43 +1289,14 @@ def budgets(
     actual: dict | None = None,
     bridge_request=None,
 ) -> list[dict]:
-    """Read canonical category budgets from the selected Actual budget month."""
+    """Read persistent spending caps, not Actual's monthly assignments."""
     actual = actual or inspect(db, bridge_request=bridge_request)
     category_names = {
-        row.get("id"): row.get("name") or "uncategorized" for row in actual.get("categories") or []
+        str(row["id"]): str(row.get("name") or "uncategorized")
+        for row in actual.get("categories") or []
+        if row.get("id") and not row.get("is_income")
     }
-    selected = next(
-        (row for row in actual.get("budget_months") or [] if row.get("month") == month),
-        None,
-    )
-    rows_by_category = {}
-    for group in (
-        (selected or {}).get("categoryGroups") or (selected or {}).get("category_groups") or []
-    ):
-        for category in group.get("categories") or []:
-            category_id = str(category.get("id") or "")
-            budgeted_minor = int(category.get("budgeted") or 0)
-            if not category_id or budgeted_minor == 0:
-                continue
-            rows_by_category[category_id] = {
-                "id": f"actual-budget:{month}:{category_id}",
-                "actual_id": category_id,
-                "category": category.get("name")
-                or category_names.get(category_id, "uncategorized"),
-                "tag": "",
-                "limit_amt": _major_from_minor(budgeted_minor, "budget amount"),
-            }
-    category_ids_by_name: dict[str, list[str]] = {}
-    for category_id, name in category_names.items():
-        category_ids_by_name.setdefault(str(name).casefold(), []).append(category_id)
-    assignment_links = _links(db, "budget_assignment")
-    if any(_link_metadata(link).get("_delete_intent") for link in assignment_links):
-        raise ActualFinanceError(
-            "a budget assignment deletion is uncertain; retry the same deletion before reading it"
-        )
-    explicit_assignments = {
-        link.actual_id for link in assignment_links if not _link_metadata(link).get("_deleted")
-    }
+    rows = []
     for link in _links(db, "budget_limit"):
         metadata = _link_metadata(link)
         if metadata.get("_delete_intent") or metadata.get("_deleted"):
@@ -1334,36 +1305,24 @@ def budgets(
             raise ActualFinanceError(
                 "a persistent budget update is uncertain; retry the same update before reading it"
             )
-        category_name = str(metadata.get("category") or "").strip()
-        category_id = link.actual_id if link.actual_id in category_names else ""
-        if not category_id:
-            matches = category_ids_by_name.get(category_name.casefold(), [])
-            if len(matches) == 1:
-                category_id = matches[0]
+        category_id = link.actual_id
         limit_minor = metadata.get("limit_minor")
         if (
-            not category_id
+            category_id not in category_names
             or isinstance(limit_minor, bool)
             or not isinstance(limit_minor, int)
             or abs(limit_minor) > MAX_CENT_SAFE_MINOR
         ):
             raise ActualFinanceError("a persistent budget cap is not safely linked to Actual")
-        cap_row = {
-            "id": f"actual-budget-cap:{category_id}",
-            "actual_id": category_id,
-            "category": category_names.get(category_id) or category_name,
-            "tag": "",
-            "limit_amt": _major_from_minor(limit_minor, "persistent budget cap"),
-        }
-        managed_month = str(metadata.get("managed_month") or "")
-        if managed_month == month and f"{month}:{category_id}" not in explicit_assignments:
-            native_row = rows_by_category.get(category_id)
-            if native_row:
-                cap_row["limit_amt"] = native_row["limit_amt"]
-            rows_by_category[category_id] = cap_row
-        elif f"{month}:{category_id}" not in explicit_assignments:
-            rows_by_category.setdefault(category_id, cap_row)
-    rows = list(rows_by_category.values())
+        rows.append(
+            {
+                "id": f"actual-budget-cap:{category_id}",
+                "actual_id": category_id,
+                "category": category_names[category_id],
+                "tag": "",
+                "limit_amt": _major_from_minor(limit_minor, "persistent budget cap"),
+            }
+        )
     for link in _links(db, "tag_budget"):
         metadata = _link_metadata(link)
         if metadata.get("_delete_intent") or metadata.get("_deleted"):
@@ -1480,89 +1439,111 @@ def set_budget(
     amount_minor = _minor(amount, "budget amount")
     link = _budget_limit_link(db, category_name=name)
     prior_metadata = _link_metadata(link) if link else {}
-    if prior_metadata.get("_delete_intent") or prior_metadata.get("_deleted"):
+    if prior_metadata.get("_delete_intent"):
         raise ActualFinanceError("the persistent budget cap is pending deletion")
-    previous_month = str(prior_metadata.get("managed_month") or "")
-    previous_category_id = str(link.actual_id or "") if link else ""
-    intent_details = {
-        "category": name,
-        "amount_minor": amount_minor,
-        "month": month,
-        "previous_category_id": previous_category_id,
-        "previous_month": previous_month,
-    }
-    fingerprint = _request_fingerprint("set_budget", intent_details)
     pending = prior_metadata.get("_update_intent") or {}
     if pending:
+        # Finish a durable write started by the older cap/assignment contract.
+        previous_month = str(prior_metadata.get("managed_month") or "")
+        previous_category_id = str(link.actual_id or "")
+        intent_details = {
+            "category": name,
+            "amount_minor": amount_minor,
+            "month": month,
+            "previous_category_id": previous_category_id,
+            "previous_month": previous_month,
+        }
+        fingerprint = _request_fingerprint("set_budget", intent_details)
         if pending.get("fingerprint") != fingerprint:
             raise ActualFinanceError("budget retry does not match its durable update intent")
-    else:
-        intent_metadata = {
-            **prior_metadata,
-            "category": str(prior_metadata.get("category") or name),
-            "source": str(prior_metadata.get("source") or "alles_persistent_cap"),
-            "_update_intent": {
-                "version": 1,
-                "fingerprint": fingerprint,
-                **intent_details,
-            },
-        }
-        if link:
-            link.metadata_json = json.dumps(intent_metadata, sort_keys=True, separators=(",", ":"))
-        else:
-            source_key = hashlib.sha256(name.casefold().encode()).hexdigest()
-            _record_link(
-                db,
-                "budget_limit",
-                f"actual-budget-cap-pending:{source_key}",
-                "",
-                intent_metadata,
-            )
-            db.flush()
-            link = _budget_limit_link(db, category_name=name)
-            if link is None:
-                raise ActualFinanceError("the durable budget update intent could not be created")
-        db.commit()
-    result = _request(
-        db,
-        {
-            "command": "write",
-            "action": "set_budget",
-            "month": month,
-            "category_name": name,
-            "amount_minor": amount_minor,
-        },
-        bridge_request=bridge_request,
-    )
-    category_id = str(result.get("category_id") or "")
-    if not category_id:
-        raise ActualFinanceError("Actual did not return the budget category")
-    if previous_month and previous_month != month:
-        _request(
+        result = _request(
             db,
             {
                 "command": "write",
-                "action": "clear_budget",
-                "month": previous_month,
-                "category_id": previous_category_id or category_id,
+                "action": "set_budget",
+                "month": month,
+                "category_name": name,
+                "amount_minor": amount_minor,
             },
             bridge_request=bridge_request,
         )
+        category_id = str(result.get("category_id") or "")
+        if not category_id:
+            raise ActualFinanceError("Actual did not return the budget category")
+        if previous_month and previous_month != month:
+            _request(
+                db,
+                {
+                    "command": "write",
+                    "action": "clear_budget",
+                    "month": previous_month,
+                    "category_id": previous_category_id or category_id,
+                },
+                bridge_request=bridge_request,
+            )
+        link.actual_id = category_id
+        link.metadata_json = json.dumps(
+            {
+                "category": name,
+                "limit_minor": amount_minor,
+                "source": str(prior_metadata.get("source") or "alles_persistent_cap"),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        db.commit()
+        return {
+            "id": f"actual-budget-cap:{category_id}",
+            "actual_id": category_id,
+            "category": name,
+            "tag": "",
+            "limit_amt": _major_from_minor(amount_minor, "budget amount"),
+        }
+
+    actual = inspect(db, bridge_request=bridge_request)
+    matches = [
+        row
+        for row in actual.get("categories") or []
+        if str(row.get("id") or "")
+        and not row.get("is_income")
+        and str(row.get("name") or "").strip().casefold() == name.casefold()
+    ]
+    if len(matches) != 1:
+        raise ActualFinanceError("budget cap requires one existing spending category in Actual")
+    category_id = str(matches[0]["id"])
+    category_name = str(matches[0]["name"]).strip()
+    actual_ids = {str(row.get("id") or "") for row in actual.get("categories") or []}
+    if link and link.actual_id not in actual_ids:
+        raise ActualFinanceError("an existing budget cap is not safely linked to Actual")
+    link = _budget_limit_link(db, category_id=category_id)
+    if link and _link_metadata(link).get("_delete_intent"):
+        raise ActualFinanceError("the persistent budget cap is pending deletion")
     metadata = {
-        "category": name,
+        "category": category_name,
         "limit_minor": amount_minor,
-        "managed_month": month,
-        "source": "alles_persistent_cap",
+        "source": str(
+            (_link_metadata(link) if link else {}).get("source") or "alles_persistent_cap"
+        ),
     }
-    link.actual_id = category_id
-    link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+    if link:
+        link.actual_id = category_id
+        link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+    else:
+        source_key = hashlib.sha256(category_id.encode()).hexdigest()
+        _record_link(
+            db,
+            "budget_limit",
+            f"actual-budget-cap:{source_key}",
+            category_id,
+            metadata,
+        )
     db.commit()
     return {
         "id": f"actual-budget-cap:{category_id}",
         "actual_id": category_id,
-        "category": name,
+        "category": category_name,
         "tag": "",
-        "limit_amt": _major_from_minor(int(result.get("amount_minor") or 0), "budget amount"),
+        "limit_amt": _major_from_minor(amount_minor, "budget amount"),
     }
 
 
@@ -1627,21 +1608,35 @@ def clear_budget(db: Session, public_id: str, *, bridge_request=None) -> dict:
         link = _budget_limit_link(db, category_id=category_id)
         if link is None:
             raise ActualFinanceError("canonical budget cap was not found")
-        managed_month = str(_link_metadata(link).get("managed_month") or "")
-        deletion_target, already_deleted = _begin_link_deletion(db, link)
-        if already_deleted:
-            return {"ok": True}
-        if managed_month:
-            _request(
-                db,
-                {
-                    "command": "write",
-                    "action": "clear_budget",
-                    "month": managed_month,
-                    "category_id": deletion_target,
-                },
-                bridge_request=bridge_request,
+        metadata = _link_metadata(link)
+        if metadata.get("_update_intent"):
+            raise ActualFinanceError(
+                "a persistent budget update is uncertain; retry the same update before deleting it"
             )
+        if metadata.get("_deleted"):
+            return {"ok": True}
+        if metadata.get("_delete_intent"):
+            deletion_target = _deletion_target(metadata)
+            managed_month = str(metadata.get("managed_month") or "")
+            if not deletion_target:
+                raise ActualFinanceError("canonical budget cap deletion target is missing")
+            if managed_month:
+                _request(
+                    db,
+                    {
+                        "command": "write",
+                        "action": "clear_budget",
+                        "month": managed_month,
+                        "category_id": deletion_target,
+                    },
+                    bridge_request=bridge_request,
+                )
+        else:
+            deletion_target = str(link.actual_id or "")
+            if not deletion_target:
+                raise ActualFinanceError("canonical budget cap deletion target is missing")
+        metadata.pop("managed_month", None)
+        link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
         _finish_link_deletion(link, deletion_target)
         db.commit()
         return {"ok": True}

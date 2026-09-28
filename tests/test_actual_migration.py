@@ -1748,6 +1748,15 @@ class ActualMigrationTests(ApiTest):
             ],
         }
 
+        restored["categories"][0]["id"] = "original-food-id"
+        restored["budget_months"][0]["categoryGroups"][0]["categories"][0].update(
+            {"id": "original-food-id", "budgeted": 1000}
+        )
+        self.assertTrue(actual_migration.validate_active_links(db, restored)["ok"])
+        restored["categories"][0]["id"] = "replacement-food-id"
+        restored["budget_months"][0]["categoryGroups"][0]["categories"][0].update(
+            {"id": "replacement-food-id", "budgeted": 5000}
+        )
         result = actual_migration.validate_active_links(db, restored)
 
         self.assertFalse(result["ok"])

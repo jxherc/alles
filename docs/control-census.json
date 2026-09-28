@@ -189286,7 +189286,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 558
+                "line": 562
               }
             ]
           },
@@ -189327,7 +189327,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 558
+                "line": 562
               }
             ]
           },
@@ -190206,7 +190206,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 544
+                "line": 542
               }
             ]
           },
@@ -190247,7 +190247,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_finance_networth_history.py",
                 "kind": "existing-test-control-reference",
-                "line": 544
+                "line": 542
               }
             ]
           },
@@ -197048,7 +197048,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "category",
+        "name": "${_canonicalLedger ? 'Actual category' : 'category'}",
         "relationships": {},
         "role": "native input"
       },
@@ -197068,6 +197068,12 @@
                 "file": "tests/js/money_amount_validation.test.mjs",
                 "kind": "existing-test-control-reference",
                 "line": 47
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_finance_networth_history.py",
+                "kind": "existing-test-control-reference",
+                "line": 550
               }
             ]
           },
@@ -197115,7 +197121,7 @@
       "kind": "field",
       "label": {
         "source": "placeholder",
-        "value": "category"
+        "value": "${_canonicalLedger ? 'Actual category' : 'category'}"
       },
       "path": {
         "api": [],

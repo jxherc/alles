@@ -570,7 +570,14 @@ class ActualFinanceServiceTests(ApiTest):
         self.assertEqual(writes, 2)
         db.close()
 
-    def test_canonical_budget_create_update_and_delete_use_actual(self):
+    def test_canonical_spending_cap_changes_do_not_write_actual_assignments(self):
+        self.actual["categories"] = [{"id": "food-id", "name": "food"}]
+        self.actual["budget_months"] = [
+            {
+                "month": "2026-07",
+                "categoryGroups": [{"categories": [{"id": "food-id", "budgeted": 2500}]}],
+            }
+        ]
         db = self.db()
         created = actual_finance.set_budget(
             db, "2026-07", "food", "12.34", bridge_request=self.bridge
@@ -583,7 +590,11 @@ class ActualFinanceServiceTests(ApiTest):
         cap = db.query(ActualEntityLink).filter_by(entity_kind="budget_limit").one()
         self.assertEqual(cap.actual_id, created["actual_id"])
         self.assertIn('"limit_minor":1234', cap.metadata_json)
-        self.assertIn('"managed_month":"2026-07"', cap.metadata_json)
+        self.assertNotIn("managed_month", cap.metadata_json)
+        self.assertEqual(
+            self.actual["budget_months"][0]["categoryGroups"][0]["categories"][0]["budgeted"],
+            2500,
+        )
         august = actual_finance.budgets(db, "2026-08", bridge_request=self.bridge)[0]
         self.assertEqual(august["limit_amt"], 12.34)
         self.assertEqual(august["id"], f"actual-budget-cap:{created['actual_id']}")
@@ -592,9 +603,14 @@ class ActualFinanceServiceTests(ApiTest):
         )
         self.assertEqual(actual_finance.budgets(db, "2026-07", bridge_request=self.bridge), [])
         self.assertEqual(actual_finance.budgets(db, "2026-08", bridge_request=self.bridge), [])
+        self.assertEqual(
+            self.actual["budget_months"][0]["categoryGroups"][0]["categories"][0]["budgeted"],
+            2500,
+        )
         db.close()
 
-    def test_managed_month_keeps_the_persistent_cap_identity_after_reload(self):
+    def test_persistent_cap_identity_survives_reload_and_deletion(self):
+        self.actual["categories"] = [{"id": "food-id", "name": "food"}]
         db = self.db()
         created = actual_finance.set_budget(
             db, "2026-07", "food", "12.34", bridge_request=self.bridge
@@ -612,7 +628,7 @@ class ActualFinanceServiceTests(ApiTest):
         self.assertTrue(json.loads(deleted.metadata_json)["_deleted"])
         db.close()
 
-    def test_explicit_assignment_identity_wins_over_a_cap_managed_month(self):
+    def test_explicit_assignment_and_legacy_managed_cap_remain_separate(self):
         self.actual["categories"] = [{"id": "food-id", "name": "food"}]
         self.actual["budget_months"] = [
             {
@@ -648,11 +664,11 @@ class ActualFinanceServiceTests(ApiTest):
 
         listed = actual_finance.budgets(db, "2026-07", bridge_request=self.bridge)
         self.assertEqual(len(listed), 1)
-        self.assertEqual(listed[0]["id"], "actual-budget:2026-07:food-id")
-        self.assertEqual(listed[0]["limit_amt"], 25.0)
+        self.assertEqual(listed[0]["id"], "actual-budget-cap:food-id")
+        self.assertEqual(listed[0]["limit_amt"], 40.0)
         db.close()
 
-    def test_explicit_zero_assignment_hides_the_persistent_cap_for_that_month(self):
+    def test_explicit_zero_assignment_does_not_hide_a_spending_cap(self):
         self.actual["categories"] = [{"id": "food-id", "name": "food"}]
         self.actual["budget_months"] = [
             {
@@ -686,10 +702,21 @@ class ActualFinanceServiceTests(ApiTest):
         )
         db.commit()
 
-        self.assertEqual(actual_finance.budgets(db, "2026-07", bridge_request=self.bridge), [])
+        listed = actual_finance.budgets(db, "2026-07", bridge_request=self.bridge)
+        self.assertEqual(
+            [(row["id"], row["limit_amt"]) for row in listed], [("actual-budget-cap:food-id", 40.0)]
+        )
         db.close()
 
-    def test_moving_a_persistent_cap_clears_its_previous_actual_month(self):
+    def test_changing_a_persistent_cap_leaves_both_actual_months_untouched(self):
+        self.actual["categories"] = [{"id": "food-id", "name": "food"}]
+        self.actual["budget_months"] = [
+            {
+                "month": month,
+                "categoryGroups": [{"categories": [{"id": "food-id", "budgeted": value}]}],
+            }
+            for month, value in (("2026-07", 1200), ("2026-08", 3000))
+        ]
         db = self.db()
         created = actual_finance.set_budget(
             db, "2026-07", "food", "12.34", bridge_request=self.bridge
@@ -703,9 +730,10 @@ class ActualFinanceServiceTests(ApiTest):
             month["month"]: month["categoryGroups"][0]["categories"][0]["budgeted"]
             for month in self.actual["budget_months"]
         }
-        self.assertEqual(assignments, {"2026-07": 0, "2026-08": 2345})
+        self.assertEqual(assignments, {"2026-07": 1200, "2026-08": 3000})
         cap = db.query(ActualEntityLink).filter_by(entity_kind="budget_limit").one()
-        self.assertIn('"managed_month":"2026-08"', cap.metadata_json)
+        self.assertIn('"limit_minor":2345', cap.metadata_json)
+        self.assertNotIn("managed_month", cap.metadata_json)
         db.close()
 
     def test_invalid_budget_month_is_rejected_before_a_durable_intent(self):
@@ -725,8 +753,98 @@ class ActualFinanceServiceTests(ApiTest):
         )
         db.close()
 
-    def test_budget_update_intent_survives_a_lost_external_response(self):
+    def test_spending_cap_requires_one_existing_actual_category(self):
         db = self.db()
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "one existing spending"):
+            actual_finance.set_budget(db, "2026-07", "food", "12.34", bridge_request=self.bridge)
+        self.actual["categories"] = [
+            {"id": "food-1", "name": "Food"},
+            {"id": "food-2", "name": "food"},
+        ]
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "one existing spending"):
+            actual_finance.set_budget(db, "2026-07", "food", "12.34", bridge_request=self.bridge)
+        self.actual["categories"] = [{"id": "income-id", "name": "food", "is_income": True}]
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "one existing spending"):
+            actual_finance.set_budget(db, "2026-07", "food", "12.34", bridge_request=self.bridge)
+        self.assertEqual(
+            db.query(ActualEntityLink).filter_by(entity_kind="budget_limit").count(), 0
+        )
+        self.assertEqual(self.actual["budget_months"], [])
+        db.close()
+
+    def test_spending_cap_follows_actual_category_identity_after_rename(self):
+        self.actual["categories"] = [{"id": "food-id", "name": "food"}]
+        db = self.db()
+        created = actual_finance.set_budget(
+            db, "2026-07", "food", "12.34", bridge_request=self.bridge
+        )
+        self.actual["categories"][0]["name"] = "groceries"
+        updated = actual_finance.set_budget(
+            db, "2026-08", "groceries", "23.45", bridge_request=self.bridge
+        )
+        self.assertEqual(updated["id"], created["id"])
+        self.assertEqual(
+            db.query(ActualEntityLink).filter_by(entity_kind="budget_limit").count(), 1
+        )
+        listed = actual_finance.budgets(db, "2026-08", bridge_request=self.bridge)
+        self.assertEqual(
+            [(row["category"], row["limit_amt"]) for row in listed], [("groceries", 23.45)]
+        )
+        db.close()
+
+    def test_spending_cap_does_not_silently_rebind_a_replaced_category(self):
+        self.actual["categories"] = [{"id": "replacement-id", "name": "food"}]
+        db = self.db()
+        db.add(
+            ActualEntityLink(
+                run_id="run-1",
+                entity_kind="budget_limit",
+                source_id="legacy-cap",
+                actual_id="old-id",
+                metadata_json='{"category":"food","limit_minor":1234}',
+            )
+        )
+        db.commit()
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "not safely linked"):
+            actual_finance.budgets(db, "2026-07", bridge_request=self.bridge)
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "not safely linked"):
+            actual_finance.set_budget(db, "2026-07", "food", "23.45", bridge_request=self.bridge)
+        self.assertEqual(
+            db.query(ActualEntityLink).filter_by(entity_kind="budget_limit").count(), 1
+        )
+        db.close()
+
+    def test_old_budget_update_intent_can_be_retried_after_a_lost_response(self):
+        db = self.db()
+        intent = {
+            "category": "food",
+            "amount_minor": 1234,
+            "month": "2026-07",
+            "previous_category_id": "",
+            "previous_month": "",
+        }
+        db.add(
+            ActualEntityLink(
+                run_id="run-1",
+                entity_kind="budget_limit",
+                source_id="actual-budget-cap-pending:food",
+                actual_id="",
+                metadata_json=json.dumps(
+                    {
+                        "category": "food",
+                        "source": "alles_persistent_cap",
+                        "_update_intent": {
+                            "version": 1,
+                            "fingerprint": actual_finance._request_fingerprint(
+                                "set_budget", intent
+                            ),
+                            **intent,
+                        },
+                    }
+                ),
+            )
+        )
+        db.commit()
         lose_response = True
         writes = 0
 
@@ -756,6 +874,7 @@ class ActualFinanceServiceTests(ApiTest):
         self.assertEqual(completed["limit_amt"], 12.34)
         self.assertEqual(writes, 2)
         self.assertNotIn("_update_intent", json.loads(pending.metadata_json))
+        self.assertNotIn("managed_month", json.loads(pending.metadata_json))
         db.close()
 
     def test_native_budget_delete_persists_an_intent_before_external_mutation(self):
@@ -789,8 +908,7 @@ class ActualFinanceServiceTests(ApiTest):
         link = db.query(ActualEntityLink).filter_by(entity_kind="budget_assignment").one()
         self.assertEqual(link.actual_id, "2026-07:food-id")
         self.assertIn("_delete_intent", json.loads(link.metadata_json))
-        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "deletion is uncertain"):
-            actual_finance.budgets(db, "2026-07", bridge_request=bridge)
+        self.assertEqual(actual_finance.budgets(db, "2026-07", bridge_request=bridge), [])
         self.assertTrue(actual_finance.clear_budget(db, public_id, bridge_request=bridge)["ok"])
         self.assertEqual(link.actual_id, "")
         self.assertIn("_deleted", json.loads(link.metadata_json))
@@ -869,6 +987,7 @@ class ActualFinanceServiceTests(ApiTest):
         db.close()
 
     def test_cleared_persistent_budget_cap_can_be_created_again(self):
+        self.actual["categories"] = [{"id": "food-id", "name": "food"}]
         db = self.db()
         created = actual_finance.set_budget(
             db, "2026-07", "food", "12.34", bridge_request=self.bridge
@@ -934,7 +1053,7 @@ class ActualFinanceServiceTests(ApiTest):
         self.assertEqual(actual_finance.budgets(db, "2026-07", actual=self.actual), [])
         db.close()
 
-    def test_explicit_actual_assignment_takes_precedence_over_persistent_cap(self):
+    def test_explicit_actual_assignment_does_not_replace_persistent_cap(self):
         self.actual["categories"] = [{"id": "food-id", "name": "food"}]
         self.actual["budget_months"] = [
             {
@@ -956,8 +1075,8 @@ class ActualFinanceServiceTests(ApiTest):
         )
         db.commit()
         rows = actual_finance.budgets(db, "2026-07", bridge_request=self.bridge)
-        self.assertEqual(rows[0]["id"], "actual-budget:2026-07:food-id")
-        self.assertEqual(rows[0]["limit_amt"], 25.0)
+        self.assertEqual(rows[0]["id"], "actual-budget-cap:food-id")
+        self.assertEqual(rows[0]["limit_amt"], 40.0)
         db.close()
 
     def test_clearing_cap_preserves_an_explicit_actual_budget_assignment(self):
@@ -996,7 +1115,7 @@ class ActualFinanceServiceTests(ApiTest):
 
         self.assertEqual(
             actual_finance.budgets(db, "2026-07", bridge_request=self.bridge)[0]["id"],
-            "actual-budget:2026-07:food-id",
+            "actual-budget-cap:food-id",
         )
         self.assertTrue(
             actual_finance.clear_budget(
@@ -1008,8 +1127,43 @@ class ActualFinanceServiceTests(ApiTest):
         actual_row = self.actual["budget_months"][0]["categoryGroups"][0]["categories"][0]
         self.assertEqual(actual_row["budgeted"], 2500)
         remaining = actual_finance.budgets(db, "2026-07", bridge_request=self.bridge)
-        self.assertEqual(len(remaining), 1)
-        self.assertEqual(remaining[0]["limit_amt"], 25.0)
+        self.assertEqual(remaining, [])
+        db.close()
+
+    def test_clearing_an_old_managed_cap_keeps_its_actual_assignment(self):
+        self.actual["categories"] = [{"id": "food-id", "name": "food"}]
+        self.actual["budget_months"] = [
+            {
+                "month": "2026-07",
+                "categoryGroups": [{"categories": [{"id": "food-id", "budgeted": 4000}]}],
+            }
+        ]
+        db = self.db()
+        db.add(
+            ActualEntityLink(
+                run_id="run-1",
+                entity_kind="budget_limit",
+                source_id="legacy-cap",
+                actual_id="food-id",
+                metadata_json=(
+                    '{"category":"food","limit_minor":4000,"managed_month":"2026-07",'
+                    '"source":"legacy_persistent_cap"}'
+                ),
+            )
+        )
+        db.commit()
+        self.assertTrue(
+            actual_finance.clear_budget(
+                db, "actual-budget-cap:food-id", bridge_request=self.bridge
+            )["ok"]
+        )
+        self.assertEqual(
+            self.actual["budget_months"][0]["categoryGroups"][0]["categories"][0]["budgeted"],
+            4000,
+        )
+        cap = db.query(ActualEntityLink).filter_by(entity_kind="budget_limit").one()
+        self.assertNotIn("managed_month", cap.metadata_json)
+        self.assertIn("_deleted", cap.metadata_json)
         db.close()
 
     def test_clearing_explicit_assignment_preserves_the_persistent_cap(self):
@@ -2060,7 +2214,7 @@ class ActualFinanceServiceTests(ApiTest):
         self.assertEqual(set(pair), {"native-out", "native-in"})
         db.close()
 
-    def test_actual_budget_month_is_the_only_canonical_budget_source(self):
+    def test_actual_budget_month_is_not_a_spending_cap_source(self):
         self.actual["categories"] = [{"id": "food-id", "name": "food"}]
         self.actual["budget_months"] = [
             {
@@ -2069,18 +2223,7 @@ class ActualFinanceServiceTests(ApiTest):
             }
         ]
         db = self.db()
-        self.assertEqual(
-            actual_finance.budgets(db, "2026-07", bridge_request=self.bridge),
-            [
-                {
-                    "id": "actual-budget:2026-07:food-id",
-                    "actual_id": "food-id",
-                    "category": "food",
-                    "tag": "",
-                    "limit_amt": 25.0,
-                }
-            ],
-        )
+        self.assertEqual(actual_finance.budgets(db, "2026-07", bridge_request=self.bridge), [])
         db.close()
 
     def test_account_display_metadata_survives_the_actual_boundary(self):
@@ -2847,9 +2990,13 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(created_tag.status_code, 200, created_tag.text)
         write_tag.assert_called_once()
         with patch("routes.money.actual_finance.clear_budget", return_value={"ok": True}) as clear:
-            deleted = self.client.delete("/api/money/budgets/actual-budget:2026-07:food-id")
+            deleted = self.client.delete("/api/money/budgets/actual-budget-cap:food-id")
         self.assertEqual(deleted.status_code, 200, deleted.text)
         clear.assert_called_once()
+        with patch("routes.money.actual_finance.clear_budget", return_value={"ok": True}) as clear:
+            rejected = self.client.delete("/api/money/budgets/actual-budget:2026-07:food-id")
+        self.assertEqual(rejected.status_code, 409, rejected.text)
+        clear.assert_not_called()
         db = self.db()
         self.assertEqual(db.query(Budget).count(), 0)
         db.close()
