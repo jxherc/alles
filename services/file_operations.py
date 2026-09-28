@@ -19,6 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from core.database import (
@@ -30,6 +31,7 @@ from core.database import (
     FileVersion,
     IndexChunk,
     OfflineFile,
+    Photo,
     Share,
     StorageLocation,
     TrashItem,
@@ -970,6 +972,26 @@ def _rekey_metadata(
                 record.path = moved
             if hasattr(record, "ref"):
                 record.ref = moved
+
+    old_photo_key = f"{source_location_id}:{source}"
+    escaped_key = old_photo_key.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    photos = (
+        db.query(Photo)
+        .filter(
+            Photo.source == "files",
+            or_(
+                Photo.source_id == old_photo_key,
+                Photo.source_id.like(f"{escaped_key}/%", escape="\\"),
+            ),
+        )
+        .all()
+    )
+    for photo in photos:
+        old_path = photo.source_id[len(source_location_id) + 1 :]
+        new_key = f"{destination_location_id}:{_mapped_path(old_path, source, destination)}"
+        owner = db.query(Photo).filter_by(source="files", source_id=new_key).first()
+        if owner is None or owner.id == photo.id:
+            photo.source_id = new_key
 
 
 def _live_metadata_records(db, location_id: str, path: str):
