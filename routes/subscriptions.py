@@ -96,8 +96,7 @@ def _subscription_rows(db: DbSession):
         rate_text = metadata.get("rate_text") or (old.fx_rate_text if old else "") or "1"
         rate_date = metadata.get("rate_date") or (old.fx_rate_date if old else "")
         rate_source = metadata.get("source") or (old.fx_source if old else "") or "actual_identity"
-        migrated_name = f"Alles subscription: {old.name} [{old.id[:8]}]" if old else ""
-        current_name = old.name if old and item["name"] == migrated_name else item["name"]
+        current_name = actual_finance.subscription_display_name(item, old)
         rows.append(
             SimpleNamespace(
                 id=item["id"],

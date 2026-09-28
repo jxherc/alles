@@ -149,12 +149,14 @@ def today_view(
             if changed:
                 db.commit()
 
+    unavailable = set()
     g = signals.by_category(
         signals.gather(
             db,
             today,
             categories={"task", "event", "reminder", "sub", "day_event", "habit"},
             timezone_name=timezone_q,
+            unavailable=unavailable,
         )
     )
 
@@ -205,7 +207,7 @@ def today_view(
 
     # docs - most recently modified (stays local, not a "signal")
     recent_docs = []
-    partial_sources = []
+    partial_sources = sorted(unavailable)
     try:
         from services.vault_md import _all_md, vault_dir
 

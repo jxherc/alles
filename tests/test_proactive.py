@@ -3,10 +3,11 @@ import json
 import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import core.settings as cfg
-from core.database import ProactiveItem, Task
-from services import proactive
+from core.database import FinanceLedgerState, ProactiveItem, Subscription, Task
+from services import actual_finance, proactive
 from tests._client import ApiTest
 
 
@@ -45,6 +46,44 @@ def _sig(key, cat="task", urg=70):
 
 
 class ProactiveGateTests(_IsolatedSettings):
+    def test_canonical_schedule_outage_keeps_existing_renewal_card(self):
+        db = self.db()
+        subscription = Subscription(name="old plan", next_due=_iso(0), price=8)
+        db.add(subscription)
+        db.add(
+            FinanceLedgerState(
+                id="primary",
+                mode="actual",
+                active_run_id="run-proactive",
+                actual_budget_id="budget-proactive",
+                actual_sync_id="sync-proactive",
+                legacy_read_only=True,
+            )
+        )
+        db.flush()
+        key = f"sub_renew:{subscription.id}:{subscription.next_due}"
+        db.add(
+            ProactiveItem(
+                dedupe_key=proactive._dedupe_key([key]),
+                category="sub",
+                title="old renewal card",
+                source_keys=json.dumps([key]),
+            )
+        )
+        db.commit()
+        db.close()
+
+        with patch.object(
+            actual_finance,
+            "subscription_schedules",
+            side_effect=actual_finance.ActualFinanceUnavailable("offline"),
+        ):
+            result = _run(proactive.run(force=True))
+        self.assertEqual(result["reason"], "sources_unavailable")
+        db = self.db()
+        self.assertEqual(db.query(ProactiveItem).count(), 1)
+        db.close()
+
     def test_disabled_by_default_no_run(self):
         called = {"reason": False}
 

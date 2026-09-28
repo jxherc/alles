@@ -440,7 +440,10 @@ async def run(force=False):
     try:
         # prune against the FULL signal set - a card should only be dropped when its
         # situation actually resolved, not when the user toggled its category off
-        full = signals.gather(db)
+        unavailable = set()
+        full = signals.gather(db, unavailable=unavailable)
+        if unavailable:
+            return {"ran": False, "reason": "sources_unavailable", "sources": sorted(unavailable)}
         _prune_resolved(db, full)
         cats = _enabled_categories(s)
         min_u = int(s.get("pidx_proactive_min_urgency", 1))
