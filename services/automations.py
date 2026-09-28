@@ -163,8 +163,11 @@ def _notify_result_status(result: dict) -> None:
 
 async def _perform_action(db, rule, ctx: dict, text: str) -> None:
     if rule.action == "create_task":
+        title = text[:300].strip()
+        if not title:
+            raise _DefiniteActionFailure("task title is empty")
         try:
-            db.add(Task(title=text[:300]))
+            db.add(Task(title=title))
             db.commit()
         except Exception as exc:
             db.rollback()

@@ -428,6 +428,39 @@ def run():
                 shot("aide-recurring-task")
                 passed("Aide tool completion creates the next Task; Plan shows it after reload")
 
+                begin("plan.aide-task-title")
+                before_ids = {
+                    task["id"] for task in context.request.get(base + "/api/tasks").json()
+                }
+                aide_title = f"aide capture {profile}"
+                with ThreadPoolExecutor(max_workers=1) as worker:
+                    invalid = worker.submit(
+                        lambda: asyncio.run(agent_tools.execute("task_add", {"title": "   "}))
+                    ).result(timeout=15)
+                    added = worker.submit(
+                        lambda: asyncio.run(
+                            agent_tools.execute("task_add", {"title": f"  {aide_title}  "})
+                        )
+                    ).result(timeout=15)
+                assert invalid.get("error"), invalid
+                assert not added.get("error"), added
+                active = context.request.get(base + "/api/tasks").json()
+                assert len(active) == len(before_ids) + 1
+                created = [task for task in active if task["id"] not in before_ids]
+                assert len(created) == 1 and created[0]["title"] == aide_title, created
+                ids.append(created[0]["id"])
+                page.goto(base + "/?view=plan", wait_until="networkidle")
+                page.get_by_role("tab", name="tasks", exact=True).click()
+                search = page.get_by_role("textbox", name="search tasks…", exact=True)
+                with page.expect_response(lambda r: "/api/tasks/search?" in r.url):
+                    search.fill(aide_title)
+                expect(page.locator(f'.task-item[data-id="{created[0]["id"]}"]')).to_be_visible()
+                assert page.evaluate(
+                    "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+                )
+                shot("aide-created-task")
+                passed("invalid Aide title saves nothing; cleaned valid title appears in Plan")
+
                 assert not events["page_errors"], events
                 assert not events["failed_requests"], events
                 assert events["http_errors"] == expected_http, events

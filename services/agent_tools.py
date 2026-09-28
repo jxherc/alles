@@ -1786,6 +1786,9 @@ async def _search_code(query, k=8):
 async def _task_add(title):
     from core.database import SessionLocal, Task
 
+    if not isinstance(title, str) or not title.strip():
+        return {"output": "title required", "error": True}
+    title = title.strip()
     db = SessionLocal()
     try:
         t = Task(title=title)
