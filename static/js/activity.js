@@ -20,6 +20,7 @@ let _days = 30;
 let _off = new Set();   // hidden type keys
 let _q = '';
 let _qTimer = null;
+let _loadSequence = 0;
 const _hk = 'alles-activity-hidden';
 
 function _readUrl() {
@@ -83,32 +84,63 @@ function renderFilters() {
   });
 }
 
-async function load(fetcher = fetch) {
+async function load(fetcher = fetch, restoreFocus = false) {
   const body = $('activity-body');
   if (!body) return;
-  body.innerHTML = '<div class="activity-empty">loading…</div>';
+  const sequence = ++_loadSequence;
+  body.innerHTML = '<div class="activity-empty" role="status">loading…</div>';
+  if (restoreFocus) { body.tabIndex = -1; body.focus({ preventScroll: true }); }
+  const summary = $('activity-summary');
+  if (summary) summary.innerHTML = '';
   const want = TYPES.map(t => t.key).filter(k => !_off.has(k));
   if (!want.length) { body.innerHTML = '<div class="activity-empty">all sources hidden: turn some back on above</div>'; return; }
   let d;
   try {
     const qp = _q ? `&q=${encodeURIComponent(_q)}` : '';
-    d = await fetcher(`/api/timeline?days=${_days}&limit=200&types=${want.join(',')}${qp}`).then(r => r.json());
-  } catch { body.innerHTML = '<div class="activity-empty">couldn’t load activity</div>'; return; }
-  render(d.events || []);
-  await loadSummary(want, fetcher);
+    const response = await fetcher(`/api/timeline?days=${_days}&limit=200&types=${want.join(',')}${qp}`);
+    if (!response.ok) throw new Error('activity unavailable');
+    d = await response.json();
+  } catch {
+    if (sequence === _loadSequence) renderProblem('couldn’t load activity.', fetcher, restoreFocus);
+    return;
+  }
+  if (sequence !== _loadSequence) return;
+  render(d.events || [], d.partial_sources || [], fetcher);
+  if (restoreFocus) (body.querySelector('.activity-retry, .activity-row') || body).focus({ preventScroll: true });
+  await loadSummary(want, fetcher, sequence);
 }
 
-async function loadSummary(want, fetcher = fetch) {
+async function loadSummary(want, fetcher = fetch, sequence = _loadSequence) {
   try {
-    const s = await fetcher(`/api/timeline/summary?days=${_days}&types=${want.join(',')}`).then(r => r.json());
+    const response = await fetcher(`/api/timeline/summary?days=${_days}&types=${want.join(',')}`);
+    if (!response.ok) throw new Error('summary unavailable');
+    const s = await response.json();
+    if (sequence !== _loadSequence) return;
     const strip = $('activity-summary');
     if (!strip) return;
-    if (!s.total) { strip.innerHTML = ''; return; }
+    if (!s.total && !s.partial_sources?.length) { strip.innerHTML = ''; return; }
     const chips = s.by_type.map(x =>
       `<span class="act-sum-chip"><span class="act-sum-glyph act-${x.type}">${GLYPH[x.type] || '·'}</span>${x.count} ${esc(LABEL[x.type] || x.type)}</span>`).join('');
     const busy = s.busiest ? `<span class="act-sum-busy">busiest · ${dayLabel(s.busiest.date)} (${s.busiest.count})</span>` : '';
-    strip.innerHTML = `<span class="act-sum-total">${s.total} events</span>${chips}${busy}`;
+    const total = s.partial_sources?.length ? `${s.total} available events` : `${s.total} events`;
+    strip.innerHTML = `<span class="act-sum-total">${total}</span>${chips}${busy}`;
   } catch {}
+}
+
+function problem(message) {
+  return `<div class="activity-status" role="status"><span>${esc(message)}</span><button type="button" class="btn activity-retry">retry</button></div>`;
+}
+
+function bindRetry(fetcher) {
+  $('activity-body')?.querySelector('.activity-retry')?.addEventListener('click', () => load(fetcher, true));
+}
+
+function renderProblem(message, fetcher, restoreFocus = false) {
+  const body = $('activity-body');
+  if (!body) return;
+  body.innerHTML = problem(message);
+  bindRetry(fetcher);
+  if (restoreFocus) body.querySelector('.activity-retry')?.focus({ preventScroll: true });
 }
 
 function dayLabel(iso) {
@@ -123,23 +155,32 @@ function dayLabel(iso) {
 }
 const timeOf = iso => { const d = new Date(iso); return iso.includes('T') && !iso.endsWith('T00:00:00') ? formatTime(d, { hour: 'numeric', minute: '2-digit' }) : ''; };
 
-function render(events) {
+function render(events, partialSources = [], fetcher = fetch) {
   const body = $('activity-body');
-  if (!events.length) { body.innerHTML = '<div class="activity-empty">nothing in this window</div>'; return; }
+  const partial = partialSources.length
+    ? problem('finance activity is unavailable. results may be incomplete.')
+    : '';
+  if (!events.length) {
+    body.innerHTML = partial || '<div class="activity-empty">nothing in this window</div>';
+    bindRetry(fetcher);
+    return;
+  }
   let html = '', curDay = '';
   for (const e of events) {
     const dl = dayLabel(e.ts);
     if (dl !== curDay) { curDay = dl; html += `<div class="activity-day">${esc(dl)}</div>`; }
-    html += `<div class="activity-row" data-view="${esc(e.view)}" data-id="${esc(e.id)}">
-      <span class="activity-glyph act-${esc(e.type)}" title="${esc(e.type)}">${GLYPH[e.type] || '·'}</span>
+    const label = [LABEL[e.type] || e.type, e.title, e.subtitle].filter(Boolean).join(', ');
+    html += `<button type="button" class="activity-row" aria-label="${esc(label)}" data-view="${esc(e.view)}" data-id="${esc(e.id)}">
+      <span class="activity-glyph act-${esc(e.type)}" aria-hidden="true">${GLYPH[e.type] || '·'}</span>
       <span class="activity-main">
         <span class="activity-title">${esc(e.title)}</span>
         ${e.subtitle ? `<span class="activity-sub">${esc(e.subtitle)}</span>` : ''}
       </span>
       <span class="activity-time">${esc(timeOf(e.ts))}</span>
-    </div>`;
+    </button>`;
   }
-  body.innerHTML = html;
+  body.innerHTML = partial + html;
+  bindRetry(fetcher);
   body.querySelectorAll('.activity-row').forEach(r => r.addEventListener('click', () => {
     const v = r.dataset.view;
     if (v) window._navigateTo?.(v);

@@ -135,7 +135,7 @@ program, and compatibility links keep the older app names and subdomains working
 
 - a single reverse-chron timeline merging journal entries, tasks you added and ticked off, calendar events, money transactions, mail you received, photos you added, docs you edited, agent runs, and subscription renewals, grouped by day (today / yesterday / weekday / date)
 - **filter chips** to show/hide any source, and a range toggle (7d / 30d / 90d / 1y); click any row to jump straight to it in its app
-- *under the hood:* it's a **read-time aggregator** ([`routes/timeline.py`](routes/timeline.py)): it queries each app's own tables on request instead of keeping a separate "events" log, so it's always correct and never needs a backfill. completing a task stamps a `completed_at` so "done" shows the real time instead of only the date.
+- *under the hood:* it's a **read-time aggregator** ([`routes/timeline.py`](routes/timeline.py)): it queries each app's current data owner instead of keeping a separate "events" log. after the Finance cutover, money comes from Actual transactions and renewals from linked payments plus unmatched historical payment records. if Finance is unavailable, other events remain visible and totals are marked partial instead of replaying frozen rows. completing a task stamps a `completed_at` so "done" shows the real time instead of only the date.
 
 <p align="center"><img src="docs/screenshots/activity.png" width="760" alt="activity: one reverse-chron timeline across every app"></p>
 
