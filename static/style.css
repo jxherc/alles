@@ -5902,9 +5902,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 .activity-row {
   display: flex; align-items: baseline; gap: 0.6rem; cursor: pointer;
-  padding: 0.4rem 0.3rem; border-bottom: 1px solid var(--faint); transition: background 0.1s;
+  width: 100%; min-height: 44px; font: inherit; text-align: left; color: inherit;
+  padding: 0.4rem 0.3rem; border: 0; border-bottom: 1px solid var(--faint);
+  background: transparent; transition: background 0.1s;
 }
 .activity-row:hover { background: var(--panel); }
+.activity-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .activity-glyph { flex-shrink: 0; width: 1.3rem; text-align: center; color: var(--muted); font-size: 0.82rem; }
 .activity-glyph.act-task { color: var(--green); }
 .activity-glyph.act-money { color: var(--text); }
@@ -5914,6 +5917,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .activity-sub { font-size: 0.75rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .activity-time { font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
 .activity-empty { padding: 1.4rem 0.4rem; font-size: 0.75rem; color: var(--muted); }
+.activity-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 4px; color: var(--muted); font-size: 13px; }
+.activity-retry { min-height: 44px; font-size: 13px; }
 
 /* ── system monitor (neofetch + btop flavoured, all monospace) ──────────────── */
 #system-body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; }

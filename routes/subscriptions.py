@@ -431,32 +431,6 @@ def _fmt(
     }
 
 
-def _merge_payment_history(legacy: list[dict], canonical: list[dict]) -> list[dict]:
-    canonical_sources = {
-        str(row.get("source_payment_id") or "") for row in canonical if row.get("source_payment_id")
-    }
-    canonical_transactions = {
-        str(row.get("txn_id") or "") for row in canonical if row.get("txn_id")
-    }
-    if any(
-        not str(row.get("source_payment_id") or "") and not str(row.get("txn_id") or "")
-        for row in canonical
-    ):
-        raise actual_finance.ActualFinanceError(
-            "canonical subscription payment is missing its durable identity"
-        )
-    remaining_legacy = [
-        row
-        for row in legacy
-        if str(row.get("source_payment_id") or "") not in canonical_sources
-        and (
-            not str(row.get("txn_id") or "")
-            or str(row.get("txn_id") or "") not in canonical_transactions
-        )
-    ]
-    return [*remaining_legacy, *canonical]
-
-
 @router.get("/subscriptions")
 def list_subscriptions(advance: bool = True, db: DbSession = Depends(get_db)):
     today = date.today()
@@ -521,7 +495,7 @@ def list_subscriptions(advance: bool = True, db: DbSession = Depends(get_db)):
                 raise HTTPException(409, str(exc)) from exc
             for sub_id in set(legacy_payments) | set(canonical_payments):
                 counts[sub_id] = len(
-                    _merge_payment_history(
+                    actual_finance.merge_payment_history(
                         legacy_payments.get(sub_id, []), canonical_payments.get(sub_id, [])
                     )
                 )
@@ -1062,7 +1036,7 @@ def list_payments(sid: str, db: DbSession = Depends(get_db)):
                 ) from exc
             except actual_finance.ActualFinanceError as exc:
                 raise HTTPException(409, str(exc)) from exc
-            payments = _merge_payment_history(
+            payments = actual_finance.merge_payment_history(
                 payments,
                 [{**item, "currency": base_currency} for item in canonical],
             )

@@ -61524,6 +61524,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_timeline_finance.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_timeline_finance.py",
+                "kind": "existing-test-control-reference",
+                "line": 101
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_today_capture_confirm.py",
                 "kind": "existing-test-control-reference",
                 "line": 38
@@ -61832,6 +61844,18 @@
                 "file": "tests/pw_stability_smoke.py",
                 "kind": "existing-test-control-reference",
                 "line": 98
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_timeline_finance.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_timeline_finance.py",
+                "kind": "existing-test-control-reference",
+                "line": 101
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -109457,7 +109481,7 @@
             "source": {
               "file": "static/js/activity.js",
               "kind": "control-source",
-              "line": 60
+              "line": 61
             },
             "status": "source-only",
             "tests": []
@@ -109465,7 +109489,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/activity.js:56 renderFilters"
+            "value": "static/js/activity.js:57 renderFilters"
           },
           "keys": [],
           "modality": "pointer",
@@ -109479,7 +109503,7 @@
             "source": {
               "file": "static/js/activity.js",
               "kind": "control-source",
-              "line": 60
+              "line": 61
             },
             "status": "source-only",
             "tests": []
@@ -109487,7 +109511,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/activity.js:56 renderFilters"
+            "value": "static/js/activity.js:57 renderFilters"
           },
           "keys": [
             "Enter",
@@ -109524,7 +109548,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/activity.js:56 renderFilters"
+        "value": "static/js/activity.js:57 renderFilters"
       },
       "id": "dynamic.a14816e57fb2",
       "kind": "action",
@@ -109535,7 +109559,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/activity.js:56 renderFilters"
+          "static/js/activity.js:57 renderFilters"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -109576,9 +109600,9 @@
         "source": {
           "column": null,
           "file": "static/js/activity.js",
-          "line": 60
+          "line": 61
         },
-        "source_selector": "static/js/activity.js:60:1",
+        "source_selector": "static/js/activity.js:61:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -109613,7 +109637,7 @@
             "source": {
               "file": "static/js/activity.js",
               "kind": "control-source",
-              "line": 62
+              "line": 63
             },
             "status": "source-only",
             "tests": []
@@ -109621,7 +109645,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/activity.js:56 renderFilters"
+            "value": "static/js/activity.js:57 renderFilters"
           },
           "keys": [],
           "modality": "pointer",
@@ -109635,7 +109659,7 @@
             "source": {
               "file": "static/js/activity.js",
               "kind": "control-source",
-              "line": 62
+              "line": 63
             },
             "status": "source-only",
             "tests": []
@@ -109643,7 +109667,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/activity.js:56 renderFilters"
+            "value": "static/js/activity.js:57 renderFilters"
           },
           "keys": [
             "Enter",
@@ -109680,7 +109704,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/activity.js:56 renderFilters"
+        "value": "static/js/activity.js:57 renderFilters"
       },
       "id": "dynamic.d3d2bca5c0ac",
       "kind": "action",
@@ -109691,7 +109715,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/activity.js:56 renderFilters"
+          "static/js/activity.js:57 renderFilters"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -109732,9 +109756,9 @@
         "source": {
           "column": null,
           "file": "static/js/activity.js",
-          "line": 62
+          "line": 63
         },
-        "source_selector": "static/js/activity.js:62:2",
+        "source_selector": "static/js/activity.js:63:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -109769,7 +109793,7 @@
             "source": {
               "file": "static/js/activity.js",
               "kind": "control-source",
-              "line": 63
+              "line": 64
             },
             "status": "source-only",
             "tests": []
@@ -109777,7 +109801,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/activity.js:56 renderFilters"
+            "value": "static/js/activity.js:57 renderFilters"
           },
           "keys": [
             "native editing keys"
@@ -109812,7 +109836,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/activity.js:56 renderFilters"
+        "value": "static/js/activity.js:57 renderFilters"
       },
       "id": "dynamic.0f8678969e1d",
       "kind": "field",
@@ -109823,7 +109847,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/activity.js:56 renderFilters"
+          "static/js/activity.js:57 renderFilters"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -109864,9 +109888,9 @@
         "source": {
           "column": null,
           "file": "static/js/activity.js",
-          "line": 63
+          "line": 64
         },
-        "source_selector": "static/js/activity.js:63:3",
+        "source_selector": "static/js/activity.js:64:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -109874,6 +109898,318 @@
           "event": "native-edit",
           "keys": [
             "native editing keys"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "retry",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/activity.js",
+              "kind": "control-source",
+              "line": 131
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/activity.js:130 problem"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/activity.js",
+              "kind": "control-source",
+              "line": 131
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/activity.js:130 problem"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "server.management",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/activity.js:130 problem"
+      },
+      "id": "dynamic.0d86feb39dd3",
+      "kind": "action",
+      "label": {
+        "source": "text",
+        "value": "retry"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/activity.js:130 problem"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "source-template may render zero to many instances",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/activity.js",
+          "line": 131
+        },
+        "source_selector": "static/js/activity.js:131:4",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "${esc(label)}",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/activity.js",
+              "kind": "control-source",
+              "line": 173
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/activity.js:158 render"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/activity.js",
+              "kind": "control-source",
+              "line": 173
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/activity.js:158 render"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "server.management",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/activity.js:158 render"
+      },
+      "id": "dynamic.eb9ba1a370ef",
+      "kind": "action",
+      "label": {
+        "source": "aria-label",
+        "value": "${esc(label)}"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/activity.js:158 render"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-view",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/activity.js",
+          "line": 173
+        },
+        "source_selector": "static/js/activity.js:173:5",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
           ],
           "modality": "keyboard",
           "preconditions": []
@@ -251132,19 +251468,19 @@
   "summary": {
     "activation_path_evidence": {
       "external-blocked": 3,
-      "source-only": 2090,
+      "source-only": 2094,
       "test-linked-unclassified": 629
     },
-    "activation_paths": 2722,
-    "controls": 1608,
-    "dynamic_templates": 929,
+    "activation_paths": 2726,
+    "controls": 1610,
+    "dynamic_templates": 931,
     "event_listener_types": {
       "abort": 1,
       "animationend": 1,
       "beforeunload": 4,
       "blur": 9,
       "change": 52,
-      "click": 782,
+      "click": 783,
       "close": 1,
       "contextmenu": 2,
       "controllerchange": 1,
@@ -251184,9 +251520,9 @@
       "wheel": 1
     },
     "flags": {
-      "anonymous-source-anchor": 827,
+      "anonymous-source-anchor": 829,
       "cross-feature-owner": 63,
-      "dynamic-template": 929,
+      "dynamic-template": 931,
       "inline-handler": 24,
       "unknown-label": 80
     },
