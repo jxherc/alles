@@ -4291,7 +4291,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
-                "line": 486
+                "line": 487
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -4326,7 +4326,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
-                "line": 486
+                "line": 487
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -4877,6 +4877,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_creations.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_calendar_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 219
@@ -5197,6 +5203,12 @@
                 "file": "tests/pw_afterlife_home_settings.py",
                 "kind": "existing-test-control-reference",
                 "line": 189
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_creations.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -24400,7 +24412,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/gallery.js:89 change"
+            "value": "static/js/gallery.js:112 change"
           },
           "keys": [
             "native editing keys"
@@ -24424,7 +24436,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/gallery.js:89 change"
+            "value": "static/js/gallery.js:112 change"
           },
           "keys": [
             "value selection keys or pointer"
@@ -24456,7 +24468,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/gallery.js:89 change"
+        "value": "static/js/gallery.js:112 change"
       },
       "id": "static.a1561efe492d",
       "kind": "field",
@@ -24552,7 +24564,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/gallery.js:77 click"
+            "value": "static/js/gallery.js:100 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -24574,7 +24586,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/gallery.js:77 click"
+            "value": "static/js/gallery.js:100 click"
           },
           "keys": [
             "Enter",
@@ -24607,7 +24619,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/gallery.js:77 click"
+        "value": "static/js/gallery.js:100 click"
       },
       "id": "static.31dd53d2858d",
       "kind": "action",
@@ -24702,7 +24714,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/gallery.js:76 click"
+            "value": "static/js/gallery.js:99 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -24724,7 +24736,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/gallery.js:76 click"
+            "value": "static/js/gallery.js:99 click"
           },
           "keys": [
             "Enter",
@@ -24757,7 +24769,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/gallery.js:76 click"
+        "value": "static/js/gallery.js:99 click"
       },
       "id": "static.a9512944dc35",
       "kind": "action",
@@ -24833,7 +24845,7 @@
     {
       "accessibility": {
         "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
-        "name": "prompt / caption (optional)",
+        "name": "gallery-prompt-input",
         "relationships": {},
         "role": "native input"
       },
@@ -24846,8 +24858,15 @@
               "kind": "control-source",
               "line": 550
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_creations.py",
+                "kind": "existing-test-control-reference",
+                "line": 132
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "native-field-edit",
@@ -24889,8 +24908,8 @@
       "id": "static.d43988a8b5f2",
       "kind": "field",
       "label": {
-        "source": "placeholder",
-        "value": "prompt / caption (optional)"
+        "source": "id",
+        "value": "gallery-prompt-input"
       },
       "path": {
         "api": [],
@@ -24932,11 +24951,11 @@
         "root": "#files-workbench-view",
         "runtime_selector": "#gallery-prompt-input",
         "source": {
-          "column": 8,
+          "column": 81,
           "file": "static/index.html",
           "line": 550
         },
-        "source_selector": "static/index.html:550:8",
+        "source_selector": "static/index.html:550:81",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -63537,6 +63556,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_creations.py",
+                "kind": "existing-test-control-reference",
+                "line": 103
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_calendar_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 230
@@ -63701,6 +63726,12 @@
                 "file": "tests/pw_afterlife_home_settings.py",
                 "kind": "existing-test-control-reference",
                 "line": 228
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_aide_creations.py",
+                "kind": "existing-test-control-reference",
+                "line": 103
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -153681,7 +153712,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "delete",
+        "name": "gallery-retry",
         "relationships": {},
         "role": "native button"
       },
@@ -153692,15 +153723,22 @@
             "source": {
               "file": "static/js/gallery.js",
               "kind": "control-source",
-              "line": 48
+              "line": 39
             },
-            "status": "source-only",
-            "tests": []
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/js/gallery.test.mjs",
+                "kind": "existing-test-control-reference",
+                "line": 35
+              }
+            ]
           },
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/gallery.js:29 renderGallery"
+            "value": "static/js/gallery.js:34 renderGallery"
           },
           "keys": [],
           "modality": "pointer",
@@ -153714,7 +153752,147 @@
             "source": {
               "file": "static/js/gallery.js",
               "kind": "control-source",
-              "line": 48
+              "line": 39
+            },
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/js/gallery.test.mjs",
+                "kind": "existing-test-control-reference",
+                "line": 35
+              }
+            ]
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/gallery.js:34 renderGallery"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "files-photos.locations-and-media",
+      "flags": [
+        "dynamic-template"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/gallery.js:34 renderGallery"
+      },
+      "id": "dynamic.00beaf6bf470",
+      "kind": "action",
+      "label": {
+        "source": "id",
+        "value": "gallery-retry"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/gallery.js:34 renderGallery"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "source-template may render zero to many instances",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": "#gallery-retry",
+        "source": {
+          "column": null,
+          "file": "static/js/gallery.js",
+          "line": 39
+        },
+        "source_selector": "static/js/gallery.js:39:1",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "open ${esc(label)}",
+        "relationships": {},
+        "role": "native a"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/gallery.js",
+              "kind": "control-source",
+              "line": 56
             },
             "status": "source-only",
             "tests": []
@@ -153722,7 +153900,155 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/gallery.js:29 renderGallery"
+            "value": "static/js/gallery.js:34 renderGallery"
+          },
+          "keys": [
+            "Enter"
+          ],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "files-photos.locations-and-media",
+      "flags": [
+        "dynamic-template",
+        "anonymous-source-anchor"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/gallery.js:34 renderGallery"
+      },
+      "id": "dynamic.aedf59ffd6c7",
+      "kind": "link",
+      "label": {
+        "source": "aria-label",
+        "value": "open ${esc(label)}"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/gallery.js:34 renderGallery"
+        ],
+        "external_destination": "${esc(img.url)}",
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "source-template may render zero to many instances",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/gallery.js",
+          "line": 56
+        },
+        "source_selector": "static/js/gallery.js:56:2",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [
+            "Enter"
+          ],
+          "modality": "pointer",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "${removeLabel} ${esc(label)}",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/gallery.js",
+              "kind": "control-source",
+              "line": 61
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/gallery.js:34 renderGallery"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/gallery.js",
+              "kind": "control-source",
+              "line": 61
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/gallery.js:34 renderGallery"
           },
           "keys": [
             "Enter",
@@ -153759,20 +154085,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/gallery.js:29 renderGallery"
+        "value": "static/js/gallery.js:34 renderGallery"
       },
-      "id": "dynamic.d7615064a571",
+      "id": "dynamic.6eab7e9fec33",
       "kind": "action",
       "label": {
-        "source": "text",
-        "value": "delete"
+        "source": "aria-label",
+        "value": "${removeLabel} ${esc(label)}"
       },
       "path": {
-        "api": [
-          "source-local:/api/gallery/"
-        ],
+        "api": [],
         "client_functions": [
-          "static/js/gallery.js:29 renderGallery"
+          "static/js/gallery.js:34 renderGallery"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -153813,9 +154137,9 @@
         "source": {
           "column": null,
           "file": "static/js/gallery.js",
-          "line": 48
+          "line": 61
         },
-        "source_selector": "static/js/gallery.js:48:1",
+        "source_selector": "static/js/gallery.js:61:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -153850,7 +154174,7 @@
             "source": {
               "file": "static/js/gallery.js",
               "kind": "control-source",
-              "line": 50
+              "line": 64
             },
             "status": "source-only",
             "tests": []
@@ -153858,7 +154182,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/gallery.js:29 renderGallery"
+            "value": "static/js/gallery.js:34 renderGallery"
           },
           "keys": [],
           "modality": "pointer",
@@ -153872,7 +154196,7 @@
             "source": {
               "file": "static/js/gallery.js",
               "kind": "control-source",
-              "line": 50
+              "line": 64
             },
             "status": "source-only",
             "tests": []
@@ -153880,7 +154204,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/gallery.js:29 renderGallery"
+            "value": "static/js/gallery.js:34 renderGallery"
           },
           "keys": [
             "Enter",
@@ -153916,7 +154240,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/gallery.js:29 renderGallery"
+        "value": "static/js/gallery.js:34 renderGallery"
       },
       "id": "dynamic.75c08531d274",
       "kind": "action",
@@ -153925,11 +154249,9 @@
         "value": "gallery-more-btn"
       },
       "path": {
-        "api": [
-          "source-local:/api/gallery/"
-        ],
+        "api": [],
         "client_functions": [
-          "static/js/gallery.js:29 renderGallery"
+          "static/js/gallery.js:34 renderGallery"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -153970,9 +154292,9 @@
         "source": {
           "column": null,
           "file": "static/js/gallery.js",
-          "line": 50
+          "line": 64
         },
-        "source_selector": "static/js/gallery.js:50:2",
+        "source_selector": "static/js/gallery.js:64:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -218771,7 +219093,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
-                "line": 468
+                "line": 469
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -221834,7 +222156,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
-                "line": 472
+                "line": 473
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -222228,7 +222550,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_aide_depth.py",
                 "kind": "existing-test-control-reference",
-                "line": 475
+                "line": 476
               }
             ]
           },
@@ -250521,11 +250843,11 @@
     "activation_path_evidence": {
       "external-blocked": 3,
       "source-only": 2088,
-      "test-linked-unclassified": 626
+      "test-linked-unclassified": 629
     },
-    "activation_paths": 2717,
-    "controls": 1605,
-    "dynamic_templates": 926,
+    "activation_paths": 2720,
+    "controls": 1607,
+    "dynamic_templates": 928,
     "event_listener_types": {
       "abort": 1,
       "animationend": 1,
@@ -250572,9 +250894,9 @@
       "wheel": 1
     },
     "flags": {
-      "anonymous-source-anchor": 825,
+      "anonymous-source-anchor": 826,
       "cross-feature-owner": 63,
-      "dynamic-template": 926,
+      "dynamic-template": 928,
       "inline-handler": 24,
       "unknown-label": 80
     },

@@ -448,8 +448,9 @@ def main():
             timeout=10000,
         )
         pg.click('.gallery-del[data-id="g1"]')
+        pg.get_by_role("alertdialog").get_by_role("button", name="confirm").click()
         pg.wait_for_function(
-            "document.querySelector('#gallery-grid')?.textContent.includes('ai gallery empty')",
+            "document.querySelector('#gallery-grid')?.textContent.includes('no images yet')",
             timeout=10000,
         )
         r["gallery_renders_and_deletes"] = not state["gallery"]
