@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from core.database import Calendar, CalendarEvent, SessionLocal
+from core.database import BookingPage, Calendar, CalendarEvent, SessionLocal
 from core.settings import load_settings
 
 
@@ -117,3 +117,50 @@ def create_event(db: Session, data: dict) -> CalendarEvent:
     db.commit()
     db.refresh(event)
     return event
+
+
+def compute_booking_slots(db, page: BookingPage, date_str: str) -> list[dict]:
+    """discrete bookable start times on a date for a booking page (steps the free
+    windows by the page's duration). returns [{start,end}] ISO (minute precision)."""
+    from datetime import date as _date
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+
+    from services.recur import expand, free_slots
+
+    try:
+        day = _date.fromisoformat(date_str)
+    except ValueError:
+        return []
+    rs = _dt.combine(day, _dt.min.time())
+    re_ = rs + _td(days=1)
+    busy = []
+    for e in db.query(CalendarEvent).all():
+        if e.all_day:
+            continue
+        try:
+            base_s = _dt.fromisoformat(e.start_dt)
+            base_e = _dt.fromisoformat(e.end_dt) if e.end_dt else base_s + _td(hours=1)
+            dur = base_e - base_s
+        except (ValueError, TypeError):
+            continue
+        if e.recurrence:
+            for occ in expand(event_dict(e), rs, re_):
+                busy.append((occ, occ + dur))
+        elif rs <= base_s < re_:
+            busy.append((base_s, base_e))
+    windows = free_slots(busy, day, page.duration_min, page.work_start, page.work_end)
+    step = _td(minutes=page.duration_min)
+    out = []
+    for w in windows:
+        cur = _dt.fromisoformat(w["start"])
+        wend = _dt.fromisoformat(w["end"])
+        while cur + step <= wend:
+            out.append(
+                {
+                    "start": cur.isoformat(timespec="minutes"),
+                    "end": (cur + step).isoformat(timespec="minutes"),
+                }
+            )
+            cur += step
+    return out
