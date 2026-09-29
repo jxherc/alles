@@ -1288,6 +1288,11 @@ class ActualMigrationTests(ApiTest):
         self.assertTrue(actual_migration.validate_fresh_readback(valid)["ok"])
         broken = {**valid, "transactions": [{"id": "t1", "account": "missing"}]}
         self.assertFalse(actual_migration.validate_fresh_readback(broken)["ok"])
+        duplicate_schedule = {
+            **valid,
+            "schedules": [{"id": "s1"}, {"id": "s1"}],
+        }
+        self.assertFalse(actual_migration.validate_fresh_readback(duplicate_schedule)["ok"])
 
     def test_restore_validation_requires_every_active_canonical_link(self):
         db = self.db()
@@ -1500,6 +1505,114 @@ class ActualMigrationTests(ApiTest):
         )
         db.flush()
         self.assertTrue(actual_migration.validate_active_links(db, paused)["ok"])
+        created_source = {
+            "kind": "recurring",
+            "id": "created-recurring",
+            "name": "Alles recurring [created-recurring]",
+            "account_id": "source-account",
+            "payee": "landlord",
+            "amount_minor": -3300,
+            "next_date": "2026-09-01",
+            "cycle": "monthly",
+            "cycle_days": 30,
+            "active": True,
+            "posts_transaction": True,
+        }
+        created_overlay = {
+            "version": 2,
+            "source": created_source,
+            "payee_id": "p1",
+            "category_id": "c1",
+            "notes": "created lease",
+            "posts_transaction": True,
+        }
+        created_link = ActualEntityLink(
+            run_id="restore-run",
+            entity_kind="recurring",
+            source_id="created-recurring",
+            actual_id="s3",
+            metadata_json=json.dumps(
+                {
+                    "canonical_schedule": created_overlay,
+                    "_request_fingerprint": "a" * 64,
+                }
+            ),
+        )
+        db.add(created_link)
+        db.flush()
+        with_created = copy.deepcopy(paused)
+        with_created["schedules"].append(
+            {
+                "id": "s3",
+                "name": created_source["name"],
+                "account": "a1",
+                "payee": "p1",
+                "amount": -3300,
+                "date": {"start": "20260901", "frequency": "monthly", "interval": 1},
+                "completed": False,
+                "posts_transaction": True,
+                "amountOp": "is",
+                "posting": {"guarded": True, "category": "c1", "notes": "created lease"},
+            }
+        )
+        self.assertTrue(actual_migration.validate_active_links(db, with_created)["ok"])
+        self.assertEqual(
+            actual_migration.schedule_repair_baseline(db, created_link, with_created),
+            created_source,
+        )
+        for field, value in (
+            ("name", "changed"),
+            ("account", "a2"),
+            ("payee", "p2"),
+            ("amount", -3301),
+            ("date", {"start": "20260902", "frequency": "monthly", "interval": 1}),
+            ("completed", True),
+            ("posts_transaction", False),
+        ):
+            altered = copy.deepcopy(with_created)
+            altered["schedules"][-1][field] = value
+            self.assertFalse(actual_migration.validate_active_links(db, altered)["ok"], field)
+        same_name = copy.deepcopy(with_created)
+        same_name["payees"].append({"id": "p3", "name": "landlord"})
+        same_name["schedules"][-1]["payee"] = "p3"
+        self.assertFalse(actual_migration.validate_active_links(db, same_name)["ok"])
+        for field, value in (("category", "wrong"), ("notes", "wrong"), ("guarded", False)):
+            altered = copy.deepcopy(with_created)
+            altered["schedules"][-1]["posting"][field] = value
+            self.assertFalse(actual_migration.validate_active_links(db, altered)["ok"], field)
+        for malformed in (
+            {"version": 2},
+            {**created_overlay, "source": {}},
+            {
+                **created_overlay,
+                "source": {**created_source, "account_id": "missing"},
+            },
+        ):
+            created_link.metadata_json = json.dumps(
+                {
+                    "canonical_schedule": malformed,
+                    "_request_fingerprint": "a" * 64,
+                }
+            )
+            db.flush()
+            self.assertFalse(actual_migration.validate_active_links(db, with_created)["ok"])
+        created_link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": created_overlay,
+                "_request_fingerprint": "a" * 64,
+                "_intent": {"version": 1},
+            }
+        )
+        db.flush()
+        self.assertFalse(actual_migration.validate_active_links(db, with_created)["ok"])
+        created_link.metadata_json = json.dumps(
+            {"canonical_schedule": created_overlay, "_request_fingerprint": "a" * 64}
+        )
+        created_link.actual_id = ""
+        db.flush()
+        self.assertFalse(actual_migration.validate_active_links(db, with_created)["ok"])
+        db.delete(created_link)
+        db.flush()
         recurring_link.metadata_json = json.dumps(
             {
                 "canonical_schedule": {
