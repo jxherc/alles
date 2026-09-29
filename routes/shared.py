@@ -643,22 +643,24 @@ def _book_html(token, title, days_ahead):
   body{{background:#0a0a0a;color:#e8e6e3;font-family:Inter,-apple-system,sans-serif;min-height:100vh}}
   .wrap{{max-width:560px;margin:0 auto;padding:2rem}}
   h1{{font-size:1.1rem;margin-bottom:1rem}}
-  label{{display:block;font-size:.72rem;color:#6e6e6e;margin:.6rem 0 .2rem}}
-  input,select{{width:100%;background:#161616;color:#e8e6e3;border:1px solid #2a2a2a;border-radius:3px;padding:.45rem;font-size:.85rem}}
+  label{{display:block;font-size:.75rem;color:#85817c;margin:.6rem 0 .2rem}}
+  input{{width:100%;min-height:44px;background:#161616;color:#e8e6e3;border:1px solid #2a2a2a;border-radius:3px;padding:.45rem;font-size:.85rem}}
   #slots{{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem}}
-  .slot{{background:#161616;border:1px solid #2a2a2a;border-radius:3px;padding:.35rem .6rem;cursor:pointer;font-size:.78rem}}
-  .slot.sel{{border-color:#818cf8;color:#818cf8}} .slot:hover{{background:#222}}
-  button.go{{margin-top:1rem;background:#818cf8;color:#0a0a0a;border:none;border-radius:3px;padding:.5rem 1rem;cursor:pointer;font-size:.82rem}}
+  .slots-empty{{color:#85817c;font-size:.82rem}}
+  .slot{{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:#161616;border:1px solid #2a2a2a;border-radius:3px;padding:.35rem .6rem;color:#e8e6e3;cursor:pointer;font:inherit;font-size:.82rem}}
+  .slot.sel{{border-color:#818cf8;background:#222;font-weight:600}} .slot:hover{{background:#222}}
+  input:focus-visible,button:focus-visible{{outline:2px solid #e8e6e3;outline-offset:2px}}
+  button.go{{min-height:44px;margin-top:1rem;background:#818cf8;color:#0a0a0a;border:none;border-radius:3px;padding:.5rem 1rem;cursor:pointer;font-size:.82rem}}
   #msg{{margin-top:1rem;color:#4ade80;font-size:.82rem;min-height:1.2em}}
 </style></head><body>
 <div class="wrap">
   <h1>{_esc(title)}</h1>
-  <label>date</label><input type="date" id="date">
-  <div id="slots"></div>
-  <label>your name</label><input id="name">
-  <label>your email</label><input id="email" type="email">
-  <button class="go" onclick="submit()">book</button>
-  <div id="msg"></div>
+  <label for="date">date</label><input type="date" id="date">
+  <div id="slots" role="group" aria-label="available times"></div>
+  <label for="name">your name</label><input id="name">
+  <label for="email">your email</label><input id="email" type="email">
+  <button class="go" type="button" onclick="submit()">book</button>
+  <div id="msg" role="status"></div>
 </div>
 <script>
 const token = '{token}';
@@ -671,10 +673,11 @@ async function loadSlots(){{
   picked = null;
   const r = await fetch(`/book/${{token}}/slots?date=${{dEl.value}}`).then(r=>r.json()).catch(()=>({{slots:[]}}));
   const box = document.getElementById('slots');
-  box.innerHTML = r.slots.length ? '' : '<span style="color:#6e6e6e;font-size:.78rem">no free times that day</span>';
+  box.innerHTML = r.slots.length ? '' : '<span class="slots-empty">no free times that day</span>';
   for (const s of r.slots){{
-    const b = document.createElement('div'); b.className='slot'; b.textContent = s.start.slice(11,16);
-    b.onclick = () => {{ document.querySelectorAll('.slot').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); picked = s.start.slice(11,16); }};
+    const b = document.createElement('button'); b.type = 'button'; b.className='slot'; b.textContent = s.start.slice(11,16);
+    b.setAttribute('aria-pressed', 'false');
+    b.onclick = () => {{ box.querySelectorAll('.slot').forEach(x => {{ x.classList.remove('sel'); x.setAttribute('aria-pressed', 'false'); }}); b.classList.add('sel'); b.setAttribute('aria-pressed', 'true'); picked = s.start.slice(11,16); }};
     box.appendChild(b);
   }}
 }}
