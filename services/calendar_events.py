@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from core.database import BookingPage, Calendar, CalendarEvent, SessionLocal
+from core.database import BookingPage, Calendar, CalendarEvent, EventAttendee, SessionLocal
 from core.settings import load_settings
 
 
@@ -117,6 +117,13 @@ def create_event(db: Session, data: dict) -> CalendarEvent:
     db.commit()
     db.refresh(event)
     return event
+
+
+def delete_event(db: Session, event: CalendarEvent) -> None:
+    # Invitees have no FK cascade; their RSVP tokens must retire with the event.
+    db.query(EventAttendee).filter(EventAttendee.event_id == event.id).delete()
+    db.delete(event)
+    db.commit()
 
 
 def compute_booking_slots(db, page: BookingPage, date_str: str) -> list[dict]:
