@@ -650,14 +650,14 @@ function openDestination(tool) {
   }
   setPanelOpen(false, false);
   if (tool === 'files') {
-    document.querySelector('[data-view="files"]')?.click();
+    window._navigateTo('files');
   } else if (tool === 'browser') {
     window._navigateTo('andromeda');
   } else if (tool === 'side-task') {
     $('new-chat-btn')?.click();
     $('composer-ta')?.focus();
   } else if (tool === 'review') {
-    document.querySelector('[data-view="activity"]')?.click();
+    window._navigateTo('activity');
   }
 }
 

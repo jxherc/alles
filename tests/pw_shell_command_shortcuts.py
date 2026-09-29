@@ -122,6 +122,28 @@ def run() -> None:
             page.wait_for_function("id => window._currentSession?.id === id", arg=session_id)
 
             page.locator("#aide-work-panel-toggle").click()
+            page.locator('[data-aide-tool="review"]').press("Enter")
+            expect(page.locator("#server-workbench-view")).to_be_visible()
+            expect(
+                page.locator('#server-workbench-view [data-group-section="activity"]')
+            ).to_have_attribute("aria-selected", "true")
+            expect(page.locator("#activity-summary")).to_contain_text("events")
+            assert page.url.startswith(f"http://server.localhost:{port}/")
+            assert page.evaluate(
+                "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+            )
+            page.screenshot(path=str(output / f"aide-review-localhost-{width}.png"))
+
+            page.goto(f"http://aide.localhost:{port}/#{session_id}", wait_until="networkidle")
+            expect(page.locator("#chat")).to_be_visible()
+            page.locator("#aide-work-panel-toggle").click()
+            page.locator('[data-aide-tool="files"]').press("Enter")
+            expect(page.locator("#files-workbench-view")).to_be_visible()
+            assert page.url.startswith(f"http://files.localhost:{port}/")
+
+            page.goto(f"http://aide.localhost:{port}/#{session_id}", wait_until="networkidle")
+            expect(page.locator("#chat")).to_be_visible()
+            page.locator("#aide-work-panel-toggle").click()
             page.locator('[data-aide-tool="browser"]').press("Enter")
             expect(page.locator("#andromeda-view")).to_be_visible()
             assert page.url.startswith(f"http://andromeda.localhost:{port}/")
@@ -216,6 +238,32 @@ def run() -> None:
             expect(page.locator("#composer-ta")).to_be_focused()
             assert page.url.startswith(base + "/")
 
+            page.locator("#aide-work-panel-toggle").click()
+            page.locator('[data-aide-tool="review"]').press("Enter")
+            expect(page.locator("#server-workbench-view")).to_be_visible()
+            expect(
+                page.locator('#server-workbench-view [data-group-section="activity"]')
+            ).to_have_attribute("aria-selected", "true")
+            expect(page.locator("#activity-summary")).to_contain_text("events")
+            assert page.url.startswith(base + "/")
+            assert page.evaluate(
+                "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+            )
+            page.screenshot(path=str(output / f"aide-review-ip-{width}.png"))
+
+            page.goto(base, wait_until="networkidle")
+            page.locator("#app-drawer-btn").click()
+            page.locator('.app-drawer-item[data-view="chat"]').click()
+            expect(page.locator("#chat")).to_be_visible()
+            page.locator("#aide-work-panel-toggle").click()
+            page.locator('[data-aide-tool="files"]').press("Enter")
+            expect(page.locator("#files-workbench-view")).to_be_visible()
+            assert page.url.startswith(base + "/")
+
+            page.goto(base, wait_until="networkidle")
+            page.locator("#app-drawer-btn").click()
+            page.locator('.app-drawer-item[data-view="chat"]').click()
+            expect(page.locator("#chat")).to_be_visible()
             page.locator("#aide-work-panel-toggle").click()
             page.locator('[data-aide-tool="browser"]').press("Enter")
             expect(page.locator("#andromeda-view")).to_be_visible()
