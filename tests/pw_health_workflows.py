@@ -5,9 +5,11 @@ Only the explicit failed-save response is simulated. Run through the owned runne
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
@@ -24,6 +26,11 @@ def run():
     require_server_ownership(base, run_id)
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from core.database import HabitLog, SessionLocal
+    from services import agent_tools
+
+    def aide_call(name, args):
+        agent_tools.set_agent_ctx({"agent_environment": "general"})
+        return asyncio.run(agent_tools.execute(name, args))
 
     output = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     records = []
@@ -350,6 +357,46 @@ def run():
                 expect(day_button).to_be_focused()
                 day_button.press("Space")
                 expect(day_button).to_have_class("habit-day done")
+                assert page.evaluate(
+                    "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+                )
+                passed()
+                begin("habits.aide-duplicate-selection")
+                duplicate_name = f"duplicate habit {profile}"
+                ids = []
+                for _ in range(2):
+                    created = context.request.post(
+                        base + "/api/habits",
+                        data=json.dumps({"name": duplicate_name, "cadence": "daily"}),
+                        headers={"content-type": "application/json"},
+                    )
+                    assert created.ok, created.text()
+                    ids.append(created.json()["id"])
+                with ThreadPoolExecutor(max_workers=1) as aide_worker:
+                    ambiguous = aide_worker.submit(
+                        aide_call, "habit_log", {"name": duplicate_name}
+                    ).result()
+                    listed = aide_worker.submit(aide_call, "habits_list", {}).result()["output"]
+                    selected = aide_worker.submit(aide_call, "habit_log", {"id": ids[1]}).result()
+                assert ambiguous.get("error") and "multiple" in ambiguous["output"], ambiguous
+                assert all(hid in listed for hid in ids), listed
+                assert not selected.get("error"), selected
+                with SessionLocal() as db:
+                    logged_ids = {
+                        row.habit_id
+                        for row in db.query(HabitLog).filter(HabitLog.habit_id.in_(ids))
+                    }
+                assert logged_ids == {ids[1]}, logged_ids
+                page.goto(base + "/?view=habits", wait_until="networkidle")
+                first = page.locator(f'.habit-card[data-id="{ids[0]}"]')
+                second = page.locator(f'.habit-card[data-id="{ids[1]}"]')
+                expect(first.locator(f'.habit-day[data-toggle="{day}"]')).to_have_class("habit-day")
+                expect(second.locator(f'.habit-day[data-toggle="{day}"]')).to_have_class(
+                    "habit-day done"
+                )
+                page.screenshot(
+                    path=str(output / f"habits-{profile}-aide-duplicate.png"), full_page=True
+                )
                 assert page.evaluate(
                     "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 )
