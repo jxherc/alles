@@ -184,6 +184,17 @@ class AgentAppToolsTests(ApiTest):
         lst = self.ex("habits_list", {})
         self.assertIn("Read", lst["output"])
 
+    def test_habit_add_returns_exact_id_for_later_logging(self):
+        from core.database import HabitLog
+
+        added = self.ex("habit_add", {"name": "Read"})
+        habit_id = added.get("id")
+        self.assertTrue(habit_id, added)
+        logged = self.ex("habit_log", {"id": habit_id})
+        self.assertFalse(logged.get("error"), logged)
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).one().habit_id, habit_id)
+
     def test_habit_log_recognizes_api_log_in_compact_date_form(self):
         from core.database import HabitLog
 
@@ -216,9 +227,74 @@ class AgentAppToolsTests(ApiTest):
             db.commit()
         self.assertIn("[x] Read", self.ex("habits_list")["output"])
 
+    def test_habit_log_uses_active_match_after_older_same_name_is_archived(self):
+        from core.database import HabitLog
+
+        old = self.client.post("/api/habits", json={"name": "Read"}).json()
+        self.client.patch(f"/api/habits/{old['id']}", json={"archived": True})
+        active = self.client.post("/api/habits", json={"name": "Read"}).json()
+        result = self.ex("habit_log", {"name": "Read"})
+        self.assertFalse(result.get("error"), result)
+        with self.db() as db:
+            logged_ids = {row.habit_id for row in db.query(HabitLog).all()}
+        self.assertEqual(logged_ids, {active["id"]})
+
+    def test_habit_log_refuses_ambiguous_active_name_without_writing(self):
+        from core.database import HabitLog
+
+        self.ex("habit_add", {"name": "Read"})
+        self.ex("habit_add", {"name": "Read"})
+        result = self.ex("habit_log", {"name": "Read"})
+        self.assertTrue(result.get("error"), result)
+        self.assertIn("multiple", result["output"])
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).count(), 0)
+
+    def test_habit_log_selects_duplicate_by_exact_id_from_list(self):
+        from core.database import HabitLog
+
+        first = self.client.post("/api/habits", json={"name": "Read"}).json()
+        second = self.client.post("/api/habits", json={"name": "Read"}).json()
+        listed = self.ex("habits_list")["output"]
+        self.assertIn(first["id"], listed)
+        self.assertIn(second["id"], listed)
+        result = self.ex("habit_log", {"id": second["id"]})
+        self.assertFalse(result.get("error"), result)
+        with self.db() as db:
+            logged_ids = {row.habit_id for row in db.query(HabitLog).all()}
+        self.assertEqual(logged_ids, {second["id"]})
+        updated = self.ex("habits_list")["output"]
+        self.assertIn(f"- [ ] Read (daily; id {first['id']})", updated)
+        self.assertIn(f"- [x] Read (daily; id {second['id']})", updated)
+
+    def test_habit_log_rejects_name_and_id_disagreement(self):
+        from core.database import HabitLog
+
+        habit = self.client.post("/api/habits", json={"name": "Read"}).json()
+        result = self.ex("habit_log", {"name": "Walk", "id": habit["id"]})
+        self.assertTrue(result.get("error"), result)
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).count(), 0)
+
+    def test_habit_log_rejects_archived_exact_id(self):
+        from core.database import HabitLog
+
+        habit = self.client.post("/api/habits", json={"name": "Read"}).json()
+        self.client.patch(f"/api/habits/{habit['id']}", json={"archived": True})
+        result = self.ex("habit_log", {"id": habit["id"], "name": "Read"})
+        self.assertTrue(result.get("error"), result)
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).count(), 0)
+
     def test_habit_log_unknown_name_errors(self):
         r = self.ex("habit_log", {"name": "does-not-exist"})
         self.assertTrue(r.get("error"))
+
+    def test_habit_log_tool_schema_allows_exact_id_without_name(self):
+        tool = next(d for d in at.APP_TOOL_DEFS if d["function"]["name"] == "habit_log")
+        params = tool["function"]["parameters"]
+        self.assertIn("id", params["properties"])
+        self.assertNotIn("name", params["required"])
 
     # ── read-later ─────────────────────────────────────────────────────────
     def test_read_save_persists(self):

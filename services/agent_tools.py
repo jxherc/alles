@@ -1918,7 +1918,7 @@ async def _habit_add(a):
         db.add(h)
         db.commit()
         db.refresh(h)
-        return {"output": f"added habit '{name}' ({h.id[:8]})"}
+        return {"output": f"added habit '{name}' ({h.id[:8]})", "id": h.id}
     finally:
         db.close()
 
@@ -1930,20 +1930,42 @@ async def _habit_log(a):
     from services import habit_logs
 
     name = (a.get("name") or "").strip()
+    habit_id = (a.get("id") or "").strip()
+    if not name and not habit_id:
+        return {"output": "habit name or id required", "error": True}
     db = SessionLocal()
     try:
-        h = db.query(Habit).filter(Habit.name == name).first()
-        if not h:
-            return {"output": f"no habit named '{name}'", "error": True}
+        if habit_id:
+            h = db.get(Habit, habit_id)
+            if h is None or h.archived is not False:
+                return {"output": f"no active habit with id '{habit_id}'", "error": True}
+            if name and h.name != name:
+                return {"output": "habit id does not match name", "error": True}
+        else:
+            matches = (
+                db.query(Habit)
+                .filter(Habit.name == name, Habit.archived == False)  # noqa: E712
+                .limit(2)
+                .all()
+            )
+            if not matches:
+                return {"output": f"no active habit named '{name}'", "error": True}
+            if len(matches) > 1:
+                return {
+                    "output": f"multiple active habits named '{name}'; use habits_list and pass id",
+                    "error": True,
+                }
+            h = matches[0]
         today = date.today().isoformat()
         if not habit_logs.mark(db, h.id, today):
-            return {"output": f"'{name}' is already marked done today"}
-        return {"output": f"marked '{name}' done for today"}
+            return {"output": f"'{h.name}' is already marked done today"}
+        return {"output": f"marked '{h.name}' done for today"}
     finally:
         db.close()
 
 
 async def _habits_list(a):
+    from collections import Counter
     from datetime import date
 
     from core.database import Habit, SessionLocal
@@ -1960,10 +1982,12 @@ async def _habits_list(a):
         if not rows:
             return {"output": "no habits yet"}
         today = date.today().isoformat()
+        counts = Counter(h.name for h in rows)
         out = []
         for h in rows:
             done = habit_logs.is_done(db, h.id, today)
-            out.append(f"- {'[x]' if done else '[ ]'} {h.name} ({h.cadence})")
+            ident = f"; id {h.id}" if counts[h.name] > 1 else ""
+            out.append(f"- {'[x]' if done else '[ ]'} {h.name} ({h.cadence}{ident})")
         return {"output": "\n".join(out)}
     finally:
         db.close()
@@ -3487,11 +3511,10 @@ APP_TOOL_DEFS = [
     ),
     _tool(
         "habit_log",
-        "Mark a habit done for today, by name.",
-        {"name": {"type": "string"}},
-        ["name"],
+        "Mark an active habit done today by unique name or exact id. If names repeat, use habits_list for ids.",
+        {"name": {"type": "string"}, "id": {"type": "string"}},
     ),
-    _tool("habits_list", "List habits and whether each is done today.", {}),
+    _tool("habits_list", "List active habits and today's status; repeated names include ids.", {}),
     _tool(
         "read_save",
         "Save a URL to the read-later archive (fetches + stores the readable text).",
