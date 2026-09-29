@@ -4917,6 +4917,229 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         retry.assert_called_once()
         self.assertEqual(retry.call_args.args[1], "created-rent")
 
+    def test_recurring_delete_keeps_a_backup_and_tombstone(self):
+        db, link, actual, _values = self._recurring_edit_fixture()
+        writes = []
+        backups = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"delete_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return copy.deepcopy(actual)
+            writes.append(payload)
+            self.assertEqual(payload["action"], "delete_recurring_schedule")
+            self.assertEqual(payload["actual_id"], "actual-rent")
+            self.assertEqual(payload["before"]["rule"], "rent-rule")
+            actual["schedules"].clear()
+            return {"id": "actual-rent", "deleted": True}
+
+        result = actual_finance.delete_recurring_schedule(
+            db,
+            link.source_id,
+            confirmed_id=link.source_id,
+            bridge_request=bridge,
+            backup_fn=lambda: backups.append(True) or {"ok": True, "backup_id": "rent-backup"},
+        )
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(len(writes), 1)
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(link.actual_id, "")
+        metadata = json.loads(link.metadata_json)
+        self.assertEqual(
+            metadata["_deleted"],
+            {"version": 1, "actual_id": "actual-rent", "backup_id": "rent-backup"},
+        )
+        self.assertEqual(actual_finance.recurring_schedules(db, actual=actual), [])
+        self.assertEqual(
+            actual_finance.retry_recurring_delete(db, link.source_id, bridge_request=bridge),
+            {"ok": True},
+        )
+        self.assertEqual(len(writes), 1)
+        db.close()
+
+    def test_recurring_delete_recovers_a_lost_response_without_a_second_backup(self):
+        db, link, actual, _values = self._recurring_edit_fixture()
+        writes = []
+        backups = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"delete_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return copy.deepcopy(actual)
+            writes.append(payload)
+            actual["schedules"].clear()
+            if len(writes) == 1:
+                raise managed_actual.ManagedActualError("response lost")
+            return {"id": "actual-rent", "deleted": True}
+
+        with self.assertRaisesRegex(actual_finance.ActualFinanceUnavailable, "response lost"):
+            actual_finance.delete_recurring_schedule(
+                db,
+                link.source_id,
+                confirmed_id=link.source_id,
+                bridge_request=bridge,
+                backup_fn=lambda: backups.append(True) or {"ok": True, "backup_id": "rent-backup"},
+            )
+        pending = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertEqual(len(pending), 1)
+        self.assertTrue(pending[0]["delete_pending"])
+        self.assertFalse(pending[0]["delete_needs_review"])
+        self.assertFalse(pending[0]["manageable"])
+        self.assertEqual(
+            actual_finance.retry_recurring_delete(db, link.source_id, bridge_request=bridge),
+            {"ok": True},
+        )
+        self.assertEqual(len(writes), 2)
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(actual_finance.recurring_schedules(db, actual=actual), [])
+        db.close()
+
+    def test_recurring_delete_retries_after_posting_was_paused(self):
+        db, link, actual, _values = self._recurring_edit_fixture()
+        backups = []
+        writes = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"delete_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return copy.deepcopy(actual)
+            writes.append(payload)
+            if len(writes) == 1:
+                actual["schedules"][0]["posts_transaction"] = False
+                raise managed_actual.ManagedActualError("response lost after pause")
+            actual["schedules"].clear()
+            return {"id": "actual-rent", "deleted": True}
+
+        with self.assertRaisesRegex(actual_finance.ActualFinanceUnavailable, "response lost"):
+            actual_finance.delete_recurring_schedule(
+                db,
+                link.source_id,
+                confirmed_id=link.source_id,
+                bridge_request=bridge,
+                backup_fn=lambda: backups.append(True) or {"ok": True, "backup_id": "rent-backup"},
+            )
+        pending = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertEqual(len(pending), 1)
+        self.assertTrue(pending[0]["delete_pending"])
+        self.assertFalse(pending[0]["delete_needs_review"])
+        self.assertEqual(
+            actual_finance.retry_recurring_delete(db, link.source_id, bridge_request=bridge),
+            {"ok": True},
+        )
+        self.assertEqual(len(writes), 2)
+        self.assertEqual(len(backups), 1)
+        db.close()
+
+    def test_recurring_delete_blocks_retry_when_paused_schedule_drifts(self):
+        db, link, actual, _values = self._recurring_edit_fixture()
+        writes = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"delete_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return copy.deepcopy(actual)
+            writes.append(payload)
+            actual["schedules"][0]["posts_transaction"] = False
+            raise managed_actual.ManagedActualError("response lost after pause")
+
+        with self.assertRaises(actual_finance.ActualFinanceUnavailable):
+            actual_finance.delete_recurring_schedule(
+                db,
+                link.source_id,
+                confirmed_id=link.source_id,
+                bridge_request=bridge,
+                backup_fn=lambda: {"ok": True, "backup_id": "rent-backup"},
+            )
+        actual["schedules"][0]["name"] = "changed in Actual"
+        pending = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertTrue(pending[0]["delete_needs_review"])
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "provider review"):
+            actual_finance.retry_recurring_delete(db, link.source_id, bridge_request=bridge)
+        self.assertEqual(len(writes), 1)
+        self.assertIn("_delete_intent", json.loads(link.metadata_json))
+        db.close()
+
+    def test_recurring_delete_rejects_wrong_confirmation_and_provider_drift(self):
+        db, link, actual, _values = self._recurring_edit_fixture()
+        writes = []
+        backups = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"delete_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return copy.deepcopy(actual)
+            writes.append(payload)
+            return {"id": "actual-rent", "deleted": True}
+
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "confirm the exact"):
+            actual_finance.delete_recurring_schedule(
+                db, link.source_id, confirmed_id="another", bridge_request=bridge
+            )
+        actual["schedules"][0]["posting"]["guarded"] = False
+        with self.assertRaises(actual_finance.ActualFinanceError):
+            actual_finance.delete_recurring_schedule(
+                db,
+                link.source_id,
+                confirmed_id=link.source_id,
+                bridge_request=bridge,
+                backup_fn=lambda: backups.append(True) or {"ok": True, "backup_id": "backup"},
+            )
+        self.assertEqual(writes, [])
+        self.assertEqual(backups, [])
+        self.assertNotIn("_delete_intent", json.loads(link.metadata_json))
+        db.close()
+
+    def test_recurring_delete_requires_verified_backup_before_provider_write(self):
+        db, link, actual, _values = self._recurring_edit_fixture()
+        writes = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"delete_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return copy.deepcopy(actual)
+            writes.append(payload)
+            return {"id": "actual-rent", "deleted": True}
+
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "verified Actual backup"):
+            actual_finance.delete_recurring_schedule(
+                db,
+                link.source_id,
+                confirmed_id=link.source_id,
+                bridge_request=bridge,
+                backup_fn=lambda: {"ok": True},
+            )
+        self.assertEqual(writes, [])
+        self.assertNotIn("_delete_intent", json.loads(link.metadata_json))
+        db.close()
+
+    def test_canonical_recurring_delete_routes_require_confirmation_and_one_owner(self):
+        missing = self.client.post("/api/money/recurring/created-rent/delete", json={})
+        self.assertEqual(missing.status_code, 422, missing.text)
+        with patch(
+            "routes.money.actual_finance.delete_recurring_schedule", return_value={"ok": True}
+        ) as delete:
+            response = self.client.post(
+                "/api/money/recurring/created-rent/delete",
+                json={"confirm_id": "created-rent"},
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        delete.assert_called_once()
+        self.assertEqual(delete.call_args.args[1], "created-rent")
+        self.assertEqual(delete.call_args.kwargs, {"confirmed_id": "created-rent"})
+        with patch(
+            "routes.money.actual_finance.retry_recurring_delete", return_value={"ok": True}
+        ) as retry:
+            response = self.client.post("/api/money/recurring/created-rent/delete/retry")
+        self.assertEqual(response.status_code, 200, response.text)
+        retry.assert_called_once()
+        self.assertEqual(retry.call_args.args[1], "created-rent")
+
     def test_recurring_create_recovers_lost_response_from_one_marker(self):
         db = self.db()
         snapshot = {"schedules": []}

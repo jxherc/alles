@@ -293,6 +293,25 @@ class ActualBridgeTests(unittest.TestCase):
         self.assertIn("error instanceof ExistingStagedBudgetError", source)
         self.assertIn("failure.staged_budget = error.stagedBudget", source)
 
+    def test_recurring_delete_checks_schedule_and_rule_before_removing_only_the_schedule(self):
+        source = actual_bridge.bridge_script().read_text("utf-8")
+        deletion = source[
+            source.index("async function deleteRecurringSchedule") : source.index(
+                "async function write"
+            )
+        ]
+        self.assertIn("schedules.some(row => row.id !== id && row.rule === before.rule)", deletion)
+        self.assertIn("if (rules.length) throw new Error(changed)", deletion)
+        self.assertIn("!posting.guarded", deletion)
+        self.assertLess(
+            deletion.index("await api.updateSchedule(id"),
+            deletion.index("await api.deleteSchedule(id)"),
+        )
+        self.assertIn("await api.sync()", deletion)
+        self.assertIn("if (await check())", deletion)
+        self.assertNotIn("api.deleteTransaction", deletion)
+        self.assertNotIn("api.deleteRule", deletion)
+
     def test_call_parses_only_prefixed_structured_result(self):
         def runner(*args, **kwargs):
             return SimpleNamespace(

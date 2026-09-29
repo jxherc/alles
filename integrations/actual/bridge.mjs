@@ -96,6 +96,9 @@ const SAFE_BRIDGE_ERRORS = new Set([
   'Actual recurring edit requires an existing spending category',
   'Actual recurring edit changed outside its before and target states; review it first',
   'Actual recurring edit could not be confirmed',
+  'Actual recurring deletion request is invalid',
+  'Actual recurring schedule changed; review it before deleting',
+  'Actual recurring deletion could not be confirmed',
 ]);
 const PRIVATE_REQUEST_KEY_FRAGMENTS = [
   'password', 'token', 'secret', 'authorization', 'server_url', 'data_dir',
@@ -669,6 +672,60 @@ async function editRecurringSchedule(request) {
     throw new Error('Actual recurring edit could not be confirmed');
   }
   return { id, payee_id: current.schedule.payee, posts_transaction: current.schedule.posts_transaction };
+}
+
+async function deleteRecurringSchedule(request) {
+  const id = String(request.actual_id || '').trim();
+  const before = request.before || {};
+  if (!id || !before.name || !before.rule || !before.account || !before.payee
+    || !Number.isSafeInteger(before.amount) || before.amountOp !== 'is'
+    || !before.date || typeof before.date !== 'object'
+    || before.date.endMode !== 'never' || before.date.skipWeekend
+    || !scheduleDateIdentity(before.date)
+    || typeof before.category_id !== 'string' || typeof before.notes !== 'string'
+    || typeof before.posts_transaction !== 'boolean') {
+    throw new Error('Actual recurring deletion request is invalid');
+  }
+  const changed = 'Actual recurring schedule changed; review it before deleting';
+  const check = async () => {
+    const schedules = await api.getSchedules();
+    const matches = schedules.filter(row => row.id === id);
+    if (matches.length > 1 || schedules.some(row => row.id !== id && row.rule === before.rule)) {
+      throw new Error(changed);
+    }
+    const rules = (await api.getRules()).filter(row => row.id === before.rule);
+    if (!matches.length) {
+      if (rules.length) throw new Error(changed);
+      return null;
+    }
+    if (rules.length !== 1) throw new Error(changed);
+    const schedule = matches[0];
+    const posting = schedulePosting(schedule, rules[0]);
+    if (schedule.completed || schedule.name !== before.name || schedule.rule !== before.rule
+      || schedule.account !== before.account || schedule.payee !== before.payee
+      || schedule.amount !== before.amount || schedule.amountOp !== before.amountOp
+      || scheduleDateIdentity(schedule.date) !== scheduleDateIdentity(before.date)
+      || schedule.date?.endMode !== 'never' || schedule.date?.skipWeekend
+      || !posting.guarded || (posting.category || '') !== before.category_id
+      || posting.notes !== before.notes
+      || (schedule.posts_transaction !== before.posts_transaction
+        && !(before.posts_transaction && schedule.posts_transaction === false))) {
+      throw new Error(changed);
+    }
+    return schedule;
+  };
+  let schedule = await check();
+  if (!schedule) return { id, deleted: true };
+  if (schedule.posts_transaction) {
+    await api.updateSchedule(id, { posts_transaction: false });
+    await api.sync();
+    schedule = await check();
+    if (!schedule || schedule.posts_transaction) throw new Error(changed);
+  }
+  await api.deleteSchedule(id);
+  await api.sync();
+  if (await check()) throw new Error('Actual recurring deletion could not be confirmed');
+  return { id, deleted: true };
 }
 
 async function ensureCategory(name, categoryMap, groupId) {
@@ -1269,6 +1326,7 @@ async function write(request) {
   if (request.action === 'set_recurring_posting') return setSchedulePosting(request);
   if (request.action === 'create_recurring_schedule') return createRecurringSchedule(request);
   if (request.action === 'edit_recurring_schedule') return editRecurringSchedule(request);
+  if (request.action === 'delete_recurring_schedule') return deleteRecurringSchedule(request);
   if (request.action === 'clear_budget') {
     const categoryId = String(request.category_id || '').trim();
     if (!categoryId) throw new Error('Actual budget category id is required');
@@ -1297,6 +1355,7 @@ async function handle(request) {
     set_recurring_posting: 1,
     create_recurring_schedule: 1,
     edit_recurring_schedule: 1,
+    delete_recurring_schedule: 1,
   };
   if (request.command === 'versions') return {
     api: packageVersion('@actual-app/api'),

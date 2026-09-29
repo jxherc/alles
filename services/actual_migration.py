@@ -1761,6 +1761,8 @@ def validate_active_links(db: Session, actual: dict) -> dict:
                 restored_deleted_entity = any(
                     actual_id in transactions for actual_id in deleted_target.split(":")
                 )
+            elif link.entity_kind == "recurring":
+                restored_deleted_entity = deleted_target in schedules
             elif link.entity_kind == "budget_limit":
                 managed_month = str(metadata.get("managed_month") or "")
                 restored_deleted_entity = bool(managed_month) and budget_slots.get(

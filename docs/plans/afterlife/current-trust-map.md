@@ -51,9 +51,9 @@ flowchart LR
 ## Route snapshot
 
 - 83 included FastAPI router modules
-- 897 HTTP method/path pairs
-- 880 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `3289d723c4899572a5e6740849cd7c2ae16bb00b545001a16ba70f624f6b5e09`
+- 899 HTTP method/path pairs
+- 882 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `c4c7256f5205055f1907633ebb650e85fcf8323e9cb8e4e3c2067dbc63880bb2`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
@@ -95,7 +95,7 @@ share/booking routes. Exact host ownership and parser markers are regression-tes
 
 ## Fresh evidence
 
-- Runtime enumeration on 2026-09-29 reproduced the locked 897-route digest and 880/2/15 grouping.
+- Runtime enumeration on 2026-09-29 reproduced the locked 899-route digest and 882/2/15 grouping.
   The authenticated `POST /api/money/recurring/{rid}/retry` reconciles one pending Actual
   schedule creation without making another schedule. `POST /api/money/recurring/{rid}/repair`
   repairs an older linked schedule after explicit category choice; the existing
@@ -103,6 +103,10 @@ share/booking routes. Exact host ownership and parser markers are regression-tes
   `GET /api/money/recurring/{rid}/edit-options` reads one linked guarded schedule and its
   current Actual choices. The `POST /api/money/recurring/{rid}/edit` and `/edit/retry`
   routes save and retry that edit; Finance now exposes the complete edit form and pending review.
+  The `POST /api/money/recurring/{rid}/delete` and `/delete/retry` routes remove only a
+  linked guarded schedule eligible for deletion after confirmation, backup, and a durable retry checkpoint. The
+  provider deletes its linked rule; previously posted transactions remain. Native and
+  unrepaired schedules stay read-only in Finance.
   The earlier `POST /api/money/envelope/target/bind` chooses a category for a preserved funding
   target; `GET /api/search/finance` reads Money and Subscriptions for local palette search.
 - Scoped bearer tests prove independent API authentication, exact scope denial, revocation, malformed

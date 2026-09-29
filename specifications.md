@@ -294,8 +294,11 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   edit form reads the current schedule and eligible account, payee, and category ids from
   one Actual snapshot. it offers amount, sign, recurrence (including custom days), next date,
   auto-post, and notes. an uncertain edit shows the saved retry or review state; a failed
-  status check blocks a second save until the current schedule can be read. recurring
-  deletion is not yet available in Finance
+  status check blocks a second save until the current schedule can be read. Finance can
+  delete one eligible linked guarded schedule after an explicit confirmation and verified Actual
+  backup. Actual removes its linked rule with the schedule; past transactions remain.
+  an interrupted deletion leaves the saved intent visible for exact retry or review,
+  while native, unlinked, and unrepaired schedules still require Actual
 - Money alerts use the active ledger for large purchases, watched transactions, upcoming bills,
   and low account balances. after cutover, they read one Actual snapshot plus local watches;
   variable bill amounts are not shown as zero, and a failed read offers retry instead of hiding alerts

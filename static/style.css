@@ -5044,7 +5044,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .rc-amt.pos { color: var(--green); } .rc-amt.neg { color: var(--text); }
 .rc-cyc { color: var(--muted); font-size: 0.75rem; margin-left: 0.15rem; }
 .rc-next { width: 48px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
-.rc-toggle { font-size: 0.75rem; padding: 0.1rem 0.4rem; }
+.rc-toggle { font-size: 0.75rem; padding: 0.1rem 0.4rem; min-height: 44px; }
+.rc-delete { min-height: 44px; }
 .money-recurring-note { color: var(--muted); font-size: 0.8rem; margin: var(--k-space-2, 8px) 0 0; }
 .recur-form { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
 .recur-form > * { height: 32px; box-sizing: border-box; }
