@@ -344,7 +344,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 151
+                "line": 160
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -727,7 +727,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 151
+                "line": 160
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -3673,6 +3673,18 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 124
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 219
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_pty_live.py",
                 "kind": "existing-test-control-reference",
                 "line": 91
@@ -3735,6 +3747,18 @@
                 "file": "tests/pw_phase6_aide_tool_states.py",
                 "kind": "existing-test-control-reference",
                 "line": 134
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 124
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 219
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5125,13 +5149,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 189
+                "line": 198
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 200
+                "line": 209
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5478,13 +5502,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 189
+                "line": 198
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 200
+                "line": 209
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -31326,7 +31350,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 129
+                "line": 138
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -31409,7 +31433,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 129
+                "line": 138
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -34219,7 +34243,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 130
+                "line": 139
               }
             ]
           },
@@ -34308,7 +34332,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 130
+                "line": 139
               }
             ]
           },
@@ -35173,7 +35197,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 131
+                "line": 140
               }
             ]
           },
@@ -35348,7 +35372,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 131
+                "line": 140
               }
             ]
           },
@@ -51628,7 +51652,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/aideworkspace.js:752 click"
+            "value": "static/js/aideworkspace.js:751 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -51693,7 +51717,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/aideworkspace.js:752 click"
+            "value": "static/js/aideworkspace.js:751 click"
           },
           "keys": [
             "Enter",
@@ -51726,7 +51750,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/aideworkspace.js:752 click"
+        "value": "static/js/aideworkspace.js:751 click"
       },
       "id": "static.df5269bdd0d4",
       "kind": "action",
@@ -51861,7 +51885,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/aideworkspace.js:773 click"
+            "value": "static/js/aideworkspace.js:772 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -51920,7 +51944,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/aideworkspace.js:773 click"
+            "value": "static/js/aideworkspace.js:772 click"
           },
           "keys": [
             "Enter",
@@ -51953,7 +51977,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/aideworkspace.js:773 click"
+        "value": "static/js/aideworkspace.js:772 click"
       },
       "id": "static.0e9598edca4c",
       "kind": "action",
@@ -52848,7 +52872,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 207
+                "line": 216
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53299,7 +53323,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 207
+                "line": 216
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53750,7 +53774,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 207
+                "line": 216
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -56581,7 +56605,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/aideworkspace.js:802 click"
+            "value": "static/js/aideworkspace.js:801 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -56610,7 +56634,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/aideworkspace.js:802 click"
+            "value": "static/js/aideworkspace.js:801 click"
           },
           "keys": [
             "Enter",
@@ -56643,7 +56667,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/aideworkspace.js:802 click"
+        "value": "static/js/aideworkspace.js:801 click"
       },
       "id": "static.cee562539e6f",
       "kind": "icon-action",
@@ -56757,7 +56781,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/aideworkspace.js:801 click"
+            "value": "static/js/aideworkspace.js:800 click"
           },
           "keys": [],
           "modality": "pointer",
@@ -56798,7 +56822,7 @@
           "handler_provenance": {
             "classification": "direct-id-listener",
             "discoverability": "direct-id-listener",
-            "value": "static/js/aideworkspace.js:801 click"
+            "value": "static/js/aideworkspace.js:800 click"
           },
           "keys": [
             "Enter",
@@ -56831,7 +56855,7 @@
       "handler": {
         "classification": "direct-id-listener",
         "discoverability": "direct-id-listener",
-        "value": "static/js/aideworkspace.js:801 click"
+        "value": "static/js/aideworkspace.js:800 click"
       },
       "id": "static.bfa05fd02c67",
       "kind": "icon-action",
@@ -58748,37 +58772,37 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 153
+                "line": 162
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 161
+                "line": 170
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 169
+                "line": 178
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 180
+                "line": 189
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 190
+                "line": 199
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 201
+                "line": 210
               }
             ]
           },
@@ -61846,7 +61870,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 126
+                "line": 135
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -62181,7 +62205,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 126
+                "line": 135
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -114225,7 +114249,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 122
+              "line": 121
             },
             "status": "source-only",
             "tests": []
@@ -114233,7 +114257,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:113 renderProjectMenu"
+            "value": "static/js/aideworkspace.js:112 renderProjectMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -114247,7 +114271,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 122
+              "line": 121
             },
             "status": "source-only",
             "tests": []
@@ -114255,7 +114279,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:113 renderProjectMenu"
+            "value": "static/js/aideworkspace.js:112 renderProjectMenu"
           },
           "keys": [
             "Enter",
@@ -114293,7 +114317,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:113 renderProjectMenu"
+        "value": "static/js/aideworkspace.js:112 renderProjectMenu"
       },
       "id": "dynamic.d4279b1f1426",
       "kind": "action",
@@ -114304,7 +114328,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:113 renderProjectMenu"
+          "static/js/aideworkspace.js:112 renderProjectMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -114345,9 +114369,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 122
+          "line": 121
         },
-        "source_selector": "static/js/aideworkspace.js:122:1",
+        "source_selector": "static/js/aideworkspace.js:121:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -114382,7 +114406,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 133
+              "line": 132
             },
             "status": "source-only",
             "tests": []
@@ -114390,7 +114414,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:113 renderProjectMenu"
+            "value": "static/js/aideworkspace.js:112 renderProjectMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -114404,7 +114428,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 133
+              "line": 132
             },
             "status": "source-only",
             "tests": []
@@ -114412,7 +114436,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:113 renderProjectMenu"
+            "value": "static/js/aideworkspace.js:112 renderProjectMenu"
           },
           "keys": [
             "Enter",
@@ -114450,7 +114474,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:113 renderProjectMenu"
+        "value": "static/js/aideworkspace.js:112 renderProjectMenu"
       },
       "id": "dynamic.88b54301ab4b",
       "kind": "action",
@@ -114461,7 +114485,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:113 renderProjectMenu"
+          "static/js/aideworkspace.js:112 renderProjectMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -114502,9 +114526,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 133
+          "line": 132
         },
-        "source_selector": "static/js/aideworkspace.js:133:2",
+        "source_selector": "static/js/aideworkspace.js:132:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -114539,7 +114563,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 216
+              "line": 215
             },
             "status": "source-only",
             "tests": []
@@ -114547,7 +114571,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:212 renderBranchMenu"
+            "value": "static/js/aideworkspace.js:211 renderBranchMenu"
           },
           "keys": [],
           "modality": "pointer",
@@ -114561,7 +114585,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 216
+              "line": 215
             },
             "status": "source-only",
             "tests": []
@@ -114569,7 +114593,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:212 renderBranchMenu"
+            "value": "static/js/aideworkspace.js:211 renderBranchMenu"
           },
           "keys": [
             "Enter",
@@ -114607,7 +114631,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:212 renderBranchMenu"
+        "value": "static/js/aideworkspace.js:211 renderBranchMenu"
       },
       "id": "dynamic.f9c659df26e0",
       "kind": "action",
@@ -114618,7 +114642,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:212 renderBranchMenu"
+          "static/js/aideworkspace.js:211 renderBranchMenu"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -114659,9 +114683,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 216
+          "line": 215
         },
-        "source_selector": "static/js/aideworkspace.js:216:3",
+        "source_selector": "static/js/aideworkspace.js:215:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -114696,7 +114720,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 287
+              "line": 286
             },
             "status": "source-only",
             "tests": []
@@ -114704,7 +114728,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:286 folderButton"
+            "value": "static/js/aideworkspace.js:285 folderButton"
           },
           "keys": [],
           "modality": "pointer",
@@ -114718,7 +114742,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 287
+              "line": 286
             },
             "status": "source-only",
             "tests": []
@@ -114726,7 +114750,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:286 folderButton"
+            "value": "static/js/aideworkspace.js:285 folderButton"
           },
           "keys": [
             "Enter",
@@ -114764,7 +114788,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:286 folderButton"
+        "value": "static/js/aideworkspace.js:285 folderButton"
       },
       "id": "dynamic.becdb72ce0b8",
       "kind": "action",
@@ -114775,7 +114799,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:286 folderButton"
+          "static/js/aideworkspace.js:285 folderButton"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -114816,9 +114840,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 287
+          "line": 286
         },
-        "source_selector": "static/js/aideworkspace.js:287:4",
+        "source_selector": "static/js/aideworkspace.js:286:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -114853,7 +114877,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 368
+              "line": 367
             },
             "status": "source-only",
             "tests": []
@@ -114861,7 +114885,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [],
           "modality": "pointer",
@@ -114875,7 +114899,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 368
+              "line": 367
             },
             "status": "source-only",
             "tests": []
@@ -114883,7 +114907,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [
             "Enter",
@@ -114921,7 +114945,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+        "value": "static/js/aideworkspace.js:340 openFolderBrowser"
       },
       "id": "dynamic.f8f58aef57c6",
       "kind": "action",
@@ -114932,7 +114956,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:341 openFolderBrowser"
+          "static/js/aideworkspace.js:340 openFolderBrowser"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -114973,9 +114997,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 368
+          "line": 367
         },
-        "source_selector": "static/js/aideworkspace.js:368:5",
+        "source_selector": "static/js/aideworkspace.js:367:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -115010,7 +115034,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 378
+              "line": 377
             },
             "status": "source-only",
             "tests": []
@@ -115018,7 +115042,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [],
           "modality": "pointer",
@@ -115032,7 +115056,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 378
+              "line": 377
             },
             "status": "source-only",
             "tests": []
@@ -115040,7 +115064,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [
             "Enter",
@@ -115078,7 +115102,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+        "value": "static/js/aideworkspace.js:340 openFolderBrowser"
       },
       "id": "dynamic.04981e2fdec3",
       "kind": "action",
@@ -115089,7 +115113,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:341 openFolderBrowser"
+          "static/js/aideworkspace.js:340 openFolderBrowser"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -115130,9 +115154,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 378
+          "line": 377
         },
-        "source_selector": "static/js/aideworkspace.js:378:6",
+        "source_selector": "static/js/aideworkspace.js:377:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -115167,7 +115191,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 389
+              "line": 388
             },
             "status": "source-only",
             "tests": []
@@ -115175,7 +115199,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [
             "native editing keys"
@@ -115212,7 +115236,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+        "value": "static/js/aideworkspace.js:340 openFolderBrowser"
       },
       "id": "dynamic.007efaa6226e",
       "kind": "field",
@@ -115223,7 +115247,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:341 openFolderBrowser"
+          "static/js/aideworkspace.js:340 openFolderBrowser"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -115264,9 +115288,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 389
+          "line": 388
         },
-        "source_selector": "static/js/aideworkspace.js:389:7",
+        "source_selector": "static/js/aideworkspace.js:388:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -115294,7 +115318,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 394
+              "line": 393
             },
             "status": "source-only",
             "tests": []
@@ -115302,7 +115326,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [],
           "modality": "pointer",
@@ -115316,7 +115340,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 394
+              "line": 393
             },
             "status": "source-only",
             "tests": []
@@ -115324,7 +115348,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [
             "Enter",
@@ -115362,7 +115386,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+        "value": "static/js/aideworkspace.js:340 openFolderBrowser"
       },
       "id": "dynamic.eb358f599418",
       "kind": "action",
@@ -115373,7 +115397,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:341 openFolderBrowser"
+          "static/js/aideworkspace.js:340 openFolderBrowser"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -115414,9 +115438,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 394
+          "line": 393
         },
-        "source_selector": "static/js/aideworkspace.js:394:8",
+        "source_selector": "static/js/aideworkspace.js:393:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -115451,7 +115475,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 418
+              "line": 417
             },
             "status": "source-only",
             "tests": []
@@ -115459,7 +115483,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [],
           "modality": "pointer",
@@ -115473,7 +115497,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 418
+              "line": 417
             },
             "status": "source-only",
             "tests": []
@@ -115481,7 +115505,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [
             "Enter",
@@ -115519,7 +115543,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+        "value": "static/js/aideworkspace.js:340 openFolderBrowser"
       },
       "id": "dynamic.49e24a608ece",
       "kind": "action",
@@ -115530,7 +115554,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:341 openFolderBrowser"
+          "static/js/aideworkspace.js:340 openFolderBrowser"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -115571,9 +115595,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 418
+          "line": 417
         },
-        "source_selector": "static/js/aideworkspace.js:418:9",
+        "source_selector": "static/js/aideworkspace.js:417:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -115608,7 +115632,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 422
+              "line": 421
             },
             "status": "source-only",
             "tests": []
@@ -115616,7 +115640,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [],
           "modality": "pointer",
@@ -115630,7 +115654,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 422
+              "line": 421
             },
             "status": "source-only",
             "tests": []
@@ -115638,7 +115662,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [
             "Enter",
@@ -115676,7 +115700,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+        "value": "static/js/aideworkspace.js:340 openFolderBrowser"
       },
       "id": "dynamic.a202649ef1a9",
       "kind": "action",
@@ -115687,7 +115711,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:341 openFolderBrowser"
+          "static/js/aideworkspace.js:340 openFolderBrowser"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -115728,9 +115752,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 422
+          "line": 421
         },
-        "source_selector": "static/js/aideworkspace.js:422:10",
+        "source_selector": "static/js/aideworkspace.js:421:10",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -115765,7 +115789,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 427
+              "line": 426
             },
             "status": "source-only",
             "tests": []
@@ -115773,7 +115797,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [],
           "modality": "pointer",
@@ -115787,7 +115811,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 427
+              "line": 426
             },
             "status": "source-only",
             "tests": []
@@ -115795,7 +115819,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+            "value": "static/js/aideworkspace.js:340 openFolderBrowser"
           },
           "keys": [
             "Enter",
@@ -115833,7 +115857,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:341 openFolderBrowser"
+        "value": "static/js/aideworkspace.js:340 openFolderBrowser"
       },
       "id": "dynamic.b7edb0b8f1ad",
       "kind": "action",
@@ -115844,7 +115868,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:341 openFolderBrowser"
+          "static/js/aideworkspace.js:340 openFolderBrowser"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -115885,9 +115909,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 427
+          "line": 426
         },
-        "source_selector": "static/js/aideworkspace.js:427:11",
+        "source_selector": "static/js/aideworkspace.js:426:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -115922,7 +115946,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 724
+              "line": 723
             },
             "status": "source-only",
             "tests": []
@@ -115930,7 +115954,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:702 rebuildRail"
+            "value": "static/js/aideworkspace.js:701 rebuildRail"
           },
           "keys": [],
           "modality": "pointer",
@@ -115944,7 +115968,7 @@
             "source": {
               "file": "static/js/aideworkspace.js",
               "kind": "control-source",
-              "line": 724
+              "line": 723
             },
             "status": "source-only",
             "tests": []
@@ -115952,7 +115976,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/aideworkspace.js:702 rebuildRail"
+            "value": "static/js/aideworkspace.js:701 rebuildRail"
           },
           "keys": [
             "Enter",
@@ -115990,7 +116014,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/aideworkspace.js:702 rebuildRail"
+        "value": "static/js/aideworkspace.js:701 rebuildRail"
       },
       "id": "dynamic.e3b81f1bb74f",
       "kind": "action",
@@ -116001,7 +116025,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/aideworkspace.js:702 rebuildRail"
+          "static/js/aideworkspace.js:701 rebuildRail"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -116042,9 +116066,9 @@
         "source": {
           "column": null,
           "file": "static/js/aideworkspace.js",
-          "line": 724
+          "line": 723
         },
-        "source_selector": "static/js/aideworkspace.js:724:12",
+        "source_selector": "static/js/aideworkspace.js:723:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
