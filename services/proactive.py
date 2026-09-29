@@ -401,7 +401,7 @@ async def _maybe_push(db, s):
     )
     if not rows:
         return 0
-    from routes.push import broadcast_result
+    from services.push_delivery import broadcast_result
 
     sent = 0
     for r in rows:

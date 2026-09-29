@@ -344,7 +344,7 @@ class ProactiveQuietHoursTests(ApiTest):
 
 class ProactivePushTests(ApiTest):
     def _patch_broadcast(self):
-        import routes.push as push
+        from services import push_delivery
 
         sent = []
 
@@ -356,9 +356,9 @@ class ProactivePushTests(ApiTest):
             await fake(payload)
             return {"sent": 1, "failed": 0, "uncertain": 0, "pruned": 0, "total": 1}
 
-        orig = push.broadcast_result
-        push.broadcast_result = fake_result
-        self.addCleanup(lambda: setattr(push, "broadcast_result", orig))
+        orig = push_delivery.broadcast_result
+        push_delivery.broadcast_result = fake_result
+        self.addCleanup(lambda: setattr(push_delivery, "broadcast_result", orig))
         return sent
 
     def _card(self, **kw):
@@ -388,14 +388,14 @@ class ProactivePushTests(ApiTest):
         d.close()
 
     def test_failed_delivery_does_not_mark_card_pushed(self):
-        import routes.push as push
+        from services import push_delivery
 
         async def fake(payload):
             return {"sent": 0, "failed": 0, "uncertain": 0, "pruned": 0, "total": 0}
 
-        orig = push.broadcast_result
-        push.broadcast_result = fake
-        self.addCleanup(lambda: setattr(push, "broadcast_result", orig))
+        orig = push_delivery.broadcast_result
+        push_delivery.broadcast_result = fake
+        self.addCleanup(lambda: setattr(push_delivery, "broadcast_result", orig))
         d = self._card(title="still pending", urgency=90)
         s = {"pidx_proactive_channel": "push", "pidx_proactive_push_min": 70}
 
@@ -406,7 +406,7 @@ class ProactivePushTests(ApiTest):
         d.close()
 
     def test_uncertain_delivery_is_not_retried(self):
-        import routes.push as push
+        from services import push_delivery
 
         calls = []
 
@@ -414,9 +414,9 @@ class ProactivePushTests(ApiTest):
             calls.append(payload)
             return {"sent": 0, "failed": 0, "uncertain": 1, "pruned": 0, "total": 1}
 
-        orig = push.broadcast_result
-        push.broadcast_result = fake
-        self.addCleanup(lambda: setattr(push, "broadcast_result", orig))
+        orig = push_delivery.broadcast_result
+        push_delivery.broadcast_result = fake
+        self.addCleanup(lambda: setattr(push_delivery, "broadcast_result", orig))
         d = self._card(title="maybe delivered", urgency=90)
         s = {"pidx_proactive_channel": "push", "pidx_proactive_push_min": 70}
 

@@ -195,7 +195,7 @@ def delete_day(eid: str, db: DbSession = Depends(get_db)):
 async def check_day_events():
     """called from the background loop — push when an event enters its
     reminder window, once per occurrence."""
-    from routes.push import broadcast_result
+    from services.push_delivery import broadcast_result
 
     today = date.today()
     db = SessionLocal()

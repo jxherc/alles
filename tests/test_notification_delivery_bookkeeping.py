@@ -24,7 +24,7 @@ class PushDeliveryBookkeepingTests(ApiTest):
                 "total": delivered,
             }
 
-        with mock.patch("routes.push.broadcast_result", fake_broadcast):
+        with mock.patch("services.push_delivery.broadcast_result", fake_broadcast):
             asyncio.run(job())
 
     @staticmethod
@@ -33,7 +33,7 @@ class PushDeliveryBookkeepingTests(ApiTest):
             calls.append(payload)
             return {"sent": 0, "failed": 0, "uncertain": 1, "pruned": 0, "total": 1}
 
-        with mock.patch("routes.push.broadcast_result", fake_broadcast):
+        with mock.patch("services.push_delivery.broadcast_result", fake_broadcast):
             asyncio.run(job())
 
     def test_subscription_marker_waits_for_confirmed_delivery(self):
@@ -315,7 +315,7 @@ class PushDeliveryBookkeepingTests(ApiTest):
             other.close()
             return {"sent": 1, "failed": 0, "uncertain": 0, "pruned": 0, "total": 1}
 
-        with mock.patch("routes.push.broadcast_result", cut_over_after_claim):
+        with mock.patch("services.push_delivery.broadcast_result", cut_over_after_claim):
             asyncio.run(check_renewals())
 
         d = self.db()
@@ -340,7 +340,7 @@ class PushDeliveryBookkeepingTests(ApiTest):
                 "routes.subscriptions.actual_finance.subscription_schedules",
                 return_value=[canonical],
             ),
-            mock.patch("routes.push.broadcast_result", provider),
+            mock.patch("services.push_delivery.broadcast_result", provider),
         ):
             asyncio.run(check_renewals())
         provider.assert_not_awaited()

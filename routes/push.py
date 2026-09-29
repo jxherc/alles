@@ -1,7 +1,4 @@
-"""
-web push subscriptions — the browser registers here, the reminder loop (and
-anything else) broadcasts through `broadcast()`.
-"""
+"""HTTP endpoints for browser push subscriptions and a delivery test."""
 
 import logging
 
@@ -9,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import PushSubscription, SessionLocal, get_db
-from services import webpush
+from core.database import PushSubscription, get_db
+from services import push_delivery, webpush
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.push")
@@ -59,7 +56,7 @@ def status(db: DbSession = Depends(get_db)):
 
 @router.post("/push/test")
 async def test_push():
-    res = await broadcast_result(
+    res = await push_delivery.broadcast_result(
         {"title": "alles", "body": "push notifications are working", "url": "/", "tag": "push-test"}
     )
     if res["total"] == 0:
@@ -77,39 +74,3 @@ async def test_push():
         "uncertain": res["uncertain"],
         "pruned": res["pruned"],
     }
-
-
-async def broadcast(payload: dict) -> int:
-    return (await broadcast_result(payload))["sent"]
-
-
-async def broadcast_result(payload: dict) -> dict:
-    """send to every registered browser, pruning dead subscriptions. returns
-    delivery counts."""
-    db = SessionLocal()
-    try:
-        subs = db.query(PushSubscription).all()
-        sent = failed = uncertain = pruned = 0
-        for s in subs:
-            state = await webpush.send_push(
-                {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth}, payload
-            )
-            if state == "sent":
-                sent += 1
-            elif state == "gone":
-                pruned += 1
-                db.delete(s)
-            elif state == "uncertain":
-                uncertain += 1
-            else:
-                failed += 1
-        db.commit()
-        return {
-            "sent": sent,
-            "failed": failed,
-            "uncertain": uncertain,
-            "pruned": pruned,
-            "total": len(subs),
-        }
-    finally:
-        db.close()

@@ -952,7 +952,8 @@ alles/
 │   ├── youtube.py         youtube transcript → note
 │   ├── memory_store.py    fastembed vector memory + keyword fallback
 │   ├── crypto.py          aes-256-gcm vault encryption
-│   ├── webpush.py         web push from the rfcs
+│   ├── webpush.py         one-recipient web push transport from the rfcs
+│   ├── push_delivery.py   broadcast counts and dead-subscription pruning
 │   ├── sysmon.py          live cpu/ram/disk/gpu snapshot (the system monitor)
 │   └── …                  files, photos, caldav, automations, docx export, stt
 ├── routes/                one apirouter per feature, all under /api (+ /v1 openai-compat)

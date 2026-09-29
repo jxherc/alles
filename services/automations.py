@@ -186,7 +186,7 @@ async def _perform_action(db, rule, ctx: dict, text: str) -> None:
         return
 
     if rule.action in ("push", "push_digest"):
-        from routes.push import broadcast_result
+        from services.push_delivery import broadcast_result
 
         if rule.action == "push_digest":
             try:
