@@ -34,7 +34,30 @@ class AgentAppToolsTests(ApiTest):
 
     def test_book_add_rejects_bad_status(self):
         r = self.ex("book_add", {"title": "X", "status": "nonsense"})
-        self.assertTrue(r.get("error"))
+        self.assertEqual(r, {"output": "status must be want, reading or done", "error": True})
+
+    def test_book_add_rejects_blank_title_without_saving(self):
+        r = self.ex("book_add", {"title": " \t "})
+        self.assertEqual(r, {"output": "title required", "error": True})
+        self.assertEqual(self.client.get("/api/books/overview").json()["total"], 0)
+
+    def test_book_add_is_available_to_aide_recall(self):
+        with mock.patch("services.textindex._embed", return_value=None):
+            added = self.ex("book_add", {"title": "Quartzferret Handbook"})
+            recall = self.ex("recall", {"query": "Quartzferret"})
+        self.assertFalse(added.get("error"), added)
+        self.assertIn("Quartzferret Handbook", recall["output"])
+        self.assertIn("/?app=books#", recall["output"])
+
+    def test_book_add_survives_an_index_outage(self):
+        with mock.patch(
+            "services.personal_index.index_record", side_effect=RuntimeError("offline")
+        ):
+            result = self.ex("book_add", {"title": "Dune", "status": "done"})
+        self.assertFalse(result.get("error"), result)
+        book = self.client.get("/api/books/overview").json()["shelves"]["done"][0]
+        self.assertEqual(book["title"], "Dune")
+        self.assertTrue(book["finished"])
 
     def test_books_list_shows_added(self):
         self.ex("book_add", {"title": "Dune"})
