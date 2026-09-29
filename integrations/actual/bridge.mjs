@@ -90,6 +90,12 @@ const SAFE_BRIDGE_ERRORS = new Set([
   'Actual recurring creation linked rule changed; review it first',
   'Actual recurring creation posting state changed; review it first',
   'Actual recurring creation could not be confirmed',
+  'Actual recurring edit requires one linked schedule',
+  'Actual recurring edit request is invalid',
+  'Actual recurring edit requires an open account and existing payee',
+  'Actual recurring edit requires an existing spending category',
+  'Actual recurring edit changed outside its before and target states; review it first',
+  'Actual recurring edit could not be confirmed',
 ]);
 const PRIVATE_REQUEST_KEY_FRAGMENTS = [
   'password', 'token', 'secret', 'authorization', 'server_url', 'data_dir',
@@ -531,6 +537,138 @@ async function createRecurringSchedule(request) {
     throw new Error('Actual recurring creation could not be confirmed');
   }
   return { id, payee_id: payeeId, posts_transaction: request.active };
+}
+
+async function editRecurringSchedule(request) {
+  const id = String(request.actual_id || '').trim();
+  const before = request.before || {};
+  const target = request.target || {};
+  const validDate = value => {
+    if (!value || typeof value !== 'object' || typeof value.start !== 'string') return false;
+    const key = value.start.replaceAll('-', '');
+    const iso = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
+    const patterns = value.patterns || [];
+    return /^\d{8}$/.test(key)
+      && !Number.isNaN(Date.parse(`${iso}T00:00:00Z`))
+      && new Date(`${iso}T00:00:00Z`).toISOString().slice(0, 10) === iso
+      && ['daily', 'weekly', 'monthly', 'yearly'].includes(value.frequency)
+      && Number.isSafeInteger(value.interval) && value.interval >= 1
+      && value.interval <= 1000000 && value.endMode === 'never' && !value.skipWeekend
+      && Array.isArray(patterns) && patterns.length <= 1
+      && (patterns.length === 0 || (
+        value.frequency === 'monthly' && patterns[0]?.type === 'day'
+        && (patterns[0].value === -1
+          || (Number.isInteger(patterns[0].value)
+            && patterns[0].value >= 1 && patterns[0].value <= 28))
+      ));
+  };
+  const validState = state => typeof state.name === 'string' && !!state.name
+    && typeof state.rule === 'string' && !!state.rule
+    && typeof state.account === 'string' && !!state.account
+    && typeof state.payee === 'string' && !!state.payee
+    && Number.isSafeInteger(state.amount) && state.amount !== 0
+    && state.amountOp === 'is'
+    && validDate(state.date)
+    && typeof state.category_id === 'string' && typeof state.notes === 'string'
+    && typeof state.posts_transaction === 'boolean';
+  if (!id || !validState(before) || !validState(target)
+    || before.name !== target.name || before.rule !== target.rule) {
+    throw new Error('Actual recurring edit request is invalid');
+  }
+  const accounts = (await api.getAccounts()).filter(row => row.id === target.account && !row.closed);
+  const payees = (await api.getPayees()).filter(row => row.id === target.payee && !row.transfer_acct);
+  if (accounts.length !== 1 || payees.length !== 1) {
+    throw new Error('Actual recurring edit requires an open account and existing payee');
+  }
+  if (target.category_id) {
+    const categories = (await api.getCategories()).filter(row => (
+      row.id === target.category_id && !row.is_income
+    ));
+    if (categories.length !== 1) {
+      throw new Error('Actual recurring edit requires an existing spending category');
+    }
+  }
+  const changed = 'Actual recurring edit changed outside its before and target states; review it first';
+  const inspectOne = async () => {
+    const schedules = (await api.getSchedules()).filter(row => row.id === id);
+    if (schedules.length !== 1) throw new Error('Actual recurring edit requires one linked schedule');
+    const schedule = schedules[0];
+    const rules = (await api.getRules()).filter(row => row.id === schedule.rule);
+    if (rules.length !== 1) throw new Error(changed);
+    const rule = rules[0];
+    const posting = schedulePosting(schedule, rule);
+    if (schedule.completed || !posting.guarded || typeof schedule.posts_transaction !== 'boolean') {
+      throw new Error(changed);
+    }
+    const matchesSchedule = state => schedule.name === state.name && schedule.rule === state.rule
+      && schedule.account === state.account && schedule.payee === state.payee
+      && schedule.amount === state.amount && schedule.amountOp === state.amountOp
+      && scheduleDateIdentity(schedule.date) === scheduleDateIdentity(state.date)
+      && schedule.date?.endMode === 'never' && !schedule.date?.skipWeekend;
+    const matchesRule = state => posting.category === (state.category_id || null)
+      && posting.notes === state.notes;
+    const priorSchedule = matchesSchedule(before);
+    const finalSchedule = matchesSchedule(target);
+    const priorRule = matchesRule(before);
+    const finalRule = matchesRule(target);
+    if ((!priorSchedule && !finalSchedule) || (!priorRule && !finalRule)
+      || (finalRule && !priorRule && !finalSchedule)
+      || (schedule.posts_transaction && !(
+        (priorSchedule && priorRule && before.posts_transaction)
+        || (finalSchedule && finalRule && target.posts_transaction)
+      ))) {
+      throw new Error(changed);
+    }
+    return { schedule, rule, priorSchedule, finalSchedule, priorRule, finalRule };
+  };
+  let current = await inspectOne();
+  if (current.schedule.posts_transaction && !(
+    current.finalSchedule && current.finalRule && target.posts_transaction
+  )) {
+    await api.updateSchedule(id, { posts_transaction: false });
+    await api.sync();
+    current = await inspectOne();
+    if (current.schedule.posts_transaction) throw new Error(changed);
+  }
+  if (!current.finalSchedule) {
+    if (!current.priorSchedule || !current.priorRule || current.schedule.posts_transaction) {
+      throw new Error(changed);
+    }
+    await api.updateSchedule(id, {
+      account: target.account,
+      payee: target.payee,
+      amount: target.amount,
+      amountOp: 'is',
+      date: target.date,
+    });
+    await api.sync();
+    current = await inspectOne();
+    if (!current.finalSchedule || !current.priorRule || current.schedule.posts_transaction) {
+      throw new Error(changed);
+    }
+  }
+  if (!current.finalRule) {
+    if (!current.priorRule || current.schedule.posts_transaction) throw new Error(changed);
+    const actions = current.rule.actions.filter(action => action.op === 'link-schedule');
+    if (target.category_id) actions.push({ op: 'set', field: 'category', value: target.category_id });
+    if (target.notes) actions.push({ op: 'set', field: 'notes', value: target.notes });
+    await api.updateRule({ ...current.rule, actions });
+    await api.sync();
+    current = await inspectOne();
+    if (!current.finalSchedule || !current.finalRule || current.schedule.posts_transaction) {
+      throw new Error(changed);
+    }
+  }
+  if (current.schedule.posts_transaction !== target.posts_transaction) {
+    await api.updateSchedule(id, { posts_transaction: target.posts_transaction });
+    await api.sync();
+  }
+  current = await inspectOne();
+  if (!current.finalSchedule || !current.finalRule
+    || current.schedule.posts_transaction !== target.posts_transaction) {
+    throw new Error('Actual recurring edit could not be confirmed');
+  }
+  return { id, payee_id: current.schedule.payee, posts_transaction: current.schedule.posts_transaction };
 }
 
 async function ensureCategory(name, categoryMap, groupId) {
@@ -1130,6 +1268,7 @@ async function write(request) {
   if (request.action === 'repair_recurring_schedule') return repairSchedulePosting(request);
   if (request.action === 'set_recurring_posting') return setSchedulePosting(request);
   if (request.action === 'create_recurring_schedule') return createRecurringSchedule(request);
+  if (request.action === 'edit_recurring_schedule') return editRecurringSchedule(request);
   if (request.action === 'clear_budget') {
     const categoryId = String(request.category_id || '').trim();
     if (!categoryId) throw new Error('Actual budget category id is required');
@@ -1157,6 +1296,7 @@ async function handle(request) {
     repair_recurring_schedule: 1,
     set_recurring_posting: 1,
     create_recurring_schedule: 1,
+    edit_recurring_schedule: 1,
   };
   if (request.command === 'versions') return {
     api: packageVersion('@actual-app/api'),
