@@ -30985,182 +30985,6 @@
     {
       "accessibility": {
         "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
-        "name": "journal-migrate",
-        "relationships": {},
-        "role": "native button"
-      },
-      "activation_paths": [
-        {
-          "event": "click",
-          "evidence": {
-            "source": {
-              "file": "static/index.html",
-              "kind": "control-source",
-              "line": 820
-            },
-            "status": "test-linked-unclassified",
-            "tests": [
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_phase6_docs.py",
-                "kind": "existing-test-control-reference",
-                "line": 411
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_phase6_docs.py",
-                "kind": "existing-test-control-reference",
-                "line": 417
-              }
-            ]
-          },
-          "handler_provenance": {
-            "classification": "direct-id-listener",
-            "discoverability": "direct-id-listener",
-            "value": "static/js/journal.js:71 click"
-          },
-          "keys": [],
-          "modality": "pointer",
-          "outcome": "source-authority-dispatch - activation invokes the matched direct-id-listener",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        },
-        {
-          "event": "activation",
-          "evidence": {
-            "source": {
-              "file": "static/index.html",
-              "kind": "control-source",
-              "line": 820
-            },
-            "status": "test-linked-unclassified",
-            "tests": [
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_phase6_docs.py",
-                "kind": "existing-test-control-reference",
-                "line": 411
-              },
-              {
-                "claim": "control is named; activation path is not mechanically classified",
-                "file": "tests/pw_phase6_docs.py",
-                "kind": "existing-test-control-reference",
-                "line": 417
-              }
-            ]
-          },
-          "handler_provenance": {
-            "classification": "direct-id-listener",
-            "discoverability": "direct-id-listener",
-            "value": "static/js/journal.js:71 click"
-          },
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "outcome": "source-authority-dispatch - activation invokes the matched direct-id-listener",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        }
-      ],
-      "authority": {
-        "busy_repeat": "shared-contract-or-not-declared-in-control-source",
-        "classification": "direct-id-listener",
-        "confirmation": "not-declared-in-control-source",
-        "guards": []
-      },
-      "effect": {
-        "destructive": false,
-        "external": false,
-        "reversible": "not-declared-in-control-source",
-        "value": "source-effect-not-declared"
-      },
-      "evidence": {
-        "references": [],
-        "status": "programmatic-dom"
-      },
-      "feature_owner": "docs.documents-and-journal",
-      "flags": [],
-      "handler": {
-        "classification": "direct-id-listener",
-        "discoverability": "direct-id-listener",
-        "value": "static/js/journal.js:71 click"
-      },
-      "id": "static.cbb3b40fe46b",
-      "kind": "action",
-      "label": {
-        "source": "id",
-        "value": "journal-migrate"
-      },
-      "path": {
-        "api": [],
-        "client_functions": [],
-        "external_destination": null,
-        "server_owner": "not-declared-in-control-source"
-      },
-      "recovery": {
-        "classification": "not-applicable",
-        "controls": [],
-        "reason": "the census does not infer a mutation from a control alone",
-        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
-      },
-      "states": {
-        "conditional_states": [],
-        "outcome_status": [
-          "source-classified-not-runtime-proven"
-        ],
-        "visual": [
-          "resting",
-          "hover",
-          "pressed",
-          "selected",
-          "disabled",
-          "busy",
-          "invalid",
-          "loading",
-          "empty",
-          "permission",
-          "offline",
-          "stale",
-          "partial",
-          "error"
-        ]
-      },
-      "surface": {
-        "instance_key": null,
-        "render_mode": "static",
-        "root": "#docs-workbench-view",
-        "runtime_selector": "#journal-migrate",
-        "source": {
-          "column": 8,
-          "file": "static/index.html",
-          "line": 820
-        },
-        "source_selector": "static/index.html:820:8",
-        "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
-      },
-      "trigger_variants": [
-        {
-          "event": "click",
-          "keys": [],
-          "modality": "pointer",
-          "preconditions": []
-        },
-        {
-          "event": "activation",
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "preconditions": []
-        }
-      ]
-    },
-    {
-      "accessibility": {
-        "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
         "name": "show or hide the library",
         "relationships": {
           "aria-expanded": "true"
@@ -31174,7 +30998,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 826
+              "line": 825
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -31227,7 +31051,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 826
+              "line": 825
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -31349,9 +31173,9 @@
         "source": {
           "column": 12,
           "file": "static/index.html",
-          "line": 826
+          "line": 825
         },
-        "source_selector": "static/index.html:826:12",
+        "source_selector": "static/index.html:825:12",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -31386,7 +31210,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 836
+              "line": 835
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -31463,7 +31287,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 836
+              "line": 835
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -31609,9 +31433,9 @@
         "source": {
           "column": 14,
           "file": "static/index.html",
-          "line": 836
+          "line": 835
         },
-        "source_selector": "static/index.html:836:14",
+        "source_selector": "static/index.html:835:14",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -31646,7 +31470,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 837
+              "line": 836
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -31681,7 +31505,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 837
+              "line": 836
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -31785,9 +31609,9 @@
         "source": {
           "column": 14,
           "file": "static/index.html",
-          "line": 837
+          "line": 836
         },
-        "source_selector": "static/index.html:837:14",
+        "source_selector": "static/index.html:836:14",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -31822,7 +31646,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 838
+              "line": 837
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -31851,7 +31675,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 838
+              "line": 837
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -31949,9 +31773,9 @@
         "source": {
           "column": 14,
           "file": "static/index.html",
-          "line": 838
+          "line": 837
         },
-        "source_selector": "static/index.html:838:14",
+        "source_selector": "static/index.html:837:14",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -31989,7 +31813,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 839
+              "line": 838
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -32018,7 +31842,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 839
+              "line": 838
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -32116,9 +31940,9 @@
         "source": {
           "column": 14,
           "file": "static/index.html",
-          "line": 839
+          "line": 838
         },
-        "source_selector": "static/index.html:839:14",
+        "source_selector": "static/index.html:838:14",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -32153,7 +31977,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 841
+              "line": 840
             },
             "status": "source-only",
             "tests": []
@@ -32175,7 +31999,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 841
+              "line": 840
             },
             "status": "source-only",
             "tests": []
@@ -32266,9 +32090,9 @@
         "source": {
           "column": 16,
           "file": "static/index.html",
-          "line": 841
+          "line": 840
         },
-        "source_selector": "static/index.html:841:16",
+        "source_selector": "static/index.html:840:16",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -32303,7 +32127,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 842
+              "line": 841
             },
             "status": "source-only",
             "tests": []
@@ -32325,7 +32149,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 842
+              "line": 841
             },
             "status": "source-only",
             "tests": []
@@ -32416,9 +32240,9 @@
         "source": {
           "column": 16,
           "file": "static/index.html",
-          "line": 842
+          "line": 841
         },
-        "source_selector": "static/index.html:842:16",
+        "source_selector": "static/index.html:841:16",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -32453,7 +32277,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 843
+              "line": 842
             },
             "status": "source-only",
             "tests": []
@@ -32475,7 +32299,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 843
+              "line": 842
             },
             "status": "source-only",
             "tests": []
@@ -32566,9 +32390,9 @@
         "source": {
           "column": 16,
           "file": "static/index.html",
-          "line": 843
+          "line": 842
         },
-        "source_selector": "static/index.html:843:16",
+        "source_selector": "static/index.html:842:16",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -32603,7 +32427,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 854
+              "line": 853
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -32640,7 +32464,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 854
+              "line": 853
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -32743,9 +32567,9 @@
         "source": {
           "column": 12,
           "file": "static/index.html",
-          "line": 854
+          "line": 853
         },
-        "source_selector": "static/index.html:854:12",
+        "source_selector": "static/index.html:853:12",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -32781,7 +32605,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 855
+              "line": 854
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -32816,7 +32640,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 855
+              "line": 854
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -32920,9 +32744,9 @@
         "source": {
           "column": 12,
           "file": "static/index.html",
-          "line": 855
+          "line": 854
         },
-        "source_selector": "static/index.html:855:12",
+        "source_selector": "static/index.html:854:12",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -32957,7 +32781,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 856
+              "line": 855
             },
             "status": "source-only",
             "tests": []
@@ -32979,7 +32803,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 856
+              "line": 855
             },
             "status": "source-only",
             "tests": []
@@ -33070,9 +32894,9 @@
         "source": {
           "column": 12,
           "file": "static/index.html",
-          "line": 856
+          "line": 855
         },
-        "source_selector": "static/index.html:856:12",
+        "source_selector": "static/index.html:855:12",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -33107,7 +32931,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 865
+              "line": 864
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -33136,7 +32960,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 865
+              "line": 864
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -33234,9 +33058,9 @@
         "source": {
           "column": 16,
           "file": "static/index.html",
-          "line": 865
+          "line": 864
         },
-        "source_selector": "static/index.html:865:16",
+        "source_selector": "static/index.html:864:16",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -33271,7 +33095,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 866
+              "line": 865
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -33306,7 +33130,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 866
+              "line": 865
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -33410,9 +33234,9 @@
         "source": {
           "column": 16,
           "file": "static/index.html",
-          "line": 866
+          "line": 865
         },
-        "source_selector": "static/index.html:866:16",
+        "source_selector": "static/index.html:865:16",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -33447,7 +33271,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 879
+              "line": 878
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -33484,7 +33308,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 879
+              "line": 878
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -33587,9 +33411,9 @@
         "source": {
           "column": 16,
           "file": "static/index.html",
-          "line": 879
+          "line": 878
         },
-        "source_selector": "static/index.html:879:16",
+        "source_selector": "static/index.html:878:16",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -33625,7 +33449,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 880
+              "line": 879
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -33660,7 +33484,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 880
+              "line": 879
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -33764,9 +33588,9 @@
         "source": {
           "column": 16,
           "file": "static/index.html",
-          "line": 880
+          "line": 879
         },
-        "source_selector": "static/index.html:880:16",
+        "source_selector": "static/index.html:879:16",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -33801,7 +33625,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 881
+              "line": 880
             },
             "status": "source-only",
             "tests": []
@@ -33823,7 +33647,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 881
+              "line": 880
             },
             "status": "source-only",
             "tests": []
@@ -33916,9 +33740,9 @@
         "source": {
           "column": 16,
           "file": "static/index.html",
-          "line": 881
+          "line": 880
         },
-        "source_selector": "static/index.html:881:16",
+        "source_selector": "static/index.html:880:16",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -33955,7 +33779,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 893
+              "line": 892
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -34008,7 +33832,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 893
+              "line": 892
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -34130,9 +33954,9 @@
         "source": {
           "column": 18,
           "file": "static/index.html",
-          "line": 893
+          "line": 892
         },
-        "source_selector": "static/index.html:893:18",
+        "source_selector": "static/index.html:892:18",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -34169,7 +33993,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 894
+              "line": 893
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -34252,7 +34076,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 894
+              "line": 893
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -34404,9 +34228,9 @@
         "source": {
           "column": 18,
           "file": "static/index.html",
-          "line": 894
+          "line": 893
         },
-        "source_selector": "static/index.html:894:18",
+        "source_selector": "static/index.html:893:18",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -34441,7 +34265,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 898
+              "line": 897
             },
             "status": "source-only",
             "tests": []
@@ -34463,7 +34287,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 898
+              "line": 897
             },
             "status": "source-only",
             "tests": []
@@ -34554,9 +34378,9 @@
         "source": {
           "column": 18,
           "file": "static/index.html",
-          "line": 898
+          "line": 897
         },
-        "source_selector": "static/index.html:898:18",
+        "source_selector": "static/index.html:897:18",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -34591,7 +34415,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 899
+              "line": 898
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -34632,7 +34456,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 899
+              "line": 898
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -34742,9 +34566,9 @@
         "source": {
           "column": 18,
           "file": "static/index.html",
-          "line": 899
+          "line": 898
         },
-        "source_selector": "static/index.html:899:18",
+        "source_selector": "static/index.html:898:18",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -34779,7 +34603,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 900
+              "line": 899
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -34850,7 +34674,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 900
+              "line": 899
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -34990,9 +34814,9 @@
         "source": {
           "column": 18,
           "file": "static/index.html",
-          "line": 900
+          "line": 899
         },
-        "source_selector": "static/index.html:900:18",
+        "source_selector": "static/index.html:899:18",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -35027,7 +34851,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 904
+              "line": 903
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -35196,7 +35020,7 @@
             "source": {
               "file": "static/index.html",
               "kind": "control-source",
-              "line": 904
+              "line": 903
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -35431,9 +35255,9 @@
         "source": {
           "column": 14,
           "file": "static/index.html",
-          "line": 904
+          "line": 903
         },
-        "source_selector": "static/index.html:904:14",
+        "source_selector": "static/index.html:903:14",
         "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
       },
       "trigger_variants": [
@@ -35449,6 +35273,254 @@
           "event": "input",
           "keys": [
             "native editing keys"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "native or shared KOKUEN focus treatment; exact runtime proof pending",
+        "name": "journal-migrate",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/index.html",
+              "kind": "control-source",
+              "line": 912
+            },
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 42
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 43
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 111
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 132
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 144
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_phase6_docs.py",
+                "kind": "existing-test-control-reference",
+                "line": 411
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_phase6_docs.py",
+                "kind": "existing-test-control-reference",
+                "line": 417
+              }
+            ]
+          },
+          "handler_provenance": {
+            "classification": "direct-id-listener",
+            "discoverability": "direct-id-listener",
+            "value": "static/js/journal.js:73 click"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched direct-id-listener",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/index.html",
+              "kind": "control-source",
+              "line": 912
+            },
+            "status": "test-linked-unclassified",
+            "tests": [
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 42
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 43
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 100
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 111
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 132
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 144
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_phase6_docs.py",
+                "kind": "existing-test-control-reference",
+                "line": 411
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_phase6_docs.py",
+                "kind": "existing-test-control-reference",
+                "line": 417
+              }
+            ]
+          },
+          "handler_provenance": {
+            "classification": "direct-id-listener",
+            "discoverability": "direct-id-listener",
+            "value": "static/js/journal.js:73 click"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched direct-id-listener",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "shared-contract-or-not-declared-in-control-source",
+        "classification": "direct-id-listener",
+        "confirmation": "not-declared-in-control-source",
+        "guards": []
+      },
+      "effect": {
+        "destructive": false,
+        "external": false,
+        "reversible": "not-declared-in-control-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "docs.documents-and-journal",
+      "flags": [],
+      "handler": {
+        "classification": "direct-id-listener",
+        "discoverability": "direct-id-listener",
+        "value": "static/js/journal.js:73 click"
+      },
+      "id": "static.cbb3b40fe46b",
+      "kind": "action",
+      "label": {
+        "source": "id",
+        "value": "journal-migrate"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [],
+        "external_destination": null,
+        "server_owner": "not-declared-in-control-source"
+      },
+      "recovery": {
+        "classification": "not-applicable",
+        "controls": [],
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": null,
+        "render_mode": "static",
+        "root": "#docs-workbench-view",
+        "runtime_selector": "#journal-migrate",
+        "source": {
+          "column": 12,
+          "file": "static/index.html",
+          "line": 912
+        },
+        "source_selector": "static/index.html:912:12",
+        "visibility_condition": "source-visible unless an existing hidden/conditional attribute or ancestor state applies"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
           ],
           "modality": "keyboard",
           "preconditions": []
@@ -61404,6 +61476,12 @@
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 39
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_kokuen_finished_surfaces.py",
                 "kind": "existing-test-control-reference",
                 "line": 93
@@ -61724,6 +61802,12 @@
                 "file": "tests/pw_inbox_workflows.py",
                 "kind": "existing-test-control-reference",
                 "line": 206
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_journal_migration_recovery.py",
+                "kind": "existing-test-control-reference",
+                "line": 39
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -144864,7 +144948,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 500
+              "line": 499
             },
             "status": "source-only",
             "tests": []
@@ -144872,7 +144956,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:497 rowHtml"
+            "value": "static/js/docs.js:496 rowHtml"
           },
           "keys": [],
           "modality": "pointer",
@@ -144886,7 +144970,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 500
+              "line": 499
             },
             "status": "source-only",
             "tests": []
@@ -144894,7 +144978,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:497 rowHtml"
+            "value": "static/js/docs.js:496 rowHtml"
           },
           "keys": [
             "Enter",
@@ -144931,7 +145015,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:497 rowHtml"
+        "value": "static/js/docs.js:496 rowHtml"
       },
       "id": "dynamic.68241f6f8269",
       "kind": "action",
@@ -144942,7 +145026,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:497 rowHtml"
+          "static/js/docs.js:496 rowHtml"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -144983,9 +145067,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 500
+          "line": 499
         },
-        "source_selector": "static/js/docs.js:500:1",
+        "source_selector": "static/js/docs.js:499:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -145020,7 +145104,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 507
+              "line": 506
             },
             "status": "source-only",
             "tests": []
@@ -145028,7 +145112,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:497 rowHtml"
+            "value": "static/js/docs.js:496 rowHtml"
           },
           "keys": [],
           "modality": "pointer",
@@ -145042,7 +145126,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 507
+              "line": 506
             },
             "status": "source-only",
             "tests": []
@@ -145050,7 +145134,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:497 rowHtml"
+            "value": "static/js/docs.js:496 rowHtml"
           },
           "keys": [
             "Enter",
@@ -145087,7 +145171,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:497 rowHtml"
+        "value": "static/js/docs.js:496 rowHtml"
       },
       "id": "dynamic.9e4794420f88",
       "kind": "action",
@@ -145098,7 +145182,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:497 rowHtml"
+          "static/js/docs.js:496 rowHtml"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -145139,9 +145223,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 507
+          "line": 506
         },
-        "source_selector": "static/js/docs.js:507:2",
+        "source_selector": "static/js/docs.js:506:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -145176,7 +145260,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 526
+              "line": 525
             },
             "status": "source-only",
             "tests": []
@@ -145184,7 +145268,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:520 paintRecent"
+            "value": "static/js/docs.js:519 paintRecent"
           },
           "keys": [],
           "modality": "pointer",
@@ -145198,7 +145282,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 526
+              "line": 525
             },
             "status": "source-only",
             "tests": []
@@ -145206,7 +145290,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:520 paintRecent"
+            "value": "static/js/docs.js:519 paintRecent"
           },
           "keys": [
             "Enter",
@@ -145243,7 +145327,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:520 paintRecent"
+        "value": "static/js/docs.js:519 paintRecent"
       },
       "id": "dynamic.5ae33c17dcba",
       "kind": "action",
@@ -145254,7 +145338,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:520 paintRecent"
+          "static/js/docs.js:519 paintRecent"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -145295,9 +145379,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 526
+          "line": 525
         },
-        "source_selector": "static/js/docs.js:526:3",
+        "source_selector": "static/js/docs.js:525:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -145332,7 +145416,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 538
+              "line": 537
             },
             "status": "source-only",
             "tests": []
@@ -145340,7 +145424,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:520 paintRecent"
+            "value": "static/js/docs.js:519 paintRecent"
           },
           "keys": [],
           "modality": "pointer",
@@ -145354,7 +145438,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 538
+              "line": 537
             },
             "status": "source-only",
             "tests": []
@@ -145362,7 +145446,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:520 paintRecent"
+            "value": "static/js/docs.js:519 paintRecent"
           },
           "keys": [
             "Enter",
@@ -145399,7 +145483,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:520 paintRecent"
+        "value": "static/js/docs.js:519 paintRecent"
       },
       "id": "dynamic.5d4f937f6ad5",
       "kind": "action",
@@ -145410,7 +145494,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:520 paintRecent"
+          "static/js/docs.js:519 paintRecent"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -145451,9 +145535,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 538
+          "line": 537
         },
-        "source_selector": "static/js/docs.js:538:4",
+        "source_selector": "static/js/docs.js:537:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -145488,7 +145572,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 731
+              "line": 730
             },
             "status": "source-only",
             "tests": []
@@ -145496,7 +145580,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:723 renderBacklinks"
+            "value": "static/js/docs.js:722 renderBacklinks"
           },
           "keys": [],
           "modality": "pointer",
@@ -145510,7 +145594,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 731
+              "line": 730
             },
             "status": "source-only",
             "tests": []
@@ -145518,7 +145602,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:723 renderBacklinks"
+            "value": "static/js/docs.js:722 renderBacklinks"
           },
           "keys": [
             "Enter",
@@ -145555,7 +145639,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:723 renderBacklinks"
+        "value": "static/js/docs.js:722 renderBacklinks"
       },
       "id": "dynamic.e15297b35669",
       "kind": "action",
@@ -145566,7 +145650,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:723 renderBacklinks"
+          "static/js/docs.js:722 renderBacklinks"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -145607,9 +145691,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 731
+          "line": 730
         },
-        "source_selector": "static/js/docs.js:731:5",
+        "source_selector": "static/js/docs.js:730:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -145644,7 +145728,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1248
+              "line": 1247
             },
             "status": "source-only",
             "tests": []
@@ -145652,7 +145736,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1240 showInlineState"
+            "value": "static/js/docs.js:1239 showInlineState"
           },
           "keys": [],
           "modality": "pointer",
@@ -145666,7 +145750,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1248
+              "line": 1247
             },
             "status": "source-only",
             "tests": []
@@ -145674,7 +145758,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1240 showInlineState"
+            "value": "static/js/docs.js:1239 showInlineState"
           },
           "keys": [
             "Enter",
@@ -145711,7 +145795,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:1240 showInlineState"
+        "value": "static/js/docs.js:1239 showInlineState"
       },
       "id": "dynamic.cf43a84ffecb",
       "kind": "action",
@@ -145722,7 +145806,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:1240 showInlineState"
+          "static/js/docs.js:1239 showInlineState"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -145763,9 +145847,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 1248
+          "line": 1247
         },
-        "source_selector": "static/js/docs.js:1248:6",
+        "source_selector": "static/js/docs.js:1247:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -145800,7 +145884,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1268
+              "line": 1267
             },
             "status": "source-only",
             "tests": []
@@ -145808,7 +145892,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1260 doSearch"
+            "value": "static/js/docs.js:1259 doSearch"
           },
           "keys": [],
           "modality": "pointer",
@@ -145822,7 +145906,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1268
+              "line": 1267
             },
             "status": "source-only",
             "tests": []
@@ -145830,7 +145914,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1260 doSearch"
+            "value": "static/js/docs.js:1259 doSearch"
           },
           "keys": [
             "Enter",
@@ -145867,7 +145951,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:1260 doSearch"
+        "value": "static/js/docs.js:1259 doSearch"
       },
       "id": "dynamic.49e4cfe47e45",
       "kind": "action",
@@ -145878,7 +145962,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:1260 doSearch"
+          "static/js/docs.js:1259 doSearch"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -145919,9 +146003,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 1268
+          "line": 1267
         },
-        "source_selector": "static/js/docs.js:1268:7",
+        "source_selector": "static/js/docs.js:1267:7",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -145956,7 +146040,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1282
+              "line": 1281
             },
             "status": "source-only",
             "tests": []
@@ -145964,7 +146048,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1276 loadTags"
+            "value": "static/js/docs.js:1275 loadTags"
           },
           "keys": [],
           "modality": "pointer",
@@ -145978,7 +146062,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1282
+              "line": 1281
             },
             "status": "source-only",
             "tests": []
@@ -145986,7 +146070,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1276 loadTags"
+            "value": "static/js/docs.js:1275 loadTags"
           },
           "keys": [
             "Enter",
@@ -146023,7 +146107,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:1276 loadTags"
+        "value": "static/js/docs.js:1275 loadTags"
       },
       "id": "dynamic.70e653797811",
       "kind": "action",
@@ -146034,7 +146118,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:1276 loadTags"
+          "static/js/docs.js:1275 loadTags"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -146075,9 +146159,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 1282
+          "line": 1281
         },
-        "source_selector": "static/js/docs.js:1282:8",
+        "source_selector": "static/js/docs.js:1281:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -146112,7 +146196,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1292
+              "line": 1291
             },
             "status": "source-only",
             "tests": []
@@ -146120,7 +146204,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1287 filterByTag"
+            "value": "static/js/docs.js:1286 filterByTag"
           },
           "keys": [],
           "modality": "pointer",
@@ -146134,7 +146218,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1292
+              "line": 1291
             },
             "status": "source-only",
             "tests": []
@@ -146142,7 +146226,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1287 filterByTag"
+            "value": "static/js/docs.js:1286 filterByTag"
           },
           "keys": [
             "Enter",
@@ -146179,7 +146263,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:1287 filterByTag"
+        "value": "static/js/docs.js:1286 filterByTag"
       },
       "id": "dynamic.bf1a675cf6b5",
       "kind": "action",
@@ -146190,7 +146274,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:1287 filterByTag"
+          "static/js/docs.js:1286 filterByTag"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -146231,9 +146315,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 1292
+          "line": 1291
         },
-        "source_selector": "static/js/docs.js:1292:9",
+        "source_selector": "static/js/docs.js:1291:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -146268,7 +146352,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1293
+              "line": 1292
             },
             "status": "source-only",
             "tests": []
@@ -146276,7 +146360,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1287 filterByTag"
+            "value": "static/js/docs.js:1286 filterByTag"
           },
           "keys": [],
           "modality": "pointer",
@@ -146290,7 +146374,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1293
+              "line": 1292
             },
             "status": "source-only",
             "tests": []
@@ -146298,7 +146382,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1287 filterByTag"
+            "value": "static/js/docs.js:1286 filterByTag"
           },
           "keys": [
             "Enter",
@@ -146335,7 +146419,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:1287 filterByTag"
+        "value": "static/js/docs.js:1286 filterByTag"
       },
       "id": "dynamic.9ad3acc8f2f6",
       "kind": "action",
@@ -146346,7 +146430,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:1287 filterByTag"
+          "static/js/docs.js:1286 filterByTag"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -146387,9 +146471,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 1293
+          "line": 1292
         },
-        "source_selector": "static/js/docs.js:1293:10",
+        "source_selector": "static/js/docs.js:1292:10",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -146424,7 +146508,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1399
+              "line": 1398
             },
             "status": "source-only",
             "tests": []
@@ -146432,7 +146516,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1391 openTrash"
+            "value": "static/js/docs.js:1390 openTrash"
           },
           "keys": [],
           "modality": "pointer",
@@ -146446,7 +146530,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1399
+              "line": 1398
             },
             "status": "source-only",
             "tests": []
@@ -146454,7 +146538,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1391 openTrash"
+            "value": "static/js/docs.js:1390 openTrash"
           },
           "keys": [
             "Enter",
@@ -146491,7 +146575,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:1391 openTrash"
+        "value": "static/js/docs.js:1390 openTrash"
       },
       "id": "dynamic.a07d99fcb457",
       "kind": "action",
@@ -146502,7 +146586,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:1391 openTrash"
+          "static/js/docs.js:1390 openTrash"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -146543,9 +146627,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 1399
+          "line": 1398
         },
-        "source_selector": "static/js/docs.js:1399:11",
+        "source_selector": "static/js/docs.js:1398:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -146580,7 +146664,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1423
+              "line": 1422
             },
             "status": "source-only",
             "tests": []
@@ -146588,7 +146672,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1413 showRevisions"
+            "value": "static/js/docs.js:1412 showRevisions"
           },
           "keys": [],
           "modality": "pointer",
@@ -146602,7 +146686,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1423
+              "line": 1422
             },
             "status": "source-only",
             "tests": []
@@ -146610,7 +146694,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1413 showRevisions"
+            "value": "static/js/docs.js:1412 showRevisions"
           },
           "keys": [
             "Enter",
@@ -146647,7 +146731,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:1413 showRevisions"
+        "value": "static/js/docs.js:1412 showRevisions"
       },
       "id": "dynamic.b3043e6d0925",
       "kind": "action",
@@ -146658,7 +146742,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:1413 showRevisions"
+          "static/js/docs.js:1412 showRevisions"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -146699,9 +146783,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 1423
+          "line": 1422
         },
-        "source_selector": "static/js/docs.js:1423:12",
+        "source_selector": "static/js/docs.js:1422:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -146736,7 +146820,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1466
+              "line": 1465
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -146757,7 +146841,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1463 promptText"
+            "value": "static/js/docs.js:1462 promptText"
           },
           "keys": [
             "native editing keys"
@@ -146792,7 +146876,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:1463 promptText"
+        "value": "static/js/docs.js:1462 promptText"
       },
       "id": "dynamic.1137b49c81fd",
       "kind": "field",
@@ -146803,7 +146887,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:1463 promptText"
+          "static/js/docs.js:1462 promptText"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -146844,9 +146928,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 1466
+          "line": 1465
         },
-        "source_selector": "static/js/docs.js:1466:13",
+        "source_selector": "static/js/docs.js:1465:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -146874,7 +146958,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1483
+              "line": 1482
             },
             "status": "source-only",
             "tests": []
@@ -146882,7 +146966,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1472 openDialog"
+            "value": "static/js/docs.js:1471 openDialog"
           },
           "keys": [],
           "modality": "pointer",
@@ -146896,7 +146980,7 @@
             "source": {
               "file": "static/js/docs.js",
               "kind": "control-source",
-              "line": 1483
+              "line": 1482
             },
             "status": "source-only",
             "tests": []
@@ -146904,7 +146988,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/docs.js:1472 openDialog"
+            "value": "static/js/docs.js:1471 openDialog"
           },
           "keys": [
             "Enter",
@@ -146942,7 +147026,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/docs.js:1472 openDialog"
+        "value": "static/js/docs.js:1471 openDialog"
       },
       "id": "dynamic.9805c1814335",
       "kind": "action",
@@ -146953,7 +147037,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/docs.js:1472 openDialog"
+          "static/js/docs.js:1471 openDialog"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -146994,9 +147078,9 @@
         "source": {
           "column": null,
           "file": "static/js/docs.js",
-          "line": 1483
+          "line": 1482
         },
-        "source_selector": "static/js/docs.js:1483:14",
+        "source_selector": "static/js/docs.js:1482:14",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -162507,7 +162591,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "close",
+        "name": "done",
         "relationships": {},
         "role": "native button"
       },
@@ -162518,7 +162602,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 114
+              "line": 121
             },
             "status": "source-only",
             "tests": []
@@ -162526,7 +162610,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [],
           "modality": "pointer",
@@ -162540,7 +162624,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 114
+              "line": 121
             },
             "status": "source-only",
             "tests": []
@@ -162548,7 +162632,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [
             "Enter",
@@ -162585,18 +162669,18 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:87 openMarkdownCopy"
+        "value": "static/js/journal.js:89 openMarkdownCopy"
       },
-      "id": "dynamic.3a14342a4df9",
+      "id": "dynamic.0049953be183",
       "kind": "action",
       "label": {
-        "source": "aria-label",
-        "value": "close"
+        "source": "text",
+        "value": "done"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:87 openMarkdownCopy"
+          "static/js/journal.js:89 openMarkdownCopy"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -162637,9 +162721,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 114
+          "line": 121
         },
-        "source_selector": "static/js/journal.js:114:1",
+        "source_selector": "static/js/journal.js:121:1",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -162674,7 +162758,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 122
+              "line": 133
             },
             "status": "source-only",
             "tests": []
@@ -162682,7 +162766,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [
             "native editing keys"
@@ -162719,9 +162803,9 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:87 openMarkdownCopy"
+        "value": "static/js/journal.js:89 openMarkdownCopy"
       },
-      "id": "dynamic.f7367ac9f10c",
+      "id": "dynamic.4abb36d17ca5",
       "kind": "field",
       "label": {
         "source": "unknown",
@@ -162730,7 +162814,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:87 openMarkdownCopy"
+          "static/js/journal.js:89 openMarkdownCopy"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -162771,9 +162855,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 122
+          "line": 133
         },
-        "source_selector": "static/js/journal.js:122:2",
+        "source_selector": "static/js/journal.js:133:2",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -162801,7 +162885,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 126
+              "line": 136
             },
             "status": "source-only",
             "tests": []
@@ -162809,7 +162893,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [],
           "modality": "pointer",
@@ -162823,7 +162907,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 126
+              "line": 136
             },
             "status": "source-only",
             "tests": []
@@ -162831,7 +162915,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [
             "Enter",
@@ -162868,7 +162952,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:87 openMarkdownCopy"
+        "value": "static/js/journal.js:89 openMarkdownCopy"
       },
       "id": "dynamic.1f6b7996653d",
       "kind": "action",
@@ -162879,7 +162963,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:87 openMarkdownCopy"
+          "static/js/journal.js:89 openMarkdownCopy"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -162920,9 +163004,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 126
+          "line": 136
         },
-        "source_selector": "static/js/journal.js:126:3",
+        "source_selector": "static/js/journal.js:136:3",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -162957,7 +163041,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 127
+              "line": 137
             },
             "status": "source-only",
             "tests": []
@@ -162965,7 +163049,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [],
           "modality": "pointer",
@@ -162979,7 +163063,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 127
+              "line": 137
             },
             "status": "source-only",
             "tests": []
@@ -162987,7 +163071,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [
             "Enter",
@@ -163024,9 +163108,9 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:87 openMarkdownCopy"
+        "value": "static/js/journal.js:89 openMarkdownCopy"
       },
-      "id": "dynamic.26a07b678bf2",
+      "id": "dynamic.15d79c74e959",
       "kind": "action",
       "label": {
         "source": "text",
@@ -163035,7 +163119,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:87 openMarkdownCopy"
+          "static/js/journal.js:89 openMarkdownCopy"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -163076,9 +163160,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 127
+          "line": 137
         },
-        "source_selector": "static/js/journal.js:127:4",
+        "source_selector": "static/js/journal.js:137:4",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -163102,7 +163186,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "cancel",
+        "name": "close",
         "relationships": {},
         "role": "native button"
       },
@@ -163113,7 +163197,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 156
+              "line": 144
             },
             "status": "source-only",
             "tests": []
@@ -163121,7 +163205,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [],
           "modality": "pointer",
@@ -163135,7 +163219,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 156
+              "line": 144
             },
             "status": "source-only",
             "tests": []
@@ -163143,7 +163227,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [
             "Enter",
@@ -163163,7 +163247,7 @@
       },
       "construction": "markup-template",
       "effect": {
-        "destructive": true,
+        "destructive": false,
         "external": false,
         "reversible": "not-declared-in-template-source",
         "value": "source-effect-not-declared"
@@ -163180,27 +163264,27 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:87 openMarkdownCopy"
+        "value": "static/js/journal.js:89 openMarkdownCopy"
       },
-      "id": "dynamic.a1c437876195",
+      "id": "dynamic.3a14342a4df9",
       "kind": "action",
       "label": {
-        "source": "text",
-        "value": "cancel"
+        "source": "aria-label",
+        "value": "close"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:87 openMarkdownCopy"
+          "static/js/journal.js:89 openMarkdownCopy"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
       },
       "recovery": {
-        "classification": "source-recovery-not-declared",
+        "classification": "not-applicable",
         "controls": [],
-        "reason": "static source extraction found no recovery declaration",
-        "value": "source-recovery-not-declared - no restore or undo control was located for the matched authority"
+        "reason": "the census does not infer a mutation from a control alone",
+        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
       },
       "states": {
         "conditional_states": [],
@@ -163232,9 +163316,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 156
+          "line": 144
         },
-        "source_selector": "static/js/journal.js:156:5",
+        "source_selector": "static/js/journal.js:144:5",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -163269,7 +163353,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 156
+              "line": 183
             },
             "status": "source-only",
             "tests": []
@@ -163277,7 +163361,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [],
           "modality": "pointer",
@@ -163291,7 +163375,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 156
+              "line": 183
             },
             "status": "source-only",
             "tests": []
@@ -163299,7 +163383,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [
             "Enter",
@@ -163330,15 +163414,14 @@
       },
       "feature_owner": "docs.documents-and-journal",
       "flags": [
-        "dynamic-template",
-        "anonymous-source-anchor"
+        "dynamic-template"
       ],
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:87 openMarkdownCopy"
+        "value": "static/js/journal.js:89 openMarkdownCopy"
       },
-      "id": "dynamic.cb63a6472b40",
+      "id": "dynamic.507e88c7441f",
       "kind": "action",
       "label": {
         "source": "text",
@@ -163347,7 +163430,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:87 openMarkdownCopy"
+          "static/js/journal.js:89 openMarkdownCopy"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -163381,16 +163464,16 @@
         ]
       },
       "surface": {
-        "instance_key": "runtime record value from data-apply",
+        "instance_key": "runtime record value from data-operation",
         "render_mode": "dynamic-template",
         "root": null,
         "runtime_selector": null,
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 156
+          "line": 183
         },
-        "source_selector": "static/js/journal.js:156:6",
+        "source_selector": "static/js/journal.js:183:6",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -163414,7 +163497,7 @@
     {
       "accessibility": {
         "focus": "unknown until runtime evidence is attached",
-        "name": "done",
+        "name": "discard prepared copy",
         "relationships": {},
         "role": "native button"
       },
@@ -163425,7 +163508,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 164
+              "line": 183
             },
             "status": "source-only",
             "tests": []
@@ -163433,7 +163516,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [],
           "modality": "pointer",
@@ -163447,7 +163530,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 164
+              "line": 183
             },
             "status": "source-only",
             "tests": []
@@ -163455,7 +163538,162 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
+            "value": "static/js/journal.js:89 openMarkdownCopy"
+          },
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        }
+      ],
+      "authority": {
+        "busy_repeat": "not-declared-in-template-source",
+        "classification": "nearest-enclosing-controller",
+        "confirmation": "not-declared-in-template-source",
+        "guards": []
+      },
+      "construction": "markup-template",
+      "effect": {
+        "destructive": true,
+        "external": false,
+        "reversible": "not-declared-in-template-source",
+        "value": "source-effect-not-declared"
+      },
+      "evidence": {
+        "references": [],
+        "status": "programmatic-dom"
+      },
+      "feature_owner": "docs.documents-and-journal",
+      "flags": [
+        "dynamic-template"
+      ],
+      "handler": {
+        "classification": "nearest-enclosing-controller",
+        "discoverability": "nearest-enclosing-function",
+        "value": "static/js/journal.js:89 openMarkdownCopy"
+      },
+      "id": "dynamic.d62e32febe3c",
+      "kind": "action",
+      "label": {
+        "source": "text",
+        "value": "discard prepared copy"
+      },
+      "path": {
+        "api": [],
+        "client_functions": [
+          "static/js/journal.js:89 openMarkdownCopy"
+        ],
+        "external_destination": null,
+        "server_owner": "not-declared-in-template-source"
+      },
+      "recovery": {
+        "classification": "source-recovery-not-declared",
+        "controls": [],
+        "reason": "static source extraction found no recovery declaration",
+        "value": "source-recovery-not-declared - no restore or undo control was located for the matched authority"
+      },
+      "states": {
+        "conditional_states": [],
+        "outcome_status": [
+          "source-classified-not-runtime-proven"
+        ],
+        "visual": [
+          "resting",
+          "hover",
+          "pressed",
+          "selected",
+          "disabled",
+          "busy",
+          "invalid",
+          "loading",
+          "empty",
+          "permission",
+          "offline",
+          "stale",
+          "partial",
+          "error"
+        ]
+      },
+      "surface": {
+        "instance_key": "runtime record value from data-operation",
+        "render_mode": "dynamic-template",
+        "root": null,
+        "runtime_selector": null,
+        "source": {
+          "column": null,
+          "file": "static/js/journal.js",
+          "line": 183
+        },
+        "source_selector": "static/js/journal.js:183:7",
+        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
+      },
+      "trigger_variants": [
+        {
+          "event": "click",
+          "keys": [],
+          "modality": "pointer",
+          "preconditions": []
+        },
+        {
+          "event": "activation",
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "modality": "keyboard",
+          "preconditions": []
+        }
+      ]
+    },
+    {
+      "accessibility": {
+        "focus": "unknown until runtime evidence is attached",
+        "name": "${item.state === 'applied' ? 'roll back copied files' : 'retry rollback'}",
+        "relationships": {},
+        "role": "native button"
+      },
+      "activation_paths": [
+        {
+          "event": "click",
+          "evidence": {
+            "source": {
+              "file": "static/js/journal.js",
+              "kind": "control-source",
+              "line": 184
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/journal.js:89 openMarkdownCopy"
+          },
+          "keys": [],
+          "modality": "pointer",
+          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
+          "preconditions": [],
+          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
+        },
+        {
+          "event": "activation",
+          "evidence": {
+            "source": {
+              "file": "static/js/journal.js",
+              "kind": "control-source",
+              "line": 184
+            },
+            "status": "source-only",
+            "tests": []
+          },
+          "handler_provenance": {
+            "classification": "nearest-enclosing-controller",
+            "discoverability": "nearest-enclosing-function",
+            "value": "static/js/journal.js:89 openMarkdownCopy"
           },
           "keys": [
             "Enter",
@@ -163486,24 +163724,23 @@
       },
       "feature_owner": "docs.documents-and-journal",
       "flags": [
-        "dynamic-template",
-        "anonymous-source-anchor"
+        "dynamic-template"
       ],
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:87 openMarkdownCopy"
+        "value": "static/js/journal.js:89 openMarkdownCopy"
       },
-      "id": "dynamic.0049953be183",
+      "id": "dynamic.fa2c6486cccb",
       "kind": "action",
       "label": {
         "source": "text",
-        "value": "done"
+        "value": "${item.state === 'applied' ? 'roll back copied files' : 'retry rollback'}"
       },
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:87 openMarkdownCopy"
+          "static/js/journal.js:89 openMarkdownCopy"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -163537,328 +163774,16 @@
         ]
       },
       "surface": {
-        "instance_key": "runtime record value from data-close",
+        "instance_key": "runtime record value from data-operation",
         "render_mode": "dynamic-template",
         "root": null,
         "runtime_selector": null,
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 164
+          "line": 184
         },
-        "source_selector": "static/js/journal.js:164:7",
-        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
-      },
-      "trigger_variants": [
-        {
-          "event": "click",
-          "keys": [],
-          "modality": "pointer",
-          "preconditions": []
-        },
-        {
-          "event": "activation",
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "preconditions": []
-        }
-      ]
-    },
-    {
-      "accessibility": {
-        "focus": "unknown until runtime evidence is attached",
-        "name": "roll back copied files",
-        "relationships": {},
-        "role": "native button"
-      },
-      "activation_paths": [
-        {
-          "event": "click",
-          "evidence": {
-            "source": {
-              "file": "static/js/journal.js",
-              "kind": "control-source",
-              "line": 164
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
-          },
-          "keys": [],
-          "modality": "pointer",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        },
-        {
-          "event": "activation",
-          "evidence": {
-            "source": {
-              "file": "static/js/journal.js",
-              "kind": "control-source",
-              "line": 164
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
-          },
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        }
-      ],
-      "authority": {
-        "busy_repeat": "not-declared-in-template-source",
-        "classification": "nearest-enclosing-controller",
-        "confirmation": "not-declared-in-template-source",
-        "guards": []
-      },
-      "construction": "markup-template",
-      "effect": {
-        "destructive": false,
-        "external": false,
-        "reversible": "not-declared-in-template-source",
-        "value": "source-effect-not-declared"
-      },
-      "evidence": {
-        "references": [],
-        "status": "programmatic-dom"
-      },
-      "feature_owner": "docs.documents-and-journal",
-      "flags": [
-        "dynamic-template",
-        "anonymous-source-anchor"
-      ],
-      "handler": {
-        "classification": "nearest-enclosing-controller",
-        "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:87 openMarkdownCopy"
-      },
-      "id": "dynamic.6b3fc5080e66",
-      "kind": "action",
-      "label": {
-        "source": "text",
-        "value": "roll back copied files"
-      },
-      "path": {
-        "api": [],
-        "client_functions": [
-          "static/js/journal.js:87 openMarkdownCopy"
-        ],
-        "external_destination": null,
-        "server_owner": "not-declared-in-template-source"
-      },
-      "recovery": {
-        "classification": "not-applicable",
-        "controls": [],
-        "reason": "the census does not infer a mutation from a control alone",
-        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
-      },
-      "states": {
-        "conditional_states": [],
-        "outcome_status": [
-          "source-classified-not-runtime-proven"
-        ],
-        "visual": [
-          "resting",
-          "hover",
-          "pressed",
-          "selected",
-          "disabled",
-          "busy",
-          "invalid",
-          "loading",
-          "empty",
-          "permission",
-          "offline",
-          "stale",
-          "partial",
-          "error"
-        ]
-      },
-      "surface": {
-        "instance_key": "runtime record value from data-rollback",
-        "render_mode": "dynamic-template",
-        "root": null,
-        "runtime_selector": null,
-        "source": {
-          "column": null,
-          "file": "static/js/journal.js",
-          "line": 164
-        },
-        "source_selector": "static/js/journal.js:164:8",
-        "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
-      },
-      "trigger_variants": [
-        {
-          "event": "click",
-          "keys": [],
-          "modality": "pointer",
-          "preconditions": []
-        },
-        {
-          "event": "activation",
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "preconditions": []
-        }
-      ]
-    },
-    {
-      "accessibility": {
-        "focus": "unknown until runtime evidence is attached",
-        "name": "done",
-        "relationships": {},
-        "role": "native button"
-      },
-      "activation_paths": [
-        {
-          "event": "click",
-          "evidence": {
-            "source": {
-              "file": "static/js/journal.js",
-              "kind": "control-source",
-              "line": 173
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
-          },
-          "keys": [],
-          "modality": "pointer",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        },
-        {
-          "event": "activation",
-          "evidence": {
-            "source": {
-              "file": "static/js/journal.js",
-              "kind": "control-source",
-              "line": 173
-            },
-            "status": "source-only",
-            "tests": []
-          },
-          "handler_provenance": {
-            "classification": "nearest-enclosing-controller",
-            "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:87 openMarkdownCopy"
-          },
-          "keys": [
-            "Enter",
-            "Space"
-          ],
-          "modality": "keyboard",
-          "outcome": "source-authority-dispatch - activation invokes the matched nearest-enclosing-controller",
-          "preconditions": [],
-          "state_transition": "source-authority-owned-transition - any post-handler state change requires runtime evidence"
-        }
-      ],
-      "authority": {
-        "busy_repeat": "not-declared-in-template-source",
-        "classification": "nearest-enclosing-controller",
-        "confirmation": "not-declared-in-template-source",
-        "guards": []
-      },
-      "construction": "markup-template",
-      "effect": {
-        "destructive": false,
-        "external": false,
-        "reversible": "not-declared-in-template-source",
-        "value": "source-effect-not-declared"
-      },
-      "evidence": {
-        "references": [],
-        "status": "programmatic-dom"
-      },
-      "feature_owner": "docs.documents-and-journal",
-      "flags": [
-        "dynamic-template",
-        "anonymous-source-anchor"
-      ],
-      "handler": {
-        "classification": "nearest-enclosing-controller",
-        "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:87 openMarkdownCopy"
-      },
-      "id": "dynamic.fdf6d5dedf1e",
-      "kind": "action",
-      "label": {
-        "source": "text",
-        "value": "done"
-      },
-      "path": {
-        "api": [],
-        "client_functions": [
-          "static/js/journal.js:87 openMarkdownCopy"
-        ],
-        "external_destination": null,
-        "server_owner": "not-declared-in-template-source"
-      },
-      "recovery": {
-        "classification": "not-applicable",
-        "controls": [],
-        "reason": "the census does not infer a mutation from a control alone",
-        "value": "not-applicable - this record has no source-declared destructive mutation to recover"
-      },
-      "states": {
-        "conditional_states": [],
-        "outcome_status": [
-          "source-classified-not-runtime-proven"
-        ],
-        "visual": [
-          "resting",
-          "hover",
-          "pressed",
-          "selected",
-          "disabled",
-          "busy",
-          "invalid",
-          "loading",
-          "empty",
-          "permission",
-          "offline",
-          "stale",
-          "partial",
-          "error"
-        ]
-      },
-      "surface": {
-        "instance_key": "runtime record value from data-close",
-        "render_mode": "dynamic-template",
-        "root": null,
-        "runtime_selector": null,
-        "source": {
-          "column": null,
-          "file": "static/js/journal.js",
-          "line": 173
-        },
-        "source_selector": "static/js/journal.js:173:9",
+        "source_selector": "static/js/journal.js:184:8",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -163893,7 +163818,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 199
+              "line": 272
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -163944,7 +163869,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "native editing keys"
@@ -163979,7 +163904,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.78924a11d285",
       "kind": "field",
@@ -163990,7 +163915,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -164031,9 +163956,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 199
+          "line": 272
         },
-        "source_selector": "static/js/journal.js:199:10",
+        "source_selector": "static/js/journal.js:272:9",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -164061,7 +163986,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 200
+              "line": 273
             },
             "status": "source-only",
             "tests": []
@@ -164069,7 +163994,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -164083,7 +164008,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 200
+              "line": 273
             },
             "status": "source-only",
             "tests": []
@@ -164091,7 +164016,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -164127,7 +164052,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.193cbf99cd90",
       "kind": "action",
@@ -164138,7 +164063,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -164179,9 +164104,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 200
+          "line": 273
         },
-        "source_selector": "static/js/journal.js:200:11",
+        "source_selector": "static/js/journal.js:273:10",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -164216,7 +164141,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 201
+              "line": 274
             },
             "status": "source-only",
             "tests": []
@@ -164224,7 +164149,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -164238,7 +164163,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 201
+              "line": 274
             },
             "status": "source-only",
             "tests": []
@@ -164246,7 +164171,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -164282,7 +164207,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.4a833ed0a258",
       "kind": "action",
@@ -164293,7 +164218,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -164334,9 +164259,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 201
+          "line": 274
         },
-        "source_selector": "static/js/journal.js:201:12",
+        "source_selector": "static/js/journal.js:274:11",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -164371,7 +164296,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 206
+              "line": 279
             },
             "status": "source-only",
             "tests": []
@@ -164379,7 +164304,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -164393,7 +164318,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 206
+              "line": 279
             },
             "status": "source-only",
             "tests": []
@@ -164401,7 +164326,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -164437,7 +164362,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.9c9cac02d613",
       "kind": "action",
@@ -164448,7 +164373,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -164489,9 +164414,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 206
+          "line": 279
         },
-        "source_selector": "static/js/journal.js:206:13",
+        "source_selector": "static/js/journal.js:279:12",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -164526,7 +164451,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 208
+              "line": 281
             },
             "status": "source-only",
             "tests": []
@@ -164534,7 +164459,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -164548,7 +164473,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 208
+              "line": 281
             },
             "status": "source-only",
             "tests": []
@@ -164556,7 +164481,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -164592,7 +164517,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.784d7bcecef7",
       "kind": "action",
@@ -164603,7 +164528,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -164644,9 +164569,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 208
+          "line": 281
         },
-        "source_selector": "static/js/journal.js:208:14",
+        "source_selector": "static/js/journal.js:281:13",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -164681,7 +164606,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 214
+              "line": 287
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -164696,7 +164621,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -164710,7 +164635,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 214
+              "line": 287
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -164725,7 +164650,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -164761,7 +164686,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.a70e3a112940",
       "kind": "action",
@@ -164772,7 +164697,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -164813,9 +164738,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 214
+          "line": 287
         },
-        "source_selector": "static/js/journal.js:214:15",
+        "source_selector": "static/js/journal.js:287:14",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -164850,7 +164775,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 216
+              "line": 289
             },
             "status": "source-only",
             "tests": []
@@ -164858,7 +164783,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -164872,7 +164797,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 216
+              "line": 289
             },
             "status": "source-only",
             "tests": []
@@ -164880,7 +164805,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -164916,7 +164841,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.360bb6c06b16",
       "kind": "action",
@@ -164927,7 +164852,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -164968,9 +164893,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 216
+          "line": 289
         },
-        "source_selector": "static/js/journal.js:216:16",
+        "source_selector": "static/js/journal.js:289:15",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -165005,7 +164930,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 217
+              "line": 290
             },
             "status": "source-only",
             "tests": []
@@ -165013,7 +164938,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -165027,7 +164952,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 217
+              "line": 290
             },
             "status": "source-only",
             "tests": []
@@ -165035,7 +164960,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -165071,7 +164996,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.9ef81be9ad48",
       "kind": "action",
@@ -165082,7 +165007,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -165123,9 +165048,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 217
+          "line": 290
         },
-        "source_selector": "static/js/journal.js:217:17",
+        "source_selector": "static/js/journal.js:290:16",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -165160,7 +165085,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 221
+              "line": 294
             },
             "status": "source-only",
             "tests": []
@@ -165168,7 +165093,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -165182,7 +165107,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 221
+              "line": 294
             },
             "status": "source-only",
             "tests": []
@@ -165190,7 +165115,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -165227,7 +165152,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.5a56582845e3",
       "kind": "action",
@@ -165238,7 +165163,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -165279,9 +165204,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 221
+          "line": 294
         },
-        "source_selector": "static/js/journal.js:221:18",
+        "source_selector": "static/js/journal.js:294:17",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -165316,7 +165241,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 222
+              "line": 295
             },
             "status": "source-only",
             "tests": []
@@ -165324,7 +165249,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "native editing keys"
@@ -165359,7 +165284,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.025f974656de",
       "kind": "field",
@@ -165370,7 +165295,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -165411,9 +165336,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 222
+          "line": 295
         },
-        "source_selector": "static/js/journal.js:222:19",
+        "source_selector": "static/js/journal.js:295:18",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -165441,7 +165366,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 223
+              "line": 296
             },
             "status": "test-linked-unclassified",
             "tests": [
@@ -165462,7 +165387,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "native editing keys"
@@ -165497,7 +165422,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.cfca580b1903",
       "kind": "field",
@@ -165508,7 +165433,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -165549,9 +165474,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 223
+          "line": 296
         },
-        "source_selector": "static/js/journal.js:223:20",
+        "source_selector": "static/js/journal.js:296:19",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -165579,7 +165504,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 225
+              "line": 298
             },
             "status": "source-only",
             "tests": []
@@ -165587,7 +165512,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -165601,7 +165526,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 225
+              "line": 298
             },
             "status": "source-only",
             "tests": []
@@ -165609,7 +165534,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -165645,7 +165570,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.f3f59299aab3",
       "kind": "action",
@@ -165656,7 +165581,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -165697,9 +165622,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 225
+          "line": 298
         },
-        "source_selector": "static/js/journal.js:225:21",
+        "source_selector": "static/js/journal.js:298:20",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -165734,7 +165659,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 226
+              "line": 299
             },
             "status": "source-only",
             "tests": []
@@ -165742,7 +165667,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [],
           "modality": "pointer",
@@ -165756,7 +165681,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 226
+              "line": 299
             },
             "status": "source-only",
             "tests": []
@@ -165764,7 +165689,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:188 buildJournal"
+            "value": "static/js/journal.js:261 buildJournal"
           },
           "keys": [
             "Enter",
@@ -165800,7 +165725,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.f3bd3b5540f9",
       "kind": "action",
@@ -165811,7 +165736,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -165852,9 +165777,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 226
+          "line": 299
         },
-        "source_selector": "static/js/journal.js:226:22",
+        "source_selector": "static/js/journal.js:299:21",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -165909,7 +165834,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:188 buildJournal"
+        "value": "static/js/journal.js:261 buildJournal"
       },
       "id": "dynamic.90bdbee05248",
       "kind": "link",
@@ -165920,7 +165845,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:188 buildJournal"
+          "static/js/journal.js:261 buildJournal"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -165961,9 +165886,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 292
+          "line": 365
         },
-        "source_selector": "static/js/journal.js:292:23",
+        "source_selector": "static/js/journal.js:365:22",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": []
@@ -165982,7 +165907,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 409
+              "line": 482
             },
             "status": "source-only",
             "tests": []
@@ -165990,7 +165915,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:402 loadTopics"
+            "value": "static/js/journal.js:475 loadTopics"
           },
           "keys": [],
           "modality": "pointer",
@@ -166004,7 +165929,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 409
+              "line": 482
             },
             "status": "source-only",
             "tests": []
@@ -166012,7 +165937,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:402 loadTopics"
+            "value": "static/js/journal.js:475 loadTopics"
           },
           "keys": [
             "Enter",
@@ -166049,7 +165974,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:402 loadTopics"
+        "value": "static/js/journal.js:475 loadTopics"
       },
       "id": "dynamic.cf6198f65db5",
       "kind": "action",
@@ -166060,7 +165985,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:402 loadTopics"
+          "static/js/journal.js:475 loadTopics"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -166101,9 +166026,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 409
+          "line": 482
         },
-        "source_selector": "static/js/journal.js:409:24",
+        "source_selector": "static/js/journal.js:482:23",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -166138,7 +166063,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 451
+              "line": 524
             },
             "status": "source-only",
             "tests": []
@@ -166146,7 +166071,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:444 pickLockAction"
+            "value": "static/js/journal.js:517 pickLockAction"
           },
           "keys": [],
           "modality": "pointer",
@@ -166160,7 +166085,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 451
+              "line": 524
             },
             "status": "source-only",
             "tests": []
@@ -166168,7 +166093,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:444 pickLockAction"
+            "value": "static/js/journal.js:517 pickLockAction"
           },
           "keys": [
             "Enter",
@@ -166205,7 +166130,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:444 pickLockAction"
+        "value": "static/js/journal.js:517 pickLockAction"
       },
       "id": "dynamic.f832e688eb73",
       "kind": "action",
@@ -166216,7 +166141,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:444 pickLockAction"
+          "static/js/journal.js:517 pickLockAction"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -166257,9 +166182,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 451
+          "line": 524
         },
-        "source_selector": "static/js/journal.js:451:25",
+        "source_selector": "static/js/journal.js:524:24",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -166294,7 +166219,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 452
+              "line": 525
             },
             "status": "source-only",
             "tests": []
@@ -166302,7 +166227,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:444 pickLockAction"
+            "value": "static/js/journal.js:517 pickLockAction"
           },
           "keys": [],
           "modality": "pointer",
@@ -166316,7 +166241,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 452
+              "line": 525
             },
             "status": "source-only",
             "tests": []
@@ -166324,7 +166249,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:444 pickLockAction"
+            "value": "static/js/journal.js:517 pickLockAction"
           },
           "keys": [
             "Enter",
@@ -166361,7 +166286,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:444 pickLockAction"
+        "value": "static/js/journal.js:517 pickLockAction"
       },
       "id": "dynamic.ea320e121377",
       "kind": "action",
@@ -166372,7 +166297,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:444 pickLockAction"
+          "static/js/journal.js:517 pickLockAction"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -166413,9 +166338,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 452
+          "line": 525
         },
-        "source_selector": "static/js/journal.js:452:26",
+        "source_selector": "static/js/journal.js:525:25",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -166450,7 +166375,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 453
+              "line": 526
             },
             "status": "source-only",
             "tests": []
@@ -166458,7 +166383,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:444 pickLockAction"
+            "value": "static/js/journal.js:517 pickLockAction"
           },
           "keys": [],
           "modality": "pointer",
@@ -166472,7 +166397,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 453
+              "line": 526
             },
             "status": "source-only",
             "tests": []
@@ -166480,7 +166405,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:444 pickLockAction"
+            "value": "static/js/journal.js:517 pickLockAction"
           },
           "keys": [
             "Enter",
@@ -166517,7 +166442,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:444 pickLockAction"
+        "value": "static/js/journal.js:517 pickLockAction"
       },
       "id": "dynamic.b06652bcd828",
       "kind": "action",
@@ -166528,7 +166453,7 @@
       "path": {
         "api": [],
         "client_functions": [
-          "static/js/journal.js:444 pickLockAction"
+          "static/js/journal.js:517 pickLockAction"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -166569,9 +166494,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 453
+          "line": 526
         },
-        "source_selector": "static/js/journal.js:453:27",
+        "source_selector": "static/js/journal.js:526:26",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -166606,7 +166531,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 496
+              "line": 569
             },
             "status": "source-only",
             "tests": []
@@ -166614,7 +166539,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:466 showLock"
+            "value": "static/js/journal.js:539 showLock"
           },
           "keys": [
             "native editing keys"
@@ -166649,7 +166574,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:466 showLock"
+        "value": "static/js/journal.js:539 showLock"
       },
       "id": "dynamic.88be4fe39b83",
       "kind": "field",
@@ -166664,7 +166589,7 @@
           "source-local:/api/journal/unlock"
         ],
         "client_functions": [
-          "static/js/journal.js:466 showLock"
+          "static/js/journal.js:539 showLock"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -166705,9 +166630,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 496
+          "line": 569
         },
-        "source_selector": "static/js/journal.js:496:28",
+        "source_selector": "static/js/journal.js:569:27",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -166735,7 +166660,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 497
+              "line": 570
             },
             "status": "source-only",
             "tests": []
@@ -166743,7 +166668,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:466 showLock"
+            "value": "static/js/journal.js:539 showLock"
           },
           "keys": [
             "native editing keys"
@@ -166778,7 +166703,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:466 showLock"
+        "value": "static/js/journal.js:539 showLock"
       },
       "id": "dynamic.0c5d541f4178",
       "kind": "field",
@@ -166793,7 +166718,7 @@
           "source-local:/api/journal/unlock"
         ],
         "client_functions": [
-          "static/js/journal.js:466 showLock"
+          "static/js/journal.js:539 showLock"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -166834,9 +166759,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 497
+          "line": 570
         },
-        "source_selector": "static/js/journal.js:497:29",
+        "source_selector": "static/js/journal.js:570:28",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -166864,7 +166789,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 498
+              "line": 571
             },
             "status": "source-only",
             "tests": []
@@ -166872,7 +166797,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:466 showLock"
+            "value": "static/js/journal.js:539 showLock"
           },
           "keys": [
             "native editing keys"
@@ -166907,7 +166832,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:466 showLock"
+        "value": "static/js/journal.js:539 showLock"
       },
       "id": "dynamic.5eba7097590e",
       "kind": "field",
@@ -166922,7 +166847,7 @@
           "source-local:/api/journal/unlock"
         ],
         "client_functions": [
-          "static/js/journal.js:466 showLock"
+          "static/js/journal.js:539 showLock"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -166963,9 +166888,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 498
+          "line": 571
         },
-        "source_selector": "static/js/journal.js:498:30",
+        "source_selector": "static/js/journal.js:571:29",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -166993,7 +166918,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 500
+              "line": 573
             },
             "status": "source-only",
             "tests": []
@@ -167001,7 +166926,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:466 showLock"
+            "value": "static/js/journal.js:539 showLock"
           },
           "keys": [],
           "modality": "pointer",
@@ -167015,7 +166940,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 500
+              "line": 573
             },
             "status": "source-only",
             "tests": []
@@ -167023,7 +166948,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:466 showLock"
+            "value": "static/js/journal.js:539 showLock"
           },
           "keys": [
             "Enter",
@@ -167059,7 +166984,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:466 showLock"
+        "value": "static/js/journal.js:539 showLock"
       },
       "id": "dynamic.ed9188d3e6cc",
       "kind": "action",
@@ -167074,7 +166999,7 @@
           "source-local:/api/journal/unlock"
         ],
         "client_functions": [
-          "static/js/journal.js:466 showLock"
+          "static/js/journal.js:539 showLock"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -167115,9 +167040,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 500
+          "line": 573
         },
-        "source_selector": "static/js/journal.js:500:31",
+        "source_selector": "static/js/journal.js:573:30",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -167152,7 +167077,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 501
+              "line": 574
             },
             "status": "source-only",
             "tests": []
@@ -167160,7 +167085,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:466 showLock"
+            "value": "static/js/journal.js:539 showLock"
           },
           "keys": [],
           "modality": "pointer",
@@ -167174,7 +167099,7 @@
             "source": {
               "file": "static/js/journal.js",
               "kind": "control-source",
-              "line": 501
+              "line": 574
             },
             "status": "source-only",
             "tests": []
@@ -167182,7 +167107,7 @@
           "handler_provenance": {
             "classification": "nearest-enclosing-controller",
             "discoverability": "nearest-enclosing-function",
-            "value": "static/js/journal.js:466 showLock"
+            "value": "static/js/journal.js:539 showLock"
           },
           "keys": [
             "Enter",
@@ -167218,7 +167143,7 @@
       "handler": {
         "classification": "nearest-enclosing-controller",
         "discoverability": "nearest-enclosing-function",
-        "value": "static/js/journal.js:466 showLock"
+        "value": "static/js/journal.js:539 showLock"
       },
       "id": "dynamic.791b2d7b12a7",
       "kind": "action",
@@ -167233,7 +167158,7 @@
           "source-local:/api/journal/unlock"
         ],
         "client_functions": [
-          "static/js/journal.js:466 showLock"
+          "static/js/journal.js:539 showLock"
         ],
         "external_destination": null,
         "server_owner": "not-declared-in-template-source"
@@ -167274,9 +167199,9 @@
         "source": {
           "column": null,
           "file": "static/js/journal.js",
-          "line": 501
+          "line": 574
         },
-        "source_selector": "static/js/journal.js:501:32",
+        "source_selector": "static/js/journal.js:574:31",
         "visibility_condition": "runtime renderer condition unknown; inspect the source template and rendered DOM"
       },
       "trigger_variants": [
@@ -256295,19 +256220,19 @@
   "summary": {
     "activation_path_evidence": {
       "external-blocked": 3,
-      "source-only": 2133,
+      "source-only": 2131,
       "test-linked-unclassified": 645
     },
-    "activation_paths": 2781,
-    "controls": 1640,
-    "dynamic_templates": 961,
+    "activation_paths": 2779,
+    "controls": 1639,
+    "dynamic_templates": 960,
     "event_listener_types": {
       "abort": 1,
       "animationend": 1,
       "beforeunload": 4,
       "blur": 9,
       "change": 53,
-      "click": 805,
+      "click": 799,
       "close": 1,
       "contextmenu": 2,
       "controllerchange": 1,
@@ -256323,7 +256248,7 @@
       "focusin": 1,
       "focusout": 1,
       "input": 56,
-      "keydown": 99,
+      "keydown": 98,
       "load": 3,
       "message": 2,
       "mousedown": 16,
@@ -256347,9 +256272,9 @@
       "wheel": 1
     },
     "flags": {
-      "anonymous-source-anchor": 841,
+      "anonymous-source-anchor": 837,
       "cross-feature-owner": 63,
-      "dynamic-template": 961,
+      "dynamic-template": 960,
       "inline-handler": 24,
       "unknown-label": 80
     },
