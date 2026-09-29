@@ -212,7 +212,7 @@ class ProjectEnvironmentApiTest(ApiTest):
         with (
             mock.patch("routes.chat.load_settings", return_value={}),
             mock.patch("routes.chat.inject_memories", return_value=("", [])),
-            mock.patch("routes.chat.run_agent", run_agent),
+            mock.patch("services.chat_turn.run_agent", run_agent),
         ):
             response = self.client.post(
                 "/api/chat",

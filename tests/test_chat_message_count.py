@@ -39,7 +39,7 @@ class MessageCountTests(ApiTest):
     def test_one_turn_counts_two_messages(self):
         sid, epid = self._seed()
         ep = self.db().get(ModelEndpoint, epid)
-        with mock.patch.object(chat_mod, "stream_chat", _fake_stream("hello")):
+        with mock.patch("services.chat_turn.stream_chat", _fake_stream("hello")):
             asyncio.run(
                 _drive(
                     session_id=sid,
@@ -64,7 +64,7 @@ class MessageCountTests(ApiTest):
         async def empty(messages, base_url, api_key, model, **kw):
             yield {"error": "boom"}
 
-        with mock.patch.object(chat_mod, "stream_chat", empty):
+        with mock.patch("services.chat_turn.stream_chat", empty):
             asyncio.run(
                 _drive(
                     session_id=sid,
