@@ -170,7 +170,7 @@ async function openLegacyDocumentDeepLink(path) {
   const url = new URL(location.href);
   url.searchParams.delete('doc');
   url.searchParams.delete('doc_hash');
-  history.replaceState(null, '', url.pathname + url.search + url.hash);
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
 }
 
 function _wire() {
@@ -302,7 +302,7 @@ async function openDocsHome() {
   _dirty = false;
   _mode = 'view';
   destroyEditor();
-  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  if (location.hash) history.replaceState(history.state, '', location.pathname + location.search);
   showSection('docs');
   renderShell();
   return true;
@@ -685,7 +685,7 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     } else {
       hideInlineState();
     }
-    if (!quiet) history.replaceState(null, '', location.pathname + location.search + '#' + encodeURIComponent(stem(_cur)));
+    if (!quiet) history.replaceState(history.state, '', location.pathname + location.search + '#' + encodeURIComponent(stem(_cur)));
     return true;
   } catch (error) {
     if (requestGeneration !== _openGeneration) return false;

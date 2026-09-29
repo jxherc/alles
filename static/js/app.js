@@ -66,6 +66,14 @@ const CONTEXT_HANDOFF_STORAGE_KEY = 'alles.pendingContextHandoff';
 const CONTEXT_HANDOFF_PAYLOAD_STORAGE_KEY = 'alles.pendingContextHandoffPayload';
 let _afterlifeFlags = {};
 let _authEnabled = false;
+// A denied draft flush must undo whichever browser-history direction was taken.
+const ROUTE_HISTORY_POSITION = '__allesRoutePosition';
+const _initialHistoryState = history.state && typeof history.state === 'object' ? history.state : {};
+let _routeHistoryPosition = Number.isSafeInteger(_initialHistoryState[ROUTE_HISTORY_POSITION])
+  ? _initialHistoryState[ROUTE_HISTORY_POSITION] : 0;
+history.replaceState({ ..._initialHistoryState, [ROUTE_HISTORY_POSITION]: _routeHistoryPosition }, '', location.href);
+let _restoringRoutePosition = null;
+let _popstateGeneration = 0;
 
 async function init() {
   const params = new URLSearchParams(location.search);
@@ -128,7 +136,7 @@ function _stripParam(name) {
   const p = new URLSearchParams(location.search);
   p.delete(name);
   const q = p.toString();
-  history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  history.replaceState(history.state, '', location.pathname + (q ? '?' + q : '') + location.hash);
 }
 
 // apex → mint a one-time code and send it back to the requesting app subdomain
@@ -443,7 +451,7 @@ async function _boot({ reachable = true } = {}) {
 
 function _replaceHistoryUrl(target) {
   const url = new URL(target, location.href);
-  history.replaceState(null, '', url.pathname + url.search + url.hash);
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
 }
 
 function _consumeParams(names) {
@@ -1003,8 +1011,11 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
     const target = url.pathname + url.search + url.hash;
     const current = location.pathname + location.search + location.hash;
     if (target === current) return;
-    if (replace) history.replaceState(null, '', target);
-    else history.pushState(null, '', target);
+    if (replace) history.replaceState(history.state, '', target);
+    else {
+      history.pushState({ ...(history.state || {}), [ROUTE_HISTORY_POSITION]: _routeHistoryPosition + 1 }, '', target);
+      ++_routeHistoryPosition;
+    }
   } catch {}
 }
 
@@ -1052,7 +1063,16 @@ window._navigateSpecialistSection = (group, section) => {
   return navigateTo(groupIdentifierFor(group, section));
 };
 
-window.addEventListener('popstate', async () => {
+window.addEventListener('popstate', async event => {
+  const generation = ++_popstateGeneration;
+  const targetPosition = Number.isSafeInteger(event.state?.[ROUTE_HISTORY_POSITION])
+    ? event.state[ROUTE_HISTORY_POSITION] : null;
+  if (_restoringRoutePosition !== null) {
+    const restored = targetPosition === _restoringRoutePosition;
+    _restoringRoutePosition = null;
+    if (restored) return;
+  }
+  if (targetPosition === _routeHistoryPosition) return;
   const url = new URL(location.href);
   const identifier = url.searchParams.get('view') || url.searchParams.get('app');
   const route = resolveCompatibilityRoute({
@@ -1063,12 +1083,16 @@ window.addEventListener('popstate', async () => {
   });
   const nextGroup = groupRouteFor(route?.hashOwner) || groupRouteFor(route?.view) || groupRouteFor(identifier);
   const docsVisible = document.getElementById('docs-workbench-view')?.style.display !== 'none';
-  if (docsVisible && nextGroup?.group !== 'docs' && typeof window._prepareDocsNavigation === 'function') {
+  if (docsVisible && typeof window._prepareDocsNavigation === 'function') {
     if (!(await window._prepareDocsNavigation())) {
-      history.forward();
+      if (generation !== _popstateGeneration) return;
+      _restoringRoutePosition = _routeHistoryPosition;
+      history.go(targetPosition === null ? 1 : _routeHistoryPosition - targetPosition);
       return;
     }
   }
+  if (generation !== _popstateGeneration) return;
+  if (targetPosition !== null) _routeHistoryPosition = targetPosition;
   if (route) await renderLocalRoute(route);
   else if (nextGroup) await renderLocalView(nextGroup.group, { view: nextGroup.group, section: nextGroup.section });
   else if (singleHost()) await renderLocalView('today');
