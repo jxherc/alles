@@ -43,7 +43,7 @@ import {
 } from './modes.js?v=256';
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow } from './scrollfollow.js';
-import { initAideWorkspace } from './aideworkspace.js?v=277';
+import { initAideWorkspace } from './aideworkspace.js?v=278';
 import { beginBusy, createFocusBoundary, initKokuenPrimitives, setControlState } from './kokuen.js?v=1';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=248';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
