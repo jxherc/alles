@@ -344,7 +344,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 160
+                "line": 182
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 255
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 264
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -727,7 +739,19 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 160
+                "line": 182
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 255
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 264
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -3681,7 +3705,31 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 219
+                "line": 139
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 146
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 241
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 258
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 267
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -3758,7 +3806,31 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 219
+                "line": 139
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 146
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 241
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 258
+              },
+              {
+                "claim": "control is named; activation path is not mechanically classified",
+                "file": "tests/pw_shell_command_shortcuts.py",
+                "kind": "existing-test-control-reference",
+                "line": 267
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5149,13 +5221,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 198
+                "line": 220
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 209
+                "line": 231
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -5502,13 +5574,13 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 198
+                "line": 220
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 209
+                "line": 231
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -31350,7 +31422,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 138
+                "line": 160
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -31433,7 +31505,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 138
+                "line": 160
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -34243,7 +34315,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 139
+                "line": 161
               }
             ]
           },
@@ -34332,7 +34404,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 139
+                "line": 161
               }
             ]
           },
@@ -35197,7 +35269,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 140
+                "line": 162
               }
             ]
           },
@@ -35372,7 +35444,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 140
+                "line": 162
               }
             ]
           },
@@ -52872,7 +52944,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 216
+                "line": 238
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53323,7 +53395,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 216
+                "line": 238
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -53774,7 +53846,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 216
+                "line": 238
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -58772,37 +58844,37 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 162
+                "line": 184
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 170
+                "line": 192
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 178
+                "line": 200
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 189
+                "line": 211
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 199
+                "line": 221
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 210
+                "line": 232
               }
             ]
           },
@@ -61870,7 +61942,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 135
+                "line": 157
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
@@ -62205,7 +62277,7 @@
                 "claim": "control is named; activation path is not mechanically classified",
                 "file": "tests/pw_shell_command_shortcuts.py",
                 "kind": "existing-test-control-reference",
-                "line": 135
+                "line": 157
               },
               {
                 "claim": "control is named; activation path is not mechanically classified",
