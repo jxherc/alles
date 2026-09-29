@@ -8,22 +8,14 @@ from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Upload, get_db
-from core.settings import data_dir
+from services.upload_files import upload_dir
 
 router = APIRouter(prefix="/api")
-
-UPLOAD_DIR: Path | None = None
 
 MAX_SIZE = 20 * 1024 * 1024  # 20MB
 _UPLOAD_MUTATION_LOCK = threading.RLock()
 CANCELLATION_TTL_SECONDS = 24 * 60 * 60
 MAX_CANCELLATION_MARKERS = 4096
-
-
-def upload_dir() -> Path:
-    d = UPLOAD_DIR or data_dir() / "uploads"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
 
 
 def _upload_id(value: str | None) -> str:

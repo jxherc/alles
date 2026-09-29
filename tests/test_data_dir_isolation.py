@@ -20,6 +20,7 @@ import services.photo_sync as photo_sync
 import services.s3_backup as s3_backup
 import services.secretstore as secretstore
 import services.skills_store as skills_store
+import services.upload_files as upload_files
 import services.webdav_backup as webdav_backup
 import services.webpush as webpush
 from core.database import Session, Upload
@@ -39,7 +40,7 @@ class DataDirIsolationTest(unittest.TestCase):
 
         self.orig = {
             "backup": backup.DATA_DIR,
-            "uploads": uploads.UPLOAD_DIR,
+            "uploads": upload_files.UPLOAD_DIR,
             "gallery": gallery.GALLERY_DIR,
             "compare": compare._COMPARE_DIR,
             "caldav_cfg": caldav_sync.CFG_PATH,
@@ -62,7 +63,7 @@ class DataDirIsolationTest(unittest.TestCase):
             "local_models": local_models.DATA_DIR,
         }
         backup.DATA_DIR = None
-        uploads.UPLOAD_DIR = None
+        upload_files.UPLOAD_DIR = None
         gallery.GALLERY_DIR = None
         compare._COMPARE_DIR = None
         caldav_sync.CFG_PATH = None
@@ -86,7 +87,7 @@ class DataDirIsolationTest(unittest.TestCase):
 
     def tearDown(self):
         backup.DATA_DIR = self.orig["backup"]
-        uploads.UPLOAD_DIR = self.orig["uploads"]
+        upload_files.UPLOAD_DIR = self.orig["uploads"]
         gallery.GALLERY_DIR = self.orig["gallery"]
         compare._COMPARE_DIR = self.orig["compare"]
         caldav_sync.CFG_PATH = self.orig["caldav_cfg"]
@@ -188,11 +189,11 @@ class DataDirIsolationApiTest(ApiTest):
         self.old_env = os.environ.get("ALLES_DATA")
         os.environ["ALLES_DATA"] = str(self.root)
         self.orig_backup = backup.DATA_DIR
-        self.orig_uploads = uploads.UPLOAD_DIR
+        self.orig_uploads = upload_files.UPLOAD_DIR
         self.orig_gallery = gallery.GALLERY_DIR
         self.orig_compare = compare._COMPARE_DIR
         backup.DATA_DIR = None
-        uploads.UPLOAD_DIR = None
+        upload_files.UPLOAD_DIR = None
         gallery.GALLERY_DIR = None
         compare._COMPARE_DIR = None
         super().setUp()
@@ -200,7 +201,7 @@ class DataDirIsolationApiTest(ApiTest):
     def tearDown(self):
         super().tearDown()
         backup.DATA_DIR = self.orig_backup
-        uploads.UPLOAD_DIR = self.orig_uploads
+        upload_files.UPLOAD_DIR = self.orig_uploads
         gallery.GALLERY_DIR = self.orig_gallery
         compare._COMPARE_DIR = self.orig_compare
         if self.old_env is None:
