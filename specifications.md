@@ -287,7 +287,11 @@ imports, with an optional gated move to an Alles-managed Actual Budget core.
   explicit account and optional spending category chosen by id, a verified backup, and a stable
   request identity. an uncertain response leaves a visible retry that checks the same marker;
   a missing marker stops for review instead of making another schedule. unlinked native and
-  unrepaired old schedules stay read-only. edit and delete are not yet available in Finance
+  unrepaired old schedules stay read-only. the canonical edit API accepts a complete target
+  for a linked guarded schedule using existing Actual account, payee, and spending-category
+  ids. it saves a verified backup and durable before/target intent, pauses posting during the
+  provider edit, and offers an exact pending retry or review when a write is uncertain. the
+  edit UI and recurring deletion are not yet available in Finance
 - Money alerts use the active ledger for large purchases, watched transactions, upcoming bills,
   and low account balances. after cutover, they read one Actual snapshot plus local watches;
   variable bill amounts are not shown as zero, and a failed read offers retry instead of hiding alerts
