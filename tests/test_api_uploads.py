@@ -6,6 +6,9 @@ from pathlib import Path
 from unittest import mock
 
 import routes.uploads as up
+from core.database import Session
+from routes.chat import _build_messages
+from services import mail_outbox, upload_files
 from tests._client import ApiTest
 
 
@@ -13,11 +16,11 @@ class UploadsApiTest(ApiTest):
     def setUp(self):
         super().setUp()
         self._tmp = tempfile.TemporaryDirectory()
-        self._orig_dir = up.UPLOAD_DIR
-        up.UPLOAD_DIR = Path(self._tmp.name)
+        self._orig_dir = upload_files.UPLOAD_DIR
+        upload_files.UPLOAD_DIR = Path(self._tmp.name)
 
     def tearDown(self):
-        up.UPLOAD_DIR = self._orig_dir
+        upload_files.UPLOAD_DIR = self._orig_dir
         self._tmp.cleanup()
         super().tearDown()
 
@@ -34,6 +37,43 @@ class UploadsApiTest(ApiTest):
         self.assertEqual(self.client.get(f"/api/uploads/{uid}").status_code, 200)
         self.assertEqual(self.client.delete(f"/api/uploads/{uid}").json(), {"ok": True})
         self.assertEqual(self.client.get(f"/api/uploads/{uid}").status_code, 404)
+
+    def test_mail_inline_reads_the_uploaded_bytes_from_the_same_directory(self):
+        uploaded = self.client.post(
+            "/api/uploads", files={"file": ("photo.png", b"synthetic-image", "image/png")}
+        )
+        self.assertEqual(uploaded.status_code, 200, uploaded.text)
+        upload_id = uploaded.json()["id"]
+
+        html, inline = mail_outbox._inline_from_html(f'<img src="/api/uploads/{upload_id}">')
+
+        self.assertEqual(html, f'<img src="cid:{upload_id}">')
+        self.assertEqual(inline, [{"cid": upload_id, "data": b"synthetic-image", "subtype": "png"}])
+
+    def test_chat_reads_the_uploaded_bytes_from_the_same_directory(self):
+        uploaded = self.client.post(
+            "/api/uploads", files={"file": ("note.txt", b"synthetic note", "text/plain")}
+        )
+        self.assertEqual(uploaded.status_code, 200, uploaded.text)
+        db = self.db()
+        try:
+            session = Session(name="upload reader")
+            db.add(session)
+            db.commit()
+            messages = _build_messages(
+                session,
+                "read this",
+                {
+                    "memory_auto_inject": False,
+                    "session_context_inject": False,
+                    "artifacts_enabled": False,
+                },
+                db=db,
+                file_ids=[uploaded.json()["id"]],
+            )
+            self.assertIn("synthetic note", str(messages[-1]["content"]))
+        finally:
+            db.close()
 
     def test_too_large_rejected(self):
         orig = up.MAX_SIZE

@@ -349,7 +349,7 @@ def _build_messages(
         import base64
 
         from core.database import Upload
-        from routes.uploads import upload_dir
+        from services.upload_files import upload_dir
 
         text_blocks = []
         image_parts = []
