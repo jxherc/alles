@@ -10,7 +10,7 @@ function _overlay() {
 
 let dialogSequence = 0;
 
-function _wireDialog(overlay, resolve, valueFromConfirm) {
+function _wireDialog(overlay, resolve, valueFromConfirm, canSubmit = () => true) {
   const previousFocus = document.activeElement;
   const focusable = () => [...overlay.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])')]
     .filter(element => !element.disabled && !element.hidden);
@@ -42,9 +42,13 @@ function _wireDialog(overlay, resolve, valueFromConfirm) {
   overlay.addEventListener('click', event => {
     if (event.target === overlay) done(null);
   });
-  overlay.querySelectorAll('[data-dialog-confirm]').forEach(button => button.addEventListener('click', () => done(valueFromConfirm(button))));
+  const submit = button => {
+    const value = valueFromConfirm(button);
+    if (canSubmit(value)) done(value);
+  };
+  overlay.querySelectorAll('[data-dialog-confirm]').forEach(button => button.addEventListener('click', () => submit(button)));
   overlay.querySelector('[data-dialog-cancel]').addEventListener('click', () => done(null));
-  return done;
+  return submit;
 }
 
 export function confirm(msg) {
@@ -68,11 +72,13 @@ export function prompt(msg, def = '', options = {}) {
   return new Promise(resolve => {
     const ov = _overlay();
     const inputId = `dialog-input-${++dialogSequence}`;
-    ov.innerHTML = `<div class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="${inputId}-label">
+    const errorId = `${inputId}-error`;
+    ov.innerHTML = `<div class="dialog-card${options.validate ? ' dialog-validated' : ''}" role="dialog" aria-modal="true" aria-labelledby="${inputId}-label">
       <label class="dialog-msg" id="${inputId}-label" for="${inputId}">${_esc(msg)}</label>
       <input class="settings-input dialog-input" id="${inputId}" value="${_esc(String(def || ''))}"
         type="${options.secret ? 'password' : 'text'}"
-        autocomplete="${options.secret ? 'current-password' : 'off'}">
+        autocomplete="${options.secret ? 'current-password' : 'off'}"${options.validate ? ` aria-describedby="${errorId}"` : ''}>
+      ${options.validate ? `<div class="dialog-validation" id="${errorId}" role="alert"></div>` : ''}
       <div class="dialog-btns">
         <button class="btn" type="button" data-dialog-cancel>cancel</button>
         <button class="btn primary" type="button" data-dialog-confirm>ok</button>
@@ -80,11 +86,27 @@ export function prompt(msg, def = '', options = {}) {
     </div>`;
     document.body.appendChild(ov);
     const inp = ov.querySelector(`#${inputId}`);
-    const done = _wireDialog(ov, resolve, () => inp.value);
+    const error = ov.querySelector(`#${errorId}`);
+    const validate = value => {
+      const message = options.validate?.(value) || '';
+      if (error) error.textContent = message;
+      if (message) {
+        inp.setAttribute('aria-invalid', 'true');
+        inp.focus();
+        return false;
+      }
+      inp.removeAttribute('aria-invalid');
+      return true;
+    };
+    const submit = _wireDialog(ov, resolve, () => inp.value, validate);
+    inp.addEventListener('input', () => {
+      if (error) error.textContent = '';
+      inp.removeAttribute('aria-invalid');
+    });
     inp.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        done(inp.value);
+        submit();
       }
     });
     inp.focus(); inp.select();

@@ -483,6 +483,8 @@ body.sidebar-hidden .sidebar { display: none; }
 .dialog-msg { font-size: 0.82rem; color: var(--text); }
 .dialog-btns { display: flex; justify-content: flex-end; gap: 0.5rem; }
 .dialog-input { width: 100%; }
+.dialog-validated .dialog-input, .dialog-validated .btn { min-height: 44px; }
+.dialog-validation { min-height: 18px; color: var(--error); font-size: 13px; line-height: 18px; }
 .finance-bank-dialog { width: min(760px, calc(100vw - 32px)); max-height: min(760px, calc(100vh - 32px)); overflow: auto; }
 .finance-bank-head, .finance-bank-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .finance-bank-head h2, .finance-bank-setup h3 { margin: 0; color: var(--text); font-size: 0.86rem; font-weight: 620; }
@@ -8414,7 +8416,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
 .health-card { border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); padding: 0.8rem 0.9rem; }
 .health-card-h { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.3rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.health-target-btn { background: none; border: 1px solid var(--faint); border-radius: 3px; color: var(--muted); font-size: 0.75rem; letter-spacing: 0.03em; padding: 1px 5px; cursor: pointer; text-transform: none; white-space: nowrap; }
+.health-target-btn { background: none; border: 1px solid var(--faint); border-radius: 3px; color: var(--muted); font-size: 0.75rem; letter-spacing: 0.03em; padding: 1px 8px; min-height: 44px; cursor: pointer; text-transform: none; white-space: nowrap; }
 .health-target-btn:hover { color: var(--text); border-color: var(--muted); }
 .health-target-btn.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .health-latest { font-size: 1.6rem; font-weight: 600; color: var(--text); line-height: 1; margin-bottom: 0.5rem; }

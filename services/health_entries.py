@@ -20,6 +20,13 @@ def finite_value(raw) -> float:
     return value
 
 
+def canonical_date(raw: str) -> str:
+    try:
+        return date.fromisoformat(str(raw)[:10]).isoformat()
+    except ValueError:
+        raise HealthInputError("date must be ISO (YYYY-MM-DD)") from None
+
+
 def save_entry(
     db,
     *,
@@ -33,11 +40,7 @@ def save_entry(
     from core.database import HealthEntry
 
     value = finite_value(value)
-    day = (entry_date or date.today().isoformat())[:10]
-    try:
-        date.fromisoformat(day)
-    except ValueError:
-        raise HealthInputError("date must be ISO (YYYY-MM-DD)") from None
+    day = canonical_date(entry_date or date.today().isoformat())
     entry = HealthEntry(
         kind=kind,
         date=day,
