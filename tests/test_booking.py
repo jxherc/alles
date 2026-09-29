@@ -31,6 +31,18 @@ class BookingTests(ApiTest):
     def test_page_has_token(self):
         self.assertTrue(self._page()["token"])
 
+    def test_public_page_exposes_keyboard_selectable_slots(self):
+        token = self._page()["token"]
+        page = self.client.get(f"/book/{token}")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("document.createElement('button')", page.text)
+        self.assertIn("b.type = 'button'", page.text)
+        self.assertIn("b.setAttribute('aria-pressed', 'false')", page.text)
+        self.assertIn("button:focus-visible", page.text)
+        self.assertIn("min-height:44px", page.text)
+        self.assertIn('for="date"', page.text)
+        self.assertIn('id="msg" role="status"', page.text)
+
     def test_slots_excludes_busy(self):
         tok = self._page(work_start=9, work_end=11, duration_min=60)["token"]
         self._busy(f"{DAY}T09:00:00", f"{DAY}T10:00:00")
