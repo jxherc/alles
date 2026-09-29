@@ -7,6 +7,7 @@ from core.database import (
     JarvisRun,
     JarvisRunEvent,
     JarvisWorkflow,
+    Message,
     ModelEndpoint,
     Project,
     Session,
@@ -148,8 +149,8 @@ class JarvisHandoffTest(ApiTest):
             yield {"delta": "scheduled work finished"}
 
         with (
-            mock.patch("routes.chat._build_messages", return_value=[]),
-            mock.patch("routes.chat._stream_and_save", side_effect=stream),
+            mock.patch("services.chat_turn._build_messages", return_value=[]),
+            mock.patch("services.chat_turn._stream_and_save", side_effect=stream),
         ):
             asyncio.run(jarvis_handoff._execute(run_id))
 
@@ -161,6 +162,53 @@ class JarvisHandoffTest(ApiTest):
         self.assertIsNotNone(session)
         self.assertEqual(session.project_id, project_id)
         self.assertEqual(session.name, "morning check")
+        db.close()
+
+    def test_scheduled_handoff_saves_a_real_shared_chat_turn(self):
+        self._endpoint(local=True)
+        db = self.db()
+        workflow = JarvisWorkflow(
+            name="shared turn",
+            prompt="record this answer",
+            deterministic_action=jarvis_handoff.HANDOFF_ACTION,
+            enabled=True,
+        )
+        db.add(workflow)
+        db.flush()
+        run = create_run(db, workflow)
+        db.commit()
+        run_id = run.id
+        db.close()
+
+        async def agent(messages, _ep, _model, _stop, _settings, accumulated, *_args, **_kwargs):
+            self.assertEqual(messages[-1], {"role": "user", "content": "record this answer"})
+            accumulated.append("saved answer")
+            yield {"delta": "saved answer", "done": True}
+
+        with (
+            mock.patch.object(
+                jarvis_handoff,
+                "load_settings",
+                return_value={"memory_policy": "off"},
+            ),
+            mock.patch("services.chat_turn.run_agent", agent),
+        ):
+            asyncio.run(jarvis_handoff._execute(run_id))
+
+        db = self.db()
+        saved = db.get(JarvisRun, run_id)
+        self.assertEqual(saved.state, "succeeded")
+        self.assertEqual(saved.result_summary, "saved answer")
+        messages = (
+            db.query(Message)
+            .filter_by(session_id=saved.session_id)
+            .order_by(Message.timestamp)
+            .all()
+        )
+        self.assertEqual(
+            [(message.role, message.content) for message in messages],
+            [("user", "record this answer"), ("assistant", "saved answer")],
+        )
         db.close()
 
     def test_deleted_legacy_session_restores_its_exact_working_folder(self):
@@ -189,8 +237,8 @@ class JarvisHandoffTest(ApiTest):
                 yield {"delta": "folder work finished"}
 
             with (
-                mock.patch("routes.chat._build_messages", return_value=[]),
-                mock.patch("routes.chat._stream_and_save", side_effect=stream),
+                mock.patch("services.chat_turn._build_messages", return_value=[]),
+                mock.patch("services.chat_turn._stream_and_save", side_effect=stream),
             ):
                 asyncio.run(jarvis_handoff._execute(run_id))
 
@@ -217,7 +265,7 @@ class JarvisHandoffTest(ApiTest):
         db.commit()
         db.close()
 
-        with mock.patch("routes.chat._stream_and_save") as stream:
+        with mock.patch("services.chat_turn._stream_and_save") as stream:
             asyncio.run(jarvis_handoff._execute(run_id))
 
         stream.assert_not_called()
@@ -339,7 +387,7 @@ class JarvisHandoffTest(ApiTest):
         run_id = run.id
         db.close()
 
-        with mock.patch("routes.chat._stream_and_save") as stream:
+        with mock.patch("services.chat_turn._stream_and_save") as stream:
             asyncio.run(jarvis_handoff._execute(run_id))
 
         stream.assert_not_called()
@@ -384,8 +432,8 @@ class JarvisHandoffTest(ApiTest):
         with (
             mock.patch.object(jarvis_handoff, "inject_memories") as inject,
             mock.patch.object(jarvis_handoff, "load_settings", return_value=settings),
-            mock.patch("routes.chat._build_messages", return_value=[]),
-            mock.patch("routes.chat._stream_and_save", side_effect=stream),
+            mock.patch("services.chat_turn._build_messages", return_value=[]),
+            mock.patch("services.chat_turn._stream_and_save", side_effect=stream),
         ):
             asyncio.run(jarvis_handoff._execute(run_id))
         inject.assert_not_called()

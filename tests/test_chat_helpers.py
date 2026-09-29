@@ -2,7 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from routes.chat import _extract_artifacts, _resolve_mentions
+from routes.chat import _resolve_mentions
+from services.chat_turn import _extract_artifacts
 
 
 class ArtifactTests(unittest.TestCase):

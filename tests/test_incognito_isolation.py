@@ -74,7 +74,7 @@ class IncognitoIsolationTest(ApiTest):
         session_id = self._session()
         with (
             mock.patch("routes.chat.inject_memories") as memory,
-            mock.patch("routes.chat.stream_chat", _fake_stream),
+            mock.patch("services.chat_turn.stream_chat", _fake_stream),
         ):
             response = self.client.post(
                 "/api/chat",
@@ -98,7 +98,7 @@ class IncognitoIsolationTest(ApiTest):
             async for chunk in _fake_stream(messages, base_url, api_key, model, **kwargs):
                 yield chunk
 
-        with mock.patch("routes.chat.stream_chat", stream):
+        with mock.patch("services.chat_turn.stream_chat", stream):
             for text in ("first private turn", "second private turn"):
                 response = self.client.post(
                     "/api/chat",
@@ -135,7 +135,7 @@ class IncognitoIsolationTest(ApiTest):
             async for chunk in _fake_stream(messages, base_url, api_key, model, **kwargs):
                 yield chunk
 
-        with mock.patch("routes.chat.stream_chat", stream):
+        with mock.patch("services.chat_turn.stream_chat", stream):
             response = self.client.post(
                 "/api/chat",
                 json={
