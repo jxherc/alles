@@ -2,41 +2,31 @@
 auth middleware doesn't gate it) and only when the user has switched it on. config is
 set from the watch view via /api/status/config (that one IS behind auth)."""
 
-from datetime import timedelta
-
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Monitor, MonitorCheck, _now, get_db
+from core.database import Monitor, _now, get_db
 from core.settings import load_settings, save_settings
+from services.watch_checks import monitor_snapshot
 
 router = APIRouter()
 
 
 def _status_data(db) -> list[dict]:
-    from routes.watch import uptime_pct
-
     now = _now()
-    day_ago = now - timedelta(hours=24)
     out = []
     for m in db.query(Monitor).order_by(Monitor.created_at).all():
-        checks = (
-            db.query(MonitorCheck)
-            .filter(MonitorCheck.monitor_id == m.id)
-            .order_by(MonitorCheck.id.desc())
-            .limit(200)
-            .all()
-        )
-        latest = checks[0] if checks else None
+        snapshot = monitor_snapshot(db, m.id, now)
+        latest = snapshot["latest"]
         out.append(
             {
                 "name": m.name,
                 "url": m.url,
-                "status": ("up" if latest.ok else "down") if latest else "unknown",
-                "uptime": uptime_pct([c for c in checks if c.ts and c.ts >= day_ago]),
-                "latency": latest.latency_ms if latest else None,
+                "status": snapshot["status"],
+                "uptime": snapshot["uptime_24h"],
+                "latency": latest["latency_ms"] if latest else None,
             }
         )
     return out
