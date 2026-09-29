@@ -49,6 +49,61 @@ class AgentAppToolsTests(ApiTest):
         self.assertIn("Quartzferret Handbook", recall["output"])
         self.assertIn("/?app=books#", recall["output"])
 
+    def test_imported_book_is_available_to_aide_recall(self):
+        csv = (
+            "Title,Author,My Rating,Exclusive Shelf,Date Read,ISBN13,Year Published\n"
+            "Quartzferret Field Guide,Author,4,read,2020/01/02,,2020\n"
+        )
+        with mock.patch("services.textindex._embed", return_value=None):
+            imported = self.client.post("/api/books/import", json={"text": csv})
+            recall = self.ex("recall", {"query": "Quartzferret"})
+        self.assertEqual(imported.status_code, 200)
+        self.assertEqual(imported.json()["imported"], 1)
+        self.assertIn("Quartzferret Field Guide", recall["output"])
+        self.assertIn("/?app=books#", recall["output"])
+
+    def test_books_import_keeps_shelf_and_indexes_later_rows_after_index_error(self):
+        from services import personal_index
+
+        csv = (
+            "Title,Author,My Rating,Exclusive Shelf,Date Read,ISBN13,Year Published\n"
+            "Index Missing,Author,0,to-read,,,2020\n"
+            "Index Surviving,Author,0,to-read,,,2020\n"
+        )
+        index_record = personal_index.index_record
+
+        def fail_first(db, kind, book):
+            if book.title == "Index Missing":
+                raise RuntimeError("index unavailable")
+            return index_record(db, kind, book)
+
+        with (
+            mock.patch("services.personal_index.index_record", side_effect=fail_first),
+            mock.patch("services.textindex._embed", return_value=None),
+        ):
+            imported = self.client.post("/api/books/import", json={"text": csv})
+            recall = self.ex("recall", {"query": "Surviving"})
+        self.assertEqual(imported.status_code, 200)
+        self.assertEqual(imported.json()["imported"], 2)
+        self.assertEqual(self.client.get("/api/books/overview").json()["total"], 2)
+        self.assertIn("Index Surviving", recall["output"])
+
+    def test_books_import_respects_disabled_personal_index_source(self):
+        from core.database import IndexChunk
+
+        csv = (
+            "Title,Author,My Rating,Exclusive Shelf,Date Read,ISBN13,Year Published\n"
+            "Private Shelf Book,Author,0,to-read,,,2020\n"
+        )
+        with mock.patch(
+            "services.personal_index.load_settings",
+            return_value={"pidx_enabled": True, "pidx_book": False},
+        ):
+            imported = self.client.post("/api/books/import", json={"text": csv})
+        self.assertEqual(imported.json()["imported"], 1)
+        with self.db() as db:
+            self.assertEqual(db.query(IndexChunk).filter_by(kind="book").count(), 0)
+
     def test_book_add_survives_an_index_outage(self):
         with mock.patch(
             "services.personal_index.index_record", side_effect=RuntimeError("offline")

@@ -216,6 +216,32 @@ def run():
                     assert box and box["height"] >= 44 and box["width"] >= 44, box
                 shot("book-controls")
                 passed()
+                begin("library.goodreads-import")
+                imported_title = f"Quartzferret Import {profile}"
+                csv = (
+                    "Title,Author,My Rating,Exclusive Shelf,Date Read,ISBN13,Year Published\n"
+                    f"{imported_title},Author,4,read,2020/01/02,,2020\n"
+                )
+                with page.expect_file_chooser() as chooser:
+                    page.locator("#books-import").click()
+                with page.expect_response(
+                    lambda response: (
+                        response.url.endswith("/api/books/import")
+                        and response.request.method == "POST"
+                    )
+                ) as import_response:
+                    chooser.value.set_files(
+                        {"name": "books.csv", "mimeType": "text/csv", "buffer": csv.encode()}
+                    )
+                assert import_response.value.ok
+                imported_book = next(b for b in books() if b["title"] == imported_title)
+                imported_card = page.locator(f'.book-card[data-id="{imported_book["id"]}"]')
+                expect(imported_card).to_be_visible()
+                page.reload(wait_until="networkidle")
+                page.get_by_role("tab", name="books", exact=True).click()
+                expect(imported_card).to_be_visible()
+                shot("goodreads-import")
+                passed()
                 begin("library.url-loading-draft")
                 loading = []
                 page.route(base + "/api/read?*", lambda route: loading.append(route))
