@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import HealthEntry, get_db
+from services.health_entries import HealthInputError, finite_value, save_entry
 
 router = APIRouter(prefix="/api")
 
@@ -181,28 +182,20 @@ class EntryBody(BaseModel):
 
 @router.post("/health")
 def create_entry(body: EntryBody, db: DbSession = Depends(get_db)):
-    import math
-
     if body.kind not in KINDS:
         raise HTTPException(400, f"kind must be one of {', '.join(KINDS)}")
-    if not math.isfinite(body.value):
-        raise HTTPException(400, "value must be a finite number")
-    d = (body.date or date.today().isoformat())[:10]
     try:
-        _d(d)
-    except ValueError:
-        raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
-    e = HealthEntry(
-        kind=body.kind,
-        date=d,
-        value=body.value,
-        unit=body.unit.strip(),
-        note=body.note.strip(),
-        label=body.label.strip(),
-    )
-    db.add(e)
-    db.commit()
-    db.refresh(e)
+        e = save_entry(
+            db,
+            kind=body.kind,
+            value=body.value,
+            unit=body.unit,
+            note=body.note,
+            label=body.label,
+            entry_date=body.date,
+        )
+    except HealthInputError as exc:
+        raise HTTPException(400, str(exc)) from exc
     return _fmt(e)
 
 
@@ -215,13 +208,14 @@ class EntryPatch(BaseModel):
 
 @router.patch("/health/{eid}")
 def update_entry(eid: int, body: EntryPatch, db: DbSession = Depends(get_db)):
-    import math
-
     e = db.get(HealthEntry, eid)
     if not e:
         raise HTTPException(404)
-    if body.value is not None and not math.isfinite(body.value):
-        raise HTTPException(400, "value must be a finite number")
+    if body.value is not None:
+        try:
+            finite_value(body.value)
+        except HealthInputError as exc:
+            raise HTTPException(400, str(exc)) from exc
     if body.date is not None:
         try:
             _d(body.date)

@@ -71,6 +71,9 @@ class AgentAppToolsTests(ApiTest):
         denied = self.ex("health_summary", {})
         self.assertTrue(denied["error"])
         self.assertIn("explicit sensitive-data grant", denied["output"])
+        denied_write = self.ex("health_log", {"kind": "weight", "value": 72.5})
+        self.assertTrue(denied_write["error"])
+        self.assertEqual(self.client.get("/api/health").json()["entries"], [])
 
         granted = {
             "agent_environment": "general",
@@ -91,10 +94,25 @@ class AgentAppToolsTests(ApiTest):
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0]["value"], 72.5)
 
+    def test_health_log_keeps_freeform_kind(self):
+        self.grant_health()
+        result = self.ex("health_log", {"kind": "steps", "value": 5000})
+        self.assertFalse(result.get("error"), result)
+        entries = self.client.get("/api/health").json()["entries"]
+        self.assertEqual(entries[0]["kind"], "steps")
+
     def test_health_log_rejects_nonnumeric(self):
         self.grant_health()
         r = self.ex("health_log", {"kind": "weight", "value": "heavy"})
         self.assertTrue(r.get("error"))
+
+    def test_health_log_rejects_nonfinite_without_saving(self):
+        self.grant_health()
+        for value in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(value=value):
+                result = self.ex("health_log", {"kind": "weight", "value": value})
+                self.assertEqual(result, {"output": "value must be a finite number", "error": True})
+        self.assertEqual(self.client.get("/api/health").json()["entries"], [])
 
     def test_health_summary_lists_metric(self):
         self.grant_health()
