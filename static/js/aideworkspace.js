@@ -1,4 +1,3 @@
-import { urlForApp } from './subdomain.js?v=237';
 import { getProjects, loadProjects } from './projects.js';
 import { createSession, getActiveId, markActive } from './sessions.js';
 import { getCurrentEndpoint, getSelected } from './models.js?v=212';
@@ -653,7 +652,7 @@ function openDestination(tool) {
   if (tool === 'files') {
     document.querySelector('[data-view="files"]')?.click();
   } else if (tool === 'browser') {
-    window.location.assign(urlForApp('andromeda'));
+    window._navigateTo('andromeda');
   } else if (tool === 'side-task') {
     $('new-chat-btn')?.click();
     $('composer-ta')?.focus();

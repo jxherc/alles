@@ -121,6 +121,15 @@ def run() -> None:
             expect(page.locator("#chat")).to_be_visible()
             page.wait_for_function("id => window._currentSession?.id === id", arg=session_id)
 
+            page.locator("#aide-work-panel-toggle").click()
+            page.locator('[data-aide-tool="browser"]').press("Enter")
+            expect(page.locator("#andromeda-view")).to_be_visible()
+            assert page.url.startswith(f"http://andromeda.localhost:{port}/")
+            assert page.evaluate(
+                "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+            )
+            page.screenshot(path=str(output / f"aide-browser-localhost-{width}.png"))
+
             page.goto(f"http://docs.localhost:{port}/?doc={name}", wait_until="networkidle")
             if page.locator("#setup-wizard").is_visible():
                 page.locator("#setup-skip").click()
@@ -206,6 +215,15 @@ def run() -> None:
             page.wait_for_function("id => window._currentSession?.id === id", arg=session_id)
             expect(page.locator("#composer-ta")).to_be_focused()
             assert page.url.startswith(base + "/")
+
+            page.locator("#aide-work-panel-toggle").click()
+            page.locator('[data-aide-tool="browser"]').press("Enter")
+            expect(page.locator("#andromeda-view")).to_be_visible()
+            assert page.url.startswith(base + "/")
+            assert page.evaluate(
+                "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+            )
+            page.screenshot(path=str(output / f"aide-browser-ip-{width}.png"))
             assert not errors, errors
             context.close()
         browser.close()
