@@ -1169,9 +1169,28 @@ def recurring_schedules(
         category = str(metadata.get("category") or "")
         notes = str(metadata.get("notes") or "")
         overlay = metadata.get("canonical_schedule")
-        if overlay is not None and (not isinstance(overlay, dict) or overlay.get("version") != 1):
+        if overlay is not None and (
+            not isinstance(overlay, dict) or overlay.get("version") not in {1, 2}
+        ):
             raise ActualFinanceError("the recurring schedule repair record is invalid")
-        if isinstance(overlay, dict) and overlay.get("version") == 1:
+        if isinstance(overlay, dict) and overlay.get("version") == 2:
+            from services import actual_migration
+
+            link = next(
+                (
+                    item
+                    for item in _links(db, "recurring")
+                    if item.source_id == source_id and item.actual_id == actual_id
+                ),
+                None,
+            )
+            if link is None:
+                raise ActualFinanceError("the recurring schedule creation link is missing")
+            try:
+                actual_migration.schedule_repair_baseline(db, link, actual)
+            except actual_migration.ActualMigrationError as exc:
+                raise ActualFinanceError(str(exc)) from exc
+        if isinstance(overlay, dict) and overlay.get("version") in {1, 2}:
             posting = row.get("posting") or {}
             category_id = overlay.get("category_id")
             expected_states = [overlay.get("posts_transaction")]
@@ -1238,7 +1257,11 @@ def recurring_schedules(
             and name.endswith(migrated_suffix)
         ):
             name = name[len(migrated_name) : -len(migrated_suffix)]
-        payee = name or str(payee_names.get(row.get("payee")) or category or "recurring")
+        payee = (
+            str(overlay["source"]["payee"])
+            if isinstance(overlay, dict) and overlay.get("version") == 2
+            else name or str(payee_names.get(row.get("payee")) or category or "recurring")
+        )
 
         amount_op = str(row.get("amountOp") or "is")
         minor = row.get("amount")
@@ -1515,7 +1538,9 @@ def set_recurring_posting(
     link = matches[0]
     metadata = _link_metadata(link)
     overlay = metadata.get("canonical_schedule")
-    if overlay is not None and (not isinstance(overlay, dict) or overlay.get("version") != 1):
+    if overlay is not None and (
+        not isinstance(overlay, dict) or overlay.get("version") not in {1, 2}
+    ):
         raise ActualFinanceError("the recurring schedule posting record is invalid")
     if not overlay and metadata.get("posting_rule_version") != 1:
         raise ActualFinanceError("repair this old schedule before changing its posting state")
@@ -1682,12 +1707,16 @@ def set_recurring_posting(
     ):
         raise ActualFinanceError("Actual recurring posting could not be confirmed")
     metadata.pop("_update_intent", None)
-    metadata["canonical_schedule"] = {
-        "version": 1,
-        "category_id": category_id,
-        "notes": notes,
-        "posts_transaction": active,
-    }
+    metadata["canonical_schedule"] = (
+        {**overlay, "posts_transaction": active}
+        if isinstance(overlay, dict) and overlay.get("version") == 2
+        else {
+            "version": 1,
+            "category_id": category_id,
+            "notes": notes,
+            "posts_transaction": active,
+        }
+    )
     link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
     db.commit()
     readback = [row for row in recurring_schedules(db, actual=confirmed) if row["id"] == source_id]

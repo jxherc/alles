@@ -1,3 +1,4 @@
+import copy
 import inspect
 import json
 import threading
@@ -4350,6 +4351,120 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
                 db, "legacy-rent", False, bridge_request=bridge, backup_fn=backup
             )
         self.assertEqual(len(backups), 2)
+        db.close()
+
+    def test_created_recurring_pause_preserves_its_restore_checkpoint(self):
+        db = self.db()
+        snapshot = {"schedules": []}
+        path = actual_migration._write_snapshot("run-route", snapshot)
+        db.add(
+            ActualMigrationRun(
+                id="run-route",
+                status="canonical",
+                base_currency_code="CAD",
+                snapshot_sha256=actual_migration.snapshot_sha256(snapshot),
+                snapshot_path=str(path),
+            )
+        )
+        db.add(
+            ActualEntityLink(
+                run_id="run-route",
+                entity_kind="account",
+                source_id="legacy-account",
+                actual_id="actual-account",
+                metadata_json="{}",
+            )
+        )
+        source = {
+            "kind": "recurring",
+            "id": "created-rent",
+            "name": "Alles recurring: rent [created-rent]",
+            "account_id": "legacy-account",
+            "payee": "landlord",
+            "amount_minor": -500,
+            "next_date": "2026-10-01",
+            "cycle": "monthly",
+            "cycle_days": 30,
+            "active": True,
+            "posts_transaction": True,
+        }
+        link = ActualEntityLink(
+            run_id="run-route",
+            entity_kind="recurring",
+            source_id="created-rent",
+            actual_id="actual-rent",
+            metadata_json=json.dumps(
+                {
+                    "canonical_schedule": {
+                        "version": 2,
+                        "source": source,
+                        "payee_id": "landlord-id",
+                        "category_id": "housing-id",
+                        "notes": "lease",
+                        "posts_transaction": True,
+                    },
+                    "_request_fingerprint": "a" * 64,
+                }
+            ),
+        )
+        db.add(link)
+        db.commit()
+        actual = {
+            "accounts": [{"id": "actual-account", "name": "checking"}],
+            "transactions": [],
+            "payees": [{"id": "landlord-id", "name": "landlord"}],
+            "categories": [{"id": "housing-id", "name": "housing", "is_income": False}],
+            "category_groups": [],
+            "schedules": [
+                {
+                    "id": "actual-rent",
+                    "name": source["name"],
+                    "account": "actual-account",
+                    "payee": "landlord-id",
+                    "amount": -500,
+                    "amountOp": "is",
+                    "date": {"start": "2026-10-01", "frequency": "monthly", "interval": 1},
+                    "next_date": "2026-10-01",
+                    "completed": False,
+                    "posts_transaction": True,
+                    "posting": {"guarded": True, "category": "housing-id", "notes": "lease"},
+                }
+            ],
+            "budget_months": [],
+        }
+        writes = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"set_recurring_posting": 1}
+            if payload["command"] == "inspect":
+                return actual
+            writes.append(payload)
+            actual["schedules"][0]["posts_transaction"] = payload["active"]
+            return {"id": "actual-rent", "posts_transaction": payload["active"]}
+
+        rows = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertEqual(rows[0]["payee"], "landlord")
+        self.assertTrue(rows[0]["manageable"])
+        same_name = copy.deepcopy(actual)
+        same_name["payees"].append({"id": "other-landlord", "name": "landlord"})
+        same_name["schedules"][0]["payee"] = "other-landlord"
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "payee changed"):
+            actual_finance.recurring_schedules(db, actual=same_name)
+        paused = actual_finance.set_recurring_posting(
+            db,
+            "created-rent",
+            False,
+            bridge_request=bridge,
+            backup_fn=lambda: {"ok": True, "backup_id": "before-created-pause"},
+        )
+        self.assertFalse(paused["active"])
+        self.assertEqual(len(writes), 1)
+        checkpoint = json.loads(link.metadata_json)["canonical_schedule"]
+        self.assertEqual(checkpoint["version"], 2)
+        self.assertEqual(checkpoint["source"], source)
+        self.assertFalse(checkpoint["posts_transaction"])
+        self.assertEqual(link.actual_id, "actual-rent")
         db.close()
 
     def test_canonical_recurring_patch_allows_only_posting_switch(self):
