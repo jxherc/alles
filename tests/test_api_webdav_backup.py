@@ -184,7 +184,7 @@ class WebDAVBackupApiTest(ApiTest):
             ),
         }
         with (
-            mock.patch.object(backup_routes, "_create_encrypted_backup", return_value=None),
+            mock.patch.object(backup_routes, "create_encrypted_backup", return_value=None),
             mock.patch.object(webdav_backup, "upload_artifact", return_value=result),
         ):
             response = self.client.post("/api/backup/webdav/run")

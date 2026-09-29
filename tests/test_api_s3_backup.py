@@ -204,7 +204,7 @@ class S3BackupApiTest(ApiTest):
             "status_warning": "backup verified, but local s3 status could not be saved",
         }
         with (
-            mock.patch.object(backup_routes, "_create_encrypted_backup", return_value=None),
+            mock.patch.object(backup_routes, "create_encrypted_backup", return_value=None),
             mock.patch.object(s3_backup, "upload_artifact", return_value=result),
         ):
             response = self.client.post("/api/backup/s3/run")

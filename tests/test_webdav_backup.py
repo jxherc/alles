@@ -165,7 +165,7 @@ class WebDAVBackupTest(unittest.TestCase):
 
     def test_startup_migrates_plaintext_config_before_direct_backup(self):
         from core import database
-        from routes import backup as backup_routes
+        from services.encrypted_backup import create_encrypted_backup
         from services.recovery_crypto import is_encrypted_recovery
 
         webdav_backup.CONFIG_PATH.write_text(json.dumps(self.config), "utf-8")
@@ -186,7 +186,7 @@ class WebDAVBackupTest(unittest.TestCase):
 
             with tempfile.TemporaryDirectory() as output_dir:
                 artifact = Path(output_dir) / "startup.alles-backup"
-                backup_routes._create_encrypted_backup(self.root, artifact)
+                create_encrypted_backup(self.root, artifact)
                 self.assertTrue(is_encrypted_recovery(artifact))
         finally:
             database.engine.dispose()

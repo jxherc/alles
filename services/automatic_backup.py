@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from core.settings import data_dir, load_settings, save_settings
+from services.encrypted_backup import create_encrypted_backup
 from services.recovery_crypto import is_encrypted_recovery
 
 _ARTIFACT = re.compile(r"^alles-auto-([0-9a-f]{16})-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}\.alles-backup$")
@@ -137,13 +138,6 @@ def _destination(settings: dict, root: Path) -> Path:
     return destination
 
 
-def _default_creator(root: Path, artifact: Path) -> Path:
-    # Keep the existing, heavily tested encrypted-backup implementation as the single writer.
-    from routes.backup import _create_encrypted_backup
-
-    return _create_encrypted_backup(root, artifact)
-
-
 def _prune(
     destination: Path,
     *,
@@ -185,7 +179,7 @@ def run_if_due(
     *,
     now: datetime | None = None,
     force: bool = False,
-    creator: Callable[[Path, Path], Path] = _default_creator,
+    creator: Callable[[Path, Path], Path] = create_encrypted_backup,
 ) -> dict:
     """Create one encrypted artifact when enabled and due; never expose plaintext output."""
     settings = load_settings()

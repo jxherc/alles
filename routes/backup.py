@@ -24,15 +24,14 @@ from services.backup_recovery import (
     DEFAULT_LIMITS,
     ArchiveLimits,
     RecoveryError,
-    create_recovery_archive,
     discard_staged_recovery,
     get_staged_recovery,
     stage_recovery_archive,
     staging_root,
 )
+from services.encrypted_backup import create_encrypted_backup
 from services.recovery_crypto import (
     decrypt_recovery_container,
-    encrypt_recovery_archive,
     is_encrypted_recovery,
     load_or_create_recovery_key,
     load_recovery_key,
@@ -108,45 +107,6 @@ def _sweep_old_temp(directory: Path) -> None:
                 child.unlink(missing_ok=True)
         except OSError:
             continue
-
-
-def _create_encrypted_backup(
-    root: Path,
-    archive: Path,
-    *,
-    include_photos: bool = False,
-) -> Path:
-    """Create the same verified encrypted artifact for download or a remote target."""
-    plaintext = archive.parent / f".{archive.name}.{uuid.uuid4().hex}.zip"
-    try:
-        recovery_key = load_or_create_recovery_key(root)
-        create_recovery_archive(
-            root,
-            plaintext,
-            include_photos=include_photos,
-            expected_recovery_key=recovery_key,
-            limits=BACKUP_LIMITS,
-        )
-        try:
-            plaintext.chmod(0o600)
-        except OSError:
-            pass
-        encrypt_recovery_archive(
-            plaintext,
-            archive,
-            recovery_key,
-            limits=BACKUP_LIMITS,
-        )
-        return archive
-    except Exception:
-        archive.unlink(missing_ok=True)
-        raise
-    finally:
-        try:
-            plaintext.unlink(missing_ok=True)
-        except OSError as exc:
-            archive.unlink(missing_ok=True)
-            raise RecoveryError("temporary plaintext backup could not be removed") from exc
 
 
 def _stage_stored_backup(
@@ -265,10 +225,11 @@ def export_backup(request: Request, include_photos: bool = False):
     filename = f"alles-backup-{timestamp}.alles-backup"
     archive = export_dir / filename
     try:
-        _create_encrypted_backup(
+        create_encrypted_backup(
             root,
             archive,
             include_photos=include_photos,
+            limits=BACKUP_LIMITS,
         )
     except RecoveryError as exc:
         shutil.rmtree(export_dir, ignore_errors=True)
@@ -362,7 +323,7 @@ def run_webdav_backup(request: Request, include_photos: bool = False):
         _sweep_old_temp(export_parent)
         export_dir = Path(tempfile.mkdtemp(prefix="webdav-", dir=export_parent))
         artifact = export_dir / "encrypted.alles-backup"
-        _create_encrypted_backup(root, artifact, include_photos=include_photos)
+        create_encrypted_backup(root, artifact, include_photos=include_photos, limits=BACKUP_LIMITS)
         result = webdav_backup.upload_artifact(artifact)
         current_status = webdav_backup.status()
         completed_at = (
@@ -530,7 +491,7 @@ def run_s3_backup(request: Request, include_photos: bool = False):
         _sweep_old_temp(export_parent)
         export_dir = Path(tempfile.mkdtemp(prefix="s3-", dir=export_parent))
         artifact = export_dir / "encrypted.alles-backup"
-        _create_encrypted_backup(root, artifact, include_photos=include_photos)
+        create_encrypted_backup(root, artifact, include_photos=include_photos, limits=BACKUP_LIMITS)
         result = s3_backup.upload_artifact(artifact)
         completed_at = result.get("completed_at") or _utc_now()
         return {

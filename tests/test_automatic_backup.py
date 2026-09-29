@@ -1,5 +1,8 @@
+import sqlite3
 import tempfile
 import unittest
+import zipfile
+from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
@@ -61,6 +64,51 @@ class AutomaticBackupTest(unittest.TestCase):
         self.assertEqual(
             core.settings.load_settings()["automatic_backup_last_success"],
             "2026-07-20T01:02:03Z",
+        )
+
+    def test_default_creator_produces_restorable_encrypted_backup(self):
+        from services.backup_recovery import stage_recovery_archive
+        from services.recovery_crypto import (
+            decrypt_recovery_container,
+            is_encrypted_recovery,
+            load_recovery_key,
+            recovery_key_path,
+        )
+
+        with closing(sqlite3.connect(self.data / "aide.db")) as conn:
+            conn.execute("CREATE TABLE sessions (id TEXT PRIMARY KEY, name TEXT)")
+            conn.execute("CREATE TABLE tasks (id TEXT PRIMARY KEY, title TEXT)")
+            conn.execute(
+                "CREATE TABLE schema_migrations "
+                "(version INTEGER PRIMARY KEY, name TEXT, applied_at TEXT)"
+            )
+            conn.execute("INSERT INTO schema_migrations VALUES (1, 'baseline', '')")
+            conn.commit()
+        (self.data / "backup-marker.txt").write_text("private-backup-marker", "utf-8")
+        self._enable()
+
+        result = automatic_backup.run_if_due(now=datetime(2026, 7, 20, tzinfo=UTC))
+
+        artifact = self.destination / result["filename"]
+        self.assertTrue(is_encrypted_recovery(artifact))
+        self.assertNotIn(b"private-backup-marker", artifact.read_bytes())
+        self.assertFalse(any(path.suffix == ".zip" for path in self.destination.iterdir()))
+        plaintext = self.root / "restored.zip"
+        decrypt_recovery_container(
+            artifact,
+            plaintext,
+            load_recovery_key(recovery_key_path(self.data)),
+        )
+        with zipfile.ZipFile(plaintext) as backup:
+            self.assertEqual(
+                backup.read("payload/data/backup-marker.txt"),
+                b"private-backup-marker",
+            )
+            self.assertIn("payload/data/aide.db", backup.namelist())
+        staged = stage_recovery_archive(plaintext, self.data)
+        self.assertEqual(
+            (staged.data_dir / "backup-marker.txt").read_text("utf-8"),
+            "private-backup-marker",
         )
 
     def test_job_runs_at_most_daily_without_force(self):
