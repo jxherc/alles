@@ -11,15 +11,11 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import HealthEntry, get_db
-from services.health_entries import HealthInputError, finite_value, save_entry
+from services.health_entries import HealthInputError, canonical_date, finite_value, save_entry
 
 router = APIRouter(prefix="/api")
 
 KINDS = ("weight", "sleep", "workout", "med", "custom")
-
-
-def _d(s: str) -> date:
-    return date.fromisoformat(str(s)[:10])
 
 
 # ── pure logic ──────────────────────────────────────────────────────────────────
@@ -134,9 +130,13 @@ class TargetBody(BaseModel):
 def set_target(body: TargetBody):
     from core.settings import load_settings, save_settings
 
+    try:
+        value = finite_value(body.value)
+    except HealthInputError as exc:
+        raise HTTPException(400, str(exc)) from exc
     targets = dict(load_settings().get("health_targets") or {})
-    if body.value and body.value > 0:
-        targets[body.kind] = body.value
+    if value > 0:
+        targets[body.kind] = value
     else:
         targets.pop(body.kind, None)  # 0 / negative clears it
     save_settings({"health_targets": targets})
@@ -155,10 +155,10 @@ def import_health(body: ImportBody, db: DbSession = Depends(get_db)):
     rows = parse_health_csv(body.text or "")
     n = 0
     for r in rows:
-        d = (r["date"] or date.today().isoformat())[:10]
+        d = r["date"] or date.today().isoformat()
         try:
-            _d(d)
-        except ValueError:
+            d = canonical_date(d)
+        except HealthInputError:
             d = date.today().isoformat()
         # create_entry only allows KINDS; keep imports consistent - an out-of-set kind becomes a
         # labeled custom metric instead of a kind the manual add path would reject
@@ -218,10 +218,9 @@ def update_entry(eid: int, body: EntryPatch, db: DbSession = Depends(get_db)):
             raise HTTPException(400, str(exc)) from exc
     if body.date is not None:
         try:
-            _d(body.date)
-        except ValueError:
-            raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
-        e.date = body.date[:10]
+            e.date = canonical_date(body.date)
+        except HealthInputError as exc:
+            raise HTTPException(400, str(exc)) from exc
     for f in ("value", "unit", "note"):
         v = getattr(body, f)
         if v is not None:
