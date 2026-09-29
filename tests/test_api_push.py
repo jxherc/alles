@@ -99,14 +99,14 @@ class PushApiTest(ApiTest):
 
     def test_test_push_counts_only_sent(self):
         self._sub()
-        with mock.patch("routes.push.webpush.send_push", _sent):
+        with mock.patch("services.webpush.send_push", _sent):
             r = self.client.post("/api/push/test")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["sent"], 1)
 
     def test_test_push_failure_is_not_reported_sent(self):
         self._sub()
-        with mock.patch("routes.push.webpush.send_push", _failed):
+        with mock.patch("services.webpush.send_push", _failed):
             r = self.client.post("/api/push/test")
         self.assertEqual(r.status_code, 502)
         self.assertEqual(r.json()["detail"], "push delivery failed")
@@ -114,7 +114,7 @@ class PushApiTest(ApiTest):
 
     def test_test_push_uncertain_is_not_retried_or_reported_sent(self):
         self._sub()
-        with mock.patch("routes.push.webpush.send_push", _uncertain):
+        with mock.patch("services.webpush.send_push", _uncertain):
             r = self.client.post("/api/push/test")
         self.assertEqual(r.status_code, 502)
         self.assertEqual(r.json()["detail"], "push delivery outcome is uncertain")
@@ -122,7 +122,7 @@ class PushApiTest(ApiTest):
 
     def test_test_push_prunes_dead_subscription(self):
         self._sub()
-        with mock.patch("routes.push.webpush.send_push", _gone):
+        with mock.patch("services.webpush.send_push", _gone):
             r = self.client.post("/api/push/test")
         self.assertEqual(r.status_code, 400)
         self.assertEqual(r.json()["detail"], "no live push subscriptions registered")

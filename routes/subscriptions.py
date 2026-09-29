@@ -1264,7 +1264,7 @@ def _finalize_notification_once(
 async def check_renewals():
     """called from the background loop — push once per billing period when a
     renewal is within the subscription's reminder window."""
-    from routes.push import broadcast_result
+    from services.push_delivery import broadcast_result
 
     today = date.today()
     # Every database and Actual bridge operation stays inside the worker that

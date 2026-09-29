@@ -316,8 +316,8 @@ async def _fire_due_reminders():
     model and drop the reply into the session. (a registered 30s job)"""
     from core.database import Reminder, Session, SessionLocal
     from core.settings import build_aide_system_prompt, load_settings
-    from routes.push import broadcast_result as push_broadcast_result
     from services.llm import stream_chat
+    from services.push_delivery import broadcast_result as push_broadcast_result
 
     now = datetime.now(UTC).replace(tzinfo=None)
     db = SessionLocal()

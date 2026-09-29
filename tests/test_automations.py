@@ -364,7 +364,7 @@ class AutomationSafetyTests(ApiTest):
                 "total": 1,
             }
         )
-        with mock.patch("routes.push.broadcast_result", delivery):
+        with mock.patch("services.push_delivery.broadcast_result", delivery):
             first = asyncio.run(automations._fire(db, rule, {"dedupe": "push-1"}))
             second = asyncio.run(automations._fire(db, rule, {"dedupe": "push-1"}))
 

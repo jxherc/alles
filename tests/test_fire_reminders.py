@@ -33,7 +33,7 @@ class FireDueReminderTests(ApiTest):
                 "total": delivered,
             }
 
-        with mock.patch("routes.push.broadcast_result", fake_broadcast):
+        with mock.patch("services.push_delivery.broadcast_result", fake_broadcast):
             asyncio.run(app._fire_due_reminders())
 
     def test_push_delivered_marks_fired(self):
@@ -62,7 +62,7 @@ class FireDueReminderTests(ApiTest):
             calls.append(payload)
             raise RuntimeError("temporary push failure")
 
-        with mock.patch("routes.push.broadcast_result", failed_broadcast):
+        with mock.patch("services.push_delivery.broadcast_result", failed_broadcast):
             asyncio.run(app._fire_due_reminders())
             asyncio.run(app._fire_due_reminders())
 
