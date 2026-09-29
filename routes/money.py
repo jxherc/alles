@@ -54,6 +54,8 @@ def _legacy_ledger_mutation(method: str, path: str) -> bool:
     return (
         (
             parts[:1] == ["recurring"]
+            and not (method == "POST" and parts == ["recurring"])
+            and not (method == "POST" and len(parts) == 3 and parts[2] == "retry")
             and not (method == "POST" and len(parts) == 3 and parts[2] == "repair")
             and not (method == "PATCH" and len(parts) == 2)
         )
@@ -1112,10 +1114,19 @@ class RecurringBody(BaseModel):
     cycle_days: int = 30
     next_date: str
     active: bool = True
+    category_id: str = ""
+    request_id: str = ""
 
 
 @router.post("/recurring")
 def create_recurring(body: RecurringBody, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        try:
+            return actual_finance.create_recurring_schedule(
+                db, body.model_dump(exclude={"request_id"}), request_id=body.request_id
+            )
+        except actual_finance.ActualFinanceError as exc:
+            _actual_error(exc)
     _require_legacy_ledger_write(db)
     if not db.get(Account, body.account_id):
         raise HTTPException(400, "unknown account")
@@ -1142,6 +1153,16 @@ def create_recurring(body: RecurringBody, db: DbSession = Depends(get_db)):
     db.commit()
     db.refresh(r)
     return _rec(r)
+
+
+@router.post("/recurring/{rid}/retry")
+def retry_recurring(rid: str, db: DbSession = Depends(get_db)):
+    if not actual_finance.is_canonical(db):
+        raise HTTPException(409, "recurring creation retry requires the Actual ledger")
+    try:
+        return actual_finance.retry_recurring_schedule(db, rid)
+    except actual_finance.ActualFinanceError as exc:
+        _actual_error(exc)
 
 
 class RecurringRepairBody(BaseModel):

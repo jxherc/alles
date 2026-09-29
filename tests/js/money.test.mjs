@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { webcrypto } from 'node:crypto';
 
 const moneySource = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8');
 const styleSource = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
@@ -92,6 +93,85 @@ test('canonical recurring pause retries only the saved provider posting choice',
   await context.toggle({ dataset: { toggleRec: 'linked' }, disabled: false, textContent: '' });
   assert.equal(calls.length, 2);
   assert.equal(calls[1].options.body.active, false);
+});
+
+test('canonical recurring creation sends an exact category id and reuses its request after an uncertain response', async () => {
+  const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, {
+      value: '', dataset: {}, textContent: '', innerHTML: '', disabled: false,
+      focus() {}, addEventListener() {}, querySelector: () => null,
+    });
+    return elements.get(id);
+  };
+  element('rc-payee').value = 'rent';
+  element('rc-amt').value = '42.50';
+  element('rc-sign').dataset.value = '-';
+  element('rc-cycle').dataset.value = 'monthly';
+  element('rc-acct').dataset.value = 'account-id';
+  element('rc-next').dataset.value = '2026-10-01';
+  element('rc-category-choice').dataset.categoryId = 'housing-id';
+  const calls = [], storage = new Map();
+  const context = vm.createContext({
+    location: { search: '' }, URLSearchParams, crypto: webcrypto, TextEncoder,
+    sessionStorage: {
+      getItem: key => storage.get(key) || null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: key => storage.delete(key),
+    },
+    document: { getElementById: element, querySelectorAll: () => [] },
+    getDropdownValue: el => el?.dataset.value || '',
+    toast: () => {},
+    api: async (path, options) => {
+      calls.push({ path, body: { ...options?.body } });
+      if (calls.length === 1) throw new Error('response lost');
+      return {};
+    },
+  });
+  vm.runInContext(source + `
+    _canonicalLedger = true;
+    readRecurring = async () => { _recurring = []; _recurringError = false; };
+    load = async () => {};
+    globalThis.add = addRecurring;
+  `, context);
+  await context.add();
+  await context.add();
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].path, '/api/money/recurring');
+  assert.equal(calls[0].body.category_id, 'housing-id');
+  assert.equal(calls[0].body.amount, -42.5);
+  assert.match(calls[0].body.request_id, /^[0-9a-f-]{36}$/);
+  assert.equal(calls[0].body.request_id, calls[1].body.request_id);
+  assert.equal(storage.has('alles:finance-create:recurring'), false);
+});
+
+test('pending canonical creation offers one retry action and holds the new form', async () => {
+  const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+  const calls = [];
+  const context = vm.createContext({
+    location: { search: '' }, URLSearchParams,
+    api: async (path, options) => { calls.push({ path, options }); return {}; },
+    formatNumber: value => String(value),
+    toast: () => {},
+  });
+  vm.runInContext(source + `
+    _canonicalLedger = true;
+    _accounts = [{ id: 'account-id', name: 'checking' }];
+    _recurring = [{ id: 'saved-id', payee: 'rent', amount: -42.5, cycle: 'monthly',
+      next_date: '2026-10-01', create_pending: true, create_needs_review: false }];
+    retryRecurring = async () => {};
+    globalThis.list = recurringList;
+    globalThis.form = _recurringForm;
+    globalThis.retryCreate = retryRecurringCreate;
+  `, context);
+  assert.match(context.list(), /data-retry-create-rec="saved-id"/);
+  assert.match(context.form(), /finish the pending schedule/);
+  await context.retryCreate({ dataset: { retryCreateRec: 'saved-id' }, disabled: false, textContent: '' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, '/api/money/recurring/saved-id/retry');
+  vm.runInContext('_recurring[0].create_needs_review = true;', context);
+  assert.doesNotMatch(context.list(), /data-retry-create-rec/);
 });
 
 test('finance dialogs, rows, and destructive actions expose complete interaction boundaries', () => {

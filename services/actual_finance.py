@@ -1116,6 +1116,15 @@ def recurring_schedules(
     actual = actual if actual is not None else inspect(db, bridge_request=bridge_request)
     _account_sources, account_public, _account_metadata = _maps(db, "account")
     _recurring_sources, recurring_public, recurring_metadata = _maps(db, "recurring")
+    recurring_links = _links(db, "recurring")
+    pending_links = [link for link in recurring_links if _link_metadata(link).get("_intent")]
+    pending_markers = set()
+    for link in pending_links:
+        pending = _link_metadata(link)["_intent"]
+        details = pending.get("details") if isinstance(pending, dict) else None
+        source = details.get("source") if isinstance(details, dict) else None
+        if isinstance(source, dict) and isinstance(source.get("name"), str):
+            pending_markers.add(source["name"])
     subscription_ids = {link.actual_id for link in _links(db, "subscription")}
     payee_names = {row.get("id"): row.get("name") for row in actual.get("payees") or []}
     category_names = {
@@ -1138,6 +1147,8 @@ def recurring_schedules(
         if not actual_id or actual_id in seen:
             raise ActualFinanceError("the Actual schedule identity is missing or duplicated")
         seen.add(actual_id)
+        if row.get("name") in pending_markers:
+            continue
         if actual_id in subscription_ids or (
             not row.get("posts_transaction") and actual_id not in recurring_public
         ):
@@ -1331,7 +1342,329 @@ def recurring_schedules(
     for actual_id, metadata in recurring_metadata.items():
         if metadata.get("_update_intent") and actual_id not in seen:
             raise ActualFinanceError("a recurring schedule repair lost its Actual schedule")
+    if pending_links:
+        from services import actual_migration
+
+    for link in pending_links:
+        metadata = _link_metadata(link)
+        pending = metadata.get("_intent")
+        details = pending.get("details") if isinstance(pending, dict) else None
+        source = details.get("source") if isinstance(details, dict) else None
+        if (
+            not isinstance(pending, dict)
+            or not isinstance(details, dict)
+            or not isinstance(source, dict)
+        ):
+            raise ActualFinanceError("a recurring creation intent is invalid")
+        if (
+            link.actual_id
+            or set(metadata) != {"_intent"}
+            or pending.get("version") != 1
+            or pending.get("fingerprint")
+            != _request_fingerprint("create_recurring_schedule", details)
+            or actual_migration._created_schedule_source(
+                {"version": 2, "source": source}, link.source_id
+            )
+            is None
+            or source.get("name") != f"Alles recurring {link.source_id}"
+            or not isinstance(details.get("public_account_id"), str)
+            or not isinstance(details.get("category_id"), str)
+            or not isinstance(details.get("notes"), str)
+            or type(details.get("active")) is not bool
+            or type(pending.get("attempted", False)) is not bool
+            or not isinstance(pending.get("backup_id", ""), str)
+        ):
+            raise ActualFinanceError("a recurring creation intent is invalid")
+        marker_rows = [
+            item for item in actual.get("schedules") or [] if item.get("name") == source["name"]
+        ]
+        if len(marker_rows) > 1:
+            raise ActualFinanceError("a recurring creation marker is not unique")
+        rows.append(
+            {
+                "id": link.source_id,
+                "account_id": details["public_account_id"],
+                "amount": _major_from_minor(source["amount_minor"], "pending recurring amount"),
+                "amount_kind": "exact",
+                "category": category_names.get(details["category_id"], ""),
+                "payee": source["payee"],
+                "notes": details["notes"],
+                "cycle": source["cycle"],
+                "cycle_days": source["cycle_days"],
+                "next_date": source["next_date"],
+                "active": bool(marker_rows and marker_rows[0].get("posts_transaction")),
+                "last_posted": "",
+                "repair_needed": False,
+                "repair_pending": False,
+                "repair_category_id": "",
+                "manageable": False,
+                "posting_pending": False,
+                "posting_target_active": None,
+                "create_pending": True,
+                "create_needs_review": bool(pending.get("attempted") and not marker_rows),
+            }
+        )
     return sorted(rows, key=lambda row: (row["next_date"] or "9999-12-31", row["id"]))
+
+
+def _recurring_create_details(
+    db: Session, values: dict, request_id: str, *, bridge_request=None
+) -> dict:
+    from services import actual_migration
+
+    source_id = _request_source_id(request_id, "recurring")
+    if uuid.UUID(source_id).version != 4:
+        raise ActualFinanceError("recurring request_id must be a version-4 UUID")
+    _assert_no_unresolved_creation_intents(db, "account")
+    current = inspect(db, bridge_request=bridge_request)
+    public_account_id = str(values.get("account_id") or "").strip()
+    source_to_actual, _actual_to_source, _metadata = _maps(db, "account")
+    account_id = source_to_actual.get(public_account_id, public_account_id)
+    account_rows = [
+        row
+        for row in current.get("accounts") or []
+        if row.get("id") == account_id and not row.get("closed")
+    ]
+    if len(account_rows) != 1:
+        raise ActualFinanceError("recurring creation requires one open Actual account")
+    category_id = str(values.get("category_id") or "").strip()
+    categories = (
+        [
+            row
+            for row in current.get("categories") or []
+            if row.get("id") == category_id and not row.get("is_income")
+        ]
+        if category_id
+        else []
+    )
+    if category_id and len(categories) != 1:
+        raise ActualFinanceError("recurring creation requires an existing spending category")
+    category_name = str(categories[0].get("name") or "") if categories else ""
+    legacy_category = str(values.get("category") or "").strip()
+    if legacy_category and legacy_category != category_name:
+        raise ActualFinanceError("recurring creation needs the exact Actual category id")
+    payee = str(values.get("payee") or "").strip() or category_name or "recurring"
+    cycle = str(values.get("cycle") or "monthly").strip().lower()
+    raw_cycle_days = values.get("cycle_days", 30)
+    if type(raw_cycle_days) is not int or raw_cycle_days < 1:
+        raise ActualFinanceError("recurring cycle_days must be a positive integer")
+    next_date = _required_date(values.get("next_date"), "recurring next date")
+    if type(values.get("active", True)) is not bool:
+        raise ActualFinanceError("recurring creation needs an explicit active choice")
+    amount_minor = _minor(values.get("amount", 0), "recurring amount")
+    _major_from_minor(amount_minor, "recurring amount")
+    source = {
+        "kind": "recurring",
+        "id": source_id,
+        "name": f"Alles recurring {source_id}",
+        "account_id": account_id,
+        "payee": payee,
+        "amount_minor": amount_minor,
+        "next_date": next_date,
+        "cycle": cycle,
+        "cycle_days": raw_cycle_days,
+        "active": True,
+        "posts_transaction": True,
+    }
+    if cycle in {"monthly", "quarterly"}:
+        source["anchor_day"] = date.fromisoformat(next_date).day
+    try:
+        actual_migration._schedule_date(source)
+    except actual_migration.ActualMigrationError as exc:
+        raise ActualFinanceError(str(exc)) from exc
+    return {
+        "source": source,
+        "public_account_id": public_account_id,
+        "category_id": category_id,
+        "notes": str(values.get("notes") or "").strip(),
+        "active": values.get("active", True),
+    }
+
+
+def _continue_recurring_create(
+    db: Session,
+    link: ActualEntityLink,
+    details: dict,
+    fingerprint: str,
+    *,
+    bridge_request=None,
+    backup_fn=managed_actual.backup,
+) -> dict:
+    from services import actual_migration
+
+    source = details.get("source")
+    if (
+        not isinstance(source, dict)
+        or source.get("id") != link.source_id
+        or source.get("name") != f"Alles recurring {link.source_id}"
+        or actual_migration._created_schedule_source(
+            {"version": 2, "source": source}, link.source_id
+        )
+        is None
+        or not isinstance(details.get("public_account_id"), str)
+        or not isinstance(details.get("category_id"), str)
+        or not isinstance(details.get("notes"), str)
+        or type(details.get("active")) is not bool
+        or fingerprint != _request_fingerprint("create_recurring_schedule", details)
+    ):
+        raise ActualFinanceError("the recurring creation intent is invalid")
+    metadata = _link_metadata(link)
+    pending = metadata.get("_intent")
+    if (
+        link.actual_id
+        or not isinstance(pending, dict)
+        or pending.get("version") != 1
+        or pending.get("fingerprint") != fingerprint
+        or pending.get("details") != details
+        or type(pending.get("attempted", False)) is not bool
+        or not isinstance(pending.get("backup_id", ""), str)
+        or set(metadata) != {"_intent"}
+    ):
+        raise ActualFinanceError("the recurring creation intent is invalid")
+    capabilities = _request(db, {"command": "capabilities"}, bridge_request=bridge_request)
+    if not isinstance(capabilities, dict) or capabilities.get("create_recurring_schedule") != 1:
+        raise ActualFinanceError("update managed Actual before creating recurring schedules")
+    current = inspect(db, bridge_request=bridge_request)
+    marker = source["name"]
+    markers = [row for row in current.get("schedules") or [] if row.get("name") == marker]
+    if len(markers) > 1:
+        raise ActualFinanceError("the recurring creation marker is not unique")
+    attempted = pending.get("attempted", False)
+    if attempted and not markers:
+        raise ActualFinanceError(
+            "the attempted recurring creation marker is missing; review it first"
+        )
+    if not attempted and markers:
+        raise ActualFinanceError("the recurring creation marker was already in Actual")
+    if not pending.get("backup_id"):
+        try:
+            backup = backup_fn()
+        except managed_actual.ManagedActualError as exc:
+            raise ActualFinanceUnavailable(str(exc)) from exc
+        backup_id = str(backup.get("backup_id") or "") if isinstance(backup, dict) else ""
+        if not isinstance(backup, dict) or backup.get("ok") is not True or not backup_id:
+            raise ActualFinanceError("recurring creation needs a verified Actual backup")
+        pending["backup_id"] = backup_id
+        link.metadata_json = json.dumps({"_intent": pending}, sort_keys=True, separators=(",", ":"))
+        db.commit()
+    if not attempted:
+        pending["attempted"] = True
+        link.metadata_json = json.dumps({"_intent": pending}, sort_keys=True, separators=(",", ":"))
+        db.commit()
+    result = _request(
+        db,
+        {
+            "command": "write",
+            "action": "create_recurring_schedule",
+            "operation_marker": marker,
+            "schedule": source,
+            "category_id": details["category_id"],
+            "notes": details["notes"],
+            "active": details["active"],
+            "allow_create": not attempted,
+        },
+        bridge_request=bridge_request,
+    )
+    actual_id = str(result.get("id") or "") if isinstance(result, dict) else ""
+    payee_id = str(result.get("payee_id") or "") if isinstance(result, dict) else ""
+    if not actual_id or not payee_id or result.get("posts_transaction") is not details["active"]:
+        raise ActualFinanceError("Actual recurring creation did not return its confirmed identity")
+    confirmed = inspect(db, bridge_request=bridge_request)
+    matching = [row for row in confirmed.get("schedules") or [] if row.get("name") == marker]
+    if len(matching) != 1 or matching[0].get("id") != actual_id:
+        raise ActualFinanceError("Actual recurring creation marker changed; review it first")
+    overlay = {
+        "version": 2,
+        "source": source,
+        "payee_id": payee_id,
+        "category_id": details["category_id"],
+        "notes": details["notes"],
+        "posts_transaction": details["active"],
+    }
+    _finish_intent(link, actual_id, fingerprint, {"canonical_schedule": overlay})
+    db.flush()
+    try:
+        actual_migration.schedule_repair_baseline(db, link, confirmed)
+        if not actual_migration._restored_schedule_matches(
+            matching[0],
+            source,
+            account_actual_ids={source["account_id"]: source["account_id"]},
+            payee_names={row.get("id"): row.get("name") for row in confirmed.get("payees") or []},
+            categories={row.get("id"): row for row in confirmed.get("categories") or []},
+            overlay=overlay,
+        ):
+            raise ActualFinanceError("Actual recurring creation could not be verified")
+    except (ActualFinanceError, actual_migration.ActualMigrationError):
+        db.rollback()
+        raise
+    db.commit()
+    rows = [row for row in recurring_schedules(db, actual=confirmed) if row["id"] == link.source_id]
+    if len(rows) != 1:
+        raise ActualFinanceError("created recurring schedule could not be read back")
+    return rows[0]
+
+
+@authority_guarded
+def create_recurring_schedule(
+    db: Session,
+    values: dict,
+    *,
+    request_id: str,
+    bridge_request=None,
+    backup_fn=managed_actual.backup,
+) -> dict:
+    details = _recurring_create_details(db, values, request_id, bridge_request=bridge_request)
+    fingerprint = _request_fingerprint("create_recurring_schedule", details)
+    link, completed = _begin_intent(
+        db, "recurring", details["source"]["id"], fingerprint, details, {}
+    )
+    if completed:
+        rows = [
+            row
+            for row in recurring_schedules(db, bridge_request=bridge_request)
+            if row["id"] == link.source_id
+        ]
+        if len(rows) != 1:
+            raise ActualFinanceError("completed recurring creation could not be read back")
+        return rows[0]
+    return _continue_recurring_create(
+        db, link, details, fingerprint, bridge_request=bridge_request, backup_fn=backup_fn
+    )
+
+
+@authority_guarded
+def retry_recurring_schedule(
+    db: Session,
+    source_id: str,
+    *,
+    bridge_request=None,
+    backup_fn=managed_actual.backup,
+) -> dict:
+    links = [row for row in _links(db, "recurring") if row.source_id == source_id]
+    if len(links) != 1:
+        raise ActualFinanceError("recurring creation intent was not found")
+    link = links[0]
+    metadata = _link_metadata(link)
+    if metadata.get("_request_fingerprint") and not metadata.get("_intent"):
+        rows = [
+            row
+            for row in recurring_schedules(db, bridge_request=bridge_request)
+            if row["id"] == source_id
+        ]
+        if len(rows) != 1:
+            raise ActualFinanceError("completed recurring creation could not be read back")
+        return rows[0]
+    pending = metadata.get("_intent")
+    if not isinstance(pending, dict) or not isinstance(pending.get("details"), dict):
+        raise ActualFinanceError("recurring creation intent was not found")
+    return _continue_recurring_create(
+        db,
+        link,
+        pending["details"],
+        pending.get("fingerprint"),
+        bridge_request=bridge_request,
+        backup_fn=backup_fn,
+    )
 
 
 @authority_guarded

@@ -51,9 +51,9 @@ flowchart LR
 ## Route snapshot
 
 - 83 included FastAPI router modules
-- 893 HTTP method/path pairs
-- 876 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `0c1d62354b70e8bb06f05f7608abbb262bc4424bcd4f59eaeffd4a5749b01718`
+- 894 HTTP method/path pairs
+- 877 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `73517f5f3c0050f590758181619c5ed898da03d77014e012617eaff6038861e3`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
@@ -95,9 +95,11 @@ share/booking routes. Exact host ownership and parser markers are regression-tes
 
 ## Fresh evidence
 
-- Runtime enumeration on 2026-09-28 reproduced the locked 893-route digest and 876/2/15 grouping.
-  The authenticated `POST /api/money/recurring/{rid}/repair` repairs one older linked Actual
-  schedule after explicit category choice. Removing it reproduces the prior 892-route digest.
+- Runtime enumeration on 2026-09-28 reproduced the locked 894-route digest and 877/2/15 grouping.
+  The authenticated `POST /api/money/recurring/{rid}/retry` reconciles one pending Actual
+  schedule creation without making another schedule. `POST /api/money/recurring/{rid}/repair`
+  repairs an older linked schedule after explicit category choice; the existing
+  `POST /api/money/recurring` creates through Actual after canonical cutover.
   The earlier `POST /api/money/envelope/target/bind` chooses a category for a preserved funding
   target; `GET /api/search/finance` reads Money and Subscriptions for local palette search.
 - Scoped bearer tests prove independent API authentication, exact scope denial, revocation, malformed

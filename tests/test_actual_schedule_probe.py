@@ -167,6 +167,168 @@ try {
 
 @unittest.skipUnless(os.environ.get("ALLES_RUN_ACTUAL_LIVE") == "1", "opt-in live probe")
 class ActualScheduleProbeTests(unittest.TestCase):
+    def test_bridge_create_uses_one_marker_and_replays_without_a_second_schedule(self):
+        old_data = os.environ.get("ALLES_DATA")
+        old_port = os.environ.get("ALLES_ACTUAL_PORT")
+        sock = socket.socket()
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+        sock.close()
+        try:
+            with contextlib.ExitStack() as stack:
+                root = stack.enter_context(
+                    tempfile.TemporaryDirectory(prefix="alles-created-schedule-")
+                )
+                stack.callback(_stop_managed_actual_or_fail)
+                os.environ["ALLES_DATA"] = root
+                os.environ["ALLES_ACTUAL_PORT"] = str(port)
+                self.assertTrue(managed_actual.install()["healthy"])
+                budget_marker = f"Alles staged {uuid.uuid4()}"
+                created = managed_actual.bridge_request(
+                    {
+                        "command": "create_budget",
+                        "budget_name": budget_marker,
+                        "operation_marker": budget_marker,
+                    },
+                    timeout=180,
+                )
+                seed = subprocess.run(
+                    ["node", "--input-type=module", "-e", _SETUP_OLD],
+                    input=json.dumps(
+                        {
+                            "data_dir": str(managed_actual.client_data_dir()),
+                            "server_url": managed_actual.managed_url(),
+                            "password": managed_actual._managed_password(),
+                            "budget_id": created["budget_id"],
+                        }
+                    ),
+                    text=True,
+                    capture_output=True,
+                    cwd=managed_actual.app_dir(),
+                    timeout=180,
+                    check=False,
+                )
+                outputs = [
+                    line.removeprefix("ALLES_PROBE_RESULT=")
+                    for line in seed.stdout.splitlines()
+                    if line.startswith("ALLES_PROBE_RESULT=")
+                ]
+                self.assertEqual(seed.returncode, 0, seed.stdout)
+                self.assertEqual(len(outputs), 1)
+                setup = json.loads(outputs[0])
+                request_id = str(uuid.uuid4())
+                source = {
+                    "kind": "recurring",
+                    "id": request_id,
+                    "name": f"Alles recurring {request_id}",
+                    "account_id": setup["expected_schedule"]["account"],
+                    "payee": "repair landlord",
+                    "amount_minor": -500,
+                    "next_date": "2026-11-01",
+                    "cycle": "monthly",
+                    "cycle_days": 30,
+                    "anchor_day": 1,
+                    "active": True,
+                    "posts_transaction": True,
+                }
+                request = {
+                    "command": "write",
+                    "action": "create_recurring_schedule",
+                    "budget_id": created["budget_id"],
+                    "operation_marker": source["name"],
+                    "schedule": source,
+                    "category_id": setup["category"],
+                    "notes": "new lease",
+                    "active": True,
+                    "allow_create": True,
+                }
+                first = managed_actual.bridge_request(request, timeout=180)
+                self.assertTrue(first["posts_transaction"])
+                self.assertEqual(first["payee_id"], setup["expected_schedule"]["payee"])
+                retry = managed_actual.bridge_request(
+                    {**request, "allow_create": False}, timeout=180
+                )
+                self.assertEqual(retry["id"], first["id"])
+                after = managed_actual.bridge_request(
+                    {"command": "inspect", "budget_id": created["budget_id"]}, timeout=180
+                )
+                matches = [row for row in after["schedules"] if row["name"] == source["name"]]
+                self.assertEqual(len(matches), 1)
+                self.assertEqual(matches[0]["id"], first["id"])
+                self.assertEqual(
+                    matches[0]["posting"],
+                    {
+                        "pristine": False,
+                        "guarded": True,
+                        "category": setup["category"],
+                        "notes": "new lease",
+                    },
+                )
+                uncategorized_id = str(uuid.uuid4())
+                uncategorized_source = {
+                    **source,
+                    "id": uncategorized_id,
+                    "name": f"Alles recurring {uncategorized_id}",
+                    "amount_minor": -700,
+                }
+                uncategorized = managed_actual.bridge_request(
+                    {
+                        **request,
+                        "operation_marker": uncategorized_source["name"],
+                        "schedule": uncategorized_source,
+                        "category_id": "",
+                        "notes": "",
+                    },
+                    timeout=180,
+                )
+                self.assertTrue(uncategorized["posts_transaction"])
+                after_uncategorized = managed_actual.bridge_request(
+                    {"command": "inspect", "budget_id": created["budget_id"]}, timeout=180
+                )
+                uncategorized_rows = [
+                    row
+                    for row in after_uncategorized["schedules"]
+                    if row["name"] == uncategorized_source["name"]
+                ]
+                self.assertEqual(len(uncategorized_rows), 1)
+                self.assertEqual(
+                    uncategorized_rows[0]["posting"],
+                    {"pristine": False, "guarded": True, "category": None, "notes": ""},
+                )
+                with self.assertRaisesRegex(managed_actual.ManagedActualError, "schedule changed"):
+                    managed_actual.bridge_request(
+                        {
+                            **request,
+                            "allow_create": False,
+                            "schedule": {**source, "amount_minor": -600},
+                        },
+                        timeout=180,
+                    )
+                missing_id = str(uuid.uuid4())
+                with self.assertRaisesRegex(managed_actual.ManagedActualError, "marker is missing"):
+                    managed_actual.bridge_request(
+                        {
+                            **request,
+                            "allow_create": False,
+                            "operation_marker": f"Alles recurring {missing_id}",
+                            "schedule": {
+                                **source,
+                                "id": missing_id,
+                                "name": f"Alles recurring {missing_id}",
+                            },
+                        },
+                        timeout=180,
+                    )
+        finally:
+            if old_data is None:
+                os.environ.pop("ALLES_DATA", None)
+            else:
+                os.environ["ALLES_DATA"] = old_data
+            if old_port is None:
+                os.environ.pop("ALLES_ACTUAL_PORT", None)
+            else:
+                os.environ["ALLES_ACTUAL_PORT"] = old_port
+
     def test_schedule_rule_only_changes_attached_transaction(self):
         old_data = os.environ.get("ALLES_DATA")
         old_port = os.environ.get("ALLES_ACTUAL_PORT")

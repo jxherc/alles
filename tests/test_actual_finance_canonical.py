@@ -3782,7 +3782,6 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
                 response = self.client.post(path, json=payload)
                 self.assertEqual(response.status_code, 200, response.text)
         for path in (
-            "/api/money/recurring",
             "/api/money/rules/apply",
             "/api/money/tag-rules/apply",
             "/api/money/transactions/import.csv",
@@ -3791,6 +3790,12 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             with self.subTest(path=path):
                 response = self.client.post(path, json={})
                 self.assertEqual(response.status_code, 409, response.text)
+        recurring = self.client.post(
+            "/api/money/recurring",
+            json={"account_id": "legacy-account", "next_date": "2026-10-01"},
+        )
+        self.assertEqual(recurring.status_code, 409, recurring.text)
+        self.assertIn("request_id", recurring.text)
         for method, path in (
             ("put", "/api/money/transactions/legacy/splits"),
             ("put", "/api/money/envelope/target"),
@@ -4379,7 +4384,7 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             "kind": "recurring",
             "id": "created-rent",
             "name": "Alles recurring: rent [created-rent]",
-            "account_id": "legacy-account",
+            "account_id": "actual-account",
             "payee": "landlord",
             "amount_minor": -500,
             "next_date": "2026-10-01",
@@ -4466,6 +4471,214 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertFalse(checkpoint["posts_transaction"])
         self.assertEqual(link.actual_id, "actual-rent")
         db.close()
+
+    def test_recurring_create_recovers_lost_response_from_one_marker(self):
+        db = self.db()
+        snapshot = {"schedules": []}
+        path = actual_migration._write_snapshot("run-route", snapshot)
+        db.add(
+            ActualMigrationRun(
+                id="run-route",
+                status="canonical",
+                base_currency_code="CAD",
+                snapshot_sha256=actual_migration.snapshot_sha256(snapshot),
+                snapshot_path=str(path),
+            )
+        )
+        db.commit()
+        actual = {
+            "accounts": [{"id": "native-account", "name": "native checking", "closed": False}],
+            "transactions": [],
+            "payees": [{"id": "landlord-id", "name": "landlord"}],
+            "categories": [{"id": "housing-id", "name": "housing", "is_income": False}],
+            "category_groups": [],
+            "schedules": [],
+            "budget_months": [],
+        }
+        request_id = "11111111-1111-4111-8111-111111111111"
+        values = {
+            "account_id": "native-account",
+            "amount": -5,
+            "category_id": "housing-id",
+            "category": "housing",
+            "payee": "landlord",
+            "notes": "lease",
+            "cycle": "monthly",
+            "cycle_days": 30,
+            "next_date": "2026-10-01",
+            "active": True,
+        }
+        backups = []
+        writes = []
+
+        def backup():
+            backups.append(True)
+            return {"ok": True, "backup_id": "before-created-rent"}
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"create_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return actual
+            self.assertEqual(payload["action"], "create_recurring_schedule")
+            writes.append(payload)
+            source = payload["schedule"]
+            if len(writes) == 1:
+                self.assertTrue(payload["allow_create"])
+                actual["schedules"].append(
+                    {
+                        "id": "actual-created-rent",
+                        "name": source["name"],
+                        "account": "native-account",
+                        "payee": "landlord-id",
+                        "amount": -500,
+                        "amountOp": "is",
+                        "date": {
+                            "start": "20261001",
+                            "frequency": "monthly",
+                            "interval": 1,
+                            "patterns": [{"type": "day", "value": 1}],
+                        },
+                        "next_date": "2026-10-01",
+                        "completed": False,
+                        "posts_transaction": True,
+                        "posting": {"guarded": True, "category": "housing-id", "notes": "lease"},
+                    }
+                )
+                raise managed_actual.ManagedActualError("response lost")
+            self.assertFalse(payload["allow_create"])
+            return {
+                "id": "actual-created-rent",
+                "payee_id": "landlord-id",
+                "posts_transaction": True,
+            }
+
+        with self.assertRaises(actual_finance.ActualFinanceUnavailable):
+            actual_finance.create_recurring_schedule(
+                db, values, request_id=request_id, bridge_request=bridge, backup_fn=backup
+            )
+        link = (
+            db.query(ActualEntityLink)
+            .filter_by(run_id="run-route", entity_kind="recurring", source_id=request_id)
+            .one()
+        )
+        pending = json.loads(link.metadata_json)["_intent"]
+        self.assertTrue(pending["attempted"])
+        self.assertEqual(pending["backup_id"], "before-created-rent")
+        visible = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertEqual(len(visible), 1)
+        self.assertTrue(visible[0]["create_pending"])
+        self.assertFalse(visible[0]["create_needs_review"])
+        self.assertFalse(actual_migration.validate_active_links(db, actual)["ok"])
+        created = actual_finance.retry_recurring_schedule(
+            db, request_id, bridge_request=bridge, backup_fn=backup
+        )
+        self.assertEqual(created["id"], request_id)
+        self.assertTrue(created["active"])
+        self.assertFalse(created.get("create_pending", False))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(len(writes), 2)
+        self.assertEqual(len(actual["schedules"]), 1)
+        checkpoint = json.loads(link.metadata_json)["canonical_schedule"]
+        self.assertEqual(checkpoint["source"]["account_id"], "native-account")
+        self.assertEqual(checkpoint["payee_id"], "landlord-id")
+        self.assertTrue(actual_migration.validate_active_links(db, actual)["ok"])
+        replay = actual_finance.create_recurring_schedule(
+            db, values, request_id=request_id, bridge_request=bridge, backup_fn=backup
+        )
+        self.assertEqual(replay["id"], request_id)
+        self.assertEqual(len(writes), 2)
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "retry does not match"):
+            actual_finance.create_recurring_schedule(
+                db,
+                {**values, "amount": -6},
+                request_id=request_id,
+                bridge_request=bridge,
+                backup_fn=backup,
+            )
+        db.close()
+
+    def test_attempted_recurring_create_never_recreates_a_missing_marker(self):
+        db = self.db()
+        snapshot = {"schedules": []}
+        path = actual_migration._write_snapshot("run-route", snapshot)
+        db.add(
+            ActualMigrationRun(
+                id="run-route",
+                status="canonical",
+                base_currency_code="CAD",
+                snapshot_sha256=actual_migration.snapshot_sha256(snapshot),
+                snapshot_path=str(path),
+            )
+        )
+        db.commit()
+        actual = {
+            "accounts": [{"id": "native-account", "closed": False}],
+            "transactions": [],
+            "payees": [],
+            "categories": [],
+            "category_groups": [],
+            "schedules": [],
+            "budget_months": [],
+        }
+        writes = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"create_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return actual
+            writes.append(payload)
+            raise managed_actual.ManagedActualError("response lost before create")
+
+        request_id = "22222222-2222-4222-8222-222222222222"
+        with self.assertRaises(actual_finance.ActualFinanceUnavailable):
+            actual_finance.create_recurring_schedule(
+                db,
+                {
+                    "account_id": "native-account",
+                    "amount": -5,
+                    "payee": "landlord",
+                    "next_date": "2026-10-01",
+                },
+                request_id=request_id,
+                bridge_request=bridge,
+                backup_fn=lambda: {"ok": True, "backup_id": "before-missing"},
+            )
+        visible = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertTrue(visible[0]["create_needs_review"])
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "marker is missing"):
+            actual_finance.retry_recurring_schedule(db, request_id, bridge_request=bridge)
+        self.assertEqual(len(writes), 1)
+        db.close()
+
+    def test_canonical_recurring_create_and_retry_routes_use_one_owner(self):
+        request_id = "33333333-3333-4333-8333-333333333333"
+        with (
+            patch(
+                "routes.money.actual_finance.create_recurring_schedule",
+                return_value={"id": request_id, "create_pending": False},
+            ) as create,
+            patch(
+                "routes.money.actual_finance.retry_recurring_schedule",
+                return_value={"id": request_id, "create_pending": False},
+            ) as retry,
+        ):
+            response = self.client.post(
+                "/api/money/recurring",
+                json={
+                    "account_id": "legacy-account",
+                    "next_date": "2026-10-01",
+                    "request_id": request_id,
+                    "category_id": "housing-id",
+                },
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(create.call_args.kwargs["request_id"], request_id)
+            self.assertEqual(create.call_args.args[1]["category_id"], "housing-id")
+            recovered = self.client.post(f"/api/money/recurring/{request_id}/retry")
+            self.assertEqual(recovered.status_code, 200, recovered.text)
+            self.assertEqual(retry.call_args.args[1], request_id)
 
     def test_canonical_recurring_patch_allows_only_posting_switch(self):
         with patch(
