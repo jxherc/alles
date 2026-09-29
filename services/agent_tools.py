@@ -1711,6 +1711,7 @@ async def _calendar_create(a):
 
 async def _calendar_delete(eid):
     from core.database import CalendarEvent, SessionLocal
+    from services import calendar_events
 
     db = SessionLocal()
     try:
@@ -1718,8 +1719,7 @@ async def _calendar_delete(eid):
         if not e:
             return {"output": "event not found", "error": True}
         title = e.title
-        db.delete(e)
-        db.commit()
+        calendar_events.delete_event(db, e)
         return {"output": f"deleted event {eid} ({title})"}
     finally:
         db.close()
