@@ -9,7 +9,7 @@ just reuses /api/usage/summary on the client — no new tracking here.
 import asyncio
 import logging
 import time as _time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,12 +17,12 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Monitor, MonitorCheck, SessionLocal, _now, get_db
+from services.watch_checks import KEEP, monitor_snapshot, record_check
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("alles.watch")
 
 KINDS = ("http", "health", "cert")
-KEEP = 2200  # checks kept per monitor (~7.6 days at the 300s default, so the 7d uptime is real)
 
 
 # ── pure logic (unit-tested without any network) ───────────────────────────────
@@ -44,40 +44,6 @@ def check_passes(
 
 def cert_days_left(not_after, now=None):
     return (not_after - (now or datetime.now(UTC).replace(tzinfo=None))).days
-
-
-def uptime_pct(checks):
-    """percent of ok checks in the given list, or None when there's nothing yet."""
-    checks = list(checks)
-    if not checks:
-        return None
-    ok = sum(1 for c in checks if (c.ok if hasattr(c, "ok") else c))
-    return round(100 * ok / len(checks), 1)
-
-
-def record_check(db, monitor_id, ok, status_code=0, latency_ms=0, error="", detail="", keep=KEEP):
-    """append a check result, then prune the monitor's history down to `keep` rows."""
-    c = MonitorCheck(
-        monitor_id=monitor_id,
-        ok=bool(ok),
-        status_code=int(status_code or 0),
-        latency_ms=int(latency_ms or 0),
-        error=error or "",
-        detail=detail or "",
-    )
-    db.add(c)
-    db.commit()
-    rows = (
-        db.query(MonitorCheck.id)
-        .filter(MonitorCheck.monitor_id == monitor_id)
-        .order_by(MonitorCheck.id.desc())
-        .all()
-    )
-    if len(rows) > keep:
-        stale = [r[0] for r in rows[keep:]]
-        db.query(MonitorCheck).filter(MonitorCheck.id.in_(stale)).delete(synchronize_session=False)
-        db.commit()
-    return c
 
 
 # ── network probes (best-effort; never raise) ──────────────────────────────────
@@ -203,36 +169,10 @@ def list_monitors(db: DbSession = Depends(get_db)):
 @router.get("/watch/overview")
 def overview(db: DbSession = Depends(get_db)):
     now = _now()
-    day_ago = now - timedelta(hours=24)
-    week_ago = now - timedelta(days=7)
     out = []
     for m in db.query(Monitor).order_by(Monitor.created_at).all():
-        checks = (
-            db.query(MonitorCheck)
-            .filter(MonitorCheck.monitor_id == m.id)
-            .order_by(MonitorCheck.id.desc())
-            .limit(KEEP)
-            .all()
-        )
-        latest = checks[0] if checks else None
         d = _fmt(m)
-        d["status"] = ("up" if latest.ok else "down") if latest else "unknown"
-        d["uptime_24h"] = uptime_pct([c for c in checks if c.ts and c.ts >= day_ago])
-        d["uptime_7d"] = uptime_pct([c for c in checks if c.ts and c.ts >= week_ago])
-        d["latest"] = (
-            {
-                "ok": latest.ok,
-                "status_code": latest.status_code,
-                "latency_ms": latest.latency_ms,
-                "error": latest.error,
-                "detail": latest.detail,
-                "ts": latest.ts.isoformat() if latest.ts else "",
-            }
-            if latest
-            else None
-        )
-        # oldest→newest latency series for the sparkline
-        d["spark"] = [c.latency_ms for c in reversed(checks[:30])]
+        d.update(monitor_snapshot(db, m.id, now))
         out.append(d)
     return {"monitors": out}
 

@@ -2,7 +2,8 @@ from datetime import datetime
 from types import SimpleNamespace
 
 from core.database import Monitor, MonitorCheck
-from routes.watch import cert_days_left, check_passes, record_check, uptime_pct
+from routes.watch import cert_days_left, check_passes
+from services.watch_checks import record_check, uptime_pct
 from tests._client import ApiTest
 
 
