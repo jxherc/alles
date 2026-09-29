@@ -164,6 +164,55 @@ try {
 }
 """
 
+_SEED_DELETE_TRANSACTION = r"""
+import * as api from '@actual-app/api';
+let input = '';
+for await (const chunk of process.stdin) input += chunk;
+const request = JSON.parse(input);
+try {
+  await api.init({dataDir: request.data_dir, serverURL: request.server_url, password: request.password});
+  await api.loadBudget(request.budget_id);
+  await api.addTransactions(request.account_id, [{
+    date: '2026-10-01', amount: -700, payee: request.payee_id,
+    schedule: request.schedule_id, notes: 'kept after deletion',
+  }]);
+  await api.sync();
+  const transactions = await api.getTransactions(request.account_id, '2026-10-01', '2026-10-01');
+  const matches = transactions.filter(row => row.notes === 'kept after deletion' && row.amount === -700);
+  if (matches.length !== 1) throw new Error('deletion probe transaction was not uniquely found');
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({transaction_id: matches[0].id}));
+} catch (error) {
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({error: String(error?.message || error)}));
+  process.exitCode = 1;
+} finally {
+  await api.shutdown();
+}
+"""
+
+_VERIFY_DELETED_SCHEDULE = r"""
+import * as api from '@actual-app/api';
+let input = '';
+for await (const chunk of process.stdin) input += chunk;
+const request = JSON.parse(input);
+try {
+  await api.init({dataDir: request.data_dir, serverURL: request.server_url, password: request.password});
+  await api.loadBudget(request.budget_id);
+  const transactions = await api.getTransactions(request.account_id, '1900-01-01', '9999-12-31');
+  const transaction = transactions.find(row => row.id === request.transaction_id);
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({
+    schedule_present: (await api.getSchedules()).some(row => row.id === request.schedule_id),
+    rule_present: (await api.getRules()).some(row => row.id === request.rule_id),
+    transaction: transaction ? {id: transaction.id, amount: transaction.amount, notes: transaction.notes} : null,
+    observed_transaction_ids: transactions.map(row => row.id),
+  }));
+} catch (error) {
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({error: String(error?.message || error)}));
+  process.exitCode = 1;
+} finally {
+  await api.shutdown();
+}
+"""
+
 _EDIT_SCHEDULE_PROBE = r"""
 import * as api from '@actual-app/api';
 let input = '';
@@ -380,6 +429,100 @@ class ActualScheduleProbeTests(unittest.TestCase):
                 self.assertEqual(
                     uncategorized_rows[0]["posting"],
                     {"pristine": False, "guarded": True, "category": None, "notes": ""},
+                )
+
+                def deletion_probe(script, **values):
+                    process = subprocess.run(
+                        ["node", "--input-type=module", "-e", script],
+                        input=json.dumps(
+                            {
+                                "data_dir": str(managed_actual.client_data_dir()),
+                                "server_url": managed_actual.managed_url(),
+                                "password": managed_actual._managed_password(),
+                                "budget_id": created["budget_id"],
+                                **values,
+                            }
+                        ),
+                        text=True,
+                        capture_output=True,
+                        cwd=managed_actual.app_dir(),
+                        timeout=180,
+                        check=False,
+                    )
+                    outputs = [
+                        line.removeprefix("ALLES_PROBE_RESULT=")
+                        for line in process.stdout.splitlines()
+                        if line.startswith("ALLES_PROBE_RESULT=")
+                    ]
+                    self.assertEqual(len(outputs), 1, process.stdout)
+                    result = json.loads(outputs[0])
+                    self.assertEqual(process.returncode, 0, result)
+                    return result
+
+                delete_row = uncategorized_rows[0]
+                seeded = deletion_probe(
+                    _SEED_DELETE_TRANSACTION,
+                    account_id=delete_row["account"],
+                    payee_id=delete_row["payee"],
+                    schedule_id=delete_row["id"],
+                )
+                verification = {
+                    "account_id": delete_row["account"],
+                    "schedule_id": delete_row["id"],
+                    "rule_id": delete_row["rule"],
+                    "transaction_id": seeded["transaction_id"],
+                }
+                before_delete = deletion_probe(_VERIFY_DELETED_SCHEDULE, **verification)
+                self.assertTrue(before_delete["schedule_present"])
+                self.assertTrue(before_delete["rule_present"])
+                self.assertIsNotNone(
+                    before_delete["transaction"], {"seeded": seeded, **before_delete}
+                )
+                delete_request = {
+                    "command": "write",
+                    "action": "delete_recurring_schedule",
+                    "budget_id": created["budget_id"],
+                    "actual_id": delete_row["id"],
+                    "before": {
+                        key: delete_row[key]
+                        for key in (
+                            "name",
+                            "rule",
+                            "account",
+                            "payee",
+                            "amount",
+                            "amountOp",
+                            "date",
+                        )
+                    }
+                    | {"category_id": "", "notes": "", "posts_transaction": True},
+                }
+                with self.assertRaises(managed_actual.ManagedActualError):
+                    managed_actual.bridge_request(
+                        {
+                            **delete_request,
+                            "before": {**delete_request["before"], "amount": -701},
+                        },
+                        timeout=180,
+                    )
+                self.assertEqual(
+                    managed_actual.bridge_request(delete_request, timeout=180),
+                    {"id": delete_row["id"], "deleted": True},
+                )
+                self.assertEqual(
+                    managed_actual.bridge_request(delete_request, timeout=180),
+                    {"id": delete_row["id"], "deleted": True},
+                )
+                verified = deletion_probe(_VERIFY_DELETED_SCHEDULE, **verification)
+                self.assertFalse(verified["schedule_present"])
+                self.assertFalse(verified["rule_present"])
+                self.assertEqual(
+                    verified["transaction"],
+                    {
+                        "id": seeded["transaction_id"],
+                        "amount": -700,
+                        "notes": "kept after deletion",
+                    },
                 )
                 with self.assertRaisesRegex(managed_actual.ManagedActualError, "schedule changed"):
                     managed_actual.bridge_request(

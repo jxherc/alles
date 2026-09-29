@@ -2074,6 +2074,49 @@ class ActualMigrationTests(ApiTest):
         self.assertTrue(result["invalid_links"][0]["deleted_entity_restored"])
         db.close()
 
+    def test_restore_validation_rejects_a_recurring_schedule_that_was_tombstoned(self):
+        db = self.db()
+        state = db.get(FinanceLedgerState, "primary")
+        if state is None:
+            state = FinanceLedgerState(id="primary", base_currency_code="CAD")
+            db.add(state)
+        state.mode = "actual"
+        state.active_run_id = "delete-recurring-run"
+        db.add(
+            ActualMigrationRun(
+                id="delete-recurring-run",
+                status="canonical",
+                base_currency_code="CAD",
+                snapshot_sha256="snapshot",
+                snapshot_path="/tmp/unused-delete-recurring-snapshot",
+            )
+        )
+        db.add(
+            ActualEntityLink(
+                run_id="delete-recurring-run",
+                entity_kind="recurring",
+                source_id="deleted-recurring-source",
+                actual_id="",
+                metadata_json='{"_deleted":{"actual_id":"deleted-schedule","version":1}}',
+            )
+        )
+        db.commit()
+        absent = {
+            "accounts": [],
+            "transactions": [],
+            "payees": [],
+            "categories": [],
+            "category_groups": [],
+            "schedules": [],
+            "budget_months": [],
+        }
+        self.assertTrue(actual_migration.validate_active_links(db, absent)["ok"])
+        restored = {**absent, "schedules": [{"id": "deleted-schedule"}]}
+        result = actual_migration.validate_active_links(db, restored)
+        self.assertFalse(result["ok"])
+        self.assertTrue(result["invalid_links"][0]["deleted_entity_restored"])
+        db.close()
+
     def test_restore_validation_rejects_pending_account_creation_and_update_intents(self):
         db = self.db()
         state = db.get(FinanceLedgerState, "primary")
