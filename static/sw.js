@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v284';   // Refresh the shell cache for Creations media ownership.
+const VERSION = 'v285';   // Refresh the shell cache for Docs draft navigation safety.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '328';   // keep in sync with index.html ?v= / const _v
+const STAMP = '329';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

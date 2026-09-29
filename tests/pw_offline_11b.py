@@ -140,13 +140,13 @@ def run() -> None:
             style_href = page.locator('link[href^="/static/style.css"]').get_attribute("href")
             assert style_href
             app_href = style_href.replace("/static/style.css", "/static/js/app.js")
-            assert cached["names"] == ["alles-v284"], cached["names"]
+            assert cached["names"] == ["alles-v285"], cached["names"]
             for retired in ("files.js", "research.js", "ragquery.js", "aidebehavior.js"):
                 assert not any(f"/static/js/{retired}" in url for url in cached["urls"])
             assert any(url.endswith("/") for url in cached["urls"])
             assert any(url.endswith(style_href) for url in cached["urls"])
             assert any(url.endswith(app_href) for url in cached["urls"])
-            assert any("/static/kokuen.css?v=24" in url for url in cached["urls"])
+            assert any("/static/kokuen.css?v=25" in url for url in cached["urls"])
             assert sum("/static/js/" in url for url in cached["urls"]) >= 20
             page.screenshot(path=str(OUTPUT / "pwa-plan-online-mobile.png"), full_page=True)
 
@@ -169,7 +169,7 @@ def run() -> None:
                         return match ? { status: match.status, size: (await match.clone().text()).length } : null;
                       })(),
                       appModuleKeys: await (async () => {
-                        const cache = await caches.open('alles-v284');
+                        const cache = await caches.open('alles-v285');
                         return (await cache.keys())
                           .map(request => request.url)
                           .filter(url => url.includes('/static/js/app.js'));

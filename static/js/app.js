@@ -1011,9 +1011,8 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
 async function navigateTo(v) {
   if (v === 'home') v = 'today';
-  const staysInDocs = v === 'wiki' || v === 'journal';
   const docsVisible = document.getElementById('wiki-view')?.style.display !== 'none';
-  if (!staysInDocs && docsVisible && typeof window._prepareDocsNavigation === 'function') {
+  if (docsVisible && typeof window._prepareDocsNavigation === 'function') {
     if (!(await window._prepareDocsNavigation())) return false;
   }
   // memory now lives inside settings, not as its own view
