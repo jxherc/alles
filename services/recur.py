@@ -73,7 +73,7 @@ def _byday(s):
 
 def _json_list(s):
     # callers are inconsistent: the DB stores recur_except as a json string, but
-    # routes/_fmt hands us an already-parsed list. accept both — json.loads on a
+    # calendar_events.event_dict hands us an already-parsed list. accept both — json.loads on a
     # list throws, which used to silently drop every EXDATE on the expand path.
     if isinstance(s, list):
         return s

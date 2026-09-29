@@ -61,7 +61,7 @@ class RecurTests(unittest.TestCase):
         self.assertEqual([d.day for d in occ], [1, 3])
 
     def test_except_accepts_parsed_list(self):
-        # regression (F11/F92): routes/_fmt hands expand an already-parsed list, not a
+        # regression (F11/F92): event_dict hands expand an already-parsed list, not a
         # json string. _json_list used to json.loads() the list (TypeError) and silently
         # drop every EXDATE on the agenda / free-time / booking paths.
         e = ev(recurrence="daily", recur_except=["2026-06-02"])  # real list, not a string

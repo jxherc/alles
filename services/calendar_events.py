@@ -10,6 +10,39 @@ from core.database import Calendar, CalendarEvent, SessionLocal
 from core.settings import load_settings
 
 
+def json_list(value: str) -> list:
+    try:
+        parsed = json.loads(value or "[]")
+        return parsed if isinstance(parsed, list) else []
+    except Exception:
+        return []
+
+
+def event_dict(event: CalendarEvent) -> dict:
+    """The saved Calendar event shape shared by reads and exports."""
+    return {
+        "id": event.id,
+        "calendar_id": event.calendar_id or "",
+        "title": event.title,
+        "description": event.description,
+        "location": event.location or "",
+        "guests": event.guests or "",
+        "start_dt": event.start_dt,
+        "end_dt": event.end_dt,
+        "all_day": event.all_day,
+        "color": event.color,
+        "reminders": json_list(event.reminders),
+        "recurrence": event.recurrence or "",
+        "recur_interval": event.recur_interval or 1,
+        "recur_byday": event.recur_byday or "",
+        "recur_count": event.recur_count,
+        "recur_until": event.recur_until,
+        "recur_except": json_list(event.recur_except),
+        "meeting_url": event.meeting_url or "",
+        "created_at": event.created_at.isoformat(),
+    }
+
+
 def seed_default_calendar():
     """First boot: make a Personal calendar and adopt pre-existing orphan events."""
     db = SessionLocal()
