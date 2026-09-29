@@ -324,7 +324,6 @@ export function showSection(section) {
   const journal = _section === 'journal';
   setHidden($('docs-reader-main'), journal);
   setHidden($('docs-journal-section'), !journal);
-  setHidden($('journal-migrate'), !journal);
   setHidden($('wiki-trash-btn'), journal);
 
   if (journal) {

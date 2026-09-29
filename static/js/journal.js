@@ -1,6 +1,7 @@
 // journal — one entry per day. mood + tags + prompt + streak + on-this-day + AI reflect.
 import { toast, mdToHtml } from './util.js';
 import { formatCalendarDate, formatTime } from './i18n.js';
+import { createFocusBoundary } from './kokuen.js?v=1';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 const MOODS = ['😄', '🙂', '😐', '😕', '😢', '😠', '😴', '🤔', '🥳', '😍'];
@@ -16,6 +17,7 @@ let _productNavWired = false;
 let _lastHydratedAt = 0;
 let _loadGeneration = 0;
 let _lockedDraft = null;
+let _copyDialogOpen = false;
 
 export function localISODate(date = new Date()) {
   const year = date.getFullYear();
@@ -85,18 +87,26 @@ async function migrationRequest(url, options = {}) {
 }
 
 async function openMarkdownCopy() {
+  if (_copyDialogOpen) return;
+  _copyDialogOpen = true;
+  const source = document.activeElement;
   while (_dirty || _saveTimer !== null || _saveInFlight !== null) {
     clearTimeout(_saveTimer);
     _saveTimer = null;
     if (!await save(false)) {
       toast('Save the current Journal entry before copying it to Markdown', 'error');
+      _copyDialogOpen = false;
       return;
     }
   }
-  let plan;
-  try { plan = await migrationRequest('/api/journal-migration/plan'); }
+  let plan, existing;
+  try {
+    existing = await migrationRequest('/api/journal-migration/operations');
+    plan = await migrationRequest('/api/journal-migration/plan');
+  }
   catch (error) {
     toast(error.status === 403 ? 'Unlock Journal and confirm your owner session first' : error.message, 'error');
+    _copyDialogOpen = false;
     return;
   }
   const layer = document.createElement('div');
@@ -104,85 +114,148 @@ async function openMarkdownCopy() {
   layer.setAttribute('role', 'dialog');
   layer.setAttribute('aria-modal', 'true');
   layer.setAttribute('aria-labelledby', 'jrnl-migration-title');
-  const conflictCopy = plan.conflicts?.length
-    ? `<div class="jrnl-migration-error">${plan.conflicts.length} existing Markdown file${plan.conflicts.length === 1 ? '' : 's'} would conflict. Nothing can be copied until those files are moved or renamed.</div>`
-    : '';
+  const copyDescription = current => current.count
+    ? `This makes ${current.count} daily Markdown file${current.count === 1 ? '' : 's'} in <b>Journal/</b> so Obsidian and Docs can read them.`
+    : 'No Journal entries to copy yet.';
+  function copyControls(current) {
+    if (!current.count) return '<div class="jrnl-migration-actions"><button type="button" data-close>done</button></div>';
+    const conflicts = current.conflicts?.length
+      ? `<div class="jrnl-migration-error">${current.conflicts.length} existing Markdown file${current.conflicts.length === 1 ? '' : 's'} would conflict. Nothing can be copied until those files are moved or renamed.</div>`
+      : '';
+    const invalid = current.invalid_dates?.length
+      ? `<div class="jrnl-migration-error">${current.invalid_dates.length} Journal date${current.invalid_dates.length === 1 ? '' : 's'} need repair before copying.</div>`
+      : '';
+    const disabled = current.conflicts?.length || current.invalid_dates?.length;
+    return `${conflicts}${invalid}
+      <label class="jrnl-migration-confirm">
+        type this exact line to prepare the copy
+        <code>${esc(current.confirmation)}</code>
+        <input type="text" autocomplete="off" spellcheck="false" ${disabled ? 'disabled' : ''}>
+      </label>
+      <div class="jrnl-migration-actions">
+        <button type="button" data-close>cancel</button>
+        <button type="button" data-prepare ${disabled ? 'disabled' : ''}>prepare private copy</button>
+      </div>`;
+  }
   layer.innerHTML = `
     <div class="jrnl-migration-card">
       <div class="jrnl-migration-head">
         <h2 id="jrnl-migration-title">copy Journal to Markdown</h2>
         <button type="button" data-close aria-label="close">close</button>
       </div>
-      <p>This makes ${plan.count} daily Markdown file${plan.count === 1 ? '' : 's'} in <b>Journal/</b> so Obsidian and Docs can read them.</p>
+      <p data-copy-description>${copyDescription(plan)}</p>
+      <p class="jrnl-migration-warning">${esc(plan.privacy_warning)}</p>
       <p class="jrnl-migration-note">Journal stays the source of truth. The database is not deleted, and you can roll back files that Alles created unchanged.</p>
-      ${conflictCopy}
-      <label class="jrnl-migration-confirm">
-        type this exact line to prepare the copy
-        <code>${esc(plan.confirmation)}</code>
-        <input type="text" autocomplete="off" spellcheck="false" ${plan.conflicts?.length ? 'disabled' : ''}>
-      </label>
-      <div class="jrnl-migration-status" role="status" aria-live="polite"></div>
-      <div class="jrnl-migration-actions">
-        <button type="button" data-close>cancel</button>
-        <button type="button" data-prepare ${plan.conflicts?.length ? 'disabled' : ''}>prepare private copy</button>
+      <div class="jrnl-migration-operations" data-operations hidden></div>
+      <div data-new-copy>
+        ${copyControls(plan)}
       </div>
+      <div class="jrnl-migration-status" role="status" aria-live="polite"></div>
     </div>`;
+  const background = [...document.body.children].map(element => [element, element.inert]);
+  background.forEach(([element]) => { element.inert = true; });
   document.body.appendChild(layer);
-  const close = () => layer.remove();
-  layer.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', close));
+  let boundary;
+  const close = () => {
+    layer.remove();
+    background.forEach(([element, inert]) => { element.inert = inert; });
+    boundary.deactivate();
+    boundary.destroy();
+    _copyDialogOpen = false;
+  };
+  boundary = createFocusBoundary(layer, { trigger: source, onEscape: close });
   layer.addEventListener('pointerdown', event => { if (event.target === layer) close(); });
-  layer.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
-  const input = layer.querySelector('input');
   const status = layer.querySelector('.jrnl-migration-status');
-  const actions = layer.querySelector('.jrnl-migration-actions');
-  layer.querySelector('[data-prepare]')?.addEventListener('click', async buttonEvent => {
-    const button = buttonEvent.currentTarget;
+  const operations = layer.querySelector('[data-operations]');
+  const newCopy = layer.querySelector('[data-new-copy]');
+  function report(message, error = false) {
+    status.textContent = message;
+    status.classList.toggle('error', error);
+  }
+  function renderOperations(data) {
+    const pending = data.operations.length || data.unavailable.length;
+    newCopy.hidden = Boolean(data.unavailable.length || data.operations.some(item => item.state !== 'applied'));
+    operations.hidden = !pending;
+    const rows = data.operations.map(item => {
+      const id = esc(item.operation_id);
+      const label = item.state === 'prepared' ? 'prepared' : item.state === 'applied' ? 'copied' : 'rollback needs attention';
+      const action = item.state === 'prepared'
+        ? `<button type="button" data-operation="${id}" data-action="apply" data-apply>copy into vault</button><button type="button" data-operation="${id}" data-action="rollback" data-rollback>discard prepared copy</button>`
+        : `<button type="button" data-operation="${id}" data-action="rollback" data-rollback>${item.state === 'applied' ? 'roll back copied files' : 'retry rollback'}</button>`;
+      return `<div class="jrnl-migration-operation"><p>${label} copy ${id.slice(0, 8)} · ${esc(item.count)} file${item.count === 1 ? '' : 's'}${item.rollback_conflicts ? ` · ${esc(item.rollback_conflicts)} conflict${item.rollback_conflicts === 1 ? '' : 's'}` : ''}</p><div class="jrnl-migration-actions">${action}</div></div>`;
+    });
+    const unavailable = data.unavailable.map(id => `<p class="jrnl-migration-error">copy ${esc(id.slice(0, 8))} cannot be opened. Its private recovery record needs inspection; no files were removed.</p>`);
+    operations.innerHTML = pending ? `<h3>existing copy work</h3>${rows.join('')}${unavailable.join('')}` : '';
+  }
+  renderOperations(existing);
+  layer.addEventListener('click', async event => {
+    const button = event.target.closest('button');
+    if (!button || !layer.contains(button)) return;
+    if (button.hasAttribute('data-close')) { close(); return; }
+    const operationId = button.dataset.operation;
+    if (operationId) {
+      button.disabled = true;
+      report(button.dataset.action === 'apply' ? 'copying verified Markdown…' : 'checking copied files…');
+      try {
+        const result = await migrationRequest(`/api/journal-migration/${encodeURIComponent(operationId)}/${button.dataset.action}`, { method: 'POST' });
+        const latest = await migrationRequest('/api/journal-migration/operations');
+        renderOperations(latest);
+        if (!newCopy.hidden) {
+          try {
+            plan = await migrationRequest('/api/journal-migration/plan');
+            newCopy.innerHTML = copyControls(plan);
+            layer.querySelector('[data-copy-description]').innerHTML = copyDescription(plan);
+            layer.querySelector('.jrnl-migration-warning').textContent = plan.privacy_warning;
+          } catch {
+            newCopy.hidden = true;
+            report('Copy work changed, but its new plan could not be loaded. Close and reopen to check before another copy.', true);
+            layer.querySelector('[data-close]')?.focus();
+            return;
+          }
+        }
+        report(result.state === 'applied'
+          ? `${result.installed} Markdown file${result.installed === 1 ? '' : 's'} copied. Journal is still intact.`
+          : result.rollback_conflicts?.length
+            ? 'Some copied files changed later, so Alles left them in place.'
+            : 'Copied Markdown files rolled back. Journal was never removed.');
+        (operations.querySelector('[data-operation]') || newCopy.querySelector('input') || layer.querySelector('[data-close]'))?.focus();
+      } catch (error) {
+        try { renderOperations(await migrationRequest('/api/journal-migration/operations')); }
+        catch { /* preserve the last visible recovery choice until the dialog is reopened */ }
+        if (!newCopy.hidden) newCopy.hidden = true;
+        report(error.status === 403 ? 'Unlock Journal and confirm your owner session first.' : `${error.message} Close and reopen to check copy work before retrying.`, true);
+        if (button.isConnected) button.disabled = false;
+      }
+      return;
+    }
+    if (!button.hasAttribute('data-prepare')) return;
+    const input = newCopy.querySelector('input');
     if (input.value !== plan.confirmation) {
-      status.textContent = 'The confirmation line does not match.';
-      status.classList.add('error');
+      report('The confirmation line does not match.', true);
       input.focus();
       return;
     }
     button.disabled = true;
-    status.classList.remove('error');
-    status.textContent = 'checking every entry and target…';
+    report('checking every entry and target…');
     try {
       const prepared = await migrationRequest('/api/journal-migration/prepare', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ confirmation: plan.confirmation }),
       });
-      status.textContent = `${prepared.count} file${prepared.count === 1 ? '' : 's'} prepared privately. No Markdown file has changed yet.`;
-      actions.innerHTML = '<button type="button" data-close>cancel</button><button type="button" data-apply>copy into vault</button>';
-      actions.querySelector('[data-close]').addEventListener('click', close);
-      actions.querySelector('[data-apply]').addEventListener('click', async applyEvent => {
-        applyEvent.currentTarget.disabled = true;
-        status.textContent = 'copying verified Markdown…';
-        try {
-          const applied = await migrationRequest(`/api/journal-migration/${encodeURIComponent(prepared.operation_id)}/apply`, { method: 'POST' });
-          status.textContent = `${applied.installed} Markdown file${applied.installed === 1 ? '' : 's'} copied. Journal is still intact.`;
-          actions.innerHTML = '<button type="button" data-close>done</button><button type="button" data-rollback>roll back copied files</button>';
-          actions.querySelector('[data-close]').addEventListener('click', close);
-          actions.querySelector('[data-rollback]').addEventListener('click', async rollbackEvent => {
-            rollbackEvent.currentTarget.disabled = true;
-            try {
-              const rolledBack = await migrationRequest(`/api/journal-migration/${encodeURIComponent(prepared.operation_id)}/rollback`, { method: 'POST' });
-              status.textContent = rolledBack.rollback_conflicts?.length
-                ? 'Some copied files changed later, so Alles left them in place.'
-                : 'Copied Markdown files rolled back. Journal was never removed.';
-              actions.innerHTML = '<button type="button" data-close>done</button>';
-              actions.querySelector('[data-close]').addEventListener('click', close);
-            } catch (error) { status.textContent = error.message; status.classList.add('error'); }
-          });
-        } catch (error) { status.textContent = error.message; status.classList.add('error'); applyEvent.currentTarget.disabled = false; }
-      });
+      renderOperations({ operations: [{ ...prepared, rollback_conflicts: prepared.rollback_conflicts?.length || 0 }], unavailable: [] });
+      const latest = await migrationRequest('/api/journal-migration/operations');
+      renderOperations(latest);
+      report(`${prepared.count} file${prepared.count === 1 ? '' : 's'} prepared privately. No Markdown file has changed yet.`);
+      operations.querySelector('[data-apply]')?.focus();
     } catch (error) {
-      status.textContent = error.status === 403 ? 'Unlock Journal and confirm your owner session first.' : error.message;
-      status.classList.add('error');
-      button.disabled = false;
+      try { renderOperations(await migrationRequest('/api/journal-migration/operations')); }
+      catch { newCopy.hidden = true; }
+      const message = error.status === 403 ? 'Unlock Journal and confirm your owner session first.' : error.message;
+      report(`${message} Close and reopen to check copy work before retrying.`, true);
     }
   });
-  requestAnimationFrame(() => input?.focus());
+  boundary.activate({ focus: newCopy.hidden ? operations.querySelector('button') || layer.querySelector('[data-close]') : newCopy.querySelector('input') });
 }
 
 async function buildJournal() {
