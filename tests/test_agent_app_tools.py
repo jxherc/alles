@@ -94,12 +94,49 @@ class AgentAppToolsTests(ApiTest):
     # ── read-later ─────────────────────────────────────────────────────────
     def test_read_save_persists(self):
         fake = {"content": "hello world body", "title": "Example", "og_image": ""}
-        with mock.patch("services.research.search.fetch_webpage_content", return_value=fake):
+        with mock.patch("services.read_items.fetch_webpage_content", return_value=fake):
             r = self.ex("read_save", {"url": "example.com"})
         self.assertFalse(r.get("error"), r)
         items = self.client.get("/api/read").json()["items"]
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]["title"], "Example")
+
+    def test_read_save_uses_read_preview_rules(self):
+        fake = {"content": "quartzweasel\n\n  field notes", "title": "Example", "og_image": ""}
+        with mock.patch("services.read_items.fetch_webpage_content", return_value=fake):
+            result = self.ex("read_save", {"url": "www.example.com/story"})
+        self.assertFalse(result.get("error"), result)
+        item = self.client.get("/api/read").json()["items"][0]
+        self.assertEqual(item["url"], "https://www.example.com/story")
+        self.assertEqual(item["site"], "example.com")
+        self.assertEqual(item["excerpt"], "quartzweasel field notes")
+
+    def test_read_save_is_available_to_aide_recall(self):
+        fake = {"content": "quartzweasel field notes", "title": "Example", "og_image": ""}
+        with (
+            mock.patch("services.read_items.fetch_webpage_content", return_value=fake),
+            mock.patch("services.textindex._embed", return_value=None),
+        ):
+            result = self.ex("read_save", {"url": "example.com/story"})
+            recall = self.ex("recall", {"query": "quartzweasel"})
+        self.assertFalse(result.get("error"), result)
+        self.assertIn("Example", recall["output"])
+        self.assertIn("/?app=read#", recall["output"])
+
+    def test_read_save_rejects_blank_url_without_saving(self):
+        result = self.ex("read_save", {"url": " \t "})
+        self.assertEqual(result, {"output": "url required", "error": True})
+        self.assertEqual(self.client.get("/api/read").json()["items"], [])
+
+    def test_read_save_survives_an_index_outage(self):
+        fake = {"content": "saved text", "title": "Example", "og_image": ""}
+        with (
+            mock.patch("services.read_items.fetch_webpage_content", return_value=fake),
+            mock.patch("services.personal_index.index_record", side_effect=RuntimeError("offline")),
+        ):
+            result = self.ex("read_save", {"url": "example.com/story"})
+        self.assertFalse(result.get("error"), result)
+        self.assertEqual(len(self.client.get("/api/read").json()["items"]), 1)
 
     # ── watch ──────────────────────────────────────────────────────────────
     def test_watch_add_and_status(self):

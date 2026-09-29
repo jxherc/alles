@@ -2,7 +2,7 @@ from unittest import mock
 
 from sqlalchemy import event
 
-from routes.read import make_excerpt, read_minutes, site_of
+from services.read_items import make_excerpt, read_minutes, site_of
 from tests._client import ApiTest
 
 _FAKE = {
@@ -37,7 +37,7 @@ class ReadLogicTests(ApiTest):
 
 class ReadApiTests(ApiTest):
     def _save(self, url="https://example.com/otters", fake=_FAKE):
-        with mock.patch("routes.read.fetch_webpage_content", return_value=fake):
+        with mock.patch("services.read_items.fetch_webpage_content", return_value=fake):
             return self.client.post("/api/read", json={"url": url})
 
     def test_save_stores_extracted_text(self):
@@ -118,7 +118,7 @@ class ReadApiTests(ApiTest):
             "title": "A reviewed story",
             "excerpt": "A result summary supplied by Andromeda.",
         }
-        with mock.patch("routes.read.fetch_webpage_content") as fetch:
+        with mock.patch("services.read_items.fetch_webpage_content") as fetch:
             first = self.client.post("/api/read/save-news", json=payload)
             second = self.client.post("/api/read/save-news", json=payload)
         self.assertEqual(first.status_code, 200)

@@ -1981,35 +1981,17 @@ async def _habits_list(a):
 
 
 async def _read_save(a):
-    from urllib.parse import urlparse
+    from fastapi import HTTPException
 
-    from core.database import ReadItem, SessionLocal
-    from services.research.search import fetch_webpage_content
+    from core.database import SessionLocal
+    from services.read_items import save_url
 
-    url = (a.get("url") or "").strip()
-    if not url:
-        return {"output": "url required", "error": True}
-    if not url.startswith("http"):
-        url = "https://" + url
-    res = fetch_webpage_content(url)
-    text = res.get("content", "") if res else ""
-    host = urlparse(url).hostname or ""
-    site = host[4:] if host.startswith("www.") else host
-    title = (res.get("title") if res else "") or site or url
     db = SessionLocal()
     try:
-        it = ReadItem(
-            url=url,
-            title=title[:300],
-            text=text,
-            excerpt=(text[:240].rstrip() + "…") if len(text) > 240 else text,
-            site=site,
-            image=(res.get("og_image", "") if res else ""),
-            read_minutes=max(1, round(len(text.split()) / 200)),
-        )
-        db.add(it)
-        db.commit()
-        return {"output": f"saved '{title}' to read-later"}
+        item = save_url(db, a.get("url"))
+        return {"output": f"saved '{item.title}' to read-later"}
+    except HTTPException as exc:
+        return {"output": str(exc.detail), "error": True}
     finally:
         db.close()
 
