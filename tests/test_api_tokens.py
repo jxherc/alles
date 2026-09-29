@@ -1,7 +1,7 @@
 import os
 
+from core.api_tokens import KNOWN_SCOPES, required_scope
 from core.database import ApiToken
-from routes.api_tokens import KNOWN_SCOPES, required_scope
 from tests._client import ApiTest
 
 
@@ -89,6 +89,20 @@ class TokensApiTest(ApiTest):
                 ).status_code,
                 200,
             )
+        finally:
+            os.environ["AUTH_ENABLED"] = "false"
+
+    def test_route_admin_check_still_applies_after_middleware_read_check(self):
+        reader = self.client.post("/api/tokens", json={"name": "reader"}).json()["token"]
+        admin = self.client.post("/api/tokens", json={"name": "admin", "scopes": ["admin"]}).json()[
+            "token"
+        ]
+        os.environ["AUTH_ENABLED"] = "true"
+        try:
+            denied = self.client.get("/api/news", headers={"Authorization": f"Bearer {reader}"})
+            self.assertEqual(denied.status_code, 401, denied.text)
+            allowed = self.client.get("/api/news", headers={"Authorization": f"Bearer {admin}"})
+            self.assertEqual(allowed.status_code, 200, allowed.text)
         finally:
             os.environ["AUTH_ENABLED"] = "false"
 
