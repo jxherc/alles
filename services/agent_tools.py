@@ -1911,10 +1911,12 @@ async def _habit_add(a):
     name = (a.get("name") or "").strip()
     if not name:
         return {"output": "name required", "error": True}
-    cadence = a.get("cadence") or "daily"
+    cadence = a.get("cadence", "daily")
+    if cadence not in ("daily", "weekly"):
+        return {"output": "cadence must be daily or weekly", "error": True}
     db = SessionLocal()
     try:
-        h = Habit(name=name, cadence=cadence if cadence in ("daily", "weekly") else "daily")
+        h = Habit(name=name, cadence=cadence)
         db.add(h)
         db.commit()
         db.refresh(h)

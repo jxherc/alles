@@ -195,6 +195,23 @@ class AgentAppToolsTests(ApiTest):
         with self.db() as db:
             self.assertEqual(db.query(HabitLog).one().habit_id, habit_id)
 
+    def test_habit_add_rejects_unsupported_cadence_without_saving(self):
+        for cadence in ("monthly", "", None):
+            with self.subTest(cadence=cadence):
+                api = self.client.post("/api/habits", json={"name": "Read", "cadence": cadence})
+                self.assertIn(api.status_code, (400, 422))
+                added = self.ex("habit_add", {"name": "Read", "cadence": cadence})
+                self.assertEqual(
+                    added, {"output": "cadence must be daily or weekly", "error": True}
+                )
+                self.assertEqual(self.client.get("/api/habits/overview").json()["habits"], [])
+
+    def test_habit_add_keeps_valid_weekly_cadence(self):
+        added = self.ex("habit_add", {"name": "Read", "cadence": "weekly"})
+        self.assertFalse(added.get("error"), added)
+        habit = self.client.get("/api/habits/overview").json()["habits"][0]
+        self.assertEqual(habit["cadence"], "weekly")
+
     def test_habit_log_recognizes_api_log_in_compact_date_form(self):
         from core.database import HabitLog
 
