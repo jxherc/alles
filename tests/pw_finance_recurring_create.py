@@ -65,7 +65,7 @@ def run() -> None:
                 path = urlsplit(route.request.url).path
                 if path == "/api/money/recurring" and route.request.method == "GET":
                     rows = []
-                    if state["phase"] in {"pending", "done"}:
+                    if state["phase"] in {"pending", "done", "edit_pending", "edit_review"}:
                         request = state["requests"][0]
                         rows = [
                             {
@@ -81,7 +81,9 @@ def run() -> None:
                                 "active": state["phase"] == "done",
                                 "create_pending": state["phase"] == "pending",
                                 "create_needs_review": False,
-                                "manageable": state["phase"] == "done",
+                                "edit_pending": state["phase"] in {"edit_pending", "edit_review"},
+                                "edit_needs_review": state["phase"] == "edit_review",
+                                "manageable": state["phase"] != "pending",
                             }
                         ]
                     route.fulfill(
@@ -181,9 +183,31 @@ def run() -> None:
             assert state["retries"] == [f"/api/money/recurring/{request['request_id']}/retry"], (
                 state["retries"]
             )
-            page.screenshot(
-                path=str(output / f"recurring-create-{profile}-done.png"), full_page=True
+            state["phase"] = "edit_pending"
+            page.reload(wait_until="networkidle")
+            retry_edit = card.get_by_role("button", name="retry edit")
+            expect(retry_edit).to_be_visible()
+            expect(card.get_by_text("edit not confirmed", exact=False)).to_be_visible()
+            expect(card.locator(".rc-next")).to_have_text("pending")
+            expect(card.get_by_role("button", name="pause")).to_have_count(0)
+            assert retry_edit.evaluate("element => element.getBoundingClientRect().height") >= 44
+            retry_edit.focus()
+            page.keyboard.press("Enter")
+            expect(retry_edit).to_have_count(0)
+            assert (
+                state["retries"][-1] == f"/api/money/recurring/{request['request_id']}/edit/retry"
             )
+            state["phase"] = "edit_review"
+            page.reload(wait_until="networkidle")
+            expect(
+                card.get_by_text("review the schedule there before retrying", exact=False)
+            ).to_be_visible()
+            expect(card.get_by_role("button", name="retry edit")).to_have_count(0)
+            expect(card.locator(".rc-next")).to_have_text("pending")
+            page.screenshot(
+                path=str(output / f"recurring-create-{profile}-edit-review.png"), full_page=True
+            )
+            card.screenshot(path=str(output / f"recurring-create-{profile}-edit-card.png"))
             page.evaluate("document.documentElement.style.zoom = '2'")
             assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
             assert card.locator(".rc-payee").evaluate(
