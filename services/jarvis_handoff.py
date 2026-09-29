@@ -461,7 +461,7 @@ async def _execute(run_id: str) -> None:
             else ("", [])
         )
         mem_ctx, memory_ids = memory_result
-        from routes.chat import (
+        from services.chat_turn import (
             _build_messages,
             _context_provenance,
             _resolve_persona,

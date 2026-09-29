@@ -82,7 +82,7 @@ class ChatContinuityTests(ApiTest):
                     await stream.aclose()  # repeated cleanup must not append a second turn
 
                 with (
-                    mock.patch.object(chat, "stream_chat", provider),
+                    mock.patch("services.chat_turn.stream_chat", provider),
                     mock.patch.object(agent_runtime, "stream_chat", provider),
                 ):
                     asyncio.run(run())
@@ -106,7 +106,7 @@ class ChatContinuityTests(ApiTest):
             await anext(stream)
             await stream.aclose()
 
-        with mock.patch.object(chat, "run_agent", agent):
+        with mock.patch("services.chat_turn.run_agent", agent):
             asyncio.run(run())
         self.assertEqual(self.history(), [("user", "keep this prompt"), ("assistant", "")])
         with self.db() as db:
@@ -203,7 +203,7 @@ class ChatContinuityTests(ApiTest):
             await stream.aclose()
             await stream.aclose()
 
-        with mock.patch.object(chat, "stream_chat", provider):
+        with mock.patch("services.chat_turn.stream_chat", provider):
             asyncio.run(run(True))
             asyncio.run(run(False))
         self.assertEqual(

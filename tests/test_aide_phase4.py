@@ -259,7 +259,7 @@ class AideAgentRunMetaPhase4Test(ApiTest):
             ):
                 pass
 
-        with mock.patch.object(chat_module, "run_agent", self._run_agent):
+        with mock.patch("services.chat_turn.run_agent", self._run_agent):
             asyncio.run(run())
 
     def test_saved_assistant_message_keeps_agent_run_id_for_reload(self):
