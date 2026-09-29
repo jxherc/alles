@@ -7,6 +7,7 @@ import { initDatePicker, calendarDateParts } from './datepick.js';
 import { formatCalendarDate, formatDate, formatNumber } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=1';
 import { requestWithRecentOwner } from './recent_owner.js';
+import { replaceRouteUrl } from './route_history.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -27,7 +28,7 @@ function _validAmounts(...values) {
 
 function _thisMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
 function _monthFromUrl() { const m = new URLSearchParams(location.search).get('m'); return (m && /^\d{4}-\d{2}$/.test(m)) ? m : ''; }
-function _setMonthUrl() { try { const u = new URL(location.href); u.searchParams.set('m', _month); history.replaceState(history.state, '', u); } catch {} }
+function _setMonthUrl() { try { const u = new URL(location.href); u.searchParams.set('m', _month); replaceRouteUrl(u); } catch {} }
 
 let _month = _monthFromUrl() || _thisMonth();
 let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];

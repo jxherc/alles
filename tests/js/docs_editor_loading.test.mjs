@@ -58,11 +58,18 @@ function harness() {
     } else throw new Error(`unexpected request: ${url}`);
     return { ok: true, json: async () => response };
   };
+  const routeLocation = { pathname: '/', search: '', hash: '' };
   const context = vm.createContext({
     document, fetch: fetcher, URL, URLSearchParams, TextEncoder, console,
     setTimeout: () => 1, clearTimeout() {},
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
-    window: {}, location: { pathname: '/', search: '', hash: '' }, history: { replaceState() {} },
+    window: {}, location: routeLocation, history: { replaceState() {} },
+    replaceRouteUrl(url) {
+      const route = new URL(url, 'http://local');
+      routeLocation.pathname = route.pathname;
+      routeLocation.search = route.search;
+      routeLocation.hash = route.hash;
+    },
     matchMedia: () => ({ matches: false }), mdToHtml: value => value, enhanceMarkdown() {}, toast() {},
     __loadEditor: () => new Promise((resolve, reject) => loads.push({ resolve: () => resolve({ createDocEditor: factory }), reject })),
   });

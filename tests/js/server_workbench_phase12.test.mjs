@@ -75,6 +75,6 @@ test('legacy Docs, Files, Vault, System, Activity, and Watch render inside workb
   assert.match(app, /group === 'server' && section === 'overview'/);
   assert.match(app, /group === 'server' && section === 'activity'/);
   assert.match(app, /group === 'server' && section === 'watch'/);
-  assert.match(app, /history\.pushState/);
+  assert.match(app, /pushRouteUrl/);
   assert.match(app, /addEventListener\('popstate'/);
 });

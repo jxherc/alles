@@ -26,10 +26,13 @@ function navigate(href, identifier, { single = true, sub = '', withState = false
   const context = vm.createContext({
     URL, location: new URL(href), resolveCompatibilityRoute, groupRouteFor, viewToSub,
     _afterlifeFlags: { afterlife_today: true },
-    ROUTE_HISTORY_POSITION: '__allesRoutePosition',
-    _routeHistoryPosition: 0,
     singleHost: () => single, currentSub: () => sub,
     history,
+    replaceRouteUrl: path => history.replaceState(history.state, '', path),
+    pushRouteUrl: path => history.pushState({
+      ...history.state,
+      __allesRoutePosition: history.state.__allesRoutePosition + 1,
+    }, '', path),
   });
   vm.runInContext(sync, context);
   const route = resolveCompatibilityRoute({ view: identifier, flags: { afterlife_today: true } });

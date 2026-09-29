@@ -34,6 +34,7 @@ function harness() {
   const disk = new Map();
   const requests = [];
   const notices = [];
+  const routeLocation = { pathname: '/', search: '', hash: '' };
   let stream;
   let intercept = null;
   function write(path, content) {
@@ -68,7 +69,13 @@ function harness() {
     fetch: fetcher, URL, URLSearchParams, TextEncoder, console,
     setTimeout: () => 1, clearTimeout() {},
     document: { getElementById: get, querySelectorAll: () => [], createElement: () => element() },
-    window: {}, location: { pathname: '/', search: '', hash: '' }, history: { replaceState() {} },
+    window: {}, location: routeLocation, history: { replaceState() {} },
+    replaceRouteUrl(url) {
+      const route = new URL(url, 'http://local');
+      routeLocation.pathname = route.pathname;
+      routeLocation.search = route.search;
+      routeLocation.hash = route.hash;
+    },
     matchMedia: () => ({ matches: false }),
     mdToHtml: value => value, enhanceMarkdown() {}, toast: (...args) => notices.push(args),
     EventSource: class { constructor() { stream = this; } },

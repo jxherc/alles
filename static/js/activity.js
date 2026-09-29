@@ -2,6 +2,7 @@
 // alles, grouped by day. reads /api/timeline (a read-time aggregator over the
 // apps' own tables), filterable by source. clicking a row jumps to its app.
 import { formatDate, formatTime } from './i18n.js';
+import { replaceRouteUrl } from './route_history.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -37,7 +38,7 @@ function _writeUrl() {
     u.searchParams.set('days', _days);
     if (_off.size) u.searchParams.set('hide', [..._off].join(',')); else u.searchParams.delete('hide');
     if (_q) u.searchParams.set('q', _q); else u.searchParams.delete('q');
-    history.replaceState(history.state, '', u);
+    replaceRouteUrl(u);
   } catch {}
 }
 
