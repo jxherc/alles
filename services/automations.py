@@ -30,7 +30,8 @@ from datetime import UTC, date, datetime
 
 from sqlalchemy.exc import IntegrityError
 
-from core.database import AutomationAttempt, AutomationRule, SessionLocal, Task
+from core.database import AutomationAttempt, AutomationRule, DayEvent, SessionLocal, Task
+from services import day_events
 
 log = logging.getLogger("aide.automations")
 
@@ -392,16 +393,12 @@ async def run_automations():
                                 db.commit()
 
                 elif rule.trigger == "day_event_near":
-                    from core.database import DayEvent
-                    from routes.days import _occurrence
-                    from routes.days import _parse as day_parse
-
                     days = int(rule.trigger_arg or 3)
                     done = st.get("done", {})
                     for ev in db.query(DayEvent).all():
-                        orig = day_parse(ev.date)
+                        orig = day_events.parse_date(ev.date)
                         if ev.repeat in ("yearly", "monthly"):
-                            target, _ = _occurrence(orig, today, ev.repeat)
+                            target, _ = day_events.next_occurrence(orig, today, ev.repeat)
                         else:
                             target = orig
                             if target < today:

@@ -15,51 +15,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import DayEvent, SessionLocal, get_db
+from services import day_events
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.days")
 
 REPEATS = ("none", "yearly", "monthly")
 DELIVERY_LEASE_SECONDS = 5 * 60
-
-
-def _parse(s: str) -> date:
-    return date.fromisoformat(str(s)[:10])
-
-
-def _clamp(y: int, m: int, d: int) -> date:
-    return date(y, m, min(d, calendar.monthrange(y, m)[1]))
-
-
-def _occurrence(orig: date, today: date, repeat: str) -> tuple[date, int]:
-    """next occurrence on/after today, and which anniversary it is (1-based).
-    handles feb 29 birthdays and 31st-of-month repeats by clamping."""
-    # the original date hasn't happened yet → its FIRST occurrence is orig itself
-    # (anniversary 0). without this, snapping to the current year/month would land
-    # before the event ever occurred and report a negative anniversary.
-    if orig > today:
-        return orig, 0
-    if repeat == "yearly":
-        occ = _clamp(today.year, orig.month, orig.day)
-        if occ < today:
-            occ = _clamp(today.year + 1, orig.month, orig.day)
-        return occ, occ.year - orig.year
-    if repeat == "monthly":
-        occ = _clamp(today.year, today.month, orig.day)
-        if occ < today:
-            y, m = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
-            occ = _clamp(y, m, orig.day)
-        return occ, (occ.year - orig.year) * 12 + (occ.month - orig.month)
-    return orig, 0
-
-
-def _prev_occurrence(orig: date, occ: date, repeat: str) -> date:
-    if repeat == "yearly":
-        return _clamp(occ.year - 1, orig.month, orig.day)
-    if repeat == "monthly":
-        y, m = (occ.year - 1, 12) if occ.month == 1 else (occ.year, occ.month - 1)
-        return _clamp(y, m, orig.day)
-    return orig
 
 
 def _ymd_between(a: date, b: date) -> str:
@@ -87,13 +49,13 @@ def _ymd_between(a: date, b: date) -> str:
 
 
 def _fmt(ev: DayEvent, today: date) -> dict:
-    orig = _parse(ev.date)
+    orig = day_events.parse_date(ev.date)
     if ev.repeat in ("yearly", "monthly"):
-        target, nth = _occurrence(orig, today, ev.repeat)
+        target, nth = day_events.next_occurrence(orig, today, ev.repeat)
         days = (target - today).days
         mode = "today" if days == 0 else "countdown"
         # progress through the current cycle
-        prev = _prev_occurrence(orig, target, ev.repeat)
+        prev = day_events.previous_occurrence(orig, target, ev.repeat)
         span = (target - prev).days or 1
         progress = round(min(1.0, max(0.0, (today - prev).days / span)), 3)
         breakdown = _ymd_between(today, target) if days else ""
@@ -161,7 +123,7 @@ def _validate(name: str, dt: str, repeat: str):
     if repeat not in REPEATS:
         raise HTTPException(400, f"repeat must be one of {', '.join(REPEATS)}")
     try:
-        _parse(dt)
+        day_events.parse_date(dt)
     except ValueError:
         raise HTTPException(400, "date must be an ISO date (YYYY-MM-DD)")
 
@@ -203,7 +165,7 @@ def update_day(eid: str, body: DayPatch, db: DbSession = Depends(get_db)):
         raise HTTPException(400, f"repeat must be one of {', '.join(REPEATS)}")
     if body.date is not None:
         try:
-            _parse(body.date)
+            day_events.parse_date(body.date)
         except ValueError:
             raise HTTPException(400, "date must be an ISO date (YYYY-MM-DD)")
         ev.date = str(body.date)[:10]
@@ -239,9 +201,9 @@ async def check_day_events():
     db = SessionLocal()
     try:
         for ev in db.query(DayEvent).filter(DayEvent.notify_days >= 0).all():
-            orig = _parse(ev.date)
+            orig = day_events.parse_date(ev.date)
             if ev.repeat in ("yearly", "monthly"):
-                target, nth = _occurrence(orig, today, ev.repeat)
+                target, nth = day_events.next_occurrence(orig, today, ev.repeat)
             else:
                 target, nth = orig, 0
                 if target < today:
