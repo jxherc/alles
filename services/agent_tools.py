@@ -2192,20 +2192,18 @@ async def _contact_list(q):
 
 
 async def _contact_add(a):
-    from core.database import Contact, SessionLocal
+    from core.database import SessionLocal
+    from services.contact_items import save_contact
 
     db = SessionLocal()
     try:
-        c = Contact(
+        c = save_contact(
+            db,
             name=a.get("name", ""),
             email=a.get("email", ""),
             phone=a.get("phone", ""),
             notes=a.get("notes", ""),
-            tags="[]",
         )
-        db.add(c)
-        db.commit()
-        db.refresh(c)
         return {"output": f"added contact {c.id} — {c.name}"}
     finally:
         db.close()

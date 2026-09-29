@@ -1,5 +1,6 @@
 import asyncio
 import unittest
+from unittest import mock
 
 from core.database import Task
 from routes import search
@@ -213,6 +214,52 @@ class TaskToolApiTests(ApiTest):
         self.assertTrue(result.get("error"))
         with self.db() as db:
             self.assertFalse(db.get(Task, task["id"]).done)
+
+
+class ContactToolApiTests(ApiTest):
+    def test_contact_api_create_is_available_to_aide_recall(self):
+        with mock.patch("services.textindex._embed", return_value=None):
+            contact = self.client.post("/api/contacts", json={"name": "Quartzferret API"}).json()
+            recall = asyncio.run(at.execute("recall", {"query": "Quartzferret"}))
+        self.assertIn(contact["name"], recall["output"])
+        self.assertIn(f"/?app=contacts#{contact['id']}", recall["output"])
+
+    def test_aide_contact_add_is_available_to_aide_recall(self):
+        with mock.patch("services.textindex._embed", return_value=None):
+            added = asyncio.run(
+                at.execute(
+                    "contact_add",
+                    {
+                        "name": "Quartzferret Aide",
+                        "email": "quartzferret@example.test",
+                        "phone": "555-0101",
+                        "notes": "met at the library",
+                    },
+                )
+            )
+            recall = asyncio.run(at.execute("recall", {"query": "Quartzferret"}))
+        self.assertFalse(added.get("error"), added)
+        contact = self.client.get("/api/contacts").json()[0]
+        self.assertEqual(contact["name"], "Quartzferret Aide")
+        self.assertEqual(contact["email"], "quartzferret@example.test")
+        self.assertEqual(contact["phone"], "555-0101")
+        self.assertEqual(contact["notes"], "met at the library")
+        self.assertEqual(contact["tags"], [])
+        self.assertIn("Quartzferret Aide", recall["output"])
+        self.assertIn(f"/?app=contacts#{contact['id']}", recall["output"])
+
+    def test_contact_create_survives_an_index_outage(self):
+        with mock.patch(
+            "services.personal_index.index_record", side_effect=RuntimeError("offline")
+        ):
+            api = self.client.post("/api/contacts", json={"name": "API Contact"})
+            aide = asyncio.run(at.execute("contact_add", {"name": "Aide Contact"}))
+        self.assertEqual(api.status_code, 200)
+        self.assertFalse(aide.get("error"), aide)
+        self.assertEqual(
+            sorted(contact["name"] for contact in self.client.get("/api/contacts").json()),
+            ["API Contact", "Aide Contact"],
+        )
 
 
 class SearchHelperTests(unittest.TestCase):
