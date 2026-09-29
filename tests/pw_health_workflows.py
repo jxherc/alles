@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+from datetime import date
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
@@ -20,6 +22,9 @@ def run():
     assert os.environ.get("ALLES_TEST_DATA") == "1"
     assert (data / ".alles-test-owner").read_text().strip() == run_id
     require_server_ownership(base, run_id)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from core.database import HabitLog, SessionLocal
+
     output = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     records = []
     with sync_playwright() as p:
@@ -301,6 +306,54 @@ def run():
                     expect(target).to_be_focused()
                     page.set_viewport_size({"width": 1440, "height": 900})
                     passed()
+                begin("habits.legacy-day-visible")
+                day = date.today().isoformat()
+                habit_name = f"legacy date {profile}"
+                created = context.request.post(
+                    base + "/api/habits",
+                    data=json.dumps({"name": habit_name, "cadence": "daily"}),
+                    headers={"content-type": "application/json"},
+                )
+                assert created.ok, created.text()
+                habit_id = created.json()["id"]
+                with SessionLocal() as db:
+                    db.add(HabitLog(habit_id=habit_id, date=day.replace("-", "")))
+                    db.commit()
+                page.goto(base + "/?view=health", wait_until="networkidle")
+                page.get_by_role("tab", name="overview", exact=True).click()
+                overview_row = page.get_by_role("button", name=f"open habit {habit_name}")
+                expect(overview_row).to_contain_text("done today")
+                page.goto(base + "/?view=habits", wait_until="networkidle")
+                card = page.locator(f'.habit-card[data-id="{habit_id}"]')
+                expect(card).to_be_visible()
+                day_button = card.locator(f'.habit-day[data-toggle="{day}"]')
+                expect(day_button).to_have_class("habit-day done")
+                page.screenshot(
+                    path=str(output / f"habits-{profile}-legacy-done.png"), full_page=True
+                )
+                passed()
+                begin("habits.legacy-day-toggle")
+                with page.expect_response(
+                    lambda response: (
+                        response.url.endswith(f"/api/habits/{habit_id}/toggle")
+                        and response.request.method == "POST"
+                    )
+                ) as toggle:
+                    day_button.click()
+                assert toggle.value.ok
+                expect(day_button).to_have_class("habit-day")
+                with SessionLocal() as db:
+                    assert not db.query(HabitLog).filter_by(habit_id=habit_id).all()
+                page.reload(wait_until="networkidle")
+                expect(day_button).to_have_class("habit-day")
+                day_button.focus()
+                expect(day_button).to_be_focused()
+                day_button.press("Space")
+                expect(day_button).to_have_class("habit-day done")
+                assert page.evaluate(
+                    "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+                )
+                passed()
                 assert not events["page_errors"], events
                 assert not events["failed_requests"], events
                 assert events["http_errors"] == expected_failures, events

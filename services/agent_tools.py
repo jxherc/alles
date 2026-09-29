@@ -1926,7 +1926,8 @@ async def _habit_add(a):
 async def _habit_log(a):
     from datetime import date
 
-    from core.database import Habit, HabitLog, SessionLocal
+    from core.database import Habit, SessionLocal
+    from services import habit_logs
 
     name = (a.get("name") or "").strip()
     db = SessionLocal()
@@ -1935,10 +1936,8 @@ async def _habit_log(a):
         if not h:
             return {"output": f"no habit named '{name}'", "error": True}
         today = date.today().isoformat()
-        if db.query(HabitLog).filter(HabitLog.habit_id == h.id, HabitLog.date == today).first():
+        if not habit_logs.mark(db, h.id, today):
             return {"output": f"'{name}' is already marked done today"}
-        db.add(HabitLog(habit_id=h.id, date=today))
-        db.commit()
         return {"output": f"marked '{name}' done for today"}
     finally:
         db.close()
@@ -1947,7 +1946,8 @@ async def _habit_log(a):
 async def _habits_list(a):
     from datetime import date
 
-    from core.database import Habit, HabitLog, SessionLocal
+    from core.database import Habit, SessionLocal
+    from services import habit_logs
 
     db = SessionLocal()
     try:
@@ -1962,9 +1962,7 @@ async def _habits_list(a):
         today = date.today().isoformat()
         out = []
         for h in rows:
-            done = (
-                db.query(HabitLog).filter(HabitLog.habit_id == h.id, HabitLog.date == today).first()
-            )
+            done = habit_logs.is_done(db, h.id, today)
             out.append(f"- {'[x]' if done else '[ ]'} {h.name} ({h.cadence})")
         return {"output": "\n".join(out)}
     finally:

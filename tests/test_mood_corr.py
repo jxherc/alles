@@ -89,6 +89,20 @@ class BuilderTests(unittest.TestCase):
         self.assertGreater(run["rho"], 0.5)
         self.assertIn("run", run["explain"])
 
+    def test_existing_compact_habit_dates_keep_their_mood_correlation(self):
+        h = db.Habit(name="run")
+        self.s.add(h)
+        self.s.commit()
+        for i in range(8):
+            good = i % 2 == 0
+            self._journal(i, "😄" if good else "😢")
+            if good:
+                self.s.add(db.HabitLog(habit_id=h.id, date=self._day(i).replace("-", "")))
+        self.s.commit()
+        out = mc.correlations(self.s, min_overlap=6)
+        run = next(c for c in out["correlations"] if c["label"] == "habit:run")
+        self.assertGreater(run["rho"], 0.5)
+
     def test_health_metric_correlation(self):
         # more sleep -> better mood
         for i in range(8):

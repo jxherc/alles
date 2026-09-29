@@ -23,7 +23,6 @@ from core.database import (
     CalendarEvent,
     DayEvent,
     Habit,
-    HabitLog,
     HealthEntry,
     JournalEntry,
     Reminder,
@@ -31,7 +30,7 @@ from core.database import (
     Subscription,
     Task,
 )
-from services import day_events
+from services import day_events, habit_logs
 
 CATEGORIES = (
     "task",
@@ -314,8 +313,7 @@ def _habits(db, today):
     iso = today.isoformat()
     out = []
     for h in db.query(Habit).filter(Habit.archived == False).all():  # noqa: E712
-        done = db.query(HabitLog).filter(HabitLog.habit_id == h.id, HabitLog.date == iso).first()
-        if not done:
+        if not habit_logs.is_done(db, h.id, iso):
             out.append(
                 _sig(
                     "habit",
