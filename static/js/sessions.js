@@ -311,8 +311,10 @@ export async function selectSession(id) {
     } catch (e) {}
     // Reattach durable Aide work to this same task after a reload or tab switch.
     import('./aidebackground.js?v=245').then(m => m.reattachBackgroundWork(id)).catch(() => {});
+    return true;
   } catch (e) {
     console.error('selectSession', e);
+    return false;
   }
 }
 

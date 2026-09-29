@@ -242,9 +242,10 @@ test('Read keeps its scoped fetcher for feeds and later actions', () => {
 });
 
 test('cross-subdomain document asks use an opaque one-time context code', () => {
-  assert.match(app, /fetch\('\/api\/auth\/context-handoff'/);
-  assert.match(app, /target\.searchParams\.set\('ctx',\s*code\)/);
-  assert.doesNotMatch(app, /target\.searchParams\.set\('(ask|doc|doc_hash)'/);
+  const handoff = app.match(/window\._askInChat = async[\s\S]*?\n};/)?.[0] || '';
+  assert.match(handoff, /fetch\('\/api\/auth\/context-handoff'/);
+  assert.match(handoff, /target\.searchParams\.set\('ctx',\s*code\)/);
+  assert.doesNotMatch(handoff, /target\.searchParams\.set\('(ask|doc|doc_hash)'/);
   assert.doesNotMatch(app, /bootParams\.get\('(doc|doc_hash)'\)/);
   assert.doesNotMatch(app, /kind:\s*'vault_document',[^]*bootParams/);
 });
