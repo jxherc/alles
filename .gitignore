@@ -1,7 +1,16 @@
 .env
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+.DS_Store
 
 # data — all of it, nothing personal should be tracked
 data/
@@ -36,12 +45,18 @@ alles-road-report.md
 docs/roadmap/
 
 # ide / local tooling + agent instruction files — never track
+.agent/
+.agents/
 .claude/
 .Codex/
+.superpowers/
 .vscode/
 CLAUDE.md
 AGENTS.md
 aide.md
+# local review and separate checkout, not Alles product files
+/alles-full-review.md
+/tokscale/
 
 # python
 venv/
