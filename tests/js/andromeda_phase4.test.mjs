@@ -632,9 +632,12 @@ test('Andromeda localization preserves the current result state', () => {
 
 test('the service worker cannot mix old and new JavaScript modules', () => {
   const worker = readFileSync(new URL('../../static/sw.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
   const compatibility = readFileSync(new URL('../../static/js/routecompat.js', import.meta.url), 'utf8');
-  assert.match(worker, /const STAMP = '332'/);
+  const pageStamp = html.match(/const _v = '(\d+)'/)?.[1];
+  assert.ok(pageStamp);
+  assert.equal(worker.match(/const STAMP = '(\d+)'/)?.[1], pageStamp);
   assert.match(worker, /NETWORK_FIRST_STATIC = \['\.js', '\.mjs', '\.css'\]/);
   assert.match(worker, /NETWORK_FIRST_STATIC\.some\(ext => url\.pathname\.endsWith\(ext\)\)/);
   assert.match(worker, /Network-first code and styles/);
