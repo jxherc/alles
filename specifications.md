@@ -92,7 +92,9 @@ program, and compatibility links keep the older app names and subdomains working
   records: four active stages, manual order, filters, quick add, detail editing, and completed history
 - **Inbox** puts cached mail, the selected message, and matching contact context in one workflow while
   keeping mail and contact records separate
-- **Docs** keeps notes and journal as local sections of one Markdown workbench
+- **Docs** keeps notes and journal as local sections of one Markdown workbench. If a document's
+  recovery draft cannot be saved, tabs and browser Back/Forward keep that document visible
+  with an error until the save can be retried
 - **Files** keeps storage and Gallery under one identity, with explicit Gallery-to-Files and browser
   Back paths on desktop and phone
 - **Library** combines Books and saved reading; Andromeda News enters only when you explicitly save it

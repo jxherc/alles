@@ -99,7 +99,7 @@ export function newChat(options = {}) {
   window._refreshPersonaBtn?.();        // keep the persona button visible + pickable pre-send
   selectAideDefault();                  // new chats follow the effective Aide Chat role
   if (!options.preserveHash && location.hash) {
-    history.replaceState(null, '', location.pathname + location.search);
+    history.replaceState(history.state, '', location.pathname + location.search);
   }
   document.getElementById('messages').innerHTML = '';
   document.querySelectorAll('.session-item').forEach(el => syncSessionRowState(el, false));

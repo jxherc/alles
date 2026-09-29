@@ -37,7 +37,7 @@ function _writeUrl() {
     u.searchParams.set('days', _days);
     if (_off.size) u.searchParams.set('hide', [..._off].join(',')); else u.searchParams.delete('hide');
     if (_q) u.searchParams.set('q', _q); else u.searchParams.delete('q');
-    history.replaceState(null, '', u);
+    history.replaceState(history.state, '', u);
   } catch {}
 }
 

@@ -142,7 +142,7 @@ function writeUrl() {
     else url.searchParams.delete('location');
     if (state.cwd) url.searchParams.set('p', state.cwd);
     else url.searchParams.delete('p');
-    history.replaceState(null, '', url);
+    history.replaceState(history.state, '', url);
   } catch {}
 }
 
