@@ -346,21 +346,25 @@ def run():
             expect(recurring_card).to_contain_text("rent in Actual")
             expect(recurring_card).to_contain_text("variable utilities")
             expect(recurring_card).to_contain_text("range")
-            expect(recurring_card).to_contain_text("editing in Finance isn't available yet")
-            expect(recurring_card.locator("#rc-add")).to_have_count(0)
-            expect(recurring_card.locator("[data-toggle-rec], [data-del-rec]")).to_have_count(0)
+            expect(recurring_card).to_contain_text(
+                "eligible linked guarded schedules can be edited or deleted here"
+            )
+            expect(recurring_card.locator("#rc-add")).to_be_visible()
+            expect(
+                recurring_card.locator("[data-toggle-rec], [data-edit-rec], [data-del-rec]")
+            ).to_have_count(0)
             expect(recurring_card.get_by_role("heading", name="recurring")).to_be_focused()
             assert recurring_card.evaluate(
                 "element => element.scrollWidth <= element.clientWidth + 1"
             )
             recurring_card.scroll_into_view_if_needed()
-            page.screenshot(path=str(artifacts / f"finance-recurring-readonly-{profile}.png"))
+            page.screenshot(path=str(artifacts / f"finance-recurring-unlinked-{profile}.png"))
 
             recurring_empty = True
             page.reload(wait_until="networkidle")
             recurring_card = page.locator('.money-card[data-card="recurring"]')
             expect(recurring_card).to_contain_text("no auto-post schedules in Actual")
-            expect(recurring_card.locator("#rc-add")).to_have_count(0)
+            expect(recurring_card.locator("#rc-add")).to_be_visible()
 
             alert_failures = 2
             alerts_empty = False
