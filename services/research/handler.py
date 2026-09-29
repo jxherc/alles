@@ -194,7 +194,7 @@ async def run_research(
         yield {"type": "done", "report": report, "sources": sources[:15], "stats": stats}
 
         try:
-            from routes.webhooks import fire
+            from services.webhook_delivery import fire
 
             await asyncio.wait_for(
                 fire(

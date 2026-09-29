@@ -758,7 +758,7 @@ def _save_turn(
 
 async def _fire_message_hook(session_id: str, user_text: str, reply: str):
     try:
-        from routes.webhooks import fire
+        from services.webhook_delivery import fire
 
         await fire(
             "message", {"session_id": session_id, "user": user_text[:500], "reply": reply[:500]}
