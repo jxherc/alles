@@ -206,6 +206,52 @@ test('pending recurring edit stays visible and retries only the saved edit', asy
   assert.equal(calls.length, 1);
 });
 
+test('canonical recurring deletion confirms its scope and retries only a saved deletion', async () => {
+  const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+  const calls = [];
+  const confirmations = [];
+  const context = vm.createContext({
+    location: { search: '' }, URLSearchParams,
+    api: async (path, options) => { calls.push({ path, options }); return {}; },
+    dlgConfirm: async message => { confirmations.push(message); return true; },
+    formatNumber: value => String(value),
+  });
+  vm.runInContext(source + `
+    _canonicalLedger = true;
+    _recurring = [
+      { id: 'linked', payee: 'rent', amount: -5, amount_kind: 'exact', cycle: 'monthly',
+        next_date: '2026-10-01', active: true, manageable: true, editable: true },
+      { id: 'native', payee: 'other', amount: -3, cycle: 'monthly',
+        next_date: '2026-10-01', active: true, manageable: false, editable: false },
+    ];
+    retryRecurring = async () => {};
+    globalThis.list = recurringList;
+    globalThis.remove = delRecurring;
+    globalThis.retryDelete = retryRecurringDelete;
+  `, context);
+  assert.match(context.list(), /data-del-rec="linked"/);
+  assert.doesNotMatch(context.list(), /data-del-rec="native"/);
+  await context.remove('native');
+  assert.equal(calls.length, 0);
+  await context.remove('linked');
+  assert.equal(confirmations.length, 1);
+  assert.match(confirmations[0], /rent schedule.*future posts stop; past transactions stay.*backup/);
+  assert.equal(calls[0].path, '/api/money/recurring/linked/delete');
+  assert.equal(calls[0].options.method, 'POST');
+  assert.equal(calls[0].options.body.confirm_id, 'linked');
+  vm.runInContext(`_recurring = [{ id: 'linked', payee: 'rent', amount: -5,
+    cycle: 'monthly', next_date: '2026-10-01', delete_pending: true,
+    delete_needs_review: false, editable: false, manageable: false }];`, context);
+  assert.match(context.list(), /data-retry-delete-rec="linked"/);
+  assert.doesNotMatch(context.list(), /data-del-rec="linked"/);
+  await context.retryDelete({ dataset: { retryDeleteRec: 'linked' }, disabled: false, textContent: '' });
+  assert.equal(calls[1].path, '/api/money/recurring/linked/delete/retry');
+  assert.equal(calls[1].options.method, 'POST');
+  vm.runInContext('_recurring[0].delete_needs_review = true;', context);
+  assert.match(context.list(), /review it before retrying deletion/);
+  assert.doesNotMatch(context.list(), /data-retry-delete-rec/);
+});
+
 test('recurring edit stays scoped to one eligible linked schedule', () => {
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const context = vm.createContext({

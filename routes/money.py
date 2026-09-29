@@ -59,6 +59,8 @@ def _legacy_ledger_mutation(method: str, path: str) -> bool:
             and not (method == "POST" and len(parts) == 3 and parts[2] == "repair")
             and not (method == "POST" and len(parts) == 3 and parts[2] == "edit")
             and not (method == "POST" and len(parts) == 4 and parts[2:] == ["edit", "retry"])
+            and not (method == "POST" and len(parts) == 3 and parts[2] == "delete")
+            and not (method == "POST" and len(parts) == 4 and parts[2:] == ["delete", "retry"])
             and not (method == "PATCH" and len(parts) == 2)
         )
         or (
@@ -1207,6 +1209,32 @@ def retry_recurring_edit(rid: str, db: DbSession = Depends(get_db)):
         raise HTTPException(409, "recurring edit retry requires the Actual ledger")
     try:
         return actual_finance.retry_recurring_edit(db, rid)
+    except actual_finance.ActualFinanceError as exc:
+        _actual_error(exc)
+
+
+class RecurringDeleteBody(BaseModel):
+    confirm_id: str
+
+
+@router.post("/recurring/{rid}/delete")
+def delete_canonical_recurring(
+    rid: str, body: RecurringDeleteBody, db: DbSession = Depends(get_db)
+):
+    if not actual_finance.is_canonical(db):
+        raise HTTPException(409, "recurring deletion requires the Actual ledger")
+    try:
+        return actual_finance.delete_recurring_schedule(db, rid, confirmed_id=body.confirm_id)
+    except actual_finance.ActualFinanceError as exc:
+        _actual_error(exc)
+
+
+@router.post("/recurring/{rid}/delete/retry")
+def retry_canonical_recurring_delete(rid: str, db: DbSession = Depends(get_db)):
+    if not actual_finance.is_canonical(db):
+        raise HTTPException(409, "recurring deletion retry requires the Actual ledger")
+    try:
+        return actual_finance.retry_recurring_delete(db, rid)
     except actual_finance.ActualFinanceError as exc:
         _actual_error(exc)
 

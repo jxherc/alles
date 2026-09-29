@@ -1,4 +1,4 @@
-"""Rendered guarded recurring edit and lost-response recovery with isolated data."""
+"""Rendered guarded recurring edit, deletion, and recovery with isolated data."""
 
 from __future__ import annotations
 
@@ -60,6 +60,9 @@ def run() -> None:
                 "fail_check_once": False,
                 "posts": [],
                 "retries": 0,
+                "deletes": [],
+                "delete_retries": 0,
+                "lose_delete_next": False,
                 "errors": [],
                 "current": {
                     "account_id": account_id,
@@ -94,18 +97,26 @@ def run() -> None:
                         )
                         return
                     current = state["current"]
-                    rows = [
-                        {
-                            "id": "linked-rent",
-                            **current,
-                            "category": "housing",
-                            "payee": "landlord",
-                            "amount_kind": "exact",
-                            "manageable": state["phase"] != "pending",
-                            "editable": state["phase"] == "ready",
-                            "edit_pending": state["phase"] in {"pending", "review"},
-                            "edit_needs_review": state["phase"] == "review",
-                        },
+                    rows = (
+                        [
+                            {
+                                "id": "linked-rent",
+                                **current,
+                                "category": "housing",
+                                "payee": "landlord",
+                                "amount_kind": "exact",
+                                "manageable": state["phase"] == "ready",
+                                "editable": state["phase"] == "ready",
+                                "edit_pending": state["phase"] in {"pending", "review"},
+                                "edit_needs_review": state["phase"] == "review",
+                                "delete_pending": state["phase"]
+                                in {"delete-pending", "delete-review"},
+                                "delete_needs_review": state["phase"] == "delete-review",
+                            },
+                        ]
+                        if state["phase"] != "deleted"
+                        else []
+                    ) + [
                         {
                             "id": "native-rent",
                             "payee": "native",
@@ -165,6 +176,25 @@ def run() -> None:
                 elif path == "/api/money/recurring/linked-rent/edit/retry":
                     state["retries"] += 1
                     state["phase"] = "ready"
+                    route.fulfill(status=200, content_type="application/json", body='{"ok":true}')
+                elif path == "/api/money/recurring/linked-rent/delete":
+                    state["deletes"].append(route.request.post_data_json)
+                    if state["lose_delete_next"]:
+                        state["phase"] = "delete-pending"
+                        state["lose_delete_next"] = False
+                        route.fulfill(
+                            status=503,
+                            content_type="application/json",
+                            body='{"detail":"response lost after Actual deleted the schedule"}',
+                        )
+                    else:
+                        state["phase"] = "deleted"
+                        route.fulfill(
+                            status=200, content_type="application/json", body='{"ok":true}'
+                        )
+                elif path == "/api/money/recurring/linked-rent/delete/retry":
+                    state["delete_retries"] += 1
+                    state["phase"] = "deleted"
                     route.fulfill(status=200, content_type="application/json", body='{"ok":true}')
                 elif path == "/api/money/summary":
                     summary = route.fetch().json()
@@ -279,6 +309,62 @@ def run() -> None:
             assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
             page.screenshot(
                 path=str(output / f"recurring-edit-{profile}-review.png"), full_page=True
+            )
+            state["phase"] = "ready"
+            page.reload(wait_until="networkidle")
+            delete = linked.get_by_role("button", name="delete landlord schedule")
+            expect(delete).to_be_visible()
+            expect(native.get_by_role("button", name="delete native schedule")).to_have_count(0)
+            assert delete.evaluate("element => element.getBoundingClientRect().height") >= 44
+            page.screenshot(
+                path=str(output / f"recurring-delete-{profile}-ready.png"), full_page=True
+            )
+            delete.focus()
+            page.keyboard.press("Enter")
+            dialog = page.get_by_role(
+                "alertdialog", name="delete the landlord schedule", exact=False
+            )
+            expect(dialog).to_be_visible()
+            expect(dialog.get_by_role("button", name="cancel")).to_be_focused()
+            page.screenshot(
+                path=str(output / f"recurring-delete-{profile}-confirm.png"), full_page=True
+            )
+            page.keyboard.press("Escape")
+            expect(dialog).to_have_count(0)
+            assert state["deletes"] == []
+            delete.click()
+            state["lose_delete_next"] = True
+            dialog.get_by_role("button", name="confirm").click()
+            retry_delete = linked.get_by_role("button", name="retry deletion")
+            expect(retry_delete).to_be_visible()
+            assert state["deletes"] == [{"confirm_id": "linked-rent"}]
+            expect(linked.get_by_role("button", name="delete landlord schedule")).to_have_count(0)
+            page.screenshot(
+                path=str(output / f"recurring-delete-{profile}-pending.png"), full_page=True
+            )
+            state["phase"] = "delete-review"
+            page.reload(wait_until="networkidle")
+            expect(
+                linked.get_by_text("review it before retrying deletion", exact=False)
+            ).to_be_visible()
+            expect(linked.get_by_role("button", name="retry deletion")).to_have_count(0)
+            page.evaluate("document.documentElement.style.zoom = '2'")
+            assert card.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
+            page.screenshot(
+                path=str(output / f"recurring-delete-{profile}-review.png"), full_page=True
+            )
+            linked.screenshot(path=str(output / f"recurring-delete-{profile}-review-row.png"))
+            state["phase"] = "delete-pending"
+            page.reload(wait_until="networkidle")
+            retry_delete = linked.get_by_role("button", name="retry deletion")
+            retry_delete.focus()
+            page.keyboard.press("Enter")
+            expect(linked).to_have_count(0)
+            expect(native).to_be_visible()
+            assert state["delete_retries"] == 1
+            assert len(state["deletes"]) == 1
+            page.screenshot(
+                path=str(output / f"recurring-delete-{profile}-gone.png"), full_page=True
             )
             expected = "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
             assert all(error == expected for error in state["errors"]), state["errors"]

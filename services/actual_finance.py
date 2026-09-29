@@ -1251,6 +1251,94 @@ def _recurring_edit_state(row: dict, details: dict, actual: dict) -> bool:
     )
 
 
+def _recurring_delete_intent(link: ActualEntityLink, metadata: dict) -> dict:
+    pending = metadata.get("_delete_intent")
+    before = pending.get("before") if isinstance(pending, dict) else None
+    display = pending.get("display") if isinstance(pending, dict) else None
+    overlay = metadata.get("canonical_schedule")
+    if (
+        not isinstance(pending, dict)
+        or pending.get("version") != 1
+        or pending.get("action") != "delete_recurring_schedule"
+        or pending.get("actual_id") != link.actual_id
+        or not isinstance(pending.get("backup_id"), str)
+        or not pending["backup_id"]
+        or not isinstance(overlay, dict)
+        or overlay.get("version") not in {1, 2, 3}
+        or metadata.get("_intent") is not None
+        or metadata.get("_update_intent") is not None
+        or not isinstance(before, dict)
+        or set(before)
+        != {
+            "name",
+            "rule",
+            "account",
+            "payee",
+            "amount",
+            "amountOp",
+            "date",
+            "category_id",
+            "notes",
+            "posts_transaction",
+        }
+        or not all(
+            isinstance(before[key], str)
+            for key in ("name", "rule", "account", "payee", "amountOp", "category_id", "notes")
+        )
+        or not all(before[key] for key in ("name", "rule", "account", "payee"))
+        or type(before["amount"]) is not int
+        or before["amountOp"] != "is"
+        or not isinstance(before["date"], dict)
+        or type(before["posts_transaction"]) is not bool
+        or before["category_id"] != overlay.get("category_id")
+        or before["notes"] != overlay.get("notes")
+        or before["posts_transaction"] != overlay.get("posts_transaction")
+        or not isinstance(display, dict)
+        or display.get("id") != link.source_id
+        or not isinstance(display.get("payee"), str)
+        or not isinstance(display.get("next_date"), str)
+        or pending.get("fingerprint")
+        != _request_fingerprint(
+            "delete_recurring_schedule",
+            {
+                "source_id": link.source_id,
+                "actual_id": link.actual_id,
+                "before": before,
+                "display": display,
+            },
+        )
+    ):
+        raise ActualFinanceError("the recurring deletion checkpoint is invalid")
+    return pending
+
+
+def _recurring_delete_state(row: dict, before: dict) -> bool:
+    from services import actual_migration
+
+    posting = row.get("posting") or {}
+    return bool(
+        not row.get("completed")
+        and all(
+            row.get(key) == before[key]
+            for key in ("name", "rule", "account", "payee", "amount", "amountOp")
+        )
+        and isinstance(row.get("date"), dict)
+        and row["date"].get("endMode", "never") == "never"
+        and not row["date"].get("skipWeekend")
+        and actual_migration._normalized_schedule_date(row["date"])
+        == actual_migration._normalized_schedule_date(before["date"])
+        and posting.get("guarded") is True
+        and str(posting.get("category") or "") == before["category_id"]
+        and str(posting.get("notes") or "") == before["notes"]
+        and type(row.get("posts_transaction")) is bool
+        and (
+            row["posts_transaction"] is before["posts_transaction"]
+            or before["posts_transaction"] is True
+            and row["posts_transaction"] is False
+        )
+    )
+
+
 @authority_guarded
 def recurring_schedules(
     db: Session,
@@ -1272,6 +1360,11 @@ def recurring_schedules(
         if isinstance(source, dict) and isinstance(source.get("name"), str):
             pending_markers.add(source["name"])
     subscription_ids = {link.actual_id for link in _links(db, "subscription")}
+    deleted_recurring_ids = {
+        _deletion_target(_link_metadata(link))
+        for link in recurring_links
+        if _link_metadata(link).get("_deleted")
+    }
     payee_names = {row.get("id"): row.get("name") for row in actual.get("payees") or []}
     category_names = {
         str(row.get("id")): str(row.get("name") or "")
@@ -1292,6 +1385,10 @@ def recurring_schedules(
         actual_id = str(row.get("id") or "")
         if not actual_id or actual_id in seen:
             raise ActualFinanceError("the Actual schedule identity is missing or duplicated")
+        if actual_id in deleted_recurring_ids:
+            raise ActualFinanceError(
+                "a deleted recurring schedule returned in Actual; review it first"
+            )
         seen.add(actual_id)
         if row.get("name") in pending_markers:
             continue
@@ -1306,6 +1403,30 @@ def recurring_schedules(
         repair_pending = pending_action == "repair_recurring_schedule"
         posting_pending = pending_action == "set_recurring_posting"
         edit_pending = pending_action == "edit_recurring_schedule"
+        delete_pending = metadata.get("_delete_intent") is not None
+        delete_intent = None
+        if delete_pending:
+            link = next((item for item in recurring_links if item.actual_id == actual_id), None)
+            if link is None:
+                raise ActualFinanceError("the recurring deletion link is missing")
+            delete_intent = _recurring_delete_intent(link, metadata)
+            rows.append(
+                {
+                    **delete_intent["display"],
+                    "active": row.get("posts_transaction"),
+                    "manageable": False,
+                    "editable": False,
+                    "repair_needed": False,
+                    "repair_pending": False,
+                    "posting_pending": False,
+                    "edit_pending": False,
+                    "delete_pending": True,
+                    "delete_needs_review": not _recurring_delete_state(
+                        row, delete_intent["before"]
+                    ),
+                }
+            )
+            continue
         edit_details = None
         if edit_pending:
             link = next((item for item in recurring_links if item.actual_id == actual_id), None)
@@ -1511,9 +1632,31 @@ def recurring_schedules(
                 "edit_pending": edit_pending,
                 "edit_needs_review": edit_pending
                 and not _recurring_edit_state(row, edit_details, actual),
+                "delete_pending": False,
+                "delete_needs_review": False,
             }
         )
     for actual_id, metadata in recurring_metadata.items():
+        if metadata.get("_delete_intent") and actual_id not in seen:
+            link = next((item for item in recurring_links if item.actual_id == actual_id), None)
+            if link is None:
+                raise ActualFinanceError("the recurring deletion link is missing")
+            pending = _recurring_delete_intent(link, metadata)
+            rows.append(
+                {
+                    **pending["display"],
+                    "active": None,
+                    "manageable": False,
+                    "editable": False,
+                    "repair_needed": False,
+                    "repair_pending": False,
+                    "posting_pending": False,
+                    "edit_pending": False,
+                    "delete_pending": True,
+                    "delete_needs_review": False,
+                }
+            )
+            continue
         if metadata.get("_update_intent") and actual_id not in seen:
             pending = metadata["_update_intent"]
             if not isinstance(pending, dict) or pending.get("action") != "edit_recurring_schedule":
@@ -2197,6 +2340,162 @@ def retry_recurring_edit(db: Session, source_id: str, *, bridge_request=None) ->
         raise ActualFinanceError("the recurring edit intent was not found")
     _recurring_edit_intent(links[0], _link_metadata(links[0]))
     return _continue_recurring_edit(db, links[0], bridge_request=bridge_request)
+
+
+def _continue_recurring_delete(db: Session, link: ActualEntityLink, *, bridge_request=None) -> dict:
+    metadata = _link_metadata(link)
+    pending = _recurring_delete_intent(link, metadata)
+    capabilities = _request(db, {"command": "capabilities"}, bridge_request=bridge_request)
+    if not isinstance(capabilities, dict) or capabilities.get("delete_recurring_schedule") != 1:
+        raise ActualFinanceError("update managed Actual before deleting recurring schedules")
+    current = inspect(db, bridge_request=bridge_request)
+    matches = [row for row in current.get("schedules") or [] if row.get("id") == link.actual_id]
+    if len(matches) > 1 or matches and not _recurring_delete_state(matches[0], pending["before"]):
+        raise ActualFinanceError(
+            "the pending recurring deletion needs provider review before retry"
+        )
+    result = _request(
+        db,
+        {
+            "command": "write",
+            "action": "delete_recurring_schedule",
+            "actual_id": link.actual_id,
+            "before": pending["before"],
+        },
+        bridge_request=bridge_request,
+    )
+    if (
+        not isinstance(result, dict)
+        or result.get("id") != link.actual_id
+        or result.get("deleted") is not True
+    ):
+        raise ActualFinanceError("Actual recurring deletion did not confirm its identity")
+    confirmed = inspect(db, bridge_request=bridge_request)
+    if any(row.get("id") == link.actual_id for row in confirmed.get("schedules") or []):
+        raise ActualFinanceError("Actual recurring deletion could not be read back")
+    actual_id = link.actual_id
+    backup_id = pending["backup_id"]
+    _finish_link_deletion(link, actual_id)
+    final = _link_metadata(link)
+    final["_deleted"]["backup_id"] = backup_id
+    link.metadata_json = json.dumps(final, sort_keys=True, separators=(",", ":"))
+    db.commit()
+    return {"ok": True}
+
+
+@authority_guarded
+def delete_recurring_schedule(
+    db: Session,
+    source_id: str,
+    *,
+    confirmed_id: str,
+    bridge_request=None,
+    backup_fn=managed_actual.backup,
+) -> dict:
+    """Remove one linked guarded Actual schedule after a durable backup checkpoint."""
+    from services import actual_migration
+
+    if confirmed_id != source_id:
+        raise ActualFinanceError("confirm the exact recurring schedule before deleting it")
+    links = [row for row in _links(db, "recurring") if row.source_id == source_id]
+    if len(links) != 1:
+        raise ActualFinanceError("only a linked Alles schedule can be deleted in Finance")
+    link = links[0]
+    metadata = _link_metadata(link)
+    if metadata.get("_deleted"):
+        return {"ok": True}
+    if metadata.get("_delete_intent"):
+        return _continue_recurring_delete(db, link, bridge_request=bridge_request)
+    if not link.actual_id or metadata.get("_intent") or metadata.get("_update_intent"):
+        raise ActualFinanceError("finish the pending recurring write before deleting it")
+    overlay = metadata.get("canonical_schedule")
+    if not isinstance(overlay, dict) or overlay.get("version") not in {1, 2, 3}:
+        raise ActualFinanceError("repair this old schedule before deleting it")
+    capabilities = _request(db, {"command": "capabilities"}, bridge_request=bridge_request)
+    if not isinstance(capabilities, dict) or capabilities.get("delete_recurring_schedule") != 1:
+        raise ActualFinanceError("update managed Actual before deleting recurring schedules")
+    actual = inspect(db, bridge_request=bridge_request)
+    try:
+        actual_migration.schedule_repair_baseline(
+            db, link, actual, allow_overlay=overlay.get("version") == 1
+        )
+    except actual_migration.ActualMigrationError as exc:
+        raise ActualFinanceError(str(exc)) from exc
+    rows = [row for row in recurring_schedules(db, actual=actual) if row["id"] == source_id]
+    schedules = [row for row in actual.get("schedules") or [] if row.get("id") == link.actual_id]
+    if len(rows) != 1 or not rows[0]["editable"] or len(schedules) != 1:
+        raise ActualFinanceError("the linked recurring schedule needs review before deletion")
+    schedule = schedules[0]
+    posting = schedule.get("posting") or {}
+    before = {
+        key: schedule.get(key) for key in ("name", "rule", "account", "payee", "amount", "amountOp")
+    }
+    before.update(
+        {
+            "date": schedule.get("date"),
+            "category_id": str(posting.get("category") or ""),
+            "notes": str(posting.get("notes") or ""),
+            "posts_transaction": schedule.get("posts_transaction"),
+        }
+    )
+    if not _recurring_delete_state(schedule, before):
+        raise ActualFinanceError("the linked recurring schedule needs review before deletion")
+    display = {
+        key: rows[0][key]
+        for key in (
+            "id",
+            "account_id",
+            "amount",
+            "amount_kind",
+            "category",
+            "payee",
+            "notes",
+            "cycle",
+            "cycle_days",
+            "next_date",
+            "last_posted",
+        )
+    }
+    try:
+        backup = backup_fn()
+    except managed_actual.ManagedActualError as exc:
+        raise ActualFinanceUnavailable(str(exc)) from exc
+    backup_id = str(backup.get("backup_id") or "") if isinstance(backup, dict) else ""
+    if not isinstance(backup, dict) or backup.get("ok") is not True or not backup_id:
+        raise ActualFinanceError("recurring deletion needs a verified Actual backup")
+    metadata["_delete_intent"] = {
+        "version": 1,
+        "action": "delete_recurring_schedule",
+        "actual_id": link.actual_id,
+        "backup_id": backup_id,
+        "before": before,
+        "display": display,
+        "fingerprint": _request_fingerprint(
+            "delete_recurring_schedule",
+            {
+                "source_id": source_id,
+                "actual_id": link.actual_id,
+                "before": before,
+                "display": display,
+            },
+        ),
+    }
+    link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+    db.commit()
+    return _continue_recurring_delete(db, link, bridge_request=bridge_request)
+
+
+@authority_guarded
+def retry_recurring_delete(db: Session, source_id: str, *, bridge_request=None) -> dict:
+    links = [row for row in _links(db, "recurring") if row.source_id == source_id]
+    if len(links) != 1:
+        raise ActualFinanceError("recurring deletion intent was not found")
+    metadata = _link_metadata(links[0])
+    if metadata.get("_deleted"):
+        return {"ok": True}
+    if not metadata.get("_delete_intent"):
+        raise ActualFinanceError("recurring deletion intent was not found")
+    return _continue_recurring_delete(db, links[0], bridge_request=bridge_request)
 
 
 @authority_guarded
