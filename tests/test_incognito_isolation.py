@@ -18,7 +18,9 @@ class IncognitoIsolationTest(ApiTest):
         super().setUp()
         incognito.clear_for_tests()
         self._uploads = tempfile.TemporaryDirectory()
-        self._upload_patch = mock.patch("routes.uploads.UPLOAD_DIR", Path(self._uploads.name))
+        self._upload_patch = mock.patch(
+            "services.upload_files.UPLOAD_DIR", Path(self._uploads.name)
+        )
         self._upload_patch.start()
 
     def tearDown(self):

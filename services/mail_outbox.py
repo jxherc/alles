@@ -15,7 +15,7 @@ def _inline_from_html(html):
 
     def get_bytes(uid):
         from core.database import SessionLocal, Upload
-        from routes.uploads import upload_dir
+        from services.upload_files import upload_dir
 
         db = SessionLocal()
         try:
