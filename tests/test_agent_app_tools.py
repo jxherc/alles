@@ -3,6 +3,7 @@ each tool is exercised through services.agent_tools.execute() against the in-mem
 db, then verified via the real api so we know it actually persisted."""
 
 import asyncio
+from datetime import date
 from unittest import mock
 
 import services.agent_tools as at
@@ -182,6 +183,38 @@ class AgentAppToolsTests(ApiTest):
         self.assertFalse(r.get("error"), r)
         lst = self.ex("habits_list", {})
         self.assertIn("Read", lst["output"])
+
+    def test_habit_log_recognizes_api_log_in_compact_date_form(self):
+        from core.database import HabitLog
+
+        habit = self.client.post("/api/habits", json={"name": "Read"}).json()
+        compact = date.today().strftime("%Y%m%d")
+        self.client.post(f"/api/habits/{habit['id']}/toggle", json={"date": compact})
+        result = self.ex("habit_log", {"name": "Read"})
+        self.assertIn("already marked done today", result["output"])
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).filter_by(habit_id=habit["id"]).count(), 1)
+
+    def test_habit_log_does_not_duplicate_existing_compact_row(self):
+        from core.database import HabitLog
+
+        habit = self.client.post("/api/habits", json={"name": "Read"}).json()
+        with self.db() as db:
+            db.add(HabitLog(habit_id=habit["id"], date=date.today().strftime("%Y%m%d")))
+            db.commit()
+        result = self.ex("habit_log", {"name": "Read"})
+        self.assertIn("already marked done today", result["output"])
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).filter_by(habit_id=habit["id"]).count(), 1)
+
+    def test_habits_list_shows_existing_compact_log_as_done(self):
+        from core.database import HabitLog
+
+        habit = self.client.post("/api/habits", json={"name": "Read"}).json()
+        with self.db() as db:
+            db.add(HabitLog(habit_id=habit["id"], date=date.today().strftime("%Y%m%d")))
+            db.commit()
+        self.assertIn("[x] Read", self.ex("habits_list")["output"])
 
     def test_habit_log_unknown_name_errors(self):
         r = self.ex("habit_log", {"name": "does-not-exist"})
