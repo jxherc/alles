@@ -3,7 +3,7 @@
 import { api, toast } from './util.js';
 import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, getDropdownValue } from './dropdown.js?v=212';
-import { initDatePicker } from './datepick.js';
+import { initDatePicker, calendarDateParts } from './datepick.js';
 import { formatCalendarDate, formatDate, formatNumber } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=1';
 import { requestWithRecentOwner } from './recent_owner.js';
@@ -33,6 +33,7 @@ let _month = _monthFromUrl() || _thisMonth();
 let _accounts = [], _txns = [], _budgets = [], _sum = null, _recurring = [], _rules = [];
 let _recurringError = false, _canonicalLedger = false;
 let _recurringStatus = '';
+let _recurringEdit = null;
 let _envelope = null, _aom = null;   // YNAB envelope view + age of money (4b)
 const _envAssignmentBusy = new Set();
 const _targetDrafts = new Map();
@@ -296,6 +297,7 @@ async function load(fetcher = fetch) {
     ]);
     _goals = (await request('/api/money/goals').catch(() => null))?.goals || [];
     _canonicalLedger = _sum?.ledger === 'actual';
+    if (_recurringEdit && !_recurring.some(row => row.id === _recurringEdit.id && row.editable)) _recurringEdit = null;
     _cur = _sum?.currency || (_accounts[0]?.currency) || '$';
   } catch { $('money-body').innerHTML = '<div class="money-empty">failed to load</div>'; return; }
   render();
@@ -316,6 +318,7 @@ async function readRecurring(request) {
 // ── render ────────────────────────────────────────────────────────────────────
 function render() {
   const b = $('money-body'); if (!b) return;
+  _snapshotRecurringEdit();
   if (!_accounts.length) {
     b.innerHTML = `<div class="money-empty">
       <div class="money-empty-title">no accounts yet</div>
@@ -650,19 +653,54 @@ function _ruleForm() {
 
 const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', custom: '·custom', actual: '·Actual' };
 
+function _recurringChoiceLabel(options, value, empty = '') {
+  if (!value) return empty;
+  const row = options.find(option => option.id === value);
+  if (!row) return 'unavailable';
+  return options.filter(option => option.name === row.name).length > 1
+    ? `${row.name} (${row.id.slice(-6)})` : row.name;
+}
+
+function _recurringEditForm(r) {
+  const edit = _recurringEdit;
+  if (!edit || edit.id !== r.id || !r.editable) return '';
+  if (edit.loading) return '<div class="recur-edit-state" role="status">loading edit choices…</div>';
+  if (!edit.options) return `<div class="recur-edit-state" role="alert">${esc(edit.status)} <button type="button" class="btn" data-retry-open-rec="${esc(r.id)}">retry</button></div>`;
+  const draft = edit.draft;
+  const options = edit.options;
+  const choice = (field, label, list, empty = '') => `<div class="recur-field"><span id="rce-${field}-label">${label}</span><button type="button" class="btn recur-edit-choice" data-rec-choice="${field}" data-choice-id="${esc(draft[field])}" aria-labelledby="rce-${field}-label rce-${field}-choice" id="rce-${field}-choice">${esc(_recurringChoiceLabel(list, draft[field], empty))}</button></div>`;
+  return `<div class="recur-edit" id="rce-panel" role="group" tabindex="-1" aria-busy="${edit.saving}" aria-label="edit ${esc(r.payee || 'recurring')} schedule">
+    <div class="recur-form recur-form-canonical recur-edit-fields" ${edit.saving ? 'inert' : ''}>
+      ${choice('account_id', 'account', options.accounts)}
+      ${choice('payee_id', 'payee', options.payees)}
+      ${choice('category_id', 'category', options.categories, 'no category')}
+      <div class="recur-field"><span id="rce-sign-label">type</span><div class="settings-input custom-select" id="rce-sign" aria-labelledby="rce-sign-label" data-value="${draft.sign}" data-options="-|expense;+|income"></div></div>
+      <label class="recur-field" for="rce-amount"><span>amount</span><input type="text" class="settings-input" id="rce-amount" value="${esc(draft.amountText)}" inputmode="decimal"></label>
+      <div class="recur-field"><span id="rce-cycle-label">repeat</span><div class="settings-input custom-select" id="rce-cycle" aria-labelledby="rce-cycle-label" data-value="${esc(draft.cycle)}" data-options="daily|daily;weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly;custom|every n days"></div></div>
+      <label class="recur-field" for="rce-days" ${draft.cycle === 'custom' ? '' : 'hidden'}><span>days between</span><input type="text" class="settings-input" id="rce-days" value="${esc(draft.cycle_days)}" inputmode="numeric"></label>
+      <div class="recur-field"><span id="rce-date-label">next date</span><div class="date-input" id="rce-date" aria-labelledby="rce-date-label" data-type="date" data-value="${esc(draft.next_date)}" data-ph="next date"></div></div>
+      <label class="recur-edit-active" for="rce-active"><span>auto-post</span><button type="button" id="rce-active" class="s-switch ${draft.active ? 'on' : ''}" role="switch" aria-checked="${draft.active}" aria-label="auto-post" ${edit.saving ? 'disabled' : ''}></button></label>
+      <label class="recur-field recur-edit-notes" for="rce-notes"><span>notes</span><input type="text" class="settings-input" id="rce-notes" value="${esc(draft.notes)}"></label>
+    </div>
+    <div class="recur-edit-actions"><button type="button" class="btn primary" id="rce-save" ${edit.saving || edit.blocked ? 'disabled' : ''}>${edit.saving ? 'saving…' : 'save changes'}</button><button type="button" class="btn" id="rce-cancel" ${edit.saving ? 'disabled' : ''}>cancel</button>${edit.blocked ? '<button type="button" class="btn" id="rce-check">check schedule</button>' : ''}</div>
+    ${edit.status ? `<p class="money-recurring-error" role="alert">${esc(edit.status)}</p>` : ''}
+  </div>`;
+}
+
 function recurringList() {
   if (_recurringError) return '<div class="money-empty-sm money-history-error" role="status">couldn\'t load schedules <button type="button" class="btn" id="recurring-retry">retry</button></div>';
   const status = _recurringStatus ? `<p class="money-recurring-error" role="status">${esc(_recurringStatus)}</p>` : '';
   if (!_recurring.length) return status + `<div class="money-empty-sm">${_canonicalLedger ? 'no auto-post schedules in Actual' : 'nothing recurring: add rent, salary, a loan…'}</div>`;
   return `${status}<div class="recurs">` + _recurring.map(r => `
-    <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending || r.create_pending || r.edit_pending ? '' : 'paused'}">
+    <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending || r.create_pending || r.edit_pending || (_canonicalLedger && r.editable) ? '' : 'paused'}">
       <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
       <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? 'range' : 'varies') : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount)}`}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
       <span class="rc-next" title="${r.create_pending ? 'creation pending' : r.edit_pending ? 'edit pending' : r.next_date ? `next post ${esc(r.next_date)}` : 'next date unavailable'}">${r.create_pending || r.edit_pending ? 'pending' : r.active ? (r.next_date ? esc(r.next_date.slice(5)) : 'unknown') : (_canonicalLedger ? 'inactive' : 'paused')}</span>
-      ${_canonicalLedger && r.manageable && !r.edit_pending ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? `retry ${r.posting_target_active ? 'resume' : 'pause'}` : r.active ? 'pause' : 'resume'}</button>` : ''}
+      ${_canonicalLedger && r.manageable && !r.edit_pending && _recurringEdit?.id !== r.id ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? `retry ${r.posting_target_active ? 'resume' : 'pause'}` : r.active ? 'pause' : 'resume'}</button>` : ''}
+      ${_canonicalLedger && r.editable ? `<button type="button" class="btn rc-edit" data-edit-rec="${esc(r.id)}" aria-label="edit ${esc(r.payee || 'recurring')} schedule" aria-expanded="${_recurringEdit?.id === r.id}" ${_recurringEdit?.id === r.id && _recurringEdit.options ? 'aria-controls="rce-panel"' : ''} ${_recurringEdit && (_recurringEdit.id !== r.id || _recurringEdit.saving) ? 'disabled' : ''}>edit</button>` : ''}
       ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
       <button class="tx-del" data-del-rec="${esc(r.id)}" title="delete">×</button>`}
-    </div>${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? 'creation marker missing in Actual. review the schedule there before trying again.' : 'creation not confirmed. retry the saved schedule; this will not start another one.'}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">retry creation</button>`}</div>` : ''}${_canonicalLedger && r.edit_pending ? `<div class="recur-repair" role="status"><span>${r.edit_needs_review ? "couldn't match this edit in Actual. review the schedule there before retrying." : 'edit not confirmed; Actual may be paused. retry the saved edit.'}</span>${r.edit_needs_review ? '' : `<button type="button" class="btn" data-retry-edit-rec="${esc(r.id)}">retry edit</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? 'resume' : 'pause'} not confirmed; Actual may have changed. retry the saved action.</span></div>` : ''}</div>`).join('') + `</div>`;
+    </div>${_recurringEditForm(r)}${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? 'creation marker missing in Actual. review the schedule there before trying again.' : 'creation not confirmed. retry the saved schedule; this will not start another one.'}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">retry creation</button>`}</div>` : ''}${_canonicalLedger && r.edit_pending ? `<div class="recur-repair" role="status"><span>${r.edit_needs_review ? "couldn't match this edit in Actual. review the schedule there before retrying." : 'edit not confirmed; Actual may be paused. retry the saved edit.'}</span>${r.edit_needs_review ? '' : `<button type="button" class="btn" data-retry-edit-rec="${esc(r.id)}">retry edit</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? 'resume' : 'pause'} not confirmed; Actual may have changed. retry the saved action.</span></div>` : ''}</div>`).join('') + `</div>`;
 }
 
 function _recurringForm() {
@@ -682,7 +720,7 @@ function _recurringForm() {
     <div class="recur-field"><span id="rc-next-label">first date</span><div class="date-input" id="rc-next" aria-labelledby="rc-next-label" data-type="date" data-value="${_today()}" data-ph="first date"></div></div>
     <div class="recur-field"><span id="rc-acct-label">account</span><div class="settings-input custom-select" id="rc-acct" aria-labelledby="rc-acct-label" data-value="${esc(first)}" data-options="${esc(acctOpts)}"></div></div>
     <button type="button" class="btn primary" id="rc-add">add schedule</button>
-  </div><p class="money-recurring-note">new schedules post in Actual. edit and delete stay in Actual for now.</p>`;
+  </div><p class="money-recurring-note">new schedules post in Actual. linked guarded schedules can be edited here; deletion stays in Actual.</p>`;
   return `<div class="recur-form">
     <input type="text" id="rc-payee" class="settings-input" placeholder="payee (e.g. rent)" style="flex:1.3;min-width:100px">
     <input type="text" id="rc-cat" class="settings-input" placeholder="category" style="flex:1;min-width:80px">
@@ -902,11 +940,180 @@ function wireRecurring() {
 
 function wireRecurringList() {
   $('recurring-retry')?.addEventListener('click', () => retryRecurring());
+  document.querySelectorAll('#recurring-list [data-edit-rec]').forEach(b => b.addEventListener('click', () => openRecurringEdit(b.dataset.editRec)));
+  document.querySelectorAll('#recurring-list [data-retry-open-rec]').forEach(b => b.addEventListener('click', () => openRecurringEdit(b.dataset.retryOpenRec, true)));
   document.querySelectorAll('#recurring-content [data-retry-create-rec]').forEach(b => b.addEventListener('click', () => retryRecurringCreate(b)));
   document.querySelectorAll('#recurring-content [data-retry-edit-rec]').forEach(b => b.addEventListener('click', () => retryRecurringEdit(b)));
   document.querySelectorAll('#recurring-content [data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
   document.querySelectorAll('#recurring-content [data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b)));
   document.querySelectorAll('#recurring-content [data-repair-rec]').forEach(b => b.addEventListener('click', () => repairRecurring(b)));
+  const editor = document.querySelector?.('#recurring-list .recur-edit');
+  if (!editor) return;
+  editor.querySelectorAll('.custom-select').forEach(initCustomDropdown);
+  editor.querySelectorAll('.date-input').forEach(initDatePicker);
+  $('rce-cycle')?.addEventListener('change', () => {
+    _snapshotRecurringEdit();
+    const days = $('rce-days')?.closest('.recur-field');
+    if (days) days.hidden = getDropdownValue($('rce-cycle')) !== 'custom';
+    if (days && !days.hidden) $('rce-days')?.focus();
+  });
+  $('rce-active')?.addEventListener('click', event => {
+    if (_recurringEdit?.saving) return;
+    const button = event.currentTarget;
+    const active = button.getAttribute('aria-checked') !== 'true';
+    button.setAttribute('aria-checked', String(active));
+    button.classList.toggle('on', active);
+    _snapshotRecurringEdit();
+  });
+  editor.querySelectorAll('[data-rec-choice]').forEach(b => b.addEventListener('click', () => chooseRecurringEditValue(b)));
+  $('rce-save')?.addEventListener('click', saveRecurringEdit);
+  $('rce-cancel')?.addEventListener('click', cancelRecurringEdit);
+  $('rce-check')?.addEventListener('click', checkRecurringEdit);
+  editor.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || event.target.closest('.custom-select, .date-input')) return;
+    event.preventDefault();
+    cancelRecurringEdit();
+  });
+}
+
+function _snapshotRecurringEdit() {
+  const draft = _recurringEdit?.draft;
+  if (!draft || !$('rce-amount')) return;
+  for (const field of ['account_id', 'payee_id', 'category_id']) {
+    draft[field] = $(`rce-${field}-choice`)?.dataset.choiceId ?? draft[field];
+  }
+  draft.amountText = $('rce-amount').value;
+  draft.sign = getDropdownValue($('rce-sign'));
+  draft.cycle = getDropdownValue($('rce-cycle'));
+  draft.cycle_days = $('rce-days')?.value ?? draft.cycle_days;
+  draft.next_date = $('rce-date')?.dataset.value || '';
+  draft.active = $('rce-active')?.getAttribute('aria-checked') === 'true';
+  draft.notes = $('rce-notes')?.value ?? draft.notes;
+}
+
+function _drawRecurringEdit(focus = '') {
+  _snapshotRecurringEdit();
+  const list = $('recurring-list');
+  if (!list) return;
+  list.innerHTML = recurringList();
+  wireRecurringList();
+  const target = focus ? list.querySelector(focus) : null;
+  (target || (_recurringEdit && list.querySelector(`[data-edit-rec="${CSS.escape(_recurringEdit.id)}"]`)) || document.querySelector('.money-card[data-card="recurring"] h3'))?.focus();
+}
+
+async function openRecurringEdit(id, retry = false) {
+  const row = _recurring.find(item => item.id === id);
+  if (!_canonicalLedger || !row?.editable) return;
+  if (_recurringEdit?.id === id && !retry) { cancelRecurringEdit(); return; }
+  _recurringEdit = { id, loading: true, options: null, draft: null, status: '', saving: false, blocked: false };
+  const edit = _recurringEdit;
+  _drawRecurringEdit();
+  try {
+    const options = await api(`/api/money/recurring/${encodeURIComponent(id)}/edit-options`);
+    if (_recurringEdit !== edit) return;
+    if (!options?.current || !Array.isArray(options.accounts) || !Array.isArray(options.payees) || !Array.isArray(options.categories)) throw new Error('invalid edit choices');
+    const current = options.current;
+    _recurringEdit.options = options;
+    _recurringEdit.draft = { ...current, sign: current.amount < 0 ? '-' : '+', amountText: String(Math.abs(current.amount)) };
+    _recurringEdit.loading = false;
+    _drawRecurringEdit('#rce-account_id-choice');
+  } catch (error) {
+    if (_recurringEdit !== edit) return;
+    _recurringEdit.loading = false;
+    _recurringEdit.status = `couldn't load edit choices: ${error.message || 'try again'}`;
+    _drawRecurringEdit('[data-retry-open-rec]');
+  }
+}
+
+function cancelRecurringEdit() {
+  if (!_recurringEdit || _recurringEdit.saving) return;
+  const id = _recurringEdit.id;
+  _recurringEdit = null;
+  _drawRecurringEdit(`[data-edit-rec="${CSS.escape(id)}"]`);
+}
+
+async function chooseRecurringEditValue(button) {
+  const edit = _recurringEdit;
+  if (!edit?.options || edit.saving) return;
+  _snapshotRecurringEdit();
+  const field = button.dataset.recChoice;
+  const list = { account_id: edit.options.accounts, payee_id: edit.options.payees, category_id: edit.options.categories }[field];
+  if (!list) return;
+  const options = [
+    ...(field === 'category_id' ? [{ value: '', label: 'no category' }] : []),
+    ...list.map(row => ({ value: row.id, label: _recurringChoiceLabel(list, row.id) })),
+  ];
+  const picked = await dlgChoose(`choose ${field === 'category_id' ? 'category' : field === 'payee_id' ? 'payee' : 'account'}`, options);
+  if (picked === null || _recurringEdit !== edit) return;
+  edit.draft[field] = picked;
+  button.dataset.choiceId = picked;
+  button.textContent = options.find(option => option.value === picked)?.label || 'no category';
+  button.focus();
+}
+
+async function checkRecurringEdit() {
+  const edit = _recurringEdit;
+  if (!edit) return;
+  try {
+    const rows = await api('/api/money/recurring');
+    if (!Array.isArray(rows)) throw new Error('invalid schedule list');
+    if (_recurringEdit !== edit) return;
+    _recurring = rows;
+    _recurringError = false;
+    const row = rows.find(item => item.id === edit.id);
+    if (row?.edit_pending || !row?.editable) {
+      _recurringEdit = null;
+      _drawRecurringEdit(row?.edit_pending && !row.edit_needs_review ? `[data-retry-edit-rec="${CSS.escape(edit.id)}"]` : '');
+    } else {
+      edit.blocked = false;
+      edit.status = 'no pending edit found. check the values before saving again.';
+      _drawRecurringEdit('#rce-save');
+    }
+  } catch {
+    if (_recurringEdit !== edit) return;
+    edit.blocked = true;
+    edit.status = "couldn't check the schedule. don't save again until a check succeeds.";
+    _drawRecurringEdit('#rce-check');
+  }
+}
+
+async function saveRecurringEdit() {
+  const edit = _recurringEdit;
+  if (!edit?.draft || edit.saving || edit.blocked) return;
+  _snapshotRecurringEdit();
+  const draft = edit.draft;
+  const raw = draft.amountText.trim();
+  const amount = _decimal(raw);
+  if (!/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(raw) || !_validAmounts(amount)) {
+    toast('enter an amount with at most two decimal places', 'error'); return;
+  }
+  if (!calendarDateParts(draft.next_date)) { toast('choose a valid next date', 'error'); return; }
+  const customDays = String(draft.cycle_days).trim();
+  const days = draft.cycle === 'custom'
+    ? (/^\d+$/.test(customDays) ? Number(customDays) : NaN)
+    : ({ daily: 1, weekly: 7, monthly: 30, quarterly: 91, yearly: 365 })[draft.cycle];
+  if (!Number.isSafeInteger(days) || days < 1) { toast('enter a valid number of days', 'error'); return; }
+  const payload = {
+    account_id: draft.account_id, payee_id: draft.payee_id,
+    amount: (draft.sign === '+' ? 1 : -1) * amount,
+    category_id: draft.category_id, notes: draft.notes,
+    cycle: draft.cycle, cycle_days: days, next_date: draft.next_date, active: draft.active,
+  };
+  edit.saving = true;
+  edit.status = '';
+  _drawRecurringEdit('#rce-panel');
+  try {
+    await api(`/api/money/recurring/${encodeURIComponent(edit.id)}/edit`, { method: 'POST', body: payload });
+    if (_recurringEdit !== edit) return;
+    _recurringEdit = null;
+    _recurringStatus = '';
+    await retryRecurring(edit.id);
+  } catch (error) {
+    if (_recurringEdit !== edit) return;
+    edit.saving = false;
+    edit.status = `edit not confirmed: ${error.message || 'check the schedule'}`;
+    await checkRecurringEdit();
+  }
 }
 
 // wire the txn row buttons within a root (the whole #txn-rows list); called on full

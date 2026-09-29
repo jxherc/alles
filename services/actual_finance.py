@@ -1494,6 +1494,16 @@ def recurring_schedules(
                 "repair_pending": repair_pending,
                 "repair_category_id": pending["category_id"] if repair_pending else "",
                 "manageable": managed_rule and not repair_pending,
+                "editable": bool(
+                    managed_rule
+                    and isinstance(overlay, dict)
+                    and overlay.get("version") in {1, 2, 3}
+                    and not (repair_pending or posting_pending or edit_pending)
+                    and amount_kind == "exact"
+                    and cycle in {"daily", "weekly", "monthly", "quarterly", "yearly", "custom"}
+                    and next_date
+                    and row.get("payee")
+                ),
                 "posting_pending": posting_pending,
                 "posting_target_active": pending["target_posts_transaction"]
                 if posting_pending
@@ -1531,6 +1541,7 @@ def recurring_schedules(
                     "repair_pending": False,
                     "repair_category_id": "",
                     "manageable": False,
+                    "editable": False,
                     "posting_pending": False,
                     "posting_target_active": None,
                     "edit_pending": True,
@@ -1593,6 +1604,7 @@ def recurring_schedules(
                 "repair_pending": False,
                 "repair_category_id": "",
                 "manageable": False,
+                "editable": False,
                 "posting_pending": False,
                 "posting_target_active": None,
                 "create_pending": True,
@@ -1600,6 +1612,56 @@ def recurring_schedules(
             }
         )
     return sorted(rows, key=lambda row: (row["next_date"] or "9999-12-31", row["id"]))
+
+
+def recurring_edit_options(db: Session, source_id: str, *, bridge_request=None) -> dict:
+    """Read one editable schedule and its current provider choices from one snapshot."""
+    actual = inspect(db, bridge_request=bridge_request)
+    rows = [row for row in recurring_schedules(db, actual=actual) if row["id"] == source_id]
+    if len(rows) != 1 or not rows[0]["editable"]:
+        raise ActualFinanceError("only a linked guarded schedule can be edited in Finance")
+    link = next((row for row in _links(db, "recurring") if row.source_id == source_id), None)
+    schedules = [
+        row for row in actual.get("schedules") or [] if link and row.get("id") == link.actual_id
+    ]
+    if len(schedules) != 1:
+        raise ActualFinanceError("the linked recurring schedule needs review before editing")
+    schedule = schedules[0]
+    _source_accounts, public_accounts, _metadata = _maps(db, "account")
+    accounts = [
+        {"id": public_accounts.get(row["id"], row["id"]), "name": row["name"]}
+        for row in actual.get("accounts") or []
+        if row.get("id") and str(row.get("name") or "").strip() and not row.get("closed")
+    ]
+    payees = [
+        {"id": row["id"], "name": row["name"]}
+        for row in actual.get("payees") or []
+        if row.get("id") and str(row.get("name") or "").strip() and not row.get("transfer_acct")
+    ]
+    categories = [
+        {"id": row["id"], "name": row["name"]}
+        for row in actual.get("categories") or []
+        if row.get("id") and str(row.get("name") or "").strip() and not row.get("is_income")
+    ]
+    current = {
+        "account_id": public_accounts.get(schedule.get("account"), schedule.get("account")),
+        "payee_id": schedule.get("payee"),
+        "amount": rows[0]["amount"],
+        "category_id": str((schedule.get("posting") or {}).get("category") or ""),
+        "notes": rows[0]["notes"],
+        "cycle": rows[0]["cycle"],
+        "cycle_days": rows[0]["cycle_days"],
+        "next_date": rows[0]["next_date"],
+        "active": rows[0]["active"],
+    }
+    if (
+        current["account_id"] not in {row["id"] for row in accounts}
+        or current["payee_id"] not in {row["id"] for row in payees}
+        or current["category_id"]
+        and current["category_id"] not in {row["id"] for row in categories}
+    ):
+        raise ActualFinanceError("the linked recurring schedule needs review before editing")
+    return {"current": current, "accounts": accounts, "payees": payees, "categories": categories}
 
 
 def _recurring_create_details(
