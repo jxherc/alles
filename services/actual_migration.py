@@ -1617,12 +1617,20 @@ def schedule_repair_baseline(
     else:
         raise ActualMigrationError("the canonical schedule migration identity is missing")
     rows = [row for row in actual.get("schedules") or [] if row.get("id") == link.actual_id]
-    accounts = {
-        row.source_id: row.actual_id
-        for row in db.query(ActualEntityLink).filter_by(run_id=link.run_id, entity_kind="account")
-    }
-    if not accounts.get(expected.get("account_id")):
-        raise ActualMigrationError("the canonical schedule account link is missing")
+    if not expected_rows:
+        account_id = expected["account_id"]
+        if not any(row.get("id") == account_id for row in actual.get("accounts") or []):
+            raise ActualMigrationError("the canonical schedule Actual account is missing")
+        accounts = {account_id: account_id}
+    else:
+        accounts = {
+            row.source_id: row.actual_id
+            for row in db.query(ActualEntityLink).filter_by(
+                run_id=link.run_id, entity_kind="account"
+            )
+        }
+        if not accounts.get(expected.get("account_id")):
+            raise ActualMigrationError("the canonical schedule account link is missing")
     payees = {
         row.get("id"): str(row.get("name") or "")
         for row in actual.get("payees") or []
@@ -1845,19 +1853,20 @@ def validate_active_links(db: Session, actual: dict) -> dict:
             group = "schedule"
             expected = snapshot_schedules.get((kind, link.source_id))
             created = expected is None
+            schedule_account_ids = account_actual_ids
             overlay = metadata.get("canonical_schedule")
             source_metadata = {k: v for k, v in metadata.items() if k != "canonical_schedule"}
             if created and kind == "recurring":
                 expected = _created_schedule_source(overlay, link.source_id)
                 fingerprint = source_metadata.pop("_request_fingerprint", None)
-                if (
-                    expected is not None and not account_actual_ids.get(expected["account_id"])
-                ) or (
+                if (expected is not None and expected["account_id"] not in accounts) or (
                     not isinstance(fingerprint, str)
                     or not re.fullmatch(r"[0-9a-f]{64}", fingerprint)
                     or source_metadata
                 ):
                     expected = None
+                elif expected is not None:
+                    schedule_account_ids = {expected["account_id"]: expected["account_id"]}
             if present and expected is None:
                 missing.append(
                     {
@@ -1873,7 +1882,7 @@ def validate_active_links(db: Session, actual: dict) -> dict:
                 or not _restored_schedule_matches(
                     schedules[actual_id],
                     expected,
-                    account_actual_ids=account_actual_ids,
+                    account_actual_ids=schedule_account_ids,
                     payee_names=payee_names,
                     categories=categories,
                     overlay=overlay,

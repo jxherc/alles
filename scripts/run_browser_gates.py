@@ -58,6 +58,8 @@ COMMANDS = {
     "health-workflows": ("tests/pw_health_workflows.py",),
     "finance-workflows": ("tests/pw_finance_workflows.py",),
     "finance-networth-history": ("tests/pw_finance_networth_history.py",),
+    "finance-recurring-create": ("tests/pw_finance_recurring_create.py",),
+    "finance-recurring-repair": ("tests/pw_finance_recurring_repair.py",),
     "library-workflows": ("tests/pw_library_workflows.py",),
     "inbox-workflows": ("tests/pw_inbox_workflows.py",),
     "vault-backup": ("tests/pw_vault_backup.py",),

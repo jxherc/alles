@@ -338,7 +338,7 @@ function render() {
       <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
       <section class="money-card" data-card="reports"><h3>reports</h3>${reportsCard()}</section>
       <section class="money-card" data-card="budgets"><h3>spending caps</h3>${budgetsList()}${_budgetForm()}</section>
-      <section class="money-card" data-card="recurring"><h3 tabindex="-1">recurring</h3><div id="recurring-content">${recurringList()}${_recurringForm()}</div></section>
+      <section class="money-card" data-card="recurring"><h3 tabindex="-1">recurring</h3><div id="recurring-content"><div id="recurring-list">${recurringList()}</div>${_recurringForm()}</div></section>
       <section class="money-card" data-card="rules"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
      </div>` +
     `<section class="money-card money-txns">
@@ -652,24 +652,37 @@ const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: 
 
 function recurringList() {
   if (_recurringError) return '<div class="money-empty-sm money-history-error" role="status">couldn\'t load schedules <button type="button" class="btn" id="recurring-retry">retry</button></div>';
-  if (!_recurring.length) return `<div class="money-empty-sm">${_canonicalLedger ? 'no auto-post schedules in Actual' : 'nothing recurring: add rent, salary, a loan…'}</div>`;
-  return `${_recurringStatus ? `<p class="money-recurring-error" role="status">${esc(_recurringStatus)}</p>` : ''}<div class="recurs">` + _recurring.map(r => `
-    <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending ? '' : 'paused'}">
+  const status = _recurringStatus ? `<p class="money-recurring-error" role="status">${esc(_recurringStatus)}</p>` : '';
+  if (!_recurring.length) return status + `<div class="money-empty-sm">${_canonicalLedger ? 'no auto-post schedules in Actual' : 'nothing recurring: add rent, salary, a loan…'}</div>`;
+  return `${status}<div class="recurs">` + _recurring.map(r => `
+    <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending || r.create_pending ? '' : 'paused'}">
       <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
       <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? 'range' : 'varies') : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount)}`}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
-      <span class="rc-next" title="${r.next_date ? `next post ${esc(r.next_date)}` : 'next date unavailable'}">${r.active ? (r.next_date ? esc(r.next_date.slice(5)) : 'unknown') : (_canonicalLedger ? 'inactive' : 'paused')}</span>
+      <span class="rc-next" title="${r.create_pending ? 'creation pending' : r.next_date ? `next post ${esc(r.next_date)}` : 'next date unavailable'}">${r.create_pending ? 'pending' : r.active ? (r.next_date ? esc(r.next_date.slice(5)) : 'unknown') : (_canonicalLedger ? 'inactive' : 'paused')}</span>
       ${_canonicalLedger && r.manageable ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? `retry ${r.posting_target_active ? 'resume' : 'pause'}` : r.active ? 'pause' : 'resume'}</button>` : ''}
       ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
       <button class="tx-del" data-del-rec="${esc(r.id)}" title="delete">×</button>`}
-    </div>${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? 'resume' : 'pause'} not confirmed; Actual may have changed. retry the saved action.</span></div>` : ''}</div>`).join('') + `</div>`;
+    </div>${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? 'creation marker missing in Actual. review the schedule there before trying again.' : 'creation not confirmed. retry the saved schedule; this will not start another one.'}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">retry creation</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? 'resume' : 'pause'} not confirmed; Actual may have changed. retry the saved action.</span></div>` : ''}</div>`).join('') + `</div>`;
 }
 
 function _recurringForm() {
   if (_recurringError) return '';
-  if (_canonicalLedger) return '<p class="money-recurring-note">Actual owns these schedules. new schedules and other edits aren\'t available in Finance yet.</p>';
   if (!_accounts.length) return '';
-  const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
-  const first = _accounts[0]?.id || '';
+  if (_canonicalLedger && _recurring.some(row => row.create_pending)) return '<p class="money-recurring-note">finish the pending schedule before adding another.</p>';
+  const availableAccounts = _canonicalLedger ? _accounts.filter(a => !a.archived) : _accounts;
+  if (!availableAccounts.length) return _canonicalLedger ? '<p class="money-recurring-note">open an Actual account before adding a schedule.</p>' : '';
+  const acctOpts = availableAccounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
+  const first = availableAccounts[0]?.id || '';
+  if (_canonicalLedger) return `<div class="recur-form recur-form-canonical" role="group" aria-label="add recurring schedule">
+    <label class="recur-field" for="rc-payee"><span>payee</span><input type="text" id="rc-payee" class="settings-input" placeholder="e.g. rent" autocomplete="off"></label>
+    <div class="recur-field"><span id="rc-category-label">category</span><button type="button" class="btn rc-category-choice" id="rc-category-choice" aria-labelledby="rc-category-label rc-category-choice" data-category-id="">no category</button></div>
+    <div class="recur-field"><span id="rc-sign-label">type</span><div class="settings-input custom-select" id="rc-sign" aria-labelledby="rc-sign-label" data-value="-" data-options="-|expense;+|income"></div></div>
+    <label class="recur-field" for="rc-amt"><span>amount</span><input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal"></label>
+    <div class="recur-field"><span id="rc-cycle-label">repeat</span><div class="settings-input custom-select" id="rc-cycle" aria-labelledby="rc-cycle-label" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly"></div></div>
+    <div class="recur-field"><span id="rc-next-label">first date</span><div class="date-input" id="rc-next" aria-labelledby="rc-next-label" data-type="date" data-value="${_today()}" data-ph="first date"></div></div>
+    <div class="recur-field"><span id="rc-acct-label">account</span><div class="settings-input custom-select" id="rc-acct" aria-labelledby="rc-acct-label" data-value="${esc(first)}" data-options="${esc(acctOpts)}"></div></div>
+    <button type="button" class="btn primary" id="rc-add">add schedule</button>
+  </div><p class="money-recurring-note">new schedules post in Actual. edit and delete stay in Actual for now.</p>`;
   return `<div class="recur-form">
     <input type="text" id="rc-payee" class="settings-input" placeholder="payee (e.g. rent)" style="flex:1.3;min-width:100px">
     <input type="text" id="rc-cat" class="settings-input" placeholder="category" style="flex:1;min-width:80px">
@@ -873,17 +886,23 @@ async function retryRecurring(focusId = '') {
   await readRecurring(api);
   const content = $('recurring-content');
   if (!content) return;
-  content.innerHTML = recurringList() + _recurringForm();
+  content.innerHTML = `<div id="recurring-list">${recurringList()}</div>` + _recurringForm();
   wireRecurring();
-  const toggle = focusId ? [...content.querySelectorAll('[data-toggle-rec]')].find(b => b.dataset.toggleRec === focusId) : null;
-  (toggle || $('recurring-retry') || document.querySelector('.money-card[data-card="recurring"] h3'))?.focus();
+  const action = focusId ? [...content.querySelectorAll('[data-toggle-rec], [data-retry-create-rec]')].find(b => b.dataset.toggleRec === focusId || b.dataset.retryCreateRec === focusId) : null;
+  (action || $('recurring-retry') || document.querySelector('.money-card[data-card="recurring"] h3'))?.focus();
 }
 
 function wireRecurring() {
-  $('recurring-retry')?.addEventListener('click', () => retryRecurring());
+  wireRecurringList();
   document.querySelectorAll('#recurring-content .custom-select').forEach(initCustomDropdown);
   document.querySelectorAll('#recurring-content .date-input').forEach(initDatePicker);
   $('rc-add')?.addEventListener('click', addRecurring);
+  $('rc-category-choice')?.addEventListener('click', chooseRecurringCategory);
+}
+
+function wireRecurringList() {
+  $('recurring-retry')?.addEventListener('click', () => retryRecurring());
+  document.querySelectorAll('#recurring-content [data-retry-create-rec]').forEach(b => b.addEventListener('click', () => retryRecurringCreate(b)));
   document.querySelectorAll('#recurring-content [data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
   document.querySelectorAll('#recurring-content [data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b)));
   document.querySelectorAll('#recurring-content [data-repair-rec]').forEach(b => b.addEventListener('click', () => repairRecurring(b)));
@@ -1362,17 +1381,84 @@ async function addRecurring() {
   const payee = $('rc-payee')?.value.trim();
   const amtRaw = _decimal($('rc-amt')?.value);
   if (!_validAmounts(amtRaw)) return;
+  if (!payee && _canonicalLedger) { toast('give it a payee', 'error'); return; }
   if (!payee && !$('rc-cat')?.value.trim()) { toast('give it a payee or category', 'error'); return; }
   if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
   const sign = getDropdownValue($('rc-sign')) === '+' ? 1 : -1;
+  const payload = {
+    account_id: getDropdownValue($('rc-acct')), amount: sign * amtRaw,
+    payee, cycle: getDropdownValue($('rc-cycle')),
+    next_date: $('rc-next')?.dataset.value || _today(),
+  };
+  if (_canonicalLedger) payload.category_id = $('rc-category-choice')?.dataset.categoryId || '';
+  else payload.category = $('rc-cat').value.trim();
+  const button = $('rc-add');
+  let requestId = '';
+  if (button) { button.disabled = true; button.textContent = 'saving…'; }
   try {
-    await api('/api/money/recurring', { method: 'POST', body: {
-      account_id: getDropdownValue($('rc-acct')), amount: sign * amtRaw,
-      category: $('rc-cat').value.trim(), payee, cycle: getDropdownValue($('rc-cycle')),
-      next_date: $('rc-next')?.dataset.value || _today(),
-    } });
+    if (_canonicalLedger) {
+      requestId = await _createRequestId('recurring', payload);
+      payload.request_id = requestId;
+    }
+    await api('/api/money/recurring', { method: 'POST', body: payload });
+    if (requestId) _completeCreateRequest('recurring', requestId);
     await load();
-  } catch { toast('couldn\'t add recurring', 'error'); }
+  } catch (error) {
+    if (requestId) _releaseCreateRequest('recurring', requestId);
+    if (_canonicalLedger) {
+      _recurringStatus = `creation not confirmed: ${error.message || 'retry the saved schedule'}`;
+      await readRecurring(api);
+      const content = $('recurring-content');
+      if (_recurring.some(row => row.create_pending) && content) {
+        content.innerHTML = `<div id="recurring-list">${recurringList()}</div>` + _recurringForm();
+        wireRecurring();
+        content.querySelector('[data-retry-create-rec]')?.focus();
+      } else {
+        const list = $('recurring-list');
+        if (list) { list.innerHTML = recurringList(); wireRecurringList(); }
+      }
+    } else toast('couldn\'t add recurring', 'error');
+    if (button) { button.disabled = false; button.textContent = _canonicalLedger ? 'add schedule' : 'add'; }
+  }
+}
+async function chooseRecurringCategory() {
+  const button = $('rc-category-choice');
+  if (!button) return;
+  let categories = _envelope?.categories;
+  if (!Array.isArray(categories)) {
+    try { categories = (await api(`/api/money/envelope?month=${_month}`)).categories; }
+    catch { categories = null; }
+  }
+  if (!Array.isArray(categories)) {
+    _recurringStatus = 'could not load Actual categories. retry when Actual is available.';
+    const list = $('recurring-list');
+    if (list) { list.innerHTML = recurringList(); wireRecurringList(); }
+    return;
+  }
+  const names = categories.map(row => row.group ? `${row.group} / ${row.category}` : row.category);
+  const options = [{ value: '', label: 'no category' }, ...categories.map((row, index) => ({
+    value: row.category_id,
+    label: names.filter(name => name === names[index]).length > 1
+      ? `${names[index]} (${row.category_id.slice(-6)})` : names[index],
+  }))];
+  const selected = await dlgChoose('choose a spending category', options);
+  if (selected === null) return;
+  button.dataset.categoryId = selected;
+  button.textContent = options.find(option => option.value === selected)?.label || 'no category';
+  button.focus();
+}
+async function retryRecurringCreate(button) {
+  const r = _recurring.find(row => row.id === button.dataset.retryCreateRec);
+  if (!_canonicalLedger || !r?.create_pending || r.create_needs_review || button.disabled) return;
+  button.disabled = true;
+  button.textContent = 'retrying…';
+  try {
+    await api(`/api/money/recurring/${encodeURIComponent(r.id)}/retry`, { method: 'POST' });
+    _recurringStatus = '';
+  } catch (error) {
+    _recurringStatus = `creation not confirmed for ${r.payee}: ${error.message || 'review the schedule in Actual'}`;
+  }
+  await retryRecurring(r.id);
 }
 async function delRecurring(id) {
   if (!await dlgConfirm('stop this recurring transaction?')) return;

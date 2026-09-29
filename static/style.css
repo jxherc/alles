@@ -5031,7 +5031,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .recurs { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.5rem; }
 .recur-group { border-bottom: 1px solid var(--faint); }
 .recur-group:last-child { border-bottom: none; }
-.recur { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.15rem; border-bottom: 1px solid var(--faint); font-size: 0.76rem; }
+.recur { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.35rem 0.15rem; border-bottom: 1px solid var(--faint); font-size: 0.76rem; }
 .recur-group .recur { border-bottom: none; }
 .recur:last-child { border-bottom: none; }
 .recur.paused { opacity: 0.55; }
@@ -5039,7 +5039,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .recur-repair span { flex: 1 1 180px; overflow-wrap: anywhere; }
 .recur-repair .btn { min-height: 44px; }
 .money-recurring-error { color: var(--error); font-size: 13px; margin: var(--k-space-2, 8px) 0; overflow-wrap: anywhere; }
-.rc-payee { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-payee { flex: 1 1 100px; min-width: 100px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rc-amt.pos { color: var(--green); } .rc-amt.neg { color: var(--text); }
 .rc-cyc { color: var(--muted); font-size: 0.75rem; margin-left: 0.15rem; }
@@ -5049,6 +5049,11 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .recur-form { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
 .recur-form > * { height: 32px; box-sizing: border-box; }
 .recur-form input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
+.recur-form-canonical { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 135px), 1fr)); gap: var(--k-space-2, 8px); align-items: end; }
+.recur-form-canonical > * { height: auto; min-width: 0; }
+.recur-form-canonical .recur-field { display: grid; gap: var(--k-space-1, 4px); color: var(--muted); font-size: 0.75rem; }
+.recur-form-canonical :where(.settings-input, .date-input, .rc-category-choice, #rc-add) { width: 100%; min-width: 0; }
+.recur-form-canonical .rc-category-choice { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rules { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.5rem; }
 .rule { display: flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0.15rem; border-bottom: 1px solid var(--faint); font-size: 0.75rem; }
 .rule:last-child { border-bottom: none; }
