@@ -314,6 +314,7 @@ function _renderResults(data, query, status = null, preserveSelection = false) {
   } = data || {};
   const container = _results();
   if (!container) return;
+  const openError = preserveSelection ? container.querySelector('.search-open-error') : null;
   const selected = preserveSelection ? _availableOptions()[_activeIndex] : null;
   const selectedKey = selected ? [selected.dataset.type, selected.dataset.id,
     selected.dataset.path, selected.dataset.view, selected.dataset.act].join('|') : null;
@@ -348,6 +349,7 @@ function _renderResults(data, query, status = null, preserveSelection = false) {
       : '';
   container.setAttribute('aria-busy', 'false');
   container.innerHTML = state + _actionRail(query) + matches;
+  if (openError) container.prepend(openError);
   const options = _availableOptions();
   const selectedIndex = selectedKey === null ? -1 : options.findIndex(option =>
     [option.dataset.type, option.dataset.id, option.dataset.path,

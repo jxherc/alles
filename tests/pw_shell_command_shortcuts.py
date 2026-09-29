@@ -156,6 +156,8 @@ def run() -> None:
             chat.click()
             expect(page.locator("#search-modal")).to_be_visible()
             expect(page.locator("#search-results .search-open-error")).to_be_visible()
+            page.wait_for_timeout(800)
+            expect(page.locator("#search-results .search-open-error")).to_be_visible()
             expect(page.locator("#search-input")).to_be_focused()
             expect(source).to_have_value(changed)
             assert page.url.startswith(f"http://docs.localhost:{port}/")
