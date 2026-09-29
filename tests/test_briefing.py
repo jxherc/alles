@@ -1,6 +1,7 @@
 """the daily-briefing composer — gathers a morning digest from the local apps."""
 
 from datetime import date
+from unittest import mock
 
 import core.database as D
 from services import briefing
@@ -72,3 +73,13 @@ class BriefingRouteTests(ApiTest):
         body = r.json()
         self.assertIn("has_content", body)
         self.assertIn("Dune", body["body"])
+
+    def test_send_reports_confirmed_delivery_count(self):
+        delivery = mock.AsyncMock(
+            return_value={"sent": 2, "failed": 1, "uncertain": 0, "pruned": 0, "total": 3}
+        )
+        with mock.patch("services.push_delivery.broadcast_result", delivery):
+            response = self.client.post("/api/briefing/send")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["sent"], 2)
+        delivery.assert_awaited_once()

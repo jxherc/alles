@@ -16,14 +16,14 @@ def preview(db: DbSession = Depends(get_db)):
 
 @router.post("/briefing/send")
 async def send_now():
-    from routes.push import broadcast
+    from services.push_delivery import broadcast_result
 
     db = SessionLocal()
     try:
         b = briefing.compose_briefing(db)
     finally:
         db.close()
-    n = await broadcast(
+    result = await broadcast_result(
         {"title": b["title"], "body": b["body"], "url": "/", "tag": "daily-briefing"}
     )
-    return {"ok": True, "sent": n, "briefing": b}
+    return {"ok": True, "sent": result["sent"], "briefing": b}

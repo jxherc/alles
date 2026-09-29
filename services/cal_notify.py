@@ -62,8 +62,8 @@ def _ev_dict(e):
 
 async def fire_due():
     from core.database import CalendarEvent, SessionLocal
-    from routes.push import broadcast_result
     from services import recur
+    from services.push_delivery import broadcast_result
 
     fired = _load()
     now = datetime.now()
