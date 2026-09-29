@@ -22,6 +22,7 @@ let _loadState = { state: 'resting', message: '' };
 const KIND_UNIT = { weight: 'kg', sleep: 'h', workout: 'min', med: '', custom: '' };
 const KIND_LABEL = { weight: 'weight', sleep: 'sleep', workout: 'workout', med: 'meds', custom: 'custom' };
 const RANGES = [[7, '7d'], [30, '30d'], [90, '90d'], [365, '1y']];
+const DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 
 export function initHealth(fetcher = fetch) {
   _fetcher = fetcher;
@@ -229,10 +230,23 @@ function _wire(body) {
   body.querySelectorAll('.health-card[data-kind] [data-act="set-target"]').forEach(btn => btn.addEventListener('click', async () => {
     const kind = btn.closest('.health-card').dataset.kind;
     const cur = (_data.kinds.find(k => k.kind === kind) || {}).target;
-    const v = await dlgPrompt(`target for ${kind}? (0 to clear)`, String(cur || ''));
+    const v = await dlgPrompt(`target for ${kind}? (0 to clear)`, String(cur ?? ''), {
+      validate: raw => {
+        const text = raw.trim();
+        const value = Number(text);
+        return !DECIMAL.test(text) || !Number.isFinite(value) || value < 0
+          ? 'enter a finite number (0 to clear).'
+          : '';
+      },
+    });
     if (v == null) return;
-    await fetch('/api/health/target', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, value: parseFloat(v) || 0 }) });
-    loadHealth();
+    try {
+      const response = await fetch('/api/health/target', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, value: Number(v.trim()) }) });
+      if (!response.ok) throw new Error(`save failed (${response.status})`);
+      await loadHealth();
+    } catch {
+      toast('could not save target. try again.', 'error');
+    }
   }));
 
   body.querySelectorAll('.health-row[data-id]').forEach(row => {
@@ -251,10 +265,9 @@ async function _create() {
   if (!_draft || _saving) return;
   const raw = _draft.value.trim();
   const value = Number(raw);
-  const decimal = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
   const date = _draft.date.trim();
   const validDate = (!date && _draft.id == null) || (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date);
-  _formError = !decimal.test(raw) || !Number.isFinite(value) ? 'enter a complete, finite number.' : !validDate ? 'enter a valid date as YYYY-MM-DD.' : '';
+  _formError = !DECIMAL.test(raw) || !Number.isFinite(value) ? 'enter a complete, finite number.' : !validDate ? 'enter a valid date as YYYY-MM-DD.' : '';
   if (_formError) {
     _render();
     $(validDate ? 'health-value' : 'health-date')?.focus();

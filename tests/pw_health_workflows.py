@@ -215,6 +215,92 @@ def run():
                     box = button.bounding_box()
                     assert box and box["width"] >= 44 and box["height"] >= 44, box
                 passed()
+                begin("health.target-validation")
+                target = page.locator('.health-card[data-kind="weight"] [data-act="set-target"]')
+                target.click()
+                dialog_input = page.locator(".dialog-card .dialog-input")
+                dialog_input.fill("68")
+                page.get_by_role("button", name="ok", exact=True).click()
+                expect(target).to_contain_text("68")
+                target.click()
+                dialog_input.fill("7junk")
+                dialog_input.press("Enter")
+                expect(dialog_input).to_have_value("7junk")
+                expect(dialog_input).to_have_attribute("aria-invalid", "true")
+                expect(page.locator(".dialog-validation")).to_contain_text("enter a finite number")
+                page.screenshot(
+                    path=str(output / f"health-{profile}-target-invalid.png"), full_page=True
+                )
+                overview = context.request.get(base + "/api/health/overview").json()
+                weight = next(item for item in overview["kinds"] if item["kind"] == "weight")
+                assert weight["target"] == 68
+                dialog_input.press("Escape")
+                expect(target).to_be_focused()
+                box = target.bounding_box()
+                assert box and box["width"] >= 44 and box["height"] >= 44, box
+                passed()
+                begin("health.target-clear-and-retry")
+                target.click()
+                dialog_input.fill("-1")
+                page.get_by_role("button", name="ok", exact=True).click()
+                expect(dialog_input).to_have_attribute("aria-invalid", "true")
+                dialog_input.fill("0")
+                dialog_input.press("Enter")
+                expect(target).to_have_text("set target")
+                target.click()
+                dialog_input.fill("68")
+                dialog_input.press("Enter")
+                expect(target).to_contain_text("68")
+                target_endpoint = base + "/api/health/target"
+
+                def fail_target(route):
+                    if route.request.method == "PUT":
+                        expected_failures.append({"url": target_endpoint, "status": 503})
+                        route.fulfill(
+                            status=503,
+                            content_type="application/json",
+                            body='{"detail":"deliberate unavailable service"}',
+                        )
+                    else:
+                        route.continue_()
+
+                page.route(target_endpoint, fail_target)
+                target.click()
+                dialog_input.fill("69")
+                dialog_input.press("Enter")
+                expect(page.locator(".toast.error")).to_contain_text("could not save target")
+                expect(target).to_contain_text("68")
+                page.screenshot(
+                    path=str(output / f"health-{profile}-target-error.png"), full_page=True
+                )
+                page.unroute(target_endpoint, fail_target)
+                target.click()
+                dialog_input.fill("69")
+                dialog_input.press("Enter")
+                expect(target).to_contain_text("69")
+                passed()
+                if profile == "desktop":
+                    begin("health.target-zoom-layout")
+                    page.set_viewport_size({"width": 720, "height": 450})
+                    target.click()
+                    dialog_input.fill("7junk")
+                    dialog_input.press("Enter")
+                    expect(dialog_input).to_have_attribute("aria-invalid", "true")
+                    for control in (dialog_input, *page.locator(".dialog-card button").all()):
+                        box = control.bounding_box()
+                        assert box and box["x"] >= 0 and box["x"] + box["width"] <= 720, box
+                        assert box["y"] >= 0 and box["y"] + box["height"] <= 450, box
+                    assert page.evaluate(
+                        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+                    )
+                    page.screenshot(
+                        path=str(output / "health-desktop-target-zoom-layout.png"),
+                        full_page=True,
+                    )
+                    dialog_input.press("Escape")
+                    expect(target).to_be_focused()
+                    page.set_viewport_size({"width": 1440, "height": 900})
+                    passed()
                 assert not events["page_errors"], events
                 assert not events["failed_requests"], events
                 assert events["http_errors"] == expected_failures, events
