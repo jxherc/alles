@@ -38,6 +38,35 @@ class BookingTests(ApiTest):
         self.assertNotIn("09:00", starts)
         self.assertIn("10:00", starts)
 
+    def test_recurring_busy_slot_is_not_offered_or_booked(self):
+        tok = self._page(work_start=9, work_end=10, duration_min=30)["token"]
+        prior_monday = (date.fromisoformat(DAY) - timedelta(days=7)).isoformat()
+        db = self.db()
+        db.add(
+            CalendarEvent(
+                title="weekly busy",
+                start_dt=f"{prior_monday}T09:00:00",
+                end_dt=f"{prior_monday}T09:30:00",
+                recurrence="weekly",
+                recur_byday="MO",
+            )
+        )
+        db.commit()
+        db.close()
+
+        self.assertEqual(
+            self._slots(tok),
+            [{"start": f"{DAY}T09:30", "end": f"{DAY}T10:00"}],
+        )
+        refused = self.client.post(
+            f"/book/{tok}", json={"date": DAY, "time": "09:00", "name": "Sam"}
+        )
+        self.assertEqual(refused.status_code, 409)
+
+    def test_bad_slot_date_returns_no_slots(self):
+        tok = self._page()["token"]
+        self.assertEqual(self._slots(tok, day="not-a-date"), [])
+
     def test_slots_respect_work_hours(self):
         tok = self._page(work_start=9, work_end=11, duration_min=30)["token"]
         for s in self._slots(tok):

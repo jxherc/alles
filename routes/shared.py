@@ -26,6 +26,7 @@ from core.database import (
 )
 from core.rate_limit import enforce_rate_limit
 from services import (
+    calendar_events,
     file_operations,
     photos_store,
     share,
@@ -567,12 +568,10 @@ async function rs(s){{
 
 @router.get("/book/{token}/slots")
 def book_slots(token: str, date: str, db: DbSession = Depends(get_db)):
-    from routes.calendar import compute_booking_slots
-
     page = db.query(BookingPage).filter(BookingPage.token == token).first()
     if not page:
         raise HTTPException(404)
-    return {"slots": compute_booking_slots(db, page, date)}
+    return {"slots": calendar_events.compute_booking_slots(db, page, date)}
 
 
 class BookBody(BaseModel):
@@ -584,8 +583,6 @@ class BookBody(BaseModel):
 
 @router.post("/book/{token}")
 def book(token: str, body: BookBody, db: DbSession = Depends(get_db)):
-    from routes.calendar import compute_booking_slots
-
     page = db.query(BookingPage).filter(BookingPage.token == token).first()
     if not page:
         raise HTTPException(404)
@@ -603,7 +600,7 @@ def book(token: str, body: BookBody, db: DbSession = Depends(get_db)):
         raise HTTPException(409, "that date is outside the booking window")
     start = f"{body.date}T{body.time}:00" if len(body.time) == 5 else f"{body.date}T{body.time}"
     want = f"{body.date}T{body.time}"[:16]
-    slots = compute_booking_slots(db, page, body.date)
+    slots = calendar_events.compute_booking_slots(db, page, body.date)
     if not any(s["start"][:16] == want for s in slots):
         raise HTTPException(409, "that time isn't available")
     end = (datetime.fromisoformat(start) + timedelta(minutes=page.duration_min)).isoformat()
