@@ -18,7 +18,7 @@ from services.project_git import ProjectGitError, branch_state, switch_branch
 
 async def _fire(event: str, data: dict):
     try:
-        from routes.webhooks import fire
+        from services.webhook_delivery import fire
 
         await fire(event, data)
     except Exception:

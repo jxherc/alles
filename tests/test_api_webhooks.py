@@ -103,7 +103,7 @@ class WebhooksApiTest(ApiTest):
         import hashlib
         import hmac
 
-        from routes.webhooks import _sign
+        from services.webhook_delivery import _sign
 
         raw = b'{"a":1}'
         expect = "sha256=" + hmac.new(b"k", raw, hashlib.sha256).hexdigest()
@@ -119,7 +119,7 @@ class WebhooksApiTest(ApiTest):
         async def _ok(w, body):
             return ("ok", "")
 
-        with mock.patch("routes.webhooks._deliver", _ok):
+        with mock.patch("services.webhook_delivery._deliver", _ok):
             r = self.client.post(f"/api/webhooks/{wid}/test")
         self.assertEqual(r.json()["status"], "ok")
         w = self.client.get("/api/webhooks").json()[0]
@@ -136,7 +136,7 @@ class WebhooksApiTest(ApiTest):
         async def _uncertain(w, body):
             return ("uncertain", "timed out")
 
-        with mock.patch("routes.webhooks._deliver", _uncertain):
+        with mock.patch("services.webhook_delivery._deliver", _uncertain):
             r = self.client.post(f"/api/webhooks/{wid}/test")
 
         self.assertEqual(r.json(), {"status": "uncertain", "error": "timed out"})
@@ -147,8 +147,115 @@ class WebhooksApiTest(ApiTest):
     def test_test_endpoint_404(self):
         self.assertEqual(self.client.post("/api/webhooks/nope/test").status_code, 404)
 
+    def test_fire_sends_matching_enabled_hook_and_records_outcome(self):
+        from services import webhook_delivery as wh
+
+        def add(name, events, enabled=True):
+            return self.client.post(
+                "/api/webhooks",
+                json={
+                    "name": name,
+                    "url": "https://example.test/h",
+                    "events": events,
+                    "enabled": enabled,
+                },
+            ).json()["id"]
+
+        match = add("match", ["message"])
+        disabled = add("disabled", ["message"], enabled=False)
+        different = add("different", ["research_done"])
+        seen = []
+
+        async def deliver(hook, body):
+            seen.append((hook.id, body))
+            return "uncertain", "http 500"
+
+        with mock.patch("services.webhook_delivery._deliver", deliver):
+            asyncio.run(wh.fire("message", {"session_id": "synthetic"}))
+
+        self.assertEqual(seen, [(match, {"event": "message", "data": {"session_id": "synthetic"}})])
+        hooks = {row["id"]: row for row in self.client.get("/api/webhooks").json()}
+        self.assertEqual(
+            (hooks[match]["last_status"], hooks[match]["last_error"]), ("uncertain", "http 500")
+        )
+        self.assertIsNotNone(hooks[match]["last_triggered"])
+        for hook_id in (disabled, different):
+            self.assertEqual(hooks[hook_id]["last_status"], "")
+            self.assertIsNone(hooks[hook_id]["last_triggered"])
+
+    def test_session_routes_deliver_through_webhook_owner(self):
+        self.client.post(
+            "/api/webhooks",
+            json={
+                "name": "session hook",
+                "url": "https://example.test/h",
+                "events": ["session_created", "session_renamed"],
+            },
+        )
+        seen = []
+
+        async def deliver(_hook, body):
+            seen.append(body)
+            return "ok", ""
+
+        with mock.patch("services.webhook_delivery._deliver", deliver):
+            created = self.client.post("/api/sessions", json={"name": "first"})
+            self.assertEqual(created.status_code, 200, created.text)
+            session_id = created.json()["id"]
+            renamed = self.client.patch(f"/api/sessions/{session_id}", json={"name": "second"})
+            self.assertEqual(renamed.status_code, 200, renamed.text)
+
+        self.assertEqual(
+            seen,
+            [
+                {"event": "session_created", "data": {"session_id": session_id, "name": "first"}},
+                {"event": "session_renamed", "data": {"session_id": session_id, "name": "second"}},
+            ],
+        )
+
+    def test_delivery_signs_exact_payload(self):
+        import hashlib
+        import hmac
+
+        from services import webhook_delivery as wh
+
+        calls = []
+
+        class Client:
+            def __init__(self, *a, **k):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, url, **kwargs):
+                calls.append((url, kwargs))
+                return SimpleNamespace(status_code=200)
+
+        hook = SimpleNamespace(url="http://93.184.216.34/hook", secret="dummy", name="signed")
+        with mock.patch.object(wh.httpx, "AsyncClient", Client):
+            self.assertEqual(asyncio.run(wh._deliver(hook, {"event": "test"})), ("ok", ""))
+
+        self.assertEqual(len(calls), 1)
+        url, request = calls[0]
+        self.assertEqual(url, hook.url)
+        self.assertEqual(request["content"], b'{"event": "test"}')
+        expected = hmac.new(b"dummy", request["content"], hashlib.sha256).hexdigest()
+        self.assertEqual(request["headers"]["x-alles-signature"], "sha256=" + expected)
+
+    def test_delivery_blocks_loopback_before_network(self):
+        from services import webhook_delivery as wh
+
+        hook = SimpleNamespace(url="http://127.0.0.1:8030/private", secret="", name="blocked")
+        with mock.patch.object(wh.httpx, "AsyncClient", side_effect=AssertionError("network used")):
+            result = asyncio.run(wh._deliver(hook, {"event": "test"}))
+        self.assertEqual(result, ("error", "blocked: non-public url"))
+
     def _delivery_result(self, outcome):
-        from routes import webhooks as wh
+        from services import webhook_delivery as wh
 
         calls = {"post": 0}
 
