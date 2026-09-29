@@ -164,6 +164,53 @@ try {
 }
 """
 
+_EDIT_SCHEDULE_PROBE = r"""
+import * as api from '@actual-app/api';
+let input = '';
+for await (const chunk of process.stdin) input += chunk;
+const request = JSON.parse(input);
+try {
+  await api.init({dataDir: request.data_dir, serverURL: request.server_url, password: request.password});
+  await api.loadBudget(request.budget_id);
+  const id = request.schedule_id;
+  const inspect = async () => {
+    const schedule = (await api.getSchedules()).find(row => row.id === id);
+    const rule = (await api.getRules()).find(row => row.id === schedule?.rule);
+    return {
+      schedule: {
+        id: schedule?.id, rule: schedule?.rule, name: schedule?.name,
+        account: schedule?.account, payee: schedule?.payee, amount: schedule?.amount,
+        date: schedule?.date, next_date: schedule?.next_date,
+        posts_transaction: schedule?.posts_transaction,
+      },
+      conditions: rule?.conditions,
+      actions: rule?.actions,
+    };
+  };
+  const before = await inspect();
+  await api.updateSchedule(id, {posts_transaction: false});
+  await api.updateSchedule(id, {amount: -650});
+  await api.sync();
+  const amount = await inspect();
+  await api.updateSchedule(id, {
+    date: {start: '2026-12-03', frequency: 'weekly', interval: 1, endMode: 'never'},
+  });
+  await api.sync();
+  const date = await inspect();
+  const account = await api.createAccount({name: 'edit checking', offbudget: false, closed: false});
+  const payee = await api.createPayee({name: 'edit landlord'});
+  await api.updateSchedule(id, {account, payee});
+  await api.sync();
+  const party = await inspect();
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({before, amount, date, party}));
+} catch (error) {
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({error: String(error?.message || error)}));
+  process.exitCode = 1;
+} finally {
+  await api.shutdown();
+}
+"""
+
 
 @unittest.skipUnless(os.environ.get("ALLES_RUN_ACTUAL_LIVE") == "1", "opt-in live probe")
 class ActualScheduleProbeTests(unittest.TestCase):
@@ -319,6 +366,54 @@ class ActualScheduleProbeTests(unittest.TestCase):
                         },
                         timeout=180,
                     )
+                edit = subprocess.run(
+                    ["node", "--input-type=module", "-e", _EDIT_SCHEDULE_PROBE],
+                    input=json.dumps(
+                        {
+                            "data_dir": str(managed_actual.client_data_dir()),
+                            "server_url": managed_actual.managed_url(),
+                            "password": managed_actual._managed_password(),
+                            "budget_id": created["budget_id"],
+                            "schedule_id": first["id"],
+                        }
+                    ),
+                    text=True,
+                    capture_output=True,
+                    cwd=managed_actual.app_dir(),
+                    timeout=180,
+                    check=False,
+                )
+                edit_outputs = [
+                    line.removeprefix("ALLES_PROBE_RESULT=")
+                    for line in edit.stdout.splitlines()
+                    if line.startswith("ALLES_PROBE_RESULT=")
+                ]
+                self.assertEqual(len(edit_outputs), 1, edit.stdout)
+                edit_result = json.loads(edit_outputs[0])
+                self.assertEqual(edit.returncode, 0, edit_result)
+                before_edit = edit_result["before"]
+                for stage in ("amount", "date", "party"):
+                    changed = edit_result[stage]
+                    self.assertEqual(changed["schedule"]["id"], before_edit["schedule"]["id"])
+                    self.assertEqual(changed["schedule"]["rule"], before_edit["schedule"]["rule"])
+                    self.assertFalse(changed["schedule"]["posts_transaction"])
+                    self.assertEqual(changed["actions"], before_edit["actions"])
+                    self.assertEqual(changed["conditions"][4], before_edit["conditions"][4])
+                    for index, field in enumerate(("payee", "account", "date", "amount")):
+                        self.assertEqual(
+                            changed["conditions"][index]["value"],
+                            changed["schedule"][field],
+                        )
+                self.assertEqual(edit_result["amount"]["schedule"]["next_date"], "2026-11-01")
+                self.assertEqual(edit_result["date"]["schedule"]["next_date"], "2026-12-03")
+                self.assertNotEqual(
+                    edit_result["party"]["schedule"]["account"],
+                    before_edit["schedule"]["account"],
+                )
+                self.assertNotEqual(
+                    edit_result["party"]["schedule"]["payee"],
+                    before_edit["schedule"]["payee"],
+                )
         finally:
             if old_data is None:
                 os.environ.pop("ALLES_DATA", None)
