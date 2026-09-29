@@ -16,6 +16,7 @@ from core.database import (
     ContactLink,
     get_db,
 )
+from services.contact_items import save_contact
 
 router = APIRouter(prefix="/api")
 
@@ -266,27 +267,19 @@ class CreateContact(BaseModel):
 
 @router.post("/contacts")
 def create_contact(body: CreateContact, db: DbSession = Depends(get_db)):
-    c = Contact(
+    c = save_contact(
+        db,
         name=body.name,
         email=body.email,
         phone=body.phone,
         notes=body.notes,
-        tags=json.dumps(body.tags),
+        tags=body.tags,
         company=body.company,
         title=body.title,
         address=body.address,
         birthday=body.birthday,
         website=body.website,
     )
-    db.add(c)
-    db.commit()
-    db.refresh(c)
-    try:
-        from services import personal_index
-
-        personal_index.index_record(db, "contact", c)
-    except Exception:
-        pass
     return _fmt(c, db)
 
 
