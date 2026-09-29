@@ -4,6 +4,8 @@ create rows. goodreads export → books; a simple date/kind/value csv → health
 import csv
 import io
 
+from services.health_entries import HealthInputError, finite_value
+
 _SHELF = {"read": "done", "currently-reading": "reading", "to-read": "want"}
 
 
@@ -55,8 +57,8 @@ def parse_health_csv(text) -> list[dict]:
     for row in reader:
         r = {(k or "").strip().lower(): v for k, v in row.items()}
         try:
-            value = float(r.get("value"))
-        except (TypeError, ValueError):
+            value = finite_value(r.get("value"))
+        except HealthInputError:
             continue
         kind = (r.get("kind") or r.get("metric") or "custom").strip() or "custom"
         out.append(
