@@ -211,6 +211,45 @@ try {
 }
 """
 
+_TAMPER_EDITED_SCHEDULE = r"""
+import * as api from '@actual-app/api';
+let input = '';
+for await (const chunk of process.stdin) input += chunk;
+const request = JSON.parse(input);
+try {
+  await api.init({dataDir: request.data_dir, serverURL: request.server_url, password: request.password});
+  await api.loadBudget(request.budget_id);
+  await api.updateSchedule(request.schedule_id, {amount: -751});
+  await api.sync();
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({ok: true}));
+} catch (error) {
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({error: String(error?.message || error)}));
+  process.exitCode = 1;
+} finally {
+  await api.shutdown();
+}
+"""
+
+_STAGE_PARTIAL_EDIT = r"""
+import * as api from '@actual-app/api';
+let input = '';
+for await (const chunk of process.stdin) input += chunk;
+const request = JSON.parse(input);
+try {
+  await api.init({dataDir: request.data_dir, serverURL: request.server_url, password: request.password});
+  await api.loadBudget(request.budget_id);
+  await api.updateSchedule(request.schedule_id, {posts_transaction: false});
+  await api.updateSchedule(request.schedule_id, {amount: -800});
+  await api.sync();
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({ok: true}));
+} catch (error) {
+  console.log('ALLES_PROBE_RESULT=' + JSON.stringify({error: String(error?.message || error)}));
+  process.exitCode = 1;
+} finally {
+  await api.shutdown();
+}
+"""
+
 
 @unittest.skipUnless(os.environ.get("ALLES_RUN_ACTUAL_LIVE") == "1", "opt-in live probe")
 class ActualScheduleProbeTests(unittest.TestCase):
@@ -414,6 +453,142 @@ class ActualScheduleProbeTests(unittest.TestCase):
                     edit_result["party"]["schedule"]["payee"],
                     before_edit["schedule"]["payee"],
                 )
+                before_bridge_edit = {
+                    **edit_result["party"]["schedule"],
+                    "amountOp": "is",
+                    "category_id": setup["category"],
+                    "notes": "new lease",
+                }
+                target_bridge_edit = {
+                    **before_bridge_edit,
+                    "account": source["account_id"],
+                    "payee": first["payee_id"],
+                    "amount": -750,
+                    "date": {
+                        "start": "2027-01-03",
+                        "frequency": "weekly",
+                        "interval": 1,
+                        "endMode": "never",
+                    },
+                    "category_id": "",
+                    "notes": "",
+                    "posts_transaction": True,
+                }
+                edit_request = {
+                    "command": "write",
+                    "action": "edit_recurring_schedule",
+                    "budget_id": created["budget_id"],
+                    "actual_id": first["id"],
+                    "before": before_bridge_edit,
+                    "target": target_bridge_edit,
+                }
+                updated = managed_actual.bridge_request(edit_request, timeout=180)
+                self.assertEqual(updated["id"], first["id"])
+                self.assertEqual(updated["payee_id"], first["payee_id"])
+                self.assertTrue(updated["posts_transaction"])
+                self.assertEqual(managed_actual.bridge_request(edit_request, timeout=180), updated)
+                confirmed = managed_actual.bridge_request(
+                    {"command": "inspect", "budget_id": created["budget_id"]}, timeout=180
+                )
+                edited = [row for row in confirmed["schedules"] if row["id"] == first["id"]]
+                self.assertEqual(len(edited), 1)
+                self.assertEqual(edited[0]["rule"], before_edit["schedule"]["rule"])
+                self.assertEqual(edited[0]["amount"], -750)
+                self.assertEqual(edited[0]["account"], source["account_id"])
+                self.assertEqual(edited[0]["payee"], first["payee_id"])
+                self.assertEqual(edited[0]["next_date"], "2027-01-03")
+                self.assertEqual(
+                    edited[0]["posting"],
+                    {"pristine": False, "guarded": True, "category": None, "notes": ""},
+                )
+                second_before = {
+                    **target_bridge_edit,
+                    "date": edited[0]["date"],
+                }
+                second_target = {
+                    **second_before,
+                    "amount": -800,
+                    "category_id": setup["category"],
+                    "notes": "revised lease",
+                }
+                second_request = {
+                    **edit_request,
+                    "before": second_before,
+                    "target": second_target,
+                }
+                stage = subprocess.run(
+                    ["node", "--input-type=module", "-e", _STAGE_PARTIAL_EDIT],
+                    input=json.dumps(
+                        {
+                            "data_dir": str(managed_actual.client_data_dir()),
+                            "server_url": managed_actual.managed_url(),
+                            "password": managed_actual._managed_password(),
+                            "budget_id": created["budget_id"],
+                            "schedule_id": first["id"],
+                        }
+                    ),
+                    text=True,
+                    capture_output=True,
+                    cwd=managed_actual.app_dir(),
+                    timeout=180,
+                    check=False,
+                )
+                self.assertEqual(stage.returncode, 0, stage.stdout)
+                recovered = managed_actual.bridge_request(second_request, timeout=180)
+                self.assertEqual(recovered["id"], first["id"])
+                self.assertTrue(recovered["posts_transaction"])
+                confirmed_recovery = managed_actual.bridge_request(
+                    {"command": "inspect", "budget_id": created["budget_id"]}, timeout=180
+                )
+                recovered_row = next(
+                    row for row in confirmed_recovery["schedules"] if row["id"] == first["id"]
+                )
+                self.assertEqual(recovered_row["rule"], before_edit["schedule"]["rule"])
+                self.assertEqual(recovered_row["amount"], -800)
+                self.assertEqual(recovered_row["posting"]["category"], setup["category"])
+                self.assertEqual(recovered_row["posting"]["notes"], "revised lease")
+                third_before = {
+                    **second_target,
+                    "date": recovered_row["date"],
+                }
+                third_target = {
+                    **third_before,
+                    "amount": -850,
+                    "posts_transaction": False,
+                }
+                third_request = {
+                    **edit_request,
+                    "before": third_before,
+                    "target": third_target,
+                }
+                paused_edit = managed_actual.bridge_request(third_request, timeout=180)
+                self.assertEqual(paused_edit["id"], first["id"])
+                self.assertFalse(paused_edit["posts_transaction"])
+                self.assertEqual(
+                    managed_actual.bridge_request(third_request, timeout=180), paused_edit
+                )
+                tamper = subprocess.run(
+                    ["node", "--input-type=module", "-e", _TAMPER_EDITED_SCHEDULE],
+                    input=json.dumps(
+                        {
+                            "data_dir": str(managed_actual.client_data_dir()),
+                            "server_url": managed_actual.managed_url(),
+                            "password": managed_actual._managed_password(),
+                            "budget_id": created["budget_id"],
+                            "schedule_id": first["id"],
+                        }
+                    ),
+                    text=True,
+                    capture_output=True,
+                    cwd=managed_actual.app_dir(),
+                    timeout=180,
+                    check=False,
+                )
+                self.assertEqual(tamper.returncode, 0, tamper.stdout)
+                with self.assertRaisesRegex(
+                    managed_actual.ManagedActualError, "outside its before and target states"
+                ):
+                    managed_actual.bridge_request(third_request, timeout=180)
         finally:
             if old_data is None:
                 os.environ.pop("ALLES_DATA", None)
