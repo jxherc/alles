@@ -7,12 +7,13 @@ from unittest import mock
 from core.database import (
     AutomationAttempt,
     AutomationRule,
+    DayEvent,
     FinanceLedgerState,
     MailAccount,
     Subscription,
     Task,
 )
-from services import actual_finance, automations
+from services import actual_finance, automations, day_events, signals
 from services.automations import _render, _trim
 from tests._client import ApiTest, VaultApiTest
 
@@ -269,6 +270,45 @@ class SubscriptionAuthorityTests(ApiTest):
         tasks, state = self._state(rule_id)
         self.assertEqual(tasks, [])
         self.assertNotIn("done", state)
+
+
+class DayEventOwnershipTests(ApiTest):
+    def test_days_signals_and_automation_use_the_same_repeat_occurrence(self):
+        today = date.today()
+        original = today - timedelta(days=365)
+        target, _nth = day_events.next_occurrence(original, today, "yearly")
+        self.assertLessEqual((target - today).days, 1)
+        db = self.db()
+        event = DayEvent(name="anniversary", date=original.isoformat(), repeat="yearly")
+        rule = AutomationRule(
+            name="day reminder",
+            trigger="day_event_near",
+            trigger_arg="3",
+            action="create_task",
+            action_arg="{name}:{date}",
+        )
+        db.add_all([event, rule])
+        db.commit()
+        event_id, rule_id = event.id, rule.id
+        matching = [row for row in signals._day_events(db, today) if row["data"]["id"] == event_id]
+        self.assertEqual([row["key"] for row in matching], [f"day_event:{event_id}:{target}"])
+        db.close()
+
+        response = self.client.get("/api/days")
+        self.assertEqual(response.status_code, 200, response.text)
+        listed = next(row for row in response.json()["events"] if row["id"] == event_id)
+        self.assertEqual(listed["target"], target.isoformat())
+
+        asyncio.run(automations.run_automations())
+        asyncio.run(automations.run_automations())
+        db = self.db()
+        self.assertEqual(
+            [task.title for task in db.query(Task).all()],
+            [f"anniversary:{target.isoformat()}"],
+        )
+        state = json.loads(db.get(AutomationRule, rule_id).state or "{}")
+        self.assertIn(f"{event_id}:{target.isoformat()}", state["done"])
+        db.close()
 
 
 class AutomationSafetyTests(ApiTest):
