@@ -59,7 +59,32 @@ class BookApiTests(ApiTest):
         self.assertEqual(self.client.post("/api/books", json={"title": " "}).status_code, 400)
 
     def test_create_rejects_bad_status(self):
-        self.assertEqual(self._create(status="someday").status_code, 400)
+        r = self._create(status="someday")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()["detail"], "status must be one of want, reading, done")
+
+    def test_create_keeps_metadata_and_shelf_dates(self):
+        r = self._create(
+            title="  Dune  ",
+            author="  Frank Herbert  ",
+            status="reading",
+            rating=9,
+            cover="  https://example.com/cover.jpg  ",
+            isbn="  123  ",
+            notes="keep spacing",
+            year=1965,
+        )
+        self.assertEqual(r.status_code, 200)
+        book = r.json()
+        self.assertEqual(book["title"], "Dune")
+        self.assertEqual(book["author"], "Frank Herbert")
+        self.assertEqual(book["rating"], 5)
+        self.assertEqual(book["cover"], "https://example.com/cover.jpg")
+        self.assertEqual(book["isbn"], "123")
+        self.assertEqual(book["notes"], "keep spacing")
+        self.assertEqual(book["year"], 1965)
+        self.assertEqual(book["started"], date.today().isoformat())
+        self.assertEqual(book["finished"], "")
 
     def test_overview_shelves(self):
         self._create(title="Want1", status="want")

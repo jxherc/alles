@@ -1819,29 +1819,24 @@ async def _task_done(tid, done):
 
 # ── personal-app tools: books / health / habits / read / watch ────────────────
 async def _book_add(a):
-    from datetime import date
+    from core.database import SessionLocal
+    from services.book_items import BookInputError, save_book
 
-    from core.database import Book, SessionLocal
-
-    title = (a.get("title") or "").strip()
-    if not title:
-        return {"output": "title required", "error": True}
-    status = a.get("status") or "want"
-    if status not in ("want", "reading", "done"):
-        return {"output": "status must be want, reading or done", "error": True}
     db = SessionLocal()
     try:
-        b = Book(
-            title=title,
-            author=(a.get("author") or "").strip(),
-            status=status,
-            started=date.today().isoformat() if status == "reading" else "",
-            finished=date.today().isoformat() if status == "done" else "",
-        )
-        db.add(b)
-        db.commit()
-        db.refresh(b)
-        return {"output": f"added '{title}' to the {status} shelf ({b.id[:8]})"}
+        try:
+            b = save_book(
+                db,
+                title=a.get("title") or "",
+                author=a.get("author") or "",
+                status=a.get("status") or "want",
+            )
+        except BookInputError as exc:
+            output = (
+                "title required" if exc.field == "title" else "status must be want, reading or done"
+            )
+            return {"output": output, "error": True}
+        return {"output": f"added '{b.title}' to the {b.status} shelf ({b.id[:8]})"}
     finally:
         db.close()
 
