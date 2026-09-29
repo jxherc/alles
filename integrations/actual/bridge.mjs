@@ -80,6 +80,16 @@ const SAFE_BRIDGE_ERRORS = new Set([
   'Actual recurring posting rule changed; review it first',
   'Actual recurring posting state changed; review it first',
   'Actual recurring posting did not preserve the schedule',
+  'Actual recurring creation requires its stable operation marker',
+  'Actual recurring creation marker is not unique',
+  'Actual recurring creation marker is missing; review it before retry',
+  'Actual recurring creation requires an existing account',
+  'Actual recurring creation requires an existing spending category',
+  'Actual recurring creation payee is ambiguous',
+  'Actual recurring creation schedule changed; review it first',
+  'Actual recurring creation linked rule changed; review it first',
+  'Actual recurring creation posting state changed; review it first',
+  'Actual recurring creation could not be confirmed',
 ]);
 const PRIVATE_REQUEST_KEY_FRAGMENTS = [
   'password', 'token', 'secret', 'authorization', 'server_url', 'data_dir',
@@ -170,6 +180,16 @@ function dateRule(row) {
   if (cycle === 'custom') return { ...base, frequency: 'daily', interval: Math.max(1, Number(row.cycle_days || 30)) };
   if (!['daily', 'weekly', 'monthly', 'yearly'].includes(base.frequency)) base.frequency = 'monthly';
   return patterns ? { ...base, patterns } : base;
+}
+
+function scheduleDateIdentity(value) {
+  if (!value || typeof value !== 'object') return '';
+  return JSON.stringify({
+    start: String(value.start || '').replaceAll('-', ''),
+    frequency: String(value.frequency || ''),
+    interval: Number(value.interval || 1),
+    patterns: (value.patterns || []).map(item => ({ type: item.type, value: item.value })),
+  });
 }
 
 async function allTransactions(accounts) {
@@ -411,6 +431,106 @@ async function configureSchedulePosting(scheduleId, categoryId, notes) {
     || JSON.stringify(current.date) !== JSON.stringify(schedule.date)) {
     throw new Error('Actual schedule recurrence changed during posting setup');
   }
+}
+
+async function createRecurringSchedule(request) {
+  const source = request.schedule || {};
+  const marker = String(request.operation_marker || '');
+  const markerMatch = /^Alles recurring ([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/.exec(marker);
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(source.next_date || '')
+    && !Number.isNaN(Date.parse(`${source.next_date}T00:00:00Z`))
+    && new Date(`${source.next_date}T00:00:00Z`).toISOString().slice(0, 10) === source.next_date;
+  if (!markerMatch || source.name !== marker || source.id !== markerMatch[1]
+    || source.kind !== 'recurring' || typeof source.account_id !== 'string'
+    || !source.account_id || typeof source.payee !== 'string' || !source.payee
+    || !Number.isSafeInteger(source.amount_minor) || !validDate
+    || !['daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom'].includes(source.cycle)
+    || source.active !== true || source.posts_transaction !== true
+    || (source.anchor_day !== undefined && (
+      !Number.isInteger(source.anchor_day) || source.anchor_day < 1 || source.anchor_day > 31
+      || !['monthly', 'quarterly'].includes(source.cycle)
+      || [29, 30].includes(source.anchor_day)
+    ))
+    || typeof request.active !== 'boolean' || typeof request.allow_create !== 'boolean') {
+    throw new Error('Actual recurring creation requires its stable operation marker');
+  }
+  if (source.cycle === 'custom'
+    && (!Number.isSafeInteger(source.cycle_days) || source.cycle_days < 1
+      || source.cycle_days > 1000000)) {
+    throw new Error('Actual recurring creation requires its stable operation marker');
+  }
+  const account = (await api.getAccounts()).filter(row => row.id === source.account_id && !row.closed);
+  if (account.length !== 1) throw new Error('Actual recurring creation requires an existing account');
+  const categoryId = String(request.category_id || '');
+  const notes = String(request.notes || '');
+  if (categoryId) {
+    const categories = (await api.getCategories()).filter(row => row.id === categoryId && !row.is_income);
+    if (categories.length !== 1) {
+      throw new Error('Actual recurring creation requires an existing spending category');
+    }
+  }
+  const payeeMap = canonicalPayeeMap(await api.getPayees());
+  if (payeeMap.get(source.payee) === null) {
+    throw new Error('Actual recurring creation payee is ambiguous');
+  }
+  const matches = (await api.getSchedules()).filter(row => row.name === marker);
+  if (matches.length > 1) throw new Error('Actual recurring creation marker is not unique');
+  if (!matches.length && !request.allow_create) {
+    throw new Error('Actual recurring creation marker is missing; review it before retry');
+  }
+  const payeeId = matches.length
+    ? payeeMap.get(source.payee)
+    : await ensurePayee(source.payee, payeeMap);
+  if (!payeeId) throw new Error('Actual recurring creation payee is ambiguous');
+  const expectedDate = scheduleDateIdentity(dateRule(source));
+  const id = matches.length ? matches[0].id : await api.createSchedule({
+    name: marker,
+    posts_transaction: false,
+    payee: payeeId,
+    account: source.account_id,
+    amount: safeMinor(source.amount_minor, 'schedule amount'),
+    amountOp: 'is',
+    date: dateRule(source),
+  });
+  await api.sync();
+  const inspectOne = async () => {
+    const rows = (await api.getSchedules()).filter(row => row.id === id);
+    if (rows.length !== 1) throw new Error('Actual recurring creation schedule changed; review it first');
+    const row = rows[0];
+    if (row.name !== marker || row.account !== source.account_id || row.payee !== payeeId
+      || row.amount !== source.amount_minor || row.amountOp !== 'is'
+      || scheduleDateIdentity(row.date) !== expectedDate || row.completed) {
+      throw new Error('Actual recurring creation schedule changed; review it first');
+    }
+    const rule = (await api.getRules()).find(item => item.id === row.rule);
+    return { row, posting: schedulePosting(row, rule) };
+  };
+  let current = await inspectOne();
+  const configured = value => value.posting.guarded
+    && value.posting.category === (categoryId || null) && value.posting.notes === notes;
+  if (current.posting.pristine) {
+    if (current.row.posts_transaction !== false) {
+      throw new Error('Actual recurring creation posting state changed; review it first');
+    }
+    await configureSchedulePosting(id, categoryId, notes);
+    await api.sync();
+    current = await inspectOne();
+  }
+  if (!configured(current)) {
+    throw new Error('Actual recurring creation linked rule changed; review it first');
+  }
+  if (current.row.posts_transaction !== false && current.row.posts_transaction !== request.active) {
+    throw new Error('Actual recurring creation posting state changed; review it first');
+  }
+  if (current.row.posts_transaction !== request.active) {
+    await api.updateSchedule(id, { posts_transaction: request.active });
+    await api.sync();
+  }
+  const confirmed = await inspectOne();
+  if (!configured(confirmed) || confirmed.row.posts_transaction !== request.active) {
+    throw new Error('Actual recurring creation could not be confirmed');
+  }
+  return { id, payee_id: payeeId, posts_transaction: request.active };
 }
 
 async function ensureCategory(name, categoryMap, groupId) {
@@ -1009,6 +1129,7 @@ async function write(request) {
   }
   if (request.action === 'repair_recurring_schedule') return repairSchedulePosting(request);
   if (request.action === 'set_recurring_posting') return setSchedulePosting(request);
+  if (request.action === 'create_recurring_schedule') return createRecurringSchedule(request);
   if (request.action === 'clear_budget') {
     const categoryId = String(request.category_id || '').trim();
     if (!categoryId) throw new Error('Actual budget category id is required');
@@ -1032,7 +1153,11 @@ async function write(request) {
 }
 
 async function handle(request) {
-  if (request.command === 'capabilities') return { repair_recurring_schedule: 1, set_recurring_posting: 1 };
+  if (request.command === 'capabilities') return {
+    repair_recurring_schedule: 1,
+    set_recurring_posting: 1,
+    create_recurring_schedule: 1,
+  };
   if (request.command === 'versions') return {
     api: packageVersion('@actual-app/api'),
     cli: packageVersion('@actual-app/cli'),

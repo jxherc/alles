@@ -1509,7 +1509,7 @@ class ActualMigrationTests(ApiTest):
             "kind": "recurring",
             "id": "created-recurring",
             "name": "Alles recurring [created-recurring]",
-            "account_id": "source-account",
+            "account_id": "a2",
             "payee": "landlord",
             "amount_minor": -3300,
             "next_date": "2026-09-01",
@@ -1545,7 +1545,7 @@ class ActualMigrationTests(ApiTest):
             {
                 "id": "s3",
                 "name": created_source["name"],
-                "account": "a1",
+                "account": "a2",
                 "payee": "p1",
                 "amount": -3300,
                 "date": {"start": "20260901", "frequency": "monthly", "interval": 1},
@@ -1562,7 +1562,7 @@ class ActualMigrationTests(ApiTest):
         )
         for field, value in (
             ("name", "changed"),
-            ("account", "a2"),
+            ("account", "a1"),
             ("payee", "p2"),
             ("amount", -3301),
             ("date", {"start": "20260902", "frequency": "monthly", "interval": 1}),
