@@ -5,26 +5,37 @@ from types import SimpleNamespace
 from routes import days as D
 from routes import subscriptions as S
 from routes import today as T
+from services import day_events
 
 
 class DaysTests(unittest.TestCase):
     def test_yearly_occurrence_and_nth(self):
-        occ, nth = D._occurrence(date(2000, 3, 15), date(2026, 1, 1), "yearly")
+        occ, nth = day_events.next_occurrence(date(2000, 3, 15), date(2026, 1, 1), "yearly")
         self.assertEqual(occ, date(2026, 3, 15))
         self.assertEqual(nth, 26)
 
     def test_yearly_rolls_to_next_year_when_passed(self):
-        occ, nth = D._occurrence(date(2000, 3, 15), date(2026, 6, 1), "yearly")
+        occ, nth = day_events.next_occurrence(date(2000, 3, 15), date(2026, 6, 1), "yearly")
         self.assertEqual(occ, date(2027, 3, 15))
         self.assertEqual(nth, 27)
 
     def test_feb29_clamps_on_non_leap(self):
-        occ, _ = D._occurrence(date(2000, 2, 29), date(2026, 1, 1), "yearly")
+        occ, _ = day_events.next_occurrence(date(2000, 2, 29), date(2026, 1, 1), "yearly")
         self.assertEqual(occ, date(2026, 2, 28))
 
     def test_monthly_occurrence(self):
-        occ, _ = D._occurrence(date(2026, 1, 10), date(2026, 6, 5), "monthly")
+        occ, _ = day_events.next_occurrence(date(2026, 1, 10), date(2026, 6, 5), "monthly")
         self.assertEqual(occ, date(2026, 6, 10))
+
+    def test_previous_occurrence_keeps_short_month_clamping(self):
+        self.assertEqual(
+            day_events.previous_occurrence(date(2026, 1, 31), date(2026, 3, 31), "monthly"),
+            date(2026, 2, 28),
+        )
+        self.assertEqual(
+            day_events.previous_occurrence(date(2000, 2, 29), date(2026, 2, 28), "yearly"),
+            date(2025, 2, 28),
+        )
 
     def test_ymd_between(self):
         self.assertEqual(

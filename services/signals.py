@@ -31,6 +31,7 @@ from core.database import (
     Subscription,
     Task,
 )
+from services import day_events
 
 CATEGORIES = (
     "task",
@@ -283,14 +284,11 @@ def _subs(db, today, *, canonical=False, unavailable=None):
 
 
 def _day_events(db, today):
-    from routes.days import _occurrence
-    from routes.days import _parse as _dp
-
     out = []
     for ev in db.query(DayEvent).all():
-        orig = _dp(ev.date)
+        orig = day_events.parse_date(ev.date)
         if ev.repeat in ("yearly", "monthly"):
-            target, _nth = _occurrence(orig, today, ev.repeat)
+            target, _nth = day_events.next_occurrence(orig, today, ev.repeat)
         else:
             target = orig
             if target < today:
