@@ -2,6 +2,7 @@
 import { toast, mdToHtml } from './util.js';
 import { formatCalendarDate, formatTime } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=1';
+import { replaceRouteUrl } from './route_history.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 const MOODS = ['😄', '🙂', '😐', '😕', '😢', '😠', '😴', '🤔', '🥳', '😍'];
@@ -26,7 +27,7 @@ export function localISODate(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 function todayISO() { return localISODate(); }
-function _setDayUrl() { try { const u = new URL(location.href); u.searchParams.set('d', _day); history.replaceState(history.state, '', u); } catch {} }
+function _setDayUrl() { try { const u = new URL(location.href); u.searchParams.set('d', _day); replaceRouteUrl(u); } catch {} }
 function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function _setToken(t) { _token = t || ''; if (_token) sessionStorage.setItem('journal_token', _token); else sessionStorage.removeItem('journal_token'); }
 function _authHeaders(extra = {}) { return _token ? { ...extra, 'X-Journal-Token': _token } : extra; }

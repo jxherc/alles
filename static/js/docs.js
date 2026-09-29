@@ -2,6 +2,7 @@
 // Markdown file through a local CodeMirror 6 editor only after the owner chooses Edit.
 import { mdToHtml, enhanceMarkdown, toast } from './util.js';
 import { loadNotes } from './notes.js';
+import { replaceRouteUrl } from './route_history.js';
 
 let _section = 'docs';
 let _cur = null;
@@ -170,7 +171,7 @@ async function openLegacyDocumentDeepLink(path) {
   const url = new URL(location.href);
   url.searchParams.delete('doc');
   url.searchParams.delete('doc_hash');
-  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  replaceRouteUrl(url.pathname + url.search + url.hash);
 }
 
 function _wire() {
@@ -302,7 +303,7 @@ async function openDocsHome() {
   _dirty = false;
   _mode = 'view';
   destroyEditor();
-  if (location.hash) history.replaceState(history.state, '', location.pathname + location.search);
+  if (location.hash) replaceRouteUrl(location.pathname + location.search);
   showSection('docs');
   renderShell();
   return true;
@@ -685,7 +686,7 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     } else {
       hideInlineState();
     }
-    if (!quiet) history.replaceState(history.state, '', location.pathname + location.search + '#' + encodeURIComponent(stem(_cur)));
+    if (!quiet) replaceRouteUrl(location.pathname + location.search + '#' + encodeURIComponent(stem(_cur)));
     return true;
   } catch (error) {
     if (requestGeneration !== _openGeneration) return false;

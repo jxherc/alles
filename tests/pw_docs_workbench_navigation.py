@@ -41,10 +41,9 @@ def run() -> None:
                 data={"path": name, "content": original},
             )
             assert seed.ok, seed.text()
+            assert context.request.post(base + "/api/setup/dismiss").ok
             page.goto(f"{base}/?view=wiki&doc={name}", wait_until="networkidle")
-            if page.locator("#setup-wizard").is_visible():
-                page.locator("#setup-skip").click()
-                page.locator("#setup-wizard").wait_for(state="hidden")
+            expect(page.locator("#setup-wizard")).to_be_hidden()
             expect(page.locator("#wiki-preview")).to_contain_text("original")
             assert page.evaluate("Number.isSafeInteger(history.state?.__allesRoutePosition)")
             page.locator("#wiki-edit-btn").click()
@@ -147,6 +146,51 @@ def run() -> None:
             draft = context.request.get(base + "/api/vault-md/safety/draft", params={"path": name})
             assert draft.ok, draft.text()
             assert draft.json()["draft"]["content"] == home_edit
+            if width == 1440:
+                page.evaluate("window._navigateTo('docs')")
+                expect(source).to_be_visible()
+                page.evaluate("history.pushState(null, '', '?view=journal')")
+                page.go_back()
+                expect(source).to_be_visible()
+                legacy_forward_url = page.url
+                legacy_edit = "# an older forward entry must keep this draft\n"
+                source.fill(legacy_edit)
+                page.route("**/api/vault-md/safety/draft", fail_draft)
+                page.go_forward()
+                expect(page).to_have_url(legacy_forward_url)
+                expect(source).to_have_value(legacy_edit)
+                expect(page.locator("#docs-journal-section")).to_be_hidden()
+                expect(page.locator("#wiki-save-state")).to_have_text("synthetic draft outage")
+                page.unroute("**/api/vault-md/safety/draft", fail_draft)
+
+                no_index = page.evaluate(
+                    """() => {
+                      Object.defineProperty(window, 'navigation', {
+                        value: undefined, configurable: true,
+                      });
+                      return window.navigation === undefined;
+                    }"""
+                )
+                assert no_index
+                page.evaluate("history.pushState(null, '', '?view=journal')")
+                page.go_back()
+                expect(source).to_be_visible()
+                fallback_url = page.url
+                fallback_edit = "# no browser index must keep this draft\n"
+                source.fill(fallback_edit)
+                page.route("**/api/vault-md/safety/draft", fail_draft)
+                page.go_forward()
+                expect(page).to_have_url(fallback_url)
+                expect(source).to_have_value(fallback_edit)
+                expect(page.locator("#docs-journal-section")).to_be_hidden()
+                page.unroute("**/api/vault-md/safety/draft", fail_draft)
+                journal_tab.click()
+                expect(page.locator("#docs-journal-section")).to_be_visible()
+                draft = context.request.get(
+                    base + "/api/vault-md/safety/draft", params={"path": name}
+                )
+                assert draft.ok, draft.text()
+                assert draft.json()["draft"]["content"] == fallback_edit
             assert not errors, errors
             context.close()
         browser.close()
