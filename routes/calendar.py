@@ -20,42 +20,10 @@ from services import calendar_events
 router = APIRouter(prefix="/api")
 
 
-def _jl(s):
-    try:
-        v = json.loads(s or "[]")
-        return v if isinstance(v, list) else []
-    except Exception:
-        return []
-
-
-def _fmt(e: CalendarEvent) -> dict:
-    return {
-        "id": e.id,
-        "calendar_id": e.calendar_id or "",
-        "title": e.title,
-        "description": e.description,
-        "location": e.location or "",
-        "guests": e.guests or "",
-        "start_dt": e.start_dt,
-        "end_dt": e.end_dt,
-        "all_day": e.all_day,
-        "color": e.color,
-        "reminders": _jl(e.reminders),
-        "recurrence": e.recurrence or "",
-        "recur_interval": e.recur_interval or 1,
-        "recur_byday": e.recur_byday or "",
-        "recur_count": e.recur_count,
-        "recur_until": e.recur_until,
-        "recur_except": _jl(e.recur_except),
-        "meeting_url": e.meeting_url or "",
-        "created_at": e.created_at.isoformat(),
-    }
-
-
 @router.get("/calendar")
 def list_events(db: DbSession = Depends(get_db)):
     rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
-    return [_fmt(e) for e in rows]
+    return [calendar_events.event_dict(e) for e in rows]
 
 
 @router.get("/calendar/conflicts")
@@ -63,7 +31,7 @@ def calendar_conflicts(db: DbSession = Depends(get_db)):
     """4a - overlapping timed events (scheduling advisor)."""
     from services import cal_conflict
 
-    rows = [_fmt(e) for e in db.query(CalendarEvent).all()]
+    rows = [calendar_events.event_dict(e) for e in db.query(CalendarEvent).all()]
     return {"conflicts": cal_conflict.conflicts(rows)}
 
 
@@ -93,7 +61,7 @@ def calendar_free_slots(
     # start is on another date is invisible to free_slots and we'd offer a busy slot.
     rows = []
     for e in db.query(CalendarEvent).all():
-        base = _fmt(e)
+        base = calendar_events.event_dict(e)
         if e.recurrence:
             try:
                 bs = _dt.fromisoformat((e.start_dt or "")[:16])
@@ -165,7 +133,7 @@ def duplicate_event(eid: str, db: DbSession = Depends(get_db)):
     db.add(clone)
     db.commit()
     db.refresh(clone)
-    return _fmt(clone)
+    return calendar_events.event_dict(clone)
 
 
 @router.get("/calendar/free")
@@ -200,7 +168,7 @@ def free_time(
         except (ValueError, TypeError):
             continue
         if e.recurrence:
-            for occ in expand(_fmt(e), rs, re_):
+            for occ in expand(calendar_events.event_dict(e), rs, re_):
                 busy.append((occ, occ + dur))
         elif rs <= base_s < re_:
             busy.append((base_s, base_e))
@@ -223,7 +191,7 @@ def agenda(days: int = 30, db: DbSession = Depends(get_db)):
     re_ = datetime.combine(until, datetime.max.time())
     groups: dict[str, list] = {}
     for e in db.query(CalendarEvent).all():
-        base = _fmt(e)
+        base = calendar_events.event_dict(e)
         if e.recurrence:
             try:
                 start0 = datetime.fromisoformat(e.start_dt)
@@ -273,7 +241,7 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
     db.add(e)
     db.commit()
     db.refresh(e)
-    return _fmt(e)
+    return calendar_events.event_dict(e)
 
 
 class EventBody(BaseModel):
@@ -362,7 +330,7 @@ def _occurrence_dates(event, day, time_zone):
 
 @router.post("/calendar")
 def create_event(body: EventBody, db: DbSession = Depends(get_db)):
-    return _fmt(calendar_events.create_event(db, body.model_dump()))
+    return calendar_events.event_dict(calendar_events.create_event(db, body.model_dump()))
 
 
 class EventPatch(BaseModel):
@@ -402,7 +370,7 @@ def update_event(
         raise HTTPException(404)
     if scope not in {"all", "this", "following"}:
         raise HTTPException(400, "Unknown edit scope.")
-    old = _fmt(e)
+    old = calendar_events.event_dict(e)
     old.pop("id")
     old.pop("created_at")
     patch = body.model_dump(exclude_unset=True)
@@ -443,7 +411,7 @@ def update_event(
     except Exception:
         db.rollback()
         raise
-    return _fmt(result)
+    return calendar_events.event_dict(result)
 
 
 @router.delete("/calendar/{eid}")
@@ -456,7 +424,7 @@ def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = De
     if not e:
         raise HTTPException(404)
     if scope == "this" and occ and e.recurrence:
-        ex = _jl(e.recur_except)
+        ex = calendar_events.json_list(e.recur_except)
         if occ[:10] not in ex:
             ex.append(occ[:10])
         e.recur_except = json.dumps(ex)
@@ -485,7 +453,7 @@ def export_ics(db: DbSession = Depends(get_db)):
     from services.ics import to_ics
 
     rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
-    body = to_ics([_fmt(e) for e in rows])
+    body = to_ics([calendar_events.event_dict(e) for e in rows])
     return Response(
         body,
         media_type="text/calendar",
@@ -818,7 +786,7 @@ def compute_booking_slots(db, page: BookingPage, date_str: str) -> list[dict]:
         except (ValueError, TypeError):
             continue
         if e.recurrence:
-            for occ in expand(_fmt(e), rs, re_):
+            for occ in expand(calendar_events.event_dict(e), rs, re_):
                 busy.append((occ, occ + dur))
         elif rs <= base_s < re_:
             busy.append((base_s, base_e))

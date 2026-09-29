@@ -147,11 +147,11 @@ def _contacts_vcard(db):
 
 def _calendar_ics(db):
     from core.database import CalendarEvent
-    from routes.calendar import _fmt
+    from services import calendar_events
     from services.ics import to_ics
 
     rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
-    return to_ics([_fmt(e) for e in rows])
+    return to_ics([calendar_events.event_dict(e) for e in rows])
 
 
 # kind -> {formats: set, rows: builder, special: {fmt: builder->str}}
