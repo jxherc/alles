@@ -10,6 +10,7 @@ import re
 from datetime import date as _date
 from datetime import timedelta
 
+from services import habit_logs
 from services.life_stats import spearman  # tie-corrected rank correlation (shared)
 
 # the journal mood picker (static/js/journal.js MOODS) plus common typed/synced words/emoji.
@@ -144,9 +145,13 @@ def correlations(db, *, days=180, min_overlap=6):
     habits = db.query(Habit).filter(Habit.archived == False).all()  # noqa: E712
     active = {h.id for h in habits}
     done = {}
-    for log in db.query(HabitLog).filter(HabitLog.date >= since).all():
-        if log.habit_id in active:  # archived habits' logs must not feed the aggregate either
-            done.setdefault(log.habit_id, set()).add(log.date)
+    for log in db.query(HabitLog).filter(HabitLog.habit_id.in_(active)).all():
+        try:
+            day = habit_logs.canonical_day(log.date)
+        except ValueError:
+            continue
+        if day >= since:
+            done.setdefault(log.habit_id, set()).add(day)
     for h in habits:
         hdates = done.get(h.id, set())
         if not hdates:

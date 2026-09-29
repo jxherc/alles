@@ -124,6 +124,16 @@ class SignalsTests(ApiTest):
         d.close()
         self.assertEqual([s for s in self._gather() if s["category"] == "habit"], [])
 
+    def test_habit_done_today_with_existing_compact_date_excluded(self):
+        d = self.db()
+        h = Habit(name="floss", archived=False, cadence="daily")
+        d.add(h)
+        d.commit()
+        d.add(HabitLog(habit_id=h.id, date=date.today().strftime("%Y%m%d")))
+        d.commit()
+        d.close()
+        self.assertEqual([s for s in self._gather() if s["category"] == "habit"], [])
+
     def test_event_today_signal(self):
         d = self.db()
         d.add(CalendarEvent(title="lunch", start_dt=_iso(0) + "T12:00", all_day=False))
