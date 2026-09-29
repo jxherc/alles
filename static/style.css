@@ -9545,6 +9545,8 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-journal-main { grid-column: 1 / -1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .docs-journal-head { max-width: none; margin: 0; min-height: 54px; padding: 0 1rem; border-bottom: 1px solid var(--faint); }
 .docs-journal-stats { margin-left: auto; color: var(--muted); font-size: 0.75rem; }
+.docs-journal-copy { min-height: 44px; margin: 0; padding: 0 0.5rem; font-size: 0.875rem; }
+.docs-journal-copy:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .docs-journal-main #journal-body {
   flex: 1;
   min-height: 0;
@@ -9659,18 +9661,23 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   border-radius: 4px;
   background: var(--panel);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.55;
 }
 .jrnl-migration-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem; }
-.jrnl-migration-head h2 { color: var(--text); font-size: 0.92rem; font-weight: 620; }
+.jrnl-migration-head h2 { color: var(--text); font-size: 1rem; font-weight: 620; }
 .jrnl-migration-head button { margin-left: auto; }
 .jrnl-migration-card p + p { margin-top: 0.55rem; }
 .jrnl-migration-note { color: var(--muted); }
+.jrnl-migration-warning { color: var(--text); }
+.jrnl-migration-operations { margin-top: 1rem; }
+.jrnl-migration-operations[hidden], .jrnl-migration-card [data-new-copy][hidden] { display: none; }
+.jrnl-migration-operations h3 { color: var(--text); font-size: 0.875rem; font-weight: 620; }
+.jrnl-migration-operation { margin-top: 0.65rem; padding-top: 0.65rem; border-top: 1px solid var(--faint); }
 .jrnl-migration-confirm { display: grid; gap: 0.4rem; margin-top: 1rem; }
-.jrnl-migration-confirm code { color: var(--text); font-size: 0.75rem; overflow-wrap: anywhere; }
+.jrnl-migration-confirm code { color: var(--text); font-size: 0.875rem; overflow-wrap: anywhere; }
 .jrnl-migration-confirm input {
-  height: 34px;
+  min-height: 44px;
   border: 0;
   border-bottom: 1px solid var(--faint);
   border-radius: 0;
@@ -9679,24 +9686,24 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   color: var(--text);
   font: inherit;
 }
-.jrnl-migration-confirm input:focus { border-bottom-color: var(--focus); }
+.jrnl-migration-confirm input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .jrnl-migration-error,
 .jrnl-migration-status.error { color: var(--error); }
 .jrnl-migration-error { margin-top: 0.75rem; }
 .jrnl-migration-status { min-height: 1.1rem; margin-top: 0.65rem; }
-.jrnl-migration-actions { display: flex; justify-content: flex-end; gap: 0.35rem; margin-top: 0.55rem; }
+.jrnl-migration-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; }
 .jrnl-migration-card button {
-  min-height: 30px;
+  min-height: 44px;
   padding: 0 0.65rem;
   border: 1px solid var(--faint);
   border-radius: 3px;
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   cursor: pointer;
 }
 .jrnl-migration-card button:hover:not(:disabled),
-.jrnl-migration-card button:focus-visible { border-color: var(--muted); color: var(--text); }
+.jrnl-migration-card button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; color: var(--text); }
 .jrnl-migration-card button:disabled,
 .jrnl-migration-confirm input:disabled { opacity: 0.42; cursor: default; }

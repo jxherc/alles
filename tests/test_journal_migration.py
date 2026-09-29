@@ -65,6 +65,64 @@ class JournalMigrationTests(VaultApiTest):
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()["operation_id"]
 
+    def test_operations_list_recovers_prepared_and_applied_work(self):
+        self._entry("2026-07-01", "private")
+        self.assertEqual(
+            self.client.get("/api/journal-migration/operations").json(),
+            {"operations": [], "unavailable": []},
+        )
+
+        prepared_id = self._prepare()
+        listed = self.client.get("/api/journal-migration/operations")
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual(
+            [item["operation_id"] for item in listed.json()["operations"]], [prepared_id]
+        )
+        self.assertEqual(listed.json()["operations"][0]["state"], "prepared")
+        self.assertNotIn("private", listed.text)
+
+        applied = self.client.post(f"/api/journal-migration/{prepared_id}/apply")
+        self.assertEqual(applied.status_code, 200, applied.text)
+        listed = self.client.get("/api/journal-migration/operations").json()
+        self.assertEqual(listed["operations"][0]["state"], "applied")
+        self.assertEqual(listed["operations"][0]["installed"], 1)
+
+        second_id = self._prepare()
+        listed = self.client.get("/api/journal-migration/operations").json()
+        self.assertEqual(
+            {item["operation_id"] for item in listed["operations"]},
+            {prepared_id, second_id},
+        )
+
+        broken_id = "a" * 32
+        broken_dir = Path(self.operations_tmp.name) / "journal-migrations" / broken_id
+        broken_dir.mkdir()
+        listed = self.client.get("/api/journal-migration/operations").json()
+        self.assertIn(broken_id, listed["unavailable"])
+
+        self.client.post(f"/api/journal-migration/{prepared_id}/rollback")
+        self.client.post(f"/api/journal-migration/{second_id}/rollback")
+        listed = self.client.get("/api/journal-migration/operations").json()
+        self.assertEqual(listed["operations"], [])
+
+    def test_operations_list_requires_journal_unlock(self):
+        self._entry("2026-07-01", "private")
+        self._prepare()
+        locked = self.client.post(
+            "/api/journal/lock/set", json={"passcode": "journal-passcode-one"}
+        )
+        self.assertEqual(locked.status_code, 200)
+        self.assertEqual(self.client.get("/api/journal-migration/operations").status_code, 403)
+        unlocked = self.client.post(
+            "/api/journal/unlock", json={"passcode": "journal-passcode-one"}
+        )
+        token = unlocked.json()["token"]
+        response = self.client.get(
+            "/api/journal-migration/operations", headers={"x-journal-token": token}
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(response.json()["operations"]), 1)
+
     def test_preview_apply_and_rollback_are_separate_and_lossless(self):
         self._entry("2026-07-01", "first")
         self._entry("2026-07-02", "second")

@@ -30,8 +30,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 899)
-        self.assertEqual(digest, "c4c7256f5205055f1907633ebb650e85fcf8323e9cb8e4e3c2067dbc63880bb2")
+        self.assertEqual(len(rows), 900)
+        self.assertEqual(digest, "4a693cbe5721d9350937946037585e3b90aaf281f63c10b2a4de30883af67f37")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -40,7 +40,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 882, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 883, "v1": 2, "public": 15})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 
@@ -48,6 +48,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
         rows = set(_route_rows())
         expected = {
             "DELETE /api/vault-md/safety/draft",
+            "GET /api/journal-migration/operations",
             "GET /api/journal-migration/plan",
             "GET /api/journal-migration/{operation_id}",
             "GET /api/vault-transfer/pending",

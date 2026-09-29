@@ -47,6 +47,11 @@ def prepare_migration(body: PrepareBody, db: DbSession = Depends(get_db)):
     )
 
 
+@router.get("/operations")
+def migration_operations():
+    return _run(journal_migration.operations)
+
+
 @router.get("/{operation_id}")
 def migration_status(operation_id: str):
     return _run(lambda: journal_migration.status(operation_id))

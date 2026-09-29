@@ -1,6 +1,6 @@
 # Afterlife - current trust and compatibility map
 
-- **Status:** code-audited and regression-locked; refreshed 2026-09-28
+- **Status:** code-audited and regression-locked; refreshed 2026-09-29
 - **Scope:** behavior shipped on the current `dev-afterlife` worktree
 - **Privacy rule:** built from source and synthetic/throwaway tests only; no owner database, vault,
   mail, connector, or file content was opened.
@@ -51,14 +51,16 @@ flowchart LR
 ## Route snapshot
 
 - 83 included FastAPI router modules
-- 899 HTTP method/path pairs
-- 882 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
-- SHA-256: `c4c7256f5205055f1907633ebb650e85fcf8323e9cb8e4e3c2067dbc63880bb2`
+- 900 HTTP method/path pairs
+- 883 `/api/*`, 2 `/v1/*`, and 15 non-API shell/public pairs
+- SHA-256: `4a693cbe5721d9350937946037585e3b90aaf281f63c10b2a4de30883af67f37`
 - No WebSocket route; long responses use SSE/streaming HTTP
 
 Public routes are limited to the app shell/PWA, `/health`, optional `/status`, token shares and their
 rate-limited password unlock under `/s` and `/sv`, plus public booking/RSVP reads and writes. The exact
 surface and digest are locked by `tests/test_route_compatibility.py`.
+`GET /api/journal-migration/operations` lists recovery summaries only after recent-owner and
+Journal-unlock checks; it returns no entry text and changes no files.
 
 ## Hosts and deep links
 
@@ -95,7 +97,7 @@ share/booking routes. Exact host ownership and parser markers are regression-tes
 
 ## Fresh evidence
 
-- Runtime enumeration on 2026-09-29 reproduced the locked 899-route digest and 882/2/15 grouping.
+- Runtime enumeration on 2026-09-29 reproduced the locked 900-route digest and 883/2/15 grouping.
   The authenticated `POST /api/money/recurring/{rid}/retry` reconciles one pending Actual
   schedule creation without making another schedule. `POST /api/money/recurring/{rid}/repair`
   repairs an older linked schedule after explicit category choice; the existing

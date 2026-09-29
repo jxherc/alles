@@ -943,3 +943,41 @@ def status(operation_id: str) -> dict:
         "rollback_conflicts": manifest.get("rollback_conflicts", []),
         "source_of_truth": manifest["source_of_truth"],
     }
+
+
+def operations() -> dict:
+    """List unfinished copy work without reading Journal entry content."""
+    found = []
+    unavailable = []
+    for operation in _root().iterdir():
+        operation_id = operation.name
+        if len(operation_id) != 32 or any(char not in "0123456789abcdef" for char in operation_id):
+            continue
+        manifest = operation / "manifest.json"
+        if operation.is_symlink() or manifest.is_symlink():
+            unavailable.append(operation_id)
+            continue
+        try:
+            summary = status(operation_id)
+            modified = manifest.stat().st_mtime_ns
+            state = summary["state"]
+            if state == "rolled_back":
+                continue
+            if state not in {"prepared", "applied", "rolled_back_with_conflicts"}:
+                raise ValueError("unknown journal migration state")
+            found.append(
+                (
+                    modified,
+                    {
+                        "operation_id": operation_id,
+                        "state": state,
+                        "count": summary["count"],
+                        "installed": summary["installed"],
+                        "rollback_conflicts": len(summary["rollback_conflicts"]),
+                    },
+                )
+            )
+        except (OSError, ValueError, KeyError, TypeError):
+            unavailable.append(operation_id)
+    found.sort(key=lambda item: (item[0], item[1]["operation_id"]), reverse=True)
+    return {"operations": [summary for _, summary in found], "unavailable": sorted(unavailable)}
