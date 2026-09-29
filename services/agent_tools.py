@@ -1863,28 +1863,24 @@ async def _books_list(a):
 
 
 async def _health_log(a):
-    from datetime import date
+    from core.database import SessionLocal
+    from services.health_entries import HealthInputError, save_entry
 
-    from core.database import HealthEntry, SessionLocal
-
-    try:
-        value = float(a.get("value"))
-    except (TypeError, ValueError):
-        return {"output": "value must be a number", "error": True}
     kind = (a.get("kind") or "custom").strip() or "custom"
     db = SessionLocal()
     try:
-        e = HealthEntry(
-            kind=kind,
-            value=value,
-            unit=(a.get("unit") or "").strip(),
-            note=(a.get("note") or "").strip(),
-            date=date.today().isoformat(),
-        )
-        db.add(e)
-        db.commit()
+        try:
+            e = save_entry(
+                db,
+                kind=kind,
+                value=a.get("value"),
+                unit=a.get("unit") or "",
+                note=a.get("note") or "",
+            )
+        except HealthInputError as exc:
+            return {"output": str(exc), "error": True}
         unit = f" {e.unit}" if e.unit else ""
-        return {"output": f"logged {kind} {value}{unit} for today"}
+        return {"output": f"logged {kind} {e.value}{unit} for today"}
     finally:
         db.close()
 

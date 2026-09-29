@@ -71,6 +71,14 @@ class HealthApiTests(ApiTest):
     def test_create_rejects_bad_kind(self):
         self.assertEqual(self._create(kind="vibes").status_code, 400)
 
+    def test_create_rejects_nonfinite_without_saving(self):
+        for value in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(value=value):
+                response = self._create(value=value)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["detail"], "value must be a finite number")
+        self.assertEqual(self.client.get("/api/health").json()["entries"], [])
+
     def test_custom_labels_get_separate_cards(self):
         self._create(kind="custom", label="blood pressure", value=120, unit="mmHg")
         self._create(kind="custom", label="steps", value=5000, unit="")
@@ -85,6 +93,19 @@ class HealthApiTests(ApiTest):
         kinds = {e["kind"] for e in self.client.get("/api/health").json()["entries"]}
         self.assertNotIn("bp", kinds)  # coerced
         self.assertIn("custom", kinds)
+
+    def test_import_skips_nonfinite_values(self):
+        csv = (
+            "date,kind,value,unit\n"
+            "2026-06-20,weight,NaN,kg\n"
+            "2026-06-21,weight,Infinity,kg\n"
+            "2026-06-22,weight,-Infinity,kg\n"
+            "2026-06-23,weight,74.25,kg\n"
+        )
+        response = self.client.post("/api/health/import", json={"text": csv})
+        self.assertEqual(response.json()["imported"], 1)
+        entries = self.client.get("/api/health").json()["entries"]
+        self.assertEqual([e["value"] for e in entries], [74.25])
 
     def test_create_requires_value(self):
         self.assertEqual(self.client.post("/api/health", json={"kind": "weight"}).status_code, 422)
