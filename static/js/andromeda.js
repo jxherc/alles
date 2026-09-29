@@ -2,6 +2,7 @@ import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropd
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { setControlState } from './kokuen.js?v=1';
+import { replaceRouteUrl } from './route_history.js';
 
 let _bound = false;
 let _overviewAbort = null;
@@ -1634,11 +1635,7 @@ function resetToLanding() {
   setPageState('idle');
   setCategory('all', { search: false });
   if (el('andromeda-query')) el('andromeda-query').value = '';
-  window.history.replaceState(
-    window.history.state,
-    '',
-    andromedaLandingUrl(window.location.href),
-  );
+  replaceRouteUrl(andromedaLandingUrl(window.location.href));
   closeSettings();
   requestAnimationFrame(() => el('andromeda-query')?.focus());
 }

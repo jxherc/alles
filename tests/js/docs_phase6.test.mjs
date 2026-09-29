@@ -183,7 +183,7 @@ test('Notes keeps an active editor mounted across vault watcher refreshes', () =
 test('Docs home clears stale document hashes and delete resolves dirty work first', () => {
   const home = docs.match(/async function openDocsHome\(\)[\s\S]*?\n}\n\nexport function showSection/)?.[0] || '';
   const remove = docs.match(/async function deleteCurrent\(\)[\s\S]*?\n}\n\nasync function openTrash/)?.[0] || '';
-  assert.match(home, /history\.replaceState\(history\.state, '', location\.pathname \+ location\.search\)/);
+  assert.match(home, /replaceRouteUrl\(location\.pathname \+ location\.search\)/);
   assert.match(remove, /if \(_dirty && !\(await saveCurrent\(\)\)\) return/);
   assert.match(remove, /await openDocsHome\(\)/);
 });

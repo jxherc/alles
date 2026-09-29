@@ -1,6 +1,7 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { formatDate } from './i18n.js';
+import { replaceRouteUrl } from './route_history.js';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '')
@@ -142,7 +143,7 @@ function writeUrl() {
     else url.searchParams.delete('location');
     if (state.cwd) url.searchParams.set('p', state.cwd);
     else url.searchParams.delete('p');
-    history.replaceState(history.state, '', url);
+    replaceRouteUrl(url);
   } catch {}
 }
 
