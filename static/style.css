@@ -5054,6 +5054,18 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .recur-form-canonical .recur-field { display: grid; gap: var(--k-space-1, 4px); color: var(--muted); font-size: 0.75rem; }
 .recur-form-canonical :where(.settings-input, .date-input, .rc-category-choice, #rc-add) { width: 100%; min-width: 0; }
 .recur-form-canonical .rc-category-choice { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-edit { min-height: 44px; }
+.recur-edit { padding: var(--k-space-3, 12px); border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); }
+.recur-edit-state { padding: var(--k-space-3, 12px); color: var(--muted); font-size: 13px; }
+.recur-edit-state .btn { min-height: 44px; margin-left: 8px; }
+.recur-edit-fields { margin-top: 0; }
+.recur-edit-fields [hidden] { display: none; }
+.recur-edit-fields :where(.settings-input, .date-input, .recur-edit-choice) { width: 100%; min-width: 0; min-height: 44px; }
+.recur-edit-choice { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recur-edit-fields .recur-edit-notes { grid-column: 1 / -1; }
+.recur-edit-active { display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 12px; color: var(--muted); font-size: 0.75rem; }
+.recur-edit-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); margin-top: var(--k-space-3, 12px); }
+.recur-edit-actions .btn { min-height: 44px; }
 .rules { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.5rem; }
 .rule { display: flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0.15rem; border-bottom: 1px solid var(--faint); font-size: 0.75rem; }
 .rule:last-child { border-bottom: none; }

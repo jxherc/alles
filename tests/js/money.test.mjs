@@ -206,6 +206,45 @@ test('pending recurring edit stays visible and retries only the saved edit', asy
   assert.equal(calls.length, 1);
 });
 
+test('recurring edit stays scoped to one eligible linked schedule', () => {
+  const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+  const context = vm.createContext({
+    location: { search: '' }, URLSearchParams,
+    formatNumber: value => String(value),
+  });
+  vm.runInContext(source + `
+    _canonicalLedger = true;
+    _recurring = [
+      { id: 'linked', payee: 'rent', amount: -5, amount_kind: 'exact', cycle: 'monthly',
+        next_date: '2026-10-01', active: false, manageable: true, editable: true },
+      { id: 'native', payee: 'native', amount: -3, cycle: 'monthly',
+        next_date: '2026-10-01', active: true, manageable: false, editable: false },
+    ];
+    _recurringEdit = { id: 'linked', options: {
+      accounts: [{ id: 'account-id', name: 'checking' }],
+      payees: [{ id: 'payee-id', name: 'rent' }],
+      categories: [{ id: 'category-id', name: 'housing' }],
+    }, draft: {
+      account_id: 'account-id', payee_id: 'payee-id', category_id: 'category-id',
+      amountText: '5', sign: '-', cycle: 'monthly', cycle_days: 30,
+      next_date: '2026-10-01', active: false, notes: 'lease',
+    }, status: '', saving: false, blocked: false };
+    globalThis.list = recurringList;
+  `, context);
+  const open = context.list();
+  assert.match(open, /data-edit-rec="linked"/);
+  assert.doesNotMatch(open, /data-edit-rec="native"/);
+  assert.match(open, /id="rce-panel"/);
+  assert.match(open, /data-choice-id="category-id"/);
+  assert.match(open, /role="switch" aria-checked="false"/);
+  assert.doesNotMatch(open, /data-toggle-rec="linked"/);
+  vm.runInContext('_recurring[0].editable = false; _recurring[0].edit_pending = true;', context);
+  const pending = context.list();
+  assert.doesNotMatch(pending, /id="rce-panel"/);
+  assert.doesNotMatch(pending, /data-edit-rec="linked"/);
+  assert.match(pending, /data-retry-edit-rec="linked"/);
+});
+
 test('finance dialogs, rows, and destructive actions expose complete interaction boundaries', () => {
   assert.match(moneySource, /createFocusBoundary\(dialog/);
   assert.match(moneySource, /requestWithRecentOwner\(fetch, path, init\)/);
