@@ -4,9 +4,8 @@ the research extractor), and search it offline. links don't rot: the text is kep
 if the page later disappears.
 """
 
-import re
 from datetime import UTC, datetime
-from urllib.parse import urlparse, urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -15,30 +14,9 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import ReadFeed, ReadItem, get_db
-from services.research.search import fetch_webpage_content
+from services.read_items import make_excerpt, read_minutes, save_url, site_of
 
 router = APIRouter(prefix="/api")
-
-
-# ── pure helpers ──────────────────────────────────────────────────────────────
-def site_of(url: str) -> str:
-    try:
-        host = urlparse(url if "://" in url else "https://" + url).hostname or ""
-    except ValueError:
-        return ""
-    if not host or " " in host or "." not in host:  # not a real domain
-        return ""
-    return host[4:] if host.startswith("www.") else host
-
-
-def make_excerpt(text: str, n: int = 240) -> str:
-    t = re.sub(r"\s+", " ", text or "").strip()
-    return t if len(t) <= n else t[:n].rstrip() + "…"
-
-
-def read_minutes(text: str) -> int:
-    words = len((text or "").split())
-    return max(1, round(words / 200))
 
 
 def _norm_tags(s: str) -> str:
@@ -186,34 +164,7 @@ class SaveBody(BaseModel):
 
 @router.post("/read")
 def save_item(body: SaveBody, db: DbSession = Depends(get_db)):
-    url = (body.url or "").strip()
-    if not url:
-        raise HTTPException(400, "url required")
-    if not url.startswith("http"):
-        url = "https://" + url
-    res = fetch_webpage_content(url)
-    site = site_of(url)
-    text = res.get("content", "") if res else ""
-    title = (res.get("title") if res else "") or site or url
-    it = ReadItem(
-        url=url,
-        title=title[:300],
-        text=text,
-        excerpt=make_excerpt(text),
-        site=site,
-        image=(res.get("og_image", "") if res else ""),
-        read_minutes=read_minutes(text),
-    )
-    db.add(it)
-    db.commit()
-    db.refresh(it)
-    try:
-        from services import personal_index
-
-        personal_index.index_record(db, "read", it)
-    except Exception:
-        pass
-    return _fmt(it)
+    return _fmt(save_url(db, body.url))
 
 
 def canonical_news_url(value: str) -> str:
