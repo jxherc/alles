@@ -361,19 +361,28 @@ function _fromName(from) {
 }
 
 async function _go(option) {
-  closeSearch();
   const type = option.dataset.type;
-  if (type === 'chat') {
-    window._navigateTo?.('chat');
-    const { selectSession } = await import('./sessions.js');
-    selectSession(option.dataset.id);
-  } else if (type === 'note') {
-    window._navigateTo?.('wiki');
-    const { openNote } = await import('./docs.js');
-    openNote(option.dataset.path);
-  } else {
-    window._navigateTo?.(option.dataset.view);
+  let opened = false;
+  try {
+    opened = type === 'chat' || type === 'note'
+      ? await window._openSearchResult?.(type, type === 'chat' ? option.dataset.id : option.dataset.path)
+      : await window._navigateTo?.(option.dataset.view);
+  } catch {}
+  if (opened) {
+    closeSearch({ restoreFocus: type !== 'chat' && type !== 'note' });
+    const target = type === 'chat' ? document.getElementById('composer-ta')
+      : type === 'note' ? document.getElementById('wiki-preview') : null;
+    if (target?.getClientRects().length) target.focus({ preventScroll: true });
+    return;
   }
+  const results = _results();
+  results?.querySelector('.search-open-error')?.remove();
+  const error = document.createElement('div');
+  error.className = 'search-state search-state--error search-open-error';
+  error.setAttribute('role', 'status');
+  error.textContent = 'could not open this result. try again';
+  results?.prepend(error);
+  _input()?.focus({ preventScroll: true });
 }
 
 function _esc(value = '') {

@@ -32,11 +32,17 @@ def run() -> None:
             page = context.new_page()
             page.set_default_timeout(15_000)
             errors: list[str] = []
+            expected_draft_failure = [False]
             page.on("pageerror", lambda error: errors.append(str(error)))
-            page.on(
-                "console",
-                lambda message: errors.append(message.text) if message.type == "error" else None,
-            )
+
+            def console(message):
+                if message.type != "error":
+                    return
+                if expected_draft_failure[0] and "503" in message.text:
+                    return
+                errors.append(message.text)
+
+            page.on("console", console)
 
             page.goto(base, wait_until="networkidle")
             if page.locator("#setup-wizard").is_visible():
@@ -84,9 +90,37 @@ def run() -> None:
             name = f"command-shortcut-{width}.md"
             seed = context.request.post(
                 base + "/api/vault-md/file",
-                data={"path": name, "content": "# command shortcut\n"},
+                data={"path": name, "content": f"# command shortcut {width}\n"},
             )
             assert seed.ok, seed.text()
+            session = context.request.post(
+                base + "/api/sessions", data={"name": f"palette chat {width}"}
+            )
+            assert session.ok, session.text()
+            session_id = session.json()["id"]
+
+            page.goto(f"http://localhost:{port}/", wait_until="networkidle")
+            if page.locator("#setup-wizard").is_visible():
+                page.locator("#setup-skip").click()
+                page.locator("#setup-wizard").wait_for(state="hidden")
+            page.locator("#today-settings").press("Meta+k")
+            page.locator("#search-input").fill(name.removesuffix(".md"))
+            note = page.locator(f'#search-results [data-type="note"][data-path="{name}"]')
+            expect(note).to_be_visible()
+            note.click()
+            expect(page).to_have_url(f"http://docs.localhost:{port}/#{name.removesuffix('.md')}")
+            expect(page.locator("#wiki-preview")).to_contain_text(f"command shortcut {width}")
+
+            page.goto(f"http://localhost:{port}/", wait_until="networkidle")
+            page.locator("#today-settings").press("Meta+k")
+            page.locator("#search-input").fill(f"palette chat {width}")
+            chat = page.locator(f'#search-results [data-type="chat"][data-id="{session_id}"]')
+            expect(chat).to_be_visible()
+            chat.click()
+            expect(page).to_have_url(f"http://aide.localhost:{port}/#{session_id}")
+            expect(page.locator("#chat")).to_be_visible()
+            page.wait_for_function("id => window._currentSession?.id === id", arg=session_id)
+
             page.goto(f"http://docs.localhost:{port}/?doc={name}", wait_until="networkidle")
             if page.locator("#setup-wizard").is_visible():
                 page.locator("#setup-skip").click()
@@ -99,6 +133,77 @@ def run() -> None:
             source.focus()
             source.press("Meta+k")
             expect(page.locator("#search-modal")).to_be_hidden()
+
+            def fail_draft(route):
+                if route.request.method == "PUT":
+                    route.fulfill(
+                        status=503,
+                        content_type="application/json",
+                        body='{"detail":"synthetic draft outage"}',
+                    )
+                else:
+                    route.continue_()
+
+            page.route("**/api/vault-md/safety/draft", fail_draft)
+            expected_draft_failure[0] = True
+            changed = f"# unsaved palette draft {width}\n"
+            source.fill(changed)
+            page.locator("#app-drawer-btn").press("Meta+k")
+            expect(page.locator("#search-modal")).to_be_visible()
+            page.locator("#search-input").fill(f"palette chat {width}")
+            chat = page.locator(f'#search-results [data-type="chat"][data-id="{session_id}"]')
+            expect(chat).to_be_visible()
+            chat.click()
+            expect(page.locator("#search-modal")).to_be_visible()
+            expect(page.locator("#search-results .search-open-error")).to_be_visible()
+            expect(page.locator("#search-input")).to_be_focused()
+            expect(source).to_have_value(changed)
+            assert page.url.startswith(f"http://docs.localhost:{port}/")
+            assert page.evaluate(
+                "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+            )
+            page.screenshot(path=str(output / f"command-draft-guard-{width}.png"))
+
+            page.locator("#search-input").fill("home")
+            home = page.locator('#search-results [data-type="nav"][data-view="today"]')
+            expect(home).to_be_visible()
+            home.click()
+            expect(page.locator("#search-modal")).to_be_visible()
+            expect(page.locator("#search-results .search-open-error")).to_be_visible()
+            expect(source).to_have_value(changed)
+            assert page.url.startswith(f"http://docs.localhost:{port}/")
+
+            page.unroute("**/api/vault-md/safety/draft", fail_draft)
+            expected_draft_failure[0] = False
+            page.locator("#search-input").fill(f"palette chat {width}")
+            chat = page.locator(f'#search-results [data-type="chat"][data-id="{session_id}"]')
+            expect(chat).to_be_visible()
+            chat.press("Enter")
+            expect(page).to_have_url(f"http://aide.localhost:{port}/#{session_id}")
+            draft = context.request.get(base + "/api/vault-md/safety/draft", params={"path": name})
+            assert draft.ok and draft.json()["draft"]["content"] == changed
+
+            page.goto(base, wait_until="networkidle")
+            page.locator("#today-settings").press("Meta+k")
+            page.locator("#search-input").fill(name.removesuffix(".md"))
+            note = page.locator(f'#search-results [data-type="note"][data-path="{name}"]')
+            expect(note).to_be_visible()
+            note.press("Enter")
+            expect(page.locator("#wiki-preview")).to_contain_text(f"command shortcut {width}")
+            expect(page.locator("#search-modal")).to_be_hidden()
+            expect(page.locator("#wiki-preview")).to_be_focused()
+            assert page.url.startswith(base + "/")
+
+            page.goto(base, wait_until="networkidle")
+            page.locator("#today-settings").press("Meta+k")
+            page.locator("#search-input").fill(f"palette chat {width}")
+            chat = page.locator(f'#search-results [data-type="chat"][data-id="{session_id}"]')
+            expect(chat).to_be_visible()
+            chat.click()
+            expect(page.locator("#chat")).to_be_visible()
+            page.wait_for_function("id => window._currentSession?.id === id", arg=session_id)
+            expect(page.locator("#composer-ta")).to_be_focused()
+            assert page.url.startswith(base + "/")
             assert not errors, errors
             context.close()
         browser.close()

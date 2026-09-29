@@ -1,4 +1,4 @@
-import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft } from './sessions.js';
+import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=212';
 import { icon, iconEl, ICON_NAMES } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
@@ -792,6 +792,21 @@ window._openProject = (pid) => showView('project-view', 'project', () => import(
 window._navigateTo = (v) => navigateTo(v);
 window._navigateHome = () => navigateTo('today');
 
+window._openSearchResult = async (type, value) => {
+  if (!value || !['note', 'chat'].includes(type)) return false;
+  const sub = type === 'note' ? 'docs' : 'aide';
+  if (!singleHost() && currentSub() !== sub) {
+    const target = new URL(urlForApp(sub));
+    if (type === 'note') target.searchParams.set('doc', value);
+    else target.hash = encodeURIComponent(value);
+    return _navigateWithHandoff(target.toString());
+  }
+  if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat'))) return false;
+  if (type === 'chat') return selectSession(value);
+  const { openNote } = await import('./docs.js?v=257');
+  return openNote(value);
+};
+
 async function showPrivateDayDraft(prompt) {
   if (!(await navigateTo('chat'))) return false;
   saveDraft();
@@ -1123,7 +1138,7 @@ function renderLocalView(v, route = {}) {
   else if (v === 'tasks')     showTasksView();
   else if (v === 'calendar')  showCalendarView();
   else if (v === 'gallery')   showGalleryView();
-  else if (v === 'wiki')      showWikiView(route.section || 'docs');
+  else if (v === 'wiki')      return showWikiView(route.section || 'docs');
   else if (v === 'compare')   showCompareView();
   else if (v === 'contacts')  showContactsView();
   else if (v === 'aide-reminders') showRemindersView();
