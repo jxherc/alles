@@ -566,7 +566,7 @@ async function editRecurringSchedule(request) {
     && typeof state.rule === 'string' && !!state.rule
     && typeof state.account === 'string' && !!state.account
     && typeof state.payee === 'string' && !!state.payee
-    && Number.isSafeInteger(state.amount) && state.amount !== 0
+    && Number.isSafeInteger(state.amount)
     && state.amountOp === 'is'
     && validDate(state.date)
     && typeof state.category_id === 'string' && typeof state.notes === 'string'

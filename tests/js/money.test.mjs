@@ -174,6 +174,38 @@ test('pending canonical creation offers one retry action and holds the new form'
   assert.doesNotMatch(context.list(), /data-retry-create-rec/);
 });
 
+test('pending recurring edit stays visible and retries only the saved edit', async () => {
+  const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+  const calls = [];
+  const context = vm.createContext({
+    location: { search: '' }, URLSearchParams,
+    api: async (path, options) => { calls.push({ path, options }); return {}; },
+    formatNumber: value => String(value),
+  });
+  vm.runInContext(source + `
+    _canonicalLedger = true;
+    _recurring = [{ id: 'saved-id', payee: 'rent', amount: -42.5, cycle: 'monthly',
+      next_date: '2026-10-01', active: false, manageable: true,
+      edit_pending: true, edit_needs_review: false }];
+    retryRecurring = async () => {};
+    globalThis.list = recurringList;
+    globalThis.retryEdit = retryRecurringEdit;
+  `, context);
+  assert.match(context.list(), /data-retry-edit-rec="saved-id"/);
+  assert.match(context.list(), /edit not confirmed/);
+  assert.doesNotMatch(context.list(), /data-toggle-rec/);
+  assert.doesNotMatch(context.list(), />inactive</);
+  await context.retryEdit({ dataset: { retryEditRec: 'saved-id' }, disabled: false, textContent: '' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, '/api/money/recurring/saved-id/edit/retry');
+  assert.equal(calls[0].options.method, 'POST');
+  vm.runInContext('_recurring[0].edit_needs_review = true;', context);
+  assert.match(context.list(), /review the schedule there/);
+  assert.doesNotMatch(context.list(), /data-retry-edit-rec/);
+  await context.retryEdit({ dataset: { retryEditRec: 'saved-id' }, disabled: false, textContent: '' });
+  assert.equal(calls.length, 1);
+});
+
 test('finance dialogs, rows, and destructive actions expose complete interaction boundaries', () => {
   assert.match(moneySource, /createFocusBoundary\(dialog/);
   assert.match(moneySource, /requestWithRecentOwner\(fetch, path, init\)/);

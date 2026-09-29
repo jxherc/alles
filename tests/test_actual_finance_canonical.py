@@ -4517,6 +4517,363 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(edited_checkpoint["created_source"], source)
         db.close()
 
+    def _recurring_edit_fixture(self):
+        db = self.db()
+        source_id = "00000000-0000-4000-8000-000000000042"
+        snapshot = {"schedules": []}
+        path = actual_migration._write_snapshot("run-route", snapshot)
+        db.add(
+            ActualMigrationRun(
+                id="run-route",
+                status="canonical",
+                base_currency_code="CAD",
+                snapshot_sha256=actual_migration.snapshot_sha256(snapshot),
+                snapshot_path=str(path),
+            )
+        )
+        db.add(
+            ActualEntityLink(
+                run_id="run-route",
+                entity_kind="account",
+                source_id="legacy-account",
+                actual_id="actual-account",
+                metadata_json="{}",
+            )
+        )
+        source = {
+            "kind": "recurring",
+            "id": source_id,
+            "name": f"Alles recurring {source_id}",
+            "account_id": "actual-account",
+            "payee": "landlord",
+            "amount_minor": -500,
+            "next_date": "2026-10-01",
+            "cycle": "monthly",
+            "cycle_days": 30,
+            "active": True,
+            "posts_transaction": True,
+        }
+        link = ActualEntityLink(
+            run_id="run-route",
+            entity_kind="recurring",
+            source_id=source_id,
+            actual_id="actual-rent",
+            metadata_json=json.dumps(
+                {
+                    "canonical_schedule": {
+                        "version": 2,
+                        "source": source,
+                        "payee_id": "landlord-id",
+                        "category_id": "housing-id",
+                        "notes": "lease",
+                        "posts_transaction": True,
+                    },
+                    "_request_fingerprint": "a" * 64,
+                }
+            ),
+        )
+        db.add(link)
+        db.commit()
+        actual = {
+            "accounts": [
+                {"id": "actual-account", "name": "checking", "closed": False},
+                {"id": "new-account", "name": "savings", "closed": False},
+            ],
+            "transactions": [],
+            "payees": [
+                {"id": "landlord-id", "name": "landlord"},
+                {"id": "new-payee-id", "name": "new landlord"},
+            ],
+            "categories": [
+                {"id": "housing-id", "name": "housing", "is_income": False},
+                {"id": "new-category-id", "name": "rent", "is_income": False},
+            ],
+            "category_groups": [],
+            "schedules": [
+                {
+                    "id": "actual-rent",
+                    "name": source["name"],
+                    "rule": "rent-rule",
+                    "account": "actual-account",
+                    "payee": "landlord-id",
+                    "amount": -500,
+                    "amountOp": "is",
+                    "date": {
+                        "start": "2026-10-01",
+                        "frequency": "monthly",
+                        "interval": 1,
+                        "endMode": "never",
+                    },
+                    "next_date": "2026-10-01",
+                    "completed": False,
+                    "posts_transaction": True,
+                    "posting": {"guarded": True, "category": "housing-id", "notes": "lease"},
+                }
+            ],
+            "budget_months": [],
+        }
+        values = {
+            "account_id": "new-account",
+            "payee_id": "new-payee-id",
+            "amount": -6,
+            "category_id": "new-category-id",
+            "notes": "new lease",
+            "cycle": "weekly",
+            "cycle_days": 7,
+            "next_date": "2026-11-05",
+            "active": True,
+        }
+        return db, link, actual, values
+
+    def test_recurring_edit_retries_partial_write_and_keeps_created_origin(self):
+        db, link, actual, values = self._recurring_edit_fixture()
+        original = copy.deepcopy(json.loads(link.metadata_json)["canonical_schedule"]["source"])
+        writes = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"edit_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return actual
+            self.assertEqual(payload["action"], "edit_recurring_schedule")
+            writes.append(payload)
+            row = actual["schedules"][0]
+            target = payload["target"]
+            if len(writes) == 1:
+                row.update(
+                    account=target["account"],
+                    payee=target["payee"],
+                    amount=target["amount"],
+                    date=target["date"],
+                    next_date=values["next_date"],
+                    posts_transaction=False,
+                )
+                raise managed_actual.ManagedActualError("lost provider response")
+            row["posting"] = {
+                "guarded": True,
+                "category": target["category_id"],
+                "notes": target["notes"],
+            }
+            row["posts_transaction"] = target["posts_transaction"]
+            return {
+                "id": row["id"],
+                "payee_id": row["payee"],
+                "posts_transaction": row["posts_transaction"],
+            }
+
+        with self.assertRaises(actual_finance.ActualFinanceUnavailable):
+            actual_finance.edit_recurring_schedule(
+                db,
+                link.source_id,
+                values,
+                bridge_request=bridge,
+                backup_fn=lambda: {"ok": True, "backup_id": "before-edit"},
+            )
+        pending = json.loads(link.metadata_json)["_update_intent"]
+        self.assertEqual(pending["backup_id"], "before-edit")
+        self.assertEqual(len(writes), 1)
+        partial = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertTrue(partial[0]["edit_pending"])
+        self.assertFalse(partial[0]["edit_needs_review"])
+        self.assertFalse(partial[0]["manageable"])
+        drift = copy.deepcopy(actual)
+        drift["schedules"][0]["amount"] = -999
+        self.assertTrue(
+            actual_finance.recurring_schedules(db, actual=drift)[0]["edit_needs_review"]
+        )
+        missing = copy.deepcopy(actual)
+        missing["schedules"] = []
+        self.assertTrue(
+            actual_finance.recurring_schedules(db, actual=missing)[0]["edit_needs_review"]
+        )
+        saved = actual["schedules"][0]
+        actual["schedules"] = drift["schedules"]
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "provider review"):
+            actual_finance.retry_recurring_edit(db, link.source_id, bridge_request=bridge)
+        self.assertEqual(len(writes), 1)
+        actual["schedules"] = [saved]
+        edited = actual_finance.retry_recurring_edit(db, link.source_id, bridge_request=bridge)
+        self.assertEqual(len(writes), 2)
+        self.assertFalse(edited["edit_pending"])
+        self.assertTrue(edited["manageable"])
+        self.assertEqual(edited["amount"], -6.0)
+        self.assertEqual(edited["account_id"], "new-account")
+        self.assertEqual(edited["payee"], "new landlord")
+        checkpoint = json.loads(link.metadata_json)["canonical_schedule"]
+        self.assertEqual(checkpoint["version"], 3)
+        self.assertEqual(checkpoint["created_source"], original)
+        self.assertEqual(checkpoint["payee_id"], "new-payee-id")
+        self.assertEqual(link.actual_id, "actual-rent")
+        self.assertNotIn("_update_intent", json.loads(link.metadata_json))
+        next_values = {**values, "amount": -7, "notes": "third lease", "next_date": "2026-11-12"}
+
+        def second_bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"edit_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return actual
+            target = payload["target"]
+            actual["schedules"][0].update(
+                amount=target["amount"],
+                date=target["date"],
+                next_date=next_values["next_date"],
+                posting={
+                    "guarded": True,
+                    "category": target["category_id"],
+                    "notes": target["notes"],
+                },
+            )
+            return {
+                "id": "actual-rent",
+                "payee_id": target["payee"],
+                "posts_transaction": target["posts_transaction"],
+            }
+
+        again = actual_finance.edit_recurring_schedule(
+            db,
+            link.source_id,
+            next_values,
+            bridge_request=second_bridge,
+            backup_fn=lambda: {"ok": True, "backup_id": "before-second-edit"},
+        )
+        self.assertEqual(again["amount"], -7.0)
+        second_checkpoint = json.loads(link.metadata_json)["canonical_schedule"]
+        self.assertEqual(second_checkpoint["created_source"], original)
+        self.assertEqual(second_checkpoint["source"]["amount_minor"], -700)
+        db.close()
+
+    def test_recurring_edit_invalid_target_never_takes_backup_or_writes(self):
+        db, link, actual, values = self._recurring_edit_fixture()
+        writes = []
+        backups = []
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"edit_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return actual
+            writes.append(payload)
+            raise AssertionError("unexpected provider write")
+
+        for bad in (
+            {**values, "payee_id": "missing"},
+            {**values, "category_id": "missing"},
+            {**values, "next_date": "2026-02-30"},
+            {**values, "cycle": "monthly", "next_date": "2026-11-29"},
+            {**values, "cycle": "yearly", "next_date": "2028-02-29"},
+        ):
+            with self.assertRaises(actual_finance.ActualFinanceError):
+                actual_finance.edit_recurring_schedule(
+                    db,
+                    link.source_id,
+                    bad,
+                    bridge_request=bridge,
+                    backup_fn=lambda: backups.append(True),
+                )
+        self.assertEqual(writes, [])
+        self.assertEqual(backups, [])
+        self.assertNotIn("_update_intent", json.loads(link.metadata_json))
+        db.close()
+
+    def test_repaired_cutover_recurring_edit_preserves_snapshot_origin(self):
+        db, link, actual, values = self._recurring_edit_fixture()
+        created = json.loads(link.metadata_json)["canonical_schedule"]["source"]
+        snapshot = {
+            "schedules": [
+                {
+                    **created,
+                    "account_id": "legacy-account",
+                    "metadata": {},
+                }
+            ]
+        }
+        path = actual_migration._write_snapshot("run-route", snapshot)
+        run = db.get(ActualMigrationRun, "run-route")
+        run.snapshot_path = str(path)
+        run.snapshot_sha256 = actual_migration.snapshot_sha256(snapshot)
+        link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 1,
+                    "category_id": "housing-id",
+                    "notes": "lease",
+                    "posts_transaction": True,
+                }
+            }
+        )
+        db.commit()
+
+        def bridge(payload, *, timeout):
+            if payload["command"] == "capabilities":
+                return {"edit_recurring_schedule": 1}
+            if payload["command"] == "inspect":
+                return actual
+            self.assertEqual(payload["action"], "edit_recurring_schedule")
+            row = actual["schedules"][0]
+            target = payload["target"]
+            row.update(
+                account=target["account"],
+                payee=target["payee"],
+                amount=target["amount"],
+                date=target["date"],
+                next_date=values["next_date"],
+                posts_transaction=target["posts_transaction"],
+                posting={
+                    "guarded": True,
+                    "category": target["category_id"],
+                    "notes": target["notes"],
+                },
+            )
+            return {
+                "id": row["id"],
+                "payee_id": row["payee"],
+                "posts_transaction": row["posts_transaction"],
+            }
+
+        edited = actual_finance.edit_recurring_schedule(
+            db,
+            link.source_id,
+            values,
+            bridge_request=bridge,
+            backup_fn=lambda: {"ok": True, "backup_id": "before-old-edit"},
+        )
+        self.assertEqual(edited["payee"], "new landlord")
+        checkpoint = json.loads(link.metadata_json)["canonical_schedule"]
+        self.assertEqual(checkpoint["version"], 3)
+        self.assertNotIn("created_source", checkpoint)
+        self.assertEqual(checkpoint["source"]["account_id"], "new-account")
+        actual_migration.schedule_repair_baseline(db, link, actual)
+        db.close()
+
+    def test_canonical_recurring_edit_routes_use_one_provider_owner(self):
+        target = {
+            "account_id": "actual-account",
+            "payee_id": "landlord-id",
+            "amount": -6,
+            "category_id": "housing-id",
+            "notes": "lease",
+            "cycle": "weekly",
+            "cycle_days": 7,
+            "next_date": "2026-11-05",
+            "active": True,
+        }
+        with patch(
+            "routes.money.actual_finance.edit_recurring_schedule",
+            return_value={"id": "created-rent", "edit_pending": False},
+        ) as edit:
+            response = self.client.post("/api/money/recurring/created-rent/edit", json=target)
+        self.assertEqual(response.status_code, 200, response.text)
+        edit.assert_called_once()
+        self.assertEqual(edit.call_args.args[1:], ("created-rent", target))
+        with patch(
+            "routes.money.actual_finance.retry_recurring_edit",
+            return_value={"id": "created-rent", "edit_pending": False},
+        ) as retry:
+            response = self.client.post("/api/money/recurring/created-rent/edit/retry")
+        self.assertEqual(response.status_code, 200, response.text)
+        retry.assert_called_once()
+        self.assertEqual(retry.call_args.args[1], "created-rent")
+
     def test_recurring_create_recovers_lost_response_from_one_marker(self):
         db = self.db()
         snapshot = {"schedules": []}

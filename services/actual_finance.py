@@ -1105,6 +1105,152 @@ def subscription_display_name(schedule: dict, legacy) -> str:
     return name
 
 
+def _recurring_edit_intent(link: ActualEntityLink, metadata: dict) -> dict:
+    """Validate the one saved choice used by read, retry, and final readback."""
+    from services import actual_migration
+
+    pending = metadata.get("_update_intent")
+    details = pending.get("details") if isinstance(pending, dict) else None
+    overlay = metadata.get("canonical_schedule")
+    if not isinstance(overlay, dict) or overlay.get("version") not in {1, 2, 3}:
+        raise ActualFinanceError("the recurring edit checkpoint is invalid")
+    if (
+        not isinstance(pending, dict)
+        or pending.get("version") != 1
+        or pending.get("action") != "edit_recurring_schedule"
+        or not isinstance(pending.get("backup_id"), str)
+        or not pending["backup_id"]
+        or not isinstance(details, dict)
+        or set(details) - {"before", "target", "source", "created_source"}
+        or not {"before", "target", "source"}.issubset(details)
+    ):
+        raise ActualFinanceError("the recurring edit intent is invalid")
+    before, target, source = (details[key] for key in ("before", "target", "source"))
+    state_keys = {
+        "name",
+        "rule",
+        "account",
+        "payee",
+        "amount",
+        "amountOp",
+        "date",
+        "category_id",
+        "notes",
+        "posts_transaction",
+    }
+    for state in (before, target):
+        if (
+            not isinstance(state, dict)
+            or set(state) != state_keys
+            or not all(
+                isinstance(state[key], str)
+                for key in ("name", "rule", "account", "payee", "amountOp", "category_id", "notes")
+            )
+            or not all(state[key] for key in ("name", "rule", "account", "payee"))
+            or type(state["amount"]) is not int
+            or state["amountOp"] != "is"
+            or not isinstance(state["date"], dict)
+            or type(state["posts_transaction"]) is not bool
+        ):
+            raise ActualFinanceError("the recurring edit intent is invalid")
+    if (
+        before["name"] != target["name"]
+        or before["rule"] != target["rule"]
+        or before["category_id"] != overlay.get("category_id")
+        or before["notes"] != overlay.get("notes")
+        or before["posts_transaction"] != overlay.get("posts_transaction")
+        or (overlay.get("version") in {2, 3} and before["payee"] != overlay.get("payee_id"))
+        or actual_migration._created_schedule_source(
+            {"version": 2, "source": source}, link.source_id
+        )
+        is None
+        or source["name"] != before["name"]
+        or source["account_id"] != target["account"]
+        or source["amount_minor"] != target["amount"]
+        or actual_migration._schedule_date(source)
+        != actual_migration._normalized_schedule_date(target["date"])
+    ):
+        raise ActualFinanceError("the recurring edit intent is invalid")
+    created_source = (
+        overlay.get("source") if overlay["version"] == 2 else overlay.get("created_source")
+    )
+    if details.get("created_source") != created_source or ("created_source" in details) != (
+        created_source is not None
+    ):
+        raise ActualFinanceError("the recurring edit provenance is invalid")
+    fingerprint = _request_fingerprint(
+        "edit_recurring_schedule",
+        {"source_id": link.source_id, "actual_id": link.actual_id, "details": details},
+    )
+    if pending.get("fingerprint") != fingerprint:
+        raise ActualFinanceError("the recurring edit intent fingerprint changed")
+    return details
+
+
+def _recurring_edit_state(row: dict, details: dict, actual: dict) -> bool:
+    """Report whether Actual is at a bridge-recognized step of the saved edit."""
+    from services import actual_migration
+
+    before, target = details["before"], details["target"]
+    posting = row.get("posting") or {}
+    if row.get("completed") or not posting.get("guarded"):
+        return False
+    if (
+        not any(
+            item.get("id") == target["account"] and not item.get("closed")
+            for item in actual.get("accounts") or []
+        )
+        or not any(
+            item.get("id") == target["payee"]
+            and not item.get("transfer_acct")
+            and str(item.get("name") or "").strip() == details["source"]["payee"]
+            for item in actual.get("payees") or []
+        )
+        or (
+            target["category_id"]
+            and not any(
+                item.get("id") == target["category_id"] and not item.get("is_income")
+                for item in actual.get("categories") or []
+            )
+        )
+    ):
+        return False
+
+    def schedule_matches(state: dict) -> bool:
+        return (
+            all(
+                row.get(key) == state[key]
+                for key in ("name", "rule", "account", "payee", "amount", "amountOp")
+            )
+            and isinstance(row.get("date"), dict)
+            and row["date"].get("endMode", "never") == "never"
+            and not row["date"].get("skipWeekend")
+            and actual_migration._normalized_schedule_date(row["date"])
+            == actual_migration._normalized_schedule_date(state["date"])
+        )
+
+    def rule_matches(state: dict) -> bool:
+        return (
+            str(posting.get("category") or "") == state["category_id"]
+            and str(posting.get("notes") or "") == state["notes"]
+        )
+
+    prior_schedule, final_schedule = schedule_matches(before), schedule_matches(target)
+    prior_rule, final_rule = rule_matches(before), rule_matches(target)
+    active = row.get("posts_transaction")
+    return bool(
+        type(active) is bool
+        and (prior_schedule or final_schedule)
+        and (prior_rule or final_rule)
+        and (not final_rule or prior_rule or final_schedule)
+        and (
+            not active
+            or (prior_schedule and prior_rule and before["posts_transaction"])
+            or (final_schedule and final_rule and target["posts_transaction"])
+        )
+    )
+
+
 @authority_guarded
 def recurring_schedules(
     db: Session,
@@ -1159,7 +1305,14 @@ def recurring_schedules(
         pending_action = pending.get("action") if isinstance(pending, dict) else None
         repair_pending = pending_action == "repair_recurring_schedule"
         posting_pending = pending_action == "set_recurring_posting"
-        if pending is not None and (
+        edit_pending = pending_action == "edit_recurring_schedule"
+        edit_details = None
+        if edit_pending:
+            link = next((item for item in recurring_links if item.actual_id == actual_id), None)
+            if link is None:
+                raise ActualFinanceError("the recurring edit link is missing")
+            edit_details = _recurring_edit_intent(link, metadata)
+        elif pending is not None and (
             not isinstance(pending, dict)
             or pending.get("version") != 1
             or not (repair_pending or posting_pending)
@@ -1184,7 +1337,7 @@ def recurring_schedules(
             not isinstance(overlay, dict) or overlay.get("version") not in {1, 2, 3}
         ):
             raise ActualFinanceError("the recurring schedule repair record is invalid")
-        if isinstance(overlay, dict) and overlay.get("version") in {2, 3}:
+        if isinstance(overlay, dict) and overlay.get("version") in {2, 3} and not edit_pending:
             from services import actual_migration
 
             link = next(
@@ -1201,7 +1354,12 @@ def recurring_schedules(
                 actual_migration.schedule_repair_baseline(db, link, actual)
             except actual_migration.ActualMigrationError as exc:
                 raise ActualFinanceError(str(exc)) from exc
-        if isinstance(overlay, dict) and overlay.get("version") in {1, 2, 3}:
+        if edit_pending:
+            posting = row.get("posting") or {}
+            category_id = str(posting.get("category") or "")
+            category = category_names.get(category_id, "")
+            notes = str(posting.get("notes") or "")
+        elif isinstance(overlay, dict) and overlay.get("version") in {1, 2, 3}:
             posting = row.get("posting") or {}
             category_id = overlay.get("category_id")
             expected_states = [overlay.get("posts_transaction")]
@@ -1243,6 +1401,7 @@ def recurring_schedules(
         posting = row.get("posting") or {}
         managed_rule = bool(
             actual_id in recurring_public
+            and not edit_pending
             and row.get("account")
             and not row.get("completed")
             and posting.get("guarded")
@@ -1270,9 +1429,11 @@ def recurring_schedules(
             name = name[len(migrated_name) : -len(migrated_suffix)]
         payee = (
             str(overlay["source"]["payee"])
-            if isinstance(overlay, dict) and overlay.get("version") in {2, 3}
+            if isinstance(overlay, dict) and overlay.get("version") in {2, 3} and not edit_pending
             else name or str(payee_names.get(row.get("payee")) or category or "recurring")
         )
+        if edit_pending:
+            payee = str(payee_names.get(row.get("payee")) or "")
 
         amount_op = str(row.get("amountOp") or "is")
         minor = row.get("amount")
@@ -1337,11 +1498,45 @@ def recurring_schedules(
                 "posting_target_active": pending["target_posts_transaction"]
                 if posting_pending
                 else None,
+                "edit_pending": edit_pending,
+                "edit_needs_review": edit_pending
+                and not _recurring_edit_state(row, edit_details, actual),
             }
         )
     for actual_id, metadata in recurring_metadata.items():
         if metadata.get("_update_intent") and actual_id not in seen:
-            raise ActualFinanceError("a recurring schedule repair lost its Actual schedule")
+            pending = metadata["_update_intent"]
+            if not isinstance(pending, dict) or pending.get("action") != "edit_recurring_schedule":
+                raise ActualFinanceError("a recurring schedule repair lost its Actual schedule")
+            link = next((item for item in recurring_links if item.actual_id == actual_id), None)
+            if link is None:
+                raise ActualFinanceError("the recurring edit link is missing")
+            details = _recurring_edit_intent(link, metadata)
+            source = details["source"]
+            rows.append(
+                {
+                    "id": link.source_id,
+                    "account_id": account_public.get(source["account_id"], source["account_id"]),
+                    "amount": _major_from_minor(source["amount_minor"], "pending schedule amount"),
+                    "amount_kind": "exact",
+                    "category": category_names.get(details["before"]["category_id"], ""),
+                    "payee": source["payee"],
+                    "notes": details["before"]["notes"],
+                    "cycle": source["cycle"],
+                    "cycle_days": source["cycle_days"],
+                    "next_date": source["next_date"],
+                    "active": None,
+                    "last_posted": "",
+                    "repair_needed": False,
+                    "repair_pending": False,
+                    "repair_category_id": "",
+                    "manageable": False,
+                    "posting_pending": False,
+                    "posting_target_active": None,
+                    "edit_pending": True,
+                    "edit_needs_review": True,
+                }
+            )
     if pending_links:
         from services import actual_migration
 
@@ -1665,6 +1860,281 @@ def retry_recurring_schedule(
         bridge_request=bridge_request,
         backup_fn=backup_fn,
     )
+
+
+def _continue_recurring_edit(db: Session, link: ActualEntityLink, *, bridge_request=None) -> dict:
+    from services import actual_migration
+
+    metadata = _link_metadata(link)
+    details = _recurring_edit_intent(link, metadata)
+    capabilities = _request(db, {"command": "capabilities"}, bridge_request=bridge_request)
+    if not isinstance(capabilities, dict) or capabilities.get("edit_recurring_schedule") != 1:
+        raise ActualFinanceError("update managed Actual before editing recurring schedules")
+    current = inspect(db, bridge_request=bridge_request)
+    existing = [row for row in current.get("schedules") or [] if row.get("id") == link.actual_id]
+    if len(existing) != 1 or not _recurring_edit_state(existing[0], details, current):
+        raise ActualFinanceError("the pending recurring edit needs provider review before retry")
+    result = _request(
+        db,
+        {
+            "command": "write",
+            "action": "edit_recurring_schedule",
+            "actual_id": link.actual_id,
+            "before": details["before"],
+            "target": details["target"],
+        },
+        bridge_request=bridge_request,
+    )
+    target = details["target"]
+    if (
+        not isinstance(result, dict)
+        or result.get("id") != link.actual_id
+        or result.get("payee_id") != target["payee"]
+        or result.get("posts_transaction") is not target["posts_transaction"]
+    ):
+        raise ActualFinanceError("Actual recurring edit did not return its confirmed identity")
+    confirmed = inspect(db, bridge_request=bridge_request)
+    matches = [row for row in confirmed.get("schedules") or [] if row.get("id") == link.actual_id]
+    if len(matches) != 1 or not _recurring_edit_state(matches[0], details, confirmed):
+        raise ActualFinanceError("Actual recurring edit changed outside its saved states")
+    source = details["source"]
+    overlay = {
+        "version": 3,
+        "source": source,
+        "payee_id": target["payee"],
+        "category_id": target["category_id"],
+        "notes": target["notes"],
+        "posts_transaction": target["posts_transaction"],
+    }
+    if "created_source" in details:
+        overlay["created_source"] = details["created_source"]
+    updated = {**metadata, "canonical_schedule": overlay}
+    updated.pop("_update_intent", None)
+    link.metadata_json = json.dumps(updated, sort_keys=True, separators=(",", ":"))
+    db.flush()
+    try:
+        actual_migration.schedule_repair_baseline(db, link, confirmed)
+        if (
+            not actual_migration._restored_schedule_matches(
+                matches[0],
+                source,
+                account_actual_ids={source["account_id"]: source["account_id"]},
+                payee_names={
+                    row.get("id"): row.get("name") for row in confirmed.get("payees") or []
+                },
+                categories={row.get("id"): row for row in confirmed.get("categories") or []},
+                overlay=overlay,
+            )
+            or matches[0].get("rule") != target["rule"]
+        ):
+            raise ActualFinanceError("Actual recurring edit could not be confirmed")
+        readback = [
+            row for row in recurring_schedules(db, actual=confirmed) if row["id"] == link.source_id
+        ]
+        if len(readback) != 1:
+            raise ActualFinanceError("the edited recurring schedule could not be read back")
+    except (ActualFinanceError, actual_migration.ActualMigrationError):
+        db.rollback()
+        raise
+    db.commit()
+    return readback[0]
+
+
+@authority_guarded
+def edit_recurring_schedule(
+    db: Session,
+    source_id: str,
+    values: dict,
+    *,
+    bridge_request=None,
+    backup_fn=managed_actual.backup,
+) -> dict:
+    """Edit one linked guarded schedule after saving the exact provider intent."""
+    from services import actual_migration
+
+    links = [row for row in _links(db, "recurring") if row.source_id == source_id]
+    if len(links) != 1 or not links[0].actual_id:
+        raise ActualFinanceError("only a linked Alles schedule can be edited in Finance")
+    link = links[0]
+    metadata = _link_metadata(link)
+    overlay = metadata.get("canonical_schedule")
+    if not isinstance(overlay, dict) or overlay.get("version") not in {1, 2, 3}:
+        raise ActualFinanceError("repair this old schedule before editing it")
+    if metadata.get("_intent") or metadata.get("_update_intent"):
+        raise ActualFinanceError("finish the pending recurring write before editing again")
+    required = {
+        "account_id",
+        "payee_id",
+        "amount",
+        "category_id",
+        "notes",
+        "cycle",
+        "cycle_days",
+        "next_date",
+        "active",
+    }
+    if (
+        not isinstance(values, dict)
+        or set(values) != required
+        or any(
+            type(values[key]) is not str
+            for key in ("account_id", "payee_id", "category_id", "notes", "cycle", "next_date")
+        )
+        or type(values["cycle_days"]) is not int
+        or values["cycle_days"] < 1
+        or type(values["active"]) is not bool
+    ):
+        raise ActualFinanceError("recurring edit requires one complete target")
+    capabilities = _request(db, {"command": "capabilities"}, bridge_request=bridge_request)
+    if not isinstance(capabilities, dict) or capabilities.get("edit_recurring_schedule") != 1:
+        raise ActualFinanceError("update managed Actual before editing recurring schedules")
+    actual = inspect(db, bridge_request=bridge_request)
+    try:
+        actual_migration.schedule_repair_baseline(
+            db, link, actual, allow_overlay=overlay.get("version") == 1
+        )
+    except actual_migration.ActualMigrationError as exc:
+        raise ActualFinanceError(str(exc)) from exc
+    rows = [row for row in recurring_schedules(db, actual=actual) if row["id"] == source_id]
+    schedules = [row for row in actual.get("schedules") or [] if row.get("id") == link.actual_id]
+    if len(rows) != 1 or not rows[0]["manageable"] or len(schedules) != 1:
+        raise ActualFinanceError("the linked recurring schedule needs review before editing")
+    schedule = schedules[0]
+    account_sources, _public_accounts, _metadata = _maps(db, "account")
+    account_id = account_sources.get(values["account_id"].strip(), values["account_id"].strip())
+    accounts = [
+        row
+        for row in actual.get("accounts") or []
+        if row.get("id") == account_id and not row.get("closed")
+    ]
+    payee_id = values["payee_id"].strip()
+    payees = [
+        row
+        for row in actual.get("payees") or []
+        if row.get("id") == payee_id and not row.get("transfer_acct")
+    ]
+    category_id = values["category_id"].strip()
+    categories = (
+        [
+            row
+            for row in actual.get("categories") or []
+            if row.get("id") == category_id and not row.get("is_income")
+        ]
+        if category_id
+        else []
+    )
+    if len(accounts) != 1 or len(payees) != 1 or not str(payees[0].get("name") or "").strip():
+        raise ActualFinanceError("recurring edit requires an open account and existing payee")
+    if category_id and len(categories) != 1:
+        raise ActualFinanceError("recurring edit requires an existing spending category")
+    next_date = _required_date(values["next_date"], "recurring next date")
+    amount_minor = _minor(values["amount"], "recurring amount")
+    _major_from_minor(amount_minor, "recurring amount")
+    source = {
+        "kind": "recurring",
+        "id": source_id,
+        "name": schedule["name"],
+        "account_id": account_id,
+        "payee": str(payees[0]["name"]).strip(),
+        "amount_minor": amount_minor,
+        "next_date": next_date,
+        "cycle": values["cycle"].strip().lower(),
+        "cycle_days": values["cycle_days"],
+        "active": True,
+        "posts_transaction": True,
+    }
+    if source["cycle"] in {"monthly", "quarterly", "yearly"}:
+        source["anchor_day"] = date.fromisoformat(next_date).day
+    try:
+        recurrence = actual_migration._schedule_date(source)
+    except actual_migration.ActualMigrationError as exc:
+        raise ActualFinanceError(str(exc)) from exc
+    if (
+        actual_migration._created_schedule_source({"version": 2, "source": source}, source_id)
+        is None
+    ):
+        raise ActualFinanceError("the recurring edit target cannot be validated")
+    raw_date = schedule.get("date")
+    if (
+        not isinstance(raw_date, dict)
+        or raw_date.get("endMode", "never") != "never"
+        or raw_date.get("skipWeekend")
+    ):
+        raise ActualFinanceError("the current Actual recurrence cannot be edited safely")
+    before = {
+        key: schedule.get(key) for key in ("name", "rule", "account", "payee", "amount", "amountOp")
+    }
+    before.update(
+        {
+            "date": {"endMode": "never", **raw_date},
+            "category_id": overlay["category_id"],
+            "notes": overlay["notes"],
+            "posts_transaction": overlay["posts_transaction"],
+        }
+    )
+    target = {
+        **before,
+        "account": account_id,
+        "payee": payee_id,
+        "amount": amount_minor,
+        "date": {**recurrence, "endMode": "never"},
+        "category_id": category_id,
+        "notes": values["notes"].strip(),
+        "posts_transaction": values["active"],
+    }
+    if all(
+        before[key] == target[key]
+        for key in (
+            "name",
+            "rule",
+            "account",
+            "payee",
+            "amount",
+            "amountOp",
+            "category_id",
+            "notes",
+            "posts_transaction",
+        )
+    ) and actual_migration._normalized_schedule_date(
+        before["date"]
+    ) == actual_migration._normalized_schedule_date(target["date"]):
+        return rows[0]
+    details = {"before": before, "target": target, "source": source}
+    created_source = (
+        overlay.get("source") if overlay["version"] == 2 else overlay.get("created_source")
+    )
+    if created_source is not None:
+        details["created_source"] = created_source
+    fingerprint = _request_fingerprint(
+        "edit_recurring_schedule",
+        {"source_id": source_id, "actual_id": link.actual_id, "details": details},
+    )
+    try:
+        backup = backup_fn()
+    except managed_actual.ManagedActualError as exc:
+        raise ActualFinanceUnavailable(str(exc)) from exc
+    backup_id = str(backup.get("backup_id") or "") if isinstance(backup, dict) else ""
+    if not isinstance(backup, dict) or backup.get("ok") is not True or not backup_id:
+        raise ActualFinanceError("recurring edit needs a verified Actual backup")
+    metadata["_update_intent"] = {
+        "version": 1,
+        "action": "edit_recurring_schedule",
+        "fingerprint": fingerprint,
+        "backup_id": backup_id,
+        "details": details,
+    }
+    link.metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+    db.commit()
+    return _continue_recurring_edit(db, link, bridge_request=bridge_request)
+
+
+@authority_guarded
+def retry_recurring_edit(db: Session, source_id: str, *, bridge_request=None) -> dict:
+    links = [row for row in _links(db, "recurring") if row.source_id == source_id]
+    if len(links) != 1 or not links[0].actual_id:
+        raise ActualFinanceError("the recurring edit intent was not found")
+    _recurring_edit_intent(links[0], _link_metadata(links[0]))
+    return _continue_recurring_edit(db, links[0], bridge_request=bridge_request)
 
 
 @authority_guarded

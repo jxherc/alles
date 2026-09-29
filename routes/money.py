@@ -57,6 +57,8 @@ def _legacy_ledger_mutation(method: str, path: str) -> bool:
             and not (method == "POST" and parts == ["recurring"])
             and not (method == "POST" and len(parts) == 3 and parts[2] == "retry")
             and not (method == "POST" and len(parts) == 3 and parts[2] == "repair")
+            and not (method == "POST" and len(parts) == 3 and parts[2] == "edit")
+            and not (method == "POST" and len(parts) == 4 and parts[2:] == ["edit", "retry"])
             and not (method == "PATCH" and len(parts) == 2)
         )
         or (
@@ -1175,6 +1177,26 @@ def repair_recurring(rid: str, body: RecurringRepairBody, db: DbSession = Depend
         raise HTTPException(409, "recurring schedule repair requires the Actual ledger")
     try:
         return actual_finance.repair_recurring_schedule(db, rid, body.category_id)
+    except actual_finance.ActualFinanceError as exc:
+        _actual_error(exc)
+
+
+@router.post("/recurring/{rid}/edit")
+def edit_recurring(rid: str, body: dict, db: DbSession = Depends(get_db)):
+    if not actual_finance.is_canonical(db):
+        raise HTTPException(409, "recurring edit requires the Actual ledger")
+    try:
+        return actual_finance.edit_recurring_schedule(db, rid, body)
+    except actual_finance.ActualFinanceError as exc:
+        _actual_error(exc)
+
+
+@router.post("/recurring/{rid}/edit/retry")
+def retry_recurring_edit(rid: str, db: DbSession = Depends(get_db)):
+    if not actual_finance.is_canonical(db):
+        raise HTTPException(409, "recurring edit retry requires the Actual ledger")
+    try:
+        return actual_finance.retry_recurring_edit(db, rid)
     except actual_finance.ActualFinanceError as exc:
         _actual_error(exc)
 

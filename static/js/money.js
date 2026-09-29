@@ -655,14 +655,14 @@ function recurringList() {
   const status = _recurringStatus ? `<p class="money-recurring-error" role="status">${esc(_recurringStatus)}</p>` : '';
   if (!_recurring.length) return status + `<div class="money-empty-sm">${_canonicalLedger ? 'no auto-post schedules in Actual' : 'nothing recurring: add rent, salary, a loan…'}</div>`;
   return `${status}<div class="recurs">` + _recurring.map(r => `
-    <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending || r.create_pending ? '' : 'paused'}">
+    <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending || r.create_pending || r.edit_pending ? '' : 'paused'}">
       <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
       <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? 'range' : 'varies') : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount)}`}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
-      <span class="rc-next" title="${r.create_pending ? 'creation pending' : r.next_date ? `next post ${esc(r.next_date)}` : 'next date unavailable'}">${r.create_pending ? 'pending' : r.active ? (r.next_date ? esc(r.next_date.slice(5)) : 'unknown') : (_canonicalLedger ? 'inactive' : 'paused')}</span>
-      ${_canonicalLedger && r.manageable ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? `retry ${r.posting_target_active ? 'resume' : 'pause'}` : r.active ? 'pause' : 'resume'}</button>` : ''}
+      <span class="rc-next" title="${r.create_pending ? 'creation pending' : r.edit_pending ? 'edit pending' : r.next_date ? `next post ${esc(r.next_date)}` : 'next date unavailable'}">${r.create_pending || r.edit_pending ? 'pending' : r.active ? (r.next_date ? esc(r.next_date.slice(5)) : 'unknown') : (_canonicalLedger ? 'inactive' : 'paused')}</span>
+      ${_canonicalLedger && r.manageable && !r.edit_pending ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? `retry ${r.posting_target_active ? 'resume' : 'pause'}` : r.active ? 'pause' : 'resume'}</button>` : ''}
       ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
       <button class="tx-del" data-del-rec="${esc(r.id)}" title="delete">×</button>`}
-    </div>${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? 'creation marker missing in Actual. review the schedule there before trying again.' : 'creation not confirmed. retry the saved schedule; this will not start another one.'}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">retry creation</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? 'resume' : 'pause'} not confirmed; Actual may have changed. retry the saved action.</span></div>` : ''}</div>`).join('') + `</div>`;
+    </div>${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? 'creation marker missing in Actual. review the schedule there before trying again.' : 'creation not confirmed. retry the saved schedule; this will not start another one.'}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">retry creation</button>`}</div>` : ''}${_canonicalLedger && r.edit_pending ? `<div class="recur-repair" role="status"><span>${r.edit_needs_review ? "couldn't match this edit in Actual. review the schedule there before retrying." : 'edit not confirmed; Actual may be paused. retry the saved edit.'}</span>${r.edit_needs_review ? '' : `<button type="button" class="btn" data-retry-edit-rec="${esc(r.id)}">retry edit</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? 'resume' : 'pause'} not confirmed; Actual may have changed. retry the saved action.</span></div>` : ''}</div>`).join('') + `</div>`;
 }
 
 function _recurringForm() {
@@ -888,7 +888,7 @@ async function retryRecurring(focusId = '') {
   if (!content) return;
   content.innerHTML = `<div id="recurring-list">${recurringList()}</div>` + _recurringForm();
   wireRecurring();
-  const action = focusId ? [...content.querySelectorAll('[data-toggle-rec], [data-retry-create-rec]')].find(b => b.dataset.toggleRec === focusId || b.dataset.retryCreateRec === focusId) : null;
+  const action = focusId ? [...content.querySelectorAll('[data-toggle-rec], [data-retry-create-rec], [data-retry-edit-rec]')].find(b => b.dataset.toggleRec === focusId || b.dataset.retryCreateRec === focusId || b.dataset.retryEditRec === focusId) : null;
   (action || $('recurring-retry') || document.querySelector('.money-card[data-card="recurring"] h3'))?.focus();
 }
 
@@ -903,6 +903,7 @@ function wireRecurring() {
 function wireRecurringList() {
   $('recurring-retry')?.addEventListener('click', () => retryRecurring());
   document.querySelectorAll('#recurring-content [data-retry-create-rec]').forEach(b => b.addEventListener('click', () => retryRecurringCreate(b)));
+  document.querySelectorAll('#recurring-content [data-retry-edit-rec]').forEach(b => b.addEventListener('click', () => retryRecurringEdit(b)));
   document.querySelectorAll('#recurring-content [data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
   document.querySelectorAll('#recurring-content [data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b)));
   document.querySelectorAll('#recurring-content [data-repair-rec]').forEach(b => b.addEventListener('click', () => repairRecurring(b)));
@@ -1457,6 +1458,19 @@ async function retryRecurringCreate(button) {
     _recurringStatus = '';
   } catch (error) {
     _recurringStatus = `creation not confirmed for ${r.payee}: ${error.message || 'review the schedule in Actual'}`;
+  }
+  await retryRecurring(r.id);
+}
+async function retryRecurringEdit(button) {
+  const r = _recurring.find(row => row.id === button.dataset.retryEditRec);
+  if (!_canonicalLedger || !r?.edit_pending || r.edit_needs_review || button.disabled) return;
+  button.disabled = true;
+  button.textContent = 'retrying…';
+  try {
+    await api(`/api/money/recurring/${encodeURIComponent(r.id)}/edit/retry`, { method: 'POST' });
+    _recurringStatus = '';
+  } catch (error) {
+    _recurringStatus = `edit not confirmed for ${r.payee}: ${error.message || 'review the schedule in Actual'}`;
   }
   await retryRecurring(r.id);
 }
