@@ -4625,6 +4625,41 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         }
         return db, link, actual, values
 
+    def test_recurring_edit_choices_use_current_ids_and_exclude_invalid_targets(self):
+        db, link, actual, _values = self._recurring_edit_fixture()
+        actual["accounts"].append({"id": "closed-account", "name": "old", "closed": True})
+        actual["payees"].append(
+            {"id": "transfer-payee", "name": "transfer", "transfer_acct": "actual-account"}
+        )
+        actual["categories"].append({"id": "income-id", "name": "salary", "is_income": True})
+        rows = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertTrue(rows[0]["editable"])
+        options = actual_finance.recurring_edit_options(
+            db,
+            link.source_id,
+            bridge_request=lambda payload, **_kwargs: actual,
+        )
+        self.assertEqual(options["current"]["account_id"], "legacy-account")
+        self.assertEqual(options["current"]["payee_id"], "landlord-id")
+        self.assertEqual(options["current"]["category_id"], "housing-id")
+        self.assertEqual(options["current"]["amount"], -5.0)
+        self.assertEqual(options["current"]["notes"], "lease")
+        self.assertEqual(options["current"]["cycle"], "monthly")
+        self.assertEqual(options["current"]["active"], True)
+        self.assertEqual(
+            [row["id"] for row in options["accounts"]], ["legacy-account", "new-account"]
+        )
+        self.assertEqual([row["id"] for row in options["payees"]], ["landlord-id", "new-payee-id"])
+        self.assertEqual(
+            [row["id"] for row in options["categories"]], ["housing-id", "new-category-id"]
+        )
+        actual["schedules"][0]["payee"] = "missing-payee"
+        with self.assertRaisesRegex(actual_finance.ActualFinanceError, "review"):
+            actual_finance.recurring_edit_options(
+                db, link.source_id, bridge_request=lambda payload, **_kwargs: actual
+            )
+        db.close()
+
     def test_recurring_edit_retries_partial_write_and_keeps_created_origin(self):
         db, link, actual, values = self._recurring_edit_fixture()
         original = copy.deepcopy(json.loads(link.metadata_json)["canonical_schedule"]["source"])
@@ -4846,6 +4881,14 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         db.close()
 
     def test_canonical_recurring_edit_routes_use_one_provider_owner(self):
+        with patch(
+            "routes.money.actual_finance.recurring_edit_options",
+            return_value={"current": {"payee_id": "landlord-id"}, "payees": []},
+        ) as choices:
+            response = self.client.get("/api/money/recurring/created-rent/edit-options")
+        self.assertEqual(response.status_code, 200, response.text)
+        choices.assert_called_once()
+        self.assertEqual(choices.call_args.args[1], "created-rent")
         target = {
             "account_id": "actual-account",
             "payee_id": "landlord-id",

@@ -1106,6 +1106,16 @@ def list_recurring(db: DbSession = Depends(get_db)):
     return [_rec(r) for r in rows]
 
 
+@router.get("/recurring/{rid}/edit-options")
+def get_recurring_edit_options(rid: str, db: DbSession = Depends(get_db)):
+    if not actual_finance.is_canonical(db):
+        raise HTTPException(409, "recurring edit requires the Actual ledger")
+    try:
+        return actual_finance.recurring_edit_options(db, rid)
+    except actual_finance.ActualFinanceError as exc:
+        _actual_error(exc)
+
+
 class RecurringBody(BaseModel):
     account_id: str
     amount: float = 0.0
