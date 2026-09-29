@@ -856,10 +856,20 @@ def create_recovery_archive(
         raise RecoveryError("backup output must be outside the live data directory")
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    temp_output = output.parent / f".{output.name}.{uuid.uuid4().hex}.partial"
+    raw_archive = tempfile.NamedTemporaryFile(
+        mode="w+b",
+        prefix=f".{output.name}.",
+        suffix=".partial",
+        dir=output.parent,
+        delete=False,
+    )
+    temp_output = Path(raw_archive.name)
 
     try:
-        with tempfile.TemporaryDirectory(prefix="alles-snapshot-", dir=output.parent) as tmp:
+        with (
+            raw_archive,
+            tempfile.TemporaryDirectory(prefix="alles-snapshot-", dir=output.parent) as tmp,
+        ):
             from services.recovery_consistency import recovery_consistency_lock
 
             with recovery_consistency_lock:
@@ -937,7 +947,7 @@ def create_recovery_archive(
             entries = []
             total_bytes = 0
             with zipfile.ZipFile(
-                temp_output,
+                raw_archive,
                 "w",
                 compression=zipfile.ZIP_DEFLATED,
                 compresslevel=6,
