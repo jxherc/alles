@@ -202,27 +202,33 @@ def import_books(body: ImportBody, db: DbSession = Depends(get_db)):
         )
 
     seen = {_key(b.isbn, b.title, b.author) for b in db.query(Book).all()}
-    n = 0
+    added = []
     for r in rows:
         k = _key(r["isbn"], r["title"], r["author"])
         if k in seen:
             continue
         seen.add(k)
-        db.add(
-            Book(
-                title=r["title"],
-                author=r["author"],
-                status=r["status"] if r["status"] in STATUSES else "want",
-                rating=clamp_rating(r["rating"]),
-                finished=r["finished"],
-                started=date.today().isoformat() if r["status"] == "reading" else "",
-                isbn=r["isbn"],
-                year=r["year"],
-            )
+        book = Book(
+            title=r["title"],
+            author=r["author"],
+            status=r["status"] if r["status"] in STATUSES else "want",
+            rating=clamp_rating(r["rating"]),
+            finished=r["finished"],
+            started=date.today().isoformat() if r["status"] == "reading" else "",
+            isbn=r["isbn"],
+            year=r["year"],
         )
-        n += 1
+        db.add(book)
+        added.append(book)
     db.commit()
-    return {"imported": n}
+    for book in added:
+        try:
+            from services import personal_index
+
+            personal_index.index_record(db, "book", book)
+        except Exception:
+            db.rollback()
+    return {"imported": len(added)}
 
 
 @router.delete("/books/{bid}")
