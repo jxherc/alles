@@ -2915,6 +2915,10 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   font-size: 12px;
 }
 
+#wiki-view[data-kokuen-surface="docs"] .docs-save-state.error {
+  color: var(--k-danger);
+}
+
 #wiki-view[data-kokuen-surface="docs"] :where(.docs-action-menu, .docs-dialog-card) {
   border-color: var(--k-line-strong);
   border-radius: var(--k-radius-surface);

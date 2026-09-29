@@ -40,6 +40,7 @@ COMMANDS = {
     "cleanup-regressions": ("tests/pw_cleanup_regressions.py",),
     "minimal-workflows": ("tests/pw_minimal_workflows.py",),
     "docs-editor-loading": ("tests/pw_docs_editor_loading.py",),
+    "docs-workbench-navigation": ("tests/pw_docs_workbench_navigation.py",),
     "files-workflows": ("tests/pw_phase7_files_real.py",),
     "files-upload-recovery": ("tests/pw_files_upload_recovery.py",),
     "files-transfer-clearance": ("tests/pw_files_transfer_clearance.py",),

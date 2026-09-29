@@ -9616,6 +9616,13 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   .docs-current-path,
   .docs-save-state,
   #wiki-ask-btn { display: none; }
+  .docs-reader-head .docs-save-state.error {
+    display: block;
+    order: 1;
+    flex-basis: 100%;
+    padding-bottom: 0.5rem;
+    white-space: normal;
+  }
   .wiki-current { max-width: 29vw; }
   .docs-reader-actions { margin-left: auto; }
   .docs-reader-actions > button { padding: 0 0.42rem; }
