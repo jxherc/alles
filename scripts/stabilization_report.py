@@ -24,6 +24,7 @@ BROWSER_SUITES = {
     "daily": (
         "minimal-workflows",
         "docs-editor-loading",
+        "docs-workbench-navigation",
         "plan-workflows",
         "plan-recovery",
         "calendar-workflows",
@@ -93,6 +94,7 @@ BROWSER_SUITES = {
         "cleanup-regressions",
         "minimal-workflows",
         "docs-editor-loading",
+        "docs-workbench-navigation",
         "plan-workflows",
         "plan-recovery",
         "calendar-workflows",
