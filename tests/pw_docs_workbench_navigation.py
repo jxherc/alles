@@ -1,4 +1,4 @@
-"""Docs workbench tabs keep an unsaved document visible when draft recovery fails."""
+"""Docs tabs and browser history keep unsaved documents visible on draft failure."""
 
 from __future__ import annotations
 
@@ -46,6 +46,7 @@ def run() -> None:
                 page.locator("#setup-skip").click()
                 page.locator("#setup-wizard").wait_for(state="hidden")
             expect(page.locator("#wiki-preview")).to_contain_text("original")
+            assert page.evaluate("Number.isSafeInteger(history.state?.__allesRoutePosition)")
             page.locator("#wiki-edit-btn").click()
             page.locator("#wiki-source-btn").click()
             source = page.locator("#wiki-source")
@@ -84,9 +85,68 @@ def run() -> None:
             page.unroute("**/api/vault-md/safety/draft", fail_draft)
             journal_tab.press("Enter")
             expect(page.locator("#docs-journal-section")).to_be_visible()
+            assert page.evaluate("Number.isSafeInteger(history.state?.__allesRoutePosition)")
             draft = context.request.get(base + "/api/vault-md/safety/draft", params={"path": name})
             assert draft.ok, draft.text()
             assert draft.json()["draft"]["content"] == changed
+
+            documents_tab = page.locator('#docs-workbench-view [data-group-section="notes"]')
+            documents_tab.click()
+            expect(source).to_be_visible()
+            documents_url = page.url
+            back_edit = "# back must keep this draft\n"
+            source.fill(back_edit)
+            page.route("**/api/vault-md/safety/draft", fail_draft)
+            page.go_back()
+            expect(page).to_have_url(documents_url)
+            expect(documents_tab).to_have_attribute("aria-selected", "true")
+            expect(page.locator("#docs-journal-section")).to_be_hidden()
+            expect(source).to_have_value(back_edit)
+            expect(page.locator("#wiki-save-state")).to_have_text("synthetic draft outage")
+
+            page.unroute("**/api/vault-md/safety/draft", fail_draft)
+            page.go_back()
+            expect(page.locator("#docs-journal-section")).to_be_visible()
+            page.go_back()
+            expect(source).to_be_visible()
+            forward_documents_url = page.url
+            forward_edit = "# forward must keep this draft\n"
+            source.fill(forward_edit)
+            page.route("**/api/vault-md/safety/draft", fail_draft)
+            page.go_forward()
+            expect(page).to_have_url(forward_documents_url)
+            expect(documents_tab).to_have_attribute("aria-selected", "true")
+            expect(page.locator("#docs-journal-section")).to_be_hidden()
+            expect(source).to_have_value(forward_edit)
+            expect(page.locator("#wiki-save-state")).to_have_text("synthetic draft outage")
+            page.unroute("**/api/vault-md/safety/draft", fail_draft)
+            page.go_forward()
+            expect(page.locator("#docs-journal-section")).to_be_visible()
+            draft = context.request.get(base + "/api/vault-md/safety/draft", params={"path": name})
+            assert draft.ok, draft.text()
+            assert draft.json()["draft"]["content"] == forward_edit
+
+            documents_tab.click()
+            expect(source).to_be_visible()
+            page.evaluate("window._navigateHome()")
+            expect(page.locator("#today-view")).to_be_visible()
+            page.go_back()
+            expect(source).to_be_visible()
+            home_forward_url = page.url
+            home_edit = "# home forward must keep this draft\n"
+            source.fill(home_edit)
+            page.route("**/api/vault-md/safety/draft", fail_draft)
+            page.go_forward()
+            expect(page).to_have_url(home_forward_url)
+            expect(source).to_have_value(home_edit)
+            expect(page.locator("#today-view")).to_be_hidden()
+            expect(page.locator("#wiki-save-state")).to_have_text("synthetic draft outage")
+            page.unroute("**/api/vault-md/safety/draft", fail_draft)
+            page.go_forward()
+            expect(page.locator("#today-view")).to_be_visible()
+            draft = context.request.get(base + "/api/vault-md/safety/draft", params={"path": name})
+            assert draft.ok, draft.text()
+            assert draft.json()["draft"]["content"] == home_edit
             assert not errors, errors
             context.close()
         browser.close()
