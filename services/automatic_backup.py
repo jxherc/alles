@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import stat
 import threading
 import uuid
@@ -13,10 +14,12 @@ from pathlib import Path
 from typing import Callable
 
 from core.settings import data_dir, load_settings, save_settings
+from services.backup_recovery import staging_root
 from services.encrypted_backup import create_encrypted_backup
 from services.recovery_crypto import is_encrypted_recovery
 
 _ARTIFACT = re.compile(r"^alles-auto-([0-9a-f]{16})-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}\.alles-backup$")
+_WORK = re.compile(r"^alles-auto-([0-9a-f]{16})-[0-9a-f]{32}$")
 _INTERVAL = timedelta(hours=24)
 _RETENTION = 7
 _LOCK = threading.Lock()
@@ -101,6 +104,65 @@ def _owner_id(root: Path) -> str:
     return sha256(str(root.resolve()).encode()).hexdigest()[:16]
 
 
+def _work_root(root: Path, *, create: bool) -> Path | None:
+    base = staging_root(root)
+    work = base / "automatic-backup-work"
+    if base.is_symlink():
+        raise AutomaticBackupError("automatic backup work directory is unsafe")
+    if create:
+        try:
+            base.mkdir(parents=True, exist_ok=True, mode=0o700)
+            work.mkdir(exist_ok=True, mode=0o700)
+        except OSError as exc:
+            raise AutomaticBackupError("automatic backup work directory is unavailable") from exc
+    try:
+        metadata = work.lstat()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise AutomaticBackupError("automatic backup work directory is unavailable") from exc
+    expected_uid = os.geteuid() if hasattr(os, "geteuid") else metadata.st_uid
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != expected_uid
+        or (os.name != "nt" and metadata.st_mode & 0o077)
+    ):
+        raise AutomaticBackupError("automatic backup work directory is unsafe")
+    return work
+
+
+def _clear_abandoned_work(root: Path) -> None:
+    work = _work_root(root, create=False)
+    if work is None:
+        return
+    for path in work.iterdir():
+        match = _WORK.fullmatch(path.name)
+        if match is None or match.group(1) != _owner_id(root):
+            continue
+        metadata = path.lstat()
+        expected_uid = os.geteuid() if hasattr(os, "geteuid") else metadata.st_uid
+        if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != expected_uid:
+            raise AutomaticBackupError("automatic backup work directory is unsafe")
+        try:
+            shutil.rmtree(path)
+        except OSError as exc:
+            raise AutomaticBackupError(
+                "abandoned automatic backup work could not be removed"
+            ) from exc
+
+
+def _automatic_creator(root: Path, archive: Path) -> Path:
+    work = _work_root(root, create=True)
+    if work is None:
+        raise AutomaticBackupError("automatic backup work directory is unavailable")
+    private = work / f"alles-auto-{_owner_id(root)}-{uuid.uuid4().hex}"
+    private.mkdir(mode=0o700)
+    try:
+        return create_encrypted_backup(root, archive, plaintext_parent=private)
+    finally:
+        shutil.rmtree(private)
+
+
 def _utc(value: datetime | None = None) -> datetime:
     value = value or datetime.now(UTC)
     if value.tzinfo is None:
@@ -118,23 +180,31 @@ def _parse_time(value) -> datetime | None:
     return _utc(parsed)
 
 
+def validate_automatic_backup_destination(root: Path, destination: Path) -> Path:
+    destination = destination.expanduser()
+    if not destination.is_absolute() or destination.is_symlink():
+        raise AutomaticBackupError("automatic backup destination is unsafe")
+    destination = destination.resolve()
+    root = root.expanduser().resolve()
+    if destination == root or root in destination.parents:
+        raise AutomaticBackupError("automatic backups must be stored outside Alles data")
+    private_work = staging_root(root)
+    if destination == private_work or destination in private_work.parents:
+        raise AutomaticBackupError("automatic backups must be stored outside private backup work")
+    return destination
+
+
 def _destination(settings: dict, root: Path) -> Path:
     raw = settings.get("automatic_backup_dir")
     if not isinstance(raw, str) or not raw.strip():
         raise AutomaticBackupError("automatic backup destination is not configured")
-    destination = Path(raw).expanduser()
-    if not destination.is_absolute() or destination.is_symlink():
-        raise AutomaticBackupError("automatic backup destination is unsafe")
+    destination = validate_automatic_backup_destination(root, Path(raw))
     try:
         destination.mkdir(parents=True, exist_ok=True, mode=0o700)
     except OSError as exc:
         raise AutomaticBackupError("automatic backup destination is unavailable") from exc
     if not destination.is_dir():
         raise AutomaticBackupError("automatic backup destination is not a folder")
-    destination = destination.resolve()
-    root = root.resolve()
-    if destination == root or root in destination.parents:
-        raise AutomaticBackupError("automatic backups must be stored outside Alles data")
     return destination
 
 
@@ -179,26 +249,30 @@ def run_if_due(
     *,
     now: datetime | None = None,
     force: bool = False,
-    creator: Callable[[Path, Path], Path] = create_encrypted_backup,
+    creator: Callable[[Path, Path], Path] = _automatic_creator,
 ) -> dict:
     """Create one encrypted artifact when enabled and due; never expose plaintext output."""
     settings = load_settings()
-    if not settings.get("automatic_backup_enabled"):
-        return {"status": "disabled", "created": False}
+    root = data_dir().expanduser().resolve()
+    work = staging_root(root) / "automatic-backup-work"
+    cleanup_needed = work.exists() or work.is_symlink()
     now = _utc(now)
     previous = _parse_time(settings.get("automatic_backup_last_success"))
-    if not force and previous is not None and timedelta(0) <= now - previous < _INTERVAL:
-        return {"status": "not-due", "created": False, "last_success": previous.isoformat()}
+    if not cleanup_needed:
+        if not settings.get("automatic_backup_enabled"):
+            return {"status": "disabled", "created": False}
+        if not force and previous is not None and timedelta(0) <= now - previous < _INTERVAL:
+            return {"status": "not-due", "created": False, "last_success": previous.isoformat()}
     if not _LOCK.acquire(blocking=False):
         return {"status": "busy", "created": False}
 
     partial: Path | None = None
     process_lock: _BackupProcessLock | None = None
     try:
-        root = data_dir().expanduser().resolve()
         process_lock = _BackupProcessLock(root / ".automatic-backup.lock")
         if not process_lock.acquire():
             return {"status": "busy", "created": False}
+        _clear_abandoned_work(root)
         settings = load_settings()
         if not settings.get("automatic_backup_enabled"):
             return {"status": "disabled", "created": False}

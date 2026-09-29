@@ -18,9 +18,11 @@ def create_encrypted_backup(
     *,
     include_photos: bool = False,
     limits: ArchiveLimits = DEFAULT_LIMITS,
+    plaintext_parent: Path | None = None,
 ) -> Path:
     """Write a verified archive, then remove its plaintext even when encryption fails."""
-    plaintext = archive.parent / f".{archive.name}.{uuid.uuid4().hex}.zip"
+    plaintext_parent = plaintext_parent if plaintext_parent is not None else archive.parent
+    plaintext = plaintext_parent / f".{archive.name}.{uuid.uuid4().hex}.zip"
     try:
         recovery_key = load_or_create_recovery_key(root)
         create_recovery_archive(

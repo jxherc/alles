@@ -884,9 +884,13 @@ it's a wide schema, **100+ tables** covering: chat (`sessions`, `messages`, `mod
 
 *under the hood:* the schema is sqlalchemy models in [`core/database.py`](core/database.py) with versioned migrations. server-side secrets (model api keys, mail passwords) are sealed at rest with aes-256-gcm under `data/secret.key`. settings → backup first snapshots sqlite, freezes keys and dependent config/files, and authenticates every known encrypted credential before creating an encrypted `.alles-backup` with a hashed manifest. a configured external Markdown vault is copied into a verified snapshot; if it changes during that copy, backup stops, and recovery remaps the captured vault under the new Alles data root instead of writing to the old external path. save the recovery key separately. manual WebDAV backup uploads through a unique temporary name, moves without overwrite, then streams the saved file back to verify its exact size and SHA-256. manual S3-compatible backup signs each request with SigV4, conditionally uploads and copies a unique object without overwrite, and performs the same full read-back; the first version is limited to 5 GB per artifact. remote restore lists generated Alles backups, downloads one into private staging, and uses the same verification path as local restore. restore boots and migrates staged data twice, swaps only while writers are stopped, health-checks the installed copy, and automatically puts the original data back if validation fails.
 
-first-run Protection can opt into an automatic encrypted local backup folder outside `ALLES_DATA`.
-The registered job checks hourly, creates at most one artifact every 24 hours, publishes no plaintext
-or partial archive, retains seven Alles-owned automatic artifacts, and never prunes unrelated files.
+first-run Protection can opt into an automatic encrypted local backup folder that neither
+contains nor sits inside `ALLES_DATA`. The folder also cannot contain Alles' private backup
+work area. The registered job checks hourly, creates at most one artifact every 24 hours,
+and writes temporary plaintext only in owner-private work beside the data folder. It
+publishes only an encrypted artifact, retains seven Alles-owned automatic artifacts, and
+never prunes unrelated files. If the process dies, the next job check removes its own
+abandoned private work even when another backup is not due.
 
 ### current trust map
 

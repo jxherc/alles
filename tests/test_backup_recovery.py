@@ -10,6 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
+import services.backup_recovery as backup_recovery
 from services.backup_recovery import (
     DATA_CLASS_POLICIES,
     LOCATION_ROLES,
@@ -77,6 +78,29 @@ class BackupRecoveryTest(unittest.TestCase):
         archive = self.base / "backup.zip"
         create_recovery_archive(self.live, archive)
         return archive
+
+    def test_archive_temp_is_private_from_first_write(self):
+        if os.name == "nt":
+            self.skipTest("POSIX file modes are unavailable")
+        destination = self.base / "existing-backups"
+        destination.mkdir(mode=0o755)
+        destination.chmod(0o755)
+        output = destination / "private.zip"
+        original_copy = backup_recovery._copy_to_zip
+        observed = []
+
+        def check_mode(*args, **kwargs):
+            partials = list(destination.glob(".private.zip.*.partial"))
+            self.assertEqual(len(partials), 1)
+            observed.append(partials[0].stat().st_mode & 0o777)
+            return original_copy(*args, **kwargs)
+
+        with patch.object(backup_recovery, "_copy_to_zip", side_effect=check_mode):
+            create_recovery_archive(self.live, output)
+
+        self.assertTrue(observed)
+        self.assertTrue(all(mode & 0o077 == 0 for mode in observed), observed)
+        self.assertEqual(output.stat().st_mode & 0o077, 0)
 
     @staticmethod
     def _rewrite_archive(source: Path, dest: Path, mutate):

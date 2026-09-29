@@ -8,7 +8,11 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from core.settings import auth_enabled, load_settings, save_settings
+from core.settings import auth_enabled, data_dir, load_settings, save_settings
+from services.automatic_backup import (
+    AutomaticBackupError,
+    validate_automatic_backup_destination,
+)
 
 VERSION = 1
 STEPS = ("basics", "access", "files", "ai_search", "protection")
@@ -315,6 +319,11 @@ def _save_protection(values: dict) -> None:
     if automatic and not backup_dir:
         raise SetupStateError("automatic backups need a destination folder")
     if backup_dir:
+        if automatic:
+            try:
+                validate_automatic_backup_destination(data_dir(), Path(backup_dir))
+            except AutomaticBackupError as exc:
+                raise SetupStateError(str(exc)) from exc
         destination = _safe_folder(backup_dir, create=True)
     else:
         destination = Path.home() / "Alles" / "Backups"

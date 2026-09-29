@@ -125,7 +125,8 @@ a supported Docker runtime and data location; Server reports the reason when tho
 
 open **settings → backup** to download an encrypted `.alles-backup`, or send the same encrypted file to an existing https WebDAV folder or S3-compatible bucket. remote backup is manual right now and is not Files sync.
 
-first-run Protection can also enable a daily encrypted local backup to a folder outside Alles data.
+first-run Protection can also enable a daily encrypted local backup to a separate folder
+that neither contains nor sits inside Alles data.
 Alles checks hourly, creates at most one artifact per day, keeps the newest seven artifacts it owns,
 and leaves unrelated files alone. remote WebDAV and S3 targets remain manual.
 

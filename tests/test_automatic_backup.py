@@ -1,6 +1,10 @@
+import os
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
+import uuid
 import zipfile
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
@@ -8,7 +12,8 @@ from pathlib import Path
 from unittest import mock
 
 import core.settings
-from services import automatic_backup
+from services import automatic_backup, encrypted_backup
+from services.backup_recovery import staging_root
 
 
 class AutomaticBackupTest(unittest.TestCase):
@@ -85,11 +90,31 @@ class AutomaticBackupTest(unittest.TestCase):
             conn.execute("INSERT INTO schema_migrations VALUES (1, 'baseline', '')")
             conn.commit()
         (self.data / "backup-marker.txt").write_text("private-backup-marker", "utf-8")
+        self.destination.mkdir(mode=0o755)
+        self.destination.chmod(0o755)
         self._enable()
 
-        result = automatic_backup.run_if_due(now=datetime(2026, 7, 20, tzinfo=UTC))
+        observed_plaintext = []
+        original_encrypt = encrypted_backup.encrypt_recovery_archive
+
+        def inspect_plaintext(source, *args, **kwargs):
+            observed_plaintext.append((source.parent, source.parent.stat().st_mode & 0o077))
+            return original_encrypt(source, *args, **kwargs)
+
+        with mock.patch.object(
+            encrypted_backup, "encrypt_recovery_archive", side_effect=inspect_plaintext
+        ):
+            result = automatic_backup.run_if_due(now=datetime(2026, 7, 20, tzinfo=UTC))
 
         artifact = self.destination / result["filename"]
+        self.assertEqual(len(observed_plaintext), 1)
+        self.assertNotEqual(observed_plaintext[0][0], self.destination)
+        if os.name != "nt":
+            self.assertEqual(observed_plaintext[0][1], 0)
+        self.assertEqual(
+            list((staging_root(self.data) / "automatic-backup-work").iterdir()),
+            [],
+        )
         self.assertTrue(is_encrypted_recovery(artifact))
         self.assertNotIn(b"private-backup-marker", artifact.read_bytes())
         self.assertFalse(any(path.suffix == ".zip" for path in self.destination.iterdir()))
@@ -118,6 +143,79 @@ class AutomaticBackupTest(unittest.TestCase):
         result = automatic_backup.run_if_due(now=now + timedelta(hours=23), creator=self._encrypted)
         self.assertEqual(result["status"], "not-due")
         self.assertEqual(len(list(self.destination.iterdir())), 1)
+
+    def test_abandoned_work_is_removed_even_when_not_due_or_disabled(self):
+        work_root = staging_root(self.data) / "automatic-backup-work"
+        work_root.mkdir(parents=True, mode=0o700)
+        owner_id = automatic_backup._owner_id(self.data)
+        abandoned = work_root / f"alles-auto-{owner_id}-{uuid.uuid4().hex}"
+        abandoned.mkdir(mode=0o700)
+        (abandoned / "private.zip").write_bytes(b"synthetic plaintext")
+        unrelated = work_root / f"alles-auto-0000000000000000-{uuid.uuid4().hex}"
+        unrelated.mkdir(mode=0o700)
+        self._enable()
+        now = datetime(2026, 7, 20, tzinfo=UTC)
+        core.settings.save_settings({"automatic_backup_last_success": now.isoformat()})
+
+        result = automatic_backup.run_if_due(now=now, creator=self._encrypted)
+
+        self.assertEqual(result["status"], "not-due")
+        self.assertFalse(abandoned.exists())
+        self.assertTrue(unrelated.is_dir())
+
+        disabled_work = work_root / f"alles-auto-{owner_id}-{uuid.uuid4().hex}"
+        disabled_work.mkdir(mode=0o700)
+        core.settings.save_settings({"automatic_backup_enabled": False})
+        result = automatic_backup.run_if_due(now=now, creator=self._encrypted)
+        self.assertEqual(result["status"], "disabled")
+        self.assertFalse(disabled_work.exists())
+        self.assertTrue(unrelated.is_dir())
+
+    def test_process_death_leaves_plaintext_only_in_private_work_until_next_check(self):
+        with closing(sqlite3.connect(self.data / "aide.db")) as conn:
+            conn.execute("CREATE TABLE sessions (id TEXT PRIMARY KEY, name TEXT)")
+            conn.execute("CREATE TABLE tasks (id TEXT PRIMARY KEY, title TEXT)")
+            conn.execute(
+                "CREATE TABLE schema_migrations "
+                "(version INTEGER PRIMARY KEY, name TEXT, applied_at TEXT)"
+            )
+            conn.execute("INSERT INTO schema_migrations VALUES (1, 'baseline', '')")
+            conn.commit()
+        self.destination.mkdir(mode=0o755)
+        self.destination.chmod(0o755)
+        child = (
+            "import os, sys\n"
+            "from pathlib import Path\n"
+            "from unittest import mock\n"
+            "from services import automatic_backup, encrypted_backup\n"
+            "with mock.patch.object(encrypted_backup, 'encrypt_recovery_archive', "
+            "side_effect=lambda *_a, **_kw: os._exit(77)):\n"
+            "    automatic_backup._automatic_creator(Path(sys.argv[1]), Path(sys.argv[2]))\n"
+        )
+        env = os.environ.copy()
+        env["ALLES_DATA"] = str(self.data)
+        env.pop("ALLES_DB", None)
+        result = subprocess.run(
+            [sys.executable, "-c", child, str(self.data), str(self.destination / "partial")],
+            cwd=Path(__file__).resolve().parents[1],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 77, result.stderr)
+        self.assertEqual(list(self.destination.iterdir()), [])
+        work_root = staging_root(self.data) / "automatic-backup-work"
+        abandoned = list(work_root.iterdir())
+        self.assertEqual(len(abandoned), 1)
+        self.assertEqual(len(list(abandoned[0].glob("*.zip"))), 1)
+        if os.name != "nt":
+            self.assertEqual(abandoned[0].stat().st_mode & 0o077, 0)
+
+        self.assertEqual(automatic_backup.run_if_due()["status"], "disabled")
+        self.assertEqual(list(work_root.iterdir()), [])
 
     def test_future_success_timestamp_is_due_after_clock_correction(self):
         self._enable()
@@ -201,6 +299,31 @@ class AutomaticBackupTest(unittest.TestCase):
         )
         with self.assertRaisesRegex(automatic_backup.AutomaticBackupError, "outside Alles data"):
             automatic_backup.run_if_due(creator=self._encrypted)
+
+    def test_destination_containing_private_work_is_refused(self):
+        core.settings.save_settings(
+            {
+                "automatic_backup_enabled": True,
+                "automatic_backup_dir": str(self.root),
+            }
+        )
+        creator = mock.Mock(side_effect=self._encrypted)
+        with self.assertRaisesRegex(automatic_backup.AutomaticBackupError, "private backup work"):
+            automatic_backup.run_if_due(creator=creator)
+        creator.assert_not_called()
+
+    def test_permissive_existing_work_directory_is_refused(self):
+        if os.name == "nt":
+            self.skipTest("POSIX file modes are unavailable")
+        work_root = staging_root(self.data) / "automatic-backup-work"
+        work_root.mkdir(parents=True, mode=0o700)
+        work_root.chmod(0o755)
+        self._enable()
+        with self.assertRaisesRegex(
+            automatic_backup.AutomaticBackupError, "work directory is unsafe"
+        ):
+            automatic_backup.run_if_due(creator=self._encrypted)
+        self.assertFalse(self.destination.exists())
 
     def test_cleanup_error_still_releases_the_job_lock(self):
         self._enable()

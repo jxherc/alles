@@ -6,6 +6,7 @@ from unittest import mock
 
 import core.settings
 from core.database import ModelEndpoint
+from services.backup_recovery import staging_root
 from tests._client import ApiTest
 
 
@@ -133,6 +134,32 @@ class ResumableSetupApiTest(ApiTest):
 
     def _step(self, step, values):
         return self.client.patch("/api/setup/step", json={"step": step, "values": values})
+
+    def test_protection_rejects_folder_containing_data_or_private_work(self):
+        data = self.root / "data"
+        data.mkdir()
+        with mock.patch.dict(os.environ, {"ALLES_DATA": str(data)}):
+            for destination in (self.root, staging_root(data)):
+                with self.subTest(destination=destination):
+                    response = self._step(
+                        "protection",
+                        {
+                            "automatic_backup_enabled": True,
+                            "automatic_backup_dir": str(destination),
+                        },
+                    )
+                    self.assertEqual(response.status_code, 400, response.text)
+                    self.assertEqual(response.json()["code"], "invalid_setup_step")
+                    self.assertFalse(core.settings.load_settings()["automatic_backup_enabled"])
+            valid = self._step(
+                "protection",
+                {
+                    "automatic_backup_enabled": True,
+                    "automatic_backup_dir": str(self.root / "Backups"),
+                },
+            )
+        self.assertEqual(valid.status_code, 200, valid.text)
+        self.assertTrue(core.settings.load_settings()["automatic_backup_enabled"])
 
     def test_fresh_state_has_server_owned_progress_and_path_preview(self):
         with mock.patch.dict(os.environ, {"ALLES_DATA": str(self.root / "data")}):
