@@ -102,8 +102,8 @@ def require_auth(request: HTTPConnection):
 
     auth = request.headers.get("authorization", "")
     if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
+        from core.api_tokens import verify_token
         from core.database import SessionLocal
-        from routes.api_tokens import verify_token
 
         db = SessionLocal()
         try:

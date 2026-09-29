@@ -1068,7 +1068,7 @@ class TokenAuthMiddleware:
 
         if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
             token = auth.split(" ", 1)[1]
-            from routes.api_tokens import required_scope, token_access
+            from core.api_tokens import required_scope, token_access
 
             db = SessionLocal()
             try:
@@ -1314,7 +1314,7 @@ def _request_authed(request: Request) -> bool:
     that want to vary their output by auth."""
     auth = request.headers.get("authorization", "")
     if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
-        from routes.api_tokens import verify_token
+        from core.api_tokens import verify_token
 
         db = SessionLocal()
         try:
