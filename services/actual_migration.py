@@ -1465,10 +1465,10 @@ def _schedule_overlay_matches(row: dict, overlay: dict, categories: dict[str, di
     category_id = overlay.get("category_id")
     posting = row.get("posting") or {}
     return (
-        overlay.get("version") in {1, 2}
-        and (overlay.get("version") != 2 or row.get("completed") is False)
+        overlay.get("version") in {1, 2, 3}
+        and (overlay.get("version") == 1 or row.get("completed") is False)
         and (
-            overlay.get("version") != 2
+            overlay.get("version") == 1
             or (
                 isinstance(overlay.get("payee_id"), str)
                 and bool(overlay["payee_id"])
@@ -1478,7 +1478,7 @@ def _schedule_overlay_matches(row: dict, overlay: dict, categories: dict[str, di
         and isinstance(category_id, str)
         and (not category_id or category_id in categories)
         and (
-            overlay.get("version") != 2
+            overlay.get("version") == 1
             or not category_id
             or not categories[category_id].get("is_income")
         )
@@ -1549,6 +1549,44 @@ def _created_schedule_source(overlay: object, source_id: str) -> dict | None:
     return source
 
 
+def _edited_schedule_source(
+    overlay: object, source_id: str, *, original: dict | None = None
+) -> dict | None:
+    """Validate the current identity without replacing its cutover/create origin."""
+    if not isinstance(overlay, dict) or overlay.get("version") != 3:
+        return None
+    if set(overlay) - {
+        "version",
+        "source",
+        "created_source",
+        "payee_id",
+        "category_id",
+        "notes",
+        "posts_transaction",
+    }:
+        return None
+    source = _created_schedule_source({"version": 2, "source": overlay.get("source")}, source_id)
+    if source is None:
+        return None
+    if original is None:
+        created = _created_schedule_source(
+            {"version": 2, "source": overlay.get("created_source")}, source_id
+        )
+        if created is None or source["name"] != created["name"]:
+            return None
+    elif "created_source" in overlay or source["name"] != original.get("name"):
+        return None
+    if (
+        not isinstance(overlay.get("payee_id"), str)
+        or not overlay["payee_id"]
+        or not isinstance(overlay.get("category_id"), str)
+        or not isinstance(overlay.get("notes"), str)
+        or type(overlay.get("posts_transaction")) is not bool
+    ):
+        return None
+    return source
+
+
 def _restored_schedule_matches(
     row: dict,
     expected: dict,
@@ -1591,7 +1629,11 @@ def schedule_repair_baseline(
         raise ActualMigrationError("the canonical schedule link is unreadable")
     overlay = metadata.get("canonical_schedule")
     if not expected_rows and link.entity_kind == "recurring":
-        expected = _created_schedule_source(overlay, link.source_id)
+        expected = (
+            _edited_schedule_source(overlay, link.source_id)
+            if isinstance(overlay, dict) and overlay.get("version") == 3
+            else _created_schedule_source(overlay, link.source_id)
+        )
         fingerprint = metadata.get("_request_fingerprint")
         if (
             expected is None
@@ -1608,16 +1650,22 @@ def schedule_repair_baseline(
     elif len(expected_rows) == 1:
         if isinstance(overlay, dict) and overlay.get("version") == 2:
             raise ActualMigrationError("the recurring schedule repair record is invalid")
-        expected = expected_rows[0]
+        expected = (
+            _edited_schedule_source(overlay, link.source_id, original=expected_rows[0])
+            if isinstance(overlay, dict) and overlay.get("version") == 3
+            else expected_rows[0]
+        )
+        if expected is None:
+            raise ActualMigrationError("the current recurring schedule checkpoint is invalid")
         metadata.pop("_update_intent", None)
-        if allow_overlay:
+        if allow_overlay or (isinstance(overlay, dict) and overlay.get("version") == 3):
             metadata.pop("canonical_schedule", None)
-        if metadata != (expected.get("metadata") or {}):
+        if metadata != (expected_rows[0].get("metadata") or {}):
             raise ActualMigrationError("the canonical schedule link changed since cutover")
     else:
         raise ActualMigrationError("the canonical schedule migration identity is missing")
     rows = [row for row in actual.get("schedules") or [] if row.get("id") == link.actual_id]
-    if not expected_rows:
+    if not expected_rows or (isinstance(overlay, dict) and overlay.get("version") == 3):
         account_id = expected["account_id"]
         if not any(row.get("id") == account_id for row in actual.get("accounts") or []):
             raise ActualMigrationError("the canonical schedule Actual account is missing")
@@ -1640,7 +1688,9 @@ def schedule_repair_baseline(
         rows[0], expected, account_actual_ids=accounts, payee_names=payees
     ):
         raise ActualMigrationError("Actual schedule changed since cutover; review it before repair")
-    if not expected_rows and rows[0].get("payee") != overlay["payee_id"]:
+    if (not expected_rows or (isinstance(overlay, dict) and overlay.get("version") == 3)) and rows[
+        0
+    ].get("payee") != overlay["payee_id"]:
         raise ActualMigrationError("Actual schedule payee changed since creation; review it first")
     return expected
 
@@ -1851,13 +1901,21 @@ def validate_active_links(db: Session, actual: dict) -> dict:
         elif kind in {"recurring", "subscription"}:
             present = actual_id in schedules
             group = "schedule"
-            expected = snapshot_schedules.get((kind, link.source_id))
+            original = snapshot_schedules.get((kind, link.source_id))
+            expected = original
             created = expected is None
             schedule_account_ids = account_actual_ids
             overlay = metadata.get("canonical_schedule")
             source_metadata = {k: v for k, v in metadata.items() if k != "canonical_schedule"}
+            if kind == "recurring" and isinstance(overlay, dict) and overlay.get("version") == 3:
+                expected = _edited_schedule_source(overlay, link.source_id, original=expected)
+                if expected is not None:
+                    schedule_account_ids = {expected["account_id"]: expected["account_id"]}
+                    if expected["account_id"] not in accounts:
+                        expected = None
             if created and kind == "recurring":
-                expected = _created_schedule_source(overlay, link.source_id)
+                if not isinstance(overlay, dict) or overlay.get("version") != 3:
+                    expected = _created_schedule_source(overlay, link.source_id)
                 fingerprint = source_metadata.pop("_request_fingerprint", None)
                 if (expected is not None and expected["account_id"] not in accounts) or (
                     not isinstance(fingerprint, str)
@@ -1878,7 +1936,7 @@ def validate_active_links(db: Session, actual: dict) -> dict:
             elif present and (
                 (overlay is not None and (kind != "recurring" or not isinstance(overlay, dict)))
                 or (not created and isinstance(overlay, dict) and overlay.get("version") == 2)
-                or (not created and source_metadata != (expected.get("metadata") or {}))
+                or (not created and source_metadata != (original.get("metadata") or {}))
                 or not _restored_schedule_matches(
                     schedules[actual_id],
                     expected,

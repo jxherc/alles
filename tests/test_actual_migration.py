@@ -1272,6 +1272,147 @@ class ActualMigrationTests(ApiTest):
         self.assertIsInstance(outcomes.get("write_error"), actual_finance.ActualFinanceError)
         self.assertFalse(write_bridge_entered.is_set())
 
+    def test_edited_old_schedule_keeps_its_cutover_metadata(self):
+        db = self.db()
+        original_metadata = {
+            "posting_rule_version": 1,
+            "category": "housing",
+            "notes": "old lease",
+            "last_posted": "",
+        }
+        snapshot = {
+            "schedules": [
+                {
+                    "kind": "recurring",
+                    "id": "old-rent",
+                    "name": "Alles recurring: rent [old-rent]",
+                    "account_id": "old-account",
+                    "payee": "landlord",
+                    "amount_minor": -500,
+                    "next_date": "2026-10-01",
+                    "cycle": "monthly",
+                    "cycle_days": 30,
+                    "active": True,
+                    "posts_transaction": True,
+                    "metadata": original_metadata,
+                }
+            ]
+        }
+        path = actual_migration._write_snapshot("old-edit-run", snapshot)
+        db.add(
+            ActualMigrationRun(
+                id="old-edit-run",
+                status="canonical",
+                base_currency_code="CAD",
+                snapshot_sha256=actual_migration.snapshot_sha256(snapshot),
+                snapshot_path=str(path),
+            )
+        )
+        state = db.get(FinanceLedgerState, "primary")
+        if state is None:
+            state = FinanceLedgerState(id="primary", base_currency_code="CAD")
+            db.add(state)
+        state.mode = "actual"
+        state.active_run_id = "old-edit-run"
+        state.actual_budget_id = "test-budget"
+        current = {
+            "kind": "recurring",
+            "id": "old-rent",
+            "name": snapshot["schedules"][0]["name"],
+            "account_id": "provider-account",
+            "payee": "new landlord",
+            "amount_minor": -600,
+            "next_date": "2026-11-01",
+            "cycle": "weekly",
+            "cycle_days": 7,
+            "active": True,
+            "posts_transaction": True,
+        }
+        checkpoint = {
+            "version": 3,
+            "source": current,
+            "payee_id": "new-payee",
+            "category_id": "housing-id",
+            "notes": "new lease",
+            "posts_transaction": False,
+        }
+        link = ActualEntityLink(
+            run_id="old-edit-run",
+            entity_kind="recurring",
+            source_id="old-rent",
+            actual_id="provider-schedule",
+            metadata_json=json.dumps({**original_metadata, "canonical_schedule": checkpoint}),
+        )
+        db.add(link)
+        db.commit()
+        actual = {
+            "accounts": [{"id": "provider-account"}],
+            "transactions": [],
+            "payees": [{"id": "new-payee", "name": "new landlord"}],
+            "categories": [{"id": "housing-id", "name": "housing", "is_income": False}],
+            "category_groups": [],
+            "schedules": [
+                {
+                    "id": "provider-schedule",
+                    "name": current["name"],
+                    "account": "provider-account",
+                    "payee": "new-payee",
+                    "amount": -600,
+                    "amountOp": "is",
+                    "date": {"start": "20261101", "frequency": "weekly", "interval": 1},
+                    "completed": False,
+                    "posts_transaction": False,
+                    "posting": {
+                        "guarded": True,
+                        "category": "housing-id",
+                        "notes": "new lease",
+                    },
+                }
+            ],
+            "budget_months": [],
+        }
+        self.assertTrue(actual_migration.validate_active_links(db, actual)["ok"])
+        self.assertEqual(actual_migration.schedule_repair_baseline(db, link, actual), current)
+        visible = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertEqual(len(visible), 1)
+        self.assertEqual(visible[0]["payee"], "new landlord")
+        self.assertEqual(visible[0]["amount"], -6.0)
+        self.assertTrue(visible[0]["manageable"])
+        link.metadata_json = json.dumps(
+            {
+                **original_metadata,
+                "canonical_schedule": {
+                    **checkpoint,
+                    "source": {**current, "account_id": "missing-provider-account"},
+                },
+            }
+        )
+        db.commit()
+        missing_account = actual_migration.validate_active_links(db, actual)
+        self.assertFalse(missing_account["ok"])
+        self.assertTrue(
+            any(row.get("content_checkpoint_missing") for row in missing_account["invalid_links"])
+        )
+        link.metadata_json = json.dumps(
+            {
+                **original_metadata,
+                "canonical_schedule": checkpoint,
+                "_update_intent": {"action": "update_recurring_schedule", "version": 1},
+            }
+        )
+        db.commit()
+        pending = actual_migration.validate_active_links(db, actual)
+        self.assertFalse(pending["ok"])
+        self.assertTrue(any(row.get("pending_update") for row in pending["invalid_links"]))
+        link.metadata_json = json.dumps(
+            {**original_metadata, "notes": "tampered", "canonical_schedule": checkpoint}
+        )
+        db.commit()
+        self.assertFalse(actual_migration.validate_active_links(db, actual)["ok"])
+        with self.assertRaisesRegex(actual_migration.ActualMigrationError, "link changed"):
+            actual_migration.schedule_repair_baseline(db, link, actual)
+        db.close()
+
     def test_fresh_restore_validation_checks_shape_references_and_transfers(self):
         valid = {
             "accounts": [{"id": "a1"}, {"id": "a2"}],
@@ -1560,6 +1701,100 @@ class ActualMigrationTests(ApiTest):
             actual_migration.schedule_repair_baseline(db, created_link, with_created),
             created_source,
         )
+        old_current = {
+            "kind": "recurring",
+            "id": "source-recurring",
+            "name": "rent",
+            "account_id": "a2",
+            "payee": "landlord",
+            "amount_minor": -2200,
+            "next_date": "2026-10-01",
+            "cycle": "weekly",
+            "cycle_days": 7,
+            "active": True,
+            "posts_transaction": True,
+        }
+        old_edited = copy.deepcopy(with_created)
+        old_edited["schedules"][0].update(
+            account="a2",
+            amount=-2200,
+            date={"start": "20261001", "frequency": "weekly", "interval": 1},
+        )
+        recurring_link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 3,
+                    "source": old_current,
+                    "payee_id": "p1",
+                    "category_id": "c1",
+                    "notes": "repaired lease",
+                    "posts_transaction": False,
+                }
+            }
+        )
+        db.flush()
+        self.assertTrue(actual_migration.validate_active_links(db, old_edited)["ok"])
+        self.assertEqual(
+            actual_migration.schedule_repair_baseline(db, recurring_link, old_edited),
+            old_current,
+        )
+        wrong_old = copy.deepcopy(old_edited)
+        wrong_old["schedules"][0]["amount"] = -2000
+        self.assertFalse(actual_migration.validate_active_links(db, wrong_old)["ok"])
+        recurring_link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 1,
+                    "category_id": "c1",
+                    "notes": "repaired lease",
+                    "posts_transaction": False,
+                }
+            }
+        )
+        edited_source = {
+            **created_source,
+            "account_id": "a1",
+            "payee": "mail",
+            "amount_minor": -3500,
+            "next_date": "2026-10-01",
+            "cycle": "weekly",
+            "cycle_days": 7,
+        }
+        created_edited = copy.deepcopy(with_created)
+        created_edited["schedules"][-1].update(
+            account="a1",
+            payee="p2",
+            amount=-3500,
+            date={"start": "20261001", "frequency": "weekly", "interval": 1},
+            posts_transaction=False,
+        )
+        created_link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 3,
+                    "source": edited_source,
+                    "created_source": created_source,
+                    "payee_id": "p2",
+                    "category_id": "c1",
+                    "notes": "created lease",
+                    "posts_transaction": False,
+                },
+                "_request_fingerprint": "a" * 64,
+            }
+        )
+        db.flush()
+        self.assertTrue(actual_migration.validate_active_links(db, created_edited)["ok"])
+        self.assertEqual(
+            actual_migration.schedule_repair_baseline(db, created_link, created_edited),
+            edited_source,
+        )
+        wrong_created = copy.deepcopy(created_edited)
+        wrong_created["schedules"][-1]["payee"] = "p1"
+        self.assertFalse(actual_migration.validate_active_links(db, wrong_created)["ok"])
+        created_link.metadata_json = json.dumps(
+            {"canonical_schedule": created_overlay, "_request_fingerprint": "a" * 64}
+        )
+        db.flush()
         for field, value in (
             ("name", "changed"),
             ("account", "a1"),
