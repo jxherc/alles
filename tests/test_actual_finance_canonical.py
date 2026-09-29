@@ -4470,6 +4470,51 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(checkpoint["source"], source)
         self.assertFalse(checkpoint["posts_transaction"])
         self.assertEqual(link.actual_id, "actual-rent")
+        edited_source = {
+            **source,
+            "payee": "new landlord",
+            "amount_minor": -600,
+            "next_date": "2026-11-01",
+            "cycle": "weekly",
+            "cycle_days": 7,
+        }
+        actual["payees"].append({"id": "new-landlord-id", "name": "new landlord"})
+        actual["schedules"][0].update(
+            payee="new-landlord-id",
+            amount=-600,
+            date={"start": "2026-11-01", "frequency": "weekly", "interval": 1},
+            next_date="2026-11-01",
+        )
+        link.metadata_json = json.dumps(
+            {
+                "canonical_schedule": {
+                    "version": 3,
+                    "source": edited_source,
+                    "created_source": source,
+                    "payee_id": "new-landlord-id",
+                    "category_id": "housing-id",
+                    "notes": "lease",
+                    "posts_transaction": False,
+                },
+                "_request_fingerprint": "a" * 64,
+            }
+        )
+        db.commit()
+        edited = actual_finance.recurring_schedules(db, actual=actual)
+        self.assertEqual(edited[0]["payee"], "new landlord")
+        self.assertEqual(edited[0]["amount"], -6.0)
+        resumed = actual_finance.set_recurring_posting(
+            db,
+            "created-rent",
+            True,
+            bridge_request=bridge,
+            backup_fn=lambda: {"ok": True, "backup_id": "before-edited-resume"},
+        )
+        self.assertTrue(resumed["active"])
+        edited_checkpoint = json.loads(link.metadata_json)["canonical_schedule"]
+        self.assertEqual(edited_checkpoint["version"], 3)
+        self.assertEqual(edited_checkpoint["source"], edited_source)
+        self.assertEqual(edited_checkpoint["created_source"], source)
         db.close()
 
     def test_recurring_create_recovers_lost_response_from_one_marker(self):

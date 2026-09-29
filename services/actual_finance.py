@@ -1181,10 +1181,10 @@ def recurring_schedules(
         notes = str(metadata.get("notes") or "")
         overlay = metadata.get("canonical_schedule")
         if overlay is not None and (
-            not isinstance(overlay, dict) or overlay.get("version") not in {1, 2}
+            not isinstance(overlay, dict) or overlay.get("version") not in {1, 2, 3}
         ):
             raise ActualFinanceError("the recurring schedule repair record is invalid")
-        if isinstance(overlay, dict) and overlay.get("version") == 2:
+        if isinstance(overlay, dict) and overlay.get("version") in {2, 3}:
             from services import actual_migration
 
             link = next(
@@ -1201,7 +1201,7 @@ def recurring_schedules(
                 actual_migration.schedule_repair_baseline(db, link, actual)
             except actual_migration.ActualMigrationError as exc:
                 raise ActualFinanceError(str(exc)) from exc
-        if isinstance(overlay, dict) and overlay.get("version") in {1, 2}:
+        if isinstance(overlay, dict) and overlay.get("version") in {1, 2, 3}:
             posting = row.get("posting") or {}
             category_id = overlay.get("category_id")
             expected_states = [overlay.get("posts_transaction")]
@@ -1270,7 +1270,7 @@ def recurring_schedules(
             name = name[len(migrated_name) : -len(migrated_suffix)]
         payee = (
             str(overlay["source"]["payee"])
-            if isinstance(overlay, dict) and overlay.get("version") == 2
+            if isinstance(overlay, dict) and overlay.get("version") in {2, 3}
             else name or str(payee_names.get(row.get("payee")) or category or "recurring")
         )
 
@@ -1872,7 +1872,7 @@ def set_recurring_posting(
     metadata = _link_metadata(link)
     overlay = metadata.get("canonical_schedule")
     if overlay is not None and (
-        not isinstance(overlay, dict) or overlay.get("version") not in {1, 2}
+        not isinstance(overlay, dict) or overlay.get("version") not in {1, 2, 3}
     ):
         raise ActualFinanceError("the recurring schedule posting record is invalid")
     if not overlay and metadata.get("posting_rule_version") != 1:
@@ -2042,7 +2042,7 @@ def set_recurring_posting(
     metadata.pop("_update_intent", None)
     metadata["canonical_schedule"] = (
         {**overlay, "posts_transaction": active}
-        if isinstance(overlay, dict) and overlay.get("version") == 2
+        if isinstance(overlay, dict) and overlay.get("version") in {2, 3}
         else {
             "version": 1,
             "category_id": category_id,
