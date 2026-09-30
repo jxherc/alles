@@ -18,9 +18,9 @@ const {
 } = await import('../../static/js/settings.js');
 
 const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
-const source = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../static/js/settings/backups.js', import.meta.url), 'utf8');
 const s3Start = source.indexOf('// ── s3 backup');
-const s3Source = source.slice(s3Start, source.indexOf('// ── models pane', s3Start));
+const s3Source = source.slice(s3Start, source.indexOf('async function loadSetupStatus', s3Start));
 
 test('Home shortcut visibility preserves custom keys and surviving positions', () => {
   const original = ['custom-a', 'inbox', 'custom-b', 'files'];
@@ -152,6 +152,6 @@ test('every s3 mutation uses recent-owner confirmation and restore sends multipa
 test('opening the backup pane loads webdav and s3 independently', () => {
   assert.match(
     source,
-    /if \(name === 'backup'\)\s+\{ loadSetupStatus\(\); loadWebdavBackup\(\); loadS3Backup\(\); \}/,
+    /load: isCurrent => Promise\.all\(\[\s*loadSetupStatus\(isCurrent\), loadWebdavBackup\(isCurrent\), loadS3Backup\(isCurrent\)/,
   );
 });

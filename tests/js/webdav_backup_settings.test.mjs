@@ -17,7 +17,7 @@ const {
 } = await import('../../static/js/settings.js');
 
 const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
-const source = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../static/js/settings/backups.js', import.meta.url), 'utf8');
 
 test('webdav connection payload requires https and never resends a blank saved password', () => {
   assert.throws(

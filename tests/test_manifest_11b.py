@@ -165,3 +165,12 @@ class ManifestTests(ApiTest):
             r"catch \(err\)\s*\{\s*const hit = await c\.match\(request\);"
             r"\s*if \(hit\) return hit;",
         )
+
+    def test_nested_settings_module_graph_is_available_for_cold_offline_boot(self):
+        urls = self.client.get("/api/pwa/precache").json()["urls"]
+        for path in sorted((STATIC / "js" / "settings").glob("*.js")):
+            url = "/static/" + path.relative_to(STATIC).as_posix()
+            self.assertIn(url, urls)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, url)
+            self.assertEqual(response.text, path.read_text(encoding="utf-8"), url)

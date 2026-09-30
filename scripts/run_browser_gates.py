@@ -35,6 +35,7 @@ from stabilization_report import (  # noqa: E402
 # Explicitly maintained, inspected entries; the reporter shares this exact contract.
 SUITES = BROWSER_SUITES
 COMMANDS = {
+    "style-ownership": ("tests/pw_style_ownership.py",),
     "smoke-desktop": ("tests/pw_stability_smoke.py", "desktop"),
     "smoke-phone": ("tests/pw_stability_smoke.py", "phone"),
     "cleanup-regressions": ("tests/pw_cleanup_regressions.py",),
@@ -67,6 +68,7 @@ COMMANDS = {
     "vault-backup": ("tests/pw_vault_backup.py",),
     "setup-auth": ("tests/pw_setup_auth.py",),
     "settings-recovery": ("tests/pw_settings_recovery.py",),
+    "settings-panes": ("tests/pw_settings_panes.py",),
     "settings-language-badges": ("tests/pw_settings_language_badges.py",),
     "settings-selected": ("tests/pw_settings_selected.py",),
     "settings-context": ("tests/pw_settings_context.py",),

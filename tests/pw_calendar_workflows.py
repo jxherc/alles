@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from pathlib import Path
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
@@ -133,13 +135,15 @@ def run():
                 page.locator("#cal-new-btn").click()
                 page.locator("#cal-title").fill(title)
 
-            def set_date(selector, day, hour=None, minute=None):
+            def set_date(
+                selector, day, hour=None, minute=None, *, target_year=2026, target_month=9
+            ):
                 page.locator(selector).click()
                 months = "January February March April May June July August September October November December".split()
                 for _ in range(120):
                     month, year = page.locator(".date-panel .dp-head span").inner_text().split()
                     current = int(year) * 12 + months.index(month)
-                    target = 2026 * 12 + 8
+                    target = target_year * 12 + target_month - 1
                     if current == target:
                         break
                     step = 1 if current < target else -1
@@ -738,13 +742,25 @@ def run():
                 )
                 page.get_by_role("tab", name="reminders", exact=True).click()
                 page.locator("#reminder-text").fill(label + " reminder")
-                set_date("#reminder-time", 30, 9, 0)
+                reminder_time = (
+                    datetime.now(ZoneInfo("America/Toronto")) + timedelta(days=1)
+                ).replace(hour=9, minute=0, second=0, microsecond=0)
+                set_date(
+                    "#reminder-time",
+                    reminder_time.day,
+                    reminder_time.hour,
+                    reminder_time.minute,
+                    target_year=reminder_time.year,
+                    target_month=reminder_time.month,
+                )
                 page.locator("#reminder-add-btn").click()
                 expect(page.locator("#reminder-list")).to_contain_text(label + " reminder")
                 result = context.request.get(base + "/api/reminders").json()
                 remember("shared datetime picker", result)
                 reminder = next(row for row in result if row["text"] == label + " reminder")
-                assert reminder["trigger_at"].startswith("2026-09-30T13:00")
+                assert reminder["trigger_at"].startswith(
+                    reminder_time.astimezone(UTC).strftime("%Y-%m-%dT%H:%M")
+                )
                 page.reload(wait_until="networkidle")
                 page.get_by_role("tab", name="reminders", exact=True).click()
                 expect(page.locator("#reminder-list")).to_contain_text(label + " reminder")
