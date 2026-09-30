@@ -16,6 +16,11 @@ export function initCustomDropdowns(root = document) {
   root.querySelectorAll('.custom-select').forEach(initCustomDropdown);
 }
 
+// A screen owns its trigger even when the option panel lives on document.body.
+export function closeCustomDropdowns(root) {
+  if (_open && root?.contains(_open.el)) _close();
+}
+
 export function initCustomDropdown(el) {
   if (!el || el.dataset.dropdownReady === '1') return;
   el.dataset.dropdownReady = '1';

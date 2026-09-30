@@ -82,6 +82,11 @@ a local transaction can make related sqlite changes atomic. it cannot atomically
 
 the table inventory covers 121 declared sqlalchemy tables; `schema_migrations` is an additional runner-created table. json fields and string ids can carry application-level links that are not declared foreign keys.
 
+schema declarations live in [core/schema/](core/schema). its package registers every model on one `Base` before mapper configuration or schema creation. `finance.py` owns ledger, import and authority records; `files.py` owns storage identities, operation claims and their triggers. the remaining related records stay together in `application.py`. existing callers still import models and sessions through `core.database`.
+
+[core/startup.py](core/startup.py) owns the database initialization order: create declared tables, set the application id, run versioned migrations, seal database credentials, migrate settings secrets, then migrate caldav, carddav, s3 and webdav backup secrets. `core.database.init_db()` remains the entry point and supplies its current engine, including isolated test engines. [core/database_credentials.py](core/database_credentials.py) owns the credential write lock and reseal loop; the lock remains held through the outer session transaction and releases after commit or rollback. the application lifespan still owns restore/update guards, the instance lock and interrupted-work recovery before background jobs start.
+
+
 ## frontend and offline state
 
 [static/index.html](static/index.html) loads shared css and native es modules from [static/js/](static/js). [static/js/app.js](static/js/app.js) owns boot and the common shell; feature modules keep their own request/render state. bundled browser assets live under `static/vendor/`.
@@ -97,6 +102,27 @@ replay is ordered; auth failures, conflicts, and blocked writes stay visible. un
 tasks use owner-scoped tab drafts. docs also have server-managed recovery drafts; failed draft persistence can block navigation that would discard the document. a draft, revision, queued request, and confirmed write are different things.
 
 [design-system/](design-system) defines semantic tokens, components, custom controls, accessibility, responsive behavior, and motion rules. the current styles also contain legacy feature code. a control inventory is a source map, not proof that every screen already passes rendered qa.
+
+### frontend ownership
+
+`style.css` remains the baseline and legacy composition; `kokuen.css` follows it as the final product layer. keeping this order avoids changing the cascade while giving each rule a named owner. screen scopes use `:where(...)`, which adds no selector specificity.
+
+| owner | rules and scope | change here for |
+| --- | --- | --- |
+| foundations | theme variables in `style.css`; semantic `--k-*` / `--ui-*` aliases at the start of `kokuen.css` | palette, type, spacing, motion and geometry |
+| shared controls | `.btn`, `.settings-input`, `.custom-select`, `.chk`, `.seg`, `.s-switch`; v5 primitive geometry and state rules in `kokuen.css` | reusable interaction states and hit areas |
+| shared form composition | `.s-card` and `.s-field` in `style.css` | cards used by Settings and Projects, fields used by Settings and the Skills editor |
+| settings shell and panes | `#settings-modal`, with pane-local roots for Home, language, credits, providers and connections | modal layout and pane composition |
+| Home | `#today-view` and its `.today-*` descendants | the daily ledger and capture layout |
+| Finance | `#money-view` for ledger/card rules; `#finance-view` for Actual and import panels | amounts, forecasts, transactions, authority and import state |
+| other workspaces | explicit screen roots, `body[data-app]`, `body[data-space]` and existing feature namespaces | the corresponding feature layout; keep shared controls outside these rules |
+
+Finance's short private classes such as `.ms-card`, `.cat-row` and `.env-row` cannot style elements outside Money. summary cards keep four tracks on wide layouts and fit as many readable tracks as the available small-layout width allows; long amounts wrap instead of pushing a card beyond its container. dialog and dropdown roots retain their own styles because they can live outside a screen's DOM tree.
+
+[static/js/settings.js](static/js/settings.js) owns modal navigation, the focus trap, close/reopen focus return and remaining small panes. [static/js/settings/](static/js/settings) owns independent Home, language, credits, backup, provider and connection panes. each initializes once, loads for its current opening and disposes transient reads/menu state when left. disposal retains draft fields and pending saves. a late read cannot overwrite a newer opening or edited form; saves retain their own status and error handling. `shared.js` keeps the existing ordered settings write queue, switch behavior, escaping and recent-owner authorization. backup staging and provider writes keep their different protocols rather than sharing a generic form framework.
+
+the PWA precache walks nested modules and their exact import URLs, so a cold offline shell can load the same settings module graph. this caches the interface; it does not turn provider, backup or credential operations into offline writes.
+
 
 ## write safety and ownership
 
@@ -119,6 +145,8 @@ http audit metadata in [services/audit.py](services/audit.py) is separate from d
 [services/document_safety.py](services/document_safety.py) owns hashes, conflicts, drafts, revisions, conditional replacement, and restart-safe rename transactions. [services/notes_vault.py](services/notes_vault.py) maps scratch notes into markdown while preserving unrelated frontmatter/body bytes during partial edits.
 
 [services/storage_locations.py](services/storage_locations.py), [services/storage_backends.py](services/storage_backends.py), and [services/file_operations.py](services/file_operations.py) own storage identities and verified transfers. source/path claims coordinate alles writers; another filesystem program is outside those claims. an etag/hash mismatch must remain a conflict.
+
+`file_operations` remains the single operation, durable-claim and undo/recovery coordinator. [services/file_operation_metadata.py](services/file_operation_metadata.py) owns one location/path/kind selector for rekeying, collision checks and Trash snapshots/restoration. operation callers retain transaction ownership for those changes; permanent purge preserves the existing version-asset cleanup contract. [services/file_operation_paths.py](services/file_operation_paths.py) owns item normalization and canonical remote claim identities without persistence. descriptor access, physical local identities and claim release stay beside recovery because their ordering protects concurrent replacements and surviving bytes. storage backends remain the adapters for local, webdav and s3 access.
 
 [services/blobstore.py](services/blobstore.py) stores adopted attachments by sha-256 under `data/.blobs/<prefix>/<hash>`, with references for garbage collection. not every managed file has moved into that store, and it does not independently encrypt all blob bytes.
 
@@ -1096,9 +1124,9 @@ with tempfile.TemporaryDirectory(prefix="alles-tests-") as data:
     env = dict(
         os.environ,
         ALLES_DATA=data,
-        ALLES_DB=os.path.join(data, "aide.db"),
         PYTHON_DOTENV_DISABLED="1",
     )
+    env.pop("ALLES_DB", None)
     subprocess.run(
         ["python", "-m", "unittest", "discover", "-s", "tests", "-v"],
         env=env,

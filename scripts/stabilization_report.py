@@ -25,6 +25,7 @@ SURFACE_GATES = tuple(
 )
 # Shared by execution and acceptance: a result cannot redefine what a full run requires.
 BROWSER_SUITES = {
+    "ownership": ("style-ownership", "settings-recovery", "settings-panes", "files-workflows"),
     "smoke": SMOKE_GATES,
     "surfaces": SURFACE_GATES,
     "daily": (
@@ -53,6 +54,7 @@ BROWSER_SUITES = {
     "setup": ("setup-auth",),
     "settings": (
         "settings-recovery",
+        "settings-panes",
         "settings-language-badges",
         "settings-selected",
         "settings-context",
@@ -96,6 +98,8 @@ BROWSER_SUITES = {
         "vault-backup",
     ),
     "full": (
+        "style-ownership",
+        "settings-panes",
         *SMOKE_GATES,
         "cleanup-regressions",
         "minimal-workflows",
