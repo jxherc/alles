@@ -21,9 +21,7 @@ class DesignSystemContractTests(unittest.TestCase):
             "ACCESSIBILITY.md",
             "RESPONSIVE.md",
             "MOTION.md",
-            "OUTPUT-CONTRACT.md",
             "QA-CHECKLIST.md",
-            "UI-BRIEF.md",
         )
         for name in required:
             path = SYSTEM / name

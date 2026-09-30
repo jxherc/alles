@@ -97,15 +97,16 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--registry", type=Path, default=REGISTRY_PATH)
+    parser.add_argument("--output-dir", type=Path, default=CATALOG_PATH.parent)
     args = parser.parse_args()
     document = load_registry(args.registry)
     outputs = {
-        CATALOG_PATH: render_catalog(document),
-        MATRIX_PATH: render_matrix(document),
+        args.output_dir / CATALOG_PATH.name: render_catalog(document),
+        args.output_dir / MATRIX_PATH.name: render_matrix(document),
     }
     if args.check:
         stale = [
-            str(path.relative_to(ROOT))
+            str(path)
             for path, text in outputs.items()
             if not path.exists() or path.read_text("utf-8") != text
         ]
@@ -113,6 +114,7 @@ def main() -> int:
             parser.error("generated feature documents are stale: " + ", ".join(stale))
         return 0
     for path, text in outputs.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
     return 0
 

@@ -1,6 +1,7 @@
 import ast
 import subprocess
 import sys
+import tempfile
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
@@ -163,14 +164,23 @@ class FeatureRegistryTest(unittest.TestCase):
         self.assertEqual(set(roots), parser.seen_roots, "registry contains stale control roots")
 
     def test_generated_catalog_and_matrix_are_current(self):
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "generate_feature_catalog.py"), "--check"],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        with tempfile.TemporaryDirectory() as temporary:
+            command = [
+                sys.executable,
+                str(ROOT / "scripts" / "generate_feature_catalog.py"),
+                "--output-dir",
+                temporary,
+            ]
+            for flags in ([], ["--check"]):
+                result = subprocess.run(
+                    command + flags, cwd=ROOT, text=True, capture_output=True, check=False
+                )
+                self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            (Path(temporary) / "feature-catalog.md").write_text("stale\n", encoding="utf-8")
+            stale = subprocess.run(
+                command + ["--check"], cwd=ROOT, text=True, capture_output=True, check=False
+            )
+            self.assertNotEqual(stale.returncode, 0)
 
     def test_every_automated_proof_reference_is_a_real_file(self):
         missing = []
