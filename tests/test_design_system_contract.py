@@ -30,13 +30,16 @@ class DesignSystemContractTests(unittest.TestCase):
             self.assertTrue(path.is_file(), name)
             self.assertNotIn("TODO", path.read_text(encoding="utf-8"), name)
 
-    def test_project_skill_is_valid_source_map(self):
-        skill = ROOT / ".agents/skills/ui-product-designer/SKILL.md"
-        text = skill.read_text(encoding="utf-8")
-        self.assertTrue(text.startswith("---\nname: ui-product-designer\n"))
-        self.assertIn("design-system/FOUNDATIONS.md", text)
-        self.assertIn("docs/mockups/", text)
-        self.assertNotIn("TODO", text)
+    def test_design_system_map_points_to_published_sources(self):
+        text = (SYSTEM / "README.md").read_text(encoding="utf-8")
+        sources = re.findall(r"^- `([^`]+)`:", text, flags=re.MULTILINE)
+        self.assertIn("FOUNDATIONS.md", sources)
+        self.assertIn("components/contracts.json", sources)
+        for source in sources:
+            with self.subTest(source=source):
+                path = SYSTEM / source
+                self.assertTrue(path.resolve().is_relative_to(SYSTEM.resolve()), source)
+                self.assertTrue(path.is_dir() if source.endswith("/") else path.is_file(), source)
 
     def test_token_files_are_json_and_aliases_resolve(self):
         token_paths = set()
