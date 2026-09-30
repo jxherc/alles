@@ -6,6 +6,7 @@ import unittest
 import zipfile
 from contextlib import closing
 from pathlib import Path
+from unittest import mock
 
 import routes.backup as backup
 import routes.compare as compare
@@ -51,6 +52,8 @@ class DataDirIsolationTest(unittest.TestCase):
             "secret_key": secretstore._KEY_FILE,
             "secret_cache": secretstore._key,
             "secret_path": secretstore._key_path,
+            "secret_keys": dict(secretstore._keys),
+            "secret_active": secretstore._active_id,
             "vapid_key": webpush._KEY_FILE,
             "vapid_cache": webpush._vapid_key,
             "vapid_path": webpush._vapid_path,
@@ -98,6 +101,8 @@ class DataDirIsolationTest(unittest.TestCase):
         secretstore._KEY_FILE = self.orig["secret_key"]
         secretstore._key = self.orig["secret_cache"]
         secretstore._key_path = self.orig["secret_path"]
+        secretstore._keys = self.orig["secret_keys"]
+        secretstore._active_id = self.orig["secret_active"]
         webpush._KEY_FILE = self.orig["vapid_key"]
         webpush._vapid_key = self.orig["vapid_cache"]
         webpush._vapid_path = self.orig["vapid_path"]
@@ -274,6 +279,32 @@ class DataDirIsolationApiTest(ApiTest):
             self.assertIn("from isolated upload", msgs[-1]["content"])
         finally:
             db.close()
+
+
+class DataDirIsolationKeyringTest(unittest.TestCase):
+    def test_fixture_restores_the_loaded_keyring_for_existing_credentials(self):
+        with tempfile.TemporaryDirectory() as temp:
+            with (
+                mock.patch.dict(os.environ, ALLES_DATA=temp),
+                mock.patch.multiple(
+                    secretstore,
+                    _KEY_FILE=None,
+                    _key=None,
+                    _key_path=None,
+                    _keys={},
+                    _active_id="",
+                ),
+            ):
+                sealed = secretstore.seal("prior synthetic credential", "settings.openai_api_key")
+                result = unittest.TestResult()
+                DataDirIsolationTest("test_secret_and_push_keys_are_written_under_alles_data").run(
+                    result
+                )
+                self.assertTrue(result.wasSuccessful(), result.errors + result.failures)
+                self.assertEqual(
+                    secretstore.unseal(sealed, "settings.openai_api_key"),
+                    "prior synthetic credential",
+                )
 
 
 if __name__ == "__main__":
