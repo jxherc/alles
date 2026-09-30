@@ -556,7 +556,7 @@ aide looks like a normal chat box. the differences are under it:
 - **artifacts.** ask for a webpage/chart/snippet and it renders live in a sandboxed frame next to the chat.
 
 <p align="center">
-  <img src="docs/evidence/surface-brain/intelligence_pane.png" width="680" alt="aide: intelligence pane showing proactive learning and facts">
+  <img src="docs/screenshots/intelligence-pane.png" width="680" alt="aide: intelligence pane showing proactive learning and facts">
 </p>
 
 - **voice.** push-to-talk speech-to-text in, text-to-speech out; local (`faster-whisper`) or via a provider, your choice in settings.
@@ -981,8 +981,9 @@ vault owns human-authored knowledge; configured files and photos roots own manag
 search, mail, calendars, contacts, mcp peers, notification providers, public links, native helpers, and
 external folders are separate trust zones. their input is data, not trusted instruction.
 
-the full code-audited map, route hash, public surface, hosts, deep links, jobs, and known gaps are recorded
-in [`docs/plans/afterlife/current-trust-map.md`](docs/plans/afterlife/current-trust-map.md).
+see [runtime and backend](#runtime-and-backend) for request handling and
+[security](#security--read-before-exposing-it) for access boundaries. the endpoint and job inventories
+below list the registered public surfaces and background work.
 
 ---
 
@@ -1093,7 +1094,7 @@ python checks cover domain operations, math, migrations, api handlers, permissio
 
 [.github/workflows/tests.yml](.github/workflows/tests.yml) declares python, ruff, javascript, and browser jobs for main/dev pushes, pull requests, and manual runs. a workflow or route being declared does not establish that a particular run passed.
 
-[features/registry.json](features/registry.json) and [docs/control-census.md](docs/control-census.md) record behavior/control coverage. keep generated records synchronized with source changes. future work belongs under [docs/plans/afterlife/](docs/plans/afterlife); a plan does not describe shipped behavior.
+[features/registry.json](features/registry.json) and [docs/control-census.md](docs/control-census.md) record behavior/control coverage. keep generated records synchronized with source changes. development plans and review evidence stay local; this specification describes implemented behavior.
 
 ## complete endpoint inventory
 

@@ -5,6 +5,7 @@ import os
 import tempfile
 import types
 import unittest
+from pathlib import Path
 
 from sqlalchemy import create_engine, text
 
@@ -293,7 +294,8 @@ class BaselineAndInitTests(unittest.TestCase):
         # schema_migrations exists with the baseline row
         self.assertIn("schema_migrations", tables)
         # every audit-baseline table+columns is present + identical (no column lost/renamed)
-        with open("docs/evidence/0a-migrations/baseline-schema.json") as f:
+        fixture = Path(__file__).parent / "fixtures" / "migrations" / "baseline-schema.json"
+        with fixture.open(encoding="utf-8") as f:
             base = json.load(f)
         for t, expected_cols in base["columns"].items():
             if t == "notes":
