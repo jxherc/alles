@@ -1,17 +1,17 @@
 # alles
 
+alles is for keeping your everyday stuff in one place, on a machine you control. write notes, plan your week, check your mail, find your files, and track your money without jumping between a bunch of different apps.
+
+it's built for one person. your main data lives in a folder you control, and you decide which outside services to connect. there's also aide, an ai assistant that can work with the apps when you approve its actions. use it if it's helpful; the local tools work without an ai model.
+
 [français](docs/readme/README.fr.md) · [español](docs/readme/README.es.md) ·
 [简体中文](docs/readme/README.zh-Hans.md) · [繁體中文](docs/readme/README.zh-Hant.md) ·
 [日本語](docs/readme/README.ja.md) · [한국어](docs/readme/README.ko.md) ·
 [العربية](docs/readme/README.ar.md)
 
-alles puts your notes, files, calendar, tasks, mail, photos, money, passwords, and an AI assistant in one place. It runs on your own machine, and its main data lives in a folder you control. You can use the local tools without setting up an AI model; connect outside services only when you want them.
-
-It's built for one person who wants a personal workspace without sending every part of it to a separate service. Aide is the assistant inside Alles: it can chat, search, and use the app's tools when you approve them. You can also ignore Aide and use the other apps on their own.
-
 ## get started
 
-You need Python 3.11 or newer. On macOS or Linux:
+you need python 3.11 or newer. on macos or linux:
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -22,18 +22,18 @@ python -m pip install -r requirements.lock
 python app.py
 ```
 
-Open [http://localhost:6769](http://localhost:6769). The first-run setup walks you through the basics. You don't need an API key to start using local features.
+open [http://localhost:6769](http://localhost:6769) and follow the setup. you don't need an api key to get started.
 
-By default, Alles listens only on this device and starts without a password. **Before making it available on your network**, enable authentication, set a strong owner password and `SECRET_KEY`, and choose the matching access profile. LAN and public access have separate requirements; read [security](specifications.md#security--read-before-exposing-it) and [.env.example](.env.example) first.
+by default, alles is only accessible from this device and starts without a password. **before putting it on your network**, turn on authentication, set a strong owner password and `SECRET_KEY`, and choose the right access profile. local network and public access have different requirements; read [security](specifications.md#security--read-before-exposing-it) and [.env.example](.env.example) first.
 
-If you prefer Docker, the image uses the same app and keeps data in a named volume:
+if you'd rather use docker:
 
 ```bash
 docker build -t alles .
 docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
-The published port is limited to this device. Keep the volume if you replace the container.
+this keeps access limited to your device and saves your data in the `alles-data` volume. keep that volume when you replace the container.
 
 ## what you can do
 
@@ -44,7 +44,7 @@ The published port is limited to this device. Keep the volume if you replace the
 | andromeda | search the web and optionally get a cited overview |
 | plan | keep a calendar, tasks, reminders, and countdowns |
 | inbox | read mail and manage contacts after connecting your account |
-| docs | write Markdown notes and journal entries |
+| docs | write markdown notes and journal entries |
 | files | browse local or connected storage, offline copies, and photos |
 | library | save articles and reading lists |
 | health | track habits and health records |
@@ -52,26 +52,26 @@ The published port is limited to this device. Keep the volume if you replace the
 | vault | store encrypted secrets, passwords, and passkeys |
 | server | check health, access settings, backups, and updates |
 
-The apps share navigation and search. Some features need extra setup: mail needs an IMAP/SMTP account; online storage and banking need their own connections; Aide needs a model endpoint before it can reply. You can configure models in **settings → models**, including local models through Ollama.
+some things need a connection before they work. add your imap/smtp account for mail, connect a service for online storage or banking, and add a model in **settings → models** if you want to use aide. local models through ollama work too.
 
-[specifications.md](specifications.md) has the detailed app behavior, architecture, API, and configuration.
+[specifications.md](specifications.md) has the detailed app behavior, architecture, api, and configuration.
 
 ## your data and backups
 
-The default data folder is `data/` in the checkout. Set `ALLES_DATA` to use a different location. It holds the database and app-managed files, so keep it private and back it up. Connected providers receive the requests you choose to send them.
+your database and the files alles manages live in `data/` by default. set `ALLES_DATA` if you want them somewhere else. keep that folder private and back it up. outside providers receive the requests you send them through their connections.
 
-In **settings → backup**, you can download an encrypted backup or send one manually to an existing HTTPS WebDAV folder or S3-compatible bucket. First-run Protection can also set up daily encrypted local backups in a separate folder. Save the recovery key outside Alles before relying on remote backups.
+open **settings → backup** to download an encrypted backup. you can also send one manually to an existing https webdav folder or s3-compatible bucket, or set up daily local backups during the initial setup. keep your recovery key somewhere outside alles so you can still get to it if the app stops working.
 
-A restore is staged and checked before you apply it. Follow the command shown in the app while Alles is stopped. See [the backup and restore details](specifications.md#your-data-where-everything-lives) before moving an existing installation.
+alles checks a backup and prepares the restore before applying it. stop the app, then follow the command it gives you. read [the backup and restore details](specifications.md#your-data-where-everything-lives) before moving an existing installation.
 
 ## installing as a service
 
-For a regular macOS or Linux install, `bash alles install` sets up a private Python environment, a launcher, and a user service. `alles update` checks a new release before switching to it; `alles update rollback` restores the previous code and paired data. `bash alles uninstall` keeps your personal data. Run `bash alles --help` for the current commands.
+if you want alles to run as a service on macos or linux, run `bash alles install`. it sets up its own python environment and adds the `alles` command. use `alles update` to update it, or `alles update rollback` to return to the previous code and data. `bash alles uninstall` keeps your personal data. `bash alles --help` lists the commands.
 
-The app uses FastAPI, SQLite, vanilla JavaScript, and CSS. There's no frontend build step. For the complete technical layout, see [specifications.md](specifications.md).
+it's built with fastapi, sqlite, vanilla javascript, and css. there's no frontend build step. the technical details are in [specifications.md](specifications.md).
 
 ## credits and license
 
-Aide was inspired by [Odysseus](https://github.com/pewdiepie-archdaemon/odysseus). Alles is an independent implementation; [acknowledgments.md](acknowledgments.md) credits that project and other work it uses. Third-party licenses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+aide was inspired by [odysseus](https://github.com/pewdiepie-archdaemon/odysseus). alles is an independent implementation; [acknowledgments.md](acknowledgments.md) credits that project and the other work it uses. third-party licenses are in [third-party notices](THIRD_PARTY_NOTICES.md).
 
-Alles is released under the [MIT license](LICENSE).
+alles is released under the [mit license](LICENSE).
