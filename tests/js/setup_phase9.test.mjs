@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const wizard = fs.readFileSync(new URL('../../static/js/setupwizard.js', import.meta.url), 'utf8');
 const app = fs.readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
 const html = fs.readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
-const settings = fs.readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+const settings = fs.readFileSync(new URL('../../static/js/settings/backups.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
 
 assert.match(wizard, /const STEPS = \['basics', 'access', 'files', 'ai_search', 'protection'\]/);

@@ -11,7 +11,7 @@ from tests._client import ApiTest
 ROOT = Path(__file__).resolve().parent.parent
 INDEX = (ROOT / "static" / "index.html").read_text("utf-8")
 PHOTOS_JS = (ROOT / "static" / "js" / "photos.js").read_text("utf-8")
-SETTINGS_JS = (ROOT / "static" / "js" / "settings.js").read_text("utf-8")
+CONNECTIONS_JS = (ROOT / "static" / "js" / "settings" / "connections.js").read_text("utf-8")
 SW = (ROOT / "static" / "sw.js").read_text("utf-8")
 
 
@@ -43,8 +43,8 @@ class PhotoKitGalleryUiTest(unittest.TestCase):
         self.assertIn("'/api/photos/rescan'", noqueue)
 
     def test_global_status_distinguishes_installation_from_permission(self):
-        self.assertIn("cap.photokit_authorization", SETTINGS_JS)
-        self.assertIn("cap.photokit_ready", SETTINGS_JS)
+        self.assertIn("cap.photokit_authorization", CONNECTIONS_JS)
+        self.assertIn("cap.photokit_ready", CONNECTIONS_JS)
 
 
 class PhotoKitGalleryApiTest(ApiTest):

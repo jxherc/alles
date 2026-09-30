@@ -614,7 +614,7 @@ def _destructive(attrs: dict[str, str], label: str | None) -> bool:
 
 def _dynamic_templates(overrides: dict[str, Any]) -> list[dict[str, Any]]:
     templates: list[dict[str, Any]] = []
-    for path in sorted(JS_DIR.glob("*.js")):
+    for path in sorted(JS_DIR.rglob("*.js")):
         text = path.read_text("utf-8")
         relative = path.relative_to(ROOT).as_posix()
         owner = overrides.get("module_feature_hints", {}).get(relative, "unmapped-module-owner")
@@ -811,7 +811,7 @@ def _source_context(source: str, offset: int, relative: str) -> dict[str, Any]:
 
 def _direct_id_listener_hints() -> dict[str, list[str]]:
     hints: dict[str, list[str]] = {}
-    for path in sorted(JS_DIR.glob("*.js")):
+    for path in sorted(JS_DIR.rglob("*.js")):
         text = path.read_text("utf-8")
         relative = path.relative_to(ROOT).as_posix()
         for match in ID_LISTENER_RE.finditer(text):
@@ -894,7 +894,7 @@ def resolved_control_census() -> dict[str, Any]:
     if vocabulary != list(VISUAL_STATES):
         raise ControlCensusError("control census state vocabulary drifted from KOKUEN contracts")
     events = Counter()
-    for path in sorted(JS_DIR.glob("*.js")):
+    for path in sorted(JS_DIR.rglob("*.js")):
         events.update(match.group("event") for match in EVENT_RE.finditer(path.read_text("utf-8")))
     paths = [path for row in controls for path in row["activation_paths"]]
     path_evidence = Counter(path["evidence"]["status"] for path in paths)
@@ -905,7 +905,7 @@ def resolved_control_census() -> dict[str, Any]:
             "features/registry.json",
             "features/control-census-overrides.json",
             "static/index.html",
-            "static/js/*.js",
+            "static/js/**/*.js",
         ],
         "visual_state_vocabulary": list(VISUAL_STATES),
         "evidence_levels": [

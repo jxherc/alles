@@ -9,6 +9,7 @@ class ApiTokenUiTest(unittest.TestCase):
     def setUpClass(cls):
         cls.html = (ROOT / "static" / "index.html").read_text("utf-8")
         cls.js = (ROOT / "static" / "js" / "settings.js").read_text("utf-8")
+        cls.shared_js = (ROOT / "static" / "js" / "settings" / "shared.js").read_text("utf-8")
 
     def test_every_backend_scope_is_selectable(self):
         for scope in ("read", "write", "models", "agent", "secrets", "connections", "admin"):
@@ -25,7 +26,7 @@ class ApiTokenUiTest(unittest.TestCase):
         self.assertIn("t.scopes || []", self.js)
 
     def test_sensitive_token_actions_can_request_recent_owner_auth(self):
-        self.assertIn("/api/auth/reauth", self.js)
+        self.assertIn("/api/auth/reauth", self.shared_js)
         self.assertIn(
             "options.secret ? 'password'", (ROOT / "static/js/dialog.js").read_text("utf-8")
         )

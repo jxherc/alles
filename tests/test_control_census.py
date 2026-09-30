@@ -8,7 +8,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from services import control_census
 from services.control_census import (
     VISUAL_STATES,
     _with_direct_listener_paths,
@@ -16,6 +18,64 @@ from services.control_census import (
 )
 
 ROOT = Path(__file__).parents[1]
+
+
+class ControlCensusTraversalTest(unittest.TestCase):
+    def test_nested_modules_keep_controls_listener_provenance_and_event_counts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = root / "static/js"
+            sources = {
+                "controls.js": (
+                    'function renderRoot() { return `<button id="root-control">root</button>`; }\n'
+                    "document.getElementById('root-control').addEventListener('click', renderRoot);\n"
+                ),
+                "settings/controls.js": (
+                    'function renderNested() { return `<button id="nested-control">nested</button>`; }\n'
+                    "document.getElementById('nested-control').addEventListener('keydown', renderNested);\n"
+                    "document.getElementById('nested-control').addEventListener('click', renderNested);\n"
+                ),
+            }
+            for name, source in sources.items():
+                path = directory / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(source, encoding="utf-8")
+            overrides = {
+                "controls": {},
+                "module_feature_hints": {
+                    f"static/js/{name}": "cross-feature.settings" for name in sources
+                },
+            }
+            with (
+                patch.multiple(control_census, ROOT=root, JS_DIR=directory),
+                patch.object(control_census, "load_overrides", return_value=overrides),
+                patch.object(control_census, "_test_references", return_value=()),
+            ):
+                document = control_census.resolved_control_census()
+                listeners = control_census._direct_id_listener_hints()
+            dynamic = {
+                row["surface"]["runtime_selector"]: row
+                for row in document["controls"]
+                if row["surface"]["render_mode"] == "dynamic-template"
+            }
+            self.assertEqual(set(dynamic), {"#root-control", "#nested-control"})
+            nested = dynamic["#nested-control"]
+            self.assertEqual(nested["feature_owner"], "cross-feature.settings")
+            self.assertEqual(nested["surface"]["source"]["file"], "static/js/settings/controls.js")
+            self.assertEqual(
+                nested["handler"]["value"], "static/js/settings/controls.js:1 renderNested"
+            )
+            self.assertEqual(
+                listeners["nested-control"],
+                [
+                    "static/js/settings/controls.js:2 keydown",
+                    "static/js/settings/controls.js:3 click",
+                ],
+            )
+            self.assertEqual(
+                document["summary"]["event_listener_types"], {"click": 2, "keydown": 1}
+            )
+            self.assertIn("static/js/**/*.js", document["generated_from"])
 
 
 class ControlCensusTest(unittest.TestCase):

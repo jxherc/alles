@@ -40,7 +40,7 @@ test('settings is one accessible home reached from the universal shell', () => {
 
 test('Home customization lives in Settings and uses universal custom controls', () => {
   const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
-  const source = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../../static/js/settings/home.js', import.meta.url), 'utf8');
   const kokuen = readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8');
   const pane = html.match(/<div class="s-pane home-settings-pane" id="s-pane-home">[\s\S]*?<\/div>\s*<!-- end Home settings -->/)?.[0] || '';
   assert.match(html, /data-pane="home">home<\/button>/);
@@ -66,15 +66,18 @@ test('Home customization lives in Settings and uses universal custom controls', 
   assert.match(source, /workbench\.inert = busy/);
   assert.match(source, /if \(!visible\.includes\('needs_you'\)\) visible\.unshift\('needs_you'\)/);
   assert.match(source, /row\.querySelector\('\[data-home-move\]:not\(:disabled\)'\)/);
-  assert.match(source, /_settingsReturnFocusId = document\.activeElement\.id/);
-  assert.match(source, /document\.getElementById\(_settingsReturnFocusId\)/);
+  const coordinator = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+  assert.match(coordinator, /_settingsReturnFocusId = document\.activeElement\.id/);
+  assert.match(coordinator, /document\.getElementById\(_settingsReturnFocusId\)/);
   assert.match(kokuen, /\.home-settings-switch::before[\s\S]*border-radius: 999px/);
   assert.match(kokuen, /\.home-settings-switch::after[\s\S]*border-radius: 50%/);
 });
 
 test('approved Phase 10 language and Credits workbenches use honest custom controls', () => {
   const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
-  const source = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+  const source = ['language', 'credits'].map(pane => readFileSync(
+    new URL(`../../static/js/settings/${pane}.js`, import.meta.url), 'utf8',
+  )).join('\n');
   const kokuen = readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8');
   const localePane = html.match(/<!-- ── approved Phase 10 language and region workbench ── -->[\s\S]*?<!-- ── approved Phase 10 manifest-driven Credits workbench ── -->/)?.[0] || '';
   const creditsPane = html.match(/<!-- ── approved Phase 10 manifest-driven Credits workbench ── -->[\s\S]*?<!-- ── backup pane ── -->/)?.[0] || '';
@@ -116,14 +119,14 @@ test('approved Phase 10 language and Credits workbenches use honest custom contr
 });
 
 test('Discord settings preserve drafts, reject stale loads, and roll back failed quiet-hours changes', () => {
-  const source = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../../static/js/settings/connections.js', import.meta.url), 'utf8');
   assert.match(source, /const _discordDrafts = \{ channels: false, quiet: false \}/);
   assert.match(source, /if \(!_discordDrafts\.channels\) channels\.value/);
   assert.match(source, /if \(!_discordDrafts\.quiet\) \{/);
   assert.match(source, /_discordDraftRevisions\.channels/);
   assert.match(source, /_discordDraftRevisions\.quiet/);
   assert.match(source, /const generation = \+\+_discordGeneration/);
-  assert.match(source, /if \(generation !== _discordGeneration\) return/);
+  assert.match(source, /if \(generation !== _discordGeneration \|\| !isCurrent\(\)\) return/);
   assert.match(source, /const switchControl = event\.currentTarget/);
   assert.match(source, /_setSwitch\(switchControl, true\)/);
   assert.match(source, /let _discordMutationQueue = Promise\.resolve\(\)/);
@@ -133,13 +136,14 @@ test('Discord settings preserve drafts, reject stale loads, and roll back failed
 });
 
 test('settings refreshes role state and provider catalogs without hiding failures', () => {
-  const source = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../../static/js/settings/providers.js', import.meta.url), 'utf8');
   const models = readFileSync(new URL('../../static/js/models.js', import.meta.url), 'utf8');
   assert.match(source, /Promise\.allSettled\(endpoints\.map/);
   assert.match(source, /await window\._refreshAideModelDefault\?\.\(\)/);
   assert.match(source, /replace the unavailable model before saving/);
   assert.match(source, /finally \{[\s\S]*?await loadEpList\(\); await loadModels\(\)/);
-  assert.match(source, /window\._fetchWithRecentOwner = _fetchWithRecentOwner/);
+  const shared = readFileSync(new URL('../../static/js/settings/shared.js', import.meta.url), 'utf8');
+  assert.match(shared, /window\._fetchWithRecentOwner = _fetchWithRecentOwner/);
   assert.match(models, /_ownerFetch\('\/api\/models\/endpoint'/);
   assert.match(models, /_ownerFetch\(`\/api\/models\/endpoint\/\$\{btn\.dataset\.id\}`/);
 });

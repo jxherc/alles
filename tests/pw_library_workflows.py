@@ -458,16 +458,16 @@ def run():
                 page.locator(f'.read-card[data-id="{item["id"]}"] .read-tag').first.click()
                 active_tag = page.locator(".read-tagfilter .read-tag.active")
                 expect(active_tag).to_be_visible()
-                assert active_tag.evaluate(
-                    "node => getComputedStyle(node).color"
-                ) == active_tag.evaluate(
-                    """node => {
+                page.wait_for_function(
+                    """() => {
+                        const node = document.querySelector('.read-tagfilter .read-tag.active');
+                        if (!node?.isConnected) return false;
                         const probe = document.createElement('span');
                         probe.style.color = 'var(--k-text)';
                         node.parentElement.append(probe);
                         const color = getComputedStyle(probe).color;
                         probe.remove();
-                        return color;
+                        return getComputedStyle(node).color === color;
                     }"""
                 )
                 shot("read-tag-selected")

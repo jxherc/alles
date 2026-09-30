@@ -8,7 +8,8 @@ const chat = readFileSync(new URL('../../static/js/chat.js', import.meta.url), '
 const sessions = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8');
 const rail = readFileSync(new URL('../../static/js/aideworkspace.js', import.meta.url), 'utf8');
 const scheduled = readFileSync(new URL('../../static/js/aidescheduled.js', import.meta.url), 'utf8');
-const settings = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+const connections = readFileSync(new URL('../../static/js/settings/connections.js', import.meta.url), 'utf8');
+const providers = readFileSync(new URL('../../static/js/settings/providers.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
 const uploads = readFileSync(new URL('../../static/js/uploads.js', import.meta.url), 'utf8');
@@ -408,7 +409,7 @@ test('Jarvis exists only as the custom owner-scoped Discord connection', () => {
   assert.doesNotMatch(card, /<select\b/i);
   assert.doesNotMatch(card, /type="(?:checkbox|radio)"/i);
   assert.match(card, /role="switch"/);
-  assert.match(settings, /\/api\/jarvis\/discord/);
-  assert.doesNotMatch(settings, /jarvis:\s*\['Jarvis Discord bot'/);
+  assert.match(connections, /\/api\/jarvis\/discord/);
+  assert.doesNotMatch(providers, /jarvis:\s*\['Jarvis Discord bot'/);
   assert.doesNotMatch(html, /data-view="jarvis"|id="mode-jarvis"/);
 });
