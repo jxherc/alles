@@ -84,11 +84,12 @@ def outputs() -> dict[Path, str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--output-dir", type=Path, default=JSON_PATH.parent)
     args = parser.parse_args()
-    rendered = outputs()
+    rendered = {args.output_dir / path.name: value for path, value in outputs().items()}
     if args.check:
         stale = [
-            str(path.relative_to(ROOT))
+            str(path)
             for path, text in rendered.items()
             if not path.is_file() or path.read_text("utf-8") != text
         ]
@@ -96,6 +97,7 @@ def main() -> int:
             parser.error("generated interaction map is stale: " + ", ".join(stale))
         return 0
     for path, text in rendered.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
     return 0
 

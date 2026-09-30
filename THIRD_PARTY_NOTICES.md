@@ -495,9 +495,7 @@ source revision: `phase10-release-inventory-2026-07-22`
 | Hugging Face model metadata catalog | `sha256:e9edb2438e9692807a3ec01e0288f62a05ce1f0931b52132d653ee81ba494627` | generated factual metadata | [upstream](https://huggingface.co/docs/hub/api) | not required |
 | OpenStreetMap data | `live service` | ODbL-1.0 | [upstream](https://www.openstreetmap.org/copyright) | [`01-odbl-1-0-txt.txt`](licenses/manual/openstreetmap/01-odbl-1-0-txt.txt) |
 | AdGuard Home | `not bundled` | credit | [upstream](https://github.com/AdguardTeam/AdGuardHome) | not required |
-| Claude Cowork | `not bundled` | credit | [upstream](https://www.anthropic.com/product/claude-cowork) | not required |
 | CLIProxyAPI | `not bundled` | credit | [upstream](https://github.com/router-for-me/CLIProxyAPI) | not required |
-| Codex choice interactions | `not bundled` | credit | [upstream](https://developers.openai.com/codex/app/features/) | not required |
 | File Browser | `not bundled` | credit | [upstream](https://github.com/filebrowser/filebrowser) | not required |
 | Nginx Proxy Manager | `not bundled` | credit | [upstream](https://github.com/NginxProxyManager/nginx-proxy-manager) | not required |
 | Obsidian | `not bundled` | credit | [upstream](https://obsidian.md/) | not required |

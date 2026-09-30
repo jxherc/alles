@@ -47,6 +47,43 @@ jobs:
           node-version: "22"
       - run: node --test tests/js/*.test.mjs
 
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: build with private-file decoys
+        run: |
+          mkdir -p data .private docs/local core/__pycache__ static/node_modules
+          for path in .env data/build-private .private/build-private docs/local/build-private core/__pycache__/build-private.pyc static/node_modules/build-private services/task_routing.py; do
+            printf 'synthetic build exclusion check\n' > "$path"
+          done
+          docker build -t alles-check .
+      - name: check container contents
+        run: |
+          docker run --rm --entrypoint python alles-check -c '
+          from pathlib import Path
+          root = Path("/app")
+          required = ["app.py", "static/index.html", "credits/manifest.json", "licenses/index.json", "scripts/generate_credits.py"]
+          private = [".env", "data/build-private", ".private", "docs", "tests", "core/__pycache__/build-private.pyc", "static/node_modules", "services/task_routing.py"]
+          assert all((root / name).is_file() for name in required)
+          assert not any((root / name).exists() for name in private)
+          '
+      - name: check container health
+        run: |
+          docker run -d --name alles-check -p 127.0.0.1:8679:6769 alles-check
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8679/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs alles-check
+          exit 1
+      - name: stop container
+        if: always()
+        run: docker rm -f alles-check || true
+
   browser-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 60

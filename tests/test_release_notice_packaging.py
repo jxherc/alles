@@ -98,11 +98,14 @@ class ReleaseNoticePackagingTests(unittest.TestCase):
         check_index = dockerfile.index("RUN python scripts/generate_credits.py")
         self.assertGreater(check_index, copy_index)
         dockerignore = (ROOT / ".dockerignore").read_text("utf-8").splitlines()
-        blocked = {line.strip().rstrip("/") for line in dockerignore if line.strip()}
-        self.assertFalse(
-            {"credits", "licenses", "ACKNOWLEDGMENTS.md", "THIRD_PARTY_NOTICES.md"} & blocked
-        )
-        self.assertTrue({".env", ".env.*", ".agent", ".Codex", ".codex", "AGENTS.md"} <= blocked)
+        patterns = [line.strip().rstrip("/") for line in dockerignore if line.strip()]
+        self.assertEqual("*", patterns[0], "container inputs must default to excluded")
+        self.assertTrue({"!credits", "!credits/**", "!licenses", "!licenses/**"} <= set(patterns))
+        self.assertTrue({"!ACKNOWLEDGMENTS.md", "!THIRD_PARTY_NOTICES.md"} <= set(patterns))
+        self.assertIn("**/.*", patterns)
+        self.assertNotIn("!**", patterns)
+        for private in (".env", ".git", "data", "tests", "notes", "scratch"):
+            self.assertNotIn(f"!{private}", patterns)
 
 
 if __name__ == "__main__":

@@ -31,12 +31,9 @@ Call out conflicts. Do not silently pick one.
 - `ACCESSIBILITY.md`: WCAG and interaction requirements
 - `RESPONSIVE.md`: reflow behavior
 - `MOTION.md`: purposeful motion and reduced motion
-- `OUTPUT-CONTRACT.md`: required design and handoff output
 - `QA-CHECKLIST.md`: completion gate
-- `UI-BRIEF.md`: the input template for material UI work
 - `tokens/`: machine-readable primitive, semantic, and component tokens
-- `decisions/`: reasons behind system-level choices
 
 ## change rule
 
-Reuse first. Change a shared component only when the current contract cannot serve the user task. Record system-wide changes in `decisions/`, update the token or component source, and test every affected state.
+Reuse first. Change a shared component only when the current contract cannot serve the user task. Update the relevant token, component, and product rules, then test every affected state.

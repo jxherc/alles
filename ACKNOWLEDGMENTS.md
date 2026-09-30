@@ -13,13 +13,11 @@ local license text are in `THIRD_PARTY_NOTICES.md` and `licenses/`.
 - **[Hugging Face model metadata catalog](https://huggingface.co/docs/hub/api)** - Generated hardware-fit model facts; no model weights are bundled (`sha256:e9edb2438e9692807a3ec01e0288f62a05ce1f0931b52132d653ee81ba494627`, generated factual metadata).
 - **[OpenStreetMap data](https://www.openstreetmap.org/copyright)** - Gallery map tiles requested by the owner (`live service`, ODbL-1.0).
 - **[AdGuard Home](https://github.com/AdguardTeam/AdGuardHome)** - Planned independently managed DNS companion reference; not yet bundled (`not bundled`, credit).
-- **[Claude Cowork](https://www.anthropic.com/product/claude-cowork)** - Autonomous knowledge-work interaction reference; no Anthropic code is bundled (`not bundled`, credit).
 - **[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)** - Owner-managed compatible-endpoint reference; not bundled and never used as a consumer-token source (`not bundled`, credit).
-- **[Codex choice interactions](https://developers.openai.com/codex/app/features/)** - Structured agent-question interaction reference; no OpenAI code is bundled (`not bundled`, credit).
 - **[File Browser](https://github.com/filebrowser/filebrowser)** - Self-hosted file-management reference; no File Browser code is bundled (`not bundled`, credit).
 - **[Nginx Proxy Manager](https://github.com/NginxProxyManager/nginx-proxy-manager)** - Planned independently managed reverse-proxy companion reference; not yet bundled (`not bundled`, credit).
 - **[Obsidian](https://obsidian.md/)** - Docs and linked-vault workflow reference; no Obsidian code is bundled (`not bundled`, credit).
 - **[Odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** - Original product inspiration; Alles is an independent reimplementation (`not bundled`, credit).
 - **[Perplexica (now Vane)](https://github.com/ItzCrazyKns/Perplexica)** - Cited self-hosted answer-engine reference; no upstream code is bundled (`not bundled`, credit).
 
-The complete generated inventory contains 497 exact release entries, including every locked Python, CodeMirror, Actual, and Capacitor dependency.
+The complete generated inventory contains 495 exact release entries, including every locked Python, CodeMirror, Actual, and Capacitor dependency.

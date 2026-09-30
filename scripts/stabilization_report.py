@@ -7,11 +7,17 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from services.control_census import resolved_control_census  # noqa: E402
+
 STATUSES = {"untested", "failed", "passed", "blocked"}
 SMOKE_GATES = ("smoke-desktop", "smoke-phone")
 SURFACE_GATES = tuple(
@@ -194,7 +200,11 @@ def acceptance_fingerprint(
     if registry is None:
         registry = json.loads((root / "features/registry.json").read_text())
     if census is None:
-        census = json.loads((root / "docs/control-census.json").read_text())
+        census = (
+            resolved_control_census()
+            if root == ROOT
+            else json.loads((root / "docs/control-census.json").read_text())
+        )
     if manifest is None:
         manifest = json.loads((root / "features/stabilization.json").read_text())
     contract = _contract_data(
@@ -429,7 +439,7 @@ def main() -> None:
     args = parser.parse_args()
     report = build_report(
         json.loads((ROOT / "features/registry.json").read_text()),
-        json.loads((ROOT / "docs/control-census.json").read_text()),
+        resolved_control_census(),
         json.loads((ROOT / "features/stabilization.json").read_text()),
         [json.loads(path.read_text()) for path in args.results],
     )
