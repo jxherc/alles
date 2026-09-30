@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unicodedata
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -13,6 +14,7 @@ from core.database import (
     FileVersion,
     IndexChunk,
     OfflineFile,
+    Photo,
     Share,
     StorageLocation,
     TrashItem,
@@ -2483,6 +2485,134 @@ class FileOperationApiTests(ApiTest):
         trashed = db.query(TrashItem).filter_by(name="old.txt").one()
         self.assertEqual(trashed.normalized_path, "folder/old.txt")
         self.assertEqual(trashed.ref, "folder/old.txt")
+        db.close()
+
+    def test_folder_move_and_undo_keep_other_metadata_namespaces_and_photo_identities(self):
+        source = "folder%_"
+        path = f"{source}/note.txt"
+        (self.one / source).mkdir()
+        (self.one / path).write_text("metadata ownership", encoding="utf-8")
+        self._seed_live_metadata("one", path, "folder-owner")
+        self._seed_live_metadata("one", "folder-other/note.txt", "neighbor")
+        db = self.db()
+        metadata_ids = {
+            model: db.query(model)
+            .filter(model.location_id == "one", model.normalized_path == path)
+            .one()
+            .id
+            for model in (FileTag, FileComment, FileVersion, OfflineFile, Share, IndexChunk)
+        }
+        doc_share = Share(kind="doc", ref=path, location_id="one", normalized_path=path)
+        doc_index = IndexChunk(
+            kind="doc", ref=path, location_id="one", normalized_path=path, text="doc"
+        )
+        destination_doc = IndexChunk(
+            kind="doc",
+            ref="moved/note.txt",
+            location_id="two",
+            normalized_path="moved/note.txt",
+            text="separate destination doc",
+        )
+        photo = Photo(filename="linked.jpg", source="files", source_id=f"one:{path}")
+        neighbor_photo = Photo(
+            filename="neighbor.jpg", source="files", source_id="one:folder-other/note.txt"
+        )
+        db.add_all([doc_share, doc_index, destination_doc, photo, neighbor_photo])
+        db.commit()
+        untouched = {record.id for record in (doc_share, doc_index, destination_doc)}
+        destination_doc_id = destination_doc.id
+        photo_id, neighbor_id = photo.id, neighbor_photo.id
+        db.close()
+
+        moved = self._operation(action="move", source_path=source, destination_path="moved")
+
+        self.assertEqual(moved.status_code, 200, moved.text)
+        self._assert_live_metadata_present("one", "folder-other/note.txt")
+        db = self.db()
+        for model, record_id in metadata_ids.items():
+            record = db.get(model, record_id)
+            self.assertEqual(record.location_id, "two", model.__name__)
+            self.assertEqual(record.normalized_path, "moved/note.txt", model.__name__)
+        self.assertEqual(db.get(Photo, photo_id).source_id, "two:moved/note.txt")
+        self.assertEqual(db.get(Photo, neighbor_id).source_id, "one:folder-other/note.txt")
+        for model in (Share, IndexChunk):
+            for record in db.query(model).filter(model.id.in_(untouched)).all():
+                self.assertEqual(record.kind, "doc")
+                expected = "moved/note.txt" if record.id == destination_doc_id else path
+                self.assertEqual(record.normalized_path, expected)
+        db.close()
+
+        undone = self.client.post(f"/api/files/operations/{moved.json()['id']}/undo")
+
+        self.assertEqual(undone.status_code, 200, undone.text)
+        self.assertEqual((self.one / path).read_text("utf-8"), "metadata ownership")
+        db = self.db()
+        for model, record_id in metadata_ids.items():
+            record = db.get(model, record_id)
+            self.assertEqual(record.location_id, "one", model.__name__)
+            self.assertEqual(record.normalized_path, path, model.__name__)
+        self.assertEqual(db.get(Photo, photo_id).source_id, f"one:{path}")
+        self.assertEqual(db.get(Photo, neighbor_id).source_id, "one:folder-other/note.txt")
+        db.close()
+
+    def test_trash_metadata_collision_retry_preserves_snapshot_and_dates(self):
+        path = "metadata-retry.txt"
+        destination = "recovered/metadata-retry.txt"
+        (self.one / path).write_text("recover exact metadata", encoding="utf-8")
+        self._seed_live_metadata("one", path, "metadata-retry")
+        db = self.db()
+        comment = db.query(FileComment).filter_by(location_id="one", normalized_path=path).one()
+        comment.created_at = datetime(2026, 9, 18, 13, 14, 15, 123456)
+        comment_id, created_at = comment.id, comment.created_at
+        doc_index = IndexChunk(kind="doc", ref=path, location_id="one", normalized_path=path)
+        db.add(doc_index)
+        db.commit()
+        doc_id = doc_index.id
+        db.close()
+
+        deleted = self._operation(
+            action="delete", source_path=path, destination_location_id=None, destination_path=""
+        )
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        db = self.db()
+        trash_id = json.loads(db.get(FileOperation, deleted.json()["id"]).undo_json)["trash_id"]
+        snapshot_payload = db.get(TrashItem, trash_id).payload
+        self.assertIsNotNone(db.get(IndexChunk, doc_id))
+        blocker = FileTag(path=destination, location_id="one", normalized_path=destination)
+        db.add(blocker)
+        db.commit()
+        blocker_id = blocker.id
+        db.close()
+
+        queued = self._operation(
+            action="restore",
+            source_path=trash_id,
+            destination_location_id="one",
+            destination_path=destination,
+            run_now=False,
+        )
+        self.assertEqual(queued.status_code, 200, queued.text)
+        operation_url = f"/api/files/operations/{queued.json()['id']}"
+        failed = self.client.post(f"{operation_url}/run")
+        self.assertEqual(failed.status_code, 409, failed.text)
+        self.assertFalse((self.one / destination).exists())
+        db = self.db()
+        self.assertEqual(db.get(TrashItem, trash_id).payload, snapshot_payload)
+        self.assertIsNone(db.get(FileComment, comment_id))
+        db.delete(db.get(FileTag, blocker_id))
+        db.commit()
+        db.close()
+
+        retried = self.client.post(f"{operation_url}/retry")
+        self.assertEqual(retried.status_code, 200, retried.text)
+        self.assertEqual(retried.json()["state"], "completed", retried.text)
+        self.assertEqual((self.one / destination).read_text("utf-8"), "recover exact metadata")
+        self._assert_live_metadata_present("one", destination)
+        db = self.db()
+        recovered = db.get(FileComment, comment_id)
+        self.assertEqual(recovered.created_at, created_at)
+        self.assertEqual(recovered.path, destination)
+        self.assertEqual(db.get(IndexChunk, doc_id).normalized_path, path)
         db.close()
 
     def test_queued_delete_removes_all_location_scoped_live_metadata(self):
