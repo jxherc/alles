@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -200,16 +201,25 @@ class ControlCensusTest(unittest.TestCase):
         self.assertGreaterEqual(len(inferred) / dynamic, 0.95)
 
     def test_generator_output_is_current_and_reconciles(self):
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "generate_control_census.py"), "--check"],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        generated = json.loads((ROOT / "docs" / "control-census.json").read_text("utf-8"))
-        self.assertEqual(generated, self.document)
+        with tempfile.TemporaryDirectory() as temporary:
+            command = [
+                sys.executable,
+                str(ROOT / "scripts" / "generate_control_census.py"),
+                "--output-dir",
+                temporary,
+            ]
+            for flags in ([], ["--check"]):
+                result = subprocess.run(
+                    command + flags, cwd=ROOT, text=True, capture_output=True, check=False
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            generated_path = Path(temporary) / "control-census.json"
+            self.assertEqual(json.loads(generated_path.read_text("utf-8")), self.document)
+            generated_path.write_text("{}\n", encoding="utf-8")
+            stale = subprocess.run(
+                command + ["--check"], cwd=ROOT, text=True, capture_output=True, check=False
+            )
+            self.assertNotEqual(stale.returncode, 0)
 
 
 if __name__ == "__main__":

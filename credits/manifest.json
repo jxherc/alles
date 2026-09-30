@@ -8721,21 +8721,6 @@
       "inventory_source": "credits/sources.json"
     },
     {
-      "id": "claude-cowork-inspiration",
-      "name": "Claude Cowork",
-      "category": "inspiration",
-      "summary": "Autonomous knowledge-work interaction reference; no Anthropic code is bundled",
-      "version": "not bundled",
-      "license": "credit",
-      "source_url": "https://www.anthropic.com/product/claude-cowork",
-      "bundled": false,
-      "notice_required": false,
-      "license_files": [],
-      "notice_files": [],
-      "artifact_files": [],
-      "inventory_source": "credits/sources.json"
-    },
-    {
       "id": "cliproxyapi-inspiration",
       "name": "CLIProxyAPI",
       "category": "inspiration",
@@ -8743,21 +8728,6 @@
       "version": "not bundled",
       "license": "credit",
       "source_url": "https://github.com/router-for-me/CLIProxyAPI",
-      "bundled": false,
-      "notice_required": false,
-      "license_files": [],
-      "notice_files": [],
-      "artifact_files": [],
-      "inventory_source": "credits/sources.json"
-    },
-    {
-      "id": "codex-choice-inspiration",
-      "name": "Codex choice interactions",
-      "category": "inspiration",
-      "summary": "Structured agent-question interaction reference; no OpenAI code is bundled",
-      "version": "not bundled",
-      "license": "credit",
-      "source_url": "https://developers.openai.com/codex/app/features/",
       "bundled": false,
       "notice_required": false,
       "license_files": [],

@@ -1045,7 +1045,7 @@ the optional actual integration is a separate node bridge pinned through [integr
 | [design-system/](design-system) | product rules, components, accessibility, responsive behavior, qa |
 | [scripts/](scripts) | inventory generation, lint helpers, browser gates, diagnostics |
 | [tests/](tests) | python, javascript, api, integration, browser checks |
-| [docs/](docs) | screenshots, evidence, maintained coverage notes, plans |
+| [docs/](docs) | product screenshots, readme translations, test-referenced prototypes |
 
 runtime data belongs under the private data root or explicitly selected external roots. [the data section](#your-data-where-everything-lives) explains what recovery needs to capture.
 
@@ -1112,11 +1112,11 @@ node --test tests/js/*.test.mjs
 
 python checks cover domain operations, math, migrations, api handlers, permissions, adapters, files, backups, and restart/retry behavior. javascript checks cover navigation, state, controls, drafts, and offline decisions. in-process api checks do not prove real-provider behavior or browser layout.
 
-[scripts/run_browser_gates.py](scripts/run_browser_gates.py) owns temporary data and nonconflicting ports for the maintained smoke/full browser suites. [docs/stabilization.md](docs/stabilization.md) records coverage and gaps. native and external-provider gates can require additional software, credentials, or a real owner device.
+[scripts/run_browser_gates.py](scripts/run_browser_gates.py) owns temporary data and nonconflicting ports for the maintained smoke/full browser suites. native and external-provider gates can require additional software, credentials, or a real owner device.
 
 [.github/workflows/tests.yml](.github/workflows/tests.yml) declares python, ruff, javascript, and browser jobs for main/dev pushes, pull requests, and manual runs. a workflow or route being declared does not establish that a particular run passed.
 
-[features/registry.json](features/registry.json) and [docs/control-census.md](docs/control-census.md) record behavior/control coverage. keep generated records synchronized with source changes. development plans and review evidence stay local; this specification describes implemented behavior.
+[features/registry.json](features/registry.json) records behavior and test ownership. the catalog, interaction-map, and control-census generators accept `--output-dir` for local reports; tests generate and validate their output in temporary directories. development plans and review evidence stay local; this specification describes implemented behavior.
 
 ## complete endpoint inventory
 
