@@ -38,3 +38,6 @@ scripts/agent_build.py
 scripts/agent_build_app.py
 scripts/live_usage.py
 scripts/kopia_spike.py
+features/task-routing.json
+scripts/generate_task_routing.py
+services/task_routing.py

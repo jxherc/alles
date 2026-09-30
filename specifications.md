@@ -974,6 +974,28 @@ publishes only an encrypted artifact, retains seven alles-owned automatic artifa
 never prunes unrelated files. if the process dies, the next job check removes its own
 abandoned private work even when another backup is not due.
 
+### backup root roles
+
+the backup manifest records each root's purpose. an excluded root still appears in the manifest so
+recovery can explain what the archive contains.
+
+| role | backup policy |
+| --- | --- |
+| `data` | include the managed `ALLES_DATA` tree and a consistent sqlite snapshot |
+| `vault` | include the markdown vault; freeze external vaults and restore them under the new data root |
+| `files` | include the default files root when it is inside `ALLES_DATA`; exclude external bytes |
+| `photos` | include managed photos when selected, or when overlap with another included root requires it |
+| `photos_watch` | exclude the source folder; imported copies follow the photos policy |
+| `agent_allowed_roots` | record permission roots without copying their contents |
+| `project_workspaces` | retain path metadata in sqlite; exclude workspace contents |
+| `photokit_library` | exclude the system photos library; imported copies follow the photos policy |
+| `remote_services` | include local configuration and cache; exclude the remote service's authoritative copy |
+| `webdav` | record the backup destination; exclude its remote contents |
+| `s3` | record the backup destination; exclude its remote objects |
+| `model_cache` | exclude rebuildable model caches |
+| `codex_home` | exclude separate tool state |
+| `recovery_work` | exclude staging, exports, journals, and rollback work to prevent recursive backups |
+
 ### current trust map
 
 alles is one fastapi owner process with a browser client. sqlite owns structured state; the markdown
@@ -1101,6 +1123,13 @@ python checks cover domain operations, math, migrations, api handlers, permissio
 the registered http operations are grouped by handler source. use `/openapi.json` for payload models and [the api section](#the-api-for-other-tools) for authentication/streaming semantics. paths keep fastapi converter syntax: `{subpath:path}` accepts multiple path segments, while openapi shows the parameter as `{subpath}`.
 
 900 http operations across 83 source files, plus one websocket endpoint.
+
+the compatibility snapshot locks the registered http surface:
+
+- 83 included fastapi router modules
+- 900 http method/path pairs
+- 883 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `4a693cbe5721d9350937946037585e3b90aaf281f63c10b2a4de30883af67f37`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -2838,6 +2867,8 @@ the registered http operations are grouped by handler source. use `/openapi.json
 | `/api/shell/pty` | [routes/shell.py](routes/shell.py) | `shell_pty` |
 
 ## database table inventory
+
+this lists **121 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
