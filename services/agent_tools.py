@@ -1585,15 +1585,19 @@ async def execute(name: str, args: dict) -> dict:
     if name == "note_list":
         return await _note_list()
     if name == "docs_read":
-        return await _note_read(args.get("path", ""))
+        return await _note_read(args.get("path", ""), exact_path=True)
     if name == "docs_write":
-        return await _note_write(args.get("path", ""), args.get("content", ""))
+        return await _note_write(
+            args.get("path", ""), args.get("content", ""), args.get("expected_hash")
+        )
     if name == "docs_search":
         return await _note_search(args.get("query", ""))
     if name == "note_read":
         return await _note_read(args.get("name", ""))
     if name == "note_write":
-        return await _note_write(args.get("path", ""), args.get("content", ""))
+        return await _note_write(
+            args.get("path", ""), args.get("content", ""), args.get("expected_hash")
+        )
     if name == "note_append":
         return await _note_append(args.get("path", ""), args.get("content", ""))
     if name == "note_search":
@@ -2133,41 +2137,71 @@ async def _note_list():
     return {"output": "\n".join(names) if names else "no notes yet"}
 
 
-async def _note_read(name):
-    from services import vault_md
+async def _note_read(name, *, exact_path=False):
+    from services import document_safety, vault_md
 
     try:
-        rel = _resolve_note(name, fuzzy=True)
+        rel = (
+            document_safety._normalise_rel(name)[0]
+            if exact_path
+            else _resolve_note(name, fuzzy=True)
+        )
         d = vault_md.read(rel)
     except ValueError as e:
         return {"output": str(e), "error": True}
     if not d.get("exists"):
         return {"output": f"note not found: {name}", "error": True}
-    return {"output": d.get("content", "") or "(empty note)"}
+    if d.get("editable") is False:
+        return {"output": d.get("error", "document cannot be read as UTF-8"), "error": True}
+    snapshot = {"path": rel, "hash": d["hash"], "content": d.get("content", "")}
+    return {"output": json.dumps(snapshot, ensure_ascii=False), "path": rel, "hash": d["hash"]}
 
 
-async def _note_write(path, content):
-    from services import vault_md
+async def _note_write(path, content, expected_hash=None):
+    from services import document_safety
 
     try:
-        res = vault_md.write(path, content)
+        # A missing version is create-only, including legacy note_write callers.
+        res = document_safety.save_document(
+            path, content, "" if expected_hash is None else expected_hash, clear_draft=False
+        )
+    except document_safety.DocumentSaveConflict as e:
+        return _note_conflict(e)
     except ValueError as e:
         return {"output": str(e), "error": True}
     rel = res.get("path", path)
     _vault_reindex(rel, content)
-    return {"output": f"saved note {rel}"}
+    return {"output": f"saved note {rel}\nhash: {res['hash']}", "path": rel, "hash": res["hash"]}
+
+
+def _note_conflict(error):
+    conflict = error.conflict
+    return {
+        "output": (
+            f"document changed: {conflict['path']}. nothing was overwritten. "
+            f"both copies are preserved in conflict {conflict['id']}. "
+            "read the current document and have the updated change reviewed before saving again."
+        ),
+        "error": True,
+        "path": conflict["path"],
+        "conflict_id": conflict["id"],
+    }
 
 
 async def _note_append(path, content):
-    from services import vault_md
+    from services import document_safety, vault_md
 
     try:
         rel = _resolve_note(path, fuzzy=False)  # don't append into a loosely-matched note
         cur = vault_md.read(rel)
+        if cur.get("editable") is False:
+            return {"output": cur.get("error", "document cannot be read as UTF-8"), "error": True}
         body = cur.get("content", "") if cur.get("exists") else ""
         add = (content or "").strip()
         new = (body.rstrip() + "\n\n" + add + "\n") if body.strip() else add + "\n"
-        res = vault_md.write(rel, new)
+        res = document_safety.save_document(rel, new, cur["hash"], clear_draft=False)
+    except document_safety.DocumentSaveConflict as e:
+        return _note_conflict(e)
     except ValueError as e:
         return {"output": str(e), "error": True}
     out_rel = res.get("path", rel)
@@ -3376,7 +3410,8 @@ APP_TOOL_DEFS = [
     _tool(
         "docs_read",
         "Read a Markdown document from Docs by vault-relative path. Docs uses the configured "
-        "Markdown vault and does not require a Project or working directory.",
+        "Markdown vault and does not require a Project or working directory. Returns its exact "
+        "path, content and hash; pass that hash as expected_hash when replacing the document.",
         {"path": {"type": "string"}},
         ["path"],
     ),
@@ -3384,10 +3419,17 @@ APP_TOOL_DEFS = [
         "docs_write",
         "Create or overwrite a Markdown document in Docs. Use this when the user asks to save "
         "research, notes, or other Markdown to Docs. The path is relative to the configured "
-        "Markdown vault and does not require a Project or working directory.",
+        "Markdown vault and does not require a Project or working directory. To replace an "
+        "existing document, first read it and pass its reviewed hash as expected_hash. "
+        "Omitting expected_hash only creates a new document. Conflicts preserve both copies; "
+        "do not automatically retry a replacement without renewed review.",
         {
             "path": {"type": "string"},
             "content": {"type": "string"},
+            "expected_hash": {
+                "type": "string",
+                "description": "Exact hash from docs_read; empty for a new document.",
+            },
         },
         ["path", "content"],
     ),
@@ -3399,17 +3441,24 @@ APP_TOOL_DEFS = [
     ),
     _tool(
         "note_read",
-        "Read a vault note or doc by name or path (e.g. 'Ideas' or 'Projects/Ideas.md').",
+        "Read a vault note or doc by name or path (e.g. 'Ideas' or 'Projects/Ideas.md'). "
+        "Returns its exact path, content and hash for a version-checked write.",
         {"name": {"type": "string"}},
         ["name"],
     ),
     _tool(
         "note_write",
         "Create or OVERWRITE a vault note/doc (path = note name or path, folders ok). "
-        "Destructive — to add to an existing note without losing it, use note_append.",
+        "Replacing an existing document requires expected_hash from its reviewed note_read. "
+        "Omitting it only creates new documents. Conflicts preserve both copies and require "
+        "renewed review. To add text, use note_append.",
         {
             "path": {"type": "string"},
             "content": {"type": "string"},
+            "expected_hash": {
+                "type": "string",
+                "description": "Exact hash from note_read; empty for a new document.",
+            },
         },
         ["path", "content"],
     ),
@@ -4013,7 +4062,16 @@ def preview_change(name: str, args: dict) -> str:
     try:
         if name == "apply_patch":
             return (args.get("patch") or "").strip()
-        if name == "write_file":
+        if name in {"docs_write", "note_write"}:
+            from services import document_safety, vault_md
+
+            rel, _ = document_safety._normalise_rel(args.get("path", ""))
+            document = vault_md.read(rel)
+            if document.get("editable") is False:
+                return document.get("error", "document cannot be read as UTF-8")
+            old = document.get("content", "").splitlines(keepends=True)
+            new = (args.get("content") or "").splitlines(keepends=True)
+        elif name == "write_file":
             p = _resolve(args.get("path", ""))
             if _guard_path(p, write=True):
                 return ""

@@ -13,6 +13,8 @@ let _tabsWired = false;
 let _loadGeneration = 0;
 let _recoveryChecked = false;
 let _draftScopes = [];
+let _closeEditor = null;
+let _editorGeneration = 0;
 const TASK_DRAFT_PREFIX = 'alles.tasks.draft.v1:';
 
 function taskValues(task) {
@@ -75,8 +77,9 @@ function clearTaskDraft(id) {
 
 async function recoverTaskDraft(generation) {
   if (_recoveryChecked || document.querySelector('.task-editor-ov')) return;
+  const editorGeneration = _editorGeneration;
   const scopes = await draftScopes();
-  if (generation !== _loadGeneration || !scopes.length) return;
+  if (generation !== _loadGeneration || editorGeneration !== _editorGeneration || !scopes.length) return;
   _draftScopes = scopes;
   _recoveryChecked = true;
   try {
@@ -121,7 +124,7 @@ const _URL = { active: '/api/tasks', done: '/api/tasks/done',
                today: '/api/tasks/views/today', upcoming: '/api/tasks/views/upcoming',
                someday: '/api/tasks/views/someday' };
 
-export async function loadTasks(fetcher = fetch) {
+export async function loadTasks(fetcher = fetch, target = null) {
   _wireTabs();
   const generation = ++_loadGeneration;
   const tab = _tab, search = _search;
@@ -139,7 +142,8 @@ export async function loadTasks(fetcher = fetch) {
   }
   if (generation !== _loadGeneration || tab !== _tab || search !== _search) return;
   if (isTree) { _tree = data; renderTree(); } else { _tasks = data; renderTasks(); }
-  await recoverTaskDraft(generation);
+  // Exact links open their own draft; other retained drafts stay available by task.
+  if (target?.view !== 'tasks') await recoverTaskDraft(generation);
 }
 
 function _todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -270,10 +274,39 @@ async function _mutateTask(button, action, { alreadyBusy = false } = {}) {
   }
 }
 
-async function openTaskEditor(id, source, recovered = null) {
+export async function prepareTaskNavigation() {
+  ++_editorGeneration;
+  return !_closeEditor || Boolean(await _closeEditor({ restoreFocus: false }));
+}
+
+export async function openTaskRecord(id, isCurrent = () => true) {
+  const existing = document.querySelector('.task-editor-ov');
+  if (existing) return existing.dataset.taskId === id;
+  if (_tab !== 'active' || _search) {
+    _tab = 'active';
+    _search = '';
+    const search = document.getElementById('tasks-search');
+    if (search) search.value = '';
+    document.querySelectorAll('.tasks-tab').forEach(button => {
+      const selected = button.dataset.tab === _tab;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
+    await loadTasks(fetch, { view: 'tasks', id });
+  }
+  if (!isCurrent() || !_findTask(id) || document.querySelector('.task-editor-ov')) return false;
+  const row = [...document.querySelectorAll('#tasks-list .task-item')].find(item => item.dataset.id === id);
+  const source = row?.querySelector('.task-title');
+  source?.scrollIntoView({ block: 'center', behavior: 'instant' });
+  await openTaskEditor(id, source, null, isCurrent);
+  return document.querySelector('.task-editor-ov')?.dataset.taskId === id;
+}
+
+async function openTaskEditor(id, source, recovered = null, isCurrent = () => true) {
   if (document.querySelector('.task-editor-ov')) return;
+  const generation = _editorGeneration;
   const scopes = await draftScopes();
-  if (document.querySelector('.task-editor-ov') || (source && !source.isConnected)) return;
+  if (generation !== _editorGeneration || !isCurrent() || document.querySelector('.task-editor-ov') || (source && !source.getClientRects().length)) return;
   _draftScopes = scopes;
   recovered = readTaskDraft(id, scopes) || (recovered && scopes.includes(recovered.scope) ? recovered : null);
   const savedTask = _findTask(id);
@@ -291,6 +324,7 @@ async function openTaskEditor(id, source, recovered = null) {
   const repeats = [['', tr('tasks.repeat.none')], ['daily', tr('tasks.repeat.daily')], ['weekly', tr('tasks.repeat.weekly')], ['monthly', tr('tasks.repeat.monthly')], ['yearly', tr('tasks.repeat.yearly')]];
   const ov = document.createElement('div');
   ov.className = 'task-editor-ov';
+  ov.dataset.taskId = id;
   ov.innerHTML = `<div class="task-editor" role="dialog" aria-modal="true" aria-labelledby="task-editor-title">
     <h2 class="sr-only" id="task-editor-title">${esc(tr('tasks.edit_dialog'))}</h2>
     <label class="sr-only" for="te-title">${esc(tr('tasks.title_label'))}</label><input class="settings-input" id="te-title" value="${esc(t.title)}">
@@ -393,8 +427,10 @@ async function openTaskEditor(id, source, recovered = null) {
     focusBoundary?.deactivate({ restoreFocus });
     focusBoundary?.destroy();
     ov.remove();
+    _closeEditor = null;
     return true;
   };
+  _closeEditor = close;
   focusBoundary = createFocusBoundary(dialog, { trigger: source, onEscape: close });
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
   ov.querySelector('#te-cancel').onclick = close;

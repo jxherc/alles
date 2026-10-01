@@ -3157,9 +3157,9 @@ registered intervals come from `app.py`. the current loop sleeps 30 seconds betw
 | `contact_add` | add a contact. |
 | `contact_list` | list or search contacts. |
 | `diagnostics` | run the project's linter/typechecker (ruff, node --check, tsc, py_compile) and return errors. use to verify code after edits. |
-| `docs_read` | read a markdown document from docs by vault-relative path. docs uses the configured markdown vault and does not require a project or working directory. |
+| `docs_read` | read an exact vault-relative markdown path. returns its path, content and hash for a version-checked write; no project or working directory is required. |
 | `docs_search` | search markdown documents in docs. returns matching vault-relative paths and snippets. |
-| `docs_write` | create or overwrite a markdown document in docs. use this when the user asks to save research, notes, or other markdown to docs. the path is relative to the configured markdown vault and does not require a project or working directory. |
+| `docs_write` | save markdown in docs. replacing an existing document requires its reviewed `docs_read` hash as `expected_hash`; omitting the hash only creates new documents. approval shows the proposed diff. conflicts preserve both copies and require renewed review; accepted replacements retain restorable revisions. |
 | `edit_file` | edit an existing file by exact string replacement. |
 | `files_locations_list` | list only owner-approved files locations and access modes. stored credentials are never returned. |
 | `files_operation_create` | create a typed files operation between approved locations. it never crawls outside registered locations and preserves the durable undo receipt. |
@@ -3199,12 +3199,12 @@ registered intervals come from `app.py`. the current loop sleeps 30 seconds betw
 | `memory_add` | store a durable memory when the user says something worth remembering. |
 | `memory_search` | search aide's long-term memory. |
 | `money_query` | read-only money analytics: account balances, net worth, this-month income/spend, spend by category, and the total matching a payee/category term. use for 'how much did i spend / what's my balance' questions. |
-| `note_append` | append text to a vault note/doc (creates it if missing). safe additive write. |
+| `note_append` | append text to a vault note/doc (creates it if missing). saves against the version read internally, preserving both copies if another writer changes it. |
 | `note_backlinks` | list vault notes that link ([[name]]) to a given note — for traversing related notes. |
 | `note_list` | list all vault note names. |
-| `note_read` | read a vault note or doc by name or path (e.g. 'ideas' or 'projects/ideas.md'). |
+| `note_read` | read a vault note or doc by name or path (e.g. 'ideas' or 'projects/ideas.md'). returns its exact path, content and hash. |
 | `note_search` | full-text search the vault (notes + docs). returns name, path and a snippet. |
-| `note_write` | create or overwrite a vault note/doc (path = note name or path, folders ok). destructive — to add to an existing note without losing it, use note_append. |
+| `note_write` | save a vault note/doc using the same reviewed, version-checked contract as `docs_write`. use the hash returned by `note_read` to replace existing text, or `note_append` to add text. |
 | `npm_dashboard` | read connected nginx proxy manager proxy-host and certificate state. |
 | `npm_proxy_host_create` | create one typed nginx proxy manager host. credentials stay in the local broker and never enter model context. |
 | `opencode_run` | delegate a coding subtask to opencode cli via 'opencode run' when opencode is installed and authenticated. |
