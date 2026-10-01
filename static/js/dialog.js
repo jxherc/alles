@@ -8,46 +8,107 @@ function _overlay() {
   return el;
 }
 
+let dialogSequence = 0;
+
+function _wireDialog(overlay, resolve, valueFromConfirm, canSubmit = () => true) {
+  const previousFocus = document.activeElement;
+  const focusable = () => [...overlay.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])')]
+    .filter(element => !element.disabled && !element.hidden);
+  const done = value => {
+    overlay.remove();
+    previousFocus?.focus?.();
+    resolve(value);
+  };
+  overlay.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      done(null);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const items = focusable();
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+  overlay.addEventListener('click', event => {
+    if (event.target === overlay) done(null);
+  });
+  const submit = button => {
+    const value = valueFromConfirm(button);
+    if (canSubmit(value)) done(value);
+  };
+  overlay.querySelectorAll('[data-dialog-confirm]').forEach(button => button.addEventListener('click', () => submit(button)));
+  overlay.querySelector('[data-dialog-cancel]').addEventListener('click', () => done(null));
+  return submit;
+}
+
 export function confirm(msg) {
   return new Promise(resolve => {
     const ov = _overlay();
-    ov.innerHTML = `<div class="dialog-card">
-      <div class="dialog-msg">${_esc(msg)}</div>
+    const labelId = `dialog-title-${++dialogSequence}`;
+    ov.innerHTML = `<div class="dialog-card" role="alertdialog" aria-modal="true" aria-labelledby="${labelId}">
+      <div class="dialog-msg" id="${labelId}">${_esc(msg)}</div>
       <div class="dialog-btns">
-        <button class="btn" id="_dn">cancel</button>
-        <button class="btn danger" id="_dy">confirm</button>
+        <button class="btn" type="button" data-dialog-cancel>cancel</button>
+        <button class="btn danger" type="button" data-dialog-confirm>confirm</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
-    const done = v => { ov.remove(); resolve(v); };
-    ov.querySelector('#_dy').onclick = () => done(true);
-    ov.querySelector('#_dn').onclick = () => done(false);
-    ov.addEventListener('click', e => { if (e.target === ov) done(false); });
-    ov.querySelector('#_dn').focus();
+    _wireDialog(ov, value => resolve(Boolean(value)), () => true);
+    ov.querySelector('[data-dialog-cancel]').focus();
   });
 }
 
-export function prompt(msg, def = '') {
+export function prompt(msg, def = '', options = {}) {
   return new Promise(resolve => {
     const ov = _overlay();
-    ov.innerHTML = `<div class="dialog-card">
-      <div class="dialog-msg">${_esc(msg)}</div>
-      <input class="settings-input dialog-input" id="_di" value="${_esc(String(def || ''))}">
+    const inputId = `dialog-input-${++dialogSequence}`;
+    const errorId = `${inputId}-error`;
+    ov.innerHTML = `<div class="dialog-card${options.validate ? ' dialog-validated' : ''}" role="dialog" aria-modal="true" aria-labelledby="${inputId}-label">
+      <label class="dialog-msg" id="${inputId}-label" for="${inputId}">${_esc(msg)}</label>
+      <input class="settings-input dialog-input" id="${inputId}" value="${_esc(String(def || ''))}"
+        type="${options.secret ? 'password' : 'text'}"
+        autocomplete="${options.secret ? 'current-password' : 'off'}"${options.validate ? ` aria-describedby="${errorId}"` : ''}>
+      ${options.validate ? `<div class="dialog-validation" id="${errorId}" role="alert"></div>` : ''}
       <div class="dialog-btns">
-        <button class="btn" id="_dn">cancel</button>
-        <button class="btn primary" id="_dy">ok</button>
+        <button class="btn" type="button" data-dialog-cancel>cancel</button>
+        <button class="btn primary" type="button" data-dialog-confirm>ok</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
-    const inp = ov.querySelector('#_di');
-    const done = v => { ov.remove(); resolve(v); };
-    ov.querySelector('#_dy').onclick = () => done(inp.value);
-    ov.querySelector('#_dn').onclick = () => done(null);
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter') done(inp.value);
-      if (e.key === 'Escape') done(null);
+    const inp = ov.querySelector(`#${inputId}`);
+    const error = ov.querySelector(`#${errorId}`);
+    const validate = value => {
+      const message = options.validate?.(value) || '';
+      if (error) error.textContent = message;
+      if (message) {
+        inp.setAttribute('aria-invalid', 'true');
+        inp.focus();
+        return false;
+      }
+      inp.removeAttribute('aria-invalid');
+      return true;
+    };
+    const submit = _wireDialog(ov, resolve, () => inp.value, validate);
+    inp.addEventListener('input', () => {
+      if (error) error.textContent = '';
+      inp.removeAttribute('aria-invalid');
     });
-    ov.addEventListener('click', e => { if (e.target === ov) done(null); });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submit();
+      }
+    });
     inp.focus(); inp.select();
   });
 }
@@ -56,23 +117,38 @@ export function prompt(msg, def = '') {
 export function fields(title, defs) {
   return new Promise(resolve => {
     const ov = _overlay();
+    const sequence = ++dialogSequence;
     const inputs = defs.map(f =>
-      `<input class="settings-input dialog-input" id="_df_${f.id}" placeholder="${_esc(f.label)}" value="${_esc(String(f.value || ''))}">`
+      `<label class="dialog-msg" for="dialog-${sequence}-${_esc(f.id)}">${_esc(f.label)}</label>
+       <input class="settings-input dialog-input" id="dialog-${sequence}-${_esc(f.id)}" value="${_esc(String(f.value || ''))}">`
     ).join('');
-    ov.innerHTML = `<div class="dialog-card">
-      <div class="dialog-msg">${_esc(title)}</div>
+    const titleId = `dialog-title-${sequence}`;
+    ov.innerHTML = `<div class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+      <div class="dialog-msg" id="${titleId}">${_esc(title)}</div>
       ${inputs}
       <div class="dialog-btns">
-        <button class="btn" id="_dn">cancel</button>
-        <button class="btn primary" id="_dy">save</button>
+        <button class="btn" type="button" data-dialog-cancel>cancel</button>
+        <button class="btn primary" type="button" data-dialog-confirm>save</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
-    const collect = () => Object.fromEntries(defs.map(f => [f.id, ov.querySelector(`#_df_${f.id}`).value]));
-    const done = v => { ov.remove(); resolve(v); };
-    ov.querySelector('#_dy').onclick = () => done(collect());
-    ov.querySelector('#_dn').onclick = () => done(null);
-    ov.addEventListener('click', e => { if (e.target === ov) done(null); });
-    ov.querySelector(`#_df_${defs[0].id}`).focus();
+    const collect = () => Object.fromEntries(defs.map(f => [f.id, ov.querySelector(`#dialog-${sequence}-${CSS.escape(f.id)}`).value]));
+    _wireDialog(ov, resolve, collect);
+    ov.querySelector(`#dialog-${sequence}-${CSS.escape(defs[0].id)}`).focus();
+  });
+}
+
+export function choose(title, options) {
+  return new Promise(resolve => {
+    const ov = _overlay();
+    const titleId = `dialog-title-${++dialogSequence}`;
+    ov.innerHTML = `<div class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+      <div class="dialog-msg" id="${titleId}">${_esc(title)}</div>
+      <div class="dialog-choices">${options.map(option => `<button type="button" class="btn" data-dialog-confirm data-value="${_esc(option.value)}">${_esc(option.label)}</button>`).join('')}</div>
+      <div class="dialog-btns"><button type="button" class="btn" data-dialog-cancel>cancel</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    _wireDialog(ov, resolve, button => button.dataset.value);
+    ov.querySelector('[data-dialog-cancel]').focus();
   });
 }

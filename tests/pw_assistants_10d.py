@@ -8,6 +8,7 @@ import urllib.request
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 AIDE = "http://aide.localhost:8875"
 
@@ -60,8 +61,7 @@ def main():
         pg.goto(f"{AIDE}/", wait_until="domcontentloaded")
         pg.wait_for_selector('.nav-item[data-view="settings"]', timeout=15000)
         pg.eval_on_selector('.nav-item[data-view="settings"]', "el => el.click()")
-        pg.wait_for_selector('.s-nav-item[data-pane="personas"]', timeout=8000)
-        pg.eval_on_selector('.s-nav-item[data-pane="personas"]', "el => el.click()")
+        choose_settings_section(pg, "personas")
         pg.wait_for_selector("#persona-list .persona-row", timeout=8000)
 
         # open the first persona → knowledge files + share appear
@@ -89,7 +89,7 @@ def main():
         r["persona_share_button_clicks"] = True  # no exception thrown
 
         # MCP presets — one-click add
-        pg.eval_on_selector('.s-nav-item[data-pane="tools"]', "el => el.click()")
+        choose_settings_section(pg, "tools")
         pg.wait_for_selector("#mcp-presets .mcp-preset", timeout=8000)
         r["mcp_presets_visible"] = len(pg.query_selector_all("#mcp-presets .mcp-preset")) >= 3
         pg.screenshot(path=str(EVID / "mcp-presets.png"))

@@ -44,6 +44,40 @@ class StatsTests(unittest.TestCase):
         for d in ("2026-03-10", "2026-04-10", "2026-05-10"):
             self._txn(d, -100, "groceries")
 
+    def test_finance_spending_rule_handles_splits_and_periods(self):
+        prior = db.Transaction(
+            account_id=self.a.id, date="2026-05-10", amount=-20, category="groceries"
+        )
+        current = db.Transaction(
+            account_id=self.a.id, date="2026-06-10", amount=-100, category="shopping"
+        )
+        income = db.Transaction(account_id=self.a.id, date="2026-06-10", amount=200)
+        transfer = db.Transaction(
+            account_id=self.a.id,
+            date="2026-06-10",
+            amount=-50,
+            category="travel",
+            transfer_id="paired",
+        )
+        self.s.add_all([prior, current, income, transfer])
+        self.s.flush()
+        self.s.add(db.TxnSplit(txn_id=current.id, category="groceries", amount=60))
+        self.s.commit()
+
+        self.assertEqual(
+            dict(money_stats.spending_by_category(self.s, "2026-06")),
+            {"groceries": 60, "shopping": 40},
+        )
+        self.assertEqual(
+            dict(money_stats.spending_by_category(self.s, "2026-06", upto=True)),
+            {"groceries": 80, "shopping": 40},
+        )
+
+    def test_finance_balance_rule_uses_transaction_delta(self):
+        self._txn("2026-06-10", -30)
+        self._txn("2026-06-11", 10)
+        self.assertEqual(money_stats.balance_deltas(self.s)[self.a.id], -20)
+
     def test_category_anomaly_spike(self):
         self._baseline_groceries()
         self._txn("2026-06-12", -300, "groceries")  # 3x baseline
@@ -57,9 +91,7 @@ class StatsTests(unittest.TestCase):
         # it internally — the optimization that avoids a redundant scan in signals.gather
         self._baseline_groceries()
         self._txn("2026-06-12", -300, "groceries")
-        from routes.money import _spending_by_cat
-
-        cur = _spending_by_cat(self.s, TODAY.strftime("%Y-%m"))
+        cur = money_stats.spending_by_category(self.s, TODAY.strftime("%Y-%m"))
         self.assertEqual(
             money_stats.category_anomalies(self.s, as_of=TODAY),
             money_stats.category_anomalies(self.s, as_of=TODAY, cur=cur),

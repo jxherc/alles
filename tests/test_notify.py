@@ -61,7 +61,9 @@ class NotifyServiceTest(unittest.TestCase):
         with (
             mock.patch.object(notify, "_targets", lambda: _cfg("https://discord/wh", "TOK", "123")),
             mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: cli),
-            mock.patch.object(ng, "is_safe_url", lambda u: True),  # fake host won't resolve; bypass guard
+            mock.patch.object(
+                ng, "is_safe_url", lambda u: True
+            ),  # fake host won't resolve; bypass guard
         ):
             self.assertTrue(notify.configured())
             res = asyncio.run(notify.send("hello world"))

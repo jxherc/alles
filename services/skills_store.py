@@ -11,8 +11,9 @@ import re
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SKILLS_DIR = ROOT / "data" / "skills"
+from core.settings import data_dir
+
+SKILLS_DIR: Path | None = None
 
 _SLUG_RE = re.compile(r"[^a-z0-9._-]+")
 
@@ -139,9 +140,14 @@ def _slug(name: str) -> str:
     return s
 
 
+def skills_dir() -> Path:
+    return SKILLS_DIR or data_dir() / "skills"
+
+
 def _dir() -> Path:
-    SKILLS_DIR.mkdir(parents=True, exist_ok=True)
-    return SKILLS_DIR
+    d = skills_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def _path(slug: str) -> Path:
@@ -162,17 +168,26 @@ def _parse(text: str) -> dict:
             for line in text[3:end].strip("\n").splitlines():
                 if ":" in line:
                     k, v = line.split(":", 1)
-                    meta[k.strip()] = v.strip().strip('"')
+                    raw = v.strip()
+                    try:
+                        meta[k.strip()] = json.loads(raw) if raw.startswith('"') else raw.strip('"')
+                    except Exception:
+                        meta[k.strip()] = raw.strip('"')
             body = text[end + 4 :].lstrip("\n")
     return {"meta": meta, "body": body}
 
 
+def _fm(v) -> str:
+    s = str(v or "")
+    return json.dumps(s) if "\n" in s or "\r" in s else s
+
+
 def _serialize(name, description, when_to_use, body, source="") -> str:
-    fm = [f"name: {name}", f"description: {description}"]
+    fm = [f"name: {_fm(name)}", f"description: {_fm(description)}"]
     if when_to_use:
-        fm.append(f"when_to_use: {when_to_use}")
+        fm.append(f"when_to_use: {_fm(when_to_use)}")
     if source:
-        fm.append(f"source: {source}")  # 10c — where a git-backed skill came from
+        fm.append(f"source: {_fm(source)}")  # 10c — where a git-backed skill came from
     return "---\n" + "\n".join(fm) + "\n---\n\n" + (body or "")
 
 

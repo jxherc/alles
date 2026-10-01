@@ -1,22 +1,20 @@
-import { toast } from './util.js';
+import { toast, escapeHtml } from './util.js';
 import { exportActiveSessionMarkdown } from './sessions.js';
+import { formatTime } from './i18n.js';
 
 // ── built-in command registry ────────────────────────────────────────
 const BUILTINS = [
   // chats
   { name: 'new',       cat: 'chats',    help: 'start a new chat' },
   { name: 'clear',     cat: 'chats',    help: 'clear chat display' },
-  { name: 'rename',    cat: 'chats',    help: 'rename — or auto-name if blank', args: '[name]' },
+  { name: 'rename',    cat: 'chats',    help: 'rename: or auto-name if blank', args: '[name]' },
   { name: 'archive',   cat: 'chats',    help: 'archive this chat' },
   { name: 'export',    cat: 'chats',    help: 'export chat as markdown' },
   { name: 'incognito', cat: 'chats',    help: 'start a new incognito chat' },
   // model & persona
   { name: 'model',     cat: 'model',    help: 'open model picker' },
   { name: 'persona',   cat: 'model',    help: 'switch persona',          args: '[name]' },
-  // mode
-  { name: 'research',  cat: 'mode',     help: 'toggle research mode' },
-  { name: 'agent',     cat: 'mode',     help: 'toggle agent mode' },
-  { name: 'bg',        cat: 'mode',     help: 'run an agent task in the background', args: '<task>' },
+  { name: 'andromeda', cat: 'search',   help: 'search the web', args: '[query]' },
   // memory
   { name: 'remember',  cat: 'memory',   help: 'save a memory',           args: '<text>' },
   { name: 'memories',  cat: 'memory',   help: 'open memory panel' },
@@ -88,10 +86,14 @@ function _handleInput(ta) {
 
   if (!line.startsWith('/') || line.includes(' ')) { _hide(); return; }
   const query = line.slice(1).toLowerCase();
-  // show ALL when just "/" — filter when query has chars
+  // show ALL when just "/" — filter when query has chars (case-insensitive, null-safe so a
+  // mixed-case cookbook name / missing description still matches without throwing)
   const all = _allEntries();
   const matches = query
-    ? all.filter(e => e.name.startsWith(query) || e.name.includes(query) || e.description.includes(query))
+    ? all.filter(e => {
+        const n = (e.name || '').toLowerCase(), d = (e.description || '').toLowerCase();
+        return n.startsWith(query) || n.includes(query) || d.includes(query);
+      })
     : all;
   if (!matches.length) { _hide(); return; }
   _show(matches, ta, lineStart, cursor, !query);
@@ -114,11 +116,13 @@ function _show(matches, ta, lineStart, cursor, grouped = false) {
     for (const [cat, entries] of Object.entries(cats)) {
       html += `<div class="slash-cat-label">${cat}</div>`;
       for (const e of entries) {
-        const argsHtml = e.args ? `<span class="slash-args">${e.args}</span>` : '';
+        // escape — args like <task>/<text> are otherwise parsed as html tags and vanish,
+        // and cookbook name/desc are user-authored (self-xss)
+        const argsHtml = e.args ? `<span class="slash-args">${escapeHtml(e.args)}</span>` : '';
         const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
         html += `<div class="slash-item${flatIdx === 0 ? ' selected' : ''}" data-idx="${flatIdx}">
-          <span class="slash-cmd"><span class="slash-name">/${e.name}</span>${argsHtml}</span>
-          <span class="slash-desc">${e.description}</span>${tag}
+          <span class="slash-cmd"><span class="slash-name">/${escapeHtml(e.name)}</span>${argsHtml}</span>
+          <span class="slash-desc">${escapeHtml(e.description || '')}</span>${tag}
         </div>`;
         flatIdx++;
       }
@@ -127,11 +131,11 @@ function _show(matches, ta, lineStart, cursor, grouped = false) {
   } else {
     // filtered mode — flat list, prefix-sorted
     _popup.innerHTML = matches.map((e, i) => {
-      const argsHtml = e.args ? `<span class="slash-args">${e.args}</span>` : '';
+      const argsHtml = e.args ? `<span class="slash-args">${escapeHtml(e.args)}</span>` : '';
       const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
       return `<div class="slash-item${i === 0 ? ' selected' : ''}" data-idx="${i}">
-        <span class="slash-cmd"><span class="slash-name">/${e.name}</span>${argsHtml}</span>
-        <span class="slash-desc">${e.description}</span>${tag}
+        <span class="slash-cmd"><span class="slash-name">/${escapeHtml(e.name)}</span>${argsHtml}</span>
+        <span class="slash-desc">${escapeHtml(e.description || '')}</span>${tag}
       </div>`;
     }).join('');
   }
@@ -185,7 +189,7 @@ function _apply(entry, ta, lineStart, cursor) {
     const after  = ta.value.slice(cursor);
     ta.value = before + entry.prompt + after;
     ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+    ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
     ta.focus();
     const pos = lineStart + entry.prompt.length;
     ta.setSelectionRange(pos, pos);
@@ -214,15 +218,23 @@ export async function tryExecuteSlashCommand(text) {
   const cmd  = parts[0].slice(1).toLowerCase();
   const args = parts.slice(1).join(' ').trim();
 
-  // cookbook entries take priority over same-named builtins
-  const cbEntry = _cookbook.find(e => e.name === cmd);
+  // cookbook entries take priority over same-named builtins (cmd is already lowercased)
+  const cbEntry = _cookbook.find(e => e.name.toLowerCase() === cmd);
   if (cbEntry) {
-    // substitute args placeholder if present, else just use the prompt
+    // substitute args placeholder if present, else just use the prompt. function replacer so
+    // args containing $&, $1, $` aren't treated as replacement patterns
+    const expanded = cbEntry.prompt.replace(/\{args\}|\$1/g, () => args);
+    if (!expanded.trim()) {
+      // an args-only template invoked with no args expands to nothing — say so instead of
+      // silently swallowing the send (doSend bails on an empty composer).
+      toast(`/${cmd} needs an argument`, 'error');
+      return true;   // handled (suppress the empty send)
+    }
     const ta = document.getElementById('composer-ta');
     if (ta) {
-      ta.value = cbEntry.prompt.replace(/\{args\}|\$1/g, args);
+      ta.value = expanded;
       ta.style.height = 'auto';
-      ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+      ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
     }
     return false;  // let normal send handle it with substituted text
   }
@@ -261,7 +273,7 @@ export async function tryExecuteSlashCommand(text) {
           updateSessionName(sid, name);
           toast(`renamed to "${name}"`, 'success');
         } else {
-          toast('auto-name failed — add some messages first', 'error');
+          toast('auto-name failed: add some messages first', 'error');
         }
       }
       return true;
@@ -287,39 +299,10 @@ export async function tryExecuteSlashCommand(text) {
       return true;
     }
 
-    case 'research': {
-      document.getElementById('research-toggle-btn')?.click();
-      return true;
-    }
-
-    case 'agent': {
-      // always agent — open the agent panel in settings
-      document.querySelector('.nav-item[data-view="brain"]')?.click();
-      return true;
-    }
-
-    case 'bg':
-    case 'background': {
-      if (!args) { toast('usage: /bg <task>', 'error'); return true; }
-      const { getActiveId, createSession, markActive, appendUserMsg, showMessages } = await import('./sessions.js');
-      const { getCurrentEndpoint, getSelected } = await import('./models.js');
-      let sid = getActiveId();
-      if (!sid) {
-        const ep = getCurrentEndpoint();
-        if (!ep) { toast('no endpoint configured', 'error'); return true; }
-        const sm = getSelected()?.model || ep.models?.[0] || '';
-        const s = await createSession(sm, ep.id);
-        if (!s) { toast('failed to create session', 'error'); return true; }
-        sid = s.id; markActive(sid);
-      }
-      showMessages();
-      appendUserMsg(args + '  ·(background)');
-      const r = await fetch('/api/agent/background', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ session_id: sid, message: args, mode: 'agent' }),
-      });
-      if (r.ok) { toast('running in background — keep working'); _pollBackground(sid); }
-      else toast('background start failed', 'error');
+    case 'research':
+    case 'andromeda': {
+      if (args) window._openAndromedaQuery?.(args);
+      else window._navigateTo?.('andromeda');
       return true;
     }
 
@@ -335,7 +318,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'memories': {
-      (await import('./settings.js')).openSettings('memory');
+      (await import('./settings.js?v=289')).openSettings('memory');
       return true;
     }
 
@@ -386,7 +369,7 @@ export async function tryExecuteSlashCommand(text) {
         const { loadSessions, selectSession } = await import('./sessions.js');
         await loadSessions();
         await selectSession(s.id);
-        toast('incognito session — nothing will be saved');
+        toast('incognito session: nothing will be saved');
       }
       return true;
     }
@@ -426,7 +409,7 @@ export async function tryExecuteSlashCommand(text) {
       return true;
 
     case 'compare':
-      document.querySelector('.nav-item[data-view="compare"]')?.click();
+      window._navigateTo?.('compare');
       return true;
 
     case 'docs':
@@ -470,7 +453,7 @@ export async function tryExecuteSlashCommand(text) {
       return true;
 
     case 'compact':
-      toast('context compaction is automatic — happens when context exceeds threshold');
+      toast('context compaction is automatic: happens when context exceeds threshold');
       return true;
 
     case 'remind':
@@ -496,13 +479,13 @@ export async function tryExecuteSlashCommand(text) {
       const type = cmd === 'send' ? 'message' : 'reminder';
       const sessionId = type === 'message' ? (window._currentSession?.id || null) : null;
       await createReminder(textPart, triggerAt, type, sessionId);
-      const when = triggerAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      const when = formatTime(triggerAt, { hour: '2-digit', minute: '2-digit' });
       toast(type === 'message' ? `scheduled for ${when}` : `reminder set for ${when}`, 'success');
       return true;
     }
 
     case 'reminders':
-      document.querySelector('.nav-item[data-view="reminders"]')?.click();
+      document.querySelector('.nav-item[data-view="aide-reminders"]')?.click();
       return true;
 
     case 'help': {
@@ -517,7 +500,7 @@ export async function tryExecuteSlashCommand(text) {
       let md = '**slash commands**\n\n';
       for (const [cat, entries] of Object.entries(cats)) {
         md += `*${cat}*\n`;
-        md += entries.map(e => `- \`/${e.name}${e.args ? ' ' + e.args : ''}\` — ${e.description}`).join('\n');
+        md += entries.map(e => `- \`/${e.name}${e.args ? ' ' + e.args : ''}\`: ${e.description}`).join('\n');
         md += '\n\n';
       }
       const content = document.createElement('div');
@@ -531,23 +514,4 @@ export async function tryExecuteSlashCommand(text) {
     default:
       return false;
   }
-}
-
-// poll a background run; when it finishes, refresh the session if it's open
-function _pollBackground(sid) {
-  let tries = 0;
-  const iv = setInterval(async () => {
-    if (++tries > 200) { clearInterval(iv); return; }   // ~10 min cap
-    let runs = [];
-    try { runs = await fetch('/api/agent/runs?limit=12').then(r => r.json()); } catch { return; }
-    const run = (runs || [])
-      .filter(r => r.session_id === sid)
-      .sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))[0];
-    if (run && run.status !== 'running') {
-      clearInterval(iv);
-      const { getActiveId, selectSession } = await import('./sessions.js');
-      if (getActiveId() === sid) await selectSession(sid);
-      toast(`background run ${run.status}`, run.status === 'error' ? 'error' : 'success');
-    }
-  }, 3000);
 }

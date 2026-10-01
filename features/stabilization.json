@@ -1,0 +1,3269 @@
+{
+  "schema_version": 1,
+  "states": [
+    "untested",
+    "failed",
+    "passed",
+    "blocked"
+  ],
+  "scenarios": [
+    {
+      "id": "setup-security.owner-setup.1",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "fresh owner setup",
+      "expected": "Initialize a fresh owner, enforce the owner lock, complete setup, authenticate and preserve completion after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "setup-security.owner-setup.2",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "recent-owner reauthentication",
+      "expected": "Cancel or reject recent-owner confirmation without creating a token or losing the Settings draft; a valid retry creates exactly one token that remains after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "setup-security.owner-setup.3",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "resume interrupted setup",
+      "expected": "A failed setup save retains input and leaves progress unchanged; retry, reload, dismiss and resume preserve the completed step and owner values.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "home.capture-and-navigation.1",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "capture a task from Home and reload",
+      "expected": "Exactly one task with the entered title is persisted after reload; the capture field becomes usable again.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "home.capture-and-navigation.2",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "open every workbench",
+      "expected": "Capture work, review current context, open the nine workbenches, and receive local notices.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "home.capture-and-navigation.3",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "capture a task from Home at phone width",
+      "expected": "The pointer submission persists one task at 390px without horizontal page overflow.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "phone"
+      ]
+    },
+    {
+      "id": "aide.question-answer-recovery",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "answer a pending question, recover a rejected save and reload",
+      "expected": "A simulated loopback provider's pending question reattaches after reload. Real keyboard or touch input selects single and multiple answers and free text. A deliberate HTTP 503 preserves answers, complete labels and reachable 44px recovery actions at phone and desktop widths in both themes. Retrying records the exact answer once in real local run history, retained after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "aide.question-cancel",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "cancel a pending question and reload the resumed conversation",
+      "expected": "The Cancel control records one explicit cancellation without invented answers. The simulated loopback provider receives the tool result, and the real local conversation resumes without a pending card after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "aide.composer-responsive",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "send, stop and reload a conversation using the responsive composer",
+      "expected": "At 320px, 390px and desktop widths in both themes, pointer, touch and keyboard reach unclipped 44px composer actions. Send and Stop use a simulated loopback provider; the saved conversation survives reload. Message text uses its available width, and message action labels stay separate, visible on touch and revealed by keyboard focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "aide.conversation-and-execution.1",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "complete an Auto task",
+      "expected": "Run model conversations, projects, memory, research, delegated work, and owner-approved local execution.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.conversation-and-execution.2",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "arm Full Access",
+      "expected": "Run model conversations, projects, memory, research, delegated work, and owner-approved local execution.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.conversation-and-execution.3",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "inspect a redacted audit",
+      "expected": "Run model conversations, projects, memory, research, delegated work, and owner-approved local execution.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.selectable-questions.1",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "answer by pointer",
+      "expected": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.selectable-questions.2",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "answer by keyboard",
+      "expected": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.selectable-questions.3",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "reload and resume",
+      "expected": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "aide.selectable-questions.4",
+      "feature": "aide.selectable-questions",
+      "app": "aide",
+      "workflow": "answer through Discord",
+      "expected": "Ask one to four durable questions with two to five choices, optional free text, reload/resume, cancellation, and Discord rendering.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "andromeda.cited-search.1",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "search and open citations",
+      "expected": "Return fast web results, a compact cited answer, and optional independent freshness-aware verification.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "andromeda.cited-search.2",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "toggle verification",
+      "expected": "Return fast web results, a compact cited answer, and optional independent freshness-aware verification.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "andromeda.cited-search.3",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "render failed checks honestly",
+      "expected": "Return fast web results, a compact cited answer, and optional independent freshness-aware verification.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "plan.tasks-calendar.1",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "create and move a task",
+      "expected": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "plan.tasks-calendar.2",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "keyboard board navigation",
+      "expected": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "plan.tasks-calendar.3",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "create and delete an event",
+      "expected": "Manage tasks, Kanban, calendars, reminders, and countdowns through one workbench.",
+      "status": "untested",
+      "evidence": [],
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
+    },
+    {
+      "id": "inbox.mail-and-contacts.1",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "connect a disposable mailbox",
+      "expected": "Read and send mail and manage contacts through owner-configured connectors.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "inbox.mail-and-contacts.2",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "send a test message",
+      "expected": "Read and send mail and manage contacts through owner-configured connectors.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "inbox.mail-and-contacts.3",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "edit a test contact",
+      "expected": "Read and send mail and manage contacts through owner-configured connectors.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.documents-and-journal.1",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "edit and recover a document",
+      "expected": "Create, edit, search, link, recover, and migrate documents and journal entries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.documents-and-journal.2",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "rename with backlink preservation",
+      "expected": "Create, edit, search, link, recover, and migrate documents and journal entries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.documents-and-journal.3",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "migrate and roll back a journal entry",
+      "expected": "Create, edit, search, link, recover, and migrate documents and journal entries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files-photos.locations-and-media.1",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "browse Alles and Connected",
+      "expected": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files-photos.locations-and-media.2",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "copy move and roll back",
+      "expected": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files-photos.locations-and-media.3",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "open Gallery and return Home",
+      "expected": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files-photos.locations-and-media.4",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "resolve a vault conflict",
+      "expected": "Browse managed and approved locations, operate safely on files, keep explicit offline copies, and organize photos.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "library.reading-and-news.1",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "save and open a page",
+      "expected": "Save reading, manage books, collect cited news, and keep cookbook material.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "library.reading-and-news.2",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "add and update a book",
+      "expected": "Save reading, manage books, collect cited news, and keep cookbook material.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "library.reading-and-news.3",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "deliver a cited news brief",
+      "expected": "Save reading, manage books, collect cited news, and keep cookbook material.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "health.logs-and-habits.1",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "log a synthetic measurement",
+      "expected": "Record health observations and track habits without presenting the app as medical care.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "health.logs-and-habits.2",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "complete a habit",
+      "expected": "Record health observations and track habits without presenting the app as medical care.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "health.logs-and-habits.3",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "inspect empty and partial summaries",
+      "expected": "Record health observations and track habits without presenting the app as medical care.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.actual-ledger.1",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "reconcile a disposable ledger",
+      "expected": "Use Actual Budget as canonical ledger and import statements read-only with provenance and undo.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.actual-ledger.2",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "import statement fixtures",
+      "expected": "Use Actual Budget as canonical ledger and import statements read-only with provenance and undo.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.actual-ledger.3",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "undo an import",
+      "expected": "Use Actual Budget as canonical ledger and import statements read-only with provenance and undo.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.bank-connectors.1",
+      "feature": "finance.bank-connectors",
+      "app": "finance",
+      "workflow": "connect Plaid sandbox",
+      "expected": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.bank-connectors.2",
+      "feature": "finance.bank-connectors",
+      "app": "finance",
+      "workflow": "deduplicate transactions",
+      "expected": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.bank-connectors.3",
+      "feature": "finance.bank-connectors",
+      "app": "finance",
+      "workflow": "expire and reconnect consent",
+      "expected": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "finance.bank-connectors.4",
+      "feature": "finance.bank-connectors",
+      "app": "finance",
+      "workflow": "disconnect and revoke",
+      "expected": "Synchronize accounts read-only through SimpleFIN or Plaid with reconnect, revocation, deduplication, and reviewed bank import profiles.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "passwords.vault-and-browser.1",
+      "feature": "passwords.vault-and-browser",
+      "app": "passwords",
+      "workflow": "pair the extension",
+      "expected": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "passwords.vault-and-browser.2",
+      "feature": "passwords.vault-and-browser",
+      "app": "passwords",
+      "workflow": "fill an exact test site",
+      "expected": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "passwords.vault-and-browser.3",
+      "feature": "passwords.vault-and-browser",
+      "app": "passwords",
+      "workflow": "reject a mismatched origin",
+      "expected": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "passwords.vault-and-browser.4",
+      "feature": "passwords.vault-and-browser",
+      "app": "passwords",
+      "workflow": "revoke a browser",
+      "expected": "Store encrypted secrets and fill exact-site credentials through paired short-lived browser sessions without model plaintext.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.management.1",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "inspect neofetch and btop",
+      "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "status": "untested",
+      "evidence": [],
+      "notes": "The confirmed monitor failure was repaired and covered by narrow recovery scenarios; this broader original workflow still needs complete current evidence."
+    },
+    {
+      "id": "server.management.2",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "restart a disposable service",
+      "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.management.3",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "reject an unsafe policy edit",
+      "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.management.4",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "perform update rollback",
+      "expected": "Inspect and control owned services, machine health, updates, logs, policy, and watched resources through fail-closed authority.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.adguard-home.1",
+      "feature": "server.adguard-home",
+      "app": "server",
+      "workflow": "prepare without activation",
+      "expected": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.adguard-home.2",
+      "feature": "server.adguard-home",
+      "app": "server",
+      "workflow": "activate in isolation",
+      "expected": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.adguard-home.3",
+      "feature": "server.adguard-home",
+      "app": "server",
+      "workflow": "inspect query statistics",
+      "expected": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.adguard-home.4",
+      "feature": "server.adguard-home",
+      "app": "server",
+      "workflow": "roll back DNS",
+      "expected": "Prepare pinned AdGuard Home when supported and activate DNS only after preflight, backup, health checks, and rollback proof.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.nginx-proxy-manager.1",
+      "feature": "server.nginx-proxy-manager",
+      "app": "server",
+      "workflow": "prepare without Docker",
+      "expected": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.nginx-proxy-manager.2",
+      "feature": "server.nginx-proxy-manager",
+      "app": "server",
+      "workflow": "activate in isolation",
+      "expected": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.nginx-proxy-manager.3",
+      "feature": "server.nginx-proxy-manager",
+      "app": "server",
+      "workflow": "create a proxy host",
+      "expected": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "server.nginx-proxy-manager.4",
+      "feature": "server.nginx-proxy-manager",
+      "app": "server",
+      "workflow": "roll back service",
+      "expected": "Prepare pinned Nginx Proxy Manager when Docker prerequisites pass and manage proxy hosts, certificates, access, updates, and rollback.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.owner-connectors.1",
+      "feature": "integrations.owner-connectors",
+      "app": "settings",
+      "workflow": "pair a Discord owner",
+      "expected": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.owner-connectors.2",
+      "feature": "integrations.owner-connectors",
+      "app": "settings",
+      "workflow": "connect and revoke MCP",
+      "expected": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.owner-connectors.3",
+      "feature": "integrations.owner-connectors",
+      "app": "settings",
+      "workflow": "test a signed webhook",
+      "expected": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.owner-connectors.4",
+      "feature": "integrations.owner-connectors",
+      "app": "settings",
+      "workflow": "disconnect an endpoint",
+      "expected": "Connect Discord, MCP, external endpoints, and signed webhooks with explicit health and revocation.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.model-authentication.1",
+      "feature": "integrations.model-authentication",
+      "app": "settings",
+      "workflow": "connect Gemini OAuth",
+      "expected": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.model-authentication.2",
+      "feature": "integrations.model-authentication",
+      "app": "settings",
+      "workflow": "connect and revoke an API key",
+      "expected": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.model-authentication.3",
+      "feature": "integrations.model-authentication",
+      "app": "settings",
+      "workflow": "discover CLIProxyAPI models",
+      "expected": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "integrations.model-authentication.4",
+      "feature": "integrations.model-authentication",
+      "app": "settings",
+      "workflow": "show unsupported OAuth honestly",
+      "expected": "Connect model providers through legitimate API keys, supported OAuth, or an owner-managed OpenAI-compatible proxy with exact auth type and revocation guidance.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "automation.schedules-and-actions.1",
+      "feature": "automation.schedules-and-actions",
+      "app": "aide",
+      "workflow": "create and pause a schedule",
+      "expected": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "automation.schedules-and-actions.2",
+      "feature": "automation.schedules-and-actions",
+      "app": "aide",
+      "workflow": "resume after restart",
+      "expected": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "automation.schedules-and-actions.3",
+      "feature": "automation.schedules-and-actions",
+      "app": "aide",
+      "workflow": "inspect a failed action",
+      "expected": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "automation.schedules-and-actions.4",
+      "feature": "automation.schedules-and-actions",
+      "app": "aide",
+      "workflow": "cancel a run",
+      "expected": "Run durable schedules, chains, proactive work, and explicit automation actions with retry and audit state.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.regional-settings.1",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "use automatic region",
+      "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "status": "untested",
+      "evidence": [],
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
+    },
+    {
+      "id": "localization.regional-settings.2",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "override formats",
+      "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "status": "untested",
+      "evidence": [],
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
+    },
+    {
+      "id": "localization.regional-settings.3",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "switch reviewed languages",
+      "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "status": "untested",
+      "evidence": [],
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
+    },
+    {
+      "id": "localization.regional-settings.4",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "restart and preserve choices",
+      "expected": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.credits.1",
+      "feature": "localization.credits",
+      "app": "settings",
+      "workflow": "search named inspirations",
+      "expected": "Show dependencies, adapted sources, inspirations, revisions, licenses, source links, and required notices.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.credits.2",
+      "feature": "localization.credits",
+      "app": "settings",
+      "workflow": "open a local notice",
+      "expected": "Show dependencies, adapted sources, inspirations, revisions, licenses, source links, and required notices.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "localization.credits.3",
+      "feature": "localization.credits",
+      "app": "settings",
+      "workflow": "show unavailable notice honestly",
+      "expected": "Show dependencies, adapted sources, inspirations, revisions, licenses, source links, and required notices.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "accessibility.interface-contract.1",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "complete flows by keyboard",
+      "expected": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "accessibility.interface-contract.2",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "verify dialog focus return",
+      "expected": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "accessibility.interface-contract.3",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "test responsive and zoom states",
+      "expected": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "accessibility.interface-contract.4",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "test reduced motion and themes",
+      "expected": "Keep controls custom, semantic, keyboard-operable, focus-visible, responsive, contrast-safe, and usable with reduced motion and 200 percent zoom.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "extension-mobile.pwa-and-extension.1",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "home",
+      "workflow": "install PWA",
+      "expected": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "extension-mobile.pwa-and-extension.2",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "home",
+      "workflow": "exercise offline and reconnect",
+      "expected": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "extension-mobile.pwa-and-extension.3",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "home",
+      "workflow": "pair and revoke extension",
+      "expected": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "extension-mobile.pwa-and-extension.4",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "home",
+      "workflow": "test mobile package",
+      "expected": "Install and operate the PWA and paired extension with explicit offline, background, and permission boundaries.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.1",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "fresh macOS install",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.2",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "fresh Linux VM install",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.3",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "recover interrupted update",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.4",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "uninstall preserving data",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "backup-recovery.lifecycle.5",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "restore and roll back",
+      "expected": "Create encrypted backups, restore safely, update with rollback, uninstall preserving data, and recover interrupted lifecycle work.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "developer-interfaces.api-cli.1",
+      "feature": "developer-interfaces.api-cli",
+      "app": "server",
+      "workflow": "issue and revoke API token",
+      "expected": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "developer-interfaces.api-cli.2",
+      "feature": "developer-interfaces.api-cli",
+      "app": "server",
+      "workflow": "call OpenAI-compatible API",
+      "expected": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "developer-interfaces.api-cli.3",
+      "feature": "developer-interfaces.api-cli",
+      "app": "server",
+      "workflow": "reject scope escalation",
+      "expected": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "developer-interfaces.api-cli.4",
+      "feature": "developer-interfaces.api-cli",
+      "app": "server",
+      "workflow": "run CLI tests",
+      "expected": "Expose scoped API, OpenAI-compatible, shell, code, capability, and CLI interfaces without bypassing owner policy.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "release.mac-safari",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "complete core tasks in Mac Safari",
+      "expected": "real pointer, keyboard, persistence and recovery work in Safari",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "release.iphone-safari",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "complete core tasks on a physical iPhone in Safari",
+      "expected": "touch, safe areas, keyboard and single-pane navigation work on the real device",
+      "status": "blocked",
+      "blocker": "no physical iPhone test session is connected",
+      "evidence": []
+    },
+    {
+      "id": "release.seven-day-trial",
+      "feature": "backup-recovery.lifecycle",
+      "app": "all",
+      "workflow": "seven consecutive days of recorded use on the release candidate",
+      "expected": "daily workflow records and no unresolved blocking regression",
+      "status": "blocked",
+      "blocker": "starts after all candidate gates pass; no trial has run",
+      "evidence": []
+    },
+    {
+      "id": "settings.persistence",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "change preferences, save and reload",
+      "expected": "The saved values and their visible effects persist after reload and a second browser session.",
+      "status": "untested",
+      "evidence": [],
+      "notes": "Ordinary saved values and visible effects passed reload and a second independently authenticated browser context on phone Chromium; supplementary audit evidence has the exact current source/acceptance hashes. Other Settings failure/order checks remain separately scoped."
+    },
+    {
+      "id": "settings.failure-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "interrupt a settings save and retry",
+      "expected": "Keep edited values, show the save failure, allow retry, and acknowledge only confirmed persistence.",
+      "status": "untested",
+      "evidence": [],
+      "notes": "The recorded related defects are fixed with current explicit Settings/Calendar subscenario evidence in the full run. This broader legacy workflow has not been independently mapped to a complete current execution, so it remains untested rather than inheriting a pass. settings.persistence additionally requires a second fresh browser session."
+    },
+    {
+      "id": "shell.history-and-links",
+      "feature": "cross-feature.shared-shell",
+      "app": "all",
+      "workflow": "open all destinations, deep link, go back/forward and reload",
+      "expected": "The selected app and record match the URL, history is useful, and local navigation remains usable.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "shell.dialogs-and-menus",
+      "feature": "cross-feature.shared-shell",
+      "app": "all",
+      "workflow": "open, operate and dismiss shared dialogs and menus",
+      "expected": "Pointer and keyboard reach each action; escape closes the top overlay and focus returns to its trigger.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "shell.request-lifecycle",
+      "feature": "cross-feature.shared-shell",
+      "app": "all",
+      "workflow": "repeat rapid navigation, submit twice and interrupt requests",
+      "expected": "No duplicate records, stale responses, lost input, stuck loading, or unbounded request/listener growth.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "plan.capture-persistence",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "capture with Enter, filter and reload",
+      "expected": "Exactly one task with the entered title remains visible after reload; hiding views leaves capture and filters usable.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.save-persistence",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "create, source-edit, save and revisit its deep link",
+      "expected": "Saved Markdown and mixed-language content survive reload; views never hides the editor or discards input.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.failed-save",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "reject a save with a simulated HTTP 503, then retry",
+      "expected": "Unsaved text remains visible, the file on disk stays unchanged after the failed request, and retry persists the new content.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.conflict-and-draft",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "edit in two tabs and navigate away with unsaved text",
+      "expected": "Conflicts do not silently overwrite data and drafts survive the documented leave/recovery flow.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "files.operations-recovery",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "copy, move, rollback, soft-delete, restore and retry a failed listing",
+      "expected": "Filesystem results match the selected operation; read-only boundaries hold and queued operations remain recoverable after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "aide.stream-recovery",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "submit, stream, cancel, navigate away, resume and fail a provider",
+      "expected": "Progress and saved conversation match the actual operation; cancellation and provider failure offer a clear next action.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "andromeda.search-recovery",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "search, inspect sources, cancel and recover from a provider failure",
+      "expected": "Citations identify the returned evidence and stale or failed searches never overwrite the current query.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "vault.lock-cycle",
+      "feature": "passwords.vault-and-browser",
+      "app": "vault",
+      "workflow": "initialize, unlock, add a synthetic secret, reload and lock",
+      "expected": "Stored values survive reload; locked and unauthorized states never disclose them.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "upgrade.migration-interruption",
+      "feature": "backup-recovery.lifecycle",
+      "app": "server",
+      "workflow": "upgrade a synthetic older database with an interrupted migration",
+      "expected": "Restart or rollback restores a usable state with the original fixture values intact.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "presentation.matrix",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "inspect all apps across themes, widths, zoom and long content",
+      "expected": "Readable content, reachable actions, correct scrolling and focus in loading, empty, populated, partial, error, offline, denied, disabled and interrupted states.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "usability.task-walkthrough",
+      "feature": "accessibility.interface-contract",
+      "app": "all",
+      "workflow": "complete task descriptions without source-code assistance",
+      "expected": "Record unclear labels, hidden actions, unnecessary steps, and ambiguous next actions; each blocking issue receives a reproduction.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.offline-save-recovery",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "disconnect while editing and saving, then reconnect",
+      "expected": "Unsaved text remains recoverable across offline/reload and retry; the UI never reports an unconfirmed write as saved.",
+      "status": "untested",
+      "evidence": []
+    },
+    {
+      "id": "docs.concurrent-save",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "edit locally while a second client writes through the document API",
+      "expected": "The browser shows a changed-file warning, preserves local input, rejects stale saves, and can explicitly load the saved remote copy after reload.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "shell.route-history",
+      "feature": "cross-feature.shared-shell",
+      "app": "shared",
+      "workflow": "navigate between Docs, Home, Aide and Andromeda, reload twice and use back/forward",
+      "expected": "The URL and visible app agree after each transition; reload and history restore the selected app without losing document or session deep links.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "andromeda.stop-preview-and-retry",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "stop a pending model preview, then retry",
+      "expected": "Stop immediately displays cancellation, sends no overview request after the delayed preview resolves, preserves links and allows a successful retry.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": [],
+      "simulation": "mocked search, preview, overview and verification transport; real app UI; does not certify a live provider or server-side cancellation"
+    },
+    {
+      "id": "andromeda.cancel-confirmation-and-retry",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "decline remote confirmation, then retry",
+      "expected": "Declining remote confirmation sends no overview request; a later confirmed retry succeeds and normal links remain available.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": [],
+      "simulation": "mocked search, preview, overview and verification transport; real app UI; does not certify a live provider or server-side cancellation"
+    },
+    {
+      "id": "andromeda.superseded-preview",
+      "feature": "andromeda.cited-search",
+      "app": "andromeda",
+      "workflow": "start a new overview while an earlier preview is pending",
+      "expected": "A stale preview cannot submit a request or replace the newer result.",
+      "status": "untested",
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "evidence": [],
+      "simulation": "mocked search, preview, overview and verification transport; real app UI; does not certify a live provider or server-side cancellation"
+    },
+    {
+      "id": "health.entry-validation",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "validate a measurement before saving",
+      "expected": "Malformed numbers and impossible dates show a visible error and do not create a record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "health.entry-draft-retention",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "change the history range with an unsaved entry",
+      "expected": "Exact value, date and mixed-language note survive range reloads.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "health.create-edit-persistence",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "create and correct an exact measurement",
+      "expected": "Repeated submission while pending creates one record; correction keeps its identity, exact value and date after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "health.failed-edit-retry",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "recover a failed correction",
+      "expected": "A deliberate 503 keeps the input visible and the old stored value intact; retry saves the correction after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "health.edit-cancel",
+      "feature": "health.logs-and-habits",
+      "app": "health",
+      "workflow": "cancel a correction",
+      "expected": "Cancel returns focus to the entry and leaves its saved value unchanged after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-stop",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "stop a partial response",
+      "expected": "The prompt and partial response survive reload with an interruption marker, and the provider connection/run terminate.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-early-stop",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "stop before the first token",
+      "expected": "The accepted prompt survives reload, visibly marked interrupted; the run is terminal.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-switch-stop",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "switch conversations and stop the originating stream",
+      "expected": "Stop targets the original streaming session; the selected second session remains untouched.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-switch-finish",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "switch away and return to a completing response",
+      "expected": "One complete prompt/reply pair persists and remains available after returning and reloading.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-navigate-disconnect",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "leave Aide during streaming and return",
+      "expected": "The disconnected partial turn is saved exactly once, marked interrupted after reload, and no stale running state remains.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "workflow-aide-incognito-stop",
+      "feature": "aide.conversation-and-execution",
+      "app": "aide",
+      "workflow": "interrupt a private conversation and exit",
+      "expected": "Private prompt, reply and run state stay in RAM, never in SQLite or agent-run files; exiting removes their queryable state.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "finance.local-amount-validation",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Reject malformed local Finance amounts",
+      "expected": "Reject grouped or trailing-text numbers without a write; retain the draft for correction. Exact decimal account, transaction and edited values survive reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "finance.local-create-edit-persistence",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Create and correct local manual ledger entries",
+      "expected": "Create an account and expense, correct the same transaction, cancel an edit, toggle cleared, and verify exact values and identities after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "finance.local-retry-once",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Retry a local save after losing its acknowledgment",
+      "expected": "A retry with the same request identity returns the committed result without duplicating the transaction or balance change.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "finance.local-reconcile",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Reconcile a local manual account",
+      "expected": "An exact statement balance reconciles; a one-cent mismatch remains visible. Malformed statements never query a truncated number.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "finance.local-phone-readability",
+      "feature": "finance.actual-ledger",
+      "app": "finance",
+      "workflow": "Read and operate local transactions on a phone",
+      "expected": "Payee, category, account and amount remain visible within the phone viewport, with reachable 44px actions and wrapped filters.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "phone"
+      ],
+      "notes": "Local manual SQLite ledger only; does not certify Actual or live bank integrations."
+    },
+    {
+      "id": "pwa.queue-storage-failure",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "all",
+      "workflow": "Recover an offline Health save when browser storage fails",
+      "expected": "Storage-open denial and transaction abort show save failure and retain the editable draft. Restoring storage and retrying produces one saved entry after reconnect and reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Chromium with real service worker and local API; IndexedDB failures deliberately simulated. Does not certify native Safari, physical devices or every queued API."
+    },
+    {
+      "id": "pwa.queue-reconnect",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "all",
+      "workflow": "Queue and replay an offline Health entry",
+      "expected": "A committed outbox record visibly remains pending and reconnect persists exactly one entry with the entered value. A notification failure after commit must not turn accepted work into a failed save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "Chromium with real service worker and local API; IndexedDB failures deliberately simulated. Does not certify native Safari, physical devices or every queued API."
+    },
+    {
+      "id": "setup.package-install-upgrade",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "install and upgrade the packaged application",
+      "expected": "Install the documented application in a clean environment and upgrade existing synthetic data without changing owner values or stored content.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": []
+    },
+    {
+      "id": "setup.login-recovery",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "recover from rejected and unavailable sign-in",
+      "expected": "Show readable inline errors for invalid password, unavailable service, rate limits and interrupted transport; preserve the password and allow one successful retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "setup.companion-reauth",
+      "feature": "setup-security.owner-setup",
+      "app": "setup",
+      "workflow": "confirm optional companion installation after owner confirmation expires",
+      "expected": "Cancel or reject confirmation without installing; a valid retry reaches the simulated installer once and restores focus to the next setup action. Live host installation remains separate.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "home.reminder-local-time",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "show reminders on the viewer\u2019s local day and clock",
+      "expected": "Use the viewer\u2019s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "pwa.queue-auth-recovery",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "all",
+      "workflow": "recover queued input after the owner session expires",
+      "expected": "Retain an offline entry when real replay receives 401, show that sign-in is needed and preserve exact values after reload. Incorrect credentials and cancellation leave it queued; successful sign-in saves it once.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "pwa.queue-rejection-recovery",
+      "feature": "extension-mobile.pwa-and-extension",
+      "app": "all",
+      "workflow": "review rejected offline changes and recover deliberately",
+      "expected": "Retain conflicts and invalid input across reload, display the saved values and reason, allow export, retry or individually confirmed discard. No automatic resend of permanently rejected entries; temporary 503 remains recoverable.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.search-edit-consistency",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "search, clear search, edit, reopen and edit another field",
+      "expected": "The reopened editor uses the current saved task; changing project preserves its newer due date after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.dirty-editor-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "dismiss a dirty editor using Escape, outside click and Cancel",
+      "expected": "All dismissal paths require explicit discard; declining or escaping confirmation preserves the draft and focus, and the retained draft saves correctly.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.pending-save-draft",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "save while the real task write is delayed",
+      "expected": "Pending fields and dismissal are disabled with a visible saving state; no additional input is accepted and the submitted values survive reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.task-edit-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "reject an edit with a simulated HTTP 503, then retry",
+      "expected": "The draft and original saved values survive failure; controls become usable again and keyboard retry persists the intended edit.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.task-row-readability",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "read populated tasks with long titles, metadata and actions",
+      "expected": "Mixed-language titles retain a readable line width, metadata wraps, all actions have 44px targets and the page does not overflow.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.task-editor-visibility",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "open and operate the editor in both themes and a short phone viewport",
+      "expected": "The navigation rail cannot cover or intercept editor fields; custom choices and save controls remain reachable by scrolling.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.board-filter-visibility",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "search a board title, then apply an excluding project filter",
+      "expected": "Only matching cards remain visible and actionable; visible cards agree with lane counters.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.board-move-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "move a task, fail the next move with a simulated HTTP 503, then retry",
+      "expected": "The first move persists; a rejected move leaves the saved stage unchanged and a keyboard retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.book-note-recovery",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "recover a rejected book note save",
+      "expected": "A failed HTTP or network save keeps the exact note and exposes a retry; pending fields cannot accept lost edits; a successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.book-controls",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "edit notes and reading goal with the keyboard",
+      "expected": "Tab and Enter reach existing notes and goals; controls retain 44px targets and remove does not cover long mixed-language title text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.saved-url-recovery",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "recover a failed or unconfirmed URL save",
+      "expected": "HTTP, network, malformed and incomplete acknowledgments retain the URL and recoverable action without false success; a successful local retry creates exactly one item that survives reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.saved-keyboard-reading",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "search and open saved reading with keyboard and touch",
+      "expected": "A synthetic saved article is searchable, opens through keyboard and phone touch, persists read state and returns focus to its opening control.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "library.url-loading-draft",
+      "feature": "library.reading-and-news",
+      "app": "library",
+      "workflow": "continue URL entry while saved reading loads",
+      "expected": "Initial list completion and a delayed search preserve the current URL input, caret and keyboard focus so subsequent typed characters are retained.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.concurrent-field-edits",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "save unrelated edits from two tabs",
+      "expected": "Two tabs editing different fields preserve both saved values after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.saved-refresh-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "save successfully while the following list refresh fails",
+      "expected": "Report the successful write and refresh failure separately; the exact saved values remain after reload with no unhandled rejection.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.concurrent-conflict-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "inspect and resolve conflicting task edits",
+      "expected": "Retain both versions on 409, download a recovery copy, cancel or confirm each resolution, then persist the chosen edit after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.draft-history-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "recover a draft after reload and browser history",
+      "expected": "Restore unsaved fields with their original comparison values after reload and same-document or full-document history navigation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.draft-owner-tab-isolation",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "isolate task drafts by owner and browser tab",
+      "expected": "Separate tabs retain their own draft; a simulated other owner cannot load or submit the previous owner draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.draft-storage-failure",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "recover when browser draft storage fails",
+      "expected": "Show storage write/removal failures, retain a downloadable draft and guard navigation without claiming a recovery copy was saved or removed.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.draft-offline-acceptance",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "retain draft after simulated offline queue acceptance",
+      "expected": "A simulated queued response leaves the draft recoverable; only a successful real save clears it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.response-ownership",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "navigate and search while old requests finish",
+      "expected": "Delayed real search or list responses cannot replace newer results or the selected History view.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "plan.deleted-task-draft",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "recover edits for a deleted task",
+      "expected": "A draft whose task was deleted remains available for download or deliberate discard without silently recreating or losing it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "inbox.contact-create-recovery",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "retry failed contact creation",
+      "expected": "Failed transport, HTTP or malformed acknowledgment retains all fields; retry and reload persist the exact contact.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-single-submit-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "submit a contact while a save is pending",
+      "expected": "A double click while a real create is pending produces exactly one POST and one saved record after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-edit-recovery",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "recover failed contact editing",
+      "expected": "Retain all fields and a visible retry instruction after failed or invalid saves; a valid retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-extra-field-preserves-draft",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "add an extra contact field with unsaved notes",
+      "expected": "Field rejection and retry preserve unsaved scalar edits; saving and reloading retains both.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-list-error-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "retry a failed contact list load",
+      "expected": "Show an explicit load error rather than an empty list, and recover real records with Retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.contact-import-favorite-delete",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "import and manage a synthetic contact",
+      "expected": "Import vCard, find the contact, favorite by keyboard, cancel then confirm deletion, and verify after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-pointer-keyboard-layout",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "read cached mail with pointer and keyboard",
+      "expected": "Sender and actions remain readable and reachable at desktop and phone widths; Tab and Enter open cached messages.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-draft-save-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "save and reopen a local mail draft",
+      "expected": "Compose, save, reload, and open a local draft by keyboard with exact text preserved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-body-dirty-guard-recovery",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "protect body-only mail edits",
+      "expected": "Body-only changes trigger discard confirmation; failed save, cancel and retry retain text and persist it after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-pending-save-keeps-new-edits",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "edit mail while an older draft save completes",
+      "expected": "New edits typed while a save is pending remain dirty and require a discard decision or another save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "inbox.mail-draft-list-retry-delete",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "recover a failed draft list and delete a draft",
+      "expected": "A list failure stays visible with Retry; recover stored drafts and verify a deliberate deletion after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "desktop-light",
+        "phone-dark",
+        "phone-light"
+      ]
+    },
+    {
+      "id": "vault.local-item-recovery",
+      "feature": "passwords.vault-and-browser",
+      "app": "vault",
+      "workflow": "create and reopen a Vault item at phone width",
+      "expected": "Unlock, reach all toolbar actions, create by keyboard, reload and reopen the encrypted item without horizontal clipping.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.local-backup-file-actions",
+      "feature": "server.management",
+      "app": "settings",
+      "workflow": "choose and stage encrypted local backups by keyboard",
+      "expected": "Both file buttons are keyboard reachable and 44px; real encrypted download/upload stages a valid backup without changing live records.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.local-backup-retry",
+      "feature": "server.management",
+      "app": "settings",
+      "workflow": "retry interrupted or unreadable backup uploads",
+      "expected": "Connection, JSON and invalid-success faults show visible errors, reset busy/file state, and permit the same-file retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.local-backup-owner-confirmation",
+      "feature": "server.management",
+      "app": "settings",
+      "workflow": "renew expired owner confirmation for local restore",
+      "expected": "Real password confirmation can be canceled or retried; confirmed upload resumes with the chosen multipart files and stages a valid backup.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-failed-retry",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "retry failed save during editor loading",
+      "expected": "A failed Save retains emergency text; late editor load preserves mode and content; retry and reload save the exact file.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-failed-reload",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "reload a failed save after editor loading",
+      "expected": "Late editor loading cannot overwrite a failed-save recovery copy; reload, resume and save preserve the full draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-autosave-reload",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "recover autosaved source input after editor loading",
+      "expected": "A real server draft secured before module completion survives reload, resume and Save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-done-reentry",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "finish and reenter while editor loading is pending",
+      "expected": "An old initialization cannot replace the newest same-file buffer; the new edit saves exactly.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-discard-reentry",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "discard then edit again during module loading",
+      "expected": "Confirmed discard invalidates older initialization; the next same-file edit remains intact and persists.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-module-failure",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "continue editing when the visual module fails",
+      "expected": "A visible failure leaves Source usable; further input and Save survive reload with exact text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-focus-retention",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "move focus while the editor loads",
+      "expected": "Late module completion preserves focus in the action menu and the selected Source mode and buffer.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "docs.editor-load-visual-choice",
+      "feature": "docs.documents-and-journal",
+      "app": "docs",
+      "workflow": "choose Visual while its module is loading",
+      "expected": "Explicit Visual selection displays the latest source buffer after initialization without reverting new text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.rejected-save-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "reject an ordinary preference save and switch update, then retry",
+      "expected": "The failure remains visible with retryable input; a failed switch restores the saved value and successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.ordered-saves",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "save two preference values while the first write is held",
+      "expected": "Only one write is in flight; the later intent reaches the server after the first settles and survives reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.switch-queued-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "toggle twice while the first queued switch write fails",
+      "expected": "Failure of an older switch write cannot overwrite the latest intent; the successful newer value persists.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.theme-rejected-save-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "reject a theme save, reload and retry",
+      "expected": "Keep the unsaved preview and an explicit retry action across reload; only a confirmed save clears its recovery record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.theme-response-recovery",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "return malformed or incomplete theme responses and abort transport",
+      "expected": "Each failure exposes recovery; retry confirms the exact real saved appearance and clears the pending record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.theme-ordered-saves",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "choose two themes while the first save is held",
+      "expected": "Serialize stable full-theme snapshots and preserve the latest visible intent while earlier responses arrive.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.locale-response-recovery",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "interrupt regional saves with HTTP, malformed JSON and transport failures",
+      "expected": "Retain the full regional draft and previous saved values; retry persists the exact independent overrides.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.browser-timezone",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "inspect automatic timezone after saving an explicit override",
+      "expected": "Detect the actual browser zone independently of the saved formatting override and use it in the Automatic preview.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.rtl-overlay",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "open Arabic Settings and a nested confirmation at phone width",
+      "expected": "The rail cannot cover the dialog or its controls; keyboard dismissal returns focus to the opener.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.color-keyboard",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "reach and operate the custom color picker by keyboard",
+      "expected": "Keyboard traversal reaches a 44px control; Enter and Space open a custom picker, exact hex editing persists, and Done or Escape returns focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.restart-persistence",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "change settings and restart the owned server",
+      "expected": "Exact server settings and complete saved appearance survive a real restart; local font and compact controls survive browser reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.language-keyboard",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "change interface language through real keyboard traversal",
+      "expected": "Tab reaches the language group; arrow, Home and End navigation reaches enabled choices with visible focus and correct selected state. Traversal remains an unsaved draft until Save; the chosen language persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-collision-recovery",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload a file whose basename already exists",
+      "expected": "Preserve original bytes until an explicit conflict decision, check replacement identity, and retain a usable recovery path or block unrecoverable replacement.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "The original defects are fixed in the recorded Files checkpoint. A current execution must still satisfy this whole workflow; passing narrower scenarios does not automatically certify it."
+    },
+    {
+      "id": "files.transfer-error-readability",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "recover from copy and restore collisions on phone",
+      "expected": "The entire failure reason and recovery actions remain visible and reachable; retry preserves both originals until the conflict is resolved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ],
+      "notes": "The original defects are fixed in the recorded Files checkpoint. A current execution must still satisfy this whole workflow; passing narrower scenarios does not automatically certify it."
+    },
+    {
+      "id": "calendar.empty-and-search",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "open an empty calendar and search from desktop and phone",
+      "expected": "The empty calendar is usable and its search control remains reachable.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.overnight-create-edit-reload",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "create and edit an overnight event, then reload",
+      "expected": "Start and end retain their separate dates and exact saved values.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.keyboard-event-and-move",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "open an event by keyboard and move it",
+      "expected": "A visible 44px event target is reachable by Tab and Enter, and the moved event survives reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.create-failure-retry",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "reject a new event save and retry",
+      "expected": "The complete draft and error remain visible; retry creates the intended event and reload preserves it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.malformed-ack-null",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "return a null save acknowledgment",
+      "expected": "The editor reports an unconfirmed save and retains its draft for recovery.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.malformed-ack-empty-object",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "return an empty save acknowledgment",
+      "expected": "An empty object cannot masquerade as a saved event; the draft remains available.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.malformed-ack-invalid-id",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "return an invalid event identifier after save",
+      "expected": "The editor rejects the invalid acknowledgment and allows explicit draft discard or retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.network-retry-and-single-pending-save",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "interrupt transport and attempt repeated saves while a write is pending",
+      "expected": "Input remains recoverable after transport failure and repeated activation cannot create duplicate pending writes.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.edit-and-delete-recovery",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "reject an edit and a delete, then recover",
+      "expected": "A failed edit retains input, a failed delete retains its event context, and successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.dirty-back-and-list-retry",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "leave a dirty editor and fail a calendar load",
+      "expected": "Back requires a deliberate discard decision; a failed load shows an error and a reachable retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.keyboard-choices-and-picker-bounds",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "choose event options and dates with keyboard input",
+      "expected": "All-day, weekday, reminder and color choices save and reload correctly; date fields and picker controls fit the viewport and retain focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.recurrence-origin-scope-cancel-and-failures",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "edit recurring events with all, this and following scopes",
+      "expected": "Cancel and failed saves preserve the master; successful scoped edits preserve the intended recurrence origin and occurrence set.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.scoped-write-lost-ack-retry-no-duplicate",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "lose the response after a real scoped write and retry",
+      "expected": "The stored occurrence is retained; a conflicting retry preserves the draft without duplicating or removing events. Reload exposes the saved result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.aware-and-all-day-exact-reload",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "edit offset-aware and all-day events",
+      "expected": "Untouched timestamps retain exact precision and offset; all-day date values stay correct after save and reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.aware-recurrence-spring-and-fall-boundaries",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "edit recurring occurrences across daylight-saving changes",
+      "expected": "Local wall time and elapsed duration produce the correct stored start and end instants, with the master and exclusions preserved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "calendar.shared-picker-countdown-and-reminder",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "use the shared date picker for countdowns and reminders",
+      "expected": "Date-only countdowns and timezone-aware reminders persist their intended values and remain visible after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "settings.language-availability-badges",
+      "feature": "localization.regional-settings",
+      "app": "settings",
+      "workflow": "inspect available and unavailable languages after save, pane refresh and reload",
+      "expected": "Labels and disabled state match backend catalog eligibility in LTR and RTL; genuinely unavailable languages remain unselectable and unsavable.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "calendar.optional-metadata-retains-events-and-id",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "fail calendar metadata on cold and populated loads, then save an existing event",
+      "expected": "Events stay visible; unavailable calendar selection is explicit and a prose edit preserves the original saved calendar ID.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "width-320",
+        "width-360",
+        "width-390",
+        "width-1440"
+      ]
+    },
+    {
+      "id": "calendar.metadata-retry-preserves-draft",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "retry missing calendar names while an event contains unsaved edits",
+      "expected": "The current editor, draft and dirty state survive; refreshed choices and owner status update without saving input.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "width-320",
+        "width-360",
+        "width-390",
+        "width-1440"
+      ]
+    },
+    {
+      "id": "calendar.calendar-retry-refreshes-owner-state",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "recover the event list while checking unrelated request failures",
+      "expected": "Successful recovery clears its stale Plan status; a separately failed task-overlay request keeps a truthful partial status.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "width-320",
+        "width-360",
+        "width-390",
+        "width-1440"
+      ]
+    },
+    {
+      "id": "calendar.narrow-picker-seven-columns-and-focus",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "operate the shared date picker at constrained widths and visual zoom",
+      "expected": "All seven 44px columns fit, pointer selection works, Tab remains inside the picker and Escape restores focus; visual zoom evidence stays distinct from browser text zoom.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "width-320",
+        "width-360",
+        "width-390",
+        "width-1440"
+      ]
+    },
+    {
+      "id": "files.upload-collision-cancel",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload collision cancel",
+      "expected": "Collision cancellation leaves original bytes and version history unchanged, with focus returned to the upload control.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-keep-both",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload keep both",
+      "expected": "An explicitly chosen new filename preserves both exact originals and new upload bytes after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.version-recovery",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "version recovery",
+      "expected": "Version restore checks current identity, preserves previous bytes, confirms success and survives reload/download.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-large-preservation",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload large preservation",
+      "expected": "Replacing an original above 25MiB is refused without modification; a new filename remains available.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-stale-decision",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload stale decision",
+      "expected": "Another tab's saved replacement invalidates a stale decision; retry/cancel preserves that saved file.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.version-stale-decision",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "version stale decision",
+      "expected": "Restoring over a changed current file requires a new explicit decision; cancel preserves current bytes.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-lost-ack",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload lost ack",
+      "expected": "Retrying an accepted upload whose acknowledgment was lost detects identical bytes without a duplicate write/version.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-failed-retry",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload failed retry",
+      "expected": "Failed uploads keep the selected File and chosen name; retry saves once after recovery.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-interrupted-cancel",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload interrupted cancel",
+      "expected": "A pre-dispatch transport failure remains visible; cancellation does not create a destination.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-visible-failure",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer visible failure",
+      "expected": "Full transfer failure reasons wrap and remain readable in both themes; failed copies preserve source and destination.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.upload-network-contract",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "upload network contract",
+      "expected": "Every deliberate response/transport fault is individually accounted for, with no unexpected page, request or console errors.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-clearance-single",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer clearance single",
+      "expected": "The last populated row and selection controls remain reachable above a retained failed transfer.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-clearance-multiple-normal",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer clearance multiple normal",
+      "expected": "Several long transfer failures stay visible without covering the last row in either theme.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-clearance-multiple-constrained",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer clearance multiple constrained",
+      "expected": "At constrained height, retained errors scroll independently while pointer/keyboard access to rows and selection remains available.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "files.transfer-clearance-reset",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "transfer clearance reset",
+      "expected": "Clearing only fixture operations and reloading removes obsolete scroll clearance.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.monitor-stale-feedback",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "monitor stale feedback",
+      "expected": "After a successful metrics poll, failed polls visibly mark metrics unavailable and successful recovery updates the status.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.monitor-loading-after-success",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "monitor loading after success",
+      "expected": "Re-entering a previously successful monitor during failure displays recoverable unavailability instead of indefinite loading.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.runtime-log-timestamps",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "runtime log timestamps",
+      "expected": "Real owned runtime logs render their saved timestamps beside messages.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.partial-logs-recovery",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "partial logs recovery",
+      "expected": "A failed log request exposes a local error; retry restores current logs without an unrelated panel being replaced.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.policy-success-style",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "policy success style",
+      "expected": "A verified policy save clears the preceding failure style and displays saved confirmation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.policy-recovery",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "policy recovery",
+      "expected": "Rejected or canceled owner confirmation preserves the policy draft; retry saves the exact local policy with 0600 permissions.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.policy-stale-permission-feedback",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "policy stale permission feedback",
+      "expected": "Saving a valid policy updates its effective permissions and removes obsolete missing-policy warnings after reentry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.policy-hidden-confirmation",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "policy hidden confirmation",
+      "expected": "Host-permission confirmation is absent and skipped by Tab in owned-only mode, and reachable for an unsaved allowlisted draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.service-action-refresh",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "service action refresh",
+      "expected": "Explicitly simulated service failure retains recovery controls; a successful retry updates the visible state and retains keyboard focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.service-late-refresh",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "service late refresh",
+      "expected": "A delayed simulated service action cannot replace the newly selected tab; reentry and reload reflect the simulated running state.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.unconfigured-backup-disabled",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "unconfigured backup disabled",
+      "expected": "Empty provider configuration leaves remote backup actions visibly disabled without making provider requests.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.backup-failure-status",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "backup failure status",
+      "expected": "A simulated remote backup rejection appears beside its action and clears in-progress status while allowing retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.backup-action-refresh",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "backup action refresh",
+      "expected": "Simulated remote backup success refreshes the visible backup list and retains keyboard focus; reentry preserves the confirmed simulated result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.local-export",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "local export",
+      "expected": "Actual keyboard/pointer owner confirmation downloads a nonempty encrypted local fixture backup in the expected format.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.owned-restart-persistence",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "owned restart persistence",
+      "expected": "Stopping and restarting only the disposable server preserves the exact saved policy after fresh authentication.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.light-long-content-geometry",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "light long content geometry",
+      "expected": "Long owned log content and panels remain bounded and readable in Light at desktop and phone widths.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.keyboard-tabs",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "keyboard tabs",
+      "expected": "Server section controls remain keyboard reachable with focus visible and the selected section correctly displayed.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "server.browser-history",
+      "feature": "server.management",
+      "app": "server",
+      "workflow": "browser history",
+      "expected": "Browser back and forward preserve the requested Server section and its visible content.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "settings.navigation-context",
+      "feature": "cross-feature.settings",
+      "app": "settings",
+      "workflow": "keep the selected Settings section identifiable while traversing navigation",
+      "expected": "Current section text stays visible in the compact header; selected tabs differ from hover; actual focus, scrolling, Escape return and reentry work at desktop and 320/390px inLTR/RTL andLight/Dark.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop",
+        "phone"
+      ]
+    },
+    {
+      "id": "gallery.navigation-and-empty",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery navigation and empty",
+      "expected": "Reach Gallery from Files, inspect the empty state and return through the supported navigation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.multiple-upload-bytes-and-reload",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery multiple upload bytes and reload",
+      "expected": "Choose multiple synthetic images using the visible upload control; each exact image persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.keyboard-photo-entry-and-modal-focus",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery keyboard photo entry and modal focus",
+      "expected": "Open a photo by keyboard; viewer focus stays within the modal, background controls remain inactive, and dismissal returns focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.album-create-failure-draft-retry",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery album create failure draft retry",
+      "expected": "Rejected or malformed album creation keeps the exact name and visible recovery; a valid retry persists the new album.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.album-choice-bounds-keyboard-and-membership",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery album choice bounds keyboard and membership",
+      "expected": "A long album picker fits the viewport and supports keyboard selection/Escape; selection changes the saved membership as requested.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.rejected-new-destination-preserves-membership",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery rejected new destination preserves membership",
+      "expected": "Failed destination-album creation sends no assignment and preserves each original photo membership after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.wrong-album-acknowledgement-preserves-membership",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery wrong album acknowledgement preserves membership",
+      "expected": "A deliberately replayed unrelated success after a real album commit is rejected, retains the draft and changes no photo membership; correctly acknowledged retry works.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.caption-rejected-and-malformed-draft-retention",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery caption rejected and malformed draft retention",
+      "expected": "Caption failures and invalid success responses retain exact editable text, then a successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.viewer-editor-reentry-neighbor",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery viewer editor reentry neighbor",
+      "expected": "The viewer and image editor reopen after caption recovery with their normal controls and photo context intact.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.list-rejection-and-owned-retry",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery list rejection and owned retry",
+      "expected": "A failed Gallery list is an explicit error, not an empty library; its Retry reloads the intended list.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.optional-album-metadata-recovery",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery optional album metadata recovery",
+      "expected": "Unavailable optional album metadata does not discard loaded photos; recovery updates its owned feedback.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.delete-restore-rejection-and-reload",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery delete restore rejection and reload",
+      "expected": "Delete and restore use confirmed results; rejected restore remains visible and a successful retry persists after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.upload-interruption-and-visible-retry",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery upload interruption and visible retry",
+      "expected": "An interrupted upload retains pending files and visible recovery, and successful retry persists the requested images.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.search-filter-album-remove-touch-return",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery search filter album remove touch return",
+      "expected": "Search, filtering, album removal and emulated touch navigation retain the expected visible and saved photo state.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    },
+    {
+      "id": "gallery.exact-error-accounting",
+      "feature": "files-photos.locations-and-media",
+      "app": "files",
+      "workflow": "Gallery exact error accounting",
+      "expected": "All network/HTTP/console faults match explicitly injected failures; there are no unexpected page errors.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "desktop-light",
+        "desktop-dark",
+        "phone-light",
+        "phone-dark"
+      ]
+    }
+  ],
+  "findings": [],
+  "additional_surfaces": [
+    {
+      "id": "cross-feature.settings",
+      "app": "settings"
+    },
+    {
+      "id": "cross-feature.shared-shell",
+      "app": "all"
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import io
 import json
 import os
 import tempfile
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
@@ -79,7 +79,7 @@ class PhotosPlacesTests(ApiTest):
         self.assertEqual(d["points"], [])
 
     def test_map_excludes_deleted(self):
-        self._photo(lat=1.0, lon=2.0, deleted_at=datetime.utcnow())
+        self._photo(lat=1.0, lon=2.0, deleted_at=datetime.now(UTC).replace(tzinfo=None))
         d = self.client.get("/api/photos/map").json()
         self.assertEqual(d["points"], [])
 
@@ -129,7 +129,7 @@ class PhotosPlacesTests(ApiTest):
         self.assertEqual(d["count"], 0)
 
     def test_memories_default_date_today(self):
-        today = datetime.utcnow()
+        today = datetime.now(UTC).replace(tzinfo=None)
         self._photo(name="ly.jpg", taken=today.replace(year=today.year - 1))
         d = self.client.get("/api/photos/memories").json()
         self.assertGreaterEqual(d["count"], 1)

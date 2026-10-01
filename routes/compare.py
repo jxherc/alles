@@ -1,13 +1,24 @@
-import json, uuid, asyncio
+import asyncio
+import json
+import uuid
 from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from core.settings import data_dir
+
 router = APIRouter(prefix="/api")
 
-_COMPARE_DIR = Path(__file__).parent.parent / "data" / "compare"
-_COMPARE_DIR.mkdir(parents=True, exist_ok=True)
+_COMPARE_DIR: Path | None = None
+
+
+def compare_dir() -> Path:
+    d = _COMPARE_DIR or data_dir() / "compare"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
 
 # active compare tasks: compare_id → list of (endpoint, model, messages, stop_event)
 _active: dict[str, list] = {}
@@ -26,17 +37,15 @@ class CompareRequest(BaseModel):
 
 @router.post("/compare")
 async def start_compare(body: CompareRequest):
-    from core.database import SessionLocal, ModelEndpoint
-    from core.settings import load_settings
+    from core.database import ModelEndpoint, SessionLocal
+    from core.settings import build_aide_system_prompt, load_settings
 
     if not body.models:
         raise HTTPException(400, "provide at least one model")
 
     compare_id = str(uuid.uuid4())
     settings = load_settings()
-    sys_prompt = body.system_prompt or settings.get(
-        "system_prompt", "You are aide, a helpful AI assistant."
-    )
+    sys_prompt = build_aide_system_prompt(settings, body.system_prompt)
 
     db = SessionLocal()
     try:
@@ -61,7 +70,9 @@ async def start_compare(body: CompareRequest):
 @router.get("/compare/{compare_id}/stream/{idx}")
 async def compare_stream(compare_id: str, idx: int):
     streams = _active.get(compare_id)
-    if not streams or idx < 0 or idx >= len(streams):  # idx<0 would index from the end (wrong stream)
+    if (
+        not streams or idx < 0 or idx >= len(streams)
+    ):  # idx<0 would index from the end (wrong stream)
         raise HTTPException(404)
 
     entry = streams[idx]
@@ -107,7 +118,7 @@ class VoteBody(BaseModel):
 @router.post("/compare/vote")
 def record_vote(body: VoteBody):
     """record which model won a head-to-head — feeds the win-rate leaderboard."""
-    from core.database import SessionLocal, ModelVote
+    from core.database import ModelVote, SessionLocal
 
     if not body.winner.strip():
         raise HTTPException(400, "winner required")
@@ -123,7 +134,7 @@ def record_vote(body: VoteBody):
 @router.get("/compare/stats")
 def compare_stats():
     """per-model wins/losses/win-rate, most-won first."""
-    from core.database import SessionLocal, ModelVote
+    from core.database import ModelVote, SessionLocal
 
     db = SessionLocal()
     try:

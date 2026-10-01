@@ -37,6 +37,25 @@ class VoiceWaveTests(unittest.TestCase):
     def test_scrolls_left_newest_right(self):
         self.assertIn("W - 4 - n * step", VOICE)
 
+    def test_recording_can_be_cancelled_without_transcription(self):
+        self.assertIn("export function cancelRecording()", VOICE)
+        self.assertIn("_sr?.abort()", VOICE)
+        self.assertIn("take !== _take", VOICE)
+
+    def test_each_recording_gets_a_new_take_id(self):
+        self.assertIn("const take = ++_take", VOICE)
+
+    def test_permission_prompt_cannot_start_two_recordings(self):
+        self.assertIn("let _starting = false", VOICE)
+        self.assertIn("if (_recording || _starting || _settling) return", VOICE)
+
+    def test_stopped_take_settles_before_another_recording_can_start(self):
+        self.assertIn("let _settling = false", VOICE)
+        self.assertIn("_settling = Boolean(_recorder)", VOICE)
+        self.assertIn("_settling = Boolean(_sr)", VOICE)
+        self.assertIn("_settling = false", VOICE)
+        self.assertIn("_recording || _starting || _settling", VOICE)
+
 
 if __name__ == "__main__":
     unittest.main()

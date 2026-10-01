@@ -3,6 +3,14 @@
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const SPECS = {
+  notes: { title: 'notes & docs', apply: () => window._reloadNotes?.(), fields: [
+    { k: 'vault_dir', type: 'text', label: 'vault folder (Obsidian)', ph: 'data/vault' },
+    { type: 'note', text: 'Your notes & docs live here as plain markdown. Point this at an Obsidian vault folder, or copy the path and "Open folder as vault" in Obsidian.' },
+    { type: 'action', label: 'open in Obsidian', act: '_openInObsidian' },
+    { type: 'action', label: 'copy vault path', act: '_copyVaultPath' },
+    { type: 'note', text: 'Sync across devices: install Syncthing here and on your phone/laptop, add this vault folder on each, and link them. Obsidian then opens the same notes everywhere.' },
+    { type: 'action', label: 'download Obsidian plugin', act: '_downloadPlugin' },
+  ] },
   files: { title: 'files', apply: () => window._reloadFiles?.(), fields: [
     { k: 'files_dir', type: 'text', label: 'root directory', ph: 'data/files' },
   ] },
@@ -12,7 +20,6 @@ const SPECS = {
   ] },
   calendar: { title: 'calendar', apply: () => window._reloadCalendar?.(), fields: [
     { k: 'cal_default_view', type: 'choice', label: 'default view', opts: [['month', 'month'], ['week', 'week']] },
-    { k: 'cal_week_start', type: 'choice', label: 'week starts on', opts: [['sun', 'sunday'], ['mon', 'monday']] },
     { k: 'cal_default_duration_min', type: 'choice', num: true, label: 'default duration', opts: [['30', '30 min'], ['60', '1 hour'], ['90', '90 min'], ['120', '2 hours']] },
     { k: 'cal_work_start', type: 'text', num: true, label: 'work hours start (0–23)', ph: '9' },
     { k: 'cal_work_end', type: 'text', num: true, label: 'work hours end (0–23)', ph: '18' },
@@ -24,31 +31,65 @@ const SPECS = {
   mail: { title: 'mail', apply: () => window._reloadMail?.(), fields: [
     { k: 'mail_poll_seconds', type: 'choice', num: true, label: 'check every', opts: [['30', '30s'], ['60', '1m'], ['300', '5m']] },
     { k: 'mail_threads', type: 'choice', label: 'message grouping', opts: [['flat', 'flat list'], ['group', 'group by conversation']] },
-    { k: 'mail_signature', type: 'textarea', label: 'signature', ph: '— sent from alles' },
+    { k: 'mail_signature', type: 'textarea', label: 'signature', ph: '-- sent from alles' },
     { type: 'action', label: 'accounts', act: '_mailAccounts' },
     { type: 'action', label: 'rules & vacation responder', act: '_mailRules' },
   ] },
   contacts: { title: 'contacts', fields: [
     { type: 'action', label: 'CardDAV sync', act: '_contactsCardDav' },
   ] },
+  journal: { title: 'journal', apply: () => window._reloadJournal?.(), fields: [
+    { k: 'journal_mirror_vault', type: 'toggle', label: 'mirror to Obsidian daily notes' },
+    { type: 'note', text: 'Writes each entry to Journal/YYYY-MM-DD.md in your vault, editable in Obsidian and synced back. Off by default. Setting a journal passcode pauses this and removes the mirrored files.' },
+  ] },
 };
 
 let _open = null;
 
-function _field(f, val) {
+export function appSettingValue(el) {
+  const v = (el.value || '').trim();
+  if (el.dataset.num !== '1') return v;
+  if (v === '') return '';
+  const n = Number(v);
+  return Number.isFinite(n) ? n : v;
+}
+
+export function renderAppSettingField(f, val) {
   if (f.type === 'choice') {
     return `<div class="aps-field"><label>${f.label}</label><div class="seg" data-k="${f.k}"${f.num ? ' data-num="1"' : ''}>` +
       f.opts.map(([v, l]) => `<button type="button" class="seg-opt${String(val) === String(v) ? ' active' : ''}" data-val="${v}">${l}</button>`).join('') + `</div></div>`;
   }
+  if (f.type === 'toggle') {
+    return `<div class="aps-field aps-toggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label style="margin:0">${f.label}</label><div class="s-switch${val ? ' on' : ''}" data-tk="${f.k}"></div></div>`;
+  }
+  if (f.type === 'note') return `<div class="aps-note" style="font-size:0.75rem;opacity:0.7;line-height:1.45;margin:2px 0 6px">${esc(f.text)}</div>`;
   if (f.type === 'action') return `<button type="button" class="aps-action" data-act="${esc(f.act)}">${esc(f.label)}</button>`;
   if (f.type === 'textarea') return `<div class="aps-field"><label>${f.label}</label><textarea class="settings-textarea" data-k="${f.k}" rows="2" placeholder="${esc(f.ph || '')}">${esc(val || '')}</textarea></div>`;
-  return `<div class="aps-field"><label>${f.label}</label><input class="settings-input" data-k="${f.k}" placeholder="${esc(f.ph || '')}" value="${esc(val || '')}"></div>`;
+  const num = f.num ? ' data-num="1" inputmode="numeric"' : '';
+  return `<div class="aps-field"><label>${f.label}</label><input class="settings-input" data-k="${f.k}"${num} placeholder="${esc(f.ph || '')}" value="${esc(val ?? '')}"></div>`;
 }
 
 function _patch(spec, k, v) {
   fetch('/api/settings', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ [k]: v }) })
     .then(() => spec.apply?.()).catch(() => {});
 }
+
+// built-in actions (the "connect to Obsidian" buttons), resolved before any window.* hook
+async function _vaultLoc() {
+  return fetch('/api/vault-location').then(r => r.json()).catch(() => null);
+}
+async function _openInObsidian() {
+  const loc = await _vaultLoc();
+  if (loc?.obsidian) location.href = loc.obsidian;  // best-effort; needs the folder added as a vault
+}
+async function _copyVaultPath() {
+  const loc = await _vaultLoc();
+  if (!loc?.path) return;
+  try { await navigator.clipboard.writeText(loc.path); } catch {}
+  import('./util.js').then(m => m.toast?.('vault path copied', 'success')).catch(() => {});
+}
+function _downloadPlugin() { location.href = '/api/download/obsidian-plugin'; }
+const ACTIONS = { _openInObsidian, _copyVaultPath, _downloadPlugin };
 
 export function closeAppSettings() {
   if (_open) { _open.pop.remove(); document.removeEventListener('click', _outside); _open = null; }
@@ -65,7 +106,7 @@ export async function openAppSettings(app, anchor) {
   const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
   const pop = document.createElement('div');
   pop.className = 'app-settings-pop';
-  pop.innerHTML = `<div class="app-settings-title">${spec.title} settings</div>` + spec.fields.map(f => _field(f, s[f.k])).join('');
+  pop.innerHTML = `<div class="app-settings-title">${spec.title} settings</div>` + spec.fields.map(f => renderAppSettingField(f, s[f.k])).join('');
   document.body.appendChild(pop);
   const r = anchor.getBoundingClientRect();
   pop.style.top = (r.bottom + 6) + 'px';
@@ -80,14 +121,20 @@ export async function openAppSettings(app, anchor) {
       _patch(spec, seg.dataset.k, num ? Number(opt.dataset.val) : opt.dataset.val);
     }));
   });
+  // toggles
+  pop.querySelectorAll('.s-switch[data-tk]').forEach(sw => sw.addEventListener('click', () => {
+    const on = !sw.classList.contains('on');
+    sw.classList.toggle('on', on);
+    _patch(spec, sw.dataset.tk, on);
+  }));
   // text / textarea (debounced)
   pop.querySelectorAll('input[data-k], textarea[data-k]').forEach(el => {
-    let t; el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => _patch(spec, el.dataset.k, el.value.trim()), 500); });
+    let t; el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => _patch(spec, el.dataset.k, appSettingValue(el)), 500); });
   });
   // action buttons (e.g. mail's accounts / rules panels) → close the popover, run the hook
   pop.querySelectorAll('.aps-action').forEach(btn => btn.addEventListener('click', () => {
     closeAppSettings();
-    window[btn.dataset.act]?.();
+    (ACTIONS[btn.dataset.act] || window[btn.dataset.act])?.();
   }));
   setTimeout(() => document.addEventListener('click', _outside), 0);
 }

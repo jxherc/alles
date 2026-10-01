@@ -1,0 +1,236 @@
+import json
+import re
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SYSTEM = ROOT / "design-system"
+
+
+class DesignSystemContractTests(unittest.TestCase):
+    def test_required_sources_exist_and_have_no_placeholders(self):
+        required = (
+            "README.md",
+            "PRODUCT.md",
+            "PRINCIPLES.md",
+            "BRAND.md",
+            "FOUNDATIONS.md",
+            "COMPONENTS.md",
+            "PATTERNS.md",
+            "CONTENT.md",
+            "ACCESSIBILITY.md",
+            "RESPONSIVE.md",
+            "MOTION.md",
+            "QA-CHECKLIST.md",
+        )
+        for name in required:
+            path = SYSTEM / name
+            self.assertTrue(path.is_file(), name)
+            self.assertNotIn("TODO", path.read_text(encoding="utf-8"), name)
+
+    def test_design_system_map_points_to_published_sources(self):
+        text = (SYSTEM / "README.md").read_text(encoding="utf-8")
+        sources = re.findall(r"^- `([^`]+)`:", text, flags=re.MULTILINE)
+        self.assertIn("FOUNDATIONS.md", sources)
+        self.assertIn("components/contracts.json", sources)
+        for source in sources:
+            with self.subTest(source=source):
+                path = SYSTEM / source
+                self.assertTrue(path.resolve().is_relative_to(SYSTEM.resolve()), source)
+                self.assertTrue(path.is_dir() if source.endswith("/") else path.is_file(), source)
+
+    def test_token_files_are_json_and_aliases_resolve(self):
+        token_paths = set()
+        aliases = []
+
+        def walk(value, parts=()):
+            if isinstance(value, dict):
+                if "$value" in value:
+                    token_paths.add(".".join(parts))
+                    token_value = value["$value"]
+                    if isinstance(token_value, str):
+                        aliases.extend(re.findall(r"\{([^}]+)\}", token_value))
+                for key, child in value.items():
+                    if not key.startswith("$"):
+                        walk(child, (*parts, key))
+            elif isinstance(value, list):
+                for child in value:
+                    walk(child, parts)
+
+        for name in (
+            "primitives.tokens.json",
+            "semantic.tokens.json",
+            "components.tokens.json",
+        ):
+            with (SYSTEM / "tokens" / name).open(encoding="utf-8") as handle:
+                walk(json.load(handle))
+
+        self.assertTrue(token_paths)
+        self.assertEqual([], sorted(set(aliases) - token_paths))
+
+    def test_spacing_contract_is_exact(self):
+        with (SYSTEM / "tokens/primitives.tokens.json").open(encoding="utf-8") as handle:
+            tokens = json.load(handle)
+        values = [entry["$value"]["value"] for entry in tokens["space"].values()]
+        self.assertEqual([0, 4, 8, 12, 16, 24, 32, 48, 64], values)
+
+        with (SYSTEM / "tokens/semantic.tokens.json").open(encoding="utf-8") as handle:
+            semantic = json.load(handle)["space"]
+        self.assertEqual("{space.300}", semantic["card"]["$value"])
+        self.assertEqual("{space.400}", semantic["header"]["$value"])
+        self.assertEqual("{space.400}", semantic["region"]["$value"])
+        self.assertEqual("{space.600}", semantic["section"]["$value"])
+        self.assertEqual("{space.800}", semantic["major"]["$value"])
+
+    def test_runtime_exposes_portable_kokuen_v5_tokens(self):
+        css = (ROOT / "static" / "kokuen.css").read_text(encoding="utf-8")
+        expected = {
+            "--k-space-0": "0",
+            "--k-space-1": "4px",
+            "--k-space-2": "8px",
+            "--k-space-3": "12px",
+            "--k-space-4": "16px",
+            "--k-space-5": "24px",
+            "--k-space-6": "32px",
+            "--k-space-7": "48px",
+            "--k-space-8": "64px",
+        }
+        for token, value in expected.items():
+            with self.subTest(token=token):
+                self.assertRegex(css, rf"{re.escape(token)}:\s*{re.escape(value)};")
+                self.assertIn(f"--ui-space-{token.rsplit('-', 1)[1]}: var({token});", css)
+        for token in (
+            "canvas",
+            "surface",
+            "text",
+            "muted",
+            "border",
+            "border-strong",
+            "focus",
+            "error",
+            "success",
+            "control-height",
+            "page-gutter",
+            "content-max",
+            "radius-control",
+            "radius-container",
+        ):
+            self.assertIn(f"--ui-{token}:", css)
+
+        runtime = (ROOT / "static/js/kokuen.js").read_text(encoding="utf-8")
+        app = (ROOT / "static/js/app.js").read_text(encoding="utf-8")
+        self.assertIn("dataset.kokuenVersion = '5'", runtime)
+        self.assertIn("initKokuenPrimitives(document)", app)
+
+    def test_kokuen_v5_component_contracts_are_complete(self):
+        with (SYSTEM / "components/contracts.json").open(encoding="utf-8") as handle:
+            contracts = json.load(handle)
+
+        required_states = [
+            "resting",
+            "hover",
+            "pressed",
+            "selected",
+            "disabled",
+            "busy",
+            "invalid",
+            "loading",
+            "empty",
+            "permission",
+            "offline",
+            "stale",
+            "partial",
+            "error",
+        ]
+        required_ids = {
+            "kokuen.action",
+            "kokuen.icon-action",
+            "kokuen.field",
+            "kokuen.switch",
+            "kokuen.select-listbox",
+            "kokuen.tabs",
+            "kokuen.menu",
+            "kokuen.dialog",
+            "kokuen.sheet",
+            "kokuen.command",
+            "kokuen.data-view",
+            "kokuen.feedback",
+        }
+        self.assertEqual(required_states, contracts["state_vocabulary"])
+        self.assertEqual(required_ids, {item["id"] for item in contracts["contracts"]})
+        for item in contracts["contracts"]:
+            with self.subTest(contract=item["id"]):
+                self.assertEqual("stable", item["status"])
+                self.assertTrue(item["boundary_rationale"])
+                self.assertTrue(item["keyboard"]["keys"])
+                self.assertTrue(item["accessibility"]["role"])
+                self.assertTrue(item["fixtures"])
+
+    def test_kokuen_v5_targets_use_the_44px_control_token(self):
+        with (SYSTEM / "tokens/components.tokens.json").open(encoding="utf-8") as handle:
+            components = json.load(handle)
+        expected = "{size.controlNormal}"
+        self.assertEqual(expected, components["row"]["denseHeight"]["$value"])
+        self.assertEqual(expected, components["row"]["normalHeight"]["$value"])
+        self.assertEqual(expected, components["iconAction"]["desktopTarget"]["$value"])
+        self.assertEqual(expected, components["iconAction"]["touchTarget"]["$value"])
+        self.assertEqual(expected, components["menu"]["itemMinHeight"]["$value"])
+        self.assertEqual(expected, components["field"]["minHeight"]["$value"])
+        self.assertEqual(expected, components["shell"]["navigationTarget"]["$value"])
+
+    def test_focus_is_neutral_and_active_state_keeps_the_accent(self):
+        with (SYSTEM / "tokens/semantic.tokens.json").open(encoding="utf-8") as handle:
+            themes = json.load(handle)["theme"]
+        self.assertEqual(
+            "{color.dark.lineStrong}", themes["dark"]["color"]["border"]["focus"]["$value"]
+        )
+        self.assertEqual(
+            "{color.light.lineStrong}", themes["light"]["color"]["border"]["focus"]["$value"]
+        )
+        self.assertEqual(
+            "{color.shared.accentDark}", themes["dark"]["color"]["action"]["active"]["$value"]
+        )
+        self.assertEqual(
+            "{color.shared.accentLight}", themes["light"]["color"]["action"]["active"]["$value"]
+        )
+
+    def test_text_colors_clear_wcag_aa(self):
+        with (SYSTEM / "tokens/primitives.tokens.json").open(encoding="utf-8") as handle:
+            tokens = json.load(handle)["color"]
+
+        def luminance(color):
+            self.assertEqual(color["colorSpace"], "srgb")
+            self.assertEqual(color["alpha"], 1)
+            channels = color["components"]
+            linear = [
+                value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+                for value in channels
+            ]
+            return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+        def contrast(foreground, background):
+            lighter, darker = sorted((luminance(foreground), luminance(background)), reverse=True)
+            return (lighter + 0.05) / (darker + 0.05)
+
+        for theme in ("dark", "light"):
+            background = tokens[theme]["page"]["$value"]
+            for role in ("text", "soft", "muted", "quiet"):
+                with self.subTest(theme=theme, role=role):
+                    self.assertGreaterEqual(
+                        contrast(tokens[theme][role]["$value"], background), 4.5
+                    )
+
+        for role in ("accent", "permission", "danger", "success"):
+            for theme in ("Dark", "Light"):
+                with self.subTest(theme=theme, role=role):
+                    self.assertGreaterEqual(
+                        contrast(
+                            tokens["shared"][f"{role}{theme}"]["$value"],
+                            tokens[theme.lower()]["page"]["$value"],
+                        ),
+                        4.5,
+                    )
+
+
+if __name__ == "__main__":
+    unittest.main()

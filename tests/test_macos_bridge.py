@@ -1,5 +1,6 @@
 import sys
 import unittest
+from unittest import mock
 
 from services import macos_bridge as mb
 from tests._client import ApiTest
@@ -35,12 +36,28 @@ class MacosBridgeTest(unittest.TestCase):
 
 class MacCapabilitiesTest(unittest.TestCase):
     def test_capabilities_shape(self):
-        cap = mb.capabilities()
+        with mock.patch(
+            "services.photokit.status",
+            return_value={
+                "available": _NOT_MAC is False,
+                "ready": False,
+                "authorization": "not_determined",
+            },
+        ):
+            cap = mb.capabilities()
         for k in ("platform", "available", "keychain", "eventkit", "photokit", "icloud"):
             self.assertIn(k, cap)
 
     def test_capabilities_available_matches_platform(self):
-        self.assertEqual(mb.capabilities()["available"], sys.platform == "darwin")
+        with mock.patch(
+            "services.photokit.status",
+            return_value={
+                "available": _NOT_MAC is False,
+                "ready": False,
+                "authorization": "not_determined",
+            },
+        ):
+            self.assertEqual(mb.capabilities()["available"], sys.platform == "darwin")
 
     def test_icloud_dir_off_darwin(self):
         if _NOT_MAC:
@@ -63,7 +80,15 @@ class MacIcalParseTest(unittest.TestCase):
 
 class MacApiTest(ApiTest):
     def test_api_status_has_available(self):
-        st = self.client.get("/api/macos/status").json()
+        with mock.patch(
+            "services.photokit.status",
+            return_value={
+                "available": _NOT_MAC is False,
+                "ready": False,
+                "authorization": "not_determined",
+            },
+        ):
+            st = self.client.get("/api/macos/status").json()
         self.assertIn("available", st)
         self.assertEqual(st["available"], sys.platform == "darwin")
 

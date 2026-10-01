@@ -4,6 +4,7 @@ due in the next year, so they're easy to break silently. these lock the behavior
 
 import datetime
 import unittest
+from unittest import mock
 
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
@@ -58,6 +59,13 @@ class QuarterTests(unittest.TestCase):
         self.assertEqual(u["due"], "2026-04-15")
         self.assertEqual(u["days"], 14)
 
+    def test_upcoming_due_picks_soonest_due_not_table_order(self):
+        q1, q2, q3, q4 = income._QUARTERS
+        with mock.patch.object(income, "_QUARTERS", [q2, q1, q3, q4]):
+            u = income.upcoming_due(datetime.date(2026, 4, 1), window_days=100)
+        self.assertEqual(u["label"], "Q1")
+        self.assertEqual(u["due"], "2026-04-15")
+
     def test_upcoming_due_crosses_year(self):
         # late december → the Q4 payment due jan 15 next year is what's near
         u = income.upcoming_due(datetime.date(2026, 12, 30), window_days=21)
@@ -93,7 +101,10 @@ class DbTests(unittest.TestCase):
     def _txn(self, date_str, amount, payee="", transfer_id=None):
         self.s.add(
             db.Transaction(
-                account_id=self.acc.id, date=date_str, amount=amount, payee=payee,
+                account_id=self.acc.id,
+                date=date_str,
+                amount=amount,
+                payee=payee,
                 transfer_id=transfer_id,
             )
         )

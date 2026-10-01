@@ -36,8 +36,12 @@ class PhotosStackDupTests(ApiTest):
     # ---- duplicate detection (review-based: imports keep both, /duplicates surfaces them) ----
     def test_reupload_surfaces_in_duplicates(self):
         data = _img(800, 600)
-        a = self.client.post("/api/photos/upload", files={"file": ("a.jpg", data, "image/jpeg")}).json()
-        b = self.client.post("/api/photos/upload", files={"file": ("a2.jpg", data, "image/jpeg")}).json()
+        a = self.client.post(
+            "/api/photos/upload", files={"file": ("a.jpg", data, "image/jpeg")}
+        ).json()
+        b = self.client.post(
+            "/api/photos/upload", files={"file": ("a2.jpg", data, "image/jpeg")}
+        ).json()
         self.assertNotEqual(a["id"], b["id"])  # both rows kept
         d = self.client.get("/api/photos/duplicates").json()
         self.assertEqual(len(d["groups"]), 1)

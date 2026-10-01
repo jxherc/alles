@@ -42,10 +42,12 @@ def reschedule_date(when: str, today: date | None = None) -> str:
     raise ValueError("unknown reschedule target")
 
 
-def parse_task(text: str, today: date | None = None) -> dict:
+def parse_task(text: str, today: date | None = None, language: str = "en") -> dict:
+    from services.localized_input import normalize_quick_add
+
     today = today or date.today()
     out = {"title": "", "due_date": None, "repeat": "", "priority": 0, "tags": ""}
-    t = f" {text.strip()} "
+    t = f" {normalize_quick_add(text, language)} "
 
     # priority — a standalone ! (high-ish) or !! (high), on the app's 0=none..3=high scale
     m = re.search(r"\s(!{1,2})(?=\s)", t)
@@ -59,23 +61,24 @@ def parse_task(text: str, today: date | None = None) -> dict:
         out["tags"] = ",".join(dict.fromkeys(tags))
         t = re.sub(r"#[\w-]+", " ", t)
 
-    # recurrence — "every X". consumes the phrase so it doesn't pollute the title.
+    # recurrence — "every X" or a canonical localized token. consumes the phrase so it
+    # doesn't pollute the title.
     m = re.search(
-        r"\bevery\s+(day|week|month|year|"
+        r"\b(?:(?:every\s+(day|week|month|year|"
         r"mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|"
-        r"(\d{1,2})(?:st|nd|rd|th))\b",
+        r"(\d{1,2})(?:st|nd|rd|th|er)))|(daily|weekly|monthly|yearly))\b",
         t,
         re.I,
     )
     if m:
-        word = m.group(1).lower()
-        if word.startswith("day"):
+        word = (m.group(1) or m.group(3)).lower()
+        if word == "daily" or word.startswith("day"):
             out["repeat"] = "daily"
-        elif word.startswith("week"):
+        elif word == "weekly" or word.startswith("week"):
             out["repeat"] = "weekly"
-        elif word.startswith("month"):
+        elif word == "monthly" or word.startswith("month"):
             out["repeat"] = "monthly"
-        elif word.startswith("year"):
+        elif word == "yearly" or word.startswith("year"):
             out["repeat"] = "yearly"
         elif m.group(2):  # "every 1st" → monthly on that day
             import calendar
@@ -98,6 +101,55 @@ def parse_task(text: str, today: date | None = None) -> dict:
 
     out["title"] = re.sub(r"\s+", " ", t).strip(" -,") or text.strip()
     return out
+
+
+_MONTHS = {
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
+}
+_MONTH_RE = (
+    r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|"
+    r"aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+)
+
+
+def _month_name_date(t: str, today: date):
+    """parse 'june 20' / '20 jun' / 'dec 25, 2027' → (iso, span). a bare month+day with
+    no year that's already past this year rolls to next year. returns None if no match."""
+    import calendar as _c
+
+    # the (?!\d) after the day stops "june 2027" from reading "20" as the day-of-month
+    for pat, order in (
+        (rf"\b({_MONTH_RE})\b\.?\s+(\d{{1,2}})(?:st|nd|rd|th)?(?!\d)(?:,?\s+(\d{{4}}))?\b", "md"),
+        (rf"\b(\d{{1,2}})(?:st|nd|rd|th)?(?!\d)\s+({_MONTH_RE})\b(?:,?\s+(\d{{4}}))?", "dm"),
+    ):
+        m = re.search(pat, t, re.I)
+        if not m:
+            continue
+        if order == "md":
+            mon, day, yr = _MONTHS[m.group(1).lower()[:3]], int(m.group(2)), m.group(3)
+        else:
+            day, mon, yr = int(m.group(1)), _MONTHS[m.group(2).lower()[:3]], m.group(3)
+        if not (1 <= day <= 31):
+            continue
+        year = int(yr) if yr else today.year
+        # roll a bare (no explicit year) month+day that's already past to next year, THEN clamp
+        # the day once so e.g. "feb 30" -> feb 28 and we never build an invalid date.
+        if not yr and (mon, day) < (today.month, today.day):
+            year += 1
+        day = min(day, _c.monthrange(year, mon)[1])
+        return date(year, mon, day).isoformat(), m.span()
+    return None
 
 
 def _extract_date(t: str, today: date):
@@ -125,6 +177,11 @@ def _extract_date(t: str, today: date):
     if m:
         n = int(m.group(1)) * (7 if m.group(2).startswith("week") else 1)
         return (today + timedelta(days=n)).isoformat(), strip(m.span())
+
+    # month-name dates: "june 20", "20 jun", "dec 25 2027", "jan 3rd"
+    md = _month_name_date(t, today)
+    if md:
+        return md[0], strip(md[1])
 
     m = re.search(
         r"\bnext\s+(week|month|"
@@ -177,6 +234,9 @@ def advance(due: str, repeat: str, anchor: int | None = None) -> str | None:
         return _add_month(d, anchor).isoformat()
     if repeat == "yearly":
         import calendar
+
         y = d.year + 1
-        return date(y, d.month, min(anchor or d.day, calendar.monthrange(y, d.month)[1])).isoformat()
+        return date(
+            y, d.month, min(anchor or d.day, calendar.monthrange(y, d.month)[1])
+        ).isoformat()
     return None

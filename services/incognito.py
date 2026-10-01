@@ -1,0 +1,153 @@
+"""Short-lived in-memory sessions and uploads for no-trace conversations."""
+
+import threading
+import uuid
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+
+_TTL = timedelta(hours=4)
+_LOCK = threading.RLock()
+
+
+@dataclass
+class IncognitoSession:
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    name: str = "incognito chat"
+    model: str = ""
+    endpoint_id: str | None = None
+    mode: str = "chat"
+    chat_behavior: str = ""
+    persona_id: str | None = None
+    project_id: str | None = None
+    working_dir: str = ""
+    starred: bool = False
+    archived: bool = False
+    incognito: bool = True
+    message_count: int = 0
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    last_message_at: datetime | None = None
+    messages: list = field(default_factory=list)
+    project: object | None = None
+    expires_at: datetime = field(
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None) + _TTL
+    )
+
+
+@dataclass
+class IncognitoUpload:
+    id: str
+    name: str
+    mime_type: str
+    content: bytes
+    expires_at: datetime = field(
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None) + _TTL
+    )
+
+
+@dataclass
+class IncognitoMessage:
+    role: str
+    content: str
+    meta: str = "{}"
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+
+    def meta_dict(self) -> dict:
+        import json
+
+        try:
+            value = json.loads(self.meta or "{}")
+        except (TypeError, ValueError):
+            return {}
+        return value if isinstance(value, dict) else {}
+
+
+_SESSIONS: dict[str, IncognitoSession] = {}
+_UPLOADS: dict[str, IncognitoUpload] = {}
+
+
+def _purge() -> None:
+    now = datetime.now(UTC).replace(tzinfo=None)
+    for key, value in list(_SESSIONS.items()):
+        if value.expires_at <= now:
+            delete_session(key)
+    for key, value in list(_UPLOADS.items()):
+        if value.expires_at <= now:
+            _UPLOADS.pop(key, None)
+
+
+def create_session(**values) -> IncognitoSession:
+    with _LOCK:
+        _purge()
+        session = IncognitoSession(**values)
+        _SESSIONS[session.id] = session
+        return session
+
+
+def get_session(session_id: str, *, touch: bool = True) -> IncognitoSession | None:
+    with _LOCK:
+        _purge()
+        session = _SESSIONS.get(session_id)
+        if session and touch:
+            session.expires_at = datetime.now(UTC).replace(tzinfo=None) + _TTL
+        return session
+
+
+def delete_session(session_id: str) -> bool:
+    with _LOCK:
+        from services.agent_state import forget_private_session
+
+        forget_private_session(session_id)
+        return _SESSIONS.pop(session_id, None) is not None
+
+
+def append_turn(session_id: str, user_text: str, assistant_text: str, meta: str = "{}") -> bool:
+    with _LOCK:
+        session = get_session(session_id)
+        if not session:
+            return False
+        session.messages.append(IncognitoMessage(role="user", content=user_text))
+        if assistant_text:
+            session.messages.append(
+                IncognitoMessage(role="assistant", content=assistant_text, meta=meta)
+            )
+        session.message_count = len(session.messages)
+        session.last_message_at = datetime.now(UTC).replace(tzinfo=None)
+        return True
+
+
+def put_upload(
+    name: str,
+    mime_type: str,
+    content: bytes,
+    *,
+    upload_id: str | None = None,
+) -> IncognitoUpload:
+    with _LOCK:
+        _purge()
+        upload = IncognitoUpload(upload_id or uuid.uuid4().hex, name, mime_type, bytes(content))
+        if upload.id in _UPLOADS:
+            raise ValueError("upload id already exists")
+        _UPLOADS[upload.id] = upload
+        return upload
+
+
+def get_upload(upload_id: str) -> IncognitoUpload | None:
+    with _LOCK:
+        _purge()
+        upload = _UPLOADS.get(upload_id)
+        if upload:
+            upload.expires_at = datetime.now(UTC).replace(tzinfo=None) + _TTL
+        return upload
+
+
+def delete_upload(upload_id: str) -> bool:
+    with _LOCK:
+        return _UPLOADS.pop(upload_id, None) is not None
+
+
+def clear_for_tests() -> None:
+    with _LOCK:
+        for session_id in list(_SESSIONS):
+            delete_session(session_id)
+        _UPLOADS.clear()

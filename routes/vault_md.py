@@ -1,39 +1,59 @@
-import json
+"""Docs API over the owner's Markdown vault.
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel
+Docs is viewer-first and Obsidian remains the primary editor. Alles also offers an explicit,
+local CodeMirror editor backed by private drafts, expected-hash saves, conflict copies, and
+revisions. The service layer remains shared by Docs, Aide retrieval, search, and Notes.
+"""
+
+import logging
+import threading
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import DocComment, get_db
-from services import share, vault_md
+from core.api_errors import ApiError
+from core.database import get_db
+from services import document_safety, trash, vault_md
 
 router = APIRouter(prefix="/api/vault-md")
+log = logging.getLogger(__name__)
+# Read current bytes after queued refreshes acquire the lock. Otherwise an older,
+# slower embedding job can replace the index produced by a newer save.
+_INDEX_SYNC_LOCK = threading.RLock()
+VAULT_WATCH_INTERVAL = 0.5
+VAULT_KEEPALIVE_SECONDS = 20
 
 
-class PublishFolderBody(BaseModel):
-    folder: str = ""
+def _norm_path(rel: str) -> str:
+    from pathlib import PurePosixPath
+
+    rel = (rel or "").replace("\\", "/")
+    return rel if PurePosixPath(rel).suffix else rel + ".md"
 
 
-@router.post("/publish-folder")
-def publish_folder(body: PublishFolderBody, db: DbSession = Depends(get_db)):
-    """publish every doc in a folder as a navigable read-only site (3c, uses 1a)."""
-    base = vault_md.vault_dir()
-    folder = (body.folder or "").strip().strip("/")
-    out = []
-    for p in base.rglob("*.md"):
-        rel = str(p.relative_to(base)).replace("\\", "/")
-        if any(part.startswith((".", "_")) for part in rel.split("/")):
-            continue
-        in_folder = rel.startswith(folder + "/") if folder else "/" not in rel
-        if not in_folder:
-            continue
-        s = share.mint(db, "doc", rel)
-        out.append({"path": rel, "token": s.token, "url": f"/s/{s.token}"})
-    return {"published": out, "count": len(out)}
+def _is_note(path):
+    # notes live under Notes/ and are indexed as the "note" kind (keyed by stem), not "doc",
+    # so they aren't double-indexed. see services/notes_vault.py
+    return (path or "").replace("\\", "/").startswith("Notes/")
 
 
-# 1c: keep the reusable text index in sync with the vault (best-effort, never breaks a save)
+def _journal_day(path):
+    # journal daily notes (Journal/YYYY-MM-DD.md) are synced to the DB + indexed as the
+    # "journal" kind by services/journal_vault, not as docs. returns the day or None.
+    from services import journal_vault
+
+    return journal_vault.is_daily(path)
+
+
+def _note_stem(path):
+    from pathlib import PurePosixPath
+
+    return PurePosixPath((path or "").replace("\\", "/")).stem
+
+
+# keep the reusable text index in sync with the vault (best-effort, never breaks a write)
 def _reindex_doc(path, content):
     try:
         from core.database import SessionLocal
@@ -41,11 +61,42 @@ def _reindex_doc(path, content):
 
         db = SessionLocal()
         try:
-            textindex.index(db, "doc", path, content)
+            if _is_note(path):
+                from services import personal_index
+
+                personal_index.index_record(db, "note", _note_stem(path))
+            elif _journal_day(path):
+                pass  # journal daily notes are synced + indexed via the watcher, not as docs
+            else:
+                textindex.index(db, "doc", path, content)
         finally:
             db.close()
     except Exception:
-        pass
+        log.exception("could not refresh document search index for %s", path)
+
+
+def _sync_changed(path):
+    """Refresh from current disk state, off the response/event-loop path."""
+    with _INDEX_SYNC_LOCK:
+        try:
+            document = vault_md.read(path)
+            if not document.get("exists"):
+                _unindex_doc(path)
+                return
+            day = _journal_day(path)
+            if day:
+                from core.database import SessionLocal
+                from services import journal_vault
+
+                db = SessionLocal()
+                try:
+                    journal_vault.sync_from_vault(db, day)
+                finally:
+                    db.close()
+                return
+            _reindex_doc(path, document.get("content", ""))
+        except Exception:
+            log.exception("could not synchronize document search state for %s", path)
 
 
 def _unindex_doc(path):
@@ -55,53 +106,60 @@ def _unindex_doc(path):
 
         db = SessionLocal()
         try:
-            textindex.remove(db, "doc", path)
+            if _is_note(path):
+                from services import personal_index
+
+                personal_index.remove_record(db, "note", _note_stem(path))
+            else:
+                textindex.remove(db, "doc", path)
         finally:
             db.close()
     except Exception:
-        pass
+        log.exception("could not remove document search index for %s", path)
 
 
-def _docs_ai(db):
-    """resolve (endpoint, model) for docs AI — honour the `docs_ai_model` setting if it
-    names a model an enabled endpoint serves, else fall back to the first enabled endpoint."""
-    from core.database import ModelEndpoint
-    from core.settings import load_settings
+def _sync_rename_indexes(manifest: dict) -> None:
+    state = manifest.get("state")
+    if state == "complete":
+        old_path = manifest.get("old_path", "")
+        current_paths = {manifest.get("new_path", "")}
+        current_paths.update(change.get("path_after", "") for change in manifest.get("changes", []))
+        _sync_changed(old_path)
+    elif state == "rolled_back":
+        current_paths = {manifest.get("old_path", "")}
+        current_paths.update(
+            change.get("path_before", "") for change in manifest.get("changes", [])
+        )
+        _sync_changed(manifest.get("new_path", ""))
+    else:
+        return
 
-    pref = (load_settings().get("docs_ai_model") or "").strip()
-    eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()
-    if pref:
-        for ep in eps:
-            if pref in ep.models_list():
-                return ep, pref
-    ep = eps[0] if eps else None
-    if not ep:
-        return None, ""
-    return ep, (ep.models_list()[0] if ep.models_list() else "")
-
-
-@router.get("/export-docx")
-def export_docx(path: str):
-    cur = vault_md.read(path)
-    if not cur.get("exists"):
-        raise HTTPException(404, "note not found")
-    try:
-        from services.docx_export import md_to_docx
-    except Exception:
-        raise HTTPException(500, "python-docx not installed (pip install python-docx)")
-    title = path.split("/")[-1].rsplit(".", 1)[0]
-    data = md_to_docx(cur["content"], title)
-    fname = (title or "note").replace('"', "") + ".docx"
-    return Response(
-        content=data,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"content-disposition": f'attachment; filename="{fname}"'},
-    )
+    for path in sorted(current_paths):
+        if not path:
+            continue
+        _sync_changed(path)
 
 
+def _sync_folder_indexes(old_path: str, new_path: str, current_paths: list[str]) -> None:
+    old_pre = old_path.strip("/") + "/"
+    new_pre = new_path.strip("/") + "/"
+    for rel_new in current_paths:
+        _sync_changed(old_pre + rel_new[len(new_pre) :])
+        _sync_changed(rel_new)
+
+
+# ── read / browse ────────────────────────────────────────────────────────────
 @router.get("/tree")
 def tree():
     return vault_md.tree()
+
+
+@router.get("/file")
+def read_file(path: str):
+    try:
+        return vault_md.read(path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/raw")
@@ -115,751 +173,29 @@ def raw_asset(path: str):
     return Response(content=data, media_type=mime, headers={"cache-control": "no-cache"})
 
 
-@router.get("/file")
-def read_file(path: str):
-    try:
-        return vault_md.read(path)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-class WriteBody(BaseModel):
-    path: str
-    content: str = ""
-
-
-_REV_GAP = 300  # min seconds between automatic snapshots of the same doc
-_REV_KEEP = 50  # revisions kept per doc
-
-
-def _norm_path(rel: str) -> str:
-    from pathlib import PurePosixPath
-
-    rel = (rel or "").replace("\\", "/")
-    return rel if PurePosixPath(rel).suffix else rel + ".md"
-
-
-def _snapshot(rel: str, force: bool = False):
-    """store the doc's current on-disk content as a revision (its pre-change
-    state). autosave fires every keystroke pause, so unforced snapshots are
-    rate-limited — you get the pre-session state plus one every ~5 minutes."""
-    from datetime import datetime
-
-    from core.database import DocRevision, SessionLocal
-
-    rel = _norm_path(rel)
-    try:
-        cur = vault_md.read(rel)
-    except ValueError:
-        return
-    if not cur.get("exists"):
-        return
-    db = SessionLocal()
-    try:
-        last = (
-            db.query(DocRevision)
-            .filter_by(path=rel)
-            .order_by(DocRevision.created_at.desc())
-            .first()
-        )
-        if last and last.content == cur["content"]:
-            return
-        if not force and last and (datetime.utcnow() - last.created_at).total_seconds() < _REV_GAP:
-            return
-        db.add(DocRevision(path=rel, content=cur["content"]))
-        for old in (
-            db.query(DocRevision)
-            .filter_by(path=rel)
-            .order_by(DocRevision.created_at.desc())
-            .offset(_REV_KEEP)
-            .all()
-        ):
-            db.delete(old)
-        db.commit()
-    finally:
-        db.close()
-
-
-@router.put("/file")
-async def write_file(body: WriteBody):
-    try:
-        _snapshot(body.path)
-        out = vault_md.write(body.path, body.content)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    try:
-        from services.automations import on_doc_saved
-
-        await on_doc_saved(out.get("path", body.path), body.content or "")
-    except Exception:
-        pass  # automations must never break a save
-    _reindex_doc(out.get("path", body.path), body.content or "")
-    return out
-
-
-class PathBody(BaseModel):
-    path: str
-    content: str = ""
-
-
-@router.post("/file")
-def create_file(body: PathBody):
-    try:
-        return vault_md.create(body.path, body.content)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-@router.delete("/file")
-def delete_file(path: str):
-    try:
-        out = vault_md.delete(path)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    _unindex_doc(path)
-    return out
-
-
-class RenameBody(BaseModel):
-    path: str
-    new_path: str
-
-
-@router.post("/rename")
-def rename_file(body: RenameBody):
-    try:
-        out = vault_md.rename(body.path, body.new_path)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    new_path = out.get("path", _norm_path(body.new_path))
-    is_file = new_path.lower().endswith((".md", ".markdown"))
-    old_norm = _norm_path(body.path)
-    # carry the history along with the doc. a folder rename moves many child docs, so re-point
-    # every revision under the old folder prefix (the single path-equality update only fits files).
-    from core.database import DocRevision, SessionLocal
-
-    moved = {}  # old child path -> new child path (for folder renames, to fix the index too)
-    db = SessionLocal()
-    try:
-        if is_file:
-            db.query(DocRevision).filter_by(path=old_norm).update({"path": new_path})
-        else:
-            old_pre = body.path.strip("/") + "/"
-            new_pre = new_path.strip("/") + "/"
-            for r in db.query(DocRevision).all():
-                if r.path and r.path.startswith(old_pre):
-                    np = new_pre + r.path[len(old_pre):]
-                    moved[r.path] = np
-                    r.path = np
-        db.commit()
-    finally:
-        db.close()
-    # renaming a FILE changes its [[wikilink]] name → rewrite every backlink so the
-    # graph doesn't silently break. snapshot affected notes first so it's undoable.
-    out["links_rewritten"] = 0
-    if new_path.lower().endswith((".md", ".markdown")):
-        from pathlib import PurePosixPath
-
-        old_stem = PurePosixPath(_norm_path(body.path)).stem
-        new_stem = PurePosixPath(new_path).stem
-        if old_stem and new_stem and old_stem.lower() != new_stem.lower():
-            for bl in vault_md.backlinks(old_stem):
-                _snapshot(bl["path"], force=True)
-            out["links_rewritten"] = len(vault_md.rewrite_links(old_stem, new_stem))
-    # keep the search index in step: a file swaps one entry; a folder re-keys each moved child
-    # (the old single-path calls inserted a bogus "<folder>.md" entry and left the children stale)
-    if is_file:
-        _unindex_doc(old_norm)
-        _reindex_doc(new_path, vault_md.read(new_path).get("content", ""))
-    else:
-        for old_p, new_p in moved.items():
-            _unindex_doc(old_p)
-            if new_p.lower().endswith((".md", ".markdown")):
-                _reindex_doc(new_p, vault_md.read(new_p).get("content", ""))
-    return out
-
-
-class ExtractTodosBody(BaseModel):
-    path: str
-
-
-@router.post("/extract-todos")
-async def extract_todos(body: ExtractTodosBody):
-    """AI-pull action items out of a doc and create real tasks from them."""
-    import json as _json
-
-    from core.database import SessionLocal, Task
-    from services.llm import simple_complete
-
-    try:
-        doc = vault_md.read(_norm_path(body.path))
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    if not doc.get("exists") or not (doc.get("content") or "").strip():
-        raise HTTPException(404, "doc is empty or missing")
-
-    db = SessionLocal()
-    try:
-        ep, model = _docs_ai(db)
-        if not ep:
-            raise HTTPException(400, "no model endpoint configured")
-        if not model:
-            raise HTTPException(400, "no model available")
-        prompt = [
-            {
-                "role": "system",
-                "content": (
-                    "Extract actionable to-do items from the document. Reply with ONLY a JSON "
-                    "array of short task title strings, no prose, no code fences. If there is "
-                    "nothing actionable, reply []."
-                ),
-            },
-            {"role": "user", "content": doc["content"][:8000]},
-        ]
-        raw = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=400)
-        raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        try:
-            items = _json.loads(raw)
-            assert isinstance(items, list)
-        except Exception:
-            raise HTTPException(502, "model returned unparseable output — try again")
-        created = []
-        for title in items[:20]:
-            title = str(title).strip()[:300]
-            if title:
-                t = Task(title=title)
-                db.add(t)
-                created.append(title)
-        db.commit()
-        return {"created": len(created), "tasks": created}
-    finally:
-        db.close()
-
-
-@router.get("/board")
-def get_board(path: str):
-    cur = vault_md.read(_norm_path(path))
-    return {"path": _norm_path(path), "columns": vault_md.parse_board(cur.get("content", "") or "")}
-
-
-class BoardAddBody(BaseModel):
-    path: str
-    column: str
-    text: str
-
-
-@router.post("/board/add")
-def board_add(body: BoardAddBody):
-    _snapshot(body.path)
-    try:
-        return vault_md.board_add_card(_norm_path(body.path), body.column, body.text)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-class BoardMoveBody(BaseModel):
-    path: str
-    line: int
-    to_col: str
-
-
-@router.post("/board/move")
-def board_move(body: BoardMoveBody):
-    _snapshot(body.path)
-    try:
-        return vault_md.board_move_card(_norm_path(body.path), body.line, body.to_col)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-class QueryBody(BaseModel):
-    filters: list = []
-    sort: dict | None = None
-    limit: int = 0
-
-
-@router.post("/query")
-def query(body: QueryBody):
-    rows = vault_md.query_notes(body.filters, body.sort, body.limit or None)
-    return {"results": rows, "count": len(rows)}
-
-
-class PeriodicBody(BaseModel):
-    kind: str
-    date: str = ""  # optional ISO YYYY-MM-DD; default today
-
-
-@router.post("/periodic")
-def periodic(body: PeriodicBody):
-    from datetime import date as _date
-
-    d = None
-    if body.date:
-        try:
-            d = _date.fromisoformat(body.date)
-        except ValueError:
-            raise HTTPException(400, "bad date — use YYYY-MM-DD")
-    try:
-        return vault_md.open_or_create_periodic(body.kind, d)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-@router.get("/properties")
-def get_properties(path: str):
-    cur = vault_md.read(_norm_path(path))
-    props, _ = vault_md.parse_frontmatter(cur.get("content", "") or "")
-    return {"path": _norm_path(path), "properties": props, "exists": cur.get("exists", False)}
-
-
-class PropsBody(BaseModel):
-    path: str
-    properties: dict = {}
-
-
-@router.put("/properties")
-def put_properties(body: PropsBody):
-    cur = vault_md.read(_norm_path(body.path))
-    new_content = vault_md.set_frontmatter(cur.get("content", "") or "", body.properties)
-    _snapshot(body.path)
-    out = vault_md.write(body.path, new_content)
-    return {
-        "ok": True,
-        "path": out.get("path", _norm_path(body.path)),
-        "properties": body.properties,
-    }
-
-
-@router.get("/revisions")
-def list_revisions(path: str):
-    from core.database import DocRevision, SessionLocal
-
-    db = SessionLocal()
-    try:
-        rows = (
-            db.query(DocRevision)
-            .filter_by(path=_norm_path(path))
-            .order_by(DocRevision.created_at.desc())
-            .all()
-        )
-        return [
-            {"id": r.id, "created_at": r.created_at.isoformat(), "size": len(r.content or "")}
-            for r in rows
-        ]
-    finally:
-        db.close()
-
-
-@router.get("/revisions/{rid}")
-def get_revision(rid: str):
-    from core.database import DocRevision, SessionLocal
-
-    db = SessionLocal()
-    try:
-        r = db.get(DocRevision, rid)
-        if not r:
-            raise HTTPException(404)
-        return {
-            "id": r.id,
-            "path": r.path,
-            "content": r.content,
-            "created_at": r.created_at.isoformat(),
-        }
-    finally:
-        db.close()
-
-
-@router.post("/revisions/{rid}/restore")
-def restore_revision(rid: str):
-    from core.database import DocRevision, SessionLocal
-
-    db = SessionLocal()
-    try:
-        r = db.get(DocRevision, rid)
-        if not r:
-            raise HTTPException(404)
-        path, content = r.path, r.content
-    finally:
-        db.close()
-    _snapshot(path, force=True)  # the state being replaced becomes a revision
-    out = vault_md.write(path, content)
-    return {"ok": True, "path": out.get("path", path)}
-
-
-@router.get("/diff")
-def diff_revision(path: str, a: str = "", b: str = ""):
-    """unified diff between revision `a` and `b`. empty/'current' b = the live file."""
-    import difflib
-
-    from core.database import DocRevision, SessionLocal
-
-    db = SessionLocal()
-    try:
-        ra = db.get(DocRevision, a) if a else None
-        old = (ra.content if ra else "") or ""
-        if not b or b == "current":
-            new = vault_md.read(_norm_path(path)).get("content", "") or ""
-            blabel = "current"
-        else:
-            rb = db.get(DocRevision, b)
-            new = (rb.content if rb else "") or ""
-            blabel = b[:8]
-    finally:
-        db.close()
-    d = "".join(
-        difflib.unified_diff(
-            old.splitlines(keepends=True),
-            new.splitlines(keepends=True),
-            fromfile=a[:8] if a else "empty",
-            tofile=blabel,
-        )
-    )
-    return {"diff": d}
-
-
 @router.get("/search")
 def search(q: str = ""):
     return {"results": vault_md.search(q)}
 
 
-@router.get("/ask")
-def ask_vault(q: str = "", db: DbSession = Depends(get_db)):
-    """ask-anything over the vault (3d) — semantic retrieval via the 1c text index."""
-    from routes.textindex import _collect_docs
-    from services import textindex
+@router.get("/grep")
+def grep(q: str = ""):
+    return {"results": vault_md.full_text_search(q)}
 
-    if not textindex.stats(db).get("doc"):
-        textindex.reindex_kind(db, "doc", _collect_docs())
-    hits = textindex.search(db, q, kind="doc", k=6) if q else []
-    return {"q": q, "sources": hits}
 
+@router.get("/tags")
+def tags():
+    return {"tags": vault_md.all_tags()}
 
-class ClipBody(BaseModel):
-    url: str = ""
-    title: str = ""
-    content: str = ""
 
-
-@router.post("/clip")
-def web_clip(body: ClipBody):
-    """web-clipper target (3d): save a clipped page as a note under clips/."""
-    title = (body.title or "clip").strip() or "clip"
-    safe = "".join(c for c in title if c.isalnum() or c in " -_").strip()[:60] or "clip"
-    md = f"# {title}\n\n"
-    if body.url:
-        md += f"source: {body.url}\n\n"
-    md += body.content or ""
-    out = vault_md.write(f"clips/{safe}", md)
-    return {"ok": True, "path": out.get("path", f"clips/{safe}.md")}
-
-
-@router.get("/clipper-bookmarklet")
-def clipper_bookmarklet(request: Request):
-    """the bookmarklet JS the user drags to their bookmarks bar (3d).
-    origin is taken from the request so the dragged bookmarklet posts back to this instance."""
-    origin = str(request.base_url).rstrip("/")
-    js = (
-        "javascript:(function(){var t=document.title,u=location.href,"
-        "s=window.getSelection().toString()||document.body.innerText.slice(0,4000);"
-        "fetch('"
-        + origin
-        + "/api/vault-md/clip',{method:'POST',headers:{'content-type':'application/json'},"
-        "body:JSON.stringify({url:u,title:t,content:s})}).then(()=>alert('clipped to alles'));})()"
-    )
-    return {"bookmarklet": js}
-
-
-class FormBody(BaseModel):
-    path: str = ""
-    target: str = ""
-    fields: list[str] = []
-    values: dict = {}
-
-
-@router.post("/form-submit")
-def form_submit(body: FormBody):
-    """append a form submission as a row to the target note (3d form blocks)."""
-    target = (body.target or "").strip()
-    if not target:
-        raise HTTPException(400, "target required")
-    _snapshot(target)
-    out = vault_md.append_form_row(target, body.values or {}, body.fields or None)
-    _reindex_doc(out["path"], vault_md.read(out["path"]).get("content", ""))
-    return out
-
-
-# ---- inline comments (3e) ----
-class CommentBody(BaseModel):
-    path: str = ""
-    anchor: str = ""
-    body: str = ""
-    author: str = "me"
-    parent_id: str | None = None
-
-
-def _comment_dict(c):
-    return {
-        "id": c.id,
-        "doc": c.doc,
-        "anchor": c.anchor or "",
-        "body": c.body or "",
-        "author": c.author or "me",
-        "parent_id": c.parent_id,
-        "resolved": bool(c.resolved),
-        "created_at": c.created_at.isoformat() if c.created_at else None,
-    }
-
-
-@router.post("/comments")
-def add_comment(body: CommentBody, db: DbSession = Depends(get_db)):
-    """create a thread root (with path+anchor) or a reply (with parent_id)."""
-    if not (body.body or "").strip():
-        raise HTTPException(400, "comment body required")
-    if body.parent_id:
-        parent = db.query(DocComment).filter_by(id=body.parent_id).first()
-        if not parent:
-            raise HTTPException(404, "parent comment not found")
-        root = (
-            parent
-            if parent.parent_id is None
-            else db.query(DocComment).filter_by(id=parent.parent_id).first()
-        )
-        c = DocComment(
-            doc=root.doc,
-            anchor=root.anchor,
-            body=body.body.strip(),
-            author=body.author or "me",
-            parent_id=root.id,
-        )
-    else:
-        if not (body.path or "").strip():
-            raise HTTPException(400, "path required")
-        c = DocComment(
-            doc=_norm_path(body.path),
-            anchor=body.anchor or "",
-            body=body.body.strip(),
-            author=body.author or "me",
-            parent_id=None,
-        )
-    db.add(c)
-    db.commit()
-    db.refresh(c)
-    return _comment_dict(c)
-
-
-@router.get("/comments")
-def list_comments(path: str, db: DbSession = Depends(get_db)):
-    """threads for a doc — each root plus its replies, with an anchor-orphaned flag."""
-    doc = _norm_path(path)
-    content = vault_md.read(doc).get("content", "")
-    rows = db.query(DocComment).filter_by(doc=doc).order_by(DocComment.created_at.asc()).all()
-    threads = []
-    for root in [c for c in rows if c.parent_id is None]:
-        t = _comment_dict(root)
-        t["replies"] = [_comment_dict(c) for c in rows if c.parent_id == root.id]
-        t["orphaned"] = bool(root.anchor) and root.anchor not in content
-        threads.append(t)
-    return {"threads": threads}
-
-
-@router.post("/comments/{cid}/resolve")
-def resolve_comment(cid: str, db: DbSession = Depends(get_db)):
-    """toggle the resolved flag on a thread (always via its root)."""
-    c = db.query(DocComment).filter_by(id=cid).first()
-    if not c:
-        raise HTTPException(404, "comment not found")
-    root = c if c.parent_id is None else db.query(DocComment).filter_by(id=c.parent_id).first()
-    root.resolved = not bool(root.resolved)
-    db.commit()
-    return {"id": root.id, "resolved": bool(root.resolved)}
-
-
-@router.delete("/comments/{cid}")
-def delete_comment(cid: str, db: DbSession = Depends(get_db)):
-    """delete a comment; deleting a root also drops its replies."""
-    c = db.query(DocComment).filter_by(id=cid).first()
-    if not c:
-        raise HTTPException(404, "comment not found")
-    if c.parent_id is None:
-        db.query(DocComment).filter_by(parent_id=c.id).delete()
-    db.delete(c)
-    db.commit()
-    return {"ok": True}
-
-
-@router.get("/block")
-def get_block(path: str, id: str):
-    """resolve a synced-block reference note#^id → its text (3b)."""
-    return vault_md.find_block(path, id)
-
-
-@router.get("/theme-css")
-def get_theme_css():
-    return {"css": vault_md.theme_css_read()}
-
-
-class ThemeBody(BaseModel):
-    css: str = ""
-
-
-@router.put("/theme-css")
-def put_theme_css(body: ThemeBody):
-    """save a per-vault CSS snippet (2e) — auto-injected on the docs view."""
-    return vault_md.theme_css_write(body.css)
-
-
-@router.get("/canvases")
-def list_canvases():
-    return {"canvases": vault_md.canvas_list()}
-
-
-@router.get("/canvas")
-def read_canvas(path: str):
-    return vault_md.canvas_read(path)
-
-
-class CanvasBody(BaseModel):
-    path: str
-    nodes: list = []
-    edges: list = []
-
-
-@router.put("/canvas")
-def write_canvas(body: CanvasBody):
-    """save a spatial canvas (.canvas JSON) (2d)."""
-    try:
-        return vault_md.canvas_write(body.path, body.nodes, body.edges)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-@router.get("/base")
-def base_view(folder: str = "", sort_field: str = "", sort_dir: str = "asc"):
-    """folder-as-database view (2c)."""
-    sort = {"field": sort_field, "dir": sort_dir} if sort_field else None
-    return vault_md.base_view(folder, sort)
-
-
-class CellBody(BaseModel):
-    path: str
-    key: str
-    value: str = ""
-
-
-@router.post("/base-cell")
-async def base_cell(body: CellBody):
-    """edit one Base cell → writes back to the note's frontmatter (2c).
-    also fires doc automations so a Base edit can trigger rules (3d in-DB automations)."""
-    _snapshot(body.path)
-    props = vault_md.set_cell(body.path, body.key, body.value)
-    try:
-        from services.automations import on_doc_saved
-
-        await on_doc_saved(_norm_path(body.path), vault_md.read(body.path).get("content", ""))
-    except Exception:
-        pass
-    return {"ok": True, "path": _norm_path(body.path), "properties": props}
-
-
-@router.get("/base-rollup")
-def base_rollup(folder: str = "", relation: str = "", target: str = "", agg: str = "count"):
-    return {"rows": vault_md.base_rollup(folder, relation, target or None, agg)}
-
-
-class FormulaBody(BaseModel):
-    formula: str
-    folder: str = ""
-
-
-@router.post("/base-formula")
-def base_formula(body: FormulaBody):
-    """4d - compute a formula column across a Base folder's rows ({price} * {qty}, ternaries, ...)."""
-    from services import base_formula as bf
-
-    view = vault_md.base_view(body.folder)
-    out = [
-        {"path": r["path"], "name": r["name"], "value": bf.evaluate(body.formula, r["props"])}
-        for r in view["rows"]
-    ]
-    return {"results": out}
-
-
-class QueryBlockBody(BaseModel):
-    spec: str = ""
-
-
-@router.post("/query-block")
-def query_block(body: QueryBlockBody):
-    """run an inline ```query``` fence spec (2b)."""
-    return vault_md.query_block(body.spec)
-
-
-@router.get("/views")
-def get_views():
-    from core.settings import load_settings
-
-    return {"views": load_settings().get("docs_saved_views", [])}
-
-
-class ViewBody(BaseModel):
-    name: str
-    spec: str = ""
-
-
-@router.post("/views")
-def save_view(body: ViewBody):
-    """save (or update) a named query view (2b)."""
-    from core.settings import load_settings, save_settings
-
-    name = (body.name or "").strip()
-    if not name:
-        raise HTTPException(400, "name required")
-    views = [v for v in load_settings().get("docs_saved_views", []) if v.get("name") != name]
-    views.append({"name": name, "spec": body.spec})
-    save_settings({"docs_saved_views": views})
-    return {"ok": True, "views": views}
-
-
-@router.delete("/views")
-def delete_view(name: str):
-    from core.settings import load_settings, save_settings
-
-    views = [v for v in load_settings().get("docs_saved_views", []) if v.get("name") != name]
-    save_settings({"docs_saved_views": views})
-    return {"ok": True, "views": views}
-
-
-@router.get("/bookmarks")
-def get_bookmarks():
-    from core.settings import load_settings
-
-    return {"bookmarks": load_settings().get("docs_bookmarks", [])}
-
-
-class BookmarkBody(BaseModel):
-    path: str
-    title: str = ""
-
-
-@router.post("/bookmarks")
-def toggle_bookmark(body: BookmarkBody):
-    """toggle a doc bookmark (2a). returns the new state + full list."""
-    from core.settings import load_settings, save_settings
-
-    bms = list(load_settings().get("docs_bookmarks", []))
-    if any(b.get("path") == body.path for b in bms):
-        bms = [b for b in bms if b.get("path") != body.path]
-        on = False
-    else:
-        bms.append({"path": body.path, "title": body.title or body.path})
-        on = True
-    save_settings({"docs_bookmarks": bms})
-    return {"bookmarked": on, "bookmarks": bms}
+@router.get("/tag")
+def by_tag(tag: str):
+    return {"notes": vault_md.notes_with_tag(tag)}
 
 
 @router.get("/preview")
 def preview_note(name: str):
-    """resolve a wikilink name → a short excerpt for the hover preview (2a)."""
+    """resolve a wikilink name → a short excerpt for the hover preview."""
     name = (name or "").strip()
     if not name:
         return {"found": False, "excerpt": ""}
@@ -888,179 +224,313 @@ def backlinks(name: str):
     return {"backlinks": vault_md.backlinks(name)}
 
 
-@router.get("/names")
-def names():
-    return {"names": vault_md.note_names()}
-
-
-@router.get("/grep")
-def grep(q: str = ""):
-    return {"results": vault_md.full_text_search(q)}
-
-
-@router.get("/tags")
-def tags():
-    return {"tags": vault_md.all_tags()}
-
-
-@router.get("/tag")
-def by_tag(tag: str):
-    return {"notes": vault_md.notes_with_tag(tag)}
-
-
-@router.get("/graph")
-def graph(tag: str = "", folder: str = ""):
-    return vault_md.graph(tag or None, folder or None)
-
-
-@router.get("/local-graph")
-def local_graph(name: str, depth: int = 1):
-    return vault_md.local_graph(name, depth)
-
-
-@router.get("/slash-commands")
-def slash_commands(q: str = ""):
-    return {"commands": vault_md.filter_slash_commands(q)}
-
-
-@router.post("/asset")
-async def upload_asset(file: UploadFile = File(...)):
-    """pasted/dropped image → saved under _assets/, returns the embed path."""
-    data = await file.read()
-    if not data:
-        raise HTTPException(400, "empty file")
-    if len(data) > 25 * 1024 * 1024:
-        raise HTTPException(413, "file too big (25MB max)")
-    return vault_md.save_asset(file.filename or "image.png", data)
-
-
-@router.get("/tasks")
-def tasks(open_only: bool = False):
-    return {"tasks": vault_md.all_tasks(include_done=not open_only)}
-
-
-class TaskToggleBody(BaseModel):
-    path: str
-    line: int
-    done: bool
-
-
-@router.post("/task")
-def toggle_task(body: TaskToggleBody):
-    try:
-        return vault_md.set_task(body.path, body.line, body.done)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-@router.get("/templates")
-def templates():
-    return {"templates": vault_md.list_templates()}
-
-
 @router.get("/unlinked")
 def unlinked(name: str):
     return {"mentions": vault_md.unlinked_mentions(name)}
 
 
-class YoutubeBody(BaseModel):
-    url: str
-    summarize: bool = True
+@router.get("/names")
+def names():
+    return {"names": vault_md.note_names()}
 
 
-@router.post("/youtube")
-async def youtube_to_note(body: YoutubeBody):
-    """YouTube URL → transcript → (optional) AI summary → a new doc."""
-    import re as _re
+@router.get("/ask")
+def ask_vault(q: str = "", db: DbSession = Depends(get_db)):
+    """ask-anything over the vault — semantic retrieval via the shared text index."""
+    from services import textindex
 
-    from services import youtube
-
-    vid = youtube.extract_video_id(body.url)
-    if not vid:
-        raise HTTPException(400, "that doesn't look like a YouTube URL")
-    try:
-        title, transcript = await youtube.fetch_transcript(vid)
-    except ValueError as e:
-        raise HTTPException(422, str(e))
-    except Exception:
-        raise HTTPException(502, "couldn't reach YouTube to fetch the transcript")
-
-    summary = ""
-    if body.summarize:
-        from core.database import SessionLocal
-        from services.llm import simple_complete
-
-        db = SessionLocal()
+    if not textindex.stats(db).get("doc"):
         try:
-            ep, model = _docs_ai(db)
-        finally:
-            db.close()
-        if ep and model:
-            try:
-                prompt = [
-                    {
-                        "role": "system",
-                        "content": (
-                            "Turn this video transcript into clean markdown notes: a one-line **TL;DR**, "
-                            "then the key points as bullets, then any notable takeaways or quotes. "
-                            "No preamble, no code fences."
-                        ),
-                    },
-                    {"role": "user", "content": transcript[:14000]},
-                ]
-                summary = (
-                    await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=900)
-                ).strip()
-            except Exception:
-                summary = ""
-
-    safe = (_re.sub(r'[\\/:*?"<>|#\[\]]+', " ", title).strip() or f"youtube-{vid}")[:80].strip()
-    link = f"https://youtu.be/{vid}"
-    md = f"# {safe}\n\n[{link}]({link})\n\n"
-    md += (
-        (summary + "\n\n## transcript\n\n" + transcript + "\n")
-        if summary
-        else ("## transcript\n\n" + transcript + "\n")
-    )
-
-    existing = {n.lower() for n in vault_md.note_names()}
-    path = safe
-    if safe.lower() in existing:
-        i = 1
-        while f"{safe}-{i}".lower() in existing:
-            i += 1
-        path = f"{safe}-{i}"
-    out = vault_md.create(path, md)
-    return {"path": out.get("path", path + ".md"), "name": safe, "summarized": bool(summary)}
+            items = vault_md.indexable_documents()
+        except OSError as exc:
+            raise ApiError(
+                503,
+                "vault_index_unavailable",
+                "could not read every document; search index unchanged",
+            ) from exc
+        textindex.reindex_kind(db, "doc", items)
+    hits = textindex.search(db, q, kind="doc", k=6) if q else []
+    return {"q": q, "sources": hits}
 
 
-@router.post("/import")
-async def import_doc(file: UploadFile = File(...)):
-    """import .md/.txt/.docx/.html/.pdf → a new markdown doc."""
-    from services import doc_import
+# ── basic file management (content editing happens in Obsidian) ───────────────
+class PathBody(BaseModel):
+    path: str
+    content: str = ""
+    unique: bool = False
 
-    data = await file.read()
-    if not data:
-        raise HTTPException(400, "empty file")
-    if len(data) > 25 * 1024 * 1024:
-        raise HTTPException(413, "file too big (25MB max)")
+
+class SafeDocumentBody(BaseModel):
+    path: str
+    content: str
+    expected_hash: str
+
+
+class DraftBody(BaseModel):
+    path: str
+    content: str
+    base_hash: str
+    write_session: str = Field(default="", max_length=80)
+    write_revision: int = Field(default=0, ge=0)
+    write_generation: int = Field(default=0, ge=0)
+
+
+class RevisionRestoreBody(BaseModel):
+    path: str
+    revision_id: str
+    expected_hash: str
+
+
+@router.get("/safety/draft")
+def read_document_draft(path: str):
     try:
-        res = doc_import.import_document(file.filename or "imported", data)
+        return {"draft": document_safety.load_draft(path)}
+    except (ValueError, document_safety.RecoveryConflict) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.put("/safety/draft")
+def write_document_draft(body: DraftBody):
+    try:
+        return document_safety.save_draft(
+            body.path,
+            body.content,
+            body.base_hash,
+            body.write_session,
+            body.write_revision,
+            body.write_generation,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.delete("/safety/draft")
+def remove_document_draft(path: str, expected_hash: str = ""):
+    try:
+        deleted = (
+            document_safety.delete_draft_if_hash(path, expected_hash)
+            if expected_hash
+            else document_safety.delete_draft(path)
+        )
+        if expected_hash and not deleted and document_safety.load_draft(path) is not None:
+            raise HTTPException(409, "draft changed before it could be deleted")
+        return {"ok": True, "deleted": deleted}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/safety/compare")
+def compare_document(body: SafeDocumentBody):
+    try:
+        return document_safety.compare_document(body.path, body.content, body.expected_hash)
+    except vault_md.DocumentEncodingError as exc:
+        raise ApiError(409, "document_encoding_unsupported", str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/safety/save")
+def save_document(body: SafeDocumentBody, background_tasks: BackgroundTasks):
+    try:
+        result = document_safety.save_document(body.path, body.content, body.expected_hash)
+    except document_safety.DocumentSaveConflict as exc:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "code": "document_conflict",
+                "detail": "document changed outside Alles; both copies were preserved",
+                "conflict": exc.conflict,
+            },
+        )
+    except vault_md.DocumentEncodingError as exc:
+        raise ApiError(409, "document_encoding_unsupported", str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    background_tasks.add_task(_sync_changed, result["path"])
+    return result
+
+
+@router.get("/safety/conflicts/{conflict_id}")
+def read_document_conflict(conflict_id: str):
+    try:
+        return document_safety.load_conflict(conflict_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except (OSError, document_safety.RecoveryConflict) as exc:
+        raise HTTPException(404, "conflict copy not found") from exc
+
+
+@router.get("/safety/revisions")
+def document_revisions(path: str):
+    try:
+        return {"revisions": document_safety.list_revisions(path)}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/safety/revisions/restore")
+def restore_document_revision(body: RevisionRestoreBody, background_tasks: BackgroundTasks):
+    try:
+        result = document_safety.restore_revision(body.path, body.revision_id, body.expected_hash)
+    except vault_md.DocumentConflictError as exc:
+        raise ApiError(409, "document_conflict", str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except (OSError, document_safety.RecoveryConflict) as exc:
+        raise HTTPException(404, "revision not found") from exc
+    background_tasks.add_task(_sync_changed, result["path"])
+    return result
+
+
+@router.post("/file")
+def create_file(body: PathBody, background_tasks: BackgroundTasks):
+    try:
+        out = (
+            vault_md.create_unique(body.path, body.content)
+            if body.unique
+            else vault_md.create(body.path, body.content)
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
-    except Exception:
-        raise HTTPException(500, "couldn't read that file — it may be corrupt")
-    # pick a free name so an import never clobbers an existing doc
-    base = res["name"] or "imported"
-    existing = {n.lower() for n in vault_md.note_names()}
-    path = base
-    if base.lower() in existing:
-        i = 1
-        while f"{base}-{i}".lower() in existing:
-            i += 1
-        path = f"{base}-{i}"
-    out = vault_md.create(path, res["content"])
-    return {"path": out.get("path", path + ".md"), "name": base}
+    path = out.get("path", _norm_path(body.path))
+    background_tasks.add_task(_sync_changed, path)
+    return out
+
+
+@router.delete("/file")
+def delete_file(path: str, background_tasks: BackgroundTasks, db: DbSession = Depends(get_db)):
+    try:
+        resolved = vault_md._safe(path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if resolved == vault_md.root_dir():
+        raise HTTPException(400, "won't delete the vault root")
+    if not resolved.exists():
+        raise HTTPException(404, "not found")
+    ref = str(resolved.relative_to(vault_md.root_dir())).replace("\\", "/")
+    item = trash.soft_delete_path(db, "vault", ref, resolved)
+    if ref.lower().endswith((".md", ".markdown")):
+        background_tasks.add_task(_sync_changed, ref)
+    return {"ok": True, "trashed": True, "trash_id": item.id}
+
+
+@router.get("/trash")
+def list_trash(db: DbSession = Depends(get_db)):
+    return [
+        {
+            "id": item.id,
+            "path": item.ref,
+            "name": item.name,
+            "trashed_at": item.trashed_at.isoformat() if item.trashed_at else None,
+        }
+        for item in trash.list_items(db, kind="vault")
+    ]
+
+
+class TrashAction(BaseModel):
+    id: str
+
+
+@router.post("/trash/restore")
+def restore_trash(
+    body: TrashAction, background_tasks: BackgroundTasks, db: DbSession = Depends(get_db)
+):
+    item = trash.get(db, body.id)
+    if not item or item.kind != "vault":
+        raise HTTPException(404, "trash item not found")
+    try:
+        destination = vault_md._safe(item.ref)
+        trash.restore_path(db, item, destination)
+    except FileExistsError as exc:
+        raise ApiError(409, "restore_conflict", "a document already exists at that path") from exc
+    if destination.is_file() and destination.suffix.lower() in {".md", ".markdown"}:
+        background_tasks.add_task(_sync_changed, item.ref)
+    return {"ok": True, "restored": item.ref}
+
+
+class RenameBody(BaseModel):
+    path: str
+    new_path: str
+
+
+@router.post("/rename")
+def rename_file(body: RenameBody, background_tasks: BackgroundTasks):
+    try:
+        source = vault_md._safe(body.path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    if source.is_file():
+        try:
+            manifest = document_safety.rename_document(body.path, body.new_path)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, "document not found") from exc
+        except FileExistsError as exc:
+            raise ApiError(
+                409, "rename_destination_exists", "a document already exists at that path"
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except document_safety.RenameRecoveryRequired as exc:
+            raise ApiError(
+                409,
+                "rename_recovery_required",
+                "rename paused safely; use the pending recovery transaction",
+                headers={"x-alles-recovery-id": exc.transaction_id},
+            ) from exc
+        background_tasks.add_task(_sync_rename_indexes, manifest)
+        return {
+            "ok": True,
+            "path": manifest["new_path"],
+            "links_rewritten": len(manifest.get("changes", [])),
+            "transaction_id": manifest["id"],
+        }
+
+    try:
+        out = vault_md.rename(body.path, body.new_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, "folder not found") from exc
+    except FileExistsError as exc:
+        raise ApiError(409, "rename_destination_exists", "a folder already exists there") from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    new_path = out.get("path", _norm_path(body.new_path))
+    out["links_rewritten"] = 0
+    base = vault_md.vault_dir()
+    # Capture identities before acknowledgment: a second folder rename may occur
+    # before the deferred refresh starts, but the old paths still need cleanup.
+    current_paths = [
+        str(path.relative_to(base)).replace("\\", "/") for path in (base / new_path).rglob("*.md")
+    ]
+    background_tasks.add_task(_sync_folder_indexes, body.path, new_path, current_paths)
+    return out
+
+
+class RenameRecoveryBody(BaseModel):
+    id: str
+    action: str
+
+
+@router.get("/rename/pending")
+def pending_renames():
+    return {"transactions": document_safety.pending_renames()}
+
+
+@router.post("/rename/recover")
+def recover_rename(body: RenameRecoveryBody, background_tasks: BackgroundTasks):
+    try:
+        if body.action == "resume":
+            manifest = document_safety.resume_rename(body.id)
+        elif body.action == "rollback":
+            manifest = document_safety.rollback_rename(body.id)
+        else:
+            raise HTTPException(400, "action must be resume or rollback")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except document_safety.RecoveryConflict as exc:
+        raise ApiError(409, "rename_recovery_conflict", str(exc)) from exc
+    background_tasks.add_task(_sync_rename_indexes, manifest)
+    return {"ok": True, "transaction": manifest}
 
 
 class FolderBody(BaseModel):
@@ -1075,102 +545,87 @@ def make_folder(body: FolderBody):
         raise HTTPException(400, str(e))
 
 
-class AiSnippetBody(BaseModel):
-    text: str
-    action: str = "rewrite"
+# ── live two-way: notice files changed on disk (e.g. edited in Obsidian) ───────
+def _vault_sig() -> dict:
+    """Nanosecond mtime and size signature for cheap external-change detection."""
+    base = vault_md.vault_dir()
+    out = {}
+    for p in base.rglob("*.md"):
+        rel = str(p.relative_to(base)).replace("\\", "/")
+        if any(part.startswith(".") for part in rel.split("/")):
+            continue
+        try:
+            st = p.stat()
+            out[rel] = f"{st.st_mtime_ns}:{st.st_size}"
+        except OSError:
+            pass
+    return out
 
 
-# context-menu AI actions act on the selected text only (not the whole doc like ai-edit)
-_SNIPPET_PROMPTS = {
-    "rewrite": "Rewrite the text to read more clearly and naturally, keeping its meaning and any markdown.",
-    "summarize": "Summarize the text in one or two short sentences.",
-    "fix": "Fix spelling and grammar in the text. Keep the wording and any markdown otherwise unchanged.",
-}
+def _sig_diff(prev: dict, cur: dict):
+    """(changed_or_added, removed) rel-paths between two signatures."""
+    changed = [p for p in cur if prev.get(p) != cur[p]]
+    removed = [p for p in prev if p not in cur]
+    return changed, removed
 
 
-@router.post("/ai-snippet")
-async def ai_snippet(body: AiSnippetBody):
-    from core.database import SessionLocal
-    from services.llm import simple_complete
-
-    text = (body.text or "").strip()
-    if not text:
-        raise HTTPException(400, "no text selected")
-    sys_prompt = _SNIPPET_PROMPTS.get(body.action, _SNIPPET_PROMPTS["rewrite"])
-    db = SessionLocal()
+def _observed_event(path: str, *, removed: bool = False) -> dict:
+    current_hash = ""
+    if not removed:
+        try:
+            current_hash = vault_md.read(path).get("hash", "")
+        except (OSError, ValueError):
+            pass
     try:
-        ep, model = _docs_ai(db)
-        if not ep:
-            raise HTTPException(400, "no model endpoint configured")
-        if not model:
-            raise HTTPException(400, "no model available")
-        base_url, api_key = ep.base_url, ep.api_key
-    finally:
-        db.close()
-    msgs = [
-        {
-            "role": "system",
-            "content": sys_prompt
-            + " Return ONLY the resulting text — no commentary, no code fences.",
-        },
-        {"role": "user", "content": text[:6000]},
-    ]
-    out = await simple_complete(msgs, base_url, api_key, model, max_tokens=600)
-    out = (out or "").strip()
-    out = out.removeprefix("```").removesuffix("```").strip()
-    return {"text": out, "action": body.action}
+        origin = document_safety.classify_observed_change(path, current_hash)
+    except Exception:
+        origin = "external"
+    return {
+        "path": path,
+        "kind": "removed" if removed else "changed",
+        "origin": origin,
+        "hash": current_hash,
+    }
 
 
-class AiEditBody(BaseModel):
-    path: str
-    instruction: str
+@router.get("/stream")
+async def stream():
+    """SSE: push {changed, removed} when vault files change on disk, and reindex the changed
+    docs so search/recall reflect Obsidian edits. the UI re-renders on each event."""
+    import asyncio
+    import json as _json
 
-
-@router.post("/ai-edit")
-async def ai_edit(body: AiEditBody):
-    from core.database import SessionLocal
-    from services.llm import stream_chat
-
-    cur = vault_md.read(body.path)
-    if not cur.get("exists"):
-        raise HTTPException(404, "note not found")
-    db = SessionLocal()
-    try:
-        ep, model = _docs_ai(db)
-    finally:
-        db.close()
-    if not ep:
-        raise HTTPException(400, "no endpoint configured")
-    if not model:
-        raise HTTPException(400, "no model available")
-
-    msgs = [
-        {
-            "role": "system",
-            "content": "You are a markdown note editor. Rewrite the note per the instruction. Keep any [[wikilinks]] intact unless asked to change them. Return ONLY the new note content — no commentary, no code fences.",
-        },
-        {"role": "user", "content": f"Instruction: {body.instruction}\n\nNote:\n{cur['content']}"},
-    ]
-
-    async def _gen():
-        acc = []
-        async for chunk in stream_chat(msgs, ep.base_url, ep.api_key, model):
-            if "delta" in chunk:
-                acc.append(chunk["delta"])
-                yield f"data: {json.dumps({'delta': chunk['delta']})}\n\n"
-            elif "thinking" in chunk:
-                # reasoning models sit silent for ages before the rewrite starts —
-                # heartbeat so the ui can show progress instead of looking dead
-                yield 'data: {"thinking": 1}\n\n'
-            elif "error" in chunk:
-                yield f"data: {json.dumps(chunk)}\n\n"
-        full = "".join(acc).strip()
-        if full:
-            vault_md.write(body.path, full)  # persist the rewrite
-        yield "data: [DONE]\n\n"
+    async def gen():
+        prev = await asyncio.to_thread(_vault_sig)
+        yield 'data: {"hello":1}\n\n'
+        idle = 0
+        while True:
+            await asyncio.sleep(VAULT_WATCH_INTERVAL)
+            cur = await asyncio.to_thread(_vault_sig)
+            changed, removed = _sig_diff(prev, cur)
+            if not (changed or removed):
+                idle += 1
+                if idle * VAULT_WATCH_INTERVAL >= VAULT_KEEPALIVE_SECONDS:
+                    idle = 0
+                    yield ": ping\n\n"
+                continue
+            idle = 0
+            prev = cur
+            events = [await asyncio.to_thread(_observed_event, path) for path in changed]
+            events.extend(
+                [await asyncio.to_thread(_observed_event, path, removed=True) for path in removed]
+            )
+            for p in changed:  # keep the index fresh (idempotent); journal notes sync to the DB
+                try:
+                    await asyncio.to_thread(_sync_changed, p)
+                except Exception:
+                    log.exception("could not index observed document change for %s", p)
+            for p in removed:
+                await asyncio.to_thread(_sync_changed, p)
+            yield f"data: {_json.dumps({'changed': changed, 'removed': removed, 'events': events})}\n\n"
 
     return StreamingResponse(
-        _gen(),
+        gen(),
         media_type="text/event-stream",
         headers={"cache-control": "no-cache", "x-accel-buffering": "no"},
     )

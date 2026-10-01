@@ -3,9 +3,12 @@ Obsidian-style markdown vault: real .md files on disk + wikilinks + backlinks.
 Everything is stored as plain files so the vault is portable and git-able.
 """
 
+import hashlib
 import json
+import os
 import re
 import shutil
+import tempfile
 from pathlib import Path
 
 from core.settings import data_dir, load_settings
@@ -21,9 +24,14 @@ def vault_dir() -> Path:
     return p.resolve()  # resolve so _safe()'s absolute-child containment holds for a relative dir
 
 
+def root_dir() -> Path:
+    """Normalize configured and test-provided roots before confinement checks."""
+    return vault_dir().expanduser().resolve()
+
+
 def _safe(rel: str) -> Path:
     """resolve a path inside the vault, rejecting traversal."""
-    base = vault_dir()
+    base = root_dir()
     p = (base / (rel or "").lstrip("/\\")).resolve()
     try:
         p.relative_to(base)
@@ -39,6 +47,47 @@ _WIKILINK = re.compile(r"\[\[([^\[\]|#]+)(?:[#|][^\[\]]*)?\]\]")
 _SYS_DIRS = {"_assets", "_templates"}
 
 
+class DocumentConflictError(RuntimeError):
+    pass
+
+
+class DocumentEncodingError(DocumentConflictError):
+    """The file is not safe to round-trip through the UTF-8 editor."""
+
+
+def _hash_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _decode_for_edit(data: bytes) -> str:
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise DocumentEncodingError(
+            "document is not valid UTF-8; the original file was left unchanged"
+        ) from exc
+
+
+def _read_text_for_edit(path: Path) -> str:
+    return _decode_for_edit(path.read_bytes())
+
+
+def _atomic_write(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if path.exists():
+            os.chmod(temp, path.stat().st_mode)
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
 def _is_md(p: Path) -> bool:
     return p.suffix.lower() in (".md", ".markdown")
 
@@ -49,7 +98,7 @@ def _in_sys_dir(p: Path) -> bool:
 
 def tree() -> dict:
     """nested folder/file tree of the vault (md files only)."""
-    base = vault_dir()
+    base = root_dir()
 
     def walk(d: Path) -> list:
         items = []
@@ -72,20 +121,84 @@ def tree() -> dict:
     return {"path": str(base), "items": walk(base)}
 
 
+def indexable_documents() -> list[tuple[str, str]]:
+    """Read a complete Docs snapshot before replacing its search index."""
+    from services import journal_vault
+
+    base = root_dir()
+    items = []
+
+    def fail_scan(error: OSError) -> None:
+        raise error  # os.walk otherwise drops unreadable folders silently
+
+    for folder, dirs, files in os.walk(base, onerror=fail_scan, followlinks=False):
+        parent = Path(folder)
+        dirs[:] = [
+            name
+            for name in dirs
+            if not name.startswith((".", "_"))
+            and not (parent == base and name == "Notes")
+            and not (parent / name).is_symlink()
+        ]
+        for name in files:
+            if not name.endswith(".md") or name.startswith((".", "_")):
+                continue
+            path = parent / name
+            if path.is_symlink():
+                continue  # never index an alias outside Docs or into private Notes
+            rel = path.relative_to(base).as_posix()
+            if journal_vault.is_daily(rel):
+                continue
+            # A partial snapshot would make reindex_kind delete valid old search rows.
+            items.append((rel, path.read_text("utf-8", errors="replace")))
+    return items
+
+
 def read(rel: str) -> dict:
     p = _safe(rel)
     if not p.exists() or not p.is_file():
-        return {"path": rel, "content": "", "exists": False}
-    return {"path": rel, "content": p.read_text("utf-8", errors="replace"), "exists": True}
+        return {"path": rel, "content": "", "exists": False, "hash": ""}
+    raw = p.read_bytes()
+    digest = _hash_bytes(raw)
+    try:
+        content = _decode_for_edit(raw)
+    except DocumentEncodingError:
+        return {
+            "path": rel,
+            "content": "",
+            "exists": True,
+            "hash": digest,
+            "editable": False,
+            "encoding": "unsupported",
+            "error": "document is not valid UTF-8; open it externally or restore a UTF-8 copy",
+        }
+    return {
+        "path": rel,
+        "content": content,
+        "exists": True,
+        "hash": digest,
+        "editable": True,
+        "encoding": "utf-8",
+    }
 
 
-def write(rel: str, content: str) -> dict:
+def write(rel: str, content: str, expected_hash: str | None = None) -> dict:
     p = _safe(rel)
     if p.suffix == "":
         p = p.with_suffix(".md")
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content or "", "utf-8")
-    return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
+    current_raw = p.read_bytes() if p.is_file() else b""
+    if current_raw:
+        _decode_for_edit(current_raw)
+    current = _hash_bytes(current_raw) if p.is_file() else ""
+    if expected_hash is not None and expected_hash != current:
+        raise DocumentConflictError("document changed since it was opened")
+    raw = (content or "").encode("utf-8")
+    _atomic_write(p, raw)
+    return {
+        "path": str(p.relative_to(root_dir())).replace("\\", "/"),
+        "ok": True,
+        "hash": _hash_bytes(raw),
+    }
 
 
 def parse_frontmatter(content: str):
@@ -124,9 +237,21 @@ def parse_frontmatter(content: str):
                 i = j
                 continue
             props[key] = ""
+        elif val.startswith('"') and val.endswith('"'):
+            try:
+                props[key] = json.loads(val)
+            except (TypeError, ValueError):
+                props[key] = val
         elif val.startswith("[") and val.endswith("]"):
-            inner = val[1:-1].strip()
-            props[key] = [s.strip() for s in inner.split(",") if s.strip()] if inner else []
+            try:
+                decoded = json.loads(val)
+            except (TypeError, ValueError):
+                decoded = None
+            if isinstance(decoded, list):
+                props[key] = decoded
+            else:
+                inner = val[1:-1].strip()
+                props[key] = [s.strip() for s in inner.split(",") if s.strip()] if inner else []
         else:
             props[key] = val
         i += 1
@@ -274,12 +399,12 @@ def _insert_into_column(lines: list[str], column: str, card_line: str):
 
 def board_add_card(rel: str, column: str, text: str) -> dict:
     p = _safe(rel)
-    raw = p.read_text("utf-8", errors="replace") if p.is_file() else ""
+    raw = _read_text_for_edit(p) if p.is_file() else ""
     lines = raw.replace("\r\n", "\n").split("\n")
     _insert_into_column(lines, column, f"- [ ] {text.strip()}")
     new = "\n".join(lines)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(new, "utf-8")
+    _atomic_write(p, new.encode("utf-8"))
     return {"ok": True, "columns": parse_board(new)}
 
 
@@ -287,7 +412,7 @@ def board_move_card(rel: str, line: int, to_col: str) -> dict:
     p = _safe(rel)
     if not p.is_file():
         raise ValueError("not a file")
-    lines = p.read_text("utf-8", errors="replace").replace("\r\n", "\n").split("\n")
+    lines = _read_text_for_edit(p).replace("\r\n", "\n").split("\n")
     if line < 0 or line >= len(lines):
         raise ValueError("line out of range")
     if not _CARD.match(lines[line]) or not _CARD.match(lines[line]).group(2).strip():
@@ -296,7 +421,7 @@ def board_move_card(rel: str, line: int, to_col: str) -> dict:
     del lines[line]
     _insert_into_column(lines, to_col, card_line)
     new = "\n".join(lines)
-    p.write_text(new, "utf-8")
+    _atomic_write(p, new.encode("utf-8"))
     return {"ok": True, "columns": parse_board(new)}
 
 
@@ -364,7 +489,7 @@ def query_notes(filters=None, sort=None, limit=None) -> list[dict]:
     """dataview-lite: filter notes by frontmatter properties / tags / folder, sort, limit.
     each row = {name, path, props, tags, modified}."""
     filters = filters or []
-    base = vault_dir()
+    base = root_dir()
     rows = []
     for p in _all_md():
         try:
@@ -536,7 +661,7 @@ def theme_css_read():
 
 def theme_css_write(css):
     p = _safe(_THEME_FILE)
-    p.write_text(css or "", "utf-8")
+    _atomic_write(p, (css or "").encode("utf-8"))
     return {"ok": True}
 
 
@@ -564,12 +689,14 @@ def canvas_write(rel, nodes, edges):
         rel += ".canvas"
     p = _safe(rel)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps({"nodes": nodes or [], "edges": edges or []}, indent=2), "utf-8")
-    return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
+    _atomic_write(
+        p, json.dumps({"nodes": nodes or [], "edges": edges or []}, indent=2).encode("utf-8")
+    )
+    return {"path": str(p.relative_to(root_dir())).replace("\\", "/"), "ok": True}
 
 
 def canvas_list():
-    base = vault_dir()
+    base = root_dir()
     out = []
     for p in base.rglob("*.canvas"):
         if any(part.startswith((".", "_")) for part in p.relative_to(base).parts):
@@ -684,7 +811,7 @@ def open_or_create_periodic(kind: str, d=None) -> dict:
     else:
         body = f"# {rel[:-3]}\n\n"
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(body, "utf-8")
+    _atomic_write(p, body.encode("utf-8"))
     return {"path": rel, "created": True, "ok": True}
 
 
@@ -694,13 +821,46 @@ def create(rel: str, content: str = "") -> dict:
         p = p.with_suffix(".md")
     if p.exists():
         return {
-            "path": str(p.relative_to(vault_dir())).replace("\\", "/"),
+            "path": str(p.relative_to(root_dir())).replace("\\", "/"),
             "ok": True,
             "existed": True,
         }
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content or f"# {p.stem}\n\n", "utf-8")
-    return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
+    _atomic_write(p, (content or f"# {p.stem}\n\n").encode("utf-8"))
+    return {"path": str(p.relative_to(root_dir())).replace("\\", "/"), "ok": True}
+
+
+def create_unique(rel: str, content: str = "") -> dict:
+    """Create a note under an atomically allocated filename without replacing owner data."""
+    requested = _safe(rel)
+    if requested.suffix == "":
+        requested = requested.with_suffix(".md")
+    requested.parent.mkdir(parents=True, exist_ok=True)
+    payload = (content or f"# {requested.stem}\n\n").encode("utf-8")
+    for index in range(1, 10_001):
+        candidate = (
+            requested
+            if index == 1
+            else requested.with_name(f"{requested.stem} {index}{requested.suffix}")
+        )
+        try:
+            descriptor = os.open(candidate, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            continue
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+        except Exception:
+            candidate.unlink(missing_ok=True)
+            raise
+        return {
+            "path": str(candidate.relative_to(root_dir())).replace("\\", "/"),
+            "ok": True,
+            "created": True,
+        }
+    raise FileExistsError("could not allocate a unique note filename")
 
 
 def delete(rel: str) -> dict:
@@ -712,15 +872,22 @@ def delete(rel: str) -> dict:
     return {"ok": True}
 
 
-def rename(rel: str, new_rel: str) -> dict:
+def rename(rel: str, new_rel: str, expected_hash: str | None = None) -> dict:
     src = _safe(rel)
     dst = _safe(new_rel)
+    if expected_hash is not None:
+        current_raw = src.read_bytes() if src.is_file() else b""
+        if current_raw:
+            _decode_for_edit(current_raw)
+        current = _hash_bytes(current_raw) if src.is_file() else ""
+        if current != expected_hash:
+            raise DocumentConflictError("document changed since it was opened")
     # only auto-append .md when renaming a FILE (folders keep their plain name)
     if src.is_file() and dst.suffix == "":
         dst = dst.with_suffix(".md")
     dst.parent.mkdir(parents=True, exist_ok=True)
     src.rename(dst)
-    return {"path": str(dst.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
+    return {"path": str(dst.relative_to(root_dir())).replace("\\", "/"), "ok": True}
 
 
 def rewrite_links(old_name: str, new_name: str) -> list[str]:
@@ -731,7 +898,7 @@ def rewrite_links(old_name: str, new_name: str) -> list[str]:
     new_name = (new_name or "").strip()
     if not old_l or not new_name or old_l == new_name.lower():
         return []
-    base = vault_dir()
+    base = root_dir()
     # like _WIKILINK but captures the #heading / |alias tail separately so we keep it
     pat = re.compile(r"\[\[([^\[\]|#]+)((?:[#|][^\[\]]*)?)\]\]")
 
@@ -743,13 +910,13 @@ def rewrite_links(old_name: str, new_name: str) -> list[str]:
     changed = []
     for p in _all_md():
         try:
-            text = p.read_text("utf-8", errors="replace")
-        except Exception:
+            text = _read_text_for_edit(p)
+        except (OSError, DocumentEncodingError):
             continue
         new_text = pat.sub(_sub, text)
         if new_text != text:
             try:
-                p.write_text(new_text, "utf-8")
+                _atomic_write(p, new_text.encode("utf-8"))
                 changed.append(str(p.relative_to(base)).replace("\\", "/"))
             except Exception:
                 continue
@@ -757,11 +924,15 @@ def rewrite_links(old_name: str, new_name: str) -> list[str]:
 
 
 def _all_md() -> list[Path]:
-    base = vault_dir()
+    base = root_dir()
     return [
         p
         for p in base.rglob("*")
-        if p.is_file() and _is_md(p) and not p.name.startswith(".") and not _in_sys_dir(p)
+        if not p.is_symlink()
+        and p.is_file()
+        and _is_md(p)
+        and not p.name.startswith(".")
+        and not _in_sys_dir(p)
     ]
 
 
@@ -772,7 +943,7 @@ def note_names() -> list[str]:
 
 def search(q: str, limit: int = 20) -> list[dict]:
     ql = (q or "").lower()
-    base = vault_dir()
+    base = root_dir()
     out = []
     for p in _all_md():
         if not ql or ql in p.stem.lower():
@@ -783,7 +954,7 @@ def search(q: str, limit: int = 20) -> list[dict]:
 
 def backlinks(name: str) -> list[dict]:
     """notes that contain a [[name]] link to this note."""
-    base = vault_dir()
+    base = root_dir()
     target = (name or "").strip().lower()
     out = []
     for p in _all_md():
@@ -809,23 +980,15 @@ def backlinks(name: str) -> list[dict]:
     return out
 
 
-def outgoing_links(rel: str) -> list[str]:
-    p = _safe(rel)
-    if not p.exists():
-        return []
-    text = p.read_text("utf-8", errors="replace")
-    return sorted({m.group(1).strip() for m in _WIKILINK.finditer(text)})
-
-
 def create_folder(rel: str) -> dict:
     p = _safe(rel)
     p.mkdir(parents=True, exist_ok=True)
-    return {"path": str(p.relative_to(vault_dir())).replace("\\", "/"), "ok": True}
+    return {"path": str(p.relative_to(root_dir())).replace("\\", "/"), "ok": True}
 
 
 def find_asset(name: str) -> str | None:
     """resolve an embed target (image/file) by relative path or bare name."""
-    base = vault_dir()
+    base = root_dir()
     name = (name or "").strip()
     try:
         p = _safe(name)
@@ -856,7 +1019,7 @@ def file_bytes(rel: str):
 
 def full_text_search(q: str, limit: int = 50) -> list[dict]:
     """search note names AND contents, with a snippet of context."""
-    base = vault_dir()
+    base = root_dir()
     ql = (q or "").strip().lower()
     if not ql:
         return []
@@ -902,7 +1065,7 @@ def all_tags() -> list[dict]:
 
 
 def notes_with_tag(tag: str) -> list[dict]:
-    base = vault_dir()
+    base = root_dir()
     target = (tag or "").lstrip("#").lower()
     out = []
     for p in _all_md():
@@ -920,7 +1083,7 @@ _TASK = re.compile(r"^(\s*)[-*]\s+\[([ xX])\]\s+(.*)$")
 
 def all_tasks(include_done: bool = True) -> list[dict]:
     """every `- [ ]` / `- [x]` checkbox across the vault — for the rollup view."""
-    base = vault_dir()
+    base = root_dir()
     out = []
     for p in _all_md():
         try:
@@ -948,14 +1111,14 @@ def set_task(rel: str, line: int, done: bool) -> dict:
     p = _safe(rel)
     if not p.is_file():
         raise ValueError("not a file")
-    lines = p.read_text("utf-8", errors="replace").split("\n")
+    lines = _read_text_for_edit(p).split("\n")
     if line < 0 or line >= len(lines):
         raise ValueError("line out of range")
     if not _TASK.match(lines[line]):
         raise ValueError("not a task line")
     mark = "x" if done else " "
     lines[line] = re.sub(r"\[[ xX]\]", f"[{mark}]", lines[line], count=1)
-    p.write_text("\n".join(lines), "utf-8")
+    _atomic_write(p, "\n".join(lines).encode("utf-8"))
     return {"ok": True, "done": done}
 
 
@@ -968,12 +1131,12 @@ _DEFAULT_TEMPLATES = {
 
 def list_templates() -> list[dict]:
     """templates live in _templates/*.md. seed a few starters on first use."""
-    base = vault_dir()
+    base = root_dir()
     tdir = base / "_templates"
     if not tdir.exists():
         tdir.mkdir(parents=True, exist_ok=True)
         for name, body in _DEFAULT_TEMPLATES.items():
-            (tdir / f"{name}.md").write_text(body, "utf-8")
+            _atomic_write(tdir / f"{name}.md", body.encode("utf-8"))
     out = []
     for p in sorted(tdir.glob("*.md")):
         try:
@@ -985,7 +1148,7 @@ def list_templates() -> list[dict]:
 
 def save_asset(filename: str, data: bytes) -> dict:
     """stash a pasted/dropped image under _assets/, de-duping the name."""
-    base = vault_dir()
+    base = root_dir()
     adir = base / "_assets"
     adir.mkdir(parents=True, exist_ok=True)
     name = re.sub(r"[^A-Za-z0-9._-]+", "_", (filename or "asset").strip().lower()) or "asset"
@@ -997,14 +1160,14 @@ def save_asset(filename: str, data: bytes) -> dict:
     while p.exists():
         p = adir / f"{stem}-{i}.{ext}"
         i += 1
-    p.write_bytes(data)
+    _atomic_write(p, data)
     rel = str(p.relative_to(base)).replace("\\", "/")
     return {"path": rel, "name": p.name}
 
 
 def unlinked_mentions(name: str) -> list[dict]:
     """notes that say this note's title in plain text but don't [[link]] it."""
-    base = vault_dir()
+    base = root_dir()
     target = (name or "").strip()
     if len(target) < 2:
         return []
@@ -1047,7 +1210,7 @@ def _graph_files(tag=None, folder=None) -> list[Path]:
     files = _all_md()
     if not tag and not folder:
         return files
-    base = vault_dir()
+    base = root_dir()
     tnorm = (tag or "").lstrip("#").lower()
     fnorm = (folder or "").lower().rstrip("/")
     out = []
@@ -1068,7 +1231,7 @@ def _graph_files(tag=None, folder=None) -> list[Path]:
 
 def _edges_for(files: list[Path]) -> dict:
     """nodes = the given notes, edges = resolved [[wikilinks]] between them (within the set)."""
-    base = vault_dir()
+    base = root_dir()
     by_stem = {p.stem.lower(): p.stem for p in files}
     nodes = [{"id": p.stem, "path": str(p.relative_to(base)).replace("\\", "/")} for p in files]
     edges = []

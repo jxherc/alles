@@ -39,7 +39,7 @@ export async function openRuns() {
   try { runs = await fetch('/api/agent/runs?summary=1&limit=40').then(r => r.json()); }
   catch { body.innerHTML = '<div class="runs-empty">couldn’t load runs</div>'; return; }
   if (!Array.isArray(runs) || !runs.length) {
-    body.innerHTML = '<div class="runs-empty">no agent runs yet — they show up here once the agent does something</div>';
+    body.innerHTML = '<div class="runs-empty">no agent runs yet: they show up here once the agent does something</div>';
     return;
   }
   body.innerHTML = runs.map(rowHtml).join('');
@@ -55,7 +55,7 @@ function rowHtml(r) {
       <span class="run-model">${esc(r.model || 'agent')}</span>
       <span class="run-time">${esc(ago(r.updated_at || r.started_at))}</span>
     </div>
-    <div class="run-row-sub">${r.steps} step${r.steps === 1 ? '' : 's'}${prog}${edits}${r.todo ? ` — ${esc(r.todo)}` : ''}</div>
+    <div class="run-row-sub">${r.steps} step${r.steps === 1 ? '' : 's'}${prog}${edits}${r.todo ? `: ${esc(r.todo)}` : ''}</div>
     <div class="run-detail" hidden></div>
   </div>`;
 }
@@ -100,8 +100,11 @@ export function sourcesHtml(src) {
 }
 
 function detailHtml(run, src, id) {
-  const todos = (run.todos || []).map(t =>
-    `<div class="run-todo ${t.status === 'done' ? 'done' : ''}">${t.status === 'done' ? '✓' : '○'} ${esc(t.text || t.title || '')}</div>`).join('');
+  const todos = (run.todos || []).map(t => {
+    // producer emits {step, status: pending|in_progress|completed}; tolerate legacy text/done too
+    const done = t.status === 'completed' || t.status === 'done';
+    return `<div class="run-todo ${done ? 'done' : ''}">${done ? '✓' : '○'} ${esc(t.step || t.text || t.title || '')}</div>`;
+  }).join('');
   const steps = (run.tool_steps || []).slice(-12).map(s =>
     `<span class="run-step ${s.error ? 'err' : ''}" title="${esc(s.output || '')}">${esc(s.name || s.tool || 'tool')}</span>`).join('');
   const editN = (run.checkpoints || []).length;

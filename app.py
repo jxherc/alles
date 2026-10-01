@@ -1,19 +1,31 @@
-import asyncio
+import asyncio  # noqa: I001 - legacy route imports are intentionally grouped one module per block
 import json
 import logging
+import os
+import tempfile
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from core.access_middleware import HostGuardMiddleware, PublicHttpsMiddleware
+from core.api_errors import ApiError, api_error_handler
 from core.database import ModelEndpoint, SessionLocal, init_db
+from core.observability_middleware import ObservabilityMiddleware
+from core.server_config import (
+    access_profile,
+    bind_host,
+    cors_origins,
+    forwarded_allow_ips,
+    trusted_hosts,
+    validate_access_config,
+)
 from core.settings import anthropic_api_key, auth_enabled, deepseek_api_key, get_port
-from services import events as _events  # noqa: F401 - installs the 0c mutation spine
 from routes import (
     agent as agent_routes,
 )
@@ -73,9 +85,14 @@ from routes import (
 from routes import (
     days as days_routes,
 )
+from routes import delegation as delegation_routes
+from routes import andromeda as andromeda_routes
 from routes import (
     files as files_routes,
 )
+from routes import storage_locations as storage_location_routes
+from routes import file_operations as file_operation_routes
+from routes import offline_files as offline_file_routes
 from routes import (
     gallery as gallery_routes,
 )
@@ -95,6 +112,12 @@ from routes import (
     journal as journal_routes,
 )
 from routes import (
+    journal_migration as journal_migration_routes,
+)
+from routes import (
+    jarvis as jarvis_routes,
+)
+from routes import (
     local_models as local_model_routes,
 )
 from routes import (
@@ -112,6 +135,9 @@ from routes import (
 from routes import (
     money as money_routes,
 )
+from routes import finance_imports as finance_import_routes
+from routes import finance_actual as finance_actual_routes
+from routes import finance_connections as finance_connection_routes
 from routes import (
     notes as notes_routes,
 )
@@ -139,6 +165,7 @@ from routes import (
 from routes import (
     read as read_routes,
 )
+from routes import news as news_routes
 from routes import (
     capabilities as capabilities_routes,
 )
@@ -163,6 +190,8 @@ from routes import (
 from routes import (
     settings as settings_routes,
 )
+from routes import setup as setup_routes
+from routes import browser_passwords as browser_password_routes
 from routes import (
     shared as shared_routes,
 )
@@ -208,8 +237,10 @@ from routes import (
 from routes import (
     webhooks as webhook_routes,
 )
+from services import events as _events  # noqa: F401 - installs the 0c mutation spine
+from services.observability import configure_logging
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
+configure_logging()
 log = logging.getLogger("alles")
 
 
@@ -284,11 +315,11 @@ async def _fire_due_reminders():
     """plain reminders → web push once; scheduled 'message' reminders → run the
     model and drop the reply into the session. (a registered 30s job)"""
     from core.database import Reminder, Session, SessionLocal
-    from core.settings import load_settings
-    from routes.push import broadcast as push_broadcast
+    from core.settings import build_aide_system_prompt, load_settings
     from services.llm import stream_chat
+    from services.push_delivery import broadcast_result as push_broadcast_result
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
     db = SessionLocal()
     try:
         # plain reminders: web push once, but leave them unfired so an
@@ -304,33 +335,38 @@ async def _fire_due_reminders():
             .all()
         )
         for r in plain:
+            # ``notified`` is the durable delivery claim. If the process stops
+            # after the provider accepts the push, this row will not be retried.
             r.notified = True
             db.commit()
             try:
-                sent = await push_broadcast(
+                result = await push_broadcast_result(
                     {"title": "reminder", "body": r.text, "url": "/", "tag": f"reminder-{r.id}"}
                 )
                 # push reached a browser -> the user's been told, so mark it fired: it won't
                 # linger as "overdue" in the list or re-toast on next open. with no live
                 # subscriptions, leave it unfired so an open tab still toasts it via /due.
-                if sent:
+                if result["sent"]:
                     r.fired = True
-                    db.commit()
+                elif not result["uncertain"]:
+                    # No provider may have accepted it, so a later safe retry is allowed.
+                    r.notified = False
+                db.commit()
             except Exception as e:
-                log.warning(f"reminder push failed: {e}")
+                # The call may have delivered before raising. Keep the claim set.
+                log.warning("reminder push outcome uncertain: %s", type(e).__name__)
 
         due = (
             db.query(Reminder)
             .filter(
                 Reminder.trigger_at <= now,
                 Reminder.fired == False,
+                Reminder.notified == False,
                 Reminder.type == "message",
             )
             .all()
         )
         for r in due:
-            r.fired = True
-            db.commit()
             if not r.session_id:
                 continue
             s = db.get(Session, r.session_id)
@@ -343,8 +379,13 @@ async def _fire_due_reminders():
             ep = db.get(ModelEndpoint, s.endpoint_id)
             if not ep:
                 continue
+            # Scheduled model calls can cost money even if the process stops
+            # before their response is saved. Claim first; a stale claim waits
+            # for owner review instead of spending again automatically.
+            r.notified = True
+            db.commit()
             settings = load_settings()
-            msgs = [{"role": "system", "content": settings.get("system_prompt", "You are aide.")}]
+            msgs = [{"role": "system", "content": build_aide_system_prompt(settings)}]
             for m in list(s.messages)[-20:]:
                 msgs.append({"role": m.role, "content": m.content})
             msgs.append({"role": "user", "content": r.text})
@@ -362,12 +403,13 @@ async def _fire_due_reminders():
             am = Message(session_id=s.id, role="assistant", content=full)
             db.add(um)
             db.add(am)
+            r.fired = True
             s.message_count = (s.message_count or 0) + 2
-            s.last_message_at = dt.utcnow()
+            s.last_message_at = dt.now(UTC).replace(tzinfo=None)
             db.commit()
             log.info(f"fired scheduled message for session {s.id}")
             try:
-                await push_broadcast(
+                await push_broadcast_result(
                     {"title": "aide", "body": full[:160], "url": "/", "tag": f"message-{r.id}"}
                 )
             except Exception as e:
@@ -397,10 +439,39 @@ def _register_jobs():
 
         await run_automations()
 
+    async def _jarvis_scheduler():
+        from core.database import SessionLocal
+        from services.jarvis_handoff import resume_queued
+        from services.jarvis_scheduler import reclaim_stale_leases, scan_due
+
+        await scan_due()
+        db = SessionLocal()
+        try:
+            reclaim_stale_leases(db)
+            db.commit()
+        finally:
+            db.close()
+        resume_queued()
+
+    async def _jarvis_outbox():
+        from services.jarvis_outbox import process_outbox
+
+        await process_outbox()
+
+    async def _jarvis_events():
+        from services.jarvis_events import dispatch_reviewed_events
+
+        dispatch_reviewed_events()
+
     async def _models():
         from routes.models import refresh_all_model_lists
 
         await refresh_all_model_lists()
+
+    async def _model_oauth():
+        from services.model_auth import refresh_all_oauth_endpoints
+
+        await refresh_all_oauth_endpoints()
 
     async def _cal_reminders():
         from services.cal_notify import fire_due
@@ -413,9 +484,11 @@ def _register_jobs():
         await _job()
 
     async def _photo_watch():
+        # PIL decode + a full folder walk — run off the event loop so the periodic scan
+        # doesn't freeze every other request while it churns through images.
         from services.photo_sync import run_watch
 
-        run_watch()
+        await asyncio.to_thread(run_watch)
 
     async def _ics_subs():
         from routes.calendar import refresh_all_subscriptions
@@ -427,7 +500,7 @@ def _register_jobs():
         from services import carddav_sync
 
         if carddav_sync.due_for_sync(time.time()):
-            carddav_sync.sync()
+            await asyncio.to_thread(carddav_sync.sync)  # blocking CardDAV HTTP — off the loop
 
     async def _watch():
         from routes.watch import run_checks
@@ -439,15 +512,25 @@ def _register_jobs():
 
         await refresh_feeds()
 
-    async def _reconcile():
-        from core.database import SessionLocal
-        from services import personal_index
+    async def _scheduled_news():
+        from services.news import run_due_news
 
-        db = SessionLocal()
-        try:
-            personal_index.reconcile(db)
-        finally:
-            db.close()
+        await run_due_news()
+
+    async def _reconcile():
+        # synchronous IMAP body fetches + fastembed encodes — the worst loop-blocker of the
+        # job set. run the whole thing (session included, so it's thread-local) off the loop.
+        def _job():
+            from core.database import SessionLocal
+            from services import personal_index
+
+            db = SessionLocal()
+            try:
+                personal_index.reconcile(db)
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
 
     async def _proactive():
         from services import proactive
@@ -455,14 +538,62 @@ def _register_jobs():
         await proactive.run()
 
     async def _blob_gc():
-        from core.database import SessionLocal
-        from services import blobstore
+        def _job():
+            from core.database import SessionLocal
+            from services import blobstore
 
+            db = SessionLocal()
+            try:
+                blobstore.gc(db)  # walks blob dir + stats files — off the loop
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
+
+    async def _user_model():
+        from core.database import SessionLocal
+        from core.settings import load_settings
+        from services import user_model
+
+        if not load_settings().get("user_model_distill", False):
+            return  # gated - spends tokens
         db = SessionLocal()
         try:
-            blobstore.gc(db)
+            await user_model.distill_async(db)
         finally:
             db.close()
+
+    async def _insights():
+        from core.database import SessionLocal
+        from core.settings import load_settings
+        from services import insights
+
+        settings = load_settings()
+        if not insights.generation_allowed(settings):
+            return
+        db = SessionLocal()
+        try:
+            await insights.generate_async(db, settings=settings)
+        finally:
+            db.close()
+
+    async def _holdings_price():
+        from core.settings import load_settings
+
+        if not load_settings().get("holdings_autoprice", False):
+            return  # gated - hits the network; opt-in
+
+        def _job():
+            from core.database import SessionLocal
+            from services import price_fetch
+
+            db = SessionLocal()
+            try:
+                price_fetch.refresh(db)  # blocking price HTTP — off the loop
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
 
     async def _clip_index():
         # phase 7b: embed un-indexed photos for semantic search. only runs if the optional CLIP
@@ -507,43 +638,13 @@ def _register_jobs():
 
         await asyncio.to_thread(_job)
 
-    async def _user_model():
-        from core.database import SessionLocal
-        from core.settings import load_settings
-        from services import user_model
+    async def _automatic_backup():
+        from services import automatic_backup
 
-        if not load_settings().get("user_model_distill", False):
-            return  # gated - spends tokens
-        db = SessionLocal()
-        try:
-            await user_model.distill_async(db)
-        finally:
-            db.close()
-
-    async def _insights():
-        from core.database import SessionLocal
-        from services import insights
-
-        db = SessionLocal()
-        try:
-            await insights.generate_async(db)  # internally gated on insights_enabled
-        finally:
-            db.close()
-
-    async def _holdings_price():
-        from core.database import SessionLocal
-        from core.settings import load_settings
-        from services import price_fetch
-
-        if not load_settings().get("holdings_autoprice", False):
-            return  # gated - hits the network; opt-in
-        db = SessionLocal()
-        try:
-            price_fetch.refresh(db)
-        finally:
-            db.close()
+        await asyncio.to_thread(automatic_backup.run_if_due)
 
     jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
+    jobs.register("scheduled_news", _scheduled_news, 60, run_at_start=False)
     jobs.register("holdings_price", _holdings_price, 6 * 3600, run_at_start=False)  # 2d (gated)
     jobs.register("blob_gc", _blob_gc, 6 * 3600, run_at_start=False)  # 0d - purge orphaned blobs
     jobs.register("clip_index", _clip_index, 60, run_at_start=False)  # 7b semantic-search indexing
@@ -555,19 +656,30 @@ def _register_jobs():
     jobs.register("subscriptions", _subs, 30)
     jobs.register("day_events", _days, 30)
     jobs.register("automations", _autos, 30)
+    jobs.register("jarvis_scheduler", _jarvis_scheduler, 5)
+    jobs.register("jarvis_outbox", _jarvis_outbox, 5)
+    jobs.register("jarvis_events", _jarvis_events, 5)
     jobs.register("reminders", _fire_due_reminders, 30)
     jobs.register("calendar_reminders", _cal_reminders, 30)
     jobs.register("mail_outbox", _outbox, 30)  # flush scheduled sends (5b)
     jobs.register("model_refresh", _models, 6 * 3600)  # runs at boot, then every 6h
+    jobs.register("model_oauth_refresh", _model_oauth, 300)  # refresh expiring Gemini grants
     jobs.register("photo_watch", _photo_watch, 300, run_at_start=False)  # 7c phone backup
     jobs.register("ics_subscriptions", _ics_subs, 3600, run_at_start=False)  # 8a calendar feeds
     jobs.register("carddav_auto", _carddav_auto, 600, run_at_start=False)  # 7b contacts auto-sync
     jobs.register("watch", _watch, 60, run_at_start=False)  # uptime/cert/health probes
     jobs.register("personal_reconcile", _reconcile, 120, run_at_start=False)
+    jobs.register(
+        "automatic_backup", _automatic_backup, 3600, run_at_start=False
+    )  # setup protection: daily encrypted local backup, checked hourly
     from services.proactive import _interval_seconds
 
     jobs.register(
-        "proactive", _proactive, _interval_seconds(), run_at_start=False
+        "proactive",
+        _proactive,
+        _interval_seconds(),
+        run_at_start=False,
+        interval_fn=_interval_seconds,
     )  # advisory cards
 
 
@@ -594,13 +706,22 @@ def _cleanup_empty_sessions():
 
     db = SessionLocal()
     try:
+        empty_ids = [
+            sid
+            for (sid,) in (
+                db.query(Session.id)
+                .outerjoin(Msg, Msg.session_id == Session.id)
+                .filter(Session.starred.is_(False), Msg.id.is_(None))
+                .all()
+            )
+        ]
         gone = 0
-        for s in db.query(Session).all():
-            if s.starred:
-                continue
-            if db.query(Msg).filter(Msg.session_id == s.id).count() == 0:
-                db.delete(s)
-                gone += 1
+        if empty_ids:
+            gone = (
+                db.query(Session)
+                .filter(Session.id.in_(empty_ids))
+                .delete(synchronize_session=False)
+            )
         if gone:
             db.commit()
             log.info(f"cleaned {gone} empty session(s)")
@@ -667,93 +788,252 @@ async def _connectivity_selftest():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    from core.settings import data_dir as configured_data_dir
+    from services.instance_lock import InstanceLock
+    from services.restore_apply import maintenance_lock_path
+    from services.update_safety import update_lock_path, update_start_allowed
+
+    preflight = os.environ.get("ALLES_RECOVERY_PREFLIGHT") == "1"
+    live_data = configured_data_dir().expanduser().resolve()
+    if not preflight and maintenance_lock_path(live_data).exists():
+        raise RuntimeError(
+            "an offline restore is unfinished; run `alles restore recover` before starting Alles"
+        )
+    if (
+        not preflight
+        and update_lock_path(live_data).exists()
+        and not update_start_allowed(live_data, os.environ.get("ALLES_UPDATE_TOKEN"))
+    ):
+        raise RuntimeError(
+            "an offline update is unfinished; run `alles update rollback` before starting Alles"
+        )
+
+    instance_lock = InstanceLock(live_data)
+    instance_lock.acquire()
+    reminder_task = None
+    photo_backfill_task = None
+    connectivity_task = None
+    discord_task = None
     try:
-        from services import net
+        init_db()
+        if preflight:
+            log.info("alles recovery preflight ready")
+            yield
+            return
 
-        if net.apply_proxy():
-            log.info("outbound proxy applied from settings")
-    except Exception:
-        pass
-    await _bootstrap_deepseek()
-    await _bootstrap_anthropic()
-    _cleanup_empty_sessions()
-    try:
-        from services import skills_store
+        from services import document_safety, file_operations, offline_files, trash
 
-        skills_store.seed_library()  # first-boot: install the whole bundled catalog
-    except Exception:
-        pass
-    try:
-        from routes.personas import seed_default_personas
+        db = SessionLocal()
+        try:
+            interrupted_document_writes = document_safety.recover_interrupted_writes()
+            interrupted_file_operations = file_operations.recover_interrupted(db)
+            interrupted_offline_copies = offline_files.recover_interrupted(db)
+            interrupted_file_trash = trash.recover_interrupted_files(db)
+        finally:
+            db.close()
+        if interrupted_file_operations:
+            log.warning(
+                "recovered %s interrupted Files operation(s)",
+                interrupted_file_operations,
+            )
+        if interrupted_document_writes:
+            log.warning(
+                "recovered %s interrupted document write(s)",
+                interrupted_document_writes,
+            )
+        if interrupted_offline_copies:
+            log.warning(
+                "recovered %s interrupted offline copy or copies",
+                interrupted_offline_copies,
+            )
+        if interrupted_file_trash:
+            log.warning(
+                "recovered %s interrupted file trash operation(s)",
+                interrupted_file_trash,
+            )
 
-        seed_default_personas()  # first-boot starter personas
-    except Exception:
-        pass
-    try:
-        from routes.calendars import seed_default_calendar
+        from services.automation_migration import migrate_legacy_automations
+        from services.jarvis_events import install as install_jarvis_events
 
-        seed_default_calendar()  # first-boot 'Personal' calendar + adopt orphan events
-    except Exception:
-        pass
+        migrated_automations = migrate_legacy_automations()
+        install_jarvis_events()
+        if migrated_automations:
+            log.info(
+                "converted %s legacy automation(s) into paused Aide workflows", migrated_automations
+            )
 
-    async def _photo_backfill():
-        # phase 4: fill aspect_ratio / preview / checksum on photos imported before the columns
-        # existed. gated on checksum==null so it's a cheap no-op once done; off-thread (opens images)
-        def _job():
-            from core.database import SessionLocal as SL
-            from services import photos_store
+        # A previous process may have stopped after an external action but before
+        # saving its result. Resolve those claims before the job loop can run so
+        # they are visible as uncertain and are never retried blindly.
+        from services.automations import reconcile_interrupted_attempts
 
-            db = SL()
+        interrupted_automations = reconcile_interrupted_attempts()
+        if interrupted_automations:
+            log.warning(
+                "marked %s interrupted automation attempt(s) uncertain",
+                interrupted_automations,
+            )
+
+        from services.jarvis_store import reconcile_interrupted_runs
+
+        interrupted_jarvis = reconcile_interrupted_runs()
+        if interrupted_jarvis["interrupted"] or interrupted_jarvis["uncertain"]:
+            log.warning(
+                "reconciled Aide runs after restart: %s interrupted, %s uncertain",
+                interrupted_jarvis["interrupted"],
+                interrupted_jarvis["uncertain"],
+            )
+
+        from services.andromeda_verifier import recover_interrupted as recover_andromeda_checks
+
+        interrupted_andromeda_checks = recover_andromeda_checks()
+        if interrupted_andromeda_checks:
+            log.warning(
+                "marked %s interrupted Andromeda verification job(s)",
+                interrupted_andromeda_checks,
+            )
+
+        from services.jarvis_handoff import resume_queued as resume_jarvis_handoffs
+
+        resumed_handoffs = resume_jarvis_handoffs()
+        if resumed_handoffs:
+            log.info("resumed %s queued Aide background run(s)", resumed_handoffs)
+
+        from services.delegated_actions import reconcile_delegated_actions
+
+        uncertain_actions = reconcile_delegated_actions()
+        if uncertain_actions:
+            log.warning("marked %s interrupted delegated action(s) uncertain", uncertain_actions)
+
+        try:
+            from services import net
+
+            if net.apply_proxy():
+                log.info("outbound proxy applied from settings")
+        except Exception:
+            pass
+        await _bootstrap_deepseek()
+        await _bootstrap_anthropic()
+        _cleanup_empty_sessions()
+        try:
+            from services import skills_store
+
+            skills_store.seed_library()  # first-boot: install the whole bundled catalog
+        except Exception:
+            pass
+        try:
+            from routes.personas import seed_default_personas
+
+            seed_default_personas()  # first-boot starter personas
+        except Exception:
+            pass
+        try:
+            from services.calendar_events import seed_default_calendar
+
+            seed_default_calendar()  # first-boot 'Personal' calendar + adopt orphan events
+        except Exception:
+            pass
+
+        async def _photo_backfill():
+            # phase 4: fill aspect_ratio / preview / checksum on photos imported before the columns
+            # existed. gated on checksum==null so it's a cheap no-op once done; off-thread (opens images)
+            def _job():
+                from core.database import SessionLocal as SL
+                from services import photos_store
+
+                db = SL()
+                try:
+                    n = photos_store.backfill_perf(db)
+                    if n:
+                        log.info(f"backfilled perf fields on {n} photo(s)")
+                finally:
+                    db.close()
+
+            await asyncio.to_thread(_job)
+
+        photo_backfill_task = asyncio.create_task(_photo_backfill())
+        try:
+            from services import agent_state
+
+            n = (
+                agent_state.reconcile_interrupted()
+            )  # zombie 'running' runs from a dead process → interrupted
+            if n:
+                log.info(f"reconciled {n} interrupted agent run(s) from a previous process")
+        except Exception:
+            pass
+        try:
+            from routes.mcp import connect_all
+
+            await connect_all()
+        except Exception:
+            pass
+        reminder_task = asyncio.create_task(_reminder_loop())
+        from services.jarvis_discord import run_forever as run_jarvis_discord
+
+        discord_task = asyncio.create_task(run_jarvis_discord(), name="jarvis-discord")
+        connectivity_task = asyncio.create_task(
+            _connectivity_selftest()
+        )  # fire-and-forget, logs a warning if outbound is dead
+        log.info("alles ready")
+        yield
+    finally:
+        if discord_task is not None:
+            discord_task.cancel()
             try:
-                n = photos_store.backfill_perf(db)
-                if n:
-                    log.info(f"backfilled perf fields on {n} photo(s)")
-            finally:
-                db.close()
+                await discord_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.warning("Jarvis Discord connection stopped with %s", type(exc).__name__)
+        if reminder_task is not None:
+            reminder_task.cancel()
+            try:
+                await reminder_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.warning("background job loop stopped with %s", type(exc).__name__)
+        if connectivity_task is not None:
+            connectivity_task.cancel()
+            try:
+                await connectivity_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.warning("connectivity check stopped with %s", type(exc).__name__)
+        if photo_backfill_task is not None:
+            # ``asyncio.to_thread`` keeps running after cancellation. Wait for this
+            # database writer before releasing the single-instance lock.
+            try:
+                await photo_backfill_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                log.warning("photo backfill stopped with %s", type(exc).__name__)
+        instance_lock.release()
+        log.info("alles shutting down")
 
-        await asyncio.to_thread(_job)
 
-    asyncio.create_task(_photo_backfill())
-    try:
-        from services import agent_state
-
-        n = (
-            agent_state.reconcile_interrupted()
-        )  # zombie 'running' runs from a dead process → interrupted
-        if n:
-            log.info(f"reconciled {n} interrupted agent run(s) from a previous process")
-    except Exception:
-        pass
-    try:
-        from routes.mcp import connect_all
-
-        await connect_all()
-    except Exception:
-        pass
-    task = asyncio.create_task(_reminder_loop())
-    asyncio.create_task(
-        _connectivity_selftest()
-    )  # fire-and-forget, logs a warning if outbound is dead
-    log.info("alles ready")
-    yield
-    task.cancel()
-    log.info("alles shutting down")
-
-
+validate_access_config()
 app = FastAPI(title="alles", lifespan=lifespan)
+app.add_exception_handler(ApiError, api_error_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    # NOT allow_credentials: "*" origins + credentials makes starlette reflect the Origin and return
-    # Access-Control-Allow-Credentials:true, letting any site read /api responses with the user's
-    # session cookie. the SPA is same-origin (CORS doesn't apply), so credentialed cross-origin
-    # access is purely an attack surface, not a feature.
-    allow_credentials=False,
+    allow_origins=list(cors_origins()),
+    # Same-origin app traffic does not need CORS. Explicit trusted origins may use
+    # the normal session cookie; unknown origins receive no read access.
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_trusted_hosts = trusted_hosts()
+if _trusted_hosts:
+    app.add_middleware(HostGuardMiddleware, allowed_hosts=_trusted_hosts)
+if access_profile() == "public":
+    app.add_middleware(PublicHttpsMiddleware)
 
 
 def _cookie_val(header: str, key: str) -> str:
@@ -784,41 +1064,55 @@ class TokenAuthMiddleware:
         headers = dict(scope.get("headers") or [])
         auth = headers.get(b"authorization", b"").decode("latin-1")
         path = scope.get("path", "")
+        token_authenticated = False
 
         if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
             token = auth.split(" ", 1)[1]
-            from routes.api_tokens import verify_token
+            from core.api_tokens import required_scope, token_access
 
             db = SessionLocal()
             try:
-                valid = verify_token(token, db)
+                access = token_access(
+                    token,
+                    db,
+                    required_scope(scope.get("method", "GET"), path),
+                )
             finally:
                 db.close()
-            if not valid:
-                await self._deny(send, "invalid token")
+            if access == "invalid":
+                await self._deny(send, "invalid token", code="invalid_token")
                 return
+            if access == "forbidden":
+                await self._deny(
+                    send,
+                    "token scope does not allow this request",
+                    status=403,
+                    code="token_scope_denied",
+                )
+                return
+            token_authenticated = True
 
         # gate /api/ AND /v1/ (the openai-compat router) - both drive the model + the user's data.
         # /api/auth/* stays open so login works; public /s/ /book/ /rsvp/ aren't under these prefixes.
         gated = path.startswith("/v1/") or (
             path.startswith("/api/") and not path.startswith("/api/auth")
         )
-        if auth_enabled() and gated:
+        if auth_enabled() and gated and not token_authenticated:
             from core.auth import verify_session
 
             cookie = _cookie_val(headers.get(b"cookie", b"").decode("latin-1"), "aide_session")
             if not verify_session(cookie):
-                await self._deny(send, "not authenticated")
+                await self._deny(send, "not authenticated", code="not_authenticated")
                 return
 
         await self.app(scope, receive, send)
 
-    async def _deny(self, send, detail):
-        body = json.dumps({"detail": detail}).encode()
+    async def _deny(self, send, detail, status=401, code="not_authenticated"):
+        body = json.dumps({"detail": detail, "code": code}).encode()
         await send(
             {
                 "type": "http.response.start",
-                "status": 401,
+                "status": status,
                 "headers": [
                     (b"content-type", b"application/json"),
                     (b"content-length", str(len(body)).encode()),
@@ -829,24 +1123,27 @@ class TokenAuthMiddleware:
 
 
 app.add_middleware(TokenAuthMiddleware)
+app.add_middleware(ObservabilityMiddleware)
 
 # routes
 app.include_router(auth_routes.router)
 app.include_router(chat.router)
 app.include_router(sessions.router)
 app.include_router(models.router)
+app.include_router(setup_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(memory_routes.router)
 app.include_router(research_routes.router)
 app.include_router(journal_routes.router)
+app.include_router(journal_migration_routes.router)
 app.include_router(usage_routes.router)
 app.include_router(rag_routes.router)
 app.include_router(textindex_routes.router)
 app.include_router(images_routes.router)
 app.include_router(skills_routes.router)
-from routes import notify as notify_routes
-from routes import system as system_routes
-from routes import timeline as timeline_routes
+from routes import notify as notify_routes  # noqa: E402
+from routes import system as system_routes  # noqa: E402
+from routes import timeline as timeline_routes  # noqa: E402
 
 app.include_router(notify_routes.router)
 app.include_router(shell_routes.router)
@@ -865,6 +1162,8 @@ app.include_router(project_routes.router)
 app.include_router(voice_routes.router)
 app.include_router(search_routes.router)
 app.include_router(compare_routes.router)
+app.include_router(browser_password_routes.extension_router)
+app.include_router(browser_password_routes.owner_router)
 app.include_router(vault_routes.router)
 app.include_router(oai_routes.router)
 app.include_router(contact_routes.router)
@@ -876,6 +1175,9 @@ app.include_router(vault_md_routes.router)
 app.include_router(reminder_routes.router)
 app.include_router(shared_routes.router)
 app.include_router(files_routes.router)
+app.include_router(file_operation_routes.router)
+app.include_router(offline_file_routes.router)
+app.include_router(storage_location_routes.router)
 app.include_router(caldav_routes.router)
 app.include_router(carddav_routes.router)
 app.include_router(mail_routes.router)
@@ -887,7 +1189,13 @@ app.include_router(subscription_routes.router)
 app.include_router(days_routes.router)
 app.include_router(today_routes.router)
 app.include_router(automation_routes.router)
+app.include_router(jarvis_routes.router)
+app.include_router(delegation_routes.router)
+app.include_router(andromeda_routes.router)
 app.include_router(money_routes.router)
+app.include_router(finance_import_routes.router)
+app.include_router(finance_actual_routes.router)
+app.include_router(finance_connection_routes.router)
 app.include_router(timeline_routes.router)
 app.include_router(system_routes.router)
 app.include_router(insights_routes.router)
@@ -897,6 +1205,7 @@ app.include_router(watch_routes.router)
 app.include_router(appearance_routes.router)
 app.include_router(habits_routes.router)
 app.include_router(read_routes.router)
+app.include_router(news_routes.router)
 app.include_router(books_routes.router)
 app.include_router(health_routes.router)
 app.include_router(capabilities_routes.router)
@@ -906,12 +1215,14 @@ app.include_router(recall_routes.router)
 app.include_router(proactive_routes.router)
 
 
-# static files — no-cache so JS/CSS always reloads
+# static code may be kept privately, but every use must validate freshness.
 class NoCacheStatic(StaticFiles):
     async def get_response(self, path, scope):
         resp = await super().get_response(path, scope)
         ext = Path(path).suffix.lower()
-        if ext in (".js", ".css", ".html"):
+        if ext in (".js", ".css"):
+            resp.headers["cache-control"] = "private, no-cache"
+        elif ext == ".html":
             resp.headers["cache-control"] = "no-cache, no-store, must-revalidate"
         return resp
 
@@ -922,7 +1233,7 @@ app.mount("/static", NoCacheStatic(directory=str(static_dir), html=False), name=
 
 @app.get("/")
 async def index():
-    # no-cache so the SPA shell never goes stale (JS/CSS already no-cache via NoCacheStatic)
+    # Never retain the shell; static code validates against its own file metadata.
     return FileResponse(
         str(static_dir / "index.html"),
         headers={"cache-control": "no-cache, no-store, must-revalidate"},
@@ -953,19 +1264,53 @@ async def pwa_precache():
     import re
 
     html = (static_dir / "index.html").read_text(encoding="utf-8")
-    m = re.search(r"\?v=(\d+)", html)
+    m = re.search(r"/static/style\.css\?v=(\d+)", html)
     stamp = m.group(1) if m else "1"
-    urls = ["/", "/manifest.json", f"/static/style.css?v={stamp}"]
+    urls = ["/", "/manifest.json"]
+
+    def add_url(url: str) -> None:
+        if url not in urls:
+            urls.append(url)
+
+    for tag in re.findall(r"<link\b[^>]*>", html, flags=re.IGNORECASE):
+        if not re.search(r'\brel=["\']stylesheet["\']', tag, flags=re.IGNORECASE):
+            continue
+        href = re.search(r'\bhref=["\']([^"\']+)["\']', tag, flags=re.IGNORECASE)
+        if href and href.group(1).startswith("/static/"):
+            add_url(href.group(1))
     for ic in ("icon-192.png", "icon-512.png", "icon-maskable-512.png"):
         if (static_dir / "icons" / ic).exists():
-            urls.append(f"/static/icons/{ic}")
-    for p in sorted((static_dir / "js").glob("*.js")):
-        urls.append(
-            f"/static/js/app.js?v={stamp}" if p.name == "app.js" else f"/static/js/{p.name}"
+            add_url(f"/static/icons/{ic}")
+    for p in sorted((static_dir / "js").rglob("*.js")):
+        relative = p.relative_to(static_dir).as_posix()
+        add_url(
+            f"/static/js/app.js?v={stamp}" if relative == "js/app.js" else f"/static/{relative}"
         )
-    for v in ("vendor/cm6.bundle.js",):
-        if (static_dir / v).exists():
-            urls.append(f"/static/{v}")
+        # Cache the exact URLs in static and dynamic imports too. The worker intentionally
+        # matches versioned code without ignoreSearch so an offline boot cannot mix module
+        # generations; a queryless directory inventory alone therefore is not sufficient.
+        for specifier in re.findall(
+            r"(?:\bfrom\s+|\bimport\s*\(\s*|\bimport\s+)[\"']([^\"']+)[\"']",
+            p.read_text(encoding="utf-8"),
+        ):
+            if not specifier.startswith("."):
+                continue
+            relative_path, separator, query = specifier.partition("?")
+            try:
+                imported = (p.parent / relative_path).resolve().relative_to(static_dir.resolve())
+            except ValueError:
+                continue
+            if (static_dir / imported).is_file():
+                add_url(f"/static/{imported.as_posix()}{separator}{query}")
+    for p in sorted((static_dir / "locales").glob("*.json")):
+        add_url(f"/static/locales/{p.name}")
+    for path, version in (
+        ("vendor/cm6.bundle.js", ""),
+        ("vendor/xterm/xterm.mjs", "?v=6.0.0"),
+        ("vendor/xterm/addon-fit.mjs", "?v=0.11.0"),
+    ):
+        if (static_dir / path).exists():
+            add_url(f"/static/{path}{version}")
     return {"urls": urls}
 
 
@@ -974,11 +1319,11 @@ def _request_authed(request: Request) -> bool:
     that want to vary their output by auth."""
     auth = request.headers.get("authorization", "")
     if auth.startswith("Bearer aide_") or auth.startswith("Bearer alles_"):
-        from routes.api_tokens import verify_token
+        from core.api_tokens import verify_token
 
         db = SessionLocal()
         try:
-            if verify_token(auth.split(" ", 1)[1], db):
+            if verify_token(auth.split(" ", 1)[1], db, required_scope="read"):
                 return True
         finally:
             db.close()
@@ -987,11 +1332,34 @@ def _request_authed(request: Request) -> bool:
     return verify_session(request.cookies.get("aide_session", ""))
 
 
+def _owned_browser_test_run_id() -> str:
+    """Expose a browser-test proof only for an owned system-temporary data root."""
+    if os.environ.get("ALLES_TEST_DATA", "").strip().lower() not in {"1", "true", "yes"}:
+        return ""
+    run_id = os.environ.get("ALLES_TEST_RUN_ID", "").strip()
+    if len(run_id) < 16:
+        return ""
+    from core.settings import data_dir
+
+    root = data_dir().expanduser().resolve()
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    if root == temp_root or temp_root not in root.parents:
+        return ""
+    try:
+        owner = (root / ".alles-test-owner").read_text("utf-8").strip()
+    except OSError:
+        return ""
+    return run_id if owner == run_id else ""
+
+
 @app.get("/health")
-def health(request: Request, deep: bool = False):
+def health(request: Request, response: Response, deep: bool = False):
     # default stays a cheap liveness ping. ?deep=1 runs the full readiness check, but its details
     # (data-dir PATH, installed deps, provider/key state) are internal — only expose them in local
     # mode (no auth) or to an authenticated caller, never to an anonymous client when auth is on.
+    test_run_id = _owned_browser_test_run_id()
+    if test_run_id:
+        response.headers["X-Alles-Test-Run-ID"] = test_run_id
     if deep and (not auth_enabled() or _request_authed(request)):
         from services import doctor
 
@@ -1009,13 +1377,25 @@ async def ping(cached: bool = False):
 
 
 if __name__ == "__main__":
-    import os
-
     import uvicorn
 
     port = get_port()
+    try:
+        host = bind_host()
+    except ValueError as exc:
+        log.error("refusing unsafe network configuration: %s", exc)
+        raise SystemExit(2) from None
     do_reload = bool(
         os.environ.get("ALLES_RELOAD")
     )  # ALLES_RELOAD=1 -> hot-reload on .py edits (dev)
-    log.info(f"starting alles on http://localhost:{port}{' (reload)' if do_reload else ''}")
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=do_reload)
+    display_host = "localhost" if host in {"127.0.0.1", "::1", "0.0.0.0", "::"} else host
+    log.info(f"starting alles on http://{display_host}:{port}{' (reload)' if do_reload else ''}")
+    proxy_ips = forwarded_allow_ips() if access_profile() == "public" else ()
+    uvicorn.run(
+        "app:app",
+        host=host,
+        port=port,
+        reload=do_reload,
+        proxy_headers=bool(proxy_ips),
+        forwarded_allow_ips=",".join(proxy_ips),
+    )

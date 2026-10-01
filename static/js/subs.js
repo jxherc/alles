@@ -1,6 +1,6 @@
 // subscriptions — recurring costs with billing cycles and renewal reminders
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js';
+import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
 import { confirm as dlgConfirm } from './dialog.js';
 
@@ -16,28 +16,27 @@ let _editing = null;   // id of the row currently in edit mode
 let _unusedIds = new Set();   // subs with no recent matching charge (4e)
 let _detected = [];    // recurring-charge candidates not yet tracked (4e)
 
-export async function loadSubs() {
-  try {
-    const d = await fetch('/api/subscriptions').then(r => r.json());
-    _subs = d.subscriptions || [];
-    _summary = d.summary || {};
-  } catch { _subs = []; _summary = {}; }
-  try { _analytics = await fetch('/api/subscriptions/analytics').then(r => r.json()); }
-  catch { _analytics = null; }
-  try { _upcoming = await fetch('/api/subscriptions/upcoming?days=7').then(r => r.json()); }
-  catch { _upcoming = null; }
-  try { _forecast = await fetch('/api/subscriptions/forecast?months=6').then(r => r.json()); }
-  catch { _forecast = null; }
-  try {
-    const dd = await fetch('/api/subscriptions/duplicates').then(r => r.json());
-    _dupIds = new Set((dd.groups || []).flatMap(g => g.subs.map(s => s.id)));
-  } catch { _dupIds = new Set(); }
-  try { _accounts = (await fetch('/api/money/accounts').then(r => r.json())).filter(a => !a.archived); }
-  catch { _accounts = []; }
-  try { _unusedIds = new Set(((await fetch('/api/subscriptions/unused?cycles=2').then(r => r.json())).unused || []).map(s => s.id)); }
-  catch { _unusedIds = new Set(); }
-  try { _detected = (await fetch('/api/subscriptions/detect').then(r => r.json())).candidates || []; }
-  catch { _detected = []; }
+export async function loadSubs(fetcher = fetch) {
+  const get = path => fetcher(path).then(r => r.json()).catch(() => null);
+  const [d, analytics, upcoming, forecast, dd, accounts, unused, detected] = await Promise.all([
+    get('/api/subscriptions'),
+    get('/api/subscriptions/analytics'),
+    get('/api/subscriptions/upcoming?days=7'),
+    get('/api/subscriptions/forecast?months=6'),
+    get('/api/subscriptions/duplicates'),
+    get('/api/money/accounts'),
+    get('/api/subscriptions/unused?cycles=2'),
+    get('/api/subscriptions/detect'),
+  ]);
+  _subs = d?.subscriptions || [];
+  _summary = d?.summary || {};
+  _analytics = analytics;
+  _upcoming = upcoming;
+  _forecast = forecast;
+  _dupIds = new Set((dd?.groups || []).flatMap(g => (g.subs || []).map(s => s.id)));
+  _accounts = (accounts || []).filter(a => !a.archived);
+  _unusedIds = new Set(((unused?.unused || []).map(s => s.id)));
+  _detected = detected?.candidates || [];
   _render();
 }
 
@@ -89,18 +88,19 @@ function _chartHtml(a) {
   </div>`;
 }
 
-export function initSubsPanel() {
-  loadSubs();
+export function initSubsPanel(fetcher = fetch) {
+  const loading = loadSubs(fetcher);
   const cycleEl = $('sub-cycle');
   initCustomDropdown(cycleEl);
   initDatePicker($('sub-due'));
   cycleEl?.addEventListener('change', () => {
     $('sub-cycle-days').style.display = cycleEl.dataset.value === 'custom' ? '' : 'none';
   });
-  if (!$('sub-add-btn') || $('sub-add-btn').dataset.wired) return;
+  if (!$('sub-add-btn') || $('sub-add-btn').dataset.wired) return loading;
   $('sub-add-btn').dataset.wired = '1';
   $('sub-add-btn').addEventListener('click', _add);
   $('sub-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') _add(); });
+  return loading;
 }
 
 async function _add() {
@@ -143,14 +143,16 @@ function _render() {
   const sum = $('subs-summary');
   if (sum) {
     sum.textContent = _summary.active
-      ? `${_summary.active} active · ${_summary.currency}${_summary.monthly_total}/mo · ${_summary.currency}${_summary.yearly_total}/yr`
+      ? (_summary.totals_available === false
+          ? `${_summary.active} active · totals need currency review`
+          : `${_summary.active} active · ${_summary.currency}${_summary.monthly_total}/mo · ${_summary.currency}${_summary.yearly_total}/yr`)
       : '';
   }
   const list = $('subs-list');
   if (!list) return;
   const detected = _detectedHtml();
   if (!_subs.length) {
-    list.innerHTML = detected + '<div style="padding:1rem 0;font-size:0.75rem;color:var(--faint)">nothing tracked yet — add your first subscription below</div>';
+    list.innerHTML = detected + '<div style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">nothing tracked yet: add your first subscription below</div>';
     _wireDetected(list);
     return;
   }
@@ -192,14 +194,15 @@ function _row(s) {
         ${s.notes ? `<span class="sub-notes" title="${esc(s.notes)}">…</span>` : ''}
         ${s.trial_days_left != null && s.trial_days_left >= 0 ? `<span class="sub-trial" title="free trial / cancel by ${esc(s.trial_end)}">trial: ${s.trial_days_left === 0 ? 'ends today' : s.trial_days_left + 'd left'}</span>` : ''}
         ${s.price_increased ? `<span class="sub-hike" title="price went up${s.last_price_change ? ` (${esc(s.currency)}${s.last_price_change.old} → ${esc(s.currency)}${s.last_price_change.new} on ${esc(s.last_price_change.date)})` : ''}">↑ price up</span>` : ''}
-        ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate — another tracked subscription matches this name or site">⚠ dup?</span>` : ''}
-        ${_unusedIds.has(s.id) ? `<button class="sub-unused" data-act="edit" title="no matching charge in the last 2 cycles — click to review / cancel">💤 unused?</button>` : ''}
+        ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate: another tracked subscription matches this name or site">⚠ dup?</span>` : ''}
+        ${_unusedIds.has(s.id) ? `<button class="sub-unused" data-act="edit" title="no matching charge in the last 2 cycles. click to review / cancel">💤 unused?</button>` : ''}
         ${s.cancel_url ? `<a class="sub-cancel-link" href="${esc(s.cancel_url)}" target="_blank" rel="noreferrer" title="how to cancel ${esc(s.name)}">✕ cancel</a>` : ''}
       </div>
       <span class="sub-price">${esc(s.currency)}${s.price ? s.price.toFixed(2) : '—'}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
       <span class="sub-due${soon ? ' soon' : ''}" title="${esc(s.next_due)}">${s.active ? esc(s.next_due.slice(5)) + ' · ' : ''}${_dueLabel(s)}</span>
       <span class="sub-actions">
-        ${s.payable ? `<button class="btn" data-act="paid" title="mark this renewal paid">paid</button>`
+        ${s.renewal_review_required ? '<span class="sub-review-required" title="review this subscription currency before posting the renewal">currency review needed</span>'
+          : s.payable ? `<button class="btn" data-act="paid" title="mark this renewal paid">paid</button>`
           : (s.active ? `<span class="sub-notdue" title="next charge ${esc(s.next_due)}">not due</span>` : '')}
         ${s.paid_count ? `<button class="btn" data-act="history" title="payment history + undo">⤺ ${s.paid_count}</button>` : ''}
         <button class="btn" data-act="toggle">${s.active ? 'pause' : 'resume'}</button>

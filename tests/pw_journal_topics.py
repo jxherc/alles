@@ -3,6 +3,7 @@
 needs a fresh instance: ALLES_DATA=.tmp_jt AUTH_ENABLED=false PORT=8077 python app.py
   PYTHONIOENCODING=utf-8 python tests/pw_journal_topics.py
 """
+
 from playwright.sync_api import sync_playwright
 
 BASE = "http://journal.localhost:8077"
@@ -33,9 +34,13 @@ def main():
         print("topics:", topics)
         assert any("work" in t for t in topics), topics
         # clicking #work threads the related entries into the results
-        pg.evaluate("() => [...document.querySelectorAll('.jrnl-topic')].find(t => t.textContent.includes('work')).click()")
+        pg.evaluate(
+            "() => [...document.querySelectorAll('.jrnl-topic')].find(t => t.textContent.includes('work')).click()"
+        )
         pg.wait_for_timeout(700)
-        results = pg.evaluate("() => document.querySelectorAll('#jrnl-results .jrnl-otd-row').length")
+        results = pg.evaluate(
+            "() => document.querySelectorAll('#jrnl-results .jrnl-otd-row').length"
+        )
         print("work entries threaded:", results)
         assert results >= 3, results
         b.close()

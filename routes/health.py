@@ -11,26 +11,25 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import HealthEntry, get_db
+from services.health_entries import HealthInputError, canonical_date, finite_value, save_entry
 
 router = APIRouter(prefix="/api")
 
 KINDS = ("weight", "sleep", "workout", "med", "custom")
 
 
-def _d(s: str) -> date:
-    return date.fromisoformat(str(s)[:10])
-
-
 # ── pure logic ──────────────────────────────────────────────────────────────────
-def latest_per_kind(entries) -> dict:
-    """most-recent entry per kind (by date, then insertion)."""
+def latest_per_kind(entries, key=None) -> dict:
+    """most-recent entry per kind/key (by date, then insertion)."""
+    key = key or (lambda e: e.kind)
     out = {}
     for e in entries:
-        cur = out.get(e.kind)
+        k = key(e)
+        cur = out.get(k)
         # >= so a same-day correction (later-inserted row) replaces the earlier one —
         # entries arrive in insertion order, matching the "by date, then insertion" contract
         if cur is None or str(e.date) >= str(cur.date):
-            out[e.kind] = e
+            out[k] = e
     return out
 
 
@@ -85,36 +84,31 @@ def overview(days: int = 365, db: DbSession = Depends(get_db)):
     targets = load_settings().get("health_targets") or {}
     since = (date.today() - timedelta(days=max(1, days))).isoformat()
     rows = db.query(HealthEntry).filter(HealthEntry.date >= since).all()
-    # latest per (kind, label) by DATE, ties broken by insertion (id-asc + >=) — so a backfilled
-    # older-dated row can't beat a newer one. key by (kind, label) so distinct custom metrics
-    # (e.g. blood pressure vs steps) get their own card.
-    all_rows = db.query(HealthEntry).order_by(HealthEntry.id.asc()).all()
-    latest_kl: dict = {}
-    for e in all_rows:
+    # bucket the in-range rows by (kind, label) once, tracking the latest per key by DATE (ties
+    # broken by insertion via id-asc + >=) so a backfilled older-dated row can't beat a newer one.
+    # a metric only gets a card if it has an entry in range, and for any such metric its globally
+    # latest entry is necessarily in range too — so the in-range rows are all we need (no full scan).
+    by_key: dict = {}
+    rows = sorted(rows, key=lambda r: r.id)
+    latest_kl = latest_per_kind(rows, key=lambda e: (e.kind, e.label or ""))
+    for e in rows:
         key = (e.kind, e.label or "")
-        cur = latest_kl.get(key)
-        if cur is None or str(e.date) >= str(cur.date):
-            latest_kl[key] = e
+        by_key.setdefault(key, []).append(e)
     out = []
-    seen = set()
-    for e in rows:  # only metrics with an entry IN the selected range get a card
-        key = (e.kind, e.label or "")
-        if key in seen:
-            continue
-        seen.add(key)
+    for key, ser in by_key.items():
+        rep = ser[0]  # representative entry for the card's kind/label
         lt = latest_kl.get(key)
-        t = targets.get(e.kind)
-        ser = [r for r in rows if (r.kind, r.label or "") == key]
+        t = targets.get(rep.kind)
         # 4b - baseline + flag whether the latest value sits outside the usual range (robust MAD)
         raw = sorted(((r.date, r.value or 0.0) for r in ser), key=lambda p: p[0])
         anoms = {a["date"]: a for a in life_stats.health_anomalies(raw)}
         latest_anom = anoms.get(lt.date) if lt else None
         out.append(
             {
-                "kind": e.kind,
-                "label": e.label,
+                "kind": rep.kind,
+                "label": rep.label,
                 "latest": {"date": lt.date, "value": lt.value, "unit": lt.unit} if lt else None,
-                "series": series_for(ser, e.kind),
+                "series": series_for(ser, rep.kind),
                 "target": t if isinstance(t, (int, float)) and t > 0 else None,
                 "baseline": life_stats.health_baseline([v for _, v in raw]),
                 "anomaly": (
@@ -136,9 +130,13 @@ class TargetBody(BaseModel):
 def set_target(body: TargetBody):
     from core.settings import load_settings, save_settings
 
+    try:
+        value = finite_value(body.value)
+    except HealthInputError as exc:
+        raise HTTPException(400, str(exc)) from exc
     targets = dict(load_settings().get("health_targets") or {})
-    if body.value and body.value > 0:
-        targets[body.kind] = body.value
+    if value > 0:
+        targets[body.kind] = value
     else:
         targets.pop(body.kind, None)  # 0 / negative clears it
     save_settings({"health_targets": targets})
@@ -157,10 +155,10 @@ def import_health(body: ImportBody, db: DbSession = Depends(get_db)):
     rows = parse_health_csv(body.text or "")
     n = 0
     for r in rows:
-        d = (r["date"] or date.today().isoformat())[:10]
+        d = r["date"] or date.today().isoformat()
         try:
-            _d(d)
-        except ValueError:
+            d = canonical_date(d)
+        except HealthInputError:
             d = date.today().isoformat()
         # create_entry only allows KINDS; keep imports consistent - an out-of-set kind becomes a
         # labeled custom metric instead of a kind the manual add path would reject
@@ -184,28 +182,20 @@ class EntryBody(BaseModel):
 
 @router.post("/health")
 def create_entry(body: EntryBody, db: DbSession = Depends(get_db)):
-    import math
-
     if body.kind not in KINDS:
         raise HTTPException(400, f"kind must be one of {', '.join(KINDS)}")
-    if not math.isfinite(body.value):
-        raise HTTPException(400, "value must be a finite number")
-    d = (body.date or date.today().isoformat())[:10]
     try:
-        _d(d)
-    except ValueError:
-        raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
-    e = HealthEntry(
-        kind=body.kind,
-        date=d,
-        value=body.value,
-        unit=body.unit.strip(),
-        note=body.note.strip(),
-        label=body.label.strip(),
-    )
-    db.add(e)
-    db.commit()
-    db.refresh(e)
+        e = save_entry(
+            db,
+            kind=body.kind,
+            value=body.value,
+            unit=body.unit,
+            note=body.note,
+            label=body.label,
+            entry_date=body.date,
+        )
+    except HealthInputError as exc:
+        raise HTTPException(400, str(exc)) from exc
     return _fmt(e)
 
 
@@ -221,12 +211,16 @@ def update_entry(eid: int, body: EntryPatch, db: DbSession = Depends(get_db)):
     e = db.get(HealthEntry, eid)
     if not e:
         raise HTTPException(404)
+    if body.value is not None:
+        try:
+            finite_value(body.value)
+        except HealthInputError as exc:
+            raise HTTPException(400, str(exc)) from exc
     if body.date is not None:
         try:
-            _d(body.date)
-        except ValueError:
-            raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
-        e.date = body.date[:10]
+            e.date = canonical_date(body.date)
+        except HealthInputError as exc:
+            raise HTTPException(400, str(exc)) from exc
     for f in ("value", "unit", "note"):
         v = getattr(body, f)
         if v is not None:

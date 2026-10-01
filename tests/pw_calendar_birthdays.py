@@ -4,6 +4,7 @@ needs a fresh instance with the current routes:
   ALLES_DATA=.tmp_bd AUTH_ENABLED=false PORT=8077 python app.py
   PYTHONIOENCODING=utf-8 python tests/pw_calendar_birthdays.py
 """
+
 from datetime import date
 
 from playwright.sync_api import sync_playwright
@@ -31,7 +32,8 @@ def main():
             """(cell) => {
                 const c = document.querySelector(`.cal-cell[data-date='${cell}']`);
                 return c ? [...c.querySelectorAll('.cal-bday')].map(b => b.textContent.trim()).join('|') : '(no cell)';
-            }""", cell,
+            }""",
+            cell,
         )
         assert "Grace Hopper" in txt, txt
         pg.evaluate("(cid) => fetch('/api/contacts/'+cid, {method:'DELETE'})", cid)

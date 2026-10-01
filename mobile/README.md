@@ -32,7 +32,7 @@ npm run run:android
 ## Notes
 
 - **Production:** set `server.url` to your HTTPS `BASE_DOMAIN` and drop `cleartext`/
-  `allowMixedContent`. The LAN `http://…:8000` default is dev-only.
+  `allowMixedContent`. The LAN `http://…:6769` default is dev-only.
 - **Auth:** the per-host login + `/api/auth/handoff` relay (see `core/auth.py`) works the same
   inside the webview; the subdomain SPA scoping is unchanged.
 - **Offline:** the service worker (`static/sw.js`) and its IndexedDB write-queue run inside the

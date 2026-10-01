@@ -35,7 +35,7 @@ class LabelsTests(ApiTest):
         self.aid = self.acct.id
         db.close()
 
-    def _msg(self, uid, sender="a@x.com", subject="m", lu=""):
+    def _msg(self, uid, sender="a@x.com", subject="m", lu="", labels=""):
         db = self.db()
         db.add(
             CachedMessage(
@@ -48,6 +48,7 @@ class LabelsTests(ApiTest):
                 date_ts=int(uid),
                 seen=True,
                 list_unsubscribe=lu,
+                labels=labels,
             )
         )
         db.commit()
@@ -69,11 +70,10 @@ class LabelsTests(ApiTest):
         msgs = self.client.get(f"/api/mail/cached/{self.aid}").json()["messages"]
         self.assertEqual(msgs[0]["labels"], ["a", "b"])
 
-    def test_add_label_keeps_existing(self):
+    def test_set_labels_can_store_multiple_labels(self):
         self._msg(1)
         db = self.db()
-        mail_cache.set_labels(db, self.aid, "INBOX", "1", ["work"])
-        mail_cache.add_label(db, self.aid, "INBOX", "1", "later")
+        mail_cache.set_labels(db, self.aid, "INBOX", "1", ["work", "later"])
         db.close()
         msgs = self.client.get(f"/api/mail/cached/{self.aid}").json()["messages"]
         self.assertEqual(set(msgs[0]["labels"]), {"work", "later"})
@@ -84,6 +84,15 @@ class LabelsTests(ApiTest):
         self.client.post(f"/api/mail/labels/{self.aid}", json={"uid": "1", "labels": ["work"]})
         d = self.client.get(f"/api/mail/by-label/{self.aid}", params={"label": "work"}).json()
         self.assertEqual([m["uid"] for m in d["messages"]], ["1"])
+
+    def test_by_label_filters_before_limit(self):
+        self._msg(10, labels="homework")
+        self._msg(9, labels="homework")
+        self._msg(1, labels="work")
+        db = self.db()
+        got = mail_cache.by_label(db, self.aid, "work", limit=1)
+        db.close()
+        self.assertEqual([m["uid"] for m in got], ["1"])
 
     def test_to_msg_labels_list(self):
         self._msg(1)
@@ -96,6 +105,15 @@ class LabelsTests(ApiTest):
         self._msg(2, sender="alice@friend.com", subject="lunch")  # primary
         d = self.client.get(f"/api/mail/category/{self.aid}", params={"cat": "promotions"}).json()
         self.assertEqual([m["uid"] for m in d["messages"]], ["1"])
+
+    def test_by_category_filters_before_limit(self):
+        self._msg(10, sender="alice@friend.com", subject="lunch")
+        self._msg(9, sender="bob@friend.com", subject="hey")
+        self._msg(1, sender="deals@shop.com", lu="<https://x/u>")
+        db = self.db()
+        got = mail_cache.by_category(db, self.aid, "promotions", limit=1)
+        db.close()
+        self.assertEqual([m["uid"] for m in got], ["1"])
 
     def test_cat_route(self):
         self._msg(1, sender="no-reply@bank.com", subject="statement")  # updates

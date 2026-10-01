@@ -30,20 +30,34 @@ class ParseFeedTests(unittest.TestCase):
     def test_rss_items_and_title(self):
         f = parse_feed(RSS)
         self.assertEqual(f["title"], "My Blog")
-        self.assertEqual([i["link"] for i in f["items"]],
-                         ["https://blog.example.com/1", "https://blog.example.com/2"])
+        self.assertEqual(
+            [i["link"] for i in f["items"]],
+            ["https://blog.example.com/1", "https://blog.example.com/2"],
+        )
         self.assertEqual(f["items"][0]["title"], "First Post")
 
     def test_atom_prefers_alternate_link(self):
         f = parse_feed(ATOM)
         self.assertEqual(f["title"], "Atom Blog")
         # rel=alternate wins over rel=self
-        self.assertEqual([i["link"] for i in f["items"]],
-                         ["https://atom.example.com/a", "https://atom.example.com/b"])
+        self.assertEqual(
+            [i["link"] for i in f["items"]],
+            ["https://atom.example.com/a", "https://atom.example.com/b"],
+        )
 
     def test_garbage_is_empty(self):
         self.assertEqual(parse_feed("not xml at all"), {"title": "", "items": []})
         self.assertEqual(parse_feed(""), {"title": "", "items": []})
+
+    def test_entity_and_oversized_feed_are_empty(self):
+        from services import read_feeds
+
+        entity = (
+            '<!DOCTYPE x [<!ENTITY y "private">]><rss><channel><title>&y;</title></channel></rss>'
+        )
+        self.assertEqual(parse_feed(entity), {"title": "", "items": []})
+        oversized = b" " * (read_feeds.MAX_FEED_BYTES + 1)
+        self.assertEqual(parse_feed(oversized), {"title": "", "items": []})
 
     def test_new_items_filters_already_seen(self):
         items = [{"title": "a", "link": "u1"}, {"title": "b", "link": "u2"}]
@@ -62,7 +76,9 @@ class FeedApiTests(ApiTest):
         self.assertEqual(feeds[0]["url"], "https://blog.example.com/rss")
         # duplicate rejected
         self.assertEqual(
-            self.client.post("/api/read/feeds", json={"url": "https://blog.example.com/rss"}).status_code,
+            self.client.post(
+                "/api/read/feeds", json={"url": "https://blog.example.com/rss"}
+            ).status_code,
             400,
         )
         self.assertEqual(self.client.delete(f"/api/read/feeds/{fid}").status_code, 200)
@@ -96,7 +112,9 @@ class FeedApiTests(ApiTest):
 
         with (
             mock.patch("httpx.AsyncClient", FakeClient),
-            mock.patch.object(ng, "is_safe_url", lambda u: True),  # fake host won't resolve; bypass guard
+            mock.patch.object(
+                ng, "is_safe_url", lambda u: True
+            ),  # fake host won't resolve; bypass guard
         ):
             from services.read_feeds import refresh_feeds
 

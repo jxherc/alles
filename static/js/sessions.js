@@ -2,16 +2,31 @@ import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
-import { renderAgentSteps } from './agentview.js';
-import { isIncognitoMode } from './modes.js';
-import { getCurrentEndpoint, getSelected } from './models.js';
+import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
+import { isIncognitoMode } from './modes.js?v=256';
+import { scrollToLatest } from './scrollfollow.js';
+import {
+  modelOverrideForNewSession,
+  restoreSessionModel,
+  selectAideDefault,
+} from './models.js?v=212';
+import { t } from './i18n.js';
+import { contextProvenanceElement } from './memoryactions.js';
+import { createMenuController } from './kokuen.js';
+import { replaceRouteUrl } from './route_history.js';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
 let _allSessions = [];  // flat list for search
 const SESSION_ORDER_KEY = 'aide-session-order';
+let _contextMenuController = null;
 
 export function getActiveId() { return _activeId; }
+
+function syncSessionRowState(row, active) {
+  row.classList.toggle('active', active);
+  row.querySelector('.session-open')?.setAttribute('aria-current', active ? 'true' : 'false');
+}
 
 // just fetch + render the sidebar. no navigation — safe to call after any mutation.
 export async function loadSessions() {
@@ -24,19 +39,20 @@ export async function loadSessions() {
     // active session got deleted/archived elsewhere → drop the stale highlight
     if (_activeId && !_allSessions.find(s => s.id === _activeId)) _activeId = null;
   } catch (e) {
-    console.error('loadSessions', e);
+    if (globalThis.navigator?.onLine !== false) console.error('loadSessions', e);
   }
 }
+window._reloadAideSessions = loadSessions;
 
 // called once on boot. only restore a session from a deep-link hash —
-// a bare localhost:8000 always opens a fresh chat (like claude.ai/new).
-export async function initSessions() {
+// a bare localhost:6769 always opens a fresh chat (like claude.ai/new).
+export async function initSessions({ hashOwner = 'session' } = {}) {
   await loadSessions();
   const hash = location.hash.slice(1);
-  if (hash && _allSessions.find(s => s.id === hash)) {
+  if (hashOwner === 'session' && hash && _allSessions.find(s => s.id === hash)) {
     await selectSession(hash);
   } else {
-    newChat();
+    newChat({ preserveHash: hashOwner !== 'session' });
   }
 }
 
@@ -49,6 +65,7 @@ const _draftKey = id => 'aide-draft-' + (id || 'new');
 export function saveDraft() {
   const ta = document.getElementById('composer-ta');
   if (!ta) return;
+  if (isIncognitoMode()) return;
   const k = _draftKey(_activeId);
   if (ta.value.trim()) localStorage.setItem(k, ta.value);
   else localStorage.removeItem(k);
@@ -56,37 +73,54 @@ export function saveDraft() {
 export function restoreDraft(id) {
   const ta = document.getElementById('composer-ta');
   if (!ta) return;
+  if (isIncognitoMode()) {
+    ta.value = '';
+    ta.style.height = 'auto';
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
   ta.value = localStorage.getItem(_draftKey(id)) || '';
   ta.style.height = 'auto';
   ta.dispatchEvent(new Event('input', { bubbles: true }));   // autosize + send-btn state
 }
 export function clearDraft(id) {
+  if (isIncognitoMode()) return;
   localStorage.removeItem(_draftKey(id === undefined ? _activeId : id));
 }
 
-export function newChat() {
-  saveDraft();              // keep whatever was half-typed in the outgoing convo
+export function newChat(options = {}) {
+  if (!options.skipDraft) saveDraft(); // keep whatever was half-typed in the outgoing convo
   _activeId = null;
   window._currentSession = null;
+  const requestedProject = options.projectId ?? new URLSearchParams(location.search).get('project_id') ?? '';
+  window._pendingProjectId = getProjects().some(project => project.id === requestedProject) ? requestedProject : '';
+  window._pendingWorkingDir = '';
   window._pendingPersona = null;       // fresh chat starts with no persona pre-picked
+  window._pendingChatBehavior = '';
   window._refreshPersonaBtn?.();        // keep the persona button visible + pickable pre-send
-  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  selectAideDefault();                  // new chats follow the effective Aide Chat role
+  if (!options.preserveHash && location.hash) {
+    replaceRouteUrl(location.pathname + location.search);
+  }
   document.getElementById('messages').innerHTML = '';
-  document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.session-item').forEach(el => syncSessionRowState(el, false));
   showWelcome();
   const ta = document.getElementById('composer-ta');
   if (ta) { ta.style.height = 'auto'; ta.focus(); }
   restoreDraft(null);       // bring back the 'new chat' draft if any
+  window._syncAideNewTaskContext?.(null);
 }
 
 // mark a session active without re-fetching/re-rendering its messages.
 // used after lazy-create so the in-flight stream isn't wiped.
 export function markActive(id) {
   _activeId = id;
-  if (id) location.hash = id;
+  if (id && !isIncognitoMode()) location.hash = id;
   document.querySelectorAll('.session-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.id === id);
+    const active = el.dataset.id === id;
+    syncSessionRowState(el, active);
   });
+  window._syncAideNewTaskContext?.(window._currentSession || (id ? { id } : null));
 }
 
 
@@ -101,12 +135,15 @@ export function renderSidebar(filter = '') {
 
   if (!src.length) {
     list.innerHTML = '<div class="empty-sessions">no chats yet</div>';
+    if (!fl) renderProjectFolders(_allSessions, id => selectSession(id), () => loadSessions());
     return;
   }
 
   let html = '';
 
-  if (!fl) {
+  if (!fl && document.body.classList.contains('afterlife-aide-projects')) {
+    html = '';
+  } else if (!fl) {
     if (_sessions.today.length)     html += renderGroup('today', _sessions.today);
     if (_sessions.yesterday.length) html += renderGroup('yesterday', _sessions.yesterday);
     if (_sessions.earlier.length)   html += renderGroup('earlier', _sessions.earlier);
@@ -121,9 +158,21 @@ export function renderSidebar(filter = '') {
 
   list.querySelectorAll('.session-item').forEach(el => {
     const sid = el.dataset.id;
-    if (sid === _activeId) el.classList.add('active');
-    el.addEventListener('click', () => selectSession(sid));
-    el.addEventListener('contextmenu', e => { e.preventDefault(); openCtxMenu(e, sid); });
+    const active = sid === _activeId;
+    const openButton = el.querySelector('.session-open');
+    syncSessionRowState(el, active);
+    openButton?.addEventListener('click', () => selectSession(sid));
+    openButton?.addEventListener('keydown', event => {
+      if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+        event.preventDefault();
+        const box = openButton.getBoundingClientRect();
+        openCtxMenu({ clientX: box.left + 16, clientY: box.top + box.height }, sid, openButton);
+      }
+    });
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      openCtxMenu(e, sid, openButton);
+    });
     el.querySelector('.star')?.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
@@ -147,9 +196,11 @@ function renderItem(s) {
   const incog    = s.incognito ? ' incognito' : '';
   const icon     = s.incognito ? '<span class="incognito-icon" title="incognito" aria-hidden="true"></span>' : '';
   return `<div class="session-item${starred}${incog}" data-id="${s.id}" draggable="true">
-  <div class="session-dot"></div>
-  ${icon}<span class="session-name">${escHtml(s.name)}</span>
-  <button class="star" title="${s.starred ? 'unstar' : 'star'}" aria-label="${s.starred ? 'unstar session' : 'star session'}"></button>
+  <button type="button" class="session-open" aria-haspopup="menu" aria-current="${s.id === _activeId ? 'true' : 'false'}" aria-label="open session ${escHtml(s.name)}">
+    <span class="session-dot"></span>
+    ${icon}<span class="session-name">${escHtml(s.name)}</span>
+  </button>
+  <button type="button" class="star" title="${s.starred ? 'unstar' : 'star'}" aria-label="${s.starred ? 'unstar session' : 'star session'}"></button>
 </div>`;
 }
 
@@ -240,7 +291,8 @@ export async function selectSession(id) {
 
   // update active class
   document.querySelectorAll('.session-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.id === id);
+    const active = el.dataset.id === id;
+    syncSessionRowState(el, active);
   });
 
   try {
@@ -250,22 +302,19 @@ export async function selectSession(id) {
     renderMessages(data.messages);
     showMessages();
 
-    // update topbar model label if session has a model
-    if (data.session.model) {
-      import('./models.js').then(m => {
-        document.getElementById('model-label').textContent = m.prettyModel(data.session.model);
-      });
-    }
+    restoreSessionModel(data.session);
     updateSessionHeader(data.session);
     window._setMode?.(data.session.mode || 'chat');   // restore this convo's last mode
     // refresh persona button
     try {
       window._refreshPersonaBtn?.();
     } catch (e) {}
-    // 10b — if a background agent run is still going for this session, reattach to it
-    import('./bgrun.js').then(m => m.reattach(id)).catch(() => {});
+    // Reattach durable Aide work to this same task after a reload or tab switch.
+    import('./aidebackground.js?v=245').then(m => m.reattachBackgroundWork(id)).catch(() => {});
+    return true;
   } catch (e) {
     console.error('selectSession', e);
+    return false;
   }
 }
 
@@ -280,6 +329,7 @@ function renderMessages(msgs) {
     if (m.role === 'user') {
       const row = appendUserMsg(m.content);
       row.dataset.msgId = m.id;
+      if (m.meta?.interrupted) appendInterruptionNotice(row.querySelector('.user-wrap') || row);
     } else if (m.role === 'system' && m.content?.startsWith('[conversation summary]')) {
       // compact divider
       const div = document.createElement('div');
@@ -287,8 +337,15 @@ function renderMessages(msgs) {
       div.innerHTML = '<span>context compacted</span>';
       container.appendChild(div);
     } else if (m.role === 'assistant') {
-      const { row, wrap } = appendAiMsg(m.content, m.meta?.thinking, m.meta?.tool_steps);
+      const { row, wrap, body } = appendAiMsg(
+        m.content,
+        m.meta?.thinking,
+        m.meta?.tool_steps,
+        m.meta?.context_provenance,
+        m.meta?.agent_run_id,
+      );
       row.dataset.msgId = m.id;
+      if (m.meta?.interrupted) appendInterruptionNotice(body);
       const actions = wrap.querySelector('.msg-actions');
       // re-open artifact button from history
       if (m.meta?.artifacts?.length) {
@@ -315,37 +372,35 @@ function renderMessages(msgs) {
   // wire edit + branch buttons after all messages are rendered
   _wireEditButtons(container);
   _wireBranchButtons(container);
-  container.scrollTop = container.scrollHeight;
+  scrollDown({ force: true });
 }
 
 
-export function appendUserMsg(text) {
+export function appendUserMsg(text, documentScope = null) {
   const { row } = _makeRow('user');
   row.innerHTML = `<div class="user-wrap">
+    ${documentScope?.path ? `<div class="user-context-scope">using note · ${escHtml(documentScope.path)}</div>` : ''}
     <div class="user-bubble">${escHtml(text)}</div>
+    <button class="msg-memory-btn" type="button" onclick="rememberUserMessage(this)">remember this</button>
     <button class="msg-edit-btn" title="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
   </div>`;
   document.getElementById('messages').appendChild(row);
-  scrollDown();
+  scrollDown({ force: true });
   return row;
 }
 
 
-export function appendAiMsg(text, thinking, toolSteps) {
+export function appendInterruptionNotice(target) {
+  const notice = document.createElement('div');
+  notice.className = 'aide-interruption';
+  notice.setAttribute('role', 'status');
+  notice.textContent = 'response interrupted';
+  target.appendChild(notice);
+}
+
+
+export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentRunId = '') {
   const { row, wrap, body } = _makeAiRow();
-  // re-show the agent run (tool calls + diffs) inline, collapsed, above the reply
-  if (toolSteps?.length) {
-    const holder = document.createElement('div');
-    holder.innerHTML = renderAgentSteps(toolSteps, false);
-    if (holder.firstElementChild) body.appendChild(holder.firstElementChild);
-  }
-  if (thinking) {
-    const tb = document.createElement('details');
-    tb.className = 'thinking-block';
-    tb.innerHTML = '<summary>thinking</summary><div class="thinking-content"></div>';
-    tb.querySelector('.thinking-content').textContent = thinking;
-    body.appendChild(tb);
-  }
   // strip artifact tags from display
   const displayText = text ? text.replace(/<aide-artifact[^>]*>[\s\S]*?<\/aide-artifact>/g, '').trim() : '';
   const content = document.createElement('div');
@@ -353,6 +408,21 @@ export function appendAiMsg(text, thinking, toolSteps) {
   content.innerHTML = displayText ? _md(stripEmojis(displayText)) : '';
   applyResponsePrivacy(content);
   body.appendChild(content);
+  if (thinking) {
+    const tb = document.createElement('details');
+    tb.className = 'thinking-block';
+    tb.innerHTML = '<summary>thinking</summary><div class="thinking-content"></div>';
+    tb.querySelector('.thinking-content').textContent = thinking;
+    body.appendChild(tb);
+  }
+  if (toolSteps?.length) {
+    const holder = document.createElement('div');
+    holder.innerHTML = renderAgentSteps(toolSteps, false, agentRunId);
+    if (holder.firstElementChild) body.appendChild(holder.firstElementChild);
+    wireAgentRunControls(body);
+  }
+  const provenance = contextProvenanceElement(contextProvenance);
+  if (provenance) body.appendChild(provenance);
   body.classList.add('done');
 
   const actions = document.createElement('div');
@@ -555,9 +625,8 @@ function _md(text) {
 }
 
 
-export function scrollDown() {
-  const chat = document.getElementById('chat');
-  chat.scrollTop = chat.scrollHeight;
+export function scrollDown(options = {}) {
+  return scrollToLatest(options);
 }
 
 
@@ -566,16 +635,8 @@ function _escName(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</
 function greetingHtml() {
   const h = new Date().getHours();
   const name = (localStorage.getItem('alles-name') || '').trim();
-  let pool;
-  if (h < 5)        pool = ['still up?', 'burning the midnight oil?', 'the world\'s asleep, perfect',
-                            'night owl mode?', 'quiet hours, big ideas', 'one more thing?', 'can\'t sleep?',
-                            'late-night session?'];
-  else if (h < 12)  pool = ['good morning', 'morning', 'rise and shine', 'top of the morning',
-                            'fresh start', 'let\'s make today count', 'the day is yours', 'coffee first?'];
-  else if (h < 18)  pool = ['good afternoon', 'afternoon', 'good to see you', 'back at it?',
-                            'midday momentum', 'what are we shipping today?', 'let\'s keep rolling', 'ready when you are?'];
-  else              pool = ['good evening', 'evening', 'welcome back', 'the night is young',
-                            'what are we building tonight?', 'prime hours', 'let\'s get into it', 'golden hour for ideas'];
+  const period = h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+  const pool = [1, 2, 3].map(index => t(`home.greeting.${period}.${index}`));
   const pick = pool[Math.floor(Math.random() * pool.length)];
   return _withName(pick, name);
 }
@@ -610,7 +671,7 @@ export function showWelcome() {
     // dedicated incognito hero — always shown off the record (à la Claude)
     if (g) g.innerHTML = `
       <div class="incognito-hero">
-        <svg class="incognito-hero-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07"/></svg>
+        <svg class="incognito-hero-mark incognito-ghost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21v-9a7 7 0 0 1 14 0v9l-2.4-1.5L14.2 21l-2.2-1.5L9.8 21l-2.4-1.5L5 21z"/><circle cx="9.5" cy="11" r="0.5" fill="currentColor"/><circle cx="14.5" cy="11" r="0.5" fill="currentColor"/></svg>
         <div class="incognito-hero-title">${incognitoTitle()}</div>
         <div class="incognito-hero-note">incognito chats aren't saved, added to memory, or used to train models.</div>
       </div>`;
@@ -636,9 +697,20 @@ export function showMessages() {
 export function updateSessionHeader(session) {
   const actBtn   = document.getElementById('session-actions-btn');
   const tokCount = document.getElementById('session-token-count');
+  const tokValue = document.getElementById('session-token-count-value');
+  const conversation = document.getElementById('aide-conversation-name');
+  const projectName = document.getElementById('aide-project-name');
+  const project = session?.project_id ? getProjects().find(item => item.id === session.project_id) : null;
+  if (conversation) conversation.textContent = session?.name || t('aide.new_task');
+  if (projectName) projectName.textContent = project?.name || '';
+  window._syncAideNewTaskContext?.(session || null);
   if (!session) {
     if (actBtn)   actBtn.style.display   = 'none';
-    if (tokCount) { tokCount.style.display = 'none'; tokCount.textContent = ''; }
+    if (tokCount) {
+      tokCount.hidden = true;
+      tokCount.removeAttribute('aria-label');
+    }
+    if (tokValue) tokValue.textContent = '';
     return;
   }
   if (actBtn)   actBtn.style.display   = '';
@@ -660,33 +732,35 @@ export function downloadSession(fmt = 'md') {
 // kept for the /export slash command + older callers
 export async function exportActiveSessionMarkdown() { downloadSession('md'); }
 
+window.addEventListener('alles:localization-change', () => {
+  const welcome = document.getElementById('welcome');
+  if (welcome && welcome.style.display !== 'none') showWelcome();
+  updateSessionHeader(window._currentSession || null);
+});
+
 
 export async function createSession(model = '', endpointId = '', options = {}) {
+  const override = modelOverrideForNewSession(model, endpointId);
   const r = await fetch('/api/sessions', {
     method: 'POST',
     headers: {'content-type':'application/json'},
-    body: JSON.stringify({ model, endpoint_id: endpointId, incognito: !!options.incognito, mode: options.mode || 'chat' }),
+    body: JSON.stringify({
+      model: override.model,
+      endpoint_id: override.endpointId,
+      incognito: !!options.incognito,
+      mode: options.mode || 'chat',
+      chat_behavior: options.chatBehavior ?? window._pendingChatBehavior ?? '',
+      project_id: options.projectId ?? window._pendingProjectId ?? '',
+      working_dir: options.workingDir ?? window._pendingWorkingDir ?? '',
+    }),
   });
   if (!r.ok) return null;
   const s = await r.json();
-  await loadSessions();
+  if (!options.incognito) await loadSessions();
   return s;
 }
 
 
-// return the active session id, or lazily create one (so research/docs-ask work on a
-// fresh chat exactly like a normal first message does).
-export async function ensureSession(options = {}) {
-  const existing = getActiveId();
-  if (existing) return existing;
-  const ep = getCurrentEndpoint();
-  if (!ep) { toast('no endpoint configured — add one via the model picker', 'error'); return null; }
-  const model = getSelected()?.model || ep.models?.[0] || '';
-  const s = await createSession(model, ep.id, options);
-  if (!s) { toast('failed to create session', 'error'); return null; }
-  markActive(s.id);
-  return s.id;
-}
 
 export function updateSessionName(id, name) {
   _allSessions.forEach(s => { if (s.id === id) s.name = name; });
@@ -702,12 +776,15 @@ export function updateSessionName(id, name) {
 
 function startRename(el, id) {
   const nameEl = el.querySelector('.session-name');
+  const openButton = el.querySelector('.session-open');
   const current = nameEl.textContent;
   const inp = document.createElement('input');
   inp.value = current;
-  inp.style.cssText = 'background:none;border:none;border-bottom:1px solid var(--muted);color:var(--text);font:inherit;font-size:0.8rem;width:100%;outline:none;padding:0';
-  nameEl.replaceWith(inp);
+  inp.style.cssText = 'background:none;border:none;border-bottom:1px solid var(--muted);color:var(--text);font:inherit;font-size:0.8rem;min-width:0;flex:1;outline:none;padding:0';
+  openButton.hidden = true;
+  openButton.insertAdjacentElement('afterend', inp);
   inp.focus(); inp.select();
+  let restoreRowFocus = false;
 
   const commit = async () => {
     const name = inp.value.trim() || current;
@@ -715,44 +792,47 @@ function startRename(el, id) {
       method:'PATCH', headers:{'content-type':'application/json'},
       body: JSON.stringify({ name }),
     });
-    inp.replaceWith(Object.assign(document.createElement('span'), { className:'session-name', textContent:name }));
+    nameEl.textContent = name;
+    inp.remove();
+    openButton.hidden = false;
     updateSessionName(id, name);
+    if (restoreRowFocus && openButton.isConnected) openButton.focus();
   };
   inp.addEventListener('blur', commit);
   inp.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
-    if (e.key === 'Escape') { inp.value = current; inp.blur(); }
+    if (e.key === 'Enter') { e.preventDefault(); restoreRowFocus = true; inp.blur(); }
+    if (e.key === 'Escape') { restoreRowFocus = true; inp.value = current; inp.blur(); }
   });
 }
 
 
-function openCtxMenu(e, id) {
+function openCtxMenu(e, id, source = null) {
   const menu = document.getElementById('ctx-menu');
   const s = _allSessions.find(x => x.id === id);
   if (!s) return;
 
   const projects = getProjects();
   const projectItems = projects.map(p =>
-    `<div class="ctx-item" data-action="move-project" data-pid="${p.id}">→ ${p.name}</div>`
+    `<button type="button" role="menuitem" class="ctx-item" data-action="move-project" data-pid="${p.id}">move to ${escHtml(p.name)}</button>`
   ).join('');
   menu.innerHTML = `
-    <div class="ctx-item" data-action="rename">rename</div>
-    <div class="ctx-item" data-action="star">${s.starred ? 'unstar' : 'star'}</div>
-    <div class="ctx-item" data-action="archive">archive</div>
+    <button type="button" role="menuitem" class="ctx-item" data-action="rename">rename</button>
+    <button type="button" role="menuitem" class="ctx-item" data-action="star">${s.starred ? 'unstar' : 'star'}</button>
+    <button type="button" role="menuitem" class="ctx-item" data-action="archive">archive</button>
     ${projectItems}
-    <div class="ctx-item" data-action="new-project">+ new project</div>
-    <div class="ctx-item danger" data-action="delete">delete</div>
+    <button type="button" role="menuitem" class="ctx-item" data-action="new-project">new project</button>
+    <button type="button" role="menuitem" class="ctx-item danger" data-action="delete">delete</button>
   `;
-  menu.style.display = 'block';
   menu.style.left = e.clientX + 'px';
   menu.style.top = e.clientY + 'px';
 
-  const hide = () => menu.style.display = 'none';
-  document.addEventListener('click', hide, { once: true });
+  _contextMenuController ||= createMenuController(menu);
+  _contextMenuController.open({ source: source || e.currentTarget });
 
   menu.querySelectorAll('.ctx-item').forEach(item => {
     item.addEventListener('click', async () => {
       const action = item.dataset.action;
+      _contextMenuController.close({ restoreFocus: action !== 'rename' });
       if (action === 'rename') {
         const el = document.querySelector(`.session-item[data-id="${id}"]`);
         if (el) startRename(el, id);

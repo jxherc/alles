@@ -10,20 +10,12 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Book, get_db
+from services.book_items import STATUSES, BookInputError, clamp_rating, save_book
 
 router = APIRouter(prefix="/api")
 
-STATUSES = ("want", "reading", "done")
-
 
 # ── pure helpers ──────────────────────────────────────────────────────────────
-def clamp_rating(r) -> int:
-    try:
-        return max(0, min(5, int(r)))
-    except (TypeError, ValueError):
-        return 0
-
-
 def year_count(books, year: int) -> int:
     return sum(1 for b in books if b.status == "done" and str(b.finished)[:4] == str(year))
 
@@ -119,30 +111,25 @@ class BookBody(BaseModel):
 
 @router.post("/books")
 def create_book(body: BookBody, db: DbSession = Depends(get_db)):
-    if not body.title.strip():
-        raise HTTPException(400, "title required")
-    if body.status not in STATUSES:
-        raise HTTPException(400, f"status must be one of {', '.join(STATUSES)}")
-    b = Book(
-        title=body.title.strip(),
-        author=body.author.strip(),
-        status=body.status,
-        rating=clamp_rating(body.rating),
-        cover=body.cover.strip(),
-        isbn=body.isbn.strip(),
-        notes=body.notes,
-        year=body.year,
-        started=date.today().isoformat() if body.status == "reading" else "",
-        finished=date.today().isoformat() if body.status == "done" else "",
-    )
-    db.add(b)
-    db.commit()
-    db.refresh(b)
     try:
-        from services import personal_index
-        personal_index.index_record(db, "book", b)
-    except Exception:
-        pass
+        b = save_book(
+            db,
+            title=body.title,
+            author=body.author,
+            status=body.status,
+            rating=body.rating,
+            cover=body.cover,
+            isbn=body.isbn,
+            notes=body.notes,
+            year=body.year,
+        )
+    except BookInputError as exc:
+        detail = (
+            "title required"
+            if exc.field == "title"
+            else f"status must be one of {', '.join(STATUSES)}"
+        )
+        raise HTTPException(400, detail) from exc
     return _fmt(b)
 
 
@@ -186,6 +173,7 @@ def update_book(bid: str, body: BookPatch, db: DbSession = Depends(get_db)):
     db.commit()
     try:
         from services import personal_index
+
         personal_index.index_record(db, "book", b)
     except Exception:
         pass
@@ -207,30 +195,40 @@ def import_books(body: ImportBody, db: DbSession = Depends(get_db)):
     # have one, else title+author (lowercased). seed from what's already saved.
     def _key(isbn, title, author):
         i = (isbn or "").strip().lower()
-        return ("isbn", i) if i else ("ta", (title or "").strip().lower(), (author or "").strip().lower())
+        return (
+            ("isbn", i)
+            if i
+            else ("ta", (title or "").strip().lower(), (author or "").strip().lower())
+        )
 
     seen = {_key(b.isbn, b.title, b.author) for b in db.query(Book).all()}
-    n = 0
+    added = []
     for r in rows:
         k = _key(r["isbn"], r["title"], r["author"])
         if k in seen:
             continue
         seen.add(k)
-        db.add(
-            Book(
-                title=r["title"],
-                author=r["author"],
-                status=r["status"] if r["status"] in STATUSES else "want",
-                rating=clamp_rating(r["rating"]),
-                finished=r["finished"],
-                started=date.today().isoformat() if r["status"] == "reading" else "",
-                isbn=r["isbn"],
-                year=r["year"],
-            )
+        book = Book(
+            title=r["title"],
+            author=r["author"],
+            status=r["status"] if r["status"] in STATUSES else "want",
+            rating=clamp_rating(r["rating"]),
+            finished=r["finished"],
+            started=date.today().isoformat() if r["status"] == "reading" else "",
+            isbn=r["isbn"],
+            year=r["year"],
         )
-        n += 1
+        db.add(book)
+        added.append(book)
     db.commit()
-    return {"imported": n}
+    for book in added:
+        try:
+            from services import personal_index
+
+            personal_index.index_record(db, "book", book)
+        except Exception:
+            db.rollback()
+    return {"imported": len(added)}
 
 
 @router.delete("/books/{bid}")
@@ -242,6 +240,7 @@ def delete_book(bid: str, db: DbSession = Depends(get_db)):
     db.commit()
     try:
         from services import personal_index
+
         personal_index.remove_record(db, "book", bid)
     except Exception:
         pass

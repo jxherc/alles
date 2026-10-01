@@ -30,6 +30,12 @@ class EventTests(unittest.TestCase):
         self.assertEqual(p["title"], "lunch with sam")
         self.assertTrue(p["start_dt"].endswith("T13:00"))
 
+    def test_month_name_date_with_time(self):
+        # F13: this module's own docstring example used to land on today, not june 20
+        p = parse_event("dentist june 20 9:30am", T)
+        self.assertEqual(p["start_dt"], "2026-06-20T09:30")
+        self.assertEqual(p["title"], "dentist")
+
     def test_all_day_when_no_time(self):
         p = parse_event("team sync tomorrow", T)
         self.assertTrue(p["all_day"])

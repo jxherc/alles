@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import date
+from unittest import mock
 
 from core.database import Account, Transaction
 from tests._client import ApiTest
@@ -120,8 +121,12 @@ class MoneyEnvelopeTests(ApiTest):
         self.assertEqual(c["spent"], 60.0)
 
     def test_assign_unknown_month_defaults_current(self):
-        month = datetime.utcnow().strftime("%Y-%m")
-        self._assign("misc", 42, month=None)
+        month = "2026-06"
+        with mock.patch("routes.money.date", wraps=date) as local_date:
+            local_date.today.return_value = date(2026, 6, 10)
+            response = self._assign("misc", 42, month=None)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["month"], month)
         c = self._cat(self._env(month), "misc")
         self.assertIsNotNone(c)
         self.assertEqual(c["assigned"], 42.0)

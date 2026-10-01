@@ -105,7 +105,7 @@ def load_runs(limit=50):
     runs = []
     try:
         files = sorted(
-            agent_state.DATA_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+            agent_state.run_dir().glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
         )
     except Exception:
         return runs

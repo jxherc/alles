@@ -55,6 +55,16 @@ class SkillsStoreTest(unittest.TestCase):
         ss.upsert_skill("Tricky", "d", "", body)
         self.assertEqual(ss.get_skill("tricky")["body"], body)
 
+    def test_frontmatter_values_are_escaped(self):
+        ss.upsert_skill("Line\nName", "desc: one\nnext", "when\nneeded", "body")
+        got = ss.get_skill("line-name")
+        self.assertEqual(got["name"], "Line\nName")
+        self.assertEqual(got["description"], "desc: one\nnext")
+        self.assertEqual(got["when_to_use"], "when\nneeded")
+        md = ss.export_md("line-name")
+        self.assertIn('name: "Line\\nName"', md)
+        self.assertIn('description: "desc: one\\nnext"', md)
+
     def test_match_ranks_by_overlap(self):
         ss.upsert_skill("PDF Filler", "fill pdf forms", "when the user has a pdf form to populate")
         ss.upsert_skill("Email Writer", "draft emails", "when composing an email")

@@ -2,8 +2,18 @@ name: tests
 
 on:
   push:
-    branches: [main, dev-afterlife]
+    branches: [main, dev]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      browser_suite:
+        description: Maintained browser suite
+        type: choice
+        options: [smoke, full]
+        default: full
+
+env:
+  PYTHON_DOTENV_DISABLED: "1"
 
 jobs:
   test:
@@ -14,5 +24,84 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.lock
       - run: python -m unittest discover -s tests -v
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff==0.16.4
+      - run: ruff check .
+      - run: ruff format --check .
+
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test tests/js/*.test.mjs
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: build with private-file decoys
+        run: |
+          mkdir -p data .private docs/local core/__pycache__ static/node_modules
+          for path in .env data/build-private .private/build-private docs/local/build-private core/__pycache__/build-private.pyc static/node_modules/build-private services/task_routing.py; do
+            printf 'synthetic build exclusion check\n' > "$path"
+          done
+          docker build -t alles-check .
+      - name: check container contents
+        run: |
+          docker run --rm --entrypoint python alles-check -c '
+          from pathlib import Path
+          root = Path("/app")
+          required = ["app.py", "static/index.html", "credits/manifest.json", "licenses/index.json", "scripts/generate_credits.py"]
+          private = [".env", "data/build-private", ".private", "docs", "tests", "core/__pycache__/build-private.pyc", "static/node_modules", "services/task_routing.py"]
+          assert all((root / name).is_file() for name in required)
+          assert not any((root / name).exists() for name in private)
+          '
+      - name: check container health
+        run: |
+          docker run -d --name alles-check -p 127.0.0.1:8679:6769 alles-check
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8679/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs alles-check
+          exit 1
+      - name: stop container
+        if: always()
+        run: docker rm -f alles-check || true
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.lock playwright==1.62.0
+      - run: python -m playwright install --with-deps chromium
+      - run: python scripts/run_browser_gates.py --suite "$BROWSER_SUITE" --output "$RUNNER_TEMP/alles-browser" --gate-timeout 600
+        env:
+          BROWSER_SUITE: ${{ inputs.browser_suite || 'smoke' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-smoke-evidence
+          path: ${{ runner.temp }}/alles-browser
+          if-no-files-found: error
+          retention-days: 14

@@ -12,9 +12,11 @@ class AgentStateTest(unittest.TestCase):
         self._p = mock.patch.object(ast, "DATA_DIR", Path(self.tmp.name))
         self._p.start()
         ast._active.clear()
+        ast._clear_disk_active_cache()
 
     def tearDown(self):
         ast._active.clear()
+        ast._clear_disk_active_cache()
         self._p.stop()
         self.tmp.cleanup()
 
@@ -81,6 +83,21 @@ class AgentStateTest(unittest.TestCase):
     def test_find_active_run_unknown_session_none(self):
         self.assertIsNone(ast.find_active_run("no-such-session"))
 
+    def test_find_active_run_disk_fallback_is_cached(self):
+        r = ast.start_run("sess-disk", "m", 10)
+        ast._active.clear()
+        with mock.patch.object(ast, "list_runs", wraps=ast.list_runs) as lr:
+            self.assertEqual(ast.find_active_run("sess-disk")["id"], r["id"])
+            self.assertEqual(ast.find_active_run("sess-disk")["id"], r["id"])
+        self.assertEqual(lr.call_count, 1)
+
+    def test_find_active_run_cache_clears_on_save(self):
+        r = ast.start_run("sess-disk", "m", 10)
+        ast._active.clear()
+        self.assertEqual(ast.find_active_run("sess-disk")["id"], r["id"])
+        ast.finish_run(r["id"], "done")
+        self.assertIsNone(ast.find_active_run("sess-disk"))
+
     def test_run_sources_extracts_files_and_searches(self):
         r = ast.start_run("s", "m", 10)
         ast.record_event(
@@ -106,3 +123,79 @@ class AgentStateTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IncognitoRunStateTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        patcher = mock.patch.object(ast, "DATA_DIR", Path(self.tmp.name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        ast._active.clear()
+        ast._clear_disk_active_cache()
+        self.addCleanup(ast._active.clear)
+        self.addCleanup(ast._clear_disk_active_cache)
+        from services import incognito
+
+        self.private_sessions = incognito
+        incognito.clear_for_tests()
+        self.addCleanup(incognito.clear_for_tests)
+        self.session = incognito.create_session()
+
+    def test_private_lifecycle_is_queryable_but_never_writes_run_content(self):
+        run = ast.start_run(self.session.id, "fixture", 4, incognito=True)
+        ast.update_run(run["id"], intent="private synthetic prompt", text="partial reply")
+        ast.record_event(run["id"], "tool_start", {"name": "fixture", "args": "private"})
+        ast.add_checkpoint(run["id"], {"original": "private synthetic content"})
+        self.assertEqual(ast.find_active_run(self.session.id)["id"], run["id"])
+        self.assertIn(run["id"], [row["id"] for row in ast.list_runs()])
+        ast.finish_run(run["id"], "cancelled")
+        self.assertEqual(ast.get_run(run["id"])["text"], "partial reply")
+        self.assertIsNone(ast.find_active_run(self.session.id))
+        self.assertEqual(list(Path(self.tmp.name).glob("*.json")), [])
+
+    def test_exit_purges_running_and_finished_private_runs(self):
+        running = ast.start_run(self.session.id, "fixture", 4, incognito=True)
+        finished = ast.start_run(self.session.id, "fixture", 4, incognito=True)
+        ast.finish_run(finished["id"])
+        self.assertTrue(self.private_sessions.delete_session(self.session.id))
+        for run in [running, finished]:
+            self.assertIsNone(ast.get_run(run["id"]))
+            self.assertNotIn(run["id"], ast._active)
+            self.assertNotIn(run["id"], ast._private)
+            ast.update_run(run["id"], text="late provider reply")
+            ast.finish_run(run["id"], "cancelled")
+        self.assertEqual(ast.list_runs(), [])
+        self.assertEqual(list(Path(self.tmp.name).glob("*.json")), [])
+
+    def test_expiry_purges_private_runs_without_public_poll_extending_ttl(self):
+        from datetime import UTC, datetime, timedelta
+
+        run = ast.start_run(self.session.id, "fixture", 4, incognito=True)
+        expires = self.session.expires_at
+        ast.list_runs()
+        ast.get_run(run["id"])
+        self.assertEqual(self.session.expires_at, expires)
+        self.session.expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1)
+        self.assertIsNone(ast.find_active_run(self.session.id))
+        self.assertIsNone(ast.get_run(run["id"]))
+        self.assertEqual(ast.list_runs(), [])
+        self.assertEqual(list(Path(self.tmp.name).glob("*.json")), [])
+
+    def test_late_private_start_after_exit_creates_no_orphan(self):
+        self.private_sessions.delete_session(self.session.id)
+        run = ast.start_run(self.session.id, "fixture", 4, incognito=True)
+        self.assertIsNone(ast.get_run(run["id"]))
+        self.assertNotIn(run["id"], ast._active)
+        self.assertEqual(ast.list_runs(), [])
+        self.assertEqual(list(Path(self.tmp.name).glob("*.json")), [])
+
+    def test_private_finish_and_delete_preserve_public_run(self):
+        public = ast.start_run("ordinary-session", "fixture", 4)
+        private = ast.start_run(self.session.id, "fixture", 4, incognito=True)
+        ast.finish_run(private["id"])
+        self.private_sessions.delete_session(self.session.id)
+        self.assertEqual(ast.find_active_run("ordinary-session")["id"], public["id"])
+        self.assertEqual([row["id"] for row in ast.list_runs()], [public["id"]])
+        self.assertEqual(len(list(Path(self.tmp.name).glob("*.json"))), 1)

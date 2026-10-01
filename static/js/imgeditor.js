@@ -4,7 +4,16 @@ import { toast } from './util.js';
 
 let S = null;   // editor state
 
+export function closeEditor() {
+  if (!S) return;
+  const modal = S.modal;
+  S.cleanup?.();
+  modal.style.display = 'none';
+  S = null;
+}
+
 export function openEditor(url, opts = {}) {
+  closeEditor();
   let modal = document.getElementById('imgeditor-modal');
   if (!modal) {
     modal = document.createElement('div');
@@ -54,18 +63,20 @@ export function openEditor(url, opts = {}) {
     tool: 'adjust', brush: { size: 8, color: '#ff3b30' },
     drawing: false, lastX: 0, lastY: 0,
     crop: null, history: [],
-    name: opts.name || 'edited.png', onSaved: opts.onSaved || null,
+    name: opts.name || 'edited.png', sourcePhotoId: opts.sourcePhotoId || null, onSaved: opts.onSaved || null,
   };
+  const st = S;
 
   const img = new Image();
   img.onload = () => {
+    if (S !== st) return;
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     S.ctx.drawImage(img, 0, 0);
     applyFilter();
     renderPanel();
   };
-  img.onerror = () => toast('couldn’t load the image', 'error');
+  img.onerror = () => { if (S === st) toast('couldn’t load the image', 'error'); };
   img.src = url;
 
   modal.querySelector('.ie-tools').addEventListener('click', e => {
@@ -105,15 +116,19 @@ function renderPanel() {
       ${slider('brightness', 'b', a.b)}
       ${slider('contrast', 'c', a.c)}
       ${slider('saturation', 's', a.s)}
-      <label class="ie-chk"><input type="checkbox" id="ie-gray" ${a.gray ? 'checked' : ''}> grayscale</label>
-      <label class="ie-chk"><input type="checkbox" id="ie-sepia" ${a.sepia ? 'checked' : ''}> sepia</label>`;
+      <button type="button" class="ie-chk" id="ie-gray" role="switch" aria-checked="${a.gray}"><span class="chk" aria-hidden="true"></span> grayscale</button>
+      <button type="button" class="ie-chk" id="ie-sepia" role="switch" aria-checked="${a.sepia}"><span class="chk" aria-hidden="true"></span> sepia</button>`;
     p.querySelectorAll('input[type=range]').forEach(r => r.addEventListener('input', () => {
       S.adjust[r.dataset.k] = +r.value;
       r.nextElementSibling.textContent = r.value;
       applyFilter();
     }));
-    p.querySelector('#ie-gray').onchange = e => { S.adjust.gray = e.target.checked; applyFilter(); };
-    p.querySelector('#ie-sepia').onchange = e => { S.adjust.sepia = e.target.checked; applyFilter(); };
+    p.querySelectorAll('.ie-chk').forEach(button => button.addEventListener('click', () => {
+      const next = button.getAttribute('aria-checked') !== 'true';
+      button.setAttribute('aria-checked', String(next));
+      S.adjust[button.id === 'ie-gray' ? 'gray' : 'sepia'] = next;
+      applyFilter();
+    }));
   } else if (S.tool === 'brush') {
     p.innerHTML = `
       ${slider('brush size', 'size', S.brush.size, 1, 80)}
@@ -150,7 +165,7 @@ function restore(c) {
 }
 
 function act(a) {
-  if (a === 'close') { S.modal.style.display = 'none'; S = null; return; }
+  if (a === 'close') { closeEditor(); return; }
   if (a === 'undo') { const c = S.history.pop(); if (c) restore(c); else toast('nothing to undo'); return; }
   if (a === 'reset') { S.adjust = { b: 100, c: 100, s: 100, gray: false, sepia: false }; applyFilter(); renderPanel(); return; }
   if (a === 'rotl') return rotate(-90);
@@ -193,8 +208,10 @@ function coords(e) {
 
 function wireCanvas() {
   const cv = S.canvas, rect = S.modal.querySelector('#ie-crop-rect');
+  const st = S;
   let cropStart = null;
-  cv.addEventListener('mousedown', e => {
+  const down = e => {
+    if (S !== st) return;
     const [x, y] = coords(e);
     if (S.tool === 'brush') {
       snapshot(); S.drawing = true; [S.lastX, S.lastY] = [x, y];
@@ -208,8 +225,9 @@ function wireCanvas() {
       cropStart = { sx: e.clientX, sy: e.clientY };
       S.crop = null;
     }
-  });
-  window.addEventListener('mousemove', e => {
+  };
+  const move = e => {
+    if (S !== st) return;
     if (S.drawing && S.tool === 'brush') {
       const [x, y] = coords(e);
       const ctx = S.ctx;
@@ -232,8 +250,20 @@ function wireCanvas() {
         h: h / cr.height * S.canvas.height,
       };
     }
-  });
-  window.addEventListener('mouseup', () => { S.drawing = false; cropStart = null; });
+  };
+  const up = () => {
+    if (S !== st) return;
+    S.drawing = false; cropStart = null;
+  };
+  cv.addEventListener('mousedown', down);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+  S.cleanup = () => {
+    cv.removeEventListener('mousedown', down);
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+    st.drawing = false; cropStart = null;
+  };
 }
 
 function applyCrop() {
@@ -268,12 +298,12 @@ async function exportImage(download) {
   try {
     const r = await fetch('/api/photos/edit-save', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ data_url: dataUrl, name: S.name }),
+      body: JSON.stringify({ data_url: dataUrl, name: S.name, source_photo_id: S.sourcePhotoId }),
     });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'save failed');
-    toast('saved to gallery', 'success');
+    toast('saved', 'success');
     const cb = S.onSaved;
-    S.modal.style.display = 'none'; S = null;
+    closeEditor();
     if (cb) cb();
   } catch (e) {
     toast(e.message || 'save failed', 'error');

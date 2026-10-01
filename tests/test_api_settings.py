@@ -1,21 +1,43 @@
+import json
+import os
 import tempfile
+import unittest
 from pathlib import Path
 from unittest import mock
 
+import core.settings
 import core.settings as cs
+import services.secretstore as secretstore
 from tests._client import ApiTest
 
 
 class SettingsApiTest(ApiTest):
     def setUp(self):
         super().setUp()
+        self._secret_state = (
+            secretstore._key,
+            secretstore._key_path,
+            dict(secretstore._keys),
+            secretstore._active_id,
+        )
         self._tmp = tempfile.TemporaryDirectory()
         self._p = mock.patch.object(cs, "_SETTINGS_FILE", Path(self._tmp.name) / "settings.json")
+        self._kp = mock.patch.object(secretstore, "_KEY_FILE", Path(self._tmp.name) / "secret.key")
         self._p.start()  # don't touch the real data/settings.json
+        self._kp.start()
+        secretstore._key = None
+        secretstore._key_path = None
 
     def tearDown(self):
+        self._kp.stop()
         self._p.stop()
         self._tmp.cleanup()
+        (
+            secretstore._key,
+            secretstore._key_path,
+            secretstore._keys,
+            secretstore._active_id,
+        ) = self._secret_state
         super().tearDown()
 
     def test_get_returns_a_dict_of_defaults(self):
@@ -24,10 +46,73 @@ class SettingsApiTest(ApiTest):
         self.assertGreater(len(s), 0)
 
     def test_get_strips_secrets(self):
-        cs.save_settings({"auth_password_hash": "x", "vault_verifier": "y", "vault_pw_b64": "z"})
+        cs.save_settings(
+            {
+                "auth_password_hash": "x",
+                "vault_verifier": "y",
+                "vault_pw_b64": "z",
+                "vault_biometric_key": "bio",
+                "vault_2fa_totp": {"main": "totp"},
+                "journal_passcode": "pass",
+                "mail_oauth_client_secret": "oauth",
+                "openai_api_key": "sk-openai",
+                "tavily_api_key": "tv",
+                "brave_api_key": "br",
+                "google_pse_api_key": "gp",
+                "serper_api_key": "sp",
+                "notify_discord_webhook": "https://discord.com/api/webhooks/123/abc",
+                "notify_telegram_token": "tg",
+                "notify_telegram_chat_id": "private-chat",
+                "outbound_proxy": "https://user:pass@proxy.test:443?token=query-secret",
+            }
+        )
         s = self.client.get("/api/settings").json()
-        for secret in ("auth_password_hash", "vault_verifier", "vault_pw_b64"):
+        for secret in (
+            "auth_password_hash",
+            "vault_verifier",
+            "vault_pw_b64",
+            "vault_biometric_key",
+            "vault_2fa_totp",
+            "journal_passcode",
+            "mail_oauth_client_secret",
+            "openai_api_key",
+            "tavily_api_key",
+            "brave_api_key",
+            "google_pse_api_key",
+            "serper_api_key",
+            "notify_discord_webhook",
+            "notify_telegram_token",
+            "notify_telegram_chat_id",
+        ):
             self.assertNotIn(secret, s)
+        self.assertTrue(s["openai_api_key_configured"])
+        self.assertTrue(s["notify_discord_webhook_configured"])
+        self.assertTrue(s["notify_telegram_chat_id_configured"])
+        self.assertNotIn("pass", s["outbound_proxy"])
+        self.assertNotIn("query-secret", s["outbound_proxy"])
+
+    def test_patch_response_strips_secret_but_persists_it(self):
+        r = self.client.patch("/api/settings", json={"openai_api_key": "sk-live"})
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertNotIn("openai_api_key", body)
+        self.assertTrue(body["openai_api_key_configured"])
+        self.assertEqual(cs.load_settings()["openai_api_key"], "sk-live")
+        raw = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))["openai_api_key"]
+        self.assertTrue(raw.startswith("enc2:"))
+        self.assertNotIn("sk-live", cs._SETTINGS_FILE.read_text("utf-8"))
+        self.assertTrue((Path(self._tmp.name) / "secret.key").is_file())
+
+    def test_settings_replace_is_atomic_and_failure_preserves_previous_bytes(self):
+        cs.save_settings({"theme": "dark"})
+        before = cs._SETTINGS_FILE.read_bytes()
+
+        with mock.patch.object(cs.os, "replace", side_effect=OSError("replace failed")):
+            with self.assertRaises(OSError):
+                cs.save_settings({"theme": "light"})
+
+        self.assertEqual(cs._SETTINGS_FILE.read_bytes(), before)
+        self.assertEqual(list(cs._SETTINGS_FILE.parent.glob(".settings.json.*.tmp")), [])
 
     def test_patch_persists_ai_defaults(self):
         r = self.client.patch(
@@ -44,6 +129,122 @@ class SettingsApiTest(ApiTest):
         self.assertEqual(s["context_limit"], 42)
         self.assertEqual(s["stream_thinking"], False)
 
+    def test_default_chat_behavior_persists_across_cache_reload(self):
+        defaults = self.client.get("/api/settings").json()
+        self.assertEqual(defaults["default_chat_behavior"], "automatic_tools")
+
+        response = self.client.patch("/api/settings", json={"default_chat_behavior": "answer_only"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["default_chat_behavior"], "answer_only")
+
+        raw = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))
+        self.assertEqual(raw["default_chat_behavior"], "answer_only")
+        self.assertFalse(raw["agent_auto_intents"])
+        cs._clear_settings_cache()  # restart-equivalent: the next read must come from disk
+        self.assertEqual(cs.load_settings()["default_chat_behavior"], "answer_only")
+
+    def test_rejects_invalid_default_chat_behavior(self):
+        for value in ("automatic", "agent", "chat", "", "ANSWER_ONLY"):
+            with self.subTest(value=value):
+                response = self.client.patch("/api/settings", json={"default_chat_behavior": value})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["code"], "invalid_default_chat_behavior")
+
+    def test_owner_instructions_persist_separately_and_reload(self):
+        response = self.client.patch(
+            "/api/settings", json={"owner_instructions": "  keep answers compact  "}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["owner_instructions"], "keep answers compact")
+
+        raw = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))
+        self.assertEqual(raw["owner_instructions"], "keep answers compact")
+        # Compatibility mirror: an older client can still read and edit this value.
+        self.assertEqual(raw["system_prompt"], "keep answers compact")
+        cs._clear_settings_cache()
+        reloaded = self.client.get("/api/settings").json()
+        self.assertEqual(reloaded["owner_instructions"], "keep answers compact")
+
+    def test_owner_instructions_length_is_bounded(self):
+        response = self.client.patch("/api/settings", json={"owner_instructions": "x" * 20_001})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "owner_instructions_too_long")
+
+    def test_legacy_prompt_and_auto_intent_settings_migrate_in_memory(self):
+        cs._SETTINGS_FILE.write_text(
+            json.dumps({"system_prompt": "legacy owner text", "agent_auto_intents": False}),
+            "utf-8",
+        )
+        cs._clear_settings_cache()
+        migrated = cs.load_settings()
+        self.assertEqual(migrated["owner_instructions"], "legacy owner text")
+        self.assertEqual(migrated["default_chat_behavior"], "answer_only")
+
+        # Any later settings save writes the new fields, so a real restart no longer needs the shim.
+        cs.save_settings({})
+        stored = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))
+        self.assertEqual(stored["owner_instructions"], "legacy owner text")
+        self.assertEqual(stored["default_chat_behavior"], "answer_only")
+
+    def test_patch_validates_and_persists_model_roles(self):
+        roles = {
+            "aide_chat": {"endpoint_id": "ep-a", "model": "chat-a"},
+            "andromeda_answer": {"endpoint_id": "ep-b", "model": "search-b"},
+            "andromeda_verifier": {"endpoint_id": "ep-v", "model": "verify-v"},
+            "jarvis": {"endpoint_id": "ep-c", "model": "background-c"},
+        }
+        response = self.client.patch("/api/settings", json={"model_roles": roles})
+        self.assertEqual(response.status_code, 200)
+        saved = response.json()["model_roles"]
+        self.assertEqual(saved["andromeda_answer"]["model"], "search-b")
+        self.assertEqual(saved["andromeda_verifier"]["model"], "verify-v")
+        self.assertEqual(saved["jarvis"]["fallbacks"], [])
+
+        invalid = self.client.patch(
+            "/api/settings", json={"model_roles": {"unknown": {"model": "x"}}}
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(invalid.json()["code"], "invalid_model_roles")
+
+    def test_andromeda_verifier_policy_and_cost_limits_are_bounded(self):
+        response = self.client.patch(
+            "/api/settings",
+            json={
+                "andromeda_verification_enabled": False,
+                "andromeda_verifier_mode": "manual",
+                "andromeda_answer_max_tokens": 320,
+                "andromeda_answer_timeout_seconds": 20,
+                "andromeda_verifier_max_tokens": 240,
+                "andromeda_verifier_timeout_seconds": 15,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["andromeda_verifier_mode"], "manual")
+        self.assertEqual(response.json()["andromeda_verifier_max_tokens"], 240)
+        invalid_mode = self.client.patch(
+            "/api/settings", json={"andromeda_verifier_mode": "sometimes"}
+        )
+        self.assertEqual(invalid_mode.status_code, 400)
+        invalid_limit = self.client.patch(
+            "/api/settings", json={"andromeda_verifier_timeout_seconds": 2}
+        )
+        self.assertEqual(invalid_limit.status_code, 400)
+
+    def test_plaintext_setting_secret_is_migrated(self):
+        cs._SETTINGS_FILE.write_text('{"openai_api_key":"old-plaintext"}', "utf-8")
+        cs._clear_settings_cache()
+        self.assertEqual(cs.migrate_setting_secrets(), 1)
+        raw = json.loads(cs._SETTINGS_FILE.read_text("utf-8"))["openai_api_key"]
+        self.assertTrue(raw.startswith("enc2:"))
+        self.assertNotIn("old-plaintext", raw)
+        self.assertEqual(cs.load_settings()["openai_api_key"], "old-plaintext")
+
+    def test_corrupt_encrypted_setting_fails_closed(self):
+        cs._SETTINGS_FILE.write_text('{"openai_api_key":"enc2:0000000000000000:broken"}', "utf-8")
+        cs._clear_settings_cache()
+        with self.assertRaises(secretstore.SecretStoreError):
+            cs.load_settings()
+
     def test_patch_appearance_theme_and_accent(self):
         self.client.patch("/api/settings", json={"theme": "light", "accent": "#ff0000"})
         s = self.client.get("/api/settings").json()
@@ -54,6 +255,102 @@ class SettingsApiTest(ApiTest):
         s = self.client.get("/api/settings").json()
         self.assertEqual(s["theme"], "")
         self.assertEqual(s["accent"], "")
+
+    def test_patch_localization_settings(self):
+        response = self.client.patch(
+            "/api/settings",
+            json={
+                "language": "EN",
+                "region": "tw",
+                "timezone": "Asia/Taipei",
+                "clock_format": "24",
+                "week_start": "mon",
+                "currency": "twd",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        saved = response.json()
+        self.assertEqual(saved["language"], "en")
+        self.assertEqual(saved["region"], "TW")
+        self.assertEqual(saved["timezone"], "Asia/Taipei")
+        self.assertEqual(saved["clock_format"], "24")
+        self.assertEqual(saved["week_start"], "mon")
+        self.assertEqual(saved["currency"], "TWD")
+
+    def test_localization_options_expose_all_released_languages(self):
+        response = self.client.get("/api/settings/localization/options")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(
+            [item["id"] for item in data["languages"]],
+            ["en", "fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar"],
+        )
+        self.assertEqual(
+            [item["id"] for item in data["languages"] if item["available"]],
+            ["en", "fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar"],
+        )
+        self.assertEqual(data["regions"][0], {"value": "", "label": "automatic"})
+        self.assertEqual(data["timezones"][0], {"value": "", "label": "automatic"})
+        self.assertEqual(data["currencies"][0], {"value": "", "label": "automatic"})
+
+    def test_rejects_unknown_language_and_invalid_locale_values(self):
+        cases = (
+            ({"language": "de"}, "unsupported_language"),
+            ({"region": "taiwan"}, "invalid_region"),
+            ({"timezone": "Taipei-ish"}, "invalid_timezone"),
+            ({"clock_format": "military"}, "invalid_clock_format"),
+            ({"week_start": "tuesday"}, "invalid_week_start"),
+            ({"currency": "bitcoin"}, "invalid_currency"),
+            ({"currency": None}, "invalid_currency"),
+        )
+        for patch, code in cases:
+            with self.subTest(patch=patch):
+                response = self.client.patch("/api/settings", json=patch)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["code"], code)
+
+    def test_agent_allowed_roots_are_existing_normalized_folders(self):
+        root = Path(self._tmp.name) / "allowed"
+        root.mkdir()
+        response = self.client.patch("/api/settings", json={"agent_allowed_roots": [str(root)]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["agent_allowed_roots"], [str(root.resolve())])
+        rejected = self.client.patch("/api/settings", json={"agent_allowed_roots": ["relative"]})
+        self.assertEqual(rejected.status_code, 400)
+        self.assertEqual(rejected.json()["code"], "invalid_agent_root")
+        filesystem_root = self.client.patch(
+            "/api/settings", json={"agent_allowed_roots": [str(Path(root.anchor))]}
+        )
+        self.assertEqual(filesystem_root.status_code, 400)
+        self.assertEqual(filesystem_root.json()["code"], "invalid_agent_root")
+        too_many = self.client.patch(
+            "/api/settings", json={"agent_allowed_roots": [str(root)] * 17}
+        )
+        self.assertEqual(too_many.status_code, 400)
+        self.assertEqual(too_many.json()["code"], "invalid_agent_root")
+
+    def test_agent_allowed_roots_require_recent_owner_auth(self):
+        from core import auth
+
+        root = Path(self._tmp.name) / "allowed"
+        root.mkdir()
+        token = auth.create_session_token()
+        auth.store_token(token)
+        auth._recent_auth[token] = 0
+        self.client.cookies.set("aide_session", token)
+        try:
+            with (
+                mock.patch("app.auth_enabled", return_value=True),
+                mock.patch("core.settings.auth_enabled", return_value=True),
+            ):
+                response = self.client.patch(
+                    "/api/settings", json={"agent_allowed_roots": [str(root)]}
+                )
+        finally:
+            self.client.cookies.clear()
+            auth.revoke_token(token)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "recent_auth_required")
 
     def test_unknown_keys_ignored(self):
         self.client.patch("/api/settings", json={"totally_made_up_key": "x"})
@@ -69,7 +366,8 @@ class SettingsApiTest(ApiTest):
         )
         self.assertEqual(r.status_code, 200)
         s = self.client.get("/api/settings").json()
-        self.assertEqual(s["notify_discord_webhook"], "https://discord.com/api/webhooks/123/abc")
+        self.assertNotIn("notify_discord_webhook", s)
+        self.assertTrue(s["notify_discord_webhook_configured"])
         self.assertTrue(s["notify_on_agent_done"])
 
     def test_patch_calendar_settings(self):
@@ -117,3 +415,22 @@ class SettingsApiTest(ApiTest):
         self.assertIn("triggers", d)
         self.assertIn("actions", d)
         self.assertGreater(len(d["triggers"]), 0)
+
+
+class SecretKeyTests(unittest.TestCase):
+    def test_raises_when_auth_enabled_and_unset(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SECRET_KEY", None)
+            with mock.patch("core.settings.auth_enabled", return_value=True):
+                with self.assertRaises(RuntimeError):
+                    core.settings.get_secret_key()
+
+    def test_placeholder_when_local_no_auth(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SECRET_KEY", None)
+            with mock.patch("core.settings.auth_enabled", return_value=False):
+                self.assertEqual(core.settings.get_secret_key(), "dev-secret-change-me")
+
+    def test_env_wins(self):
+        with mock.patch.dict(os.environ, {"SECRET_KEY": "real-secret"}):
+            self.assertEqual(core.settings.get_secret_key(), "real-secret")

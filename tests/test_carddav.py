@@ -58,6 +58,27 @@ class CardDavTests(ApiTest):
         self.assertEqual(entries[0]["etag"], "etag-1")
         self.assertIn("Remote Person", entries[0]["vcard"])
 
+    def test_parse_report_rejects_entities_and_oversized_documents(self):
+        from services import carddav_sync
+
+        entity = '<!DOCTYPE x [<!ENTITY y "private">]><x>&y;</x>'
+        self.assertEqual(carddav_sync.parse_report(entity), [])
+        oversized = b" " * (carddav_sync.MAX_REPORT_BYTES + 1)
+        with self.assertRaisesRegex(ValueError, "too large"):
+            carddav_sync.parse_report(oversized)
+
+    def test_parse_report_does_not_redecode_an_already_decoded_document(self):
+        from services import carddav_sync
+
+        report = REPORT_XML.replace(
+            '<?xml version="1.0"?>',
+            '<?xml version="1.0" encoding="ISO-8859-1"?>',
+        ).replace("Remote Person", "Renée")
+
+        entries = carddav_sync.parse_report(report)
+
+        self.assertIn("FN:Renée", entries[0]["vcard"])
+
     def test_vcard_uid(self):
         from services import carddav_sync
 
@@ -77,9 +98,15 @@ class CardDavTests(ApiTest):
         from services.vcard import parse_vcards
 
         c = {
-            "name": "Ada", "email": "a@x.com", "phone": "123", "company": "Analytical",
-            "title": "Countess", "address": "12 Baker St", "birthday": "1815-12-10",
-            "website": "https://ada.example", "notes": "first programmer",
+            "name": "Ada",
+            "email": "a@x.com",
+            "phone": "123",
+            "company": "Analytical",
+            "title": "Countess",
+            "address": "12 Baker St",
+            "birthday": "1815-12-10",
+            "website": "https://ada.example",
+            "notes": "first programmer",
         }
         got = parse_vcards(carddav_sync.build_vcard(c, "u-1"))[0]
         for k in ("title", "birthday", "website", "notes"):
@@ -128,16 +155,26 @@ class CardDavTests(ApiTest):
         from services import carddav_sync
 
         db = self.db()
-        db.add(Contact(name="Full Contact", email="f@x.com", phone="555", company="Acme",
-                       title="CEO", address="1 Main St", birthday="1990-04-01",
-                       website="https://f.example", notes="met at conf"))
+        db.add(
+            Contact(
+                name="Full Contact",
+                email="f@x.com",
+                phone="555",
+                company="Acme",
+                title="CEO",
+                address="1 Main St",
+                birthday="1990-04-01",
+                website="https://f.example",
+                notes="met at conf",
+            )
+        )
         db.commit()
         client = FakeClient([])
         carddav_sync.sync(client=client, db=self.db())
         vcard = client.puts[0][1]  # (uid, text, href)
         # the push used to pass only name/email/phone/company; these would be missing on the server
         self.assertIn("TITLE:CEO", vcard)
-        self.assertIn("1 Main St", vcard)        # ADR
+        self.assertIn("1 Main St", vcard)  # ADR
         self.assertIn("BDAY:1990-04-01", vcard)
         self.assertIn("URL:https://f.example", vcard)
         self.assertIn("NOTE:met at conf", vcard)

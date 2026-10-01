@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Habit, HabitLog, get_db
+from services import habit_logs
 
 router = APIRouter(prefix="/api")
 
@@ -59,7 +60,9 @@ def build_grid(dates: set, today: date, n: int) -> list:
 
 # ── serialization ──────────────────────────────────────────────────────────────
 def _dates_for(db, hid) -> set:
-    return {r.date for r in db.query(HabitLog).filter(HabitLog.habit_id == hid).all()}
+    return habit_logs.canonical_days(
+        r.date for r in db.query(HabitLog).filter(HabitLog.habit_id == hid).all()
+    )
 
 
 def _fmt(h: Habit, dates: set | None = None, today: date | None = None) -> dict:
@@ -89,7 +92,9 @@ def habit_risk(hid: str, window: int = 14, db: DbSession = Depends(get_db)):
 
     if not db.get(Habit, hid):
         raise HTTPException(404, "habit not found")
-    done = [r.date for r in db.query(HabitLog).filter_by(habit_id=hid).all()]
+    done = habit_logs.canonical_days(
+        r.date for r in db.query(HabitLog).filter_by(habit_id=hid).all()
+    )
     return life_stats.habit_failure_risk(done, date.today(), window=window)
 
 
@@ -106,15 +111,17 @@ def overview(date_q: str = "", db: DbSession = Depends(get_db)):
         today = date.today()
     habits = db.query(Habit).filter(Habit.archived == False).order_by(Habit.created_at).all()  # noqa: E712
     # one query for all logs instead of one per habit (was H+1 round-trips on every overview load)
-    by_habit: dict[str, set] = {}
+    by_habit: dict[str, list[str]] = {}
     if habits:
-        for hid, d in db.query(HabitLog.habit_id, HabitLog.date).filter(
-            HabitLog.habit_id.in_([h.id for h in habits])
-        ).all():
-            by_habit.setdefault(hid, set()).add(d)
+        for hid, d in (
+            db.query(HabitLog.habit_id, HabitLog.date)
+            .filter(HabitLog.habit_id.in_([h.id for h in habits]))
+            .all()
+        ):
+            by_habit.setdefault(hid, []).append(d)
     out = []
     for h in habits:
-        done = by_habit.get(h.id, set())
+        done = habit_logs.canonical_days(by_habit.get(h.id, []))
         card = _fmt(h, done, today)
         risk = life_stats.habit_failure_risk(done, today)
         # only nudge once there's enough history to judge (>= a week old) and you've actually
@@ -174,7 +181,9 @@ def update_habit(hid: str, body: HabitPatch, db: DbSession = Depends(get_db)):
         if v is not None:
             if isinstance(v, str) and f in ("name", "icon", "color"):
                 v = v.strip()
-            if f == "target":  # clamp like create_habit, or a 0/negative target renders "3/0 this week"
+            if (
+                f == "target"
+            ):  # clamp like create_habit, or a 0/negative target renders "3/0 this week"
                 v = max(1, int(v))
             setattr(h, f, v)
     db.commit()
@@ -201,16 +210,10 @@ def toggle(hid: str, body: ToggleBody, db: DbSession = Depends(get_db)):
     h = db.get(Habit, hid)
     if not h:
         raise HTTPException(404)
-    d = (body.date or date.today().isoformat())[:10]
+    raw_date = body.date or date.today().isoformat()
     try:
-        _d(d)  # don't let a junk date land in the log — it'd blow up the overview later
+        day = habit_logs.canonical_day(raw_date)
     except ValueError:
         raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
-    existing = db.query(HabitLog).filter(HabitLog.habit_id == hid, HabitLog.date == d).first()
-    if existing:
-        db.delete(existing)
-        db.commit()
-        return {"done": False, "date": d}
-    db.add(HabitLog(habit_id=hid, date=d))
-    db.commit()
-    return {"done": True, "date": d}
+    done, day = habit_logs.toggle(db, hid, day)
+    return {"done": done, "date": day}

@@ -8,7 +8,7 @@ seed via /upload and then patch exif/taken_at straight into the server's sqlite 
 import os
 import sqlite3
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -61,7 +61,8 @@ def main():
         pid_m1 = pg.evaluate(_SEED, "memone.png")
         pid_m2 = pg.evaluate(_SEED, "memtwo.png")
 
-        ly = datetime.utcnow().date().replace(year=datetime.utcnow().year - 1)
+        today = datetime.now(UTC).date()
+        ly = today.replace(year=today.year - 1)
         taken = f"{ly.year:04d}-{ly.month:02d}-{ly.day:02d} 12:00:00.000000"
         con = sqlite3.connect(str(DATA / "aide.db"), timeout=10)
         con.execute("PRAGMA busy_timeout=8000")

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>phase 9 exact-site login fixture</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; margin: 40px; }
+    form { display: grid; gap: 12px; max-width: 320px; }
+    label { display: grid; gap: 4px; }
+    input, button { min-height: 44px; font: inherit; }
+  </style>
+</head>
+<body>
+  <form id="login-form">
+    <label>Email <input id="login-email" type="email" autocomplete="username"></label>
+    <label>Password <input id="login-password" type="password" autocomplete="current-password"></label>
+    <button type="submit">sign in</button>
+  </form>
+  <output id="submit-count">0</output>
+  <script>
+    window.submitCount = 0;
+    document.getElementById('login-form').addEventListener('submit', event => {
+      event.preventDefault();
+      window.submitCount += 1;
+      document.getElementById('submit-count').value = String(window.submitCount);
+    });
+  </script>
+</body>
+</html>

@@ -4,6 +4,7 @@ needs a fresh instance with the current routes:
   ALLES_DATA=.tmp_mc AUTH_ENABLED=false PORT=8077 python app.py
   PYTHONIOENCODING=utf-8 python tests/pw_journal_moodcorr.py
 """
+
 from playwright.sync_api import sync_playwright
 
 BASE = "http://journal.localhost:8077"
@@ -32,7 +33,9 @@ def main():
         )
         pg.reload(wait_until="domcontentloaded")
         pg.wait_for_timeout(1200)
-        panel = pg.evaluate("() => document.getElementById('jrnl-moodcorr')?.textContent || '(none)'")
+        panel = pg.evaluate(
+            "() => document.getElementById('jrnl-moodcorr')?.textContent || '(none)'"
+        )
         print("mood-corr panel:", repr(panel))
         rows = pg.evaluate(
             """() => [...document.querySelectorAll('.jrnl-corr-row')].map(r => ({

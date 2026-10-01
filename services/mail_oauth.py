@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 
 import httpx
 
-from core.settings import load_settings
+from core.settings import get_port, load_settings
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -31,7 +31,9 @@ def configured() -> bool:
 
 
 def redirect_uri() -> str:
-    base = (load_settings().get("mail_oauth_redirect_base", "") or "http://localhost:8000").rstrip("/")
+    base = (
+        load_settings().get("mail_oauth_redirect_base", "") or f"http://localhost:{get_port()}"
+    ).rstrip("/")
     return base + "/api/mail/oauth/google/callback"
 
 
@@ -55,26 +57,34 @@ def check_state(st) -> bool:
 
 def auth_url(state: str) -> str:
     cid, _ = _creds()
-    q = urlencode({
-        "client_id": cid,
-        "redirect_uri": redirect_uri(),
-        "response_type": "code",
-        "scope": SCOPES,
-        "access_type": "offline",
-        "prompt": "consent",            # force a refresh_token back every time
-        "include_granted_scopes": "true",
-        "state": state,
-    })
+    q = urlencode(
+        {
+            "client_id": cid,
+            "redirect_uri": redirect_uri(),
+            "response_type": "code",
+            "scope": SCOPES,
+            "access_type": "offline",
+            "prompt": "consent",  # force a refresh_token back every time
+            "include_granted_scopes": "true",
+            "state": state,
+        }
+    )
     return f"{AUTH_URL}?{q}"
 
 
 def exchange_code(code: str) -> dict:
     cid, sec = _creds()
     with httpx.Client(timeout=30) as c:
-        r = c.post(TOKEN_URL, data={
-            "code": code, "client_id": cid, "client_secret": sec,
-            "redirect_uri": redirect_uri(), "grant_type": "authorization_code",
-        })
+        r = c.post(
+            TOKEN_URL,
+            data={
+                "code": code,
+                "client_id": cid,
+                "client_secret": sec,
+                "redirect_uri": redirect_uri(),
+                "grant_type": "authorization_code",
+            },
+        )
         r.raise_for_status()
         return r.json()
 
@@ -82,10 +92,15 @@ def exchange_code(code: str) -> dict:
 def refresh_access(refresh_token: str) -> dict:
     cid, sec = _creds()
     with httpx.Client(timeout=30) as c:
-        r = c.post(TOKEN_URL, data={
-            "refresh_token": refresh_token, "client_id": cid, "client_secret": sec,
-            "grant_type": "refresh_token",
-        })
+        r = c.post(
+            TOKEN_URL,
+            data={
+                "refresh_token": refresh_token,
+                "client_id": cid,
+                "client_secret": sec,
+                "grant_type": "refresh_token",
+            },
+        )
         r.raise_for_status()
         return r.json()
 

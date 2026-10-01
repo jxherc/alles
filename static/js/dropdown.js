@@ -5,6 +5,7 @@
 // el._iconHtml keyed by value so it can't clash with the |/; serialization.
 import { providerLogo } from './brandlogo.js';
 let _open = null;
+let _sequence = 0;
 
 function _iconFor(el, value) {
   const h = el._iconHtml && el._iconHtml[value];
@@ -15,11 +16,17 @@ export function initCustomDropdowns(root = document) {
   root.querySelectorAll('.custom-select').forEach(initCustomDropdown);
 }
 
+// A screen owns its trigger even when the option panel lives on document.body.
+export function closeCustomDropdowns(root) {
+  if (_open && root?.contains(_open.el)) _close();
+}
+
 export function initCustomDropdown(el) {
   if (!el || el.dataset.dropdownReady === '1') return;
   el.dataset.dropdownReady = '1';
   el.setAttribute('role', 'combobox');
   el.setAttribute('aria-haspopup', 'listbox');
+  el.setAttribute('aria-autocomplete', 'none');
   el.setAttribute('aria-expanded', 'false');
   if (!el.hasAttribute('tabindex')) el.tabIndex = 0;
 
@@ -36,11 +43,26 @@ export function initCustomDropdown(el) {
       if (_open?.el === el) _renderPanel(el);
     },
   });
+  Object.defineProperty(el, 'disabled', {
+    configurable: true,
+    get() { return el.getAttribute('aria-disabled') === 'true'; },
+    set(next) {
+      const disabled = Boolean(next);
+      el.setAttribute('aria-disabled', String(disabled));
+      el.tabIndex = disabled ? -1 : 0;
+      if (disabled && _open?.el === el) _close();
+    },
+  });
+  el.disabled = el.getAttribute('aria-disabled') === 'true';
 
   _renderTrigger(el);
 
-  el.addEventListener('click', e => { e.stopPropagation(); _toggle(el); });
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!el.disabled) _toggle(el);
+  });
   el.addEventListener('keydown', e => {
+    if (el.disabled) return;
     const opts = _readOptions(el);
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -52,7 +74,15 @@ export function initCustomDropdown(el) {
       const step = e.key === 'ArrowDown' ? 1 : -1;
       _open.activeIndex = Math.max(0, Math.min(opts.length - 1, _open.activeIndex + step));
       _renderPanel(el);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      if (_open?.el !== el) _openDropdown(el);
+      _open.activeIndex = e.key === 'Home' ? 0 : Math.max(0, opts.length - 1);
+      _renderPanel(el);
+    } else if (e.key === 'Tab' && _open?.el === el) {
+      _close();
+    } else if (e.key === 'Escape' && _open?.el === el) {
+      e.stopPropagation();
       _close();
     }
   });
@@ -115,11 +145,16 @@ function _openDropdown(el) {
   _close();
   const panel = document.createElement('div');
   panel.className = 'custom-dropdown-panel';
+  panel.id = `custom-listbox-${++_sequence}`;
+  const surface = el.closest('[data-kokuen-surface]')?.dataset.kokuenSurface;
+  if (surface) panel.dataset.kokuenSurface = surface;
   panel.setAttribute('role', 'listbox');
+  panel.setAttribute('aria-label', el.getAttribute('aria-label') || 'choices');
   document.body.appendChild(panel);
   _open = { el, panel, activeIndex: _activeIndex(el) };
   el.classList.add('open');
   el.setAttribute('aria-expanded', 'true');
+  el.setAttribute('aria-controls', panel.id);
   _renderPanel(el);            // fill content first so the panel has a measurable height
   _positionPanel(el, panel);
   setTimeout(() => document.addEventListener('click', _outsideClick), 0);
@@ -132,17 +167,19 @@ function _renderPanel(el) {
   if (!panel) return;
   const opts = _readOptions(el);
   panel.innerHTML = opts.map((opt, idx) => `
-    <button type="button" class="custom-dropdown-option${opt.value === el.dataset.value ? ' selected' : ''}${idx === _open.activeIndex ? ' active' : ''}" data-index="${idx}" role="option" aria-selected="${opt.value === el.dataset.value}">
+    <button type="button" tabindex="-1" id="${panel.id}-option-${idx}" class="custom-dropdown-option${opt.value === el.dataset.value ? ' selected' : ''}${idx === _open.activeIndex ? ' active' : ''}" data-index="${idx}" role="option" aria-selected="${opt.value === el.dataset.value}">
       ${_iconFor(el, opt.value)}${_esc(opt.label)}
     </button>
   `).join('');
+  const active = panel.querySelector('.active');
+  if (active) el.setAttribute('aria-activedescendant', active.id);
   panel.querySelectorAll('.custom-dropdown-option').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       _choose(el, Number(btn.dataset.index));
     });
   });
-  panel.querySelector('.active')?.scrollIntoView({ block: 'nearest' });
+  active?.scrollIntoView({ block: 'nearest' });
 }
 
 function _choose(el, index) {
@@ -198,6 +235,8 @@ function _close() {
   if (!_open) return;
   _open.el.classList.remove('open');
   _open.el.setAttribute('aria-expanded', 'false');
+  _open.el.removeAttribute('aria-controls');
+  _open.el.removeAttribute('aria-activedescendant');
   _open.panel.remove();
   _open = null;
   document.removeEventListener('click', _outsideClick);

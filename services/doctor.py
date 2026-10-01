@@ -5,9 +5,11 @@ use find_spec (no import), and the DB check is lazy, so this module loads even
 when the app's own deps aren't installed yet (that's the whole point of doctor).
 """
 
-import sys
 import importlib.util
+import sys
 from pathlib import Path
+
+from core.settings import data_dir
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -70,7 +72,7 @@ def check_optional_deps():
 
 
 def check_data_dir():
-    d = ROOT / "data"
+    d = data_dir()
     try:
         d.mkdir(parents=True, exist_ok=True)
         probe = d / ".doctor-write-test"
@@ -82,14 +84,14 @@ def check_data_dir():
 
 
 def check_secret_key():
-    exists = (ROOT / "data" / "secret.key").exists()
+    exists = (data_dir() / "secret.key").exists()
     return True, "at-rest encryption key", "present" if exists else "will be generated on first run"
 
 
 def check_endpoint_configured():
     # lazy import — the DB layer needs sqlalchemy, which may be the very thing missing
     try:
-        from core.database import SessionLocal, ModelEndpoint
+        from core.database import ModelEndpoint, SessionLocal
 
         db = SessionLocal()
         try:

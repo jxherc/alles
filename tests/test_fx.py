@@ -66,6 +66,32 @@ class FxTests(unittest.TestCase):
             self.assertEqual(fx.refresh(), False)
         self.assertEqual(fx.RATES, before)
 
+    def test_refresh_rejects_entity_and_oversized_xml(self):
+        before = dict(fx.RATES)
+        entity_feed = (
+            b'<!DOCTYPE gesmes:Envelope [<!ENTITY usd "1.10">]>'
+            b'<gesmes:Envelope xmlns:gesmes="x" xmlns="y"><Cube><Cube time="2026-01-01">'
+            b'<Cube currency="USD" rate="&usd;"/><Cube currency="GBP" rate="0.50"/>'
+            b"</Cube></Cube></gesmes:Envelope>"
+        )
+        oversized_feed = (
+            b'<gesmes:Envelope xmlns:gesmes="x" xmlns="y"><!--'
+            + (b"x" * fx.MAX_RATE_XML_BYTES)
+            + b'--><Cube><Cube time="2026-01-01"><Cube currency="USD" rate="1.10"/>'
+            b'<Cube currency="GBP" rate="0.50"/></Cube></Cube></gesmes:Envelope>'
+        )
+        for document in (
+            entity_feed,
+            oversized_feed,
+        ):
+            cm = mock.MagicMock()
+            cm.read.return_value = document
+            cm.__enter__.return_value = cm
+            with self.subTest(size=len(document)):
+                with mock.patch("urllib.request.urlopen", return_value=cm):
+                    self.assertEqual(fx.refresh(), False)
+                self.assertEqual(fx.RATES, before)
+
     def test_refresh_parses_and_rebases_to_usd(self):
         # fake ECB EUR-based feed → refresh re-bases onto USD=1.0. restore RATES after so
         # the global table can't bleed into the money/net-worth tests that run later.

@@ -50,6 +50,21 @@ class FilesShareTests(ApiTest):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.text, "the spec")
 
+    def test_password_unlock_cookie_opens_folder_children(self):
+        tok = self.client.post(
+            "/api/share",
+            json={"kind": "folder", "ref": "proj", "password": "hunter2"},
+        ).json()["token"]
+        self.assertEqual(self.client.get(f"/s/{tok}/spec.txt").status_code, 401)
+        unlocked = self.client.post(
+            f"/s/{tok}/unlock", data={"password": "hunter2"}, follow_redirects=False
+        )
+        self.assertEqual(unlocked.status_code, 303)
+        child = self.client.get(f"/s/{tok}/spec.txt")
+        self.assertEqual(child.status_code, 200)
+        self.assertEqual(child.text, "the spec")
+        self.assertIn("no-store", child.headers["cache-control"])
+
     def test_folder_serves_nested_child(self):
         tok = self._mint("folder", "proj").json()["token"]
         r = self.client.get(f"/s/{tok}/sub/deep.txt")

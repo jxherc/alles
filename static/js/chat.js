@@ -1,13 +1,17 @@
 import { mdToHtml, toast } from './util.js';
 import {
-  appendUserMsg, createStreamingAiRow, scrollDown,
+  appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown,
   showMessages, updateSessionName, createSession, getActiveId, markActive,
 } from './sessions.js';
-import { getSelected, getCurrentEndpoint, isImageSelected, getImageSlot } from './models.js';
+import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=212';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
-import { getAttachments, clearAttachments } from './uploads.js';
-import { isIncognitoMode, getPermMode, getEffort } from './modes.js';
+import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js';
+import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort } from './modes.js?v=256';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
+import { shouldRunInBackground } from './aidebackgroundpolicy.js';
+import { formatNumber } from './i18n.js';
+import { contextProvenanceElement } from './memoryactions.js';
+import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=1';
 
 // tools that change state / reach out — flagged in the agent panel + permission cards
 const DESTRUCTIVE_TOOLS = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
@@ -57,7 +61,7 @@ window.copyMsg = function(btn) {
   });
 };
 
-// save an assistant message as a note / task / reminder
+// save an assistant message as a note or task
 window.saveMsgAs = async function(btn, kind) {
   const text = btn.closest('.ai-wrap')?.querySelector('.ai-content')?.innerText?.trim();
   if (!text) return;
@@ -91,10 +95,62 @@ window.openArtifactFromMsg = function(btn) {
 };
 
 let _streaming = false;
+let _backgroundLaunching = false;
+let _chatAbort = null;
+let _chatSessionId = null;
+let _streamToken = 0;
+
+export function canSendMessage() {
+  return !_streaming && !_backgroundLaunching;
+}
+
+function normalizeDocumentScope(value) {
+  if (!value || value.kind !== 'vault_document') return null;
+  const path = String(value.path || '').trim();
+  const expectedHash = String(value.expected_hash || '').trim();
+  return path && expectedHash ? { kind: 'vault_document', path, expected_hash: expectedHash } : null;
+}
+
+function renderDocumentScope(scope) {
+  const chip = document.getElementById('aide-document-scope');
+  if (!chip) return;
+  chip.hidden = !scope;
+  const name = document.getElementById('aide-document-scope-name');
+  if (name) name.textContent = scope ? scope.path.split('/').pop().replace(/\.(md|markdown)$/i, '') : '';
+}
+
+window._setAideDocumentScope = scope => {
+  window._pendingDocumentScope = normalizeDocumentScope(scope);
+  renderDocumentScope(window._pendingDocumentScope);
+};
+document.getElementById('aide-document-scope-remove')?.addEventListener('click', () => {
+  window._pendingDocumentScope = null;
+  renderDocumentScope(null);
+});
+
+function restoreComposerInput(text) {
+  const composer = document.getElementById('composer-ta');
+  if (!composer) return;
+  const current = composer.value.trim();
+  composer.value = current ? `${text}\n\n${composer.value}` : text;
+  composer.style.height = 'auto';
+  composer.dispatchEvent(new Event('input', { bubbles: true }));
+  composer.focus();
+}
+
+function restoreDocumentScope(scope) {
+  if (!scope) return;
+  window._pendingDocumentScope = scope;
+  renderDocumentScope(scope);
+}
 
 
 export async function sendMessage(text) {
-  if (!text?.trim() || _streaming) return;
+  if (!text?.trim() || _streaming || _backgroundLaunching) return;
+  if (hasPendingAttachments()) {
+    toast('wait for attachments to finish uploading', 'error');
+    return;
+  }
 
   let sessionId = getActiveId();
   let freshSession = false;
@@ -102,9 +158,13 @@ export async function sendMessage(text) {
   // no active session — create one lazily now (first message)
   if (!sessionId) {
     const ep = getCurrentEndpoint();
-    if (!ep) { toast('no endpoint configured — add one via the model picker', 'error'); return; }
+    if (!ep) { toast('no endpoint configured: add one via the model picker', 'error'); return; }
     const model = getSelected()?.model || ep.models[0] || '';
-    const s = await createSession(model, ep.id, { incognito: isIncognitoMode(), mode: getMode() });
+    const s = await createSession(model, ep.id, {
+      incognito: isIncognitoMode(),
+      mode: 'agent',
+      chatBehavior: window._pendingChatBehavior || '',
+    });
     if (!s) { toast('failed to create session', 'error'); return; }
     // carry over a persona picked before the session existed (fresh-chat picker)
     if (window._pendingPersona) {
@@ -125,24 +185,69 @@ export async function sendMessage(text) {
 
   const sel = getSelected();
   if (!sel) { toast('select a model first', 'error'); return; }
+  const attachmentIds = getAttachments();
+  const documentScope = normalizeDocumentScope(window._pendingDocumentScope);
 
   // image model picked as the primary → generate (legacy single-pick path)
-  if (isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
+  if (!documentScope && isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
   // companion image slot set + the message reads like an image request → route to it
   const imgSlot = getImageSlot();
-  if (imgSlot && _looksLikeImageRequest(text)) { _sendImage(text, sessionId, freshSession, imgSlot); return; }
+  if (!documentScope && imgSlot && _looksLikeImageRequest(text)) { _sendImage(text, sessionId, freshSession, imgSlot); return; }
+
+  if (!documentScope && shouldRunInBackground(text) && !isIncognitoMode()) {
+    _backgroundLaunching = true;
+    showMessages();
+    const userRow = appendUserMsg(text);
+    scrollDown();
+    let run = null;
+    try {
+      const { startBackgroundWork } = await import('./aidebackground.js?v=245');
+      run = await startBackgroundWork({
+        sessionId,
+        request: text,
+        fileIds: attachmentIds,
+        selection: sel,
+        selectionSource: getSelectionSource(),
+        permissionMode: getPermMode(),
+        effort: getEffort(sel?.model),
+        reasoningMode: getReasoningMode(sel?.model),
+        customEffort: getCustomEffort(sel?.model),
+      });
+    } catch (error) {
+      toast(error?.message || 'could not start background work', 'error');
+    } finally {
+      _backgroundLaunching = false;
+    }
+    if (!run) {
+      userRow.remove();
+      restoreComposerInput(text);
+      return;
+    }
+    clearAttachments();
+    if (freshSession) updateSessionName(sessionId, text.slice(0, 54));
+    return;
+  }
 
   showMessages();
-  appendUserMsg(text);
+  appendUserMsg(text, documentScope);
+  window._pendingDocumentScope = null;
+  renderDocumentScope(null);
   clearAttachments();
   scrollDown();
 
   setStreaming(true);
+  const ctrl = new AbortController();
+  const streamToken = ++_streamToken;
+  _chatAbort = ctrl;
+  _chatSessionId = sessionId;
 
   const { row, body } = createStreamingAiRow();
 
   let thinkingEl = null;
-  let contentEl = null;
+  const contentEl = document.createElement('div');
+  contentEl.className = 'ai-content';
+  body.appendChild(contentEl);
+  let provenanceEl = null;
   let agentEl = null;
   let todoEl = null;
   const toolEls = new Map();
@@ -157,6 +262,16 @@ export async function sendMessage(text) {
   let genStart = 0;     // first answer token time, for tok/s
   let statsEl = null;
   let outTok = 0;       // real output tokens from usage (if provided)
+  const progressEl = document.createElement('div');
+  progressEl.className = 'aide-run-progress';
+  progressEl.setAttribute('role', 'status');
+  progressEl.setAttribute('aria-live', 'polite');
+  progressEl.textContent = 'typing';
+  body.appendChild(progressEl);
+  const setProgress = text => {
+    if (progressEl.isConnected) progressEl.textContent = text;
+  };
+  const clearProgress = () => progressEl.remove();
 
   const updateStats = (final = false) => {
     if (!genStart) return;
@@ -169,7 +284,7 @@ export async function sendMessage(text) {
     const toks = outTok || Math.max(1, Math.round(accText.length / 4));  // real if known, else ~chars/4
     const approx = outTok ? '' : '~';
     const rate = secs > 0.3 ? ` · ${Math.round(toks / secs)} tok/s` : '';
-    statsEl.textContent = `${approx}${toks.toLocaleString()} tok${rate}`;
+    statsEl.textContent = `${approx}${formatNumber(toks)} tok${rate}`;
   };
 
   // freeze the thinking block: stop the live timer, show "thought for Xs", collapse
@@ -206,12 +321,7 @@ export async function sendMessage(text) {
     // only auto-scroll if the user is already following along at the bottom
     const chat = document.getElementById('chat');
     const stick = !chat || (chat.scrollHeight - chat.scrollTop - chat.clientHeight < 120);
-    if (!contentEl) {
-      contentEl = document.createElement('div');
-      contentEl.className = 'ai-content';
-      cursor?.remove();
-      body.appendChild(contentEl);
-    }
+    cursor?.remove();
     contentEl.innerHTML = mdToHtml(stripEmojis(displayText));
     applyResponsePrivacy(contentEl);
     cursor?.remove();
@@ -234,17 +344,22 @@ export async function sendMessage(text) {
         session_id: sessionId,
         message: text,
         mode: getMode(),
-        file_ids: getAttachments(),
+        file_ids: attachmentIds,
         incognito: isIncognitoMode(),
-        permission_mode: getMode() === 'agent' ? getPermMode() : '',
+        permission_mode: getPermMode(),
         effort: getEffort(getSelected()?.model),   // per-model effort, applies to chat + agent
+        reasoning_mode: getReasoningMode(getSelected()?.model),
+        custom_effort: getCustomEffort(getSelected()?.model),
+        context_scope: documentScope || undefined,
       }),
+      signal: ctrl.signal,
     });
 
     if (!r.ok) {
       const err = await r.text();
       body.innerHTML = `<div class="error-msg">${escHtml(err)}</div>`;
       body.classList.add('done');
+      restoreDocumentScope(documentScope);
       setStreaming(false);
       return;
     }
@@ -296,7 +411,13 @@ export async function sendMessage(text) {
           const total = inp + out;
           if (total) {
             const el = document.getElementById('session-token-count');
-            if (el) { el.textContent = `${total.toLocaleString()} tok`; el.style.display = ''; }
+            const value = document.getElementById('session-token-count-value');
+            if (el && value) {
+              const formatted = formatNumber(total);
+              value.textContent = `${formatted} tok`;
+              el.setAttribute('aria-label', `${formatted} tokens used in the latest response`);
+              el.hidden = false;
+            }
           }
         }
 
@@ -304,17 +425,14 @@ export async function sendMessage(text) {
           runId = chunk.agent_run.id || runId;
         }
 
-        if (chunk.agent_turn) {
-          const t = chunk.agent_turn;
-          const panel = ensureAgentPanel();
-          let status = agentEl.querySelector('.agent-turn-status');
-          if (!status) {
-            status = document.createElement('div');
-            status.className = 'agent-turn-status';
-            panel.parentElement.insertBefore(status, panel);
-          }
-          status.textContent = `turn ${t.index} / ${t.max}`;
+        if (chunk.context_provenance) {
+          provenanceEl?.remove();
+          provenanceEl = contextProvenanceElement(chunk.context_provenance);
+          if (provenanceEl) body.appendChild(provenanceEl);
         }
+
+        // agent_turn is internal bookkeeping. Keep the user-facing state as
+        // "typing" until real thinking or a named tool begins.
 
         if (chunk.todo_update) {
           const panel = ensureAgentPanel();
@@ -335,6 +453,7 @@ export async function sendMessage(text) {
 
         if (chunk.tool_start) {
           const t = chunk.tool_start;
+          setProgress(`${String(t.name || 'tool').replaceAll('_', ' ')}…`);
           const panel = ensureAgentPanel();
           const step = document.createElement('div');
           step.className = 'agent-step running' + (DESTRUCTIVE_TOOLS.has(t.name) ? ' destructive' : '');
@@ -438,6 +557,19 @@ export async function sendMessage(text) {
           }
         }
 
+        if (chunk.user_question) {
+          const question = chunk.user_question;
+          const step = toolEls.get(question.call_id);
+          renderAideQuestion(step || ensureAgentPanel(), question);
+          scrollDown();
+        }
+
+        if (chunk.user_question_resolved) {
+          const resolved = chunk.user_question_resolved;
+          const step = toolEls.get(resolved.call_id);
+          markAideQuestionResolved(step || agentEl, resolved.id, resolved.answer?.cancelled === true);
+        }
+
         if (chunk.tool_result) {
           const t = chunk.tool_result;
           const step = toolEls.get(t.call_id);
@@ -453,6 +585,7 @@ export async function sendMessage(text) {
         }
 
         if (chunk.thinking) {
+          setProgress('thinking…');
           accThink += chunk.thinking;
           if (!thinkingEl) {
             thinkStart = Date.now();
@@ -463,7 +596,7 @@ export async function sendMessage(text) {
                 <span class="think-label">thinking</span><span class="think-timer"></span>
               </div>
               <div class="thinking-content custom-details"></div>`;
-            body.insertBefore(thinkingEl, body.firstChild);
+            body.insertBefore(thinkingEl, contentEl);
             // live elapsed timer while reasoning
             thinkTimer = setInterval(() => {
               if (thinkDone) return;
@@ -477,6 +610,7 @@ export async function sendMessage(text) {
 
         if (chunk.delta) {
           finishThinking();   // first real content → reasoning is done
+          clearProgress();
           if (!genStart) { genStart = Date.now(); hideConnBanner(); }  // a real token = we're connected, clear any stale warning
           accText += chunk.delta;
           scheduleRender();
@@ -491,21 +625,44 @@ export async function sendMessage(text) {
       const k = 'stream-buffer-warned';
       if (Date.now() - (+localStorage.getItem(k) || 0) > 86400000) {
         localStorage.setItem(k, Date.now());
-        toast('reply arrived all at once — a proxy is buffering the stream. using clash? add *.localhost to its system-proxy bypass list', 'error');
+        toast('reply arrived all at once: a proxy is buffering the stream. using clash? add *.localhost to its system-proxy bypass list', 'error');
       }
     }
 
   } catch (e) {
+    restoreDocumentScope(documentScope);
     if (e.name !== 'AbortError') {
       appendError(body, `stream error: ${e.message}`);
       if (isConnError(e.message)) showConnBanner(e.message);
     }
   } finally {
+    if (_chatAbort === ctrl) {
+      _chatAbort = null;
+      _chatSessionId = null;
+    }
+    if (_streamToken === streamToken) setStreaming(false);
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
     finishThinking();   // freeze timer even if the reply was thinking-only
+    clearProgress();
     updateStats(true);  // final token count + tok/s (real if usage was sent)
     cursor?.remove();
     body.classList.add('done');
+    if (ctrl.signal.aborted) appendInterruptionNotice(body);
+
+    if (agentEl && (toolEls.size || todoEl)) {
+      const hasAttention = Boolean(
+        agentEl.querySelector('.agent-step.error, .agent-step.running, .agent-perm:not(.approved):not(.denied), .aide-question-card:not(.answered):not(.cancelled)')
+      );
+      agentEl.classList.toggle('open', hasAttention);
+      const summary = agentEl.querySelector('.custom-summary');
+      if (summary) {
+        summary.textContent = hasAttention ? 'run details need attention' : 'run details';
+        summary.setAttribute('aria-expanded', String(hasAttention));
+      }
+    } else if (agentEl) {
+      agentEl.remove();
+      agentEl = null;
+    }
 
     // provenance — let the reader see what the run actually touched
     if (agentEl && runId) {
@@ -597,7 +754,6 @@ export async function sendMessage(text) {
       openArtifact(a.content, a.type, a.title, a.lang);
     }
 
-    setStreaming(false);
     scrollDown();
 
     // name the chat from its first message (async; updates the sidebar when ready)
@@ -614,9 +770,21 @@ export async function sendMessage(text) {
     agentEl = document.createElement('div');
     agentEl.className = 'agent-steps custom-disclosure open';
     agentEl.innerHTML = `
-      <div class="custom-summary" onclick="this.parentElement.classList.toggle('open')">agent steps</div>
+      <div class="custom-summary" role="button" tabindex="0" aria-expanded="true">run details</div>
       <div class="agent-step-list custom-details"></div>`;
-    body.insertBefore(agentEl, body.firstChild);
+    body.appendChild(agentEl);
+    const disclosure = agentEl.querySelector('.custom-summary');
+    disclosure.addEventListener('click', event => {
+      const open = agentEl.classList.toggle('open');
+      event.currentTarget.setAttribute('aria-expanded', String(open));
+      event.currentTarget.textContent = 'run details';
+    });
+    disclosure.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        disclosure.click();
+      }
+    });
     return agentEl.querySelector('.agent-step-list');
   }
 }
@@ -659,10 +827,10 @@ function showConnBanner(detail = '') {
   const b = document.getElementById('conn-banner');
   const m = document.getElementById('conn-banner-msg');
   if (!b || !m) return;
-  m.innerHTML = `<b>can't reach the model endpoint.</b> the request couldn't connect outbound — `
+  m.innerHTML = `<b>can't reach the model endpoint.</b> the request couldn't connect outbound. `
     + `if you launched aide from a sandboxed shell, restart it from your own terminal `
     + `(<code>python cli.py restart</code>) so it has network.`
-    + (detail ? ` <span style="opacity:.7">— ${escHtml(String(detail).slice(0, 160))}</span>` : '');
+    + (detail ? ` <span style="opacity:.7">${escHtml(String(detail).slice(0, 160))}</span>` : '');
   b.style.display = 'flex';
 }
 
@@ -671,16 +839,19 @@ export function hideConnBanner() {
   if (b) b.style.display = 'none';
 }
 
-function setStreaming(val) {
+function setStreaming(val, stoppable = true) {
   _streaming = val;
   document.getElementById('send-btn').disabled = val;
   const stop = document.getElementById('stop-btn');
-  stop.classList.toggle('visible', val);
+  stop.classList.toggle('visible', val && stoppable);
 }
 
 
 export function stopStream() {
-  const sid = getActiveId();
+  const sid = _chatSessionId;
+  _chatAbort?.abort();
+  _chatAbort = null;
+  _chatSessionId = null;
   if (sid) fetch(`/api/chat/stop/${sid}`, { method: 'POST' }).catch(() => {});
   setStreaming(false);
 }
@@ -696,87 +867,88 @@ function _looksLikeImageRequest(t) {
   return /\b(draw|generate|create|make|render|paint|design|produce)\b[^.!?]*\b(image|picture|pic|photo|drawing|art|artwork|illustration|logo|icon|wallpaper|poster|painting|portrait|render)\b/.test(s);
 }
 
+function _newImageRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 // image-gen turn: same chat thread, but hit the image endpoint. backend saves the
 // pic to the gallery + a document and persists the turn, so it survives a reload.
 // `target` is {endpointId, model} — the primary (legacy) or the companion image slot.
 async function _sendImage(prompt, sessionId, fresh, target) {
   const sel = target || getSelected();
   prompt = prompt.replace(/^\/(image|img|draw|gen)\s+/i, '');   // drop the slash lead-in if any
+  const request = { session_id: sessionId, prompt, model: sel.model, endpoint_id: sel.endpointId,
+    request_id: _newImageRequestId() };
   showMessages();
   appendUserMsg(prompt);
   clearAttachments();
   scrollDown();
-  setStreaming(true);
   const { body } = createStreamingAiRow();
-  const status = document.createElement('div');
-  status.className = 'ai-content img-gen-status';
-  status.textContent = 'generating image…';
-  body.appendChild(status);
-  scrollDown();
-  try {
-    const r = await fetch('/api/images/chat', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, prompt, model: sel.model, endpoint_id: sel.endpointId }),
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'generation failed');
-    body.innerHTML = '';
-    const content = document.createElement('div');
-    content.className = 'ai-content';
-    content.innerHTML = mdToHtml(d.content);
-    body.appendChild(content);
-    body.classList.add('done');
-    if (fresh && d.doc_id && d.doc_title) updateSessionName(sessionId, d.doc_title);
-    toast(d.doc_id ? 'saved to notes' : 'image generated', 'success');
-  } catch (e) {
-    body.innerHTML = '';
-    const err = document.createElement('div');
-    err.className = 'ai-content';
-    err.textContent = 'image generation failed — ' + (e.message || '');
-    body.appendChild(err);
-    toast(e.message || 'generation failed', 'error');
-  } finally {
-    setStreaming(false);
+  let error, retry;
+  const send = async (again = false) => {
+    setStreaming(true, false);
+    if (again) {
+      retry.setAttribute('aria-disabled', 'true');
+      retry.textContent = 'retrying…';
+      error.setAttribute('role', 'status');
+      error.textContent = 'checking saved image…';
+    } else {
+      const status = document.createElement('div');
+      status.className = 'ai-content img-gen-status';
+      status.setAttribute('role', 'status');
+      status.textContent = 'generating image…';
+      body.replaceChildren(status);
+    }
     scrollDown();
-  }
+    try {
+      const r = await fetch('/api/images/chat', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'generation failed');
+      const content = document.createElement('div');
+      content.className = 'ai-content';
+      content.innerHTML = mdToHtml(d.content);
+      body.replaceChildren(content);
+      body.classList.add('done');
+      if (again) {
+        content.tabIndex = -1;
+        content.focus({ preventScroll: true });
+      }
+      if (fresh && d.doc_id && d.doc_title) updateSessionName(sessionId, d.doc_title);
+      toast(d.doc_id ? 'saved to notes' : 'image generated', 'success');
+    } catch (e) {
+      if (!error) {
+        error = document.createElement('div');
+        error.className = 'ai-content';
+        const template = document.createElement('template');
+        template.innerHTML = '<button type="button" class="act-btn img-gen-retry">retry image</button>';
+        retry = template.content.firstElementChild;
+        retry.addEventListener('click', () => { if (!_streaming) void send(true); });
+      }
+      error.setAttribute('role', 'alert');
+      error.textContent = 'could not confirm image: ' + (e.message || 'request failed');
+      retry.removeAttribute('aria-disabled');
+      retry.textContent = 'retry image';
+      if (!again) body.replaceChildren(error, retry);
+      toast(e.message || 'generation failed', 'error');
+    } finally {
+      setStreaming(false);
+      scrollDown();
+    }
+  };
+  await send();
 }
 
 
 function getMode() {
-  return document.getElementById('mode-agent').classList.contains('active') ? 'agent' : 'chat';
+  return 'agent';
 }
-
-// 1f - predicted next-step suggestion chips above the composer. fetches on focus + after a
-// pause in typing; clicking a chip drops its prompt into the composer.
-async function _loadAideSuggestions() {
-  const box = document.getElementById('aide-suggest-chips');
-  const ta = document.getElementById('composer-ta');
-  if (!box || !ta) return;
-  let sugg = [];
-  try {
-    const sid = window._currentSession?.id || '';
-    const q = encodeURIComponent((ta.value || '').slice(0, 200));
-    sugg = await fetch(`/api/aide/suggestions?q=${q}&session_id=${sid}`).then(r => r.json());
-  } catch { /* offline */ }
-  if (!sugg || !sugg.length) { box.style.display = 'none'; box.replaceChildren(); return; }
-  box.replaceChildren(...sugg.map(s => {
-    const b = document.createElement('button');
-    b.className = 'aide-chip';
-    b.textContent = s.label;
-    b.addEventListener('click', () => {
-      ta.value = s.label; ta.focus(); ta.dispatchEvent(new Event('input'));
-      box.style.display = 'none';
-      clearTimeout(_suggT);  // the input we just fired re-arms the debounce; cancel it so the box stays dismissed
-    });
-    return b;
-  }));
-  box.style.display = 'flex';
-}
-
-let _suggT;
-(function _wireAideSuggestions() {
-  const ta = document.getElementById('composer-ta');
-  if (!ta) return;
-  ta.addEventListener('focus', _loadAideSuggestions);
-  ta.addEventListener('input', () => { clearTimeout(_suggT); _suggT = setTimeout(_loadAideSuggestions, 700); });
-})();

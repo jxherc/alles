@@ -20,7 +20,9 @@ class VaultCustomTypes(ApiTest):
         self._sf.close()
         self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
         self.sp.start()
-        self.tok = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["token"]
+        self.tok = self.client.post(
+            "/api/vault/unlock", json={"password": "master-password-1"}
+        ).json()["token"]
         self.h = {"X-Vault-Token": self.tok}
 
     def tearDown(self):
@@ -71,7 +73,10 @@ class VaultCustomTypes(ApiTest):
 
     def test_rename_field_updates(self):
         self._put("wifi", self.WIFI)
-        body = {"label": "Wi-Fi", "fields": [{"key": "ssid", "label": "SSID name", "width": "full"}]}
+        body = {
+            "label": "Wi-Fi",
+            "fields": [{"key": "ssid", "label": "SSID name", "width": "full"}],
+        }
         self._put("wifi", body)
         f = self.client.get("/api/vault/custom-types", headers=self.h).json()["types"]["wifi"][
             "fields"
@@ -97,7 +102,11 @@ class VaultCustomTypes(ApiTest):
         self._put("wifi", self.WIFI)
         eid = self.client.post(
             "/api/vault",
-            json={"name": "home wifi", "type": "wifi", "fields": {"ssid": "MyNet", "wifi_pw": "p@ss"}},
+            json={
+                "name": "home wifi",
+                "type": "wifi",
+                "fields": {"ssid": "MyNet", "wifi_pw": "p@ss"},
+            },
             headers=self.h,
         ).json()["id"]
         rev = self.client.get(f"/api/vault/{eid}/reveal", headers=self.h).json()

@@ -57,6 +57,14 @@ class AttachmentTests(unittest.TestCase):
         msg.set_content("just text")
         self.assertEqual(m.attachments_of(msg), [])
 
+    def test_bodystructure_attachment_flag(self):
+        bs = '("APPLICATION" "PDF" ("NAME" "report.pdf") NIL NIL "BASE64" 10 NIL ("ATTACHMENT" ("FILENAME" "report.pdf")))'
+        self.assertTrue(m._bs_has_attachment(m._imap_tokenize(bs)))
+
+    def test_bodystructure_plain_text_not_attachment(self):
+        bs = '("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "7BIT" 10 1)'
+        self.assertFalse(m._bs_has_attachment(m._imap_tokenize(bs)))
+
 
 class CategorizeTests(unittest.TestCase):
     def test_social_sender(self):
@@ -82,6 +90,10 @@ class ParseSearchQueryTests(unittest.TestCase):
         self.assertEqual(spec["subject"], "invoice")
         self.assertEqual(spec["text"], "hello")
         self.assertFalse(spec["has_attachment"])
+
+    def test_to_operator(self):
+        spec = m.parse_search_query("to:bob@example.com")
+        self.assertEqual(spec["to"], "bob@example.com")
 
     def test_has_attachment_flag(self):
         spec = m.parse_search_query("has:attachment budget")

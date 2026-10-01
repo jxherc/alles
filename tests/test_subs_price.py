@@ -5,6 +5,23 @@ from tests._client import ApiTest
 
 
 class SubPriceHistoryTests(ApiTest):
+    def test_create_and_patch_reject_fractional_cent_prices(self):
+        created = self.client.post(
+            "/api/subscriptions",
+            json={
+                "name": "Precise",
+                "price": 1.001,
+                "currency": "CAD",
+                "next_due": date.today().isoformat(),
+            },
+        )
+        self.assertEqual(created.status_code, 400, created.text)
+
+        sid = self._sub(1.0)
+        patched = self._patch(sid, price=1.001)
+        self.assertEqual(patched.status_code, 400, patched.text)
+        self.assertEqual(self._item(sid)["price"], 1.0)
+
     def _sub(self, price=10.0):
         d = self.db()
         s = Subscription(

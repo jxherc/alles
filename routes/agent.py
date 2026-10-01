@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 
-from services.agent_runtime import resolve_permission
+from core.auth import require_recent_owner
+from services.agent_runtime import resolve_permission, resolve_user_question
 from services.agent_state import find_active_run, get_run, list_runs
 from services.agent_tools import agent_status, revert_run
 
@@ -12,10 +13,29 @@ class PermDecision(BaseModel):
     allow: bool
 
 
-@router.post("/agent/permission/{request_id}")
+class UserQuestionAnswer(BaseModel):
+    cancelled: bool = False
+    answers: dict = Field(default_factory=dict)
+
+
+@router.post("/agent/permission/{request_id}", dependencies=[Depends(require_recent_owner)])
 def agent_permission(request_id: str, body: PermDecision):
     ok = resolve_permission(request_id, body.allow)
     return {"ok": ok}
+
+
+@router.post("/agent/questions/{request_id}/answer")
+def agent_question_answer(request_id: str, body: UserQuestionAnswer):
+    try:
+        ok = resolve_user_question(request_id, body.model_dump())
+    except ValueError as exc:
+        from core.api_errors import ApiError
+
+        code = str(exc)
+        raise ApiError(400, code, code.replace("_", " ")) from exc
+    if not ok:
+        raise HTTPException(409, "this question is no longer waiting")
+    return {"ok": True}
 
 
 @router.post("/agent/runs/{run_id}/revert")
@@ -31,18 +51,21 @@ def agent_files(q: str = "", session_id: str = "", limit: int = 30):
     from services.agent_tools import workspace_files
 
     cwd = ""
+    environment = "general"
     if session_id:
         db = SessionLocal()
         try:
             s = db.get(Sess, session_id)
             if s:
-                cwd = getattr(s, "working_dir", "") or ""
-                if not cwd:
-                    proj = getattr(s, "project", None)
-                    if proj:
-                        cwd = getattr(proj, "working_dir", "") or ""
+                from services.project_environment import session_environment
+
+                resolved = session_environment(s)
+                cwd = resolved["cwd"]
+                environment = resolved["kind"]
         finally:
             db.close()
+    if environment == "general" or not cwd:
+        return {"files": []}
     return {"files": workspace_files(cwd, q, limit)}
 
 
@@ -77,12 +100,20 @@ def runs(limit: int = 20, summary: bool = False):
         lite["steps"] = len(r.get("tool_steps", []) or [])
         lite["edits"] = len(r.get("checkpoints", []) or [])
         todos = r.get("todos", []) or []
+        # the producer (_todo_update) emits {step, status: pending|in_progress|completed}.
+        # read `step` + "completed" (the real shape); the text/done fallbacks are just
+        # belt-and-suspenders for any legacy payload.
         lite["todo"] = next(
-            (t.get("text") or t.get("title") for t in todos if isinstance(t, dict)), ""
+            (
+                t.get("step") or t.get("text") or t.get("title")
+                for t in todos
+                if isinstance(t, dict)
+            ),
+            "",
         )
         lite["todos_total"] = len(todos)
         lite["todos_done"] = sum(
-            1 for t in todos if isinstance(t, dict) and t.get("status") == "done"
+            1 for t in todos if isinstance(t, dict) and t.get("status") in ("completed", "done")
         )
         out.append(lite)
     return out
@@ -154,6 +185,7 @@ def run_events(run_id: str, since: int = 0):
         "text": run.get("text", ""),
         "turn": run.get("turn", 0),
         "done": run.get("status") not in ("running",),
+        "pending_question": run.get("pending_question"),
     }
 
 

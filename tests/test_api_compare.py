@@ -1,5 +1,7 @@
 import json
+from unittest import mock
 
+import routes.compare as compare
 from core.database import ModelEndpoint
 from tests._client import ApiTest
 
@@ -35,6 +37,28 @@ class CompareApiTest(ApiTest):
         ).json()
         self.assertEqual(r["count"], 1)
         self.assertEqual(self.client.delete(f"/api/compare/{r['compare_id']}").json(), {"ok": True})
+
+    def test_compare_keeps_owner_instructions_separate_from_one_off_prompt(self):
+        eid = self._endpoint()
+        with mock.patch(
+            "core.settings.load_settings",
+            return_value={"owner_instructions": "use short paragraphs"},
+        ):
+            result = self.client.post(
+                "/api/compare",
+                json={
+                    "message": "hi",
+                    "models": [{"endpoint_id": eid, "model": "m1"}],
+                    "system_prompt": "act as a careful reviewer",
+                },
+            ).json()
+        try:
+            prompt = compare._active[result["compare_id"]][0]["msgs"][0]["content"]
+            self.assertIn("You are Aide", prompt)
+            self.assertIn("act as a careful reviewer", prompt)
+            self.assertIn("### Owner instructions\nuse short paragraphs", prompt)
+        finally:
+            self.client.delete(f"/api/compare/{result['compare_id']}")
 
     def test_stream_bad_id_404(self):
         self.assertEqual(self.client.get("/api/compare/nope/stream/0").status_code, 404)
@@ -104,7 +128,9 @@ class CompareApiTest(ApiTest):
 
     # ── blind-vote leaderboard ──
     def test_vote_requires_winner(self):
-        self.assertEqual(self.client.post("/api/compare/vote", json={"winner": " "}).status_code, 400)
+        self.assertEqual(
+            self.client.post("/api/compare/vote", json={"winner": " "}).status_code, 400
+        )
 
     def test_vote_and_stats_winrate(self):
         self.client.post("/api/compare/vote", json={"winner": "gpt", "loser": "claude"})

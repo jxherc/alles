@@ -12,11 +12,11 @@ IGNORE = ("Failed to load resource", "net::", "ERR_", "favicon", "401", "Load fa
 
 
 def confirm_yes(pg):
-    """dismiss the custom confirm() dialog by clicking #_dy (or clearing it)."""
+    """dismiss the custom confirm dialog when it is open."""
     pg.wait_for_timeout(250)
     try:
-        pg.wait_for_selector("#_dy", timeout=2500)
-        pg.eval_on_selector("#_dy", "el => el.click()")
+        pg.wait_for_selector("[data-dialog-confirm]", timeout=2500)
+        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
         pg.wait_for_selector(".dialog-overlay", state="detached", timeout=3000)
     except Exception:
         pg.evaluate("document.querySelectorAll('.dialog-overlay').forEach(o => o.remove())")

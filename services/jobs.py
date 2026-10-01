@@ -24,18 +24,26 @@ class Job:
     enabled: bool = True
     runs: int = 0
     fails: int = 0
+    interval_fn: object | None = None
+    running: bool = False
+    last_started: float | None = None
+    last_finished: float | None = None
+    last_success: float | None = None
+    last_error: str = ""
 
 
 _jobs: dict[str, Job] = {}
 
 
-def register(name, fn, interval, *, run_at_start=True):
+def register(name, fn, interval, *, run_at_start=True, interval_fn=None):
     """register (or replace) an interval job. run_at_start=False makes it wait one
     full interval before its first run."""
     # -inf → always due on the first run_due tick; else start the clock now so it
     # waits a full interval before firing
     last = float("-inf") if run_at_start else time.monotonic()
-    _jobs[name] = Job(name=name, fn=fn, interval=float(interval), last_run=last)
+    _jobs[name] = Job(
+        name=name, fn=fn, interval=float(interval), last_run=last, interval_fn=interval_fn
+    )
     return _jobs[name]
 
 
@@ -52,18 +60,31 @@ async def run_due(now=None):
     now = time.monotonic() if now is None else now
     ran = 0
     for job in list(_jobs.values()):
+        if job.interval_fn:
+            try:
+                job.interval = float(job.interval_fn())
+            except Exception as e:
+                log.warning(f"job '{job.name}' interval refresh failed: {e}")
         if not job.enabled or (now - job.last_run) < job.interval:
             continue
         job.last_run = now
+        job.last_started = time.time()
+        job.running = True
         try:
             await job.fn()
             job.runs += 1
+            job.last_success = time.time()
+            job.last_error = ""
             ran += 1
         except asyncio.CancelledError:
             raise
         except Exception as e:
             job.fails += 1
+            job.last_error = type(e).__name__
             log.warning(f"job '{job.name}' failed: {e}")
+        finally:
+            job.running = False
+            job.last_finished = time.time()
     return ran
 
 

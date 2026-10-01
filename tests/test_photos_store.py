@@ -15,10 +15,14 @@ def _png(color=(40, 120, 90), size=(60, 40)) -> bytes:
     return buf.getvalue()
 
 
+def _heic() -> bytes:
+    return b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00heicmif1" + (b"\x00" * 32)
+
+
 class PhotosStoreTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self._p = mock.patch.object(ps, "photos_dir", lambda: Path(self.tmp.name))
+        self._p = mock.patch.object(ps, "photos_dir", lambda: Path(self.tmp.name).resolve())
         self._p.start()
         (Path(self.tmp.name) / ".thumbs").mkdir(exist_ok=True)
 
@@ -43,6 +47,17 @@ class PhotosStoreTests(unittest.TestCase):
     def test_unsupported_ext_rejected(self):
         with self.assertRaises(ValueError):
             ps.import_image(b"xx", "evil.exe")
+
+    def test_heic_original_is_stored_when_decoder_missing(self):
+        info = ps.import_image(_heic(), "phone.heic")
+        self.assertTrue(info["filename"].endswith(".heic"))
+        self.assertEqual(info["thumb"], "")
+        self.assertEqual((info["width"], info["height"]), (0, 0))
+        self.assertEqual(ps.original_path(info["filename"]).read_bytes(), _heic())
+
+    def test_fake_heic_is_rejected(self):
+        with self.assertRaises(ValueError):
+            ps.import_image(b"not actually heic", "fake.heic")
 
     def test_delete_removes_files(self):
         info = ps.import_image(_png(), "a.png")
@@ -85,6 +100,21 @@ class PhotosStoreTests(unittest.TestCase):
         self.assertTrue(info["is_video"])
         p = ps.original_path(info["filename"])
         self.assertTrue(p.is_file())
+
+    def test_partial_original_write_is_removed(self):
+        def fail_after_partial_write(path, data):
+            with path.open("wb") as stream:
+                stream.write(data[:8])
+            raise OSError("simulated full disk")
+
+        with (
+            mock.patch.object(Path, "write_bytes", fail_after_partial_write),
+            self.assertRaises(OSError),
+        ):
+            ps.import_image(_png(), "partial.png")
+
+        originals = [path for path in Path(self.tmp.name).iterdir() if path.is_file()]
+        self.assertEqual(originals, [])
 
 
 if __name__ == "__main__":

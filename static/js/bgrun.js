@@ -2,6 +2,8 @@
 // the run keeps going server-side even if the tab closed; we tail its persisted
 // events + accumulated prose and show progress instead of an empty chat.
 
+import { renderAideQuestion } from './aidequestions.js?v=1';
+
 let _timer = null;
 let _curRun = null;
 
@@ -17,7 +19,7 @@ function _box() {
     b.id = 'bg-reattach';
     b.className = 'bg-reattach';
     b.innerHTML = '<span class="bg-reattach-status">↻ running in background…</span>'
-      + '<div class="bg-reattach-text"></div>';
+      + '<div class="bg-reattach-text"></div><div class="bg-reattach-question"></div>';
     document.getElementById('messages')?.appendChild(b);
   }
   return b;
@@ -34,6 +36,9 @@ export async function reattach(sessionId) {
 
   _curRun = active.id;
   const box = _box();
+  if (active.pending_question) {
+    renderAideQuestion(box.querySelector('.bg-reattach-question'), active.pending_question);
+  }
   let cursor = 0;
 
   const tick = async () => {
@@ -45,6 +50,9 @@ export async function reattach(sessionId) {
     cursor = (d && typeof d.next === 'number') ? d.next : cursor;
     const txt = box.querySelector('.bg-reattach-text');
     if (txt && d && d.text) txt.textContent = d.text;
+    if (d?.pending_question) {
+      renderAideQuestion(box.querySelector('.bg-reattach-question'), d.pending_question);
+    }
     if (d && d.done) {
       stop();
       const st = box.querySelector('.bg-reattach-status');

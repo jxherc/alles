@@ -22,6 +22,31 @@ class FilesStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             fs.listdir("../..")
 
+    def test_symlinked_root_alias_stays_confined(self):
+        base = Path(self.tmp.name)
+        actual = base / "actual"
+        alias = base / "alias"
+        actual.mkdir()
+        alias.symlink_to(actual, target_is_directory=True)
+        with mock.patch.object(fs, "files_dir", lambda: alias):
+            fs.save_upload("", "safe.txt", b"safe")
+            self.assertEqual(fs.read_text("safe.txt")["content"], "safe")
+            with self.assertRaises(ValueError):
+                fs.read_text("../outside.txt")
+
+    def test_symlink_inside_root_cannot_escape(self):
+        with tempfile.TemporaryDirectory() as outside:
+            secret = Path(outside) / "secret.txt"
+            secret.write_text("private")
+            link = Path(self.tmp.name) / "outside"
+            link.symlink_to(outside, target_is_directory=True)
+            with self.assertRaises(ValueError):
+                fs.read_text("outside/secret.txt")
+            with self.assertRaises(ValueError):
+                fs.save_upload("outside", "new.txt", b"no")
+            with self.assertRaises(ValueError):
+                fs.rename("outside/secret.txt", "moved.txt")
+
     def test_mkdir_upload_list_rename_delete(self):
         fs.mkdir("docs")
         fs.save_upload("docs", "a.txt", b"hello")
