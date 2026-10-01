@@ -11,6 +11,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 BASE = os.environ.get("PHASE10_BASE", "http://127.0.0.1:8974")
 LANGUAGES = ("en", "fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar")
@@ -95,7 +96,7 @@ def run() -> None:
         started = time.perf_counter()
         page.locator("#today-settings").click()
         expect(page.locator("#settings-modal")).to_be_visible()
-        page.locator('.s-nav-item[data-pane="credits"]').click()
+        choose_settings_section(page, "credits")
         expect(page.locator("#credits-settings-workbench")).to_have_attribute("aria-busy", "false")
         expect(page.locator("#credits-list .credits-row").first).to_be_visible()
         credits_ms = (time.perf_counter() - started) * 1_000

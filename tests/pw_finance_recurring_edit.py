@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import show_money_sections
 
 from services.appearance import LIGHT_BASE
 
@@ -216,6 +217,7 @@ def run() -> None:
             tab = page.locator('#finance-tabs [data-group-section="money"]')
             if tab.get_attribute("aria-selected") != "true":
                 tab.click()
+            show_money_sections(page)
             card = page.locator('.money-card[data-card="recurring"]')
             linked = card.locator('.recur-group[data-id="linked-rent"]')
             native = card.locator('.recur-group[data-id="native-rent"]')
@@ -300,6 +302,7 @@ def run() -> None:
             assert len(state["posts"]) == 2
             state["phase"] = "review"
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             expect(
                 linked.get_by_text("review the schedule there before retrying", exact=False)
             ).to_be_visible()
@@ -312,6 +315,7 @@ def run() -> None:
             )
             state["phase"] = "ready"
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             delete = linked.get_by_role("button", name="delete landlord schedule")
             expect(delete).to_be_visible()
             expect(native.get_by_role("button", name="delete native schedule")).to_have_count(0)
@@ -344,6 +348,7 @@ def run() -> None:
             )
             state["phase"] = "delete-review"
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             expect(
                 linked.get_by_text("review it before retrying deletion", exact=False)
             ).to_be_visible()
@@ -356,6 +361,7 @@ def run() -> None:
             linked.screenshot(path=str(output / f"recurring-delete-{profile}-review-row.png"))
             state["phase"] = "delete-pending"
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             retry_delete = linked.get_by_role("button", name="retry deletion")
             retry_delete.focus()
             page.keyboard.press("Enter")

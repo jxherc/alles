@@ -14,8 +14,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TARGET = REPO_ROOT / "static" / "kokuen.css"
-EXPECTED_COUNTS = {"nested-boundary": 74, "small-type": 120}
-EXPECTED_DIGEST = "d64706d420d4ab7892680d32461204a1b918364abbfbe3360e9ecb0045a51875"
+EXPECTED_COUNTS = {"nested-boundary": 77, "small-type": 120}
+EXPECTED_DIGEST = "4cde1aa7b9ee0a2a25b75cd30b817960c4cc64e4e6d52ce05370d7a844c94741"
 CONTROL_WORDS = re.compile(
     r"(?:button|input|textarea|search|choice|switch|option|trigger|select|tab|action)",
     re.IGNORECASE,

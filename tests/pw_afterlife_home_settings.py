@@ -10,6 +10,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 BASE = os.environ.get("HOME_SETTINGS_BASE", "http://127.0.0.1:8971")
 
@@ -145,8 +146,8 @@ def run() -> None:
         expect(briefs).to_have_attribute("aria-checked", "false")
 
         # Moving between panes must not replace a local draft with a fresh GET.
-        page.locator('.s-nav-item[data-pane="models"]').click()
-        page.locator('.s-nav-item[data-pane="home"]').click()
+        choose_settings_section(page, "models")
+        choose_settings_section(page, "home")
         expect(briefs).to_have_attribute("aria-checked", "false")
         expect(page.locator("#home-settings-load-state")).to_have_text("unsaved changes kept here")
 

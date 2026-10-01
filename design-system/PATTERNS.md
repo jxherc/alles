@@ -57,6 +57,16 @@ Use for Money, Health summary, System, and Watch.
 
 Settings is one product surface. Group by user intent, keep the current value visible, explain consequences before destructive or privacy-sensitive changes, and use custom KOKUEN choice controls. Theme and density live here, not in app headers.
 
+Compact Settings uses a grouped section picker that keeps the current section visible. Its list scrolls inside the available modal height; Escape restores the picker. Locale choice lists escape clipping cards while staying within the viewport and modal focus boundary. Compact locale controls precede their preview. Home editing controls precede the collapsible outline.
+
+Appearance starts with mode, then discloses accents, searchable themes and advanced controls. Filtering never deletes a choice. An inherited accent follows the default light or dark palette; a deliberately chosen accent survives mode changes and reloads. Permission wording and API endpoint text use the primary text role so a pale custom accent does not obscure them.
+
+## finance
+
+Daily balances and subscriptions lead the overview. Routine ledger setup stays compact, with the current write destination visible; unavailable authority stays prominent and explicit write-destination confirmation keeps safe default focus.
+
+Money places transaction entry and its list before supporting panels. Accounts, budgets and schedules remain discoverable through one disclosure; analytics and tools use another. Unresolved work remains visible and expansion survives refresh. Currency values retain grouped digits and two decimal places in responsive tracks wide enough for the complete amount.
+
 ## destructive action
 
 Explain the object, scope, and recovery before confirmation. Default focus stays on the safe action. Do not rely on a red button alone. Show progress, success, and failure without losing the user's place.

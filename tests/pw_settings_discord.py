@@ -4,6 +4,7 @@ import json
 import os
 
 from playwright.sync_api import Route, expect, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 BASE = os.environ.get("DISCORD_SETTINGS_BASE", "http://127.0.0.1:8971")
 
@@ -135,8 +136,8 @@ def run() -> None:
             }""",
             {**state, "enabled": True},
         )
-        page.locator('.s-nav-item[data-pane="models"]').click()
-        page.locator('.s-nav-item[data-pane="tools"]').click()
+        choose_settings_section(page, "models")
+        choose_settings_section(page, "tools")
         page.wait_for_function("typeof window.__releaseStaleDiscordLoad === 'function'")
         page.locator("#jarvis-discord-enabled").click()
         expect(page.locator("#jarvis-discord-enabled")).to_have_attribute("aria-checked", "false")

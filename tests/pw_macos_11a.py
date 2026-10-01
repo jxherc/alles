@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 AIDE = "http://aide.localhost:8878"
 EVID = Path(__file__).resolve().parent.parent / "docs" / "evidence" / "11a"
@@ -35,8 +36,7 @@ def main():
         pg.goto(f"{AIDE}/", wait_until="domcontentloaded")
         pg.wait_for_selector('.nav-item[data-view="settings"]', timeout=15000)
         pg.eval_on_selector('.nav-item[data-view="settings"]', "el => el.click()")
-        pg.wait_for_selector('.s-nav-item[data-pane="tools"]', timeout=8000)
-        pg.eval_on_selector('.s-nav-item[data-pane="tools"]', "el => el.click()")
+        choose_settings_section(pg, "tools")
         pg.wait_for_selector("#macos-status", timeout=8000)
         pg.wait_for_timeout(600)
 

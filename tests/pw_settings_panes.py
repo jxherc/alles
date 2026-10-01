@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "scripts")]
 from browser_gate_safety import require_server_ownership  # noqa: E402
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
+from pw_settings_helpers import choose_settings_section, settings_section_focus_target  # noqa: E402
 
 from services.appearance import from_legacy  # noqa: E402
 
@@ -44,7 +45,7 @@ def permission_first_read_case(page, api, events, destination):
                 route.continue_()
 
         fresh.route("**/api/settings", initial_failure)
-        fresh.locator('.s-nav-item[data-pane="tools"]').click()
+        choose_settings_section(fresh, "tools")
         expect(fresh.locator("#toast-container .toast.error").last).to_have_text(
             "could not load permission rules"
         )
@@ -58,7 +59,7 @@ def permission_first_read_case(page, api, events, destination):
         fresh.unroute("**/api/settings", initial_failure)
         fresh.locator("#settings-modal-close").click()
         fresh.locator("#today-settings").click()
-        fresh.locator('.s-nav-item[data-pane="tools"]').click()
+        choose_settings_section(fresh, "tools")
         expect(fresh.locator("#perm-rules-list")).to_contain_text("example-existing-rule")
         expect(add).to_be_enabled()
         add.click()
@@ -1866,8 +1867,8 @@ def local_preset_cases(page, reopen, destination):
             expect(page.locator("[data-dialog-cancel]")).to_be_focused()
             expect(button("remove")).to_be_disabled()
             if focus_case == "newer-pane":
-                navigation = page.locator('.s-nav-item[data-pane="general"]')
-                navigation.dispatch_event("click")
+                page.evaluate("window._openSettings('general')")
+                navigation = settings_section_focus_target(page, "general")
                 navigation.focus()
                 expect(page.locator("#s-pane-general")).to_be_visible()
             state["hold_status"] = False
@@ -2055,7 +2056,7 @@ def developer_focus_webhook_cases(page, api, pane, reopen, destination):
                     expect(page.locator("#token-name")).to_be_focused()
                 else:
                     expect(page.locator("#s-pane-general")).to_be_visible()
-                    expect(page.locator('.s-nav-item[data-pane="general"]')).to_be_focused()
+                    expect(settings_section_focus_target(page, "general")).to_be_focused()
                 assert len(held) == expected and reauth == []
                 assert {record["id"] for record in api.get("/api/tokens").json()} == token_baseline
                 expect(page.locator("#token-name")).to_have_value("example cancel focus draft")
@@ -2528,7 +2529,7 @@ def exercise(page, api, endpoint, destination):
     assert_layout()
 
     def pane(name):
-        page.locator(f'.s-nav-item[data-pane="{name}"]').click()
+        choose_settings_section(page, name)
         expect(page.locator(f"#s-pane-{name}")).to_be_visible()
         assert_layout(locale=name == "notifications")
 
@@ -2643,7 +2644,7 @@ def exercise(page, api, endpoint, destination):
         pane("general")
         held[0][0].fulfill(response=held[0][1])
         expect(page.locator(f"#{workbench}")).to_have_attribute("aria-busy", "false")
-        expect(page.locator('.s-nav-item[data-pane="general"]')).to_be_focused()
+        expect(settings_section_focus_target(page, "general")).to_be_focused()
         assert len(held) == 1
         page.unroute(route_url, hold_pane_save)
         pane(name)

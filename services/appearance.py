@@ -136,6 +136,10 @@ def normalize(obj) -> dict:
     if isinstance(obj.get("preset"), str) and obj["preset"]:
         d["preset"] = obj["preset"]
 
+    # Missing means an older save; the client infers its original accent intent.
+    if isinstance(obj.get("accentCustom"), bool):
+        d["accentCustom"] = obj["accentCustom"]
+
     colors = obj.get("colors")
     if isinstance(colors, dict):
         for k in COLOR_KEYS:
@@ -204,6 +208,8 @@ def to_legacy(appearance: dict) -> tuple[str, str]:
 def _upgrade_legacy_default(a: dict) -> dict:
     """stored colors that still equal a pre-remap default preset were never a real
     choice — swap them for the current palette. anything else is user customization."""
+    if a.get("accentCustom") is True:
+        return a
     colors = a.get("colors")
     if not isinstance(colors, dict):
         return a
