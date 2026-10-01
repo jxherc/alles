@@ -12,6 +12,26 @@ import cli
 
 
 class CliSafetyTest(unittest.TestCase):
+    def test_main_reports_failed_commands_as_unsuccessful(self):
+        command = mock.Mock(return_value=False)
+        with (
+            mock.patch.object(cli, "COMMANDS", {"restore": command}),
+            mock.patch.object(sys, "argv", ["alles", "restore", "apply", "synthetic"]),
+        ):
+            with self.assertRaises(SystemExit) as failure:
+                cli.main()
+        self.assertEqual(failure.exception.code, 1)
+        command.assert_called_once_with(["apply", "synthetic"])
+
+    def test_main_preserves_success_and_legacy_no_result_commands(self):
+        for result in [True, None]:
+            with (
+                self.subTest(result=result),
+                mock.patch.object(cli, "COMMANDS", {"status": lambda args: result}),
+                mock.patch.object(sys, "argv", ["alles", "status"]),
+            ):
+                self.assertIsNone(cli.main())
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)

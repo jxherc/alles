@@ -2728,7 +2728,8 @@ def main():
             print(f"alles: unknown command '{args[0]}'\n", file=sys.stderr)
         print(_usage(), file=sys.stderr)
         sys.exit(1)
-    COMMANDS[args[0]](args[1:])
+    if COMMANDS[args[0]](args[1:]) is False:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

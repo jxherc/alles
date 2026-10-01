@@ -346,6 +346,28 @@ def check_profile(browser, profile, output, records):
                     assert state()["completed"]
                     passed()
 
+                    begin("setup.first-task")
+                    page.goto(base + "/?view=plan", wait_until="networkidle")
+                    title = "first useful task " + profile
+                    capture = page.locator('.specialist-group-capture input[name="title"]')
+                    capture.fill(title)
+                    capture.press("Enter")
+                    expect(capture).to_have_value("")
+                    page.get_by_role("tab", name="tasks", exact=True).click()
+                    page.get_by_role("button", name="edit " + title, exact=True).click()
+                    page.locator("#te-notes").fill("saved after completing owner setup")
+                    page.locator("#te-save").click()
+                    expect(page.locator("#te-title")).to_have_count(0)
+                    page.reload(wait_until="networkidle")
+                    page.get_by_role("button", name="edit " + title, exact=True).click()
+                    expect(page.locator("#te-notes")).to_have_value(
+                        "saved after completing owner setup"
+                    )
+                    page.locator("#te-cancel").click()
+                    shot("first-task-reopened")
+                    page.goto(base + "/?view=today", wait_until="networkidle")
+                    passed()
+
                     begin("setup.login-recovery")
                     context.clear_cookies()
                     page.reload(wait_until="networkidle")

@@ -129,7 +129,7 @@ export async function loadTasks(fetcher = fetch, target = null) {
   const generation = ++_loadGeneration;
   const tab = _tab, search = _search;
   const isTree = tab === 'active' && !search;
-  const url = search ? `/api/tasks/search?q=${encodeURIComponent(search)}`
+  const url = search ? `/api/tasks/search?q=${encodeURIComponent(search)}&view=${encodeURIComponent(tab)}`
                      : (isTree ? '/api/tasks/tree' : (_URL[tab] || '/api/tasks'));
   let data;
   try {
