@@ -70,10 +70,10 @@ async function _loadCreditDetail(entry) {
     pending = fetch(`/api/credits/${encodeURIComponent(entry.id)}`).then(async response => {
       if (!response.ok) throw new Error(t('credits.detail_error'));
       const value = await response.json();
-      _creditDetails.set(entry.id, value);
+      if (_creditDetailLoads.get(entry.id) === pending) _creditDetails.set(entry.id, value);
       return value;
     }).finally(() => {
-      _creditDetailLoads.delete(entry.id);
+      if (_creditDetailLoads.get(entry.id) === pending) _creditDetailLoads.delete(entry.id);
     });
     _creditDetailLoads.set(entry.id, pending);
   }
@@ -215,6 +215,7 @@ export const creditsPane = createSettingsPane({
   dispose() {
     _creditsLoadGeneration += 1;
     _creditDetailGeneration += 1;
+    _creditDetailLoads.clear();
     _setCreditsBusy(false);
   },
 });
