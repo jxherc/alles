@@ -7458,6 +7458,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   align-items: center; justify-content: center;
   gap: 0.75rem; color: var(--muted); font-size: 0.8rem;
 }
+.vault-lock-screen { padding: 16px; overflow-y: auto; }
+.vault-lock-field { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.vault-lock-screen .settings-input { width: 260px; max-width: 100%; min-height: 44px; }
+.vault-lock-help, .vault-unlock-error { max-width: 360px; margin: 0; text-align: center; }
+.vault-unlock-error { color: var(--k-danger, var(--error)); }
+.vault-lock-screen [hidden] { display: none; }
 /* standalone apps (no sidebar) fill the width — the centered 760 column left big
    side bezels, and the add-bars were already full-width so they overhung the
    centered lists above them. flush everything to the full width. */

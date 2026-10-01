@@ -70,6 +70,8 @@ BROWSER_SUITES = {
         "settings-context",
         "vault-backup",
         "vault-create-recovery",
+        "vault-setup-desktop",
+        "vault-setup-phone",
     ),
     "calendar": ("calendar-workflows", "calendar-metadata-picker", "mail-calendar-capture"),
     "recurring": (
@@ -105,6 +107,8 @@ BROWSER_SUITES = {
         "inbox-workflows",
         "vault-backup",
         "vault-create-recovery",
+        "vault-setup-desktop",
+        "vault-setup-phone",
     ),
     "full": (
         "style-ownership",
@@ -162,6 +166,8 @@ BROWSER_SUITES = {
         "inbox-workflows",
         "vault-backup",
         "vault-create-recovery",
+        "vault-setup-desktop",
+        "vault-setup-phone",
         "pwa-offline",
         "pwa-storage",
         "pwa-rejection",

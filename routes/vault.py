@@ -197,6 +197,15 @@ class UnlockBody(BaseModel):
     vault_id: str | None = None
 
 
+@router.get("/vault/setup")
+def vault_setup(db: DbSession = Depends(get_db)):
+    v = db.get(Vault, DEFAULT_VAULT)
+    if v is None:
+        v = Vault(id=DEFAULT_VAULT, verifier=load_settings().get("vault_verifier", ""))
+    state = "locked" if v.verifier else "setup" if _can_initialize_vault(db, v) else "recovery"
+    return {"state": state, "minimum_password_length": MIN_VAULT_PASSWORD_LENGTH}
+
+
 @router.get("/vault/generate")
 def vault_generate(
     length: int = 20,
