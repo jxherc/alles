@@ -58,6 +58,7 @@ const FOCUSABLE_SELECTOR = [
 
 let observer = null;
 let initialized = false;
+let switchLabelId = 0;
 
 function visible(element) {
   return !element.hidden && element.getAttribute('aria-hidden') !== 'true';
@@ -87,6 +88,19 @@ function decorateControl(element) {
     if (!element.hasAttribute('role')) element.setAttribute('role', 'switch');
     if (!element.hasAttribute('aria-checked')) element.setAttribute('aria-checked', 'false');
     if (!element.hasAttribute('tabindex')) element.tabIndex = 0;
+    if (!element.getAttribute('aria-label') && !element.getAttribute('aria-labelledby')) {
+      const row = element.closest('.s-toggle-row');
+      const label = row?.querySelector('.s-toggle-label');
+      if (label) {
+        if (!label.id) label.id = `${element.id || `kokuen-switch-${++switchLabelId}`}-label`;
+        element.setAttribute('aria-labelledby', label.id);
+      }
+      const description = row?.querySelector('.s-toggle-desc');
+      if (description && !element.hasAttribute('aria-describedby')) {
+        if (!description.id) description.id = `${label?.id || `kokuen-switch-${++switchLabelId}`}-description`;
+        element.setAttribute('aria-describedby', description.id);
+      }
+    }
   }
 
   syncControlState(element);
@@ -305,7 +319,7 @@ export function wireChoiceGroup(group, { activate = choice => choice.click() } =
   if (!group.hasAttribute('role')) group.setAttribute('role', 'radiogroup');
 
   const choices = () => [...group.querySelectorAll('[role="radio"]')]
-    .filter(choice => choice.getAttribute('aria-disabled') !== 'true' && !choice.disabled);
+    .filter(choice => visible(choice) && choice.getAttribute('aria-disabled') !== 'true' && !choice.disabled);
   const sync = selected => {
     for (const choice of choices()) {
       const active = choice === selected;

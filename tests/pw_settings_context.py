@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -20,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "scripts")]
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
+from pw_settings_helpers import choose_settings_section, settings_section_focus_target  # noqa: E402
 from run_browser_gates import (  # noqa: E402
     free_port,
     isolated_environment,
@@ -137,7 +139,7 @@ def tab_to(page, target, reverse=False):
 def open_pane(page, name):
     if not page.locator("#settings-modal").is_visible():
         page.locator("#today-settings").click()
-    page.locator(f'.s-nav-item[data-pane="{name}"]').click()
+    choose_settings_section(page, name)
     expect(page.locator("#s-pane-" + name)).to_be_visible()
     if name == "notifications":
         expect(page.locator("#locale-settings-workbench")).to_have_attribute("aria-busy", "false")
@@ -158,6 +160,7 @@ def save_locale(page, language):
 
 def navigation(page, api, dest, profile, records):
     observations = []
+    compact = page.viewport_size["width"] <= 760
     assert api.post("/api/setup/dismiss").ok
     page.goto("/?view=today")
     expect(page.locator("#setup-wizard")).to_be_hidden()
@@ -202,7 +205,82 @@ def navigation(page, api, dest, profile, records):
         dump(dest / "observations.json", observations)
         return actual
 
+    open_pane(page, "general")
+    page.wait_for_load_state("networkidle")
+    expect(page.locator("#s-user-name")).to_have_accessible_name(re.compile(r"^your name"))
+    expect(page.locator("#s-username")).to_have_accessible_name(re.compile(r"^username"))
+    expect(page.locator("#s-ui-font-size")).to_have_accessible_name("font size")
+    for selector, label in (
+        ("#s-welcome-toggle", "welcome message"),
+        ("#s-ui-compact-toggle", "compact mode"),
+        ('[data-vis-key="bar-mic"]', "microphone"),
+    ):
+        expect(page.locator(selector)).to_have_accessible_name(label)
+        page.locator(selector).focus()
+        previous = page.locator(selector).get_attribute("aria-checked")
+        page.keyboard.press("Space")
+        expect(page.locator(selector)).to_have_attribute(
+            "aria-checked", str(previous != "true").lower()
+        )
+        page.keyboard.press("Space")
+        expect(page.locator(selector)).to_have_attribute("aria-checked", previous)
+    assert page.locator('[data-vis-key^="nav-"]').count() == 0
+    open_pane(page, "home")
+    expect(page.locator("#home-settings-workbench")).to_have_attribute("aria-busy", "false")
+    preview = page.locator(".home-settings-preview")
+    assert preview.get_attribute("open") is None
+    controls_box = page.locator(".home-settings-controls").bounding_box()
+    preview_box = preview.bounding_box()
+    if compact:
+        assert controls_box["y"] < preview_box["y"]
+    preview.locator("summary").click()
+    expect(page.locator("#home-settings-preview-list")).to_be_visible()
+    preview.locator("summary").click()
+    expect(page.locator("#home-settings-preview-list")).to_be_hidden()
+    open_pane(page, "notifications")
+    menus = []
+    for name in ("region", "timezone", "currency"):
+        trigger = page.locator(f'[data-locale-choice="{name}"]')
+        trigger.focus()
+        page.keyboard.press("ArrowDown")
+        menu = page.locator(f'[data-locale-menu="{name}"]')
+        expect(menu).to_be_visible()
+        assert menu.evaluate("e => e.parentElement.id") == "settings-modal"
+        page.keyboard.press("End")
+        last = menu.locator('[role="option"]').last
+        expect(last).to_be_focused()
+        expect(last).to_be_in_viewport(ratio=1)
+        box = menu.bounding_box()
+        assert box["x"] >= 8 and box["x"] + box["width"] <= page.viewport_size["width"] - 7
+        assert box["y"] >= 8 and box["y"] + box["height"] <= page.viewport_size["height"] - 7
+        page.screenshot(path=str(dest / f"locale-{name}-end.png"))
+        menus.append({"name": name, "box": box, "last_option_visible": True})
+        page.keyboard.press("Escape")
+        expect(trigger).to_be_focused()
+        expect(menu).to_be_hidden()
+        assert menu.evaluate("e => e.parentElement.className") == "locale-choice-wrap"
+        trigger.click()
+        menu.locator('[aria-selected="true"]').click()
+        expect(trigger).to_be_focused()
+        expect(menu).to_be_hidden()
+    dump(
+        dest / "usability.json",
+        {
+            "profile_labels": True,
+            "live_switches_named": 3,
+            "retired_dead_controls": 8,
+            "home_controls_first": compact,
+            "locale_menus": menus,
+        },
+    )
+    page.locator("#settings-modal-close").click()
+    page.locator("#today-settings").click()
+
     # Discover the destination by real Tab traversal from the Home settings entry.
+    compact = page.locator("#settings-section-trigger").is_visible()
+    if compact:
+        expect(page.locator("#settings-section-trigger")).to_be_focused()
+        page.keyboard.press("Enter")
     tab_to(page, page.locator('.s-nav-item[data-pane="notifications"]'))
     page.keyboard.press("Enter")
     expect(page.locator("#locale-settings-workbench")).to_have_attribute("aria-busy", "false")
@@ -214,6 +292,9 @@ def navigation(page, api, dest, profile, records):
             page.reload()
             open_pane(page, "notifications")
         nav_scroll = None
+        if compact:
+            page.locator("#settings-section-trigger").click()
+            expect(page.locator('.s-nav-item[data-pane="notifications"]')).to_be_focused()
         for pane in ("rules", "credits", "backup"):
             page.keyboard.press("Tab")
             target = page.locator(f'.s-nav-item[data-pane="{pane}"]')
@@ -230,14 +311,15 @@ def navigation(page, api, dest, profile, records):
             assert after["navScroll"] == nav_scroll, after
         page.mouse.move(page.viewport_size["width"] - 1, 1)
         observe(f"{language}-controls-no-hover")
-        assert tab_to(page, page.locator(".s-nav-item.active"), reverse=True) == 4
+        target = settings_section_focus_target(page, "notifications")
+        assert tab_to(page, target, reverse=True) == (1 if compact else 4)
         observe(f"{language}-keyboard-return")
 
     # Touch switches the pane and persistent context together, without mouse hover.
     if profile == "phone":
-        page.locator('.s-nav-item[data-pane="credits"]').tap()
+        choose_settings_section(page, "credits", touch=True)
         observe("touch-credits")
-        page.locator('.s-nav-item[data-pane="notifications"]').tap()
+        choose_settings_section(page, "notifications", touch=True)
         observe("touch-language")
     # The longest shipped destination is checked without inventing a long label.
     open_pane(page, "tools")

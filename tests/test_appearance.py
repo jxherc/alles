@@ -74,6 +74,12 @@ class AppearanceLogicTests(unittest.TestCase):
         ct = {"mine": {"bg": "#000000"}}
         self.assertEqual(normalize({"customThemes": ct})["customThemes"], ct)
 
+    def test_explicit_accent_ownership_roundtrips_only_booleans(self):
+        self.assertTrue(normalize({"accentCustom": True})["accentCustom"])
+        self.assertFalse(normalize({"accentCustom": False})["accentCustom"])
+        self.assertNotIn("accentCustom", normalize({"accentCustom": "false"}))
+        self.assertNotIn("accentCustom", normalize({}))
+
     def test_from_legacy_dark(self):
         a = from_legacy("", "")
         self.assertEqual(a["preset"], "dark")
@@ -121,6 +127,13 @@ class AppearanceApiTests(ApiTest):
         self.assertEqual(r.json()["font"], "sans")
         self.assertEqual(r.json()["effect"]["intensity"], 1)
 
+    def test_explicit_default_colored_accent_remains_an_owner_choice(self):
+        body = {"preset": "light", "colors": LIGHT_BASE, "accentCustom": True}
+        response = self.client.put("/api/appearance", json=body)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["accentCustom"])
+        self.assertTrue(self.client.get("/api/appearance").json()["accentCustom"])
+
     def test_get_falls_back_to_legacy(self):
         # legacy theme/accent present, no appearance object yet
         self.client.patch("/api/settings", json={"theme": "light", "accent": "#00ff00"})
@@ -138,6 +151,22 @@ class AppearanceApiTests(ApiTest):
 
 
 class LegacyDefaultUpgradeTests(unittest.TestCase):
+    def test_explicit_owned_legacy_palette_is_not_replaced(self):
+        owned = {
+            "preset": "dark",
+            "accentCustom": True,
+            "colors": {
+                "bg": "#0a0a0a",
+                "text": "#e8e6e3",
+                "panel": "#0e0e0e",
+                "faint": "#2e2e2e",
+                "accent": "#818cf8",
+            },
+        }
+        result = appearance.effective({"appearance": owned})
+        self.assertEqual(result["colors"]["accent"], "#818cf8")
+        self.assertEqual(result["colors"]["bg"], "#0a0a0a")
+
     def test_stored_old_dark_default_upgrades(self):
         old = {
             "preset": "dark",

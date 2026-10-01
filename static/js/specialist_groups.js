@@ -2,7 +2,7 @@
 // data; the existing app modules continue to own their full, proven screens.
 
 import { confirm as confirmDialog } from './dialog.js';
-import { calendarDateKey, formatDateParts, formatDateTime } from './i18n.js';
+import { calendarDateKey, formatDateParts, formatDateTime, formatNumber } from './i18n.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 
@@ -853,13 +853,17 @@ function _actualConfirmation(panel, action, trigger, runAction) {
   cancel.type = 'button';
   const confirm = _el('button', 'finance-actual-confirm-primary', action === 'cutover' ? 'switch writes to Actual' : 'restore Alles authority');
   confirm.type = 'button';
+  const toggle = panel.querySelector('.finance-actual-toggle');
+  if (toggle) toggle.disabled = true;
   const close = () => {
     confirmation.remove();
+    if (toggle) toggle.disabled = false;
     trigger.focus();
   };
   cancel.addEventListener('click', close);
   confirm.addEventListener('click', () => {
     confirmation.remove();
+    if (toggle) toggle.disabled = false;
     trigger.focus();
     runAction(action, trigger);
   });
@@ -881,8 +885,27 @@ function _renderActualStatus(value, request) {
   const ledger = value?.ledger || {};
   const panel = _el('section', `finance-actual-panel finance-actual-${presentation.state}`);
   panel.setAttribute('aria-label', 'Actual ledger status');
+  const compact = ['canonical', 'ready', 'available', 'not-installed'].includes(presentation.state);
   const heading = _el('header', 'finance-actual-head');
-  heading.append(_el('h2', '', 'Actual ledger'), _el('strong', '', presentation.title));
+  const status = compact
+    ? (presentation.state === 'ready' ? 'ready for review' : `${ledger.mode === 'actual' ? 'Actual' : 'Alles'} active`)
+    : presentation.title;
+  heading.append(_el('h2', '', 'Actual ledger'), _el('strong', '', status));
+  const content = _el('div', 'finance-actual-content');
+  content.id = 'finance-actual-content';
+  let toggle = null;
+  if (compact) {
+    toggle = _el('button', 'finance-actual-toggle', 'show ledger setup');
+    toggle.type = 'button';
+    toggle.setAttribute('aria-controls', content.id);
+    toggle.setAttribute('aria-expanded', 'false');
+    content.hidden = true;
+    toggle.addEventListener('click', () => {
+      content.hidden = !content.hidden;
+      toggle.setAttribute('aria-expanded', String(!content.hidden));
+      toggle.textContent = content.hidden ? 'show ledger setup' : 'hide ledger setup';
+    });
+  }
   const detail = _el('p', 'finance-actual-detail', presentation.detail);
   const facts = _el('dl', 'finance-actual-facts');
   const fact = (term, description) => {
@@ -899,6 +922,7 @@ function _renderActualStatus(value, request) {
 
   const setBusy = busy => {
     panel.setAttribute('aria-busy', busy ? 'true' : 'false');
+    if (toggle) toggle.disabled = busy;
     actions.querySelectorAll('button').forEach(button => _setAsyncControlBusy(button, busy));
   };
   const runAction = async (action, returnFocus = null) => {
@@ -957,8 +981,19 @@ function _renderActualStatus(value, request) {
     });
     actions.append(button);
   }
-  panel.append(heading, detail, facts, actions, message);
+  panel.append(heading);
+  if (compact) {
+    panel.append(_el('p', 'finance-actual-authority', `writes to ${ledger.mode === 'actual' ? 'Actual' : 'Alles'}${ledger.base_currency_code ? ` · ${ledger.base_currency_code}` : ''}`), toggle);
+  }
+  if (compact) content.append(_el('p', 'finance-actual-detail', presentation.title));
+  content.append(detail, facts, actions, message);
+  panel.append(content);
   return panel;
+}
+
+function financeAmount(value, currency = '') {
+  const number = formatNumber(value ?? 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}${number}`;
 }
 
 async function _renderFinance(target, request) {
@@ -976,14 +1011,19 @@ async function _renderFinance(target, request) {
   const actualError = _settledError(actualResult, 'Actual status could not be loaded');
   target.replaceChildren();
   const note = _el('p', 'specialist-group-note', 'balances remain in their original currency. converted totals show their rate evidence when available.');
-  const grid = _el('div', 'specialist-group-grid specialist-group-grid-two');
+  const grid = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
   grid.append(
-    _list('accounts', accounts.map(item => ({ title: item.name, meta: `${item.currency_code || item.currency || ''} ${item.balance ?? 0}`.trim() })), accountsError ? `accounts unavailable: ${accountsError}` : 'no accounts yet'),
-    _list('subscriptions', subscriptions.map(item => ({ title: item.name, meta: `${item.currency || ''}${item.price ?? 0} · ${item.cycle || ''}` })), subscriptionsError ? `subscriptions unavailable: ${subscriptionsError}` : 'no subscriptions yet'),
+    _list('accounts', accounts.map(item => ({ title: item.name, meta: financeAmount(item.balance, item.currency_code || item.currency || '') })), accountsError ? `accounts unavailable: ${accountsError}` : 'no accounts yet'),
+    _list('subscriptions', subscriptions.map(item => ({ title: item.name, meta: `${financeAmount(item.price, item.currency || '')} · ${item.cycle || ''}` })), subscriptionsError ? `subscriptions unavailable: ${subscriptionsError}` : 'no subscriptions yet'),
   );
-  target.append(note, _renderActualStatus(actual, request));
+  const work = _el('div', 'finance-daily-actions');
+  work.append(_sectionJump('finance', 'money', 'open transactions', 'specialist-inline-action'));
+  const ledgerPanel = _renderActualStatus(actual, request);
+  const urgent = financeActualPresentation(actual).state === 'canonical-unhealthy' || !!actualError;
+  if (urgent) target.append(ledgerPanel);
   if (actualError) target.append(_el('p', 'specialist-group-error', `Actual status unavailable: ${actualError}`));
-  target.append(grid);
+  target.append(work, grid, note);
+  if (!urgent) target.append(ledgerPanel);
 }
 
 async function _renderServer(target, request, section) {

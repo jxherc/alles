@@ -7,6 +7,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 
 def _colors(locator, pseudo: str = "") -> dict[str, str]:
@@ -68,7 +69,11 @@ def run() -> None:
             expect(page.locator("#settings-modal")).to_be_visible()
 
             for theme in ("dark", "light"):
-                page.locator('.s-nav-item[data-pane="themes"]').click()
+                choose_settings_section(page, "themes")
+                browse = page.locator('#theme-editor-inline [data-theme-section="presets"]')
+                if browse.get_attribute("open") is None:
+                    browse.locator("summary").click()
+                page.locator('#theme-editor-inline [data-preset="default"]').click()
                 selected = page.locator(f'.theme-mode-btn[data-theme-mode="{theme}"]')
                 selected.click()
                 assert (page.locator("html").get_attribute("data-theme") or "dark") == theme
@@ -88,19 +93,81 @@ def run() -> None:
                 assert mode["color"] == text and mode["background"] == raised
                 assert mode["border"] == line and mode["border"] != accent
 
+                if (
+                    page.locator(
+                        '#theme-editor-inline [data-theme-section="presets"]'
+                    ).get_attribute("open")
+                    is None
+                ):
+                    page.locator(
+                        '#theme-editor-inline [data-theme-section="presets"] > summary'
+                    ).click()
                 presets = page.locator("#theme-editor-inline .te-presets")
                 expect(presets).to_have_attribute("role", "radiogroup")
+                tile_count = presets.locator('[role="radio"]').count()
+                assert tile_count >= 50
+                search = page.locator("#te-preset-filter")
+                search.fill("forest")
+                visible = presets.locator('[role="radio"]:visible')
+                assert visible.count() == 2
+                visible.first.focus()
+                visible.first.press("End")
+                expect(presets.locator('[data-preset="everforest"]')).to_be_focused()
+                search.fill("no such theme")
+                expect(page.locator("#te-preset-results")).to_have_text("no matching themes")
+                search.fill("")
+                assert presets.locator('[role="radio"]:visible').count() == tile_count
+                presets.locator('[data-preset="default"]').click()
+                selected.click()
+                if (
+                    page.locator(
+                        '#theme-editor-inline [data-theme-section="presets"]'
+                    ).get_attribute("open")
+                    is None
+                ):
+                    page.locator(
+                        '#theme-editor-inline [data-theme-section="presets"] > summary'
+                    ).click()
                 default = presets.locator('[data-preset="default"]')
                 expect(default).to_have_attribute("aria-checked", "true")
                 assert _colors(default)["background"] == raised
                 assert _colors(default)["border"] == line
                 assert _colors(default)["border"] != accent
 
+                if page.locator("#s-accent-details").get_attribute("open") is None:
+                    page.locator("#s-accent-details > summary").click()
                 page.locator('#s-accent-swatches .accent-swatch[data-hex="#a78bfa"]').click()
                 expect(
                     page.locator('#theme-editor-inline input[data-color="accent"]')
                 ).to_have_value("#a78bfa")
 
+                presets.locator('[data-preset="midnight"]').click()
+                if page.locator("#s-accent-details").get_attribute("open") is None:
+                    page.locator("#s-accent-details > summary").click()
+                swatch = page.locator('#s-accent-swatches .accent-swatch[data-hex="#a78bfa"]')
+                swatch.focus()
+                swatch.press("Enter")
+                selected.focus()
+                selected.press("Enter")
+                assert (
+                    page.evaluate(
+                        "JSON.parse(localStorage.getItem('alles-appearance')).accentCustom"
+                    )
+                    is True
+                )
+                expect(
+                    page.locator('#theme-editor-inline input[data-color="accent"]')
+                ).to_have_value("#a78bfa")
+
+                if (
+                    page.locator(
+                        '#theme-editor-inline [data-theme-section="advanced"]'
+                    ).get_attribute("open")
+                    is None
+                ):
+                    page.locator(
+                        '#theme-editor-inline [data-theme-section="advanced"] > summary'
+                    ).click()
                 font = page.locator('#theme-editor-inline [data-seg="font"]')
                 expect(font).to_have_attribute("role", "radiogroup")
                 sans = font.locator('[data-val="sans"]')
@@ -166,7 +233,7 @@ def run() -> None:
                 font.scroll_into_view_if_needed()
                 page.screenshot(path=str(output / f"settings-editor-options-{width}-{theme}.png"))
 
-                page.locator('.s-nav-item[data-pane="general"]').click()
+                choose_settings_section(page, "general")
                 switch = page.locator("#s-welcome-toggle")
                 if "on" not in (switch.get_attribute("class") or "").split():
                     switch.click()
@@ -176,7 +243,7 @@ def run() -> None:
                 box = switch.bounding_box()
                 assert box and box["width"] >= 44 and box["height"] >= 44
 
-                page.locator('.s-nav-item[data-pane="home"]').click()
+                choose_settings_section(page, "home")
                 home = page.locator('[data-home-section="today"] .home-settings-switch')
                 expect(home).to_have_attribute("aria-checked", "true")
                 assert _colors(home, "::before")["background"] == raised
@@ -184,7 +251,7 @@ def run() -> None:
                 home.scroll_into_view_if_needed()
                 page.screenshot(path=str(output / f"settings-home-{width}-{theme}.png"))
 
-                page.locator('.s-nav-item[data-pane="notifications"]').click()
+                choose_settings_section(page, "notifications")
                 language = page.locator('[data-locale-language="en"]')
                 expect(language).to_have_attribute("aria-checked", "true")
                 assert _colors(language, "::after")["background"] == text
@@ -195,6 +262,13 @@ def run() -> None:
                     "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 )
 
+            # A chosen accent can be pale on light surfaces; permission wording
+            # must remain readable without changing that saved owner choice.
+            page.goto(f"http://aide.localhost:{port}", wait_until="networkidle")
+            permission = page.locator("#perm-mode-btn")
+            expect(permission).to_be_visible()
+            assert _colors(permission)["color"] == _token(page, "--k-text")
+            page.screenshot(path=str(output / f"settings-custom-accent-aide-{width}.png"))
             assert not errors, errors
             context.close()
         browser.close()

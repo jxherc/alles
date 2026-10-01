@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "scripts")]
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
+from pw_settings_helpers import choose_settings_section  # noqa: E402
 from run_browser_gates import (  # noqa: E402
     free_port,
     isolated_environment,
@@ -116,7 +117,7 @@ def exercise(page, api, dest, profile, restart, records):
             expect(page.locator("#setup-wizard")).to_be_hidden()
         if not page.locator("#settings-modal").is_visible():
             page.locator("#today-settings").click()
-        page.locator(f'.s-nav-item[data-pane="{name}"]').click()
+        choose_settings_section(page, name)
         expect(page.locator("#s-pane-" + name)).to_be_visible()
         if name == "ai":
             expect(page.locator("#settings-context-limit")).not_to_have_value("")
@@ -601,6 +602,11 @@ def exercise(page, api, dest, profile, restart, records):
     locale_save()
 
     pane("themes")
+    advanced = page.locator('#theme-editor-inline details[data-theme-section="advanced"]')
+    if advanced.get_attribute("open") is None:
+        tab_to(advanced.locator("summary"), "advanced appearance disclosure")
+        page.keyboard.press("Enter")
+    expect(advanced).to_have_attribute("open", "")
     color = page.locator("#theme-editor-inline .cp-swatch-input").first
     tab_to(color, "theme background color")
     shot("10-color-keyboard-focus")

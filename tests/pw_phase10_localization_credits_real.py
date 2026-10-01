@@ -13,6 +13,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 BASE = os.environ.get("PHASE10_BASE", "http://127.0.0.1:8974")
 ROOT = Path(__file__).resolve().parent.parent
@@ -47,7 +48,7 @@ def _open_settings_pane(page, pane: str, busy_id: str) -> None:
             expect(page.locator("#today-settings")).to_be_visible()
         page.locator("#today-settings").click()
         expect(page.locator("#settings-modal")).to_be_visible()
-    page.locator(f'.s-nav-item[data-pane="{pane}"]').click()
+    choose_settings_section(page, pane)
     expect(page.locator(f"#s-pane-{pane}")).to_be_visible()
     expect(page.locator(busy_id)).to_have_attribute("aria-busy", "false")
 
@@ -343,7 +344,7 @@ def run() -> None:
             "el => getComputedStyle(el).backgroundColor"
         )
         assert dark_background == "rgb(10, 10, 10)", dark_background
-        page.locator('.s-nav-item[data-pane="themes"]').click()
+        choose_settings_section(page, "themes")
         expect(page.locator("#s-pane-themes")).to_be_visible()
         page.locator('.theme-mode-btn[data-theme-mode="light"]').click()
         expect(page.locator("html")).to_have_attribute("data-theme", "light")

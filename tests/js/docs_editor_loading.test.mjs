@@ -91,6 +91,26 @@ async function opened(content = 'original') {
   const h = harness(); h.seed('proof.md', content); await h.open('proof.md'); return h;
 }
 
+test('opening a document moves focus into its rendered content', async () => {
+  const h = await opened();
+  assert.equal(h.document.activeElement, h.get('wiki-preview'));
+});
+
+test('quiet document refresh preserves the current control focus', async () => {
+  const h = await opened();
+  h.get('wiki-search').focus();
+  await h.open('proof.md', { quiet: true });
+  assert.equal(h.document.activeElement, h.get('wiki-search'));
+});
+
+test('document loading does not take focus from a newer user action', async () => {
+  const h = harness(); h.seed('proof.md', 'original');
+  const opening = h.open('proof.md');
+  h.get('wiki-search').focus();
+  await opening;
+  assert.equal(h.document.activeElement, h.get('wiki-search'));
+});
+
 test('source is initialized before visual loading and late completion preserves text, mode, focus and revision', async () => {
   const h = await opened(); const pending = h.enter();
   assert.equal(h.get('wiki-source').value, 'original');

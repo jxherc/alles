@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from browser_offline_network import OfflineNetwork  # noqa: E402
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
+from pw_settings_helpers import choose_settings_section  # noqa: E402
 from run_browser_gates import (  # noqa: E402
     free_port,
     isolated_environment,
@@ -251,7 +252,7 @@ def run():
                                 page.goto(base + "/?view=today", wait_until="networkidle")
                                 expect(page.locator("#setup-wizard")).to_be_hidden()
                                 page.locator("#today-settings").click()
-                                page.locator('.s-nav-item[data-pane="themes"]').click()
+                                choose_settings_section(page, "themes")
                                 theme = "light" if profile == "phone" else "dark"
                                 with page.expect_response(
                                     lambda r: (

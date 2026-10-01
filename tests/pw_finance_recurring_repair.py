@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import show_money_sections
 
 from services.appearance import LIGHT_BASE
 
@@ -166,6 +167,7 @@ def run() -> None:
             tab = page.locator('#finance-tabs [data-group-section="money"]')
             if tab.get_attribute("aria-selected") != "true":
                 tab.click()
+            show_money_sections(page)
             expect(page.locator("#recurring-content [data-repair-rec] ")).to_be_visible()
             action = page.get_by_role("button", name="repair posting")
             assert action.evaluate("element => element.getBoundingClientRect().height") >= 44
@@ -190,6 +192,7 @@ def run() -> None:
             state["phase"] = "needed"
             state["lose_next"] = True
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             page.get_by_role("button", name="repair posting").click()
             page.get_by_role("dialog").get_by_role("button", name="bills / housing").click()
             expect(page.get_by_role("button", name="retry repair")).to_be_visible()
@@ -207,6 +210,7 @@ def run() -> None:
             )
             page.evaluate("document.documentElement.style.zoom = ''")
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             expect(page.get_by_role("button", name="retry repair")).to_be_visible()
             page.get_by_role("button", name="retry repair").click()
             expect(page.get_by_role("button", name="retry repair")).to_have_count(0)
@@ -223,6 +227,7 @@ def run() -> None:
                 path=str(output / f"recurring-pause-{profile}-pending.png"), full_page=True
             )
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             page.get_by_role("button", name="retry pause").click()
             expect(page.get_by_role("button", name="resume", exact=True)).to_be_focused()
             page.get_by_role("button", name="resume", exact=True).click()

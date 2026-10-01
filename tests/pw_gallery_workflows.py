@@ -11,6 +11,7 @@ from pathlib import Path
 from browser_gate_safety import require_server_ownership
 from PIL import Image, ImageDraw
 from playwright.sync_api import expect, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 
 def run():
@@ -151,7 +152,7 @@ def run():
                 if page.get_by_role("button", name="exit setup", exact=True).is_visible():
                     page.get_by_role("button", name="exit setup", exact=True).click()
                 page.locator("#today-settings").click()
-                page.locator('.s-nav-item[data-pane="themes"]').click()
+                choose_settings_section(page, "themes")
                 with page.expect_response(
                     lambda r: r.url.endswith("/api/appearance") and r.request.method == "PUT"
                 ) as appearance:

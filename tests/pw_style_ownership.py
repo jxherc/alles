@@ -6,6 +6,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 
 def run():
@@ -183,6 +184,7 @@ def run():
 
                 page.route("**/api/finance/actual**", actual_route)
                 page.get_by_role("tab", name="overview", exact=True).click()
+                page.get_by_role("button", name="show ledger setup", exact=True).click()
                 review = page.get_by_role("button", name="review cutover", exact=True)
                 review.click()
                 cancel = page.get_by_role("button", name="keep current authority", exact=True)
@@ -245,7 +247,7 @@ def run():
                     theme,
                 )
                 page.locator("#today-settings").click()
-                page.locator('.s-nav-item[data-pane="tools"]').click()
+                choose_settings_section(page, "tools")
                 private_styles = page.evaluate("""() => {
                     document.body.classList.add('theme-frosted');
                     const host = document.createElement('div');

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from playwright.sync_api import Route, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 PORT = os.environ.get("PORT", "8046")
 URL = f"http://aide.localhost:{PORT}/"
@@ -76,7 +77,7 @@ def run() -> None:
             tools_button.click()
             page.locator("#aide-sidebar-menu:not([hidden])").wait_for()
             page.locator("#aide-settings-link").click()
-            page.locator('.s-nav-item[data-pane="tools"]').click()
+            choose_settings_section(page, "tools")
             card = page.locator("#jarvis-discord-card")
             card.wait_for(state="visible")
             card.scroll_into_view_if_needed()

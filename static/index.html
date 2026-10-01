@@ -1312,13 +1312,13 @@
   </aside>
 
   <!-- artifact panel -->
-  <div class="artifact-panel" id="artifact-panel">
+  <div class="artifact-panel" id="artifact-panel" inert>
     <div class="artifact-panel-head">
       <div class="artifact-panel-meta">
         <span class="artifact-title"></span>
         <span class="artifact-type-badge"></span>
       </div>
-      <button type="button" class="icon-btn artifact-close" id="artifact-close-btn">×</button>
+      <button type="button" class="icon-btn artifact-close" id="artifact-close-btn" aria-label="close artifact">×</button>
     </div>
     <div class="artifact-body" id="artifact-body"></div>
   </div>
@@ -1497,7 +1497,9 @@
     <div class="s-layout">
 
       <!-- left nav -->
-      <nav class="s-nav" aria-label="settings sections">
+      <div class="s-navigation">
+      <button class="s-section-trigger" id="settings-section-trigger" type="button" aria-label="settings section: general" aria-expanded="false" aria-controls="settings-section-list"><span>general</span><span class="s-section-chevron" aria-hidden="true"></span></button>
+      <nav class="s-nav" id="settings-section-list" aria-label="settings sections">
         <div class="s-nav-group">general &amp; appearance</div>
         <button class="s-nav-item active" type="button" data-pane="general">general</button>
         <button class="s-nav-item" type="button" data-pane="home">home</button>
@@ -1533,6 +1535,7 @@
         <button class="s-nav-item" type="button" data-pane="credits">about &amp; credits</button>
         <button class="s-nav-item" type="button" data-pane="backup">backup &amp; restore</button>
       </nav>
+      </div>
 
       <!-- content area -->
       <div class="s-content">
@@ -1606,8 +1609,8 @@
               </section>
             </div>
 
-            <aside class="home-settings-preview" aria-labelledby="home-settings-preview-title">
-              <header><h3 id="home-settings-preview-title">home outline</h3><span id="home-settings-preview-count">5 sections</span></header>
+            <details class="home-settings-preview">
+              <summary><span id="home-settings-preview-title">home outline</span><span id="home-settings-preview-count">5 sections</span></summary>
               <p>The greeting and capture bar stay fixed. This is the order below them.</p>
               <div id="home-settings-preview-list">
                 <div data-home-preview="needs_you"><strong>needs you</strong><small>approvals and recovery prompts</small></div>
@@ -1616,7 +1619,7 @@
                 <div data-home-preview="briefs"><strong>briefs</strong><small>recent summaries</small></div>
                 <div data-home-preview="shortcuts"><strong>pinned apps</strong><small id="home-settings-preview-shortcuts">plan · docs · files</small></div>
               </div>
-            </aside>
+            </details>
           </div>
 
           <footer class="home-settings-save">
@@ -1747,8 +1750,8 @@
               openai-compatible api
             </div>
             <div class="s-card-body" style="font-size:0.75rem;color:var(--muted)">
-              <div style="margin-bottom:0.3rem">base url: <code id="s-compat-url" style="color:var(--accent)">http://localhost:8001/v1</code></div>
-              <div>model id format: <code style="color:var(--accent)">EndpointName/model-id</code></div>
+              <div style="margin-bottom:0.3rem">base url: <code id="s-compat-url" style="color:var(--text)">http://localhost:8001/v1</code></div>
+              <div>model id format: <code style="color:var(--text)">EndpointName/model-id</code></div>
             </div>
           </div>
         </div>
@@ -1946,11 +1949,11 @@
             </div>
             <div class="s-card-body">
               <div class="s-field">
-                <label>your name <span style="color:var(--muted);font-weight:400">: aide greets you by it</span></label>
+                <label for="s-user-name">your name <span style="color:var(--muted);font-weight:400">: aide greets you by it</span></label>
                 <input type="text" class="settings-input" id="s-user-name" placeholder="e.g. eric" style="width:100%">
               </div>
               <div class="s-field">
-                <label>username <span style="color:var(--muted);font-weight:400">: synced across your apps</span></label>
+                <label for="s-username">username <span style="color:var(--muted);font-weight:400">: synced across your apps</span></label>
                 <input type="text" class="settings-input" id="s-username" placeholder="e.g. jxh" style="width:100%">
               </div>
             </div>
@@ -1965,28 +1968,13 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">welcome message</div><div class="s-toggle-desc">show the empty chat welcome screen</div></div><div class="s-switch" id="s-welcome-toggle"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">compact mode</div><div class="s-toggle-desc">tighter spacing throughout the UI</div></div><div class="s-switch" id="s-ui-compact-toggle"></div></div>
               <div class="s-field" style="margin-top:0.35rem">
-                <label>font size</label>
-                <div class="settings-input custom-select" id="s-ui-font-size" style="width:120px" data-value="md" data-options="sm|small;md|medium;lg|large"></div>
+                <label id="s-ui-font-size-label">font size</label>
+                <div class="settings-input custom-select" id="s-ui-font-size" aria-labelledby="s-ui-font-size-label" style="width:120px" data-value="md" data-options="sm|small;md|medium;lg|large"></div>
               </div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">microphone</div><div class="s-toggle-desc">voice input button</div></div><div class="s-switch s-vis-toggle" data-vis="#mic-btn" data-vis-key="bar-mic"></div></div>
             </div>
           </div>
-          <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-              sidebar views
-            </div>
-            <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
-              <div class="s-toggle-row"><div><div class="s-toggle-label">docs</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='wiki']" data-vis-key="nav-wiki"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">tasks</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='tasks']" data-vis-key="nav-tasks"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">calendar</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='calendar']" data-vis-key="nav-calendar"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">ai gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='gallery']" data-vis-key="nav-gallery"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">memory</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='memory']" data-vis-key="nav-memory"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">secrets</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='vault']" data-vis-key="nav-vault"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">contacts</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='contacts']" data-vis-key="nav-contacts"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">gallery</div></div><div class="s-switch s-vis-toggle" data-vis=".nav-item[data-view='photos']" data-vis-key="nav-photos"></div></div>
-            </div>
-          </div>
+
         </div>
 
         <!-- ── security pane (alles-scope) ── -->
@@ -2030,14 +2018,15 @@
                   <button type="button" class="theme-mode-btn" data-theme-mode="light" aria-pressed="false">light</button>
                 </div>
               </div>
-              <div class="s-field" style="margin-top:0.6rem">
-                <label>accent color</label>
-                <div class="accent-swatches" id="s-accent-swatches"></div>
+              <details class="s-appearance-details" id="s-accent-details">
+                <summary tabindex="0">accent color</summary>
+                <div class="accent-swatches" id="s-accent-swatches" role="group" aria-label="accent color presets"></div>
+                <label for="s-accent-hex">custom accent color</label>
                 <div class="accent-custom">
                   <input type="text" id="s-accent-hex" class="settings-input" placeholder="type a #hex color" spellcheck="false" style="width:160px">
                   <button type="button" class="btn" id="s-accent-reset" style="font-size:0.75rem;padding:0.2rem 0.55rem">reset</button>
                 </div>
-              </div>
+              </details>
             </div>
           </div>
           <div class="s-card">
@@ -2382,8 +2371,8 @@
             </div>
             <div class="s-card-body" style="font-size:0.75rem;color:var(--muted)">
               <div style="margin-bottom:0.3rem">expose Aide's models via the OpenAI API spec.</div>
-              <div style="margin-bottom:0.3rem">base url: <code id="s-compat-url2" style="color:var(--accent)">http://localhost:8001/v1</code></div>
-              <div>model id format: <code style="color:var(--accent)">EndpointName/model-id</code></div>
+              <div style="margin-bottom:0.3rem">base url: <code id="s-compat-url2" style="color:var(--text)">http://localhost:8001/v1</code></div>
+              <div>model id format: <code style="color:var(--text)">EndpointName/model-id</code></div>
             </div>
           </div>
         </div>
@@ -2402,7 +2391,7 @@
             <div class="locale-settings-controls">
               <section class="locale-settings-section" aria-labelledby="locale-language-title">
                 <h3 id="locale-language-title" data-i18n="locale.interface_language">interface language</h3>
-                <p data-i18n="locale.catalog_rule">Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest.</p>
+                <p data-i18n="locale.catalog_rule">languages marked unavailable cannot be selected.</p>
                 <div class="locale-language-list" id="locale-language-list" role="radiogroup" aria-labelledby="locale-language-title">
                   <button class="locale-language-choice" type="button" role="radio" aria-checked="true" aria-disabled="false" tabindex="0" data-locale-language="en"><span><strong>English</strong><small>English</small></span><em data-i18n="common.reviewed">reviewed</em></button>
                   <button class="locale-language-choice" type="button" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1" data-locale-language="fr"><span><strong>Français</strong><small>French</small></span><em data-i18n="common.unavailable">unavailable</em></button>

@@ -342,7 +342,7 @@ const BUILTIN_ENGLISH = {
     "locale.format_help": "Automatic values follow this browser. An override changes formatting, not the interface language.",
     "locale.format_title": "regional formats",
     "locale.interface_language": "interface language",
-    "locale.catalog_rule": "Only reviewed catalogs can be selected. The remaining rows stay visible so their release state is honest.",
+    "locale.catalog_rule": "languages marked unavailable cannot be selected.",
     "locale.catalog_reviewed_pending": "catalog reviewed; release checks pending",
     "locale.language_unavailable": "{language} is not ready. Its catalog and review gates are still open.",
     "locale.load_error": "Language settings are unavailable. Retry without losing your current choices.",

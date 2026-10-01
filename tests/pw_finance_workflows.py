@@ -13,6 +13,8 @@ from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import show_money_sections
+from pw_settings_helpers import choose_settings_section
 
 AMOUNT_ERROR = "enter a number using a decimal point, e.g. 1234.56"
 INVALID_AMOUNTS = ("1,234.56", "12.34garbage", "Infinity")
@@ -164,6 +166,7 @@ def run():
                 # that can replace the rows during the persistence/geometry checks.
                 if tab.get_attribute("aria-selected") != "true":
                     tab.click()
+                show_money_sections(page)
                 expect(tab).to_have_attribute("aria-selected", "true")
                 expect(page.locator("#money-body")).to_be_visible()
 
@@ -204,7 +207,7 @@ def run():
                 if page.locator("#setup-skip").is_visible():
                     page.locator("#setup-skip").click()
                 page.locator("#today-settings").click()
-                page.locator('.s-nav-item[data-pane="themes"]').click()
+                choose_settings_section(page, "themes")
                 with page.expect_response(
                     lambda r: r.url.endswith("/api/appearance") and r.request.method == "PUT"
                 ) as appearance:
@@ -239,6 +242,8 @@ def run():
                 assert created.value.ok
                 account = created.value.json()
                 aid = account["id"]
+                page.locator(f'.money-acct[data-id="{aid}"]').wait_for(state="attached")
+                show_money_sections(page)
                 expect(page.locator(f'.money-acct[data-id="{aid}"]')).to_be_visible()
                 assert account["opening"] == 1234.56 and account["low_balance"] == 0
                 choose_account(account_name)
@@ -280,6 +285,7 @@ def run():
                 row.locator(".tx-clear").click()
                 expect(row.locator(".tx-clear")).to_have_class("tx-clear on")
                 page.reload(wait_until="networkidle")
+                show_money_sections(page)
                 open_money()
                 expect(row.locator(".tx-payee")).to_have_text(corrected_payee)
                 expect(row.locator(".tx-clear")).to_have_class("tx-clear on")
@@ -358,6 +364,7 @@ def run():
                 ]
                 assert len(creates) == 2 and creates[0] == creates[1] and creates[0]["request_id"]
                 page.reload(wait_until="networkidle")
+                show_money_sections(page)
                 open_money()
                 retried = [t for t in api("/api/money/transactions") if t["payee"] == retry_payee]
                 assert len(retried) == 1 and retried[0]["amount"] == -23.45

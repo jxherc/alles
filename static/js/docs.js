@@ -580,6 +580,7 @@ function renderPreview(markdown = currentContent()) {
 export async function openNote(path, { quiet = false, draftFlushed = false, canRefresh = null } = {}) {
   if (!path || (canRefresh && !canRefresh())) return false;
   const requestGeneration = ++_openGeneration;
+  const departureFocus = document.activeElement;
   const departureRevision = _editRevision;
   if (_dirty && !draftFlushed && !(await flushDraft())) return false;
   if (requestGeneration !== _openGeneration) return false;
@@ -686,7 +687,12 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     } else {
       hideInlineState();
     }
-    if (!quiet) replaceRouteUrl(location.pathname + location.search + '#' + encodeURIComponent(stem(_cur)));
+    if (!quiet) {
+      replaceRouteUrl(location.pathname + location.search + '#' + encodeURIComponent(stem(_cur)));
+      if (document.activeElement === departureFocus || document.activeElement === document.body) {
+        $('wiki-preview')?.focus();
+      }
+    }
     return true;
   } catch (error) {
     if (requestGeneration !== _openGeneration) return false;

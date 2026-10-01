@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 
 def run():
@@ -221,7 +222,7 @@ def run():
                 if page.locator("#setup-skip").is_visible():
                     page.locator("#setup-skip").click()
                 page.locator("#today-settings").click()
-                page.locator('.s-nav-item[data-pane="themes"]').click()
+                choose_settings_section(page, "themes")
                 page.wait_for_function(
                     't => document.querySelector(`[data-theme-mode="${t}"]`)?.dataset.bound === "1"',
                     arg=theme,

@@ -510,6 +510,32 @@ def run():
                                         and not events["pageerrors"]
                                         and not events["outbound"]
                                     ), events
+                                    draft = f"{second} unsent draft"
+                                    page.locator("#composer-ta").fill(draft)
+                                    page.locator("#chat").hover()
+                                    page.mouse.wheel(0, -200)
+                                    expect(jump).to_be_visible()
+                                    page.locator("#app-drawer-btn").click()
+                                    page.locator('.app-drawer-item[data-view="wiki"]').click()
+                                    expect(page.locator("#docs-workbench-view")).to_be_visible()
+                                    expect(page.locator("#jump-latest")).to_be_hidden()
+                                    expect(page.locator("#composer-ta")).to_have_value(draft)
+                                    page.screenshot(path=str(dest / "05-docs-draft-safe.png"))
+                                    page.locator("#app-drawer-btn").click()
+                                    page.locator('.app-drawer-item[data-view="chat"]').click()
+                                    expect(page.locator("#composer-ta")).to_be_visible()
+                                    expect(page.locator("#composer-ta")).to_have_value(draft)
+                                    page.locator("#chat").hover()
+                                    page.mouse.wheel(0, -200)
+                                    expect(jump).to_be_visible()
+                                    jump.tap() if width < 700 else jump.click()
+                                    expect(jump).to_be_hidden()
+                                    expect(page.locator("#composer-ta")).to_have_value(draft)
+                                    assert (
+                                        not events["http"]
+                                        and not events["pageerrors"]
+                                        and not events["outbound"]
+                                    ), events
                                     result["status"] = "passed"
                                 except BaseException as exc:
                                     result.update(

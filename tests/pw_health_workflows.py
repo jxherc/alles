@@ -15,6 +15,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_settings_helpers import choose_settings_section
 
 
 def run():
@@ -102,7 +103,7 @@ def run():
                     page.locator("#setup-skip").click()
                 if profile == "phone":
                     page.locator("#today-settings").click()
-                    page.locator('.s-nav-item[data-pane="themes"]').click()
+                    choose_settings_section(page, "themes")
                     with page.expect_response(
                         lambda response: (
                             response.url.endswith("/api/appearance")

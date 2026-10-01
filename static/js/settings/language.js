@@ -39,6 +39,7 @@ let _localeSettingsSaving = false;
 let _localeLoadGeneration = 0;
 let _localeSettingsDirty = false;
 let _localeOpenMenu = '';
+let _localeMenuHome = null;
 
 function _browserRegion() {
   const locale = globalThis.navigator?.language || 'en';
@@ -100,10 +101,33 @@ function _closeLocaleChoice(returnFocus = false) {
   const name = _localeOpenMenu;
   const menu = document.querySelector(`[data-locale-menu="${name}"]`);
   const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
-  if (menu) menu.hidden = true;
+  if (menu) {
+    menu.hidden = true;
+    _localeMenuHome?.append(menu);
+    menu.removeAttribute('style');
+  }
+  _localeMenuHome = null;
+  window.removeEventListener('resize', _positionLocaleChoice);
+  window.removeEventListener('scroll', _positionLocaleChoice, true);
   if (trigger) trigger.setAttribute('aria-expanded', 'false');
   _localeOpenMenu = '';
   if (returnFocus) trigger?.focus();
+}
+
+function _positionLocaleChoice() {
+  if (!_localeOpenMenu) return;
+  const menu = document.querySelector(`[data-locale-menu="${_localeOpenMenu}"]`);
+  const trigger = document.querySelector(`[data-locale-choice="${_localeOpenMenu}"]`);
+  if (!menu || !trigger) return;
+  const rect = trigger.getBoundingClientRect();
+  const below = innerHeight - rect.bottom - 12;
+  const above = rect.top - 12;
+  const height = Math.min(264, menu.scrollHeight, Math.max(below, above));
+  const width = Math.min(Math.max(rect.width, 180), innerWidth - 16);
+  menu.style.width = `${width}px`;
+  menu.style.maxHeight = `${Math.max(44, height)}px`;
+  menu.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - width - 8))}px`;
+  menu.style.top = `${below >= height || below >= above ? rect.bottom + 4 : Math.max(8, rect.top - height - 4)}px`;
 }
 
 function _openLocaleChoice(name, edge = '') {
@@ -112,16 +136,21 @@ function _openLocaleChoice(name, edge = '') {
   const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
   if (!menu || !trigger) return;
   _renderLocaleChoiceMenu(name);
+  _localeMenuHome = menu.parentElement;
+  document.getElementById('settings-modal')?.append(menu);
   menu.hidden = false;
   trigger.setAttribute('aria-expanded', 'true');
   _localeOpenMenu = name;
+  _positionLocaleChoice();
+  window.addEventListener('resize', _positionLocaleChoice);
+  window.addEventListener('scroll', _positionLocaleChoice, true);
   const options = [...menu.querySelectorAll('[role="option"]')];
   const target = edge === 'last'
     ? options.at(-1)
     : edge === 'first'
       ? options[0]
       : menu.querySelector('[aria-selected="true"]') || options[0];
-  requestAnimationFrame(() => target?.focus());
+  target?.focus();
 }
 
 function _chooseLocaleOption(name, option) {
@@ -347,10 +376,54 @@ async function _saveLocaleSettings() {
   }
 }
 
+function _handleLocaleOptionKey(event) {
+  const option = event.target.closest('[role="option"]');
+  if (option) {
+    const menu = option.closest('[data-locale-menu]');
+    const options = [...menu.querySelectorAll('[role="option"]')];
+    const index = options.indexOf(option);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      _closeLocaleChoice(true);
+      return;
+    }
+    if (event.key === 'Tab') {
+      _closeLocaleChoice(true);
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      _chooseLocaleOption(menu.dataset.localeMenu, option);
+      return;
+    }
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      let next = index;
+      if (event.key === 'ArrowDown') next = (index + 1) % options.length;
+      if (event.key === 'ArrowUp') next = (index - 1 + options.length) % options.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = options.length - 1;
+      option.tabIndex = -1;
+      options[next].tabIndex = 0;
+      options[next].focus();
+      return;
+    }
+  }
+}
+
+
 function _wireLocaleSettingsPane() {
   const pane = document.getElementById('s-pane-notifications');
   if (!pane || pane.dataset.localeBound) return;
   pane.dataset.localeBound = '1';
+  pane.querySelectorAll('[data-locale-menu]').forEach(menu => {
+    menu.addEventListener('click', event => {
+      const option = event.target.closest('[role="option"]');
+      if (option) _chooseLocaleOption(menu.dataset.localeMenu, option);
+    });
+    menu.addEventListener('keydown', _handleLocaleOptionKey);
+  });
   pane.addEventListener('click', event => {
     const language = event.target.closest('[data-locale-language]');
     if (language) {
@@ -371,8 +444,6 @@ function _wireLocaleSettingsPane() {
       else _openLocaleChoice(name);
       return;
     }
-    const option = event.target.closest('[data-locale-menu] [role="option"]');
-    if (option) _chooseLocaleOption(option.closest('[data-locale-menu]').dataset.localeMenu, option);
     const format = event.target.closest('[data-locale-format]');
     if (format) _setLocaleRadioValue(format.dataset.localeFormat, format.dataset.value, true);
   });
@@ -402,39 +473,6 @@ function _wireLocaleSettingsPane() {
       _openLocaleChoice(trigger.dataset.localeChoice, event.key === 'ArrowUp' ? 'last' : 'first');
       return;
     }
-    const option = event.target.closest('[data-locale-menu] [role="option"]');
-    if (option) {
-      const menu = option.closest('[data-locale-menu]');
-      const options = [...menu.querySelectorAll('[role="option"]')];
-      const index = options.indexOf(option);
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        _closeLocaleChoice(true);
-        return;
-      }
-      if (event.key === 'Tab') {
-        _closeLocaleChoice(false);
-        return;
-      }
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        _chooseLocaleOption(menu.dataset.localeMenu, option);
-        return;
-      }
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-        event.preventDefault();
-        let next = index;
-        if (event.key === 'ArrowDown') next = (index + 1) % options.length;
-        if (event.key === 'ArrowUp') next = (index - 1 + options.length) % options.length;
-        if (event.key === 'Home') next = 0;
-        if (event.key === 'End') next = options.length - 1;
-        option.tabIndex = -1;
-        options[next].tabIndex = 0;
-        options[next].focus();
-        return;
-      }
-    }
     const format = event.target.closest('[data-locale-format]');
     if (format && ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
@@ -452,7 +490,8 @@ function _wireLocaleSettingsPane() {
   document.addEventListener('pointerdown', event => {
     if (!_localeOpenMenu) return;
     const wrap = document.querySelector(`[data-locale-choice="${_localeOpenMenu}"]`)?.closest('.locale-choice-wrap');
-    if (wrap && !wrap.contains(event.target)) _closeLocaleChoice(false);
+    const menu = document.querySelector(`[data-locale-menu="${_localeOpenMenu}"]`);
+    if (wrap && !wrap.contains(event.target) && !menu?.contains(event.target)) _closeLocaleChoice(false);
   }, true);
   document.getElementById('s-locale-save')?.addEventListener('click', _saveLocaleSettings);
 }

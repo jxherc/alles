@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 import {
   GROUP_DEFINITIONS,
@@ -271,6 +272,90 @@ test('Finance Actual status exposes only safe actions for each authority state',
     service: { available: false, node_version: '18.0.0' }, ledger: base.ledger,
   }).actions.length, 0);
   assert.doesNotMatch(specialistSource, /base_currency_code:\s*ledger\.base_currency_code\s*\|\|\s*['"]CAD['"]/);
+});
+
+function financeHarness() {
+  let focused = null;
+  class Element {
+    constructor(tag) { this.tagName = tag; this.children = []; this.attributes = {}; this.events = {}; this.dataset = {}; this.className = ''; this.textContent = ''; }
+    append(...children) { for (const child of children) { child.parent = this; this.children.push(child); } }
+    replaceChildren(...children) { this.children = []; this.append(...children); }
+    setAttribute(name, value) { this.attributes[name] = value; }
+    removeAttribute(name) { delete this.attributes[name]; }
+    addEventListener(name, handler) { this.events[name] = handler; }
+    focus() { focused = this; }
+    remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
+    querySelectorAll(selector) {
+      const matches = element => selector === 'button' ? element.tagName === 'button' : element.className.split(' ').includes(selector.slice(1));
+      return this.children.flatMap(child => [...(matches(child) ? [child] : []), ...child.querySelectorAll(selector)]);
+    }
+    querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
+    get classList() { return { add() {}, remove() {} }; }
+  }
+  const context = vm.createContext({
+    document: { createElement: tag => new Element(tag) },
+    window: {},
+    formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),
+  });
+  vm.runInContext(specialistSource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') + `
+    globalThis.financeSubject = { render: _renderFinance, status: _renderActualStatus };
+  `, context);
+  return { ...context.financeSubject, target: new Element('div'), focused: () => focused };
+}
+
+const healthyFinance = {
+  service: { available: true, installed: true, running: true, healthy: true },
+  ledger: { mode: 'alles', base_currency_code: 'CAD', run: { id: 'ready-run', status: 'ready' } },
+};
+
+test('Finance daily balances precede routine ledger setup and keep grouped cents', async () => {
+  const h = financeHarness();
+  await h.render(h.target, async path => ({ ok: true, json: async () => ({
+    '/api/money/accounts': [{ name: 'checking', currency_code: 'CAD', balance: 12345678.9 }],
+    '/api/subscriptions?advance=false': { subscriptions: [] },
+    '/api/finance/actual': healthyFinance,
+  })[path] }));
+  const grid = h.target.querySelector('.finance-daily');
+  const ledger = h.target.querySelector('.finance-actual-panel');
+  assert.ok(h.target.children.indexOf(grid) < h.target.children.indexOf(ledger));
+  assert.equal(grid.querySelector('.specialist-group-row').children[1].textContent, 'CAD\u00a012,345,678.90');
+  assert.equal(ledger.querySelector('.finance-actual-content').hidden, true);
+  assert.equal(ledger.querySelector('.finance-actual-head').children[1].textContent, 'ready for review');
+  assert.equal(ledger.querySelector('.finance-actual-content').children[0].textContent, 'staging parity passed');
+  const toggle = ledger.querySelector('.finance-actual-toggle');
+  assert.equal(toggle.attributes['aria-expanded'], 'false');
+  assert.equal(toggle.attributes['aria-controls'], 'finance-actual-content');
+  toggle.events.click();
+  assert.equal(toggle.attributes['aria-expanded'], 'true');
+  assert.equal(ledger.querySelector('.finance-actual-content').hidden, false);
+});
+
+test('Finance keeps an unhealthy authoritative ledger warning open before daily work', async () => {
+  const h = financeHarness();
+  const warning = { ...healthyFinance, service: { available: true, installed: true, running: false, healthy: false }, ledger: { mode: 'actual' } };
+  await h.render(h.target, async path => ({ ok: true, json: async () => path === '/api/finance/actual' ? warning : [] }));
+  assert.match(h.target.children[0].className, /finance-actual-canonical-unhealthy/);
+  assert.equal(h.target.children[0].querySelector('.finance-actual-toggle'), null);
+  assert.notEqual(h.target.children[0].querySelector('.finance-actual-content').hidden, true);
+});
+
+test('expanding healthy setup never switches authority and confirmation starts on the safe action', () => {
+  const h = financeHarness();
+  let requests = 0;
+  const panel = h.status(healthyFinance, async () => { requests += 1; });
+  const toggle = panel.querySelector('.finance-actual-toggle');
+  toggle.events.click();
+  assert.equal(requests, 0);
+  const review = panel.querySelectorAll('button').find(button => button.dataset.actualAction === 'cutover');
+  review.events.click();
+  assert.equal(requests, 0);
+  assert.equal(h.focused().textContent, 'keep current authority');
+  assert.equal(toggle.disabled, true);
+  h.focused().events.click();
+  assert.equal(requests, 0);
+  assert.equal(h.focused(), review);
+  assert.equal(toggle.disabled, false);
+  assert.equal(panel.querySelector('.finance-actual-confirm'), null);
 });
 
 test('Plan composes events, tasks, and reminders into one stable ordered agenda', () => {

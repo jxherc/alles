@@ -124,6 +124,7 @@ const _OLD_BASES = {
   light: { bg:'#f5f4f1', text:'#111111', panel:'#efede9', faint:'#d4d2ce', accent:'#818cf8' },
 };
 function _upgradeLegacyDefault(o) {
+  if (o.accentCustom === true) return o;
   const old = _OLD_BASES[o.preset];
   if (!old || !o.colors) return o;
   if (!Object.entries(old).every(([k, v]) => o.colors[k] === v)) return o;
@@ -611,19 +612,23 @@ function _commit() { applyAppearance(_draft); save(_draft); _onEditorChange && _
 export function getAppearance() { return loadLocal(); }
 
 // the "default theme" controls (light/dark buttons AND the default preset tile) are a clean
-// slate / escape hatch from a fancy preset: keep only the base light/dark feel + the current
+// slate / escape hatch from a fancy preset: keep only the base light/dark feel + a chosen
 // accent (and saved custom themes), and reset EVERYTHING else — font, density, pattern,
 // frosted glass, bg effect — back to defaults.
 export function resetToDefault(mode) {
   const a = loadLocal();
   const base = mode === 'light' ? PRESETS.light : PRESETS.dark;
-  // a fancy preset OWNS its accent (it's the preset's tint, not yours) — so leaving it drops
-  // the tint back to the real default. a plain base/custom theme keeps the accent you picked.
   const fromFancy = a.preset && !isBasePreset(a.preset) && a.preset !== 'custom';
-  const accent = (!fromFancy && a.colors && a.colors.accent) || base.colors.accent;
+  // Older saves have no ownership flag. A base tint is inherited; a different
+  // tint or custom palette represents an owner choice. New explicit choices,
+  // including one equal to the base tint, retain that intent across reloads.
+  const accentCustom = a.accentCustom ?? (!fromFancy && (a.preset === 'custom'
+    || !!(a.colors?.accent && a.colors.accent.toLowerCase() !== PRESETS[a.preset]?.colors.accent)));
+  const accent = (accentCustom && a.colors?.accent) || base.colors.accent;
   const d = DEFAULT();
   d.preset = mode === 'light' ? 'light' : 'dark';
   d.colors = { ...base.colors, accent };
+  d.accentCustom = accentCustom;
   d.customThemes = a.customThemes || {};
   applyAppearance(d); save(d);
   return d;
@@ -634,8 +639,12 @@ export function resetToDefault(mode) {
 export function setAccent(hex) {
   const a = loadLocal();
   a.colors = { ...(a.colors || PRESETS.dark.colors) };
+  a.accentCustom = !!hex;
   if (hex) a.colors.accent = hex;
-  else { const base = PRESETS[a.preset] || PRESETS.dark; a.colors.accent = base.colors.accent; }
+  else {
+    const base = PRESETS[a.preset] || (_lum(a.colors.bg) > 0.5 ? PRESETS.light : PRESETS.dark);
+    a.colors.accent = base.colors.accent;
+  }
   applyAppearance(a); save(a);
   return a;
 }
@@ -698,19 +707,30 @@ function _renderEditor() {
   if (!m) return;
   const c = _draft.colors;
   const ct = _draft.customThemes || {};
+  const openSections = new Set([...m.querySelectorAll('details[open]')].map(section => section.dataset.themeSection));
+  const filter = m.querySelector('#te-preset-filter')?.value || '';
   const head = _editorInline ? '' : `<div class="te-head"><span class="te-title">theme editor</span><button class="icon-btn" id="te-close" title="close">${window.icon ? window.icon('close') : '×'}</button></div>`;
   const bodyOpen = _editorInline ? '<div class="te-body te-body-inline">' : '<div class="te-body">';
   m.innerHTML = `
     ${head}
     ${bodyOpen}
-      <div class="te-sec"><div class="te-sec-h">presets</div><div class="te-presets" role="radiogroup" aria-label="theme presets">${_presetGridHtml()}</div></div>
+      <details class="te-disclosure te-sec" data-theme-section="presets"${openSections.has('presets') ? ' open' : ''}>
+        <summary tabindex="0">browse themes · ${esc(isBasePreset(_draft.preset) ? 'default' : _draft.preset)}</summary>
+        <label class="te-preset-filter" for="te-preset-filter">find a theme</label>
+        <input id="te-preset-filter" class="settings-input" type="search" value="${esc(filter)}" autocomplete="off">
+        <div class="te-presets" role="radiogroup" aria-label="theme presets">${_presetGridHtml()}</div>
+        <span id="te-preset-results" role="status"></span>
+      </details>
+
+      <details class="te-disclosure" data-theme-section="advanced"${openSections.has('advanced') ? ' open' : ''}>
+        <summary tabindex="0">advanced appearance</summary>
 
       <div class="te-sec"><div class="te-sec-h">colors</div><div class="te-colors">
         ${BASE_LABELS.map(([k, label]) => `<label class="te-color"><input type="color" data-color="${k}" value="${esc(c[k])}"><span>${label}</span></label>`).join('')}
       </div></div>
 
       <div class="te-sec"><div class="te-sec-h">harmony: generate a palette from one color</div><div class="te-harmony">
-        <input type="color" id="te-harmony-accent" value="${esc(c.accent)}">
+        <label class="te-color"><input type="color" id="te-harmony-accent" value="${esc(c.accent)}"><span>starting color</span></label>
         <div class="te-seg" data-seg="harmony-type" role="radiogroup" aria-label="harmony type">${['complementary', 'analogous', 'triadic', 'monochromatic'].map((o, i) => `<button type="button" role="radio" aria-label="${o}" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o.slice(0, 4)}</button>`).join('')}</div>
         <div class="te-seg" data-seg="harmony-mode" role="radiogroup" aria-label="harmony mode">${['dark', 'light'].map((o, i) => `<button type="button" role="radio" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o}</button>`).join('')}</div>
         <button class="btn" id="te-harmony-gen">generate</button>
@@ -731,9 +751,11 @@ function _renderEditor() {
       </div>
 
       <div class="te-sec"><div class="te-sec-h">custom themes</div>
-        <div class="te-custom-row"><input type="text" id="te-custom-name" class="settings-input" placeholder="name this theme" maxlength="24"><button class="btn primary" id="te-save-custom">save current</button></div>
+        <label for="te-custom-name">theme name</label>
+        <div class="te-custom-row"><input type="text" id="te-custom-name" class="settings-input" placeholder="e.g. evening" maxlength="24"><button class="btn primary" id="te-save-custom">save current</button></div>
         <div class="te-custom-list">${Object.keys(ct).length ? Object.keys(ct).map(n => `<span class="te-custom-chip" data-ct="${esc(n)}"><b data-apply="${esc(n)}">${esc(n)}</b><button data-del="${esc(n)}" title="delete">${window.icon ? window.icon('close') : '×'}</button></span>`).join('') : '<span class="te-empty">none saved yet</span>'}</div>
       </div>
+      </details>
 
       <div class="te-foot">
         <button class="btn" id="te-export">export</button>
@@ -743,7 +765,21 @@ function _renderEditor() {
       </div>
     </div>`;
   _wireEditor(m);
+  _filterPresets(m);
   _showAppearanceSaveState(_appearanceSaveState, _appearanceSaveMessage);
+}
+
+function _filterPresets(m) {
+  const term = m.querySelector('#te-preset-filter')?.value.trim().toLowerCase() || '';
+  const tiles = [...m.querySelectorAll('.te-preset')];
+  for (const tile of tiles) {
+    tile.hidden = !tile.dataset.preset.toLowerCase().includes(term);
+    tile.tabIndex = -1;
+  }
+  const shown = tiles.filter(tile => !tile.hidden);
+  const entry = shown.find(tile => tile.getAttribute('aria-checked') === 'true') || shown[0];
+  if (entry) entry.tabIndex = 0;
+  m.querySelector('#te-preset-results').textContent = shown.length ? `${shown.length} themes` : 'no matching themes';
 }
 
 function _wireEditor(m) {
@@ -751,6 +787,7 @@ function _wireEditor(m) {
   m.querySelectorAll('.te-presets, .te-seg').forEach(group => wireChoiceGroup(group));
   m.querySelector('#te-close')?.addEventListener('click', _close);
   m.querySelector('#te-done')?.addEventListener('click', _close);
+  m.querySelector('#te-preset-filter')?.addEventListener('input', () => _filterPresets(m));
 
   m.querySelectorAll('.te-preset').forEach(b => b.onclick = () => {
     const preset = b.dataset.preset;
@@ -764,6 +801,7 @@ function _wireEditor(m) {
     const p = PRESETS[preset];
     _draft.preset = preset;
     _draft.colors = { ...p.colors };
+    _draft.accentCustom = false;
     // a preset OWNS its background: turn on the one it ships with, else clear any stale
     // pattern from the theme you switched away from (so 'default' etc. land on no bg).
     _draft.bgPattern = p.pattern || 'none';
@@ -773,6 +811,7 @@ function _wireEditor(m) {
 
   m.querySelectorAll('input[data-color]').forEach(inp => inp.addEventListener('input', () => {
     _draft.colors[inp.dataset.color] = inp.value;
+    if (inp.dataset.color === 'accent') _draft.accentCustom = true;
     _draft.preset = 'custom';
     m.querySelectorAll('.te-preset').forEach((tile, index) => {
       tile.classList.remove('active');
@@ -815,6 +854,7 @@ function _wireEditor(m) {
     const type = m.querySelector('[data-seg="harmony-type"] .active')?.dataset.val || 'complementary';
     const mode = m.querySelector('[data-seg="harmony-mode"] .active')?.dataset.val || 'dark';
     _draft.colors = generateHarmony(accent, type, mode);
+    _draft.accentCustom = true;
     _draft.preset = 'custom';
     _commit(); _renderEditor();
   };
