@@ -10,6 +10,7 @@ let _endpointLoadGeneration = 0;
 let _localLoadGeneration = 0;
 let _modelRolesDirty = false;
 let _modelRolesRevision = 0;
+let _oauthStartGeneration = 0;
 const _oauthPolls = new Set();
 
 function _hasEndpointDrafts() {
@@ -245,6 +246,7 @@ async function startGeminiOAuth() {
     toast('client ID, client secret, and project ID are required', 'error');
     return;
   }
+  const generation = ++_oauthStartGeneration;
   btn.disabled = true;
   btn.textContent = 'preparing…';
   try {
@@ -253,6 +255,7 @@ async function startGeminiOAuth() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, project_id: projectId }),
     }));
+    if (!_providersActive || generation !== _oauthStartGeneration) return;
     const popup = window.open(result.authorization_url, 'alles-gemini-oauth', 'popup,width=620,height=760');
     if (!popup) throw new Error('allow the authorization popup and try again');
     toast('finish authorization in the Google window', 'success');
@@ -683,6 +686,7 @@ export const providersPane = createSettingsPane({
     _providersActive = false;
     _endpointLoadGeneration += 1;
     _localLoadGeneration += 1;
+    _oauthStartGeneration += 1;
     for (const poll of _oauthPolls) window.clearInterval(poll);
     _oauthPolls.clear();
   },
