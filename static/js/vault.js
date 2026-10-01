@@ -1173,7 +1173,11 @@ function _renderFields(defs, values = {}) {
 
   for (const def of defs) {
     const el = box.querySelector('#vf-f-' + def.key);
-    if (el && values[def.key] != null) el.value = values[def.key];
+    if (el && values[def.key] != null) {
+      el.value = values[def.key];
+      // Text controls normalize line endings; retain unchanged stored bytes on edit.
+      el._vaultOriginal = { value: String(values[def.key]), rendered: el.value };
+    }
   }
   box.querySelector('#vf-gen')?.addEventListener('click', _genFormPw);
   box.querySelectorAll('[data-reveal]').forEach(b => b.onclick = () => {
@@ -1258,7 +1262,7 @@ async function _saveForm(editing) {
   for (const def of schema) {
     const key = def.key;
     const el = ov.querySelector('#vf-f-' + key);
-    const val = el ? el.value.trim() : '';
+    const val = el ? (el.value === el._vaultOriginal?.rendered ? el._vaultOriginal.value : el.value) : '';
     if (key === 'username') { username = val; continue; }
     if (val) fields[key] = val;
   }
