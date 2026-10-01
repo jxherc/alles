@@ -16,6 +16,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
 }[char]));
 
 let navigate = () => {};
+let openRecord = null;
 let askAide = async () => false;
 let legacyShortcuts = () => null;
 let legacyChecked = false;
@@ -50,13 +51,13 @@ export function homeGreetingFor(date = new Date(), random = Math.random) {
 
 export function dailyRows(day) {
   const rows = [];
-  for (const item of day?.events || []) rows.push({ view: 'calendar', meta: item.time || t('home.all_day'), title: item.title, kind: 'event' });
-  for (const item of day?.tasks?.overdue || []) rows.push({ view: 'tasks', meta: t('home.overdue'), title: item.title, urgent: true, kind: 'task' });
-  for (const item of day?.tasks?.due_today || []) rows.push({ view: 'tasks', meta: t('common.today'), title: item.title, kind: 'task' });
-  for (const item of day?.reminders || []) rows.push({ view: 'reminders', meta: item.at, title: item.text, kind: 'reminder' });
-  for (const item of day?.renewing || []) rows.push({ view: 'subs', meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: `${item.name} ${t('home.renews')}`, kind: 'renewal' });
-  for (const item of day?.day_events || []) rows.push({ view: 'days', meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: item.name, kind: 'date' });
-  for (const item of day?.habits || []) rows.push({ view: 'habits', meta: t('home.not_done'), title: item.name, kind: 'habit' });
+  for (const item of day?.events || []) rows.push({ view: 'calendar', id: item.id, occurrence: day.date, meta: item.time || t('home.all_day'), title: item.title, kind: 'event' });
+  for (const item of day?.tasks?.overdue || []) rows.push({ view: 'tasks', id: item.id, meta: t('home.overdue'), title: item.title, urgent: true, kind: 'task' });
+  for (const item of day?.tasks?.due_today || []) rows.push({ view: 'tasks', id: item.id, meta: t('common.today'), title: item.title, kind: 'task' });
+  for (const item of day?.reminders || []) rows.push({ view: 'reminders', id: item.id, meta: item.at, title: item.text, kind: 'reminder' });
+  for (const item of day?.renewing || []) rows.push({ view: 'subs', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: `${item.name} ${t('home.renews')}`, kind: 'renewal' });
+  for (const item of day?.day_events || []) rows.push({ view: 'days', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: item.name, kind: 'date' });
+  for (const item of day?.habits || []) rows.push({ view: 'habits', id: item.id, meta: t('home.not_done'), title: item.name, kind: 'habit' });
   return rows.slice(0, 12);
 }
 
@@ -112,7 +113,7 @@ export function orderedVisibleHomeSections(value) {
 }
 
 function dayRow(item, extra = '') {
-  return `<button class="today-row${item.urgent ? ' urgent' : ''}" type="button" data-view="${esc(item.view)}">
+  return `<button class="today-row${item.urgent ? ' urgent' : ''}" type="button" data-view="${esc(item.view)}" data-record="${esc(item.id || '')}" data-occurrence="${esc(item.occurrence || '')}">
     <span><b>${esc(item.title)}</b>${extra}</span><em>${esc(item.meta)}</em>
   </button>`;
 }
@@ -254,6 +255,10 @@ function render() {
     .filter(key => (key !== 'in_progress' || running.length) && (key !== 'briefs' || briefs.length))
     .map(key => blocks[key]).filter(Boolean).join('') + suggestionSection();
   root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', async () => {
+    if (button.dataset.record && openRecord) {
+      await openRecord(button.dataset.view, button.dataset.record, button.dataset.occurrence);
+      return;
+    }
     await navigate(button.dataset.view);
     if (button.dataset.aideSection) {
       const module = await import('./aidescheduled.js?v=246');
@@ -493,6 +498,7 @@ function wireHome() {
 
 export function initToday(options) {
   navigate = options.navigate;
+  openRecord = options.openRecord || null;
   askAide = options.askAide;
   apps = options.apps;
   legacyShortcuts = options.legacyShortcuts || (() => null);

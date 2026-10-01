@@ -62,6 +62,7 @@ html, body {
 a:focus-visible, button:focus-visible {
   outline: 1px solid var(--focus); outline-offset: 4px; border-radius: 3px;
 }
+.record-target:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* ── layout ── */
 .app { display: flex; height: 100vh; }

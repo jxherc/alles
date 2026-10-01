@@ -202,7 +202,7 @@ test('Docs has no duplicate global Home route and only edits a newly opened docu
 });
 
 test('all app navigation awaits the Docs draft guard and pagehide keeps a final draft', () => {
-  const navigate = app.match(/async function navigateTo\(v\)[\s\S]*?\n}/)?.[0] || '';
+  const navigate = app.match(/async function navigateTo\(v(?:, [^\n]*)?\)[\s\S]*?\n}/)?.[0] || '';
   assert.match(docs, /window\._prepareDocsNavigation\s*=\s*prepareDocsNavigation/);
   assert.match(docs, /addEventListener\('pagehide', persistDraftOnPageHide\)/);
   assert.match(docs, /keepalive:\s*true/);

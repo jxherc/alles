@@ -53,9 +53,25 @@ test('daily rows keep urgent work before ordinary due work', () => {
   assert.equal(rows[1].title, 'now');
 });
 
+test('home keeps the exact source identity and displayed occurrence for every daily row', () => {
+  const rows = dailyRows({
+    date: '2026-10-01',
+    events: [{ id: 'event-1', title: 'repeat meeting' }],
+    tasks: { overdue: [{ id: 'task-1', title: 'late' }], due_today: [{ id: 'task-2', title: 'due' }] },
+    reminders: [{ id: 'reminder-1', text: 'call' }],
+    renewing: [{ id: 'subscription-1', name: 'storage' }],
+    day_events: [{ id: 'date-1', name: 'anniversary' }],
+    habits: [{ id: 'habit-1', name: 'walk' }],
+  });
+  assert.deepEqual(rows.map(row => row.id), [
+    'event-1', 'task-1', 'task-2', 'reminder-1', 'subscription-1', 'date-1', 'habit-1',
+  ]);
+  assert.equal(rows[0].occurrence, '2026-10-01');
+});
+
 test('unfinished habits become local daily rows', () => {
   const rows = dailyRows({ events: [], tasks: {}, reminders: [], renewing: [], day_events: [], habits: [{ name: 'stretch' }] });
-  assert.deepEqual(rows[0], { view: 'habits', meta: 'not done', title: 'stretch', kind: 'habit' });
+  assert.deepEqual(rows[0], { view: 'habits', id: undefined, meta: 'not done', title: 'stretch', kind: 'habit' });
 });
 
 test('day request contains bounded visible context and stays a draft until the owner sends', () => {
@@ -103,7 +119,7 @@ test('Home presents configured destinations as pinned apps without an unexplaine
     assert.match(app, new RegExp(`HOME_PINNABLE_APPS[\\s\\S]*?view: '${view}'`));
   }
   assert.doesNotMatch(app.match(/const HOME_PINNABLE_APPS = \[[\s\S]*?\n\];/)?.[0] || '', /view: '(?:calendar|tasks|mail|money|photos|watch|activity)'/);
-  assert.match(app, /initToday\(\{ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts \}\)/);
+  assert.match(app, /initToday\(\{ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord \}\)/);
 });
 
 test('a successful Home capture is confirmed independently of a partial refresh', () => {

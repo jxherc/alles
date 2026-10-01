@@ -3,6 +3,13 @@ import test from 'node:test';
 
 const { renderAgentSteps } = await import('../../static/js/agentview.js');
 
+test('document diffs retain their preview without offering the filesystem revert action', () => {
+  const html = renderAgentSteps([{ name: 'docs_write', args: { path: 'work.md' }, diff: '-old\n+new' }], false, 'run-doc');
+  assert.match(html, /agent-step-diff/);
+  assert.match(html, /data-agent-sources="run-doc"/);
+  assert.doesNotMatch(html, /data-agent-revert/);
+});
+
 test('successful steps reload collapsed with one clear control', () => {
   const html = renderAgentSteps([{ name: 'read_file', args: { path: 'a.md' }, output: 'ok' }]);
   assert.match(html, /run details/);

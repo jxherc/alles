@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { replaceLinkedRecord } from './recordlinks.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
@@ -255,7 +256,7 @@ function calendarLoadError(message) {
 
 async function retryCalendarView() {
   _preserveEditorOnRetry = Boolean(document.querySelector('.cal-editor'));
-  try { return await (typeof window._navigateTo === 'function' ? window._navigateTo('calendar') : loadCalendar()); }
+  try { return await (typeof window._navigateTo === 'function' ? window._navigateTo('calendar', { preserveRecord: true }) : loadCalendar()); }
   finally { _preserveEditorOnRetry = false; }
 }
 
@@ -329,7 +330,10 @@ function _tickWorldClock() {
   }, 60000);
 }
 
+let _eventsReady = false;
+
 export async function loadCalendar(fetcher = fetch) {
+  _eventsReady = false;
   _bindNav();
   _tickWorldClock();
   const sequence = ++_loadSequence;
@@ -367,6 +371,7 @@ export async function loadCalendar(fetcher = fetch) {
   if (cals.items) _calendars = cals.items;
   _calendarMetadataError = cals.error;
   _events = Array.isArray(evs) ? evs : [];
+  _eventsReady = true;
   renderSidebar();
   if (preserveEditor) refreshCalendarPicker();
   else { _editing = null; _readDraft = null; render(); }
@@ -732,9 +737,9 @@ function visibleEvents() {
   return list;
 }
 
-function expand(rs, re) {
+function expand(rs, re, events = visibleEvents()) {
   const out = [];
-  for (const e of visibleEvents()) {
+  for (const e of events) {
     const start = calendarPlacementDate(e.start_dt);
     if (isNaN(start)) continue;
     if (!e.recurrence) { if (start >= rs && start < re) out.push({ ...e, _date: start }); continue; }
@@ -971,9 +976,23 @@ function renderTimeGrid(el, days, occ) {
   const sc = el.querySelector('.cal-tg-scroll'); if (sc) sc.scrollTop = Math.max(0, nowTop - 3 * HOUR_H);
 }
 
-function openEvent(id, occ) {
+function hasOccurrence(event, day) {
+  const start = calendarPlacementDate(`${day}T00:00`);
+  const end = _cloneCalendarDate(start); end.setDate(end.getDate() + 1);
+  return expand(start, end, [event]).some(item => ymd(item._date) === day);
+}
+
+export function openEvent(id, occ) {
   const ev = _events.find(e => e.id === id);
-  if (ev) openEditor(ev, null, null, false, occ);
+  if (!_eventsReady || !ev) return false;
+  if (ev.recurrence && occ && !hasOccurrence(ev, occ)) return false;
+  if (_editing?.id === id && _editOcc === (occ || null) && document.querySelector('.cal-editor')) {
+    document.getElementById('cal-title')?.focus();
+    return true;
+  }
+  openEditor(ev, null, null, false, occ);
+  document.getElementById('cal-title')?.focus();
+  return true;
 }
 
 // 4a — the proposed [start,end) from the editor's pickers, or null if not a valid timed span
@@ -1140,10 +1159,12 @@ async function applyTimeChange(id, occ, newStart, newEnd) {
 }
 
 // ── scope chooser (this / following / all) ───────────────────────────────────
-function chooseScope(verb) {
+function chooseScope(verb, hasSelectedOccurrence = true) {
   return dlgChoose(`${verb} recurring event`, [
-    { value: 'this', label: 'This event' },
-    { value: 'following', label: 'This and following' },
+    ...(hasSelectedOccurrence ? [
+      { value: 'this', label: 'This event' },
+      { value: 'following', label: 'This and following' },
+    ] : []),
     { value: 'all', label: 'All events' },
   ]);
 }
@@ -1465,13 +1486,17 @@ async function saveEvent(byday) {
   try {
     const body = collectBody(byday);
     if (!body.title || !body.start_dt) throw new Error('Title and start are required.');
-    const scope = _editing?.recurrence ? await chooseScope('edit') : 'all';
+    const occ = _editOcc || _editDates?.start?.slice(0, 10) || '';
+    const scope = _editing?.recurrence ? await chooseScope('edit', hasOccurrence(_editing, occ)) : 'all';
     if (!scope) return;
+    const selectedDay = body.start_dt.slice(0, 10);
     Object.assign(body, eventTimeValues(_editing, _editDates, { start: body.start_dt, end: body.end_dt || '' }, scope));
     const id = _editing?.id;
-    const query = new URLSearchParams({ scope, occ: _editOcc || '', time_zone: resolvedTimeZone() });
+    const query = new URLSearchParams({ scope, occ, time_zone: resolvedTimeZone() });
     editorBusy(true);
     const saved = await saveCalendarRequest(id ? `/api/calendar/${id}?${query}` : '/api/calendar', id ? 'PATCH' : 'POST', body, id && scope === 'all' ? id : null);
+    if (id) replaceLinkedRecord('calendar', id, saved.id,
+      saved.recurrence && saved.id === id && hasOccurrence(saved, selectedDay) ? selectedDay : '');
     toast(id ? 'saved' : 'created', 'success');
     if (!(await loadCalendar())) {
       openEditor(saved);
@@ -1486,9 +1511,9 @@ async function deleteEvent() {
   if (!_editing || _saving) return;
   _saving = true;
   try {
-    const scope = _editing.recurrence ? await chooseScope('delete') : 'all';
-    if (!scope) return;
     const occ = _editOcc || _editing.start_dt.slice(0, 10);
+    const scope = _editing.recurrence ? await chooseScope('delete', hasOccurrence(_editing, occ)) : 'all';
+    if (!scope) return;
     editorBusy(true);
     const response = await readCalendarResponse(await fetch(`/api/calendar/${_editing.id}?${new URLSearchParams({ scope, occ })}`, { method: 'DELETE' }));
     if (response?.ok !== true) throw new Error('The calendar did not confirm deletion. Retry.');

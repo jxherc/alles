@@ -7,6 +7,10 @@ const DESTRUCTIVE = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_
   'git_commit', 'git_push', 'revert_file', 'delete_file', 'mail_send',
   'computer_click', 'computer_type', 'computer_key', 'computer_scroll']);
 
+export function canRevertTool(name) {
+  return ['write_file', 'edit_file', 'apply_patch'].includes(name);
+}
+
 function esc(s = '') {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -77,9 +81,10 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
   }).join('');
   const detail = `${steps.length} step${steps.length === 1 ? '' : 's'}${edits ? ` · ${edits} edit${edits > 1 ? 's' : ''}` : ''}`;
   const runId = String(agentRunId || '').trim();
+  const reversible = steps.some(step => step.diff && canRevertTool(step.name || step.tool));
   const controls = runId ? `<span class="agent-run-controls">
     <button type="button" class="agent-sources-btn" data-agent-sources="${esc(runId)}" title="files, urls, searches and commands this run touched">sources</button>
-    ${edits ? `<button type="button" class="agent-revert-btn" data-agent-revert="${esc(runId)}" title="restore every file this run changed">revert edits</button>` : ''}
+    ${reversible ? `<button type="button" class="agent-revert-btn" data-agent-revert="${esc(runId)}" title="restore every file this run changed">revert edits</button>` : ''}
   </span>` : '';
   return `<details class="agent-steps"${open ? ' open' : ''}><summary>run details · ${detail}${controls}</summary><div class="agent-step-list">${rows}</div></details>`;
 }

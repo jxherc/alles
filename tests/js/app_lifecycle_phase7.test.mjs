@@ -187,7 +187,7 @@ test('all four Aide tool pages report their initial API failures to showView', (
 
 test('every real specialist app reports its initial requests through the scoped fetcher', () => {
   const wiring = {
-    tasks: /showTasksView[\s\S]{0,180}loadTasks\(request\)/,
+    tasks: /showTasksView[\s\S]{0,180}loadTasks\(request(?:,|\))/,
     calendar: /showCalendarView[\s\S]{0,200}loadCalendar\(request\)/,
     docs: /showWikiView[\s\S]{0,300}initDocs\(section, request\)/,
     vault: /showVaultView[\s\S]{0,200}loadVaultView\(request\)/,

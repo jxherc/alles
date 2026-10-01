@@ -2,9 +2,10 @@
 exercised through services.agent_tools.execute() against an isolated vault + db."""
 
 import asyncio
+from unittest.mock import patch
 
 import services.agent_tools as at
-from services import textindex, vault_md
+from services import document_safety, textindex, vault_md
 from tests._client import VaultApiTest
 
 
@@ -42,6 +43,97 @@ class AgentVaultToolsTests(VaultApiTest):
     def test_read_missing_errors(self):
         r = self.ex("note_read", {"name": "nope-not-here"})
         self.assertTrue(r.get("error"))
+
+    def test_read_returns_the_exact_document_version_for_a_reviewed_write(self):
+        saved = vault_md.write("versioned.md", "source\r\n")
+        read = self.ex("docs_read", {"path": "versioned.md"})
+        self.assertEqual(read.get("hash"), saved["hash"])
+        self.assertEqual(read.get("path"), "versioned.md")
+        self.assertIn(saved["hash"], read["output"])
+
+    def test_existing_document_requires_the_reviewed_version_for_both_write_tools(self):
+        for tool in ("docs_write", "note_write"):
+            with self.subTest(tool=tool):
+                path = f"{tool}.md"
+                original = vault_md.write(path, "owner source")
+                result = self.ex(tool, {"path": path, "content": "unchecked replacement"})
+                self.assertTrue(result.get("error"), result)
+                self.assertEqual(vault_md.read(path)["hash"], original["hash"])
+
+    def test_stale_write_keeps_both_versions_and_does_not_report_success(self):
+        opened = vault_md.write("stale.md", "reviewed source")
+        vault_md.write("stale.md", "newer owner source")
+        result = self.ex(
+            "docs_write",
+            {"path": "stale.md", "content": "generated candidate", "expected_hash": opened["hash"]},
+        )
+        self.assertTrue(result.get("error"), result)
+        self.assertEqual(vault_md.read("stale.md")["content"], "newer owner source")
+        conflict = self.client.get(f"/api/vault-md/safety/conflicts/{result['conflict_id']}")
+        self.assertEqual(conflict.status_code, 200, conflict.text)
+        self.assertEqual(conflict.json()["local"], "generated candidate")
+        self.assertEqual(conflict.json()["external"], "newer owner source")
+
+    def test_reviewed_write_has_a_revision_that_restores_exact_original_bytes(self):
+        opened = vault_md.write("restore.md", "owner source\r\n")
+        result = self.ex(
+            "docs_write",
+            {
+                "path": "restore.md",
+                "content": "accepted revision\n",
+                "expected_hash": opened["hash"],
+            },
+        )
+        self.assertFalse(result.get("error"), result)
+        revisions = document_safety.list_revisions("restore.md")
+        self.assertEqual(len(revisions), 1)
+        restored = document_safety.restore_revision(
+            "restore.md", revisions[0]["id"], vault_md.read("restore.md")["hash"]
+        )
+        self.assertEqual(restored["hash"], opened["hash"])
+        self.assertEqual((vault_md.vault_dir() / "restore.md").read_bytes(), b"owner source\r\n")
+
+    def test_append_does_not_overwrite_a_write_that_arrives_after_its_read(self):
+        vault_md.write("append-race.md", "opened source")
+        original_read = vault_md.read
+
+        def concurrent_read(path):
+            value = original_read(path)
+            vault_md.write(path, "concurrent owner source")
+            return value
+
+        with patch.object(vault_md, "read", side_effect=concurrent_read):
+            result = self.ex("note_append", {"path": "append-race.md", "content": "addition"})
+        self.assertTrue(result.get("error"), result)
+        self.assertEqual(vault_md.read("append-race.md")["content"], "concurrent owner source")
+
+    def test_invalid_encoding_is_not_reported_as_an_empty_readable_note(self):
+        (vault_md.vault_dir() / "binary.md").write_bytes(b"owner bytes\xff\xfe")
+        result = self.ex("docs_read", {"path": "binary.md"})
+        self.assertTrue(result.get("error"), result)
+        self.assertIn("UTF-8", result["output"])
+
+    def test_document_approval_previews_exact_changes_without_writing(self):
+        opened = vault_md.write("preview.md", "old line\n")
+        for tool in ("docs_write", "note_write"):
+            diff = at.preview_change(
+                tool,
+                {"path": "preview.md", "content": "new line\n", "expected_hash": opened["hash"]},
+            )
+            self.assertIn("-old line", diff)
+            self.assertIn("+new line", diff)
+            self.assertEqual(vault_md.read("preview.md")["hash"], opened["hash"])
+
+    def test_docs_read_and_write_preview_do_not_substitute_a_matching_basename(self):
+        vault_md.write("nested/idea.md", "private nested source\n")
+        read = self.ex("docs_read", {"path": "idea"})
+        self.assertTrue(read.get("error"), read)
+        self.assertNotIn("private nested source", read["output"])
+        preview = at.preview_change("docs_write", {"path": "idea", "content": "new root source\n"})
+        self.assertNotIn("private nested source", preview)
+        self.assertIn("+new root source", preview)
+        legacy = self.ex("note_read", {"name": "idea"})
+        self.assertIn("private nested source", legacy["output"])
 
     # ── append (safe additive write) ────────────────────────────────────────────
     def test_append_creates_when_missing(self):
