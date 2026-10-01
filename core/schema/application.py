@@ -1455,3 +1455,13 @@ class HealthEntry(Base):
     note = Column(String, default="")
     label = Column(String, default="")  # for custom kinds
     created_at = Column(DateTime, default=_now)
+
+
+class HealthCreateReceipt(Base):
+    """One create identity; a null entry_id retains deletion without measurement content."""
+
+    __tablename__ = "health_create_receipts"
+    id = Column(String, primary_key=True)
+    payload_hash = Column(String(64), nullable=False)
+    entry_id = Column(Integer, nullable=True, index=True)
+    created_at = Column(DateTime, default=_now)

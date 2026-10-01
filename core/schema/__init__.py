@@ -36,6 +36,7 @@ from core.schema.application import Face as Face
 from core.schema.application import GalleryImage as GalleryImage
 from core.schema.application import Habit as Habit
 from core.schema.application import HabitLog as HabitLog
+from core.schema.application import HealthCreateReceipt as HealthCreateReceipt
 from core.schema.application import HealthEntry as HealthEntry
 from core.schema.application import Insight as Insight
 from core.schema.application import JarvisConnector as JarvisConnector

@@ -59,6 +59,7 @@ COMMANDS = {
     "pwa-rejection": ("tests/pw_offline_rejection.py",),
     "andromeda-cancellation": ("tests/pw_andromeda_cancellation.py",),
     "health-workflows": ("tests/pw_health_workflows.py",),
+    "health-create-recovery": ("tests/pw_health_create_recovery.py",),
     "habit-recovery": ("tests/pw_habit_recovery.py",),
     "finance-workflows": ("tests/pw_finance_workflows.py",),
     "finance-networth-history": ("tests/pw_finance_networth_history.py",),

@@ -194,6 +194,12 @@ scheduled news has source health, conditional requests, deduplication, clustered
 
 [services/book_items.py](services/book_items.py) shares book saves between the screen and aide, including status/dates/ratings. [services/health_entries.py](services/health_entries.py) validates finite measurements and real dates. [services/habit_logs.py](services/habit_logs.py) gives api and aide one canonical completion-day identity. ambiguous habit names require an exact id, and unsupported cadence is rejected.
 
+health entry forms keep one save identity while a response is uncertain. retrying returns the existing
+reading; changed values offer the saved entry for correction, and closing warns that the entry may
+already be saved. new forms allow intentional repeated readings. create acknowledgments survive server
+restarts and retain a content-free deletion marker so an old retry cannot recreate a deleted reading.
+unsent health forms stay in the open page; their contents are not copied into browser storage.
+
 [services/personal_index.py](services/personal_index.py) indexes supported records for recall. [services/journal_migration.py](services/journal_migration.py) stages verified markdown copies while the database remains authoritative; [services/journal_vault.py](services/journal_vault.py) provides the optional unlocked mirror. locked content is not copied to plaintext implicitly.
 
 install/update separates versioned code, private data, logs, and service ownership. candidates need validation before switching. restore/update journals and maintenance locks prevent normal startup through an unfinished swap.
