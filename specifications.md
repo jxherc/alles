@@ -547,6 +547,14 @@ a live look at how hard your computer is working: like task manager / activity m
 ### secrets
 an encrypted vault that holds more than passwords. each item carries the fields that actually fit what it is.
 
+ordinary new-entry forms keep one save identity across uncertain responses. retrying recovers the
+existing encrypted entry; changed values offer an explicit correction instead of adding a duplicate.
+receipts are scoped to the unlocked vault and contain only identifiers and a timestamp. deleted entries
+leave a content-free marker; password changes preserve retry recovery. pending responses cannot reopen
+a locked editor or replace a newer form. expired access returns to unlock, and unsent secrets are never
+stored in browser storage. passkey creation uses its separate endpoint and is not covered by these
+ordinary-entry receipts.
+
 - pick a **type** and the form changes to match: **logins** (username · password · website · notes), **credit cards** (cardholder · number · expiry · cvv · billing address), **api keys / tokens**, **secure notes**, and **identities · bank accounts · ssh keys · software licenses**; so a card never asks you for a "password" and an api key reads as a token, not a login
 - click any entry to open it, reveal or copy a field, edit it, or delete it
 - a built-in **password generator** (csprng, skips look-alike characters) and a live **strength meter** that flags common, repetitive, or sequential passwords

@@ -3,17 +3,20 @@ import logging
 import re
 import secrets
 import time
+import uuid
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import (
     BrowserConnection,
     Vault,
     VaultAttachment,
+    VaultCreateReceipt,
     VaultEntry,
     VaultShare,
     WebAuthnCredential,
@@ -503,6 +506,7 @@ def delete_vault(vid: str, db: DbSession = Depends(get_db), ctx: tuple = Depends
             synchronize_session=False
         )
         db.query(VaultEntry).filter(VaultEntry.vault_id == vid).delete(synchronize_session=False)
+        db.query(VaultCreateReceipt).filter_by(vault_id=vid).delete(synchronize_session=False)
         db.delete(v)
         db.commit()
         from services.browser_passwords import lock_vault
@@ -662,6 +666,7 @@ class CreateEntry(BaseModel):
     type: str = "password"
     category: str = "general"
     username: str = ""
+    request_id: str = ""
 
 
 def _fields_of(body) -> dict:
@@ -671,11 +676,112 @@ def _fields_of(body) -> dict:
     return {"password": body.value} if body.value else {}
 
 
+def _create_identity(raw: str) -> str:
+    try:
+        identity = str(uuid.UUID(raw))
+        if raw.lower() != identity:
+            raise ValueError
+        return identity
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(400, "request_id must be a canonical UUID") from None
+
+
+def _find_create_receipt(db, vid, identity):
+    return (
+        db.query(VaultCreateReceipt, VaultEntry)
+        .outerjoin(
+            VaultEntry,
+            (VaultEntry.id == VaultCreateReceipt.entry_id)
+            & (VaultEntry.vault_id == VaultCreateReceipt.vault_id),
+        )
+        .filter(VaultCreateReceipt.vault_id == vid, VaultCreateReceipt.id == identity)
+        .populate_existing()
+        .one_or_none()
+    )
+
+
+def _receipt_entry(found):
+    if found is None:
+        raise HTTPException(404, "this save could not be found")
+    if found[1] is None:
+        raise HTTPException(410, "the entry from this save was deleted")
+    return found[1]
+
+
+def _receipt_fields(entry, pw):
+    try:
+        fields = json.loads(decrypt(pw, entry.value_encrypted))
+        if not isinstance(fields, dict):
+            raise ValueError
+        return fields
+    except Exception:
+        raise HTTPException(500, "could not read the saved entry") from None
+
+
+def _created_entry_response(entry):
+    return {"id": entry.id, "name": entry.name, "category": entry.category, "type": entry.type}
+
+
+@router.get("/vault/requests/{request_id}")
+def recover_created_entry(
+    request_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
+):
+    pw, vid = ctx
+    with recovery_consistency_lock:
+        _require_current_vault_password(db, pw, vid)
+        entry = _receipt_entry(_find_create_receipt(db, vid, _create_identity(request_id)))
+        return {
+            **_created_entry_response(entry),
+            "username": entry.username,
+            "fields": _receipt_fields(entry, pw),
+        }
+
+
 @router.post("/vault")
 def create_entry(body: CreateEntry, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
     pw, vid = ctx
     with recovery_consistency_lock:
         _require_current_vault_password(db, pw, vid)
+        receipt = None
+        if body.request_id:
+            identity = _create_identity(body.request_id)
+            try:
+                fields_json = json.dumps(_fields_of(body), sort_keys=True, allow_nan=False)
+            except (ValueError, TypeError):
+                raise HTTPException(400, "entry fields must contain valid JSON values") from None
+
+            def replay(found):
+                entry = _receipt_entry(found)
+                fields = _receipt_fields(entry, pw)
+                if (entry.name, entry.username, entry.category, entry.type) != (
+                    body.name,
+                    body.username,
+                    body.category,
+                    body.type or "password",
+                ) or json.dumps(fields, sort_keys=True, allow_nan=False) != fields_json:
+                    raise HTTPException(
+                        409,
+                        {
+                            "message": "this entry was already saved with different values; open it to make a correction",
+                            "entry_id": entry.id,
+                        },
+                    )
+                return _created_entry_response(entry)
+
+            found = _find_create_receipt(db, vid, identity)
+            if found is not None:
+                return replay(found)
+            receipt = VaultCreateReceipt(vault_id=vid, id=identity)
+            db.add(receipt)
+            try:
+                db.flush()
+            except IntegrityError:
+                db.rollback()
+                _require_current_vault_password(db, pw, vid)
+                found = _find_create_receipt(db, vid, identity)
+                if found is None:
+                    raise
+                return replay(found)
         enc = encrypt(pw, json.dumps(_fields_of(body)))
         e = VaultEntry(
             vault_id=vid,
@@ -686,9 +792,14 @@ def create_entry(body: CreateEntry, db: DbSession = Depends(get_db), ctx: tuple 
             type=body.type or "password",
         )
         db.add(e)
+        if receipt is not None:
+            db.flush()
+            receipt.entry_id = e.id
         db.commit()
+        if receipt is not None:
+            return _created_entry_response(_receipt_entry(_find_create_receipt(db, vid, identity)))
         db.refresh(e)
-    return {"id": e.id, "name": e.name, "category": e.category, "type": e.type}
+    return _created_entry_response(e)
 
 
 class PatchEntry(BaseModel):
@@ -773,6 +884,9 @@ def delete_entry(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = De
     e = _scoped_entry(db, entry_id, vid)
     with recovery_consistency_lock:
         _purge_entry_data(db, [entry_id])
+        db.query(VaultCreateReceipt).filter_by(vault_id=vid, entry_id=entry_id).update(
+            {VaultCreateReceipt.entry_id: None}, synchronize_session=False
+        )
         db.delete(e)
         db.commit()
     return {"ok": True}
