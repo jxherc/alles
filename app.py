@@ -1215,12 +1215,14 @@ app.include_router(recall_routes.router)
 app.include_router(proactive_routes.router)
 
 
-# static files — no-cache so JS/CSS always reloads
+# static code may be kept privately, but every use must validate freshness.
 class NoCacheStatic(StaticFiles):
     async def get_response(self, path, scope):
         resp = await super().get_response(path, scope)
         ext = Path(path).suffix.lower()
-        if ext in (".js", ".css", ".html"):
+        if ext in (".js", ".css"):
+            resp.headers["cache-control"] = "private, no-cache"
+        elif ext == ".html":
             resp.headers["cache-control"] = "no-cache, no-store, must-revalidate"
         return resp
 
@@ -1231,7 +1233,7 @@ app.mount("/static", NoCacheStatic(directory=str(static_dir), html=False), name=
 
 @app.get("/")
 async def index():
-    # no-cache so the SPA shell never goes stale (JS/CSS already no-cache via NoCacheStatic)
+    # Never retain the shell; static code validates against its own file metadata.
     return FileResponse(
         str(static_dir / "index.html"),
         headers={"cache-control": "no-cache, no-store, must-revalidate"},
