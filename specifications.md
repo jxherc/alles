@@ -373,7 +373,7 @@ a real to-do list: type tasks in plain english, with recurring ones and smart vi
 - compatible task stages include backlog, next, doing, waiting, and done while the existing checked/unchecked behavior still works
 - task edits send only changed fields with their original values; conflicting saves retain both versions for review, download and explicit resolution. legacy api clients without preconditions keep their existing behavior.
 - unsaved task edits recover after reload/history in the same tab, scoped to the installation owner. storage failures show a warning and download action; closing the tab or clearing its storage is not a durable backup.
-- **active / history tabs**: checking a task off doesn't make it vanish; the **history** tab shows everything you've completed, and you can un-check one to send it back
+- **active / history tabs**: history lists up to 50 completed tasks; search finds older completed tasks too. un-check a task to return it to active work. search keeps the selected today, upcoming or someday queue.
 - tasks created anywhere (quick-capture, "extract to-dos" from a doc, the ai's `task_add` tool) all land here
 
 <p align="center"><img src="docs/screenshots/tasks.png" width="760" alt="tasks: natural-language to-dos with priorities, tags, and subtasks"></p>

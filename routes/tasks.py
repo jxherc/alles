@@ -145,12 +145,16 @@ def list_tasks(project: str = "", tag: str = "", db: DbSession = Depends(get_db)
 
 
 @router.get("/tasks/search")
-def search_tasks(q: str = "", db: DbSession = Depends(get_db)):
-    """search active tasks by title / notes / tags (case-insensitive substring)."""
+def search_tasks(q: str = "", view: str = "active", db: DbSession = Depends(get_db)):
+    """Search the selected queue; existing clients default to active tasks."""
     q = (q or "").strip()
     if not q:
         return []
-    rows = _ordered(db.query(Task).filter(Task.done == False).all())
+    rows = (
+        db.query(Task).filter(Task.done == True).order_by(Task.created_at.desc()).all()
+        if view == "done"
+        else _active_queue(view, db)
+    )
     ql = q.lower()
     hits = [
         t
@@ -190,6 +194,12 @@ def list_done(db: DbSession = Depends(get_db)):
 @router.get("/tasks/views/{view}")
 def list_view(view: str, db: DbSession = Depends(get_db)):
     """today | upcoming | someday — curated queues by due date."""
+    if view not in {"today", "upcoming", "someday"}:
+        raise HTTPException(400, "view must be today|upcoming|someday")
+    return [_fmt(t) for t in _active_queue(view, db)]
+
+
+def _active_queue(view: str, db: DbSession) -> list:
     today = date.today().isoformat()
     rows = _ordered(db.query(Task).filter(Task.done == False).all())
     if view == "today":
@@ -198,9 +208,9 @@ def list_view(view: str, db: DbSession = Depends(get_db)):
         rows = [t for t in rows if t.due_date and t.due_date[:10] > today]
     elif view == "someday":
         rows = [t for t in rows if not t.due_date]
-    else:
-        raise HTTPException(400, "view must be today|upcoming|someday")
-    return [_fmt(t) for t in rows]
+    elif view != "active":
+        raise HTTPException(400, "view must be active|done|today|upcoming|someday")
+    return rows
 
 
 class TaskBody(BaseModel):

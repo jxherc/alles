@@ -2,12 +2,14 @@
 
 Desktop and phone Chromium use real authentication, encryption, staging and records.
 Only confirmation age and explicit broken transport/response cases are controlled.
-No host service administration, remote provider or offline CLI apply runs here.
+Only owned disposable servers are stopped for real CLI apply and rollback.
+No host service administration or remote providers run here.
 """
 
 import hashlib
 import json
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -34,6 +36,7 @@ SCENARIOS = {
     "server.local-backup-file-actions": "server.management",
     "server.local-backup-retry": "server.management",
     "server.local-backup-owner-confirmation": "server.management",
+    "server.local-backup-apply-rollback": "server.management",
 }
 
 
@@ -109,7 +112,7 @@ def run_profile(browser, profile, output, records):
             base = f"http://127.0.0.1:{port}"
             password = "synthetic-owner-" + uuid.uuid4().hex
             vault_password = "synthetic-master-" + uuid.uuid4().hex
-            secret = "fixture-only-secret-" + uuid.uuid4().hex
+            secret = str(uuid.uuid4()).center(40)
             env = isolated_environment(data, run_id, port, directory)
             env.update(
                 AUTH_ENABLED="true",
@@ -293,9 +296,25 @@ def run_profile(browser, profile, output, records):
                     shot("02-vault-after-keyboard-save")
                     entries = api.get("/api/vault", headers={"X-Vault-Token": browser_token}).json()
                     entry = next(item for item in entries if item["name"] == name)
+                    note = "  first line\r\nsecond line\r\n  "
+                    assert api.patch(
+                        f"/api/vault/{entry['id']}",
+                        data={"fields": {"password": secret, "notes": note}},
+                        headers={"X-Vault-Token": browser_token},
+                    ).ok
                     page.locator(f'[data-vault-open="{entry["id"]}"]').click()
                     expect(page.locator("#vf-f-password")).to_have_value(secret)
-                    page.keyboard.press("Escape")
+                    edited_secret = str(uuid.uuid4()).center(44)
+                    page.locator("#vf-f-password").fill(edited_secret)
+                    page.locator("#vf-save").click()
+                    expect(page.locator("#vf-name")).to_have_count(0)
+                    revealed = api.get(
+                        f"/api/vault/{entry['id']}/reveal",
+                        headers={"X-Vault-Token": browser_token},
+                    ).json()
+                    assert revealed["value"] == edited_secret
+                    assert revealed["fields"]["notes"] == note
+                    secret = edited_secret
                     page.locator("#vault-lock-btn").click()
                     expect(page.locator("#vault-pw-input")).to_be_visible()
                     assert (
@@ -521,6 +540,126 @@ def run_profile(browser, profile, output, records):
                     assert len(console_errors) == sum(expected_http.values()) + 1, events
                     passed(
                         "real expired confirmation supports cancel, wrong password and successful multipart retry; stage and original notes persist"
+                    )
+
+                    begin("server.local-backup-apply-rollback")
+                    select(choose_key, key)
+                    restore_id = stage_selected()
+                    after = api.post(
+                        "/api/notes",
+                        data={"title": "after backup", "content": "rollback must retain this"},
+                    )
+                    assert after.ok
+                    after_notes = api.get("/api/notes").json()
+                    from services.backup_recovery import get_staged_recovery
+
+                    staged = get_staged_recovery(data, restore_id)
+                    candidate = next((staged.data_dir / "vault").rglob("*.md"))
+                    candidate_bytes = candidate.read_bytes()
+                    page.goto("about:blank")
+                    stop_process(process, process_group=False)
+                    assert process.poll() is not None
+                    cli_env = dict(env)
+                    cli_env.pop("ALLES_DB", None)
+
+                    def cli_restore(arguments, label):
+                        with (directory / (label + ".log")).open("w") as log:
+                            completed = subprocess.run(
+                                [sys.executable, str(ROOT / "cli.py"), "restore", *arguments],
+                                cwd=ROOT,
+                                env=cli_env,
+                                stdout=log,
+                                stderr=subprocess.STDOUT,
+                                timeout=180,
+                            )
+                        text = (directory / (label + ".log")).read_text()
+                        current[label] = {"exit_code": completed.returncode, "output": text}
+                        return completed.returncode, text
+
+                    original_db_hash = hashlib.sha256((data / "aide.db").read_bytes()).hexdigest()
+                    candidate.write_bytes(candidate_bytes + b"\nsynthetic damage\n")
+                    code, text = cli_restore(["apply", restore_id], "rejected-stage")
+                    assert "live data was not changed" in text, text
+                    assert code != 0, text
+                    assert (
+                        hashlib.sha256((data / "aide.db").read_bytes()).hexdigest()
+                        == original_db_hash
+                    )
+                    candidate.write_bytes(candidate_bytes)
+                    code, text = cli_restore(["apply", restore_id], "applied-stage")
+                    assert code == 0 and "restore applied safely" in text, text
+                    operation_id = re.search(r"operation=([0-9a-f]{32})", text).group(1)
+
+                    def reboot():
+                        nonlocal process
+                        (data / ".alles-test-owner").write_text(run_id)
+                        process = subprocess.Popen(
+                            [sys.executable, str(Path(__file__).resolve()), "--server"],
+                            cwd=ROOT,
+                            env=env,
+                            stdout=server_log,
+                            stderr=subprocess.STDOUT,
+                            start_new_session=False,
+                        )
+                        wait_for_server(process, port, run_id, 90)
+                        assert api.post("/api/auth/login", data={"password": password}).ok
+
+                    reboot()
+                    restored_notes = api.get("/api/notes").json()
+                    current["restored_notes"] = {"before": before_notes, "after": restored_notes}
+
+                    # API updated_at is filesystem mtime, which reflects extraction;
+                    # every stored field and the complete document hash must match.
+                    def contents(rows):
+                        return sorted(
+                            [{k: v for k, v in item.items() if k != "updated_at"} for item in rows],
+                            key=lambda item: item["id"],
+                        )
+
+                    assert contents(restored_notes) == contents(before_notes), current[
+                        "restored_notes"
+                    ]
+                    page.goto(base + "/?view=vault")
+                    restored_token = unlock()
+                    page.locator(f'[data-vault-open="{entry["id"]}"]').click()
+                    expect(page.locator("#vf-f-password")).to_have_value(secret)
+                    shot("05-restored-vault")
+                    assert (
+                        api.get(
+                            f"/api/vault/{entry['id']}/reveal",
+                            headers={"X-Vault-Token": restored_token},
+                        ).json()["value"]
+                        == secret
+                    )
+                    page.keyboard.press("Escape")
+                    page.goto("about:blank")
+                    stop_process(process, process_group=False)
+                    code, text = cli_restore(["rollback", operation_id], "rolled-back")
+                    assert code == 0, text
+                    reboot()
+                    rolled_notes = api.get("/api/notes").json()
+                    current["rolled_notes"] = {"before": after_notes, "after": rolled_notes}
+                    assert contents(rolled_notes) == contents(after_notes), current["rolled_notes"]
+                    page.goto(base + "/?view=vault")
+                    unlock()
+                    page.locator(f'[data-vault-open="{entry["id"]}"]').click()
+                    expect(page.locator("#vf-f-password")).to_have_value(secret)
+                    shot("06-rollback-vault")
+                    assert not events["page_errors"], events
+                    assert (
+                        Counter((x["path"], x["status"]) for x in events["http_errors"])
+                        == expected_http
+                    ), events
+                    assert (
+                        Counter((x["path"], x["failure"]) for x in events["failed_requests"])
+                        == expected_failures
+                    ), events
+                    assert (
+                        len([x for x in events["console"] if x["type"] == "error"])
+                        == sum(expected_http.values()) + 1
+                    ), events
+                    passed(
+                        "real browser export/stage; rejected damaged stage leaves database bytes unchanged; CLI apply, reboot and exact note/secret read-back; CLI rollback and original later notes retained"
                     )
             finally:
                 try:
