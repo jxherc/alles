@@ -53,6 +53,7 @@ function _applyFontSize(sz) {
 
 // ── pane navigation ───────────────────────────────────────────────────────────
 let _activePane = 'general';
+let _developerOpening = 0;
 const _ownedPanes = {
   home: homePane,
   notifications: languagePane,
@@ -65,6 +66,7 @@ const _ownedPanes = {
 function _switchPane(name) {
   closeCustomDropdowns(document.getElementById('settings-modal'));
   _ownedPanes[_activePane]?.dispose();
+  _invalidateRetainedReads(_activePane);
   // unknown pane key (e.g. a stale 'appearance') would leave every pane inactive →
   // a blank modal. fall back to the consolidated General pane.
   if (!document.getElementById(`s-pane-${name}`)) name = 'general';
@@ -137,6 +139,7 @@ export function closeSettings() {
   if (!modal || modal.style.display === 'none') return;
   closeCustomDropdowns(document.getElementById('settings-modal'));
   _ownedPanes[_activePane]?.dispose();
+  _invalidateRetainedReads(_activePane);
   modal.style.display = 'none';
   const target = _settingsReturnFocus?.isConnected
     ? _settingsReturnFocus
@@ -826,6 +829,48 @@ async function saveVoiceSettings() {
 // ── personas ──────────────────────────────────────────────────────────────────
 let _personaCache = [];
 let _editingPersona = null;
+let _personaSavePending = false;
+let _personaSavingId = null;
+let _personaDocSavingId = null;
+let _personaReadGeneration = 0;
+let _personaDocsReadGeneration = 0;
+const _personaDeletes = new Set();
+const _personaDocDeletes = new Set();
+const _personaDuplicates = new Set();
+
+function _isSettingsPaneOpen(name) {
+  const modal = document.getElementById('settings-modal');
+  return _activePane === name && !!modal && modal.style.display !== 'none';
+}
+
+function _invalidateRetainedReads(name) {
+  if (name === 'personas') {
+    ++_personaReadGeneration;
+    ++_personaDocsReadGeneration;
+    ++_cookbookReadGeneration;
+  } else if (name === 'developer') {
+    ++_developerOpening;
+    ++_tokenReadGeneration;
+    ++_webhookReadGeneration;
+  }
+}
+
+function _personaRemovalPending(id) {
+  return _personaDeletes.has(id) || _personaSavingId === id || _personaDocSavingId === id;
+}
+
+function _refreshPersonaPendingControls() {
+  const save = document.getElementById('persona-add-btn');
+  if (save) save.disabled = _personaSavePending || _personaDeletes.has(_editingPersona);
+  const addDoc = document.getElementById('persona-doc-add');
+  if (addDoc) addDoc.disabled = !!_personaDocSavingId || _personaDeletes.has(_editingPersona);
+  document.querySelectorAll('#persona-list [data-persona-remove]').forEach(button => {
+    button.disabled = _personaRemovalPending(button.dataset.id);
+  });
+  document.querySelectorAll('#persona-list [data-persona-duplicate]').forEach(button => {
+    button.disabled = _personaDuplicates.has(button.dataset.id);
+  });
+}
 
 // ── temperature: btop-style block meter (null = auto/provider default) ──
 // 0..2 in hard 0.1 steps. each lit cell is coloured by its POSITION on the scale,
@@ -952,7 +997,20 @@ export async function loadPersonas() {
   if (!el) return;
   _fillPersonaModels(document.getElementById('persona-model')?.value || '');
   _buildPersonaAccents();
-  _personaCache = await fetch('/api/personas').then(r => r.json()).catch(() => []);
+  const read = ++_personaReadGeneration;
+  let personas;
+  try {
+    const response = await fetch('/api/personas');
+    if (!response.ok) throw new Error('personas read failed');
+    personas = await response.json();
+    if (!Array.isArray(personas)) throw new Error('invalid personas response');
+  } catch {
+    if (read === _personaReadGeneration && _isSettingsPaneOpen('personas'))
+      toast('personas could not be loaded', 'error');
+    return;
+  }
+  if (read !== _personaReadGeneration || !_isSettingsPaneOpen('personas')) return;
+  _personaCache = personas;
   if (!_personaCache.length) { el.innerHTML = '<div class="settings-row-empty">no personas yet</div>'; return; }
   el.innerHTML = _personaCache.map(p => {
     const prev = (p.system_prompt || '').replace(/\s+/g, ' ').trim();
@@ -960,8 +1018,8 @@ export async function loadPersonas() {
     <div class="settings-list-row persona-row${_editingPersona === p.id ? ' editing' : ''}" data-id="${p.id}" onclick="window._editPersona('${p.id}')">
       <span class="row-name">${_esc(p.name)}${p.is_default ? ' <span class="row-tag">default</span>' : ''}</span>
       <span class="row-meta">${_esc(prev.slice(0, 60))}${prev.length > 60 ? '…' : ''}</span>
-      <button class="act-btn" data-id="${p.id}" onclick="event.stopPropagation();window._dupPersona('${p.id}')">duplicate</button>
-      <button class="act-btn" data-id="${p.id}" onclick="event.stopPropagation();window._rmPersona(this)">remove</button>
+      <button class="act-btn" data-id="${p.id}" data-persona-duplicate ${_personaDuplicates.has(p.id) ? 'disabled' : ''} onclick="event.stopPropagation();window._dupPersona('${p.id}')">duplicate</button>
+      <button class="act-btn" data-id="${p.id}" data-persona-remove ${_personaRemovalPending(p.id) ? 'disabled' : ''} onclick="event.stopPropagation();window._rmPersona(this)">remove</button>
     </div>`;
   }).join('');
 }
@@ -969,6 +1027,8 @@ export async function loadPersonas() {
 window._editPersona = id => {
   const p = _personaCache.find(x => x.id === id);
   if (!p) return;
+  ++_personaDocsReadGeneration;
+  if (_editingPersona !== id) document.getElementById('persona-docs')?.replaceChildren();
   _editingPersona = id;
   document.getElementById('persona-name').value   = p.name || '';
   document.getElementById('persona-prompt').value = p.system_prompt || '';
@@ -986,6 +1046,7 @@ window._editPersona = id => {
   if (extra) extra.hidden = false;   // 10d — knowledge files + share for a saved persona
   _loadPersonaDocs(id);
   loadPersonas();   // re-render so the active row highlights
+  _refreshPersonaPendingControls();
   document.getElementById('persona-prompt').focus();
 };
 
@@ -993,38 +1054,78 @@ window._editPersona = id => {
 async function _loadPersonaDocs(pid) {
   const box = document.getElementById('persona-docs');
   if (!box) return;
+  const read = ++_personaDocsReadGeneration;
   let docs;
-  try { docs = await fetch(`/api/personas/${pid}/docs`).then(r => r.json()); }
-  catch { box.innerHTML = ''; return; }
+  try {
+    const response = await fetch(`/api/personas/${pid}/docs`);
+    if (!response.ok) throw new Error('knowledge files read failed');
+    docs = await response.json();
+    if (!Array.isArray(docs)) throw new Error('invalid knowledge files response');
+  } catch {
+    if (read === _personaDocsReadGeneration && _editingPersona === pid && _isSettingsPaneOpen('personas'))
+      toast('knowledge files could not be loaded', 'error');
+    return;
+  }
+  if (read !== _personaDocsReadGeneration || _editingPersona !== pid || !_isSettingsPaneOpen('personas')) return;
   box.innerHTML = docs.length
     ? docs.map(d => `<div class="persona-doc-row"><span>📄 ${_esc(d.title)}</span>` +
-        `<button class="act-btn" data-id="${_escAttr(d.id)}">remove</button></div>`).join('')
+        `<button class="act-btn" data-id="${_escAttr(d.id)}" data-persona-doc-remove ${_personaDocDeletes.has(`${pid}/${d.id}`) ? 'disabled' : ''}>remove</button></div>`).join('')
     : '<div class="settings-row-empty">no knowledge files yet</div>';
   box.querySelectorAll('.act-btn').forEach(b => b.onclick = async () => {
-    await fetch(`/api/personas/${pid}/docs/${b.dataset.id}`, { method: 'DELETE' });
-    _loadPersonaDocs(pid);
+    const id = b.dataset.id;
+    const key = `${pid}/${id}`;
+    if (_personaDocDeletes.has(key)) return;
+    _personaDocDeletes.add(key);
+    ++_personaDocsReadGeneration;
+    b.disabled = true;
+    try {
+      const response = await fetch(`/api/personas/${pid}/docs/${id}`, { method: 'DELETE' });
+      if (!response.ok) { toast('knowledge file could not be removed', 'error'); return; }
+      if (_editingPersona === pid) _loadPersonaDocs(pid);
+    } catch { toast('knowledge file could not be removed', 'error'); }
+    finally {
+      _personaDocDeletes.delete(key);
+      b.disabled = false;
+      box.querySelectorAll('[data-persona-doc-remove]').forEach(button => {
+        if (button.dataset.id === id) button.disabled = false;
+      });
+    }
   });
 }
 
 async function _addPersonaDoc() {
-  if (!_editingPersona) return;
-  const title = document.getElementById('persona-doc-title').value.trim();
-  const content = document.getElementById('persona-doc-content').value.trim();
+  const pid = _editingPersona;
+  if (!pid || _personaDocSavingId || _personaDeletes.has(pid)) return;
+  const fields = ['persona-doc-title', 'persona-doc-content'];
+  const submitted = fields.map(id => document.getElementById(id).value);
+  const [title, content] = submitted.map(value => value.trim());
   if (!content) { toast('paste some text first', 'error'); return; }
-  await fetch(`/api/personas/${_editingPersona}/docs`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title: title || 'untitled', content }),
-  });
-  document.getElementById('persona-doc-title').value = '';
-  document.getElementById('persona-doc-content').value = '';
-  toast('knowledge file added', 'success');
-  _loadPersonaDocs(_editingPersona);
+  _personaDocSavingId = pid;
+  ++_personaDocsReadGeneration;
+  _refreshPersonaPendingControls();
+  try {
+    const response = await fetch(`/api/personas/${pid}/docs`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: title || 'untitled', content }),
+    });
+    if (!response.ok) { toast('knowledge file could not be added', 'error'); return; }
+    if (_editingPersona === pid) {
+      if (fields.every((id, index) => document.getElementById(id).value === submitted[index]))
+        fields.forEach(id => { document.getElementById(id).value = ''; });
+      _loadPersonaDocs(pid);
+    }
+    toast('knowledge file added', 'success');
+  } catch { toast('knowledge file could not be added', 'error'); }
+  finally { _personaDocSavingId = null; _refreshPersonaPendingControls(); }
 }
 
 async function _sharePersona() {
   if (!_editingPersona) return;
   try {
-    const r = await fetch(`/api/personas/${_editingPersona}/share`, { method: 'POST' }).then(x => x.json());
+    const response = await fetch(`/api/personas/${_editingPersona}/share`, { method: 'POST' });
+    if (!response.ok) { toast('share failed', 'error'); return; }
+    const r = await response.json();
+    if (typeof r.url !== 'string' || !r.url) { toast('share failed', 'error'); return; }
     const url = location.origin + r.url;
     try { await navigator.clipboard.writeText(url); toast('share link copied', 'success'); }
     catch { toast(url, ''); }
@@ -1032,6 +1133,7 @@ async function _sharePersona() {
 }
 
 function _resetPersonaForm() {
+  ++_personaDocsReadGeneration;
   _editingPersona = null;
   ['persona-name','persona-prompt','persona-initial'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   _fillPersonaModels('');
@@ -1044,84 +1146,182 @@ function _resetPersonaForm() {
   document.getElementById('persona-add-btn').textContent = 'add persona';
   document.getElementById('persona-cancel-btn').hidden = true;
   const extra = document.getElementById('persona-extra'); if (extra) extra.hidden = true;
+  _refreshPersonaPendingControls();
   loadPersonas();
 }
 
 window._rmPersona = async btn => {
-  await fetch(`/api/personas/${btn.dataset.id}`, { method: 'DELETE' });
-  if (_editingPersona === btn.dataset.id) _resetPersonaForm();
-  else loadPersonas();
-  window._refreshPersonaBtn?.();
+  const id = btn.dataset.id;
+  if (_personaRemovalPending(id)) return;
+  _personaDeletes.add(id);
+  ++_personaReadGeneration;
+  if (_editingPersona === id) ++_personaDocsReadGeneration;
+  _refreshPersonaPendingControls();
+  try {
+    const response = await fetch(`/api/personas/${id}`, { method: 'DELETE' });
+    if (!response.ok) { toast('persona could not be removed', 'error'); return; }
+    if (_editingPersona === id) _resetPersonaForm();
+    else loadPersonas();
+    window._refreshPersonaBtn?.();
+  } catch { toast('persona could not be removed', 'error'); }
+  finally {
+    _personaDeletes.delete(id);
+    btn.disabled = false;
+    _refreshPersonaPendingControls();
+  }
 };
 
 window._dupPersona = async id => {
-  const r = await fetch(`/api/personas/${id}/duplicate`, { method: 'POST' });
-  if (r.ok) { toast('duplicated', 'success'); loadPersonas(); window._refreshPersonaBtn?.(); }
+  if (_personaDuplicates.has(id)) return;
+  _personaDuplicates.add(id);
+  ++_personaReadGeneration;
+  _refreshPersonaPendingControls();
+  try {
+    const response = await fetch(`/api/personas/${id}/duplicate`, { method: 'POST' });
+    if (!response.ok) { toast('persona could not be duplicated', 'error'); return; }
+    toast('duplicated', 'success'); loadPersonas(); window._refreshPersonaBtn?.();
+  } catch { toast('persona could not be duplicated', 'error'); }
+  finally { _personaDuplicates.delete(id); _refreshPersonaPendingControls(); }
 };
 
+function _personaDraft() {
+  return {
+    editing: _editingPersona,
+    fields: {
+      name: document.getElementById('persona-name').value,
+      system_prompt: document.getElementById('persona-prompt').value,
+      initial_message: document.getElementById('persona-initial')?.value || '',
+      model: document.getElementById('persona-model')?.value || '',
+      temperature: _tempOn ? _tempVal : null,
+      is_default: !!document.getElementById('persona-default')?.classList.contains('on'),
+      default_mode: _getPersonaMode(),
+      accent: _getPersonaAccent(),
+    },
+    docTitle: document.getElementById('persona-doc-title')?.value || '',
+    docContent: document.getElementById('persona-doc-content')?.value || '',
+  };
+}
+
 async function addPersona() {
-  const name   = document.getElementById('persona-name').value.trim();
-  const prompt = document.getElementById('persona-prompt').value.trim();
-  const initial_message = document.getElementById('persona-initial')?.value.trim() || '';
-  const model  = document.getElementById('persona-model')?.value || '';
-  const temperature = _tempOn ? _tempVal : null;
-  const is_default = !!document.getElementById('persona-default')?.classList.contains('on');
-  const default_mode = _getPersonaMode();
-  const accent = _getPersonaAccent();
-  if (!name) { toast('name required', 'error'); return; }
-  const payload = { name, system_prompt: prompt, initial_message, model, temperature, default_mode, accent, is_default };
-  if (_editingPersona) {
-    await fetch(`/api/personas/${_editingPersona}`, { method: 'PATCH', headers: {'content-type':'application/json'},
-      body: JSON.stringify(payload) });
-    toast('persona updated', 'success');
-  } else {
-    await fetch('/api/personas', { method: 'POST', headers: {'content-type':'application/json'},
-      body: JSON.stringify(payload) });
-    toast('persona added', 'success');
-  }
-  _resetPersonaForm();
-  window._refreshPersonaBtn?.();
+  if (_personaSavePending || _personaDeletes.has(_editingPersona)) return;
+  const submitted = _personaDraft();
+  const payload = { ...submitted.fields, name: submitted.fields.name.trim(),
+    system_prompt: submitted.fields.system_prompt.trim(),
+    initial_message: submitted.fields.initial_message.trim() };
+  if (!payload.name) { toast('name required', 'error'); return; }
+  _personaSavePending = true;
+  _personaSavingId = submitted.editing;
+  ++_personaReadGeneration;
+  _refreshPersonaPendingControls();
+  try {
+    const response = await fetch(submitted.editing ? `/api/personas/${submitted.editing}` : '/api/personas', {
+      method: submitted.editing ? 'PATCH' : 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) { toast('persona could not be saved', 'error'); return; }
+    toast(submitted.editing ? 'persona updated' : 'persona added', 'success');
+    if (JSON.stringify(_personaDraft()) === JSON.stringify(submitted)) _resetPersonaForm();
+    else loadPersonas();
+    window._refreshPersonaBtn?.();
+  } catch { toast('persona could not be saved', 'error'); }
+  finally { _personaSavePending = false; _personaSavingId = null; _refreshPersonaPendingControls(); }
 }
 
 // ── cookbook ──────────────────────────────────────────────────────────────────
+let _cookbookSavePending = false;
+let _cookbookReadGeneration = 0;
+const _cookbookDeletes = new Set();
+
 export async function loadCookbook() {
   const el = document.getElementById('cookbook-list');
   if (!el) return;
-  const entries = await fetch('/api/cookbook').then(r => r.json()).catch(() => []);
+  const read = ++_cookbookReadGeneration;
+  let entries;
+  try {
+    const response = await fetch('/api/cookbook');
+    if (!response.ok) throw new Error('commands read failed');
+    entries = await response.json();
+    if (!Array.isArray(entries)) throw new Error('invalid commands response');
+  } catch {
+    if (read === _cookbookReadGeneration && _isSettingsPaneOpen('personas'))
+      toast('commands could not be loaded', 'error');
+    return;
+  }
+  if (read !== _cookbookReadGeneration || !_isSettingsPaneOpen('personas')) return;
   if (!entries.length) { el.innerHTML = '<div class="settings-row-empty">no commands: type / in chat to use</div>'; return; }
   el.innerHTML = entries.map(e => `
     <div class="settings-list-row">
       <span class="row-name" style="color:var(--accent)">/${_esc(e.name)}</span>
       <span class="row-meta">${_esc(e.description || e.prompt.slice(0,40))}</span>
-      <button class="act-btn" data-id="${e.id}" onclick="window._rmCookbook(this)">remove</button>
+      <button class="act-btn" data-id="${e.id}" data-cookbook-remove ${_cookbookDeletes.has(e.id) ? 'disabled' : ''} onclick="window._rmCookbook(this)">remove</button>
     </div>`).join('');
 }
 
 window._rmCookbook = async btn => {
-  await fetch(`/api/cookbook/${btn.dataset.id}`, { method: 'DELETE' });
-  loadCookbook();
+  const id = btn.dataset.id;
+  if (_cookbookDeletes.has(id)) return;
+  _cookbookDeletes.add(id);
+  ++_cookbookReadGeneration;
+  btn.disabled = true;
+  try {
+    const response = await fetch(`/api/cookbook/${id}`, { method: 'DELETE' });
+    if (!response.ok) { toast('command could not be removed', 'error'); return; }
+    loadCookbook();
+  } catch { toast('command could not be removed', 'error'); }
+  finally {
+    _cookbookDeletes.delete(id);
+    btn.disabled = false;
+    document.querySelectorAll('#cookbook-list [data-cookbook-remove]').forEach(button => {
+      if (button.dataset.id === id) button.disabled = false;
+    });
+  }
 };
 
 async function addCookbookEntry() {
-  const name   = document.getElementById('cookbook-name').value.trim();
-  const desc   = document.getElementById('cookbook-desc').value.trim();
-  const prompt = document.getElementById('cookbook-prompt').value.trim();
+  if (_cookbookSavePending) return;
+  const fields = ['cookbook-name','cookbook-desc','cookbook-prompt'];
+  const submitted = fields.map(id => document.getElementById(id).value);
+  const [name, description, prompt] = submitted.map(value => value.trim());
   if (!name || !prompt) { toast('name + prompt required', 'error'); return; }
-  await fetch('/api/cookbook', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, description: desc, prompt }) });
-  ['cookbook-name','cookbook-desc','cookbook-prompt'].forEach(id => document.getElementById(id).value = '');
-  toast('added', 'success');
-  loadCookbook();
+  const button = document.getElementById('cookbook-add-btn');
+  _cookbookSavePending = true;
+  ++_cookbookReadGeneration;
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/cookbook', { method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ name, description, prompt }) });
+    if (!response.ok) { toast('command could not be saved', 'error'); return; }
+    if (fields.every((id, index) => document.getElementById(id).value === submitted[index]))
+      fields.forEach(id => document.getElementById(id).value = '');
+    toast('added', 'success');
+    loadCookbook();
+  } catch { toast('command could not be saved', 'error'); }
+  finally { _cookbookSavePending = false; button.disabled = false; }
 }
 
 // (session templates were merged into personas — a persona's "starter message" now
 //  does what a template's initial message did; see openPersonaPicker in app.js)
 
 // ── api tokens ────────────────────────────────────────────────────────────────
+let _tokenCreatePending = false;
+let _tokenReadGeneration = 0;
+const _tokenRevokes = new Set();
 async function loadTokens() {
   const el = document.getElementById('token-list');
   if (!el) return;
-  const tokens = await fetch('/api/tokens').then(r => r.json()).catch(() => []);
+  const read = ++_tokenReadGeneration;
+  let tokens;
+  try {
+    const response = await fetch('/api/tokens');
+    if (!response.ok) throw new Error('tokens read failed');
+    tokens = await response.json();
+    if (!Array.isArray(tokens)) throw new Error('invalid tokens response');
+  } catch {
+    if (read === _tokenReadGeneration && _isSettingsPaneOpen('developer'))
+      toast('tokens could not be loaded', 'error');
+    return;
+  }
+  if (read !== _tokenReadGeneration || !_isSettingsPaneOpen('developer')) return;
   if (!tokens.length) { el.innerHTML = '<div class="settings-row-empty">no tokens</div>'; return; }
   el.innerHTML = tokens.map(t => `
     <div class="settings-list-row">
@@ -1129,48 +1329,112 @@ async function loadTokens() {
       <span class="row-meta">${_esc(t.name)}</span>
       <span class="row-meta">${(t.scopes || []).map(_esc).join(', ') || 'no access'}</span>
       <span class="row-meta">${t.last_used_at ? 'used ' + formatDate(t.last_used_at) : 'never used'}</span>
-      <button class="act-btn" data-id="${t.id}" onclick="window._rmToken(this)">revoke</button>
+      <button class="act-btn" data-id="${t.id}" data-token-revoke ${_tokenRevokes.has(t.id) ? 'disabled' : ''} onclick="window._rmToken(this)">revoke</button>
     </div>`).join('');
 }
 
 window._rmToken = async btn => {
-  const r = await _fetchWithRecentOwner(`/api/tokens/${btn.dataset.id}`, { method: 'DELETE' });
-  if (!r.ok) { toast('token could not be revoked', 'error'); return; }
-  loadTokens();
+  const id = btn.dataset.id;
+  if (_tokenRevokes.has(id)) return;
+  const restoreFocus = document.activeElement === btn;
+  const opening = _developerOpening;
+  _tokenRevokes.add(id);
+  ++_tokenReadGeneration;
+  btn.disabled = true;
+  try {
+    const response = await _fetchWithRecentOwner(`/api/tokens/${id}`, { method: 'DELETE' });
+    if (!response.ok) { toast('token could not be revoked', 'error'); return; }
+    loadTokens();
+  } catch { toast('token could not be revoked', 'error'); }
+  finally {
+    _tokenRevokes.delete(id);
+    btn.disabled = false;
+    let currentButton = btn;
+    document.querySelectorAll('#token-list [data-token-revoke]').forEach(button => {
+      if (button.dataset.id === id) { button.disabled = false; currentButton = button; }
+    });
+    if (restoreFocus && opening === _developerOpening && _isSettingsPaneOpen('developer') &&
+        document.activeElement === document.body && currentButton.isConnected && !currentButton.disabled)
+      currentButton.focus({ preventScroll: true });
+  }
 };
 
 async function generateToken() {
-  const name = document.getElementById('token-name').value.trim();
+  if (_tokenCreatePending) return;
+  const input = document.getElementById('token-name');
+  const submittedName = input.value;
+  const name = submittedName.trim();
   if (!name) { toast('name required', 'error'); return; }
   const scopes = [...document.querySelectorAll('[data-token-scope].active')]
     .map(btn => btn.dataset.tokenScope);
   if (!scopes.length) { toast('choose at least one permission', 'error'); return; }
-  const create = () => _fetchWithRecentOwner('/api/tokens', {
-    method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, scopes }),
-  });
-  const r = await create();
-  const data = await r.json();
-  if (!r.ok) { toast(data.detail || 'token could not be created', 'error'); return; }
-  document.getElementById('token-name').value = '';
-  const reveal = document.getElementById('token-reveal');
-  reveal.style.display = 'block';
-  reveal.textContent = data.token;
-  reveal.title = 'click to copy';
-  reveal.onclick = () => {
-    navigator.clipboard.writeText(data.token).then(() => toast('token copied', 'success'));
-  };
-  toast('token generated: copy it now, shown once', 'success');
-  loadTokens();
+  const button = document.getElementById('token-add-btn');
+  const restoreFocus = document.activeElement === button;
+  const opening = _developerOpening;
+  _tokenCreatePending = true;
+  ++_tokenReadGeneration;
+  button.disabled = true;
+  try {
+    const r = await _fetchWithRecentOwner('/api/tokens', {
+      method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ name, scopes }),
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.detail || 'token could not be created', 'error'); return; }
+    const currentScopes = [...document.querySelectorAll('[data-token-scope].active')]
+      .map(btn => btn.dataset.tokenScope);
+    if (input.value === submittedName && JSON.stringify(currentScopes) === JSON.stringify(scopes)) input.value = '';
+    const reveal = document.getElementById('token-reveal');
+    reveal.style.display = 'block';
+    reveal.textContent = data.token;
+    reveal.title = 'click to copy';
+    reveal.onclick = () => {
+      navigator.clipboard.writeText(data.token).then(() => toast('token copied', 'success'));
+    };
+    toast('token generated: copy it now, shown once', 'success');
+    loadTokens();
+  } catch { toast('token could not be created', 'error'); }
+  finally {
+    _tokenCreatePending = false;
+    button.disabled = false;
+    if (restoreFocus && opening === _developerOpening && _isSettingsPaneOpen('developer') &&
+        document.activeElement === document.body && button.isConnected &&
+        document.getElementById('token-add-btn') === button)
+      button.focus({ preventScroll: true });
+  }
 }
 
 // ── webhooks ──────────────────────────────────────────────────────────────────
+let _webhookSavePending = false;
+let _webhookReadGeneration = 0;
+const _webhookDeletes = new Set();
+const _webhookTests = new Set();
+function _refreshWebhookPendingControls() {
+  document.querySelectorAll('#webhook-list [data-webhook-test], #webhook-list [data-webhook-remove]').forEach(button => {
+    const id = button.dataset.id;
+    button.disabled = _webhookTests.has(id) || _webhookDeletes.has(id);
+    if (button.hasAttribute('data-webhook-test')) button.textContent = _webhookTests.has(id) ? '…' : 'test';
+  });
+}
 async function loadWebhooks() {
   const el = document.getElementById('webhook-list');
   if (!el) return;
-  const hooks = await fetch('/api/webhooks').then(r => r.json()).catch(() => []);
+  const read = ++_webhookReadGeneration;
+  let hooks;
+  try {
+    const response = await fetch('/api/webhooks');
+    if (!response.ok) throw new Error('webhooks read failed');
+    hooks = await response.json();
+    if (!Array.isArray(hooks)) throw new Error('invalid webhooks response');
+  } catch {
+    if (read === _webhookReadGeneration && _isSettingsPaneOpen('developer'))
+      toast('webhooks could not be loaded', 'error');
+    return;
+  }
+  if (read !== _webhookReadGeneration || !_isSettingsPaneOpen('developer')) return;
   if (!hooks.length) { el.innerHTML = '<div class="settings-row-empty">no webhooks</div>'; return; }
   el.innerHTML = hooks.map(h => {
+    const pending = _webhookTests.has(h.id) || _webhookDeletes.has(h.id);
     const st = h.last_status === 'ok' ? ' · ✓ ok'
       : h.last_status ? ` · ✕ ${_esc(h.last_error || h.last_status)}` : '';
     return `
@@ -1179,36 +1443,72 @@ async function loadWebhooks() {
       <span class="row-name">${_esc(h.name)}</span>
       <span class="row-meta">${h.events.join(', ')}${st}</span>
       ${h.secret ? `<code class="wh-secret" title="HMAC-SHA256 signing key: verify the X-Alles-Signature header with this" onclick="navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()" style="font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${_esc(h.secret)}</code>` : ''}
-      <button class="act-btn" data-id="${h.id}" onclick="window._testWebhook(this)">test</button>
-      <button class="act-btn" data-id="${h.id}" onclick="window._rmWebhook(this)">remove</button>
+      <button class="act-btn" data-id="${h.id}" data-webhook-test ${pending ? 'disabled' : ''} onclick="window._testWebhook(this)">${_webhookTests.has(h.id) ? '…' : 'test'}</button>
+      <button class="act-btn" data-id="${h.id}" data-webhook-remove ${pending ? 'disabled' : ''} onclick="window._rmWebhook(this)">remove</button>
     </div>`;
   }).join('');
 }
 
 window._testWebhook = async btn => {
+  const id = btn.dataset.id;
+  if (_webhookTests.has(id) || _webhookDeletes.has(id)) return;
+  _webhookTests.add(id);
+  ++_webhookReadGeneration;
   btn.disabled = true; const old = btn.textContent; btn.textContent = '…';
+  _refreshWebhookPendingControls();
   try {
-    const r = await fetch(`/api/webhooks/${btn.dataset.id}/test`, { method: 'POST' }).then(r => r.json());
+    const response = await fetch(`/api/webhooks/${id}/test`, { method: 'POST' });
+    if (!response.ok) throw new Error('webhook test failed');
+    const r = await response.json();
     toast(r.status === 'ok' ? 'webhook delivered ✓' : `failed: ${r.error || r.status}`, r.status === 'ok' ? 'success' : 'error');
   } catch { toast('test failed', 'error'); }
-  btn.disabled = false; btn.textContent = old;
+  finally {
+    _webhookTests.delete(id);
+    btn.disabled = false; btn.textContent = old;
+    _refreshWebhookPendingControls();
+  }
   loadWebhooks();
 };
 
 window._rmWebhook = async btn => {
-  await fetch(`/api/webhooks/${btn.dataset.id}`, { method: 'DELETE' });
-  loadWebhooks();
+  const id = btn.dataset.id;
+  if (_webhookDeletes.has(id) || _webhookTests.has(id)) return;
+  _webhookDeletes.add(id);
+  ++_webhookReadGeneration;
+  btn.disabled = true;
+  _refreshWebhookPendingControls();
+  try {
+    const response = await fetch(`/api/webhooks/${id}`, { method: 'DELETE' });
+    if (!response.ok) { toast('webhook could not be removed', 'error'); return; }
+    loadWebhooks();
+  } catch { toast('webhook could not be removed', 'error'); }
+  finally {
+    _webhookDeletes.delete(id);
+    btn.disabled = false;
+    _refreshWebhookPendingControls();
+  }
 };
 
 async function addWebhook() {
-  const name = document.getElementById('wh-name').value.trim();
-  const url  = document.getElementById('wh-url').value.trim();
+  if (_webhookSavePending) return;
+  const fields = ['wh-name','wh-url'];
+  const submitted = fields.map(id => document.getElementById(id).value);
+  const [name, url] = submitted.map(value => value.trim());
   if (!name || !url) { toast('name + url required', 'error'); return; }
-  await fetch('/api/webhooks', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, url, events: ['message'] }) });
-  ['wh-name','wh-url'].forEach(id => document.getElementById(id).value = '');
-  toast('webhook added', 'success');
-  loadWebhooks();
+  const button = document.getElementById('wh-add-btn');
+  _webhookSavePending = true;
+  ++_webhookReadGeneration;
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/webhooks', { method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ name, url, events: ['message'] }) });
+    if (!response.ok) { toast('webhook could not be saved', 'error'); return; }
+    if (fields.every((id, index) => document.getElementById(id).value === submitted[index]))
+      fields.forEach(id => document.getElementById(id).value = '');
+    toast('webhook added', 'success');
+    loadWebhooks();
+  } catch { toast('webhook could not be saved', 'error'); }
+  finally { _webhookSavePending = false; button.disabled = false; }
 }
 
 // ── recall pane ───────────────────────────────────────────────────────────────

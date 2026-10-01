@@ -6,15 +6,76 @@ import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdo
 import { _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 
 let _providersActive = false;
+let _providersCurrent = () => false;
 let _endpointLoadGeneration = 0;
 let _localLoadGeneration = 0;
 let _modelRolesDirty = false;
 let _modelRolesRevision = 0;
 let _oauthStartGeneration = 0;
 const _oauthPolls = new Set();
+const _endpointPending = new Set();
+const _endpointConfirmations = new Set();
+let _endpointAddPending = false;
+let _endpointAddRevision = 0;
+let _endpointAddConfigRevision = 0;
+let _endpointPartialCreate = null;
+const _localPresetPending = new Map();
+const _localPresetConfirmations = new Set();
+
+function _syncLocalPresetPending(model) {
+  document.querySelectorAll(`#s-local-presets [data-local-model="${CSS.escape(model)}"]`).forEach(row => {
+    const pending = _localPresetPending.get(model);
+    const installed = row.dataset.localInstalled === 'true';
+    row.querySelector('[data-local-state]').textContent = pending?.label || (installed ? 'installed' : 'download first');
+    row.querySelectorAll('[data-local-download], [data-local-serve], [data-local-remove]').forEach(button => {
+      const action = button.hasAttribute('data-local-download') ? 'download'
+        : button.hasAttribute('data-local-remove') ? 'remove' : 'serve';
+      button.disabled = !!pending || (action === 'serve' && !installed)
+        || (action === 'remove' && _localPresetConfirmations.has(model));
+      button.textContent = pending?.action === action ? pending.label : action;
+    });
+  });
+}
+
+function _claimLocalPreset(model, action, label) {
+  const pending = { action, label };
+  _localPresetPending.set(model, pending);
+  _localLoadGeneration += 1;
+  _syncLocalPresetPending(model);
+  return pending;
+}
+
+function _releaseLocalPreset(model, pending) {
+  if (_localPresetPending.get(model) !== pending) return;
+  _localPresetPending.delete(model);
+  _localLoadGeneration += 1;
+  _syncLocalPresetPending(model);
+}
+
+function _setEndpointPending(id, pending) {
+  if (pending) { _endpointPending.add(id); _endpointLoadGeneration += 1; }
+  else _endpointPending.delete(id);
+  document.querySelector(`#s-ep-list [data-id="${CSS.escape(id)}"]`)
+    ?.querySelectorAll('[data-save-list], [data-probe], [data-test-ep], [data-auth-refresh], [data-auth-revoke], [data-del]')
+    .forEach(button => { button.disabled = pending; });
+  _showManualEndpointFields();
+}
+
+async function _confirmEndpointAction(id, message) {
+  if (_endpointConfirmations.has(id)) return false;
+  _endpointConfirmations.add(id);
+  _endpointLoadGeneration += 1;
+  try { return await _dlgConfirm(message); }
+  finally {
+    _endpointConfirmations.delete(id);
+    _endpointLoadGeneration += 1;
+  }
+}
 
 function _hasEndpointDrafts() {
-  return !!document.querySelector('#s-ep-list [data-editor][data-dirty]');
+  // A delayed read must keep the field the owner is about to edit, too.
+  return !!document.querySelector('#s-ep-list [data-editor][data-dirty]')
+    || !!document.activeElement?.matches('#s-ep-list [data-edit-models], #s-ep-list [data-edit-adapter]');
 }
 
 // ── models pane ───────────────────────────────────────────────────────────────
@@ -39,7 +100,7 @@ async function loadLocalModels() {
     if (!_providersActive || generation !== _localLoadGeneration) return;
     ollamaEl.textContent = e.message || 'local model status failed';
     hwEl.textContent = '';
-    listEl.innerHTML = '';
+    if (!_localPresetPending.size) listEl.innerHTML = '';
   }
 }
 
@@ -54,11 +115,11 @@ function renderLocalPresets(presets) {
     const badge = p.fit === 'fits_gpu' ? 'gpu fit' : (p.fit === 'fits_cpu' ? 'cpu fit' : 'large');
     const installed = p.installed ? 'installed' : 'download first';
     const serveDisabled = p.installed ? '' : 'disabled title="download first"';
-    return `<div class="settings-list-row" style="align-items:flex-start;gap:0.55rem">
+    return `<div class="settings-list-row" data-local-model="${_escAttr(p.model)}" data-local-installed="${!!p.installed}" style="align-items:flex-start;gap:0.55rem">
       <span class="status-dot" style="margin-top:0.35rem;background:${p.installed ? 'var(--green)' : 'var(--faint)'}"></span>
       <div style="min-width:0;flex:1">
         <div class="row-name">${_esc(p.label)} <span style="color:var(--muted);font-weight:400">${_esc(p.model)}</span></div>
-        <div class="row-meta">${badge} - ${installed} - ${_esc(p.fit_reason || '')}</div>
+        <div class="row-meta">${badge} - <span data-local-state>${installed}</span> - ${_esc(p.fit_reason || '')}</div>
       </div>
       ${p.installed
         ? `<button class="btn" data-local-remove="${_escAttr(p.model)}">remove</button>`
@@ -76,6 +137,7 @@ function renderLocalPresets(presets) {
   listEl.querySelectorAll('[data-local-remove]').forEach(btn => {
     btn.addEventListener('click', () => deleteLocalModel(btn.dataset.localRemove, btn));
   });
+  presets.forEach(p => _syncLocalPresetPending(p.model));
 }
 
 async function startLocalOllama() {
@@ -93,7 +155,8 @@ async function startLocalOllama() {
 }
 
 async function downloadLocalModel(model, btn) {
-  if (!model) return;
+  if (!model || _localPresetPending.has(model)) return;
+  const pending = _claimLocalPreset(model, 'download', 'queued');
   btn.disabled = true;
   btn.textContent = 'queued';
   try {
@@ -102,19 +165,24 @@ async function downloadLocalModel(model, btn) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model }),
     });
-    pollLocalJob(job.id, btn);
+    pollLocalJob(job.id, btn, model, pending);
   } catch (e) {
+    _releaseLocalPreset(model, pending);
     btn.disabled = false;
     btn.textContent = 'download';
     toast(e.message || 'download failed to start', 'error');
   }
 }
 
-async function pollLocalJob(jobId, btn) {
-  if (!jobId) return;
+async function pollLocalJob(jobId, btn, model = null, pending = null) {
+  if (!jobId) {
+    if (model) _releaseLocalPreset(model, pending);
+    return;
+  }
   try {
     const job = await _localJson(`/api/local-models/jobs/${jobId}`);
     if (job.status === 'done') {
+      if (model) _releaseLocalPreset(model, pending);
       btn.textContent = 'downloaded';
       toast(`${job.model} downloaded`, 'success');
       loadLocalModels();
@@ -122,14 +190,20 @@ async function pollLocalJob(jobId, btn) {
       return;
     }
     if (job.status === 'error') {
+      if (model) _releaseLocalPreset(model, pending);
       btn.disabled = false;
       btn.textContent = 'download';
       toast(job.error || 'download failed', 'error');
       return;
     }
     btn.textContent = job.status === 'running' ? 'pulling...' : 'queued';
-    setTimeout(() => pollLocalJob(jobId, btn), 1800);
+    if (model && _localPresetPending.get(model) === pending) {
+      pending.label = btn.textContent;
+      _syncLocalPresetPending(model);
+    }
+    setTimeout(() => pollLocalJob(jobId, btn, model, pending), 1800);
   } catch {
+    if (model) _releaseLocalPreset(model, pending);
     btn.disabled = false;
     btn.textContent = 'download';
   }
@@ -138,7 +212,9 @@ async function pollLocalJob(jobId, btn) {
 async function pullCustomLocalModel() {
   const inp = document.getElementById('s-local-custom');
   const btn = document.getElementById('s-local-pull-btn');
-  const model = (inp?.value || '').trim();
+  if (btn.disabled) return;
+  const draft = inp?.value || '';
+  const model = draft.trim();
   if (!model) { toast('enter a model name', 'error'); return; }
   btn.disabled = true; btn.textContent = 'queued';
   try {
@@ -147,7 +223,7 @@ async function pullCustomLocalModel() {
       body: JSON.stringify({ model }),
     });
     pollLocalJob(job.id, btn);
-    inp.value = '';
+    if (inp.value === draft) inp.value = '';
   } catch (e) {
     btn.disabled = false; btn.textContent = 'pull';
     toast(e.message || 'pull failed to start', 'error');
@@ -155,8 +231,22 @@ async function pullCustomLocalModel() {
 }
 
 async function deleteLocalModel(model, btn) {
-  if (!model) return;
-  if (!await _dlgConfirm(`remove ${model} from disk?`)) return;
+  if (!model || _localPresetPending.has(model) || _localPresetConfirmations.has(model)) return;
+  const restoreFocus = document.activeElement === btn;
+  const isCurrent = _providersCurrent;
+  _localPresetConfirmations.add(model);
+  _syncLocalPresetPending(model);
+  let confirmed;
+  try { confirmed = await _dlgConfirm(`remove ${model} from disk?`); }
+  finally {
+    _localPresetConfirmations.delete(model);
+    _syncLocalPresetPending(model);
+    const currentButton = document.querySelector(`#s-local-presets [data-local-remove="${CSS.escape(model)}"]`);
+    if (!confirmed && restoreFocus && isCurrent() && currentButton?.isConnected && !currentButton.disabled &&
+        document.activeElement === document.body) currentButton.focus({ preventScroll: true });
+  }
+  if (!confirmed || _localPresetPending.has(model)) return;
+  const pending = _claimLocalPreset(model, 'remove', 'removing...');
   btn.disabled = true; btn.textContent = 'removing...';
   try {
     await _localJson('/api/local-models/delete', {
@@ -166,13 +256,14 @@ async function deleteLocalModel(model, btn) {
     toast(`${model} removed`, 'success');
   } catch (e) {
     toast(e.message || 'remove failed', 'error');
-  }
+  } finally { _releaseLocalPreset(model, pending); }
   loadLocalModels();
   loadModels();
 }
 
 async function serveLocalModel(model, btn) {
-  if (!model) return;
+  if (!model || _localPresetPending.has(model)) return;
+  const pending = _claimLocalPreset(model, 'serve', 'serving...');
   btn.disabled = true;
   btn.textContent = 'serving...';
   try {
@@ -187,7 +278,7 @@ async function serveLocalModel(model, btn) {
     renderModelList();
   } catch (e) {
     toast(e.message || 'serve failed', 'error');
-  }
+  } finally { _releaseLocalPreset(model, pending); }
   btn.disabled = false;
   btn.textContent = 'serve';
   loadLocalModels();
@@ -224,7 +315,10 @@ function _showManualEndpointFields() {
   const row = document.getElementById('s-ep-manual-row');
   if (row) row.hidden = getDropdownValue(document.getElementById('s-ep-adapter')) !== 'manual';
   const btn = document.getElementById('s-ep-add-btn');
-  if (btn) btn.textContent = row?.hidden ? 'add + probe models' : 'add manual endpoint';
+  if (btn) {
+    btn.disabled = _endpointAddPending || !!(_endpointPartialCreate && _endpointPending.has(_endpointPartialCreate.id));
+    if (!_endpointAddPending) btn.textContent = row?.hidden ? 'add + probe models' : 'add manual endpoint';
+  }
 }
 
 function _showEndpointAuthFields() {
@@ -408,7 +502,7 @@ async function saveModelRoles() {
 
 async function refreshAllModelEndpoints() {
   const btn = document.getElementById('s-ep-refresh-all');
-  if (!btn) return;
+  if (!btn || btn.disabled) return;
   btn.disabled = true;
   btn.textContent = 'refreshing…';
   try {
@@ -417,14 +511,18 @@ async function refreshAllModelEndpoints() {
       toast('add an endpoint first', 'error');
       return;
     }
-    const results = await Promise.allSettled(endpoints.map(async endpoint =>
-      _endpointJson(await fetch(`/api/models/endpoint/${encodeURIComponent(endpoint.id)}/probe`, { method: 'POST' })),
-    ));
+    const available = endpoints.filter(endpoint => !_endpointPending.has(endpoint.id));
+    const results = await Promise.allSettled(available.map(async endpoint => {
+      _setEndpointPending(endpoint.id, true);
+      try {
+        return await _endpointJson(await fetch(`/api/models/endpoint/${encodeURIComponent(endpoint.id)}/probe`, { method: 'POST' }));
+      } finally { _setEndpointPending(endpoint.id, false); }
+    }));
     const failed = results.filter(result => result.status === 'rejected').length;
     await loadEpList();
     await loadModels();
     renderModelList();
-    toast(failed ? `${endpoints.length - failed} refreshed · ${failed} unavailable` : `${endpoints.length} endpoints refreshed`, failed ? 'error' : 'success');
+    toast(failed ? `${available.length - failed} refreshed · ${failed} unavailable` : `${available.length} endpoints refreshed`, failed ? 'error' : 'success');
   } catch (error) {
     toast(error.message || 'endpoints could not be refreshed', 'error');
     await loadEpList();
@@ -459,8 +557,8 @@ async function loadEpList() {
     const settings = await _endpointJson(settingsResponse);
     const roles = await _endpointJson(rolesResponse);
     if (!_providersActive || generation !== _endpointLoadGeneration) return;
-    if (!_modelRolesDirty) _renderModelRoles(eps, settings, roles);
-    if (_hasEndpointDrafts()) return;
+    if (!_modelRolesDirty && !document.activeElement?.matches('#s-model-roles [data-role-select]')) _renderModelRoles(eps, settings, roles);
+    if (_hasEndpointDrafts() || _endpointPending.size || _endpointConfirmations.size) return;
     if (!eps.length) {
       el.innerHTML = '<div class="s-role-empty">no endpoints yet. add one below, then choose your defaults.</div>';
       return;
@@ -507,12 +605,13 @@ async function loadEpList() {
     });
     el.querySelectorAll('[data-save-list]').forEach(btn => {
       btn.addEventListener('click', async () => {
+        if (_endpointPending.has(btn.dataset.saveList)) return;
         const editor = el.querySelector(`[data-editor="${CSS.escape(btn.dataset.saveList)}"]`);
         const adapter = getDropdownValue(editor?.querySelector('[data-edit-adapter]')) || 'auto';
         const models = (editor?.querySelector('[data-edit-models]')?.value || '').split(',').map(value => value.trim()).filter(Boolean);
         if (adapter === 'manual' && !models.length) { toast('add at least one manual model', 'error'); return; }
         const draftRevision = editor.dataset.dirty;
-        _endpointLoadGeneration += 1;
+        _setEndpointPending(btn.dataset.saveList, true);
         btn.disabled = true; btn.textContent = 'saving…';
         try {
           const patch = { provider_adapter: adapter };
@@ -525,76 +624,123 @@ async function loadEpList() {
           }
           if (editor.dataset.dirty === draftRevision) delete editor.dataset.dirty;
           toast('endpoint saved', 'success');
-          loadEpList(); loadModels(); renderModelList();
+          loadModels(); renderModelList();
         } catch (error) { toast(error.message || 'endpoint could not be saved', 'error'); }
-        finally { btn.disabled = false; btn.textContent = 'save endpoint'; }
+        finally {
+          _setEndpointPending(btn.dataset.saveList, false);
+          btn.textContent = 'save endpoint';
+          await loadEpList();
+        }
       });
     });
     el.querySelectorAll('[data-probe]').forEach(btn => {
       btn.addEventListener('click', async () => {
+        if (_endpointPending.has(btn.dataset.probe)) return;
+        _setEndpointPending(btn.dataset.probe, true);
         btn.textContent = 'refreshing…'; btn.disabled = true;
         try {
           const data = await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.probe}/probe`, { method: 'POST' }));
           toast(`${data.models?.length || 0} models ready`, 'success');
         } catch (error) { toast(error.message || 'catalog refresh failed', 'error'); }
         finally {
-          btn.textContent = 'refresh'; btn.disabled = false;
+          _setEndpointPending(btn.dataset.probe, false);
+          btn.textContent = 'refresh';
           await loadEpList(); await loadModels(); renderModelList();
         }
       });
     });
     el.querySelectorAll('[data-test-ep]').forEach(btn => {
       btn.addEventListener('click', async () => {
+        if (_endpointPending.has(btn.dataset.testEp)) return;
+        _setEndpointPending(btn.dataset.testEp, true);
         btn.textContent = 'testing…'; btn.disabled = true;
         try {
           await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.testEp}/test`, { method: 'POST' }));
           toast('model endpoint is working', 'success');
-          loadEpList();
         } catch (error) { toast(error.message || 'model endpoint test failed', 'error'); }
-        finally { btn.textContent = 'test'; btn.disabled = false; }
+        finally {
+          _setEndpointPending(btn.dataset.testEp, false);
+          btn.textContent = 'test';
+          await loadEpList();
+        }
       });
     });
     el.querySelectorAll('[data-auth-refresh]').forEach(btn => {
       btn.addEventListener('click', async () => {
+        if (_endpointPending.has(btn.dataset.authRefresh)) return;
+        _setEndpointPending(btn.dataset.authRefresh, true);
         btn.disabled = true; btn.textContent = 'refreshing…';
         try {
           await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.authRefresh}/auth/refresh`, { method: 'POST' }));
           toast('Gemini grant refreshed', 'success');
         } catch (error) { toast(error.message || 'grant refresh failed', 'error'); }
-        finally { await loadEpList(); }
+        finally {
+          _setEndpointPending(btn.dataset.authRefresh, false);
+          btn.textContent = 'refresh grant';
+          await loadEpList();
+        }
       });
     });
     el.querySelectorAll('[data-auth-revoke]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!await _dlgConfirm('revoke this Gemini grant at Google and disable the endpoint?')) return;
+        if (_endpointPending.has(btn.dataset.authRevoke)) return;
+        if (!await _confirmEndpointAction(btn.dataset.authRevoke, 'revoke this Gemini grant at Google and disable the endpoint?')) return;
+        if (_endpointPending.has(btn.dataset.authRevoke)) return;
+        _setEndpointPending(btn.dataset.authRevoke, true);
         btn.disabled = true; btn.textContent = 'revoking…';
         try {
           await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.authRevoke}/auth/revoke`, { method: 'POST' }));
           toast('Gemini grant revoked', 'success');
         } catch (error) { toast(error.message || 'Google did not confirm revocation', 'error'); }
-        finally { await loadEpList(); await loadModels(); renderModelList(); }
+        finally {
+          _setEndpointPending(btn.dataset.authRevoke, false);
+          btn.textContent = 'revoke';
+          await loadEpList(); await loadModels(); renderModelList();
+        }
       });
     });
     el.querySelectorAll('[data-del]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!await _dlgConfirm('remove this endpoint?')) return;
+        if (_endpointPending.has(btn.dataset.del)) return;
+        if (!await _confirmEndpointAction(btn.dataset.del, 'remove this endpoint?')) return;
+        if (_endpointPending.has(btn.dataset.del)) return;
+        _setEndpointPending(btn.dataset.del, true);
+        btn.textContent = 'removing…';
         try {
           await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.del}`, { method: 'DELETE' }));
+          if (_endpointPartialCreate?.id === btn.dataset.del) _endpointPartialCreate = null;
           toast('endpoint removed', 'success');
-          loadEpList(); loadModels(); renderModelList();
+          loadModels(); renderModelList();
         } catch (error) { toast(error.message || 'endpoint could not be removed', 'error'); }
+        finally {
+          _setEndpointPending(btn.dataset.del, false);
+          btn.textContent = 'disconnect';
+          await loadEpList();
+        }
       });
     });
   } catch {
     if (!_providersActive || generation !== _endpointLoadGeneration) return;
-    if (!_hasEndpointDrafts()) el.innerHTML = '<div class="s-role-empty error">model settings could not be loaded.</div>';
+    if (!_hasEndpointDrafts() && !_endpointPending.size && !_endpointConfirmations.size) el.innerHTML = '<div class="s-role-empty error">model settings could not be loaded.</div>';
     const roles = document.getElementById('s-model-roles');
-    if (roles && !_modelRolesDirty) roles.innerHTML = '<div class="s-role-empty error">model defaults could not be loaded.</div>';
+    if (roles && !_modelRolesDirty && !roles.contains(document.activeElement)) roles.innerHTML = '<div class="s-role-empty error">model defaults could not be loaded.</div>';
   }
 }
 
 
 function _wireProvidersPane() {
+  for (const id of ['s-ep-name', 's-ep-url', 's-ep-key', 's-ep-vision', 's-ep-manual', 's-ep-adapter', 's-ep-provider', 's-ep-auth']) {
+    for (const type of ['input', 'change']) {
+      document.getElementById(id)?.addEventListener(type, () => {
+        _endpointAddRevision += 1;
+        if (id !== 's-ep-vision') {
+          _endpointAddConfigRevision += 1;
+          _endpointPartialCreate = null;
+        }
+        _showManualEndpointFields();
+      });
+    }
+  }
   let draftRevision = 0;
   for (const type of ['input', 'change']) {
     document.getElementById('s-ep-list')?.addEventListener(type, event => {
@@ -606,6 +752,9 @@ function _wireProvidersPane() {
   // ── models pane ──
   document.querySelectorAll('.s-preset-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      _endpointAddRevision += 1;
+      _endpointAddConfigRevision += 1;
+      _endpointPartialCreate = null;
       document.getElementById('s-ep-url').value = btn.dataset.url;
       document.getElementById('s-ep-name').value = btn.dataset.name;
       setDropdownValue(document.getElementById('s-ep-provider'), btn.dataset.provider || 'custom');
@@ -629,6 +778,7 @@ function _wireProvidersPane() {
   document.getElementById('s-role-save-btn')?.addEventListener('click', saveModelRoles);
   document.getElementById('s-ep-refresh-all')?.addEventListener('click', refreshAllModelEndpoints);
   document.getElementById('s-ep-add-btn')?.addEventListener('click', async () => {
+    if (_endpointAddPending) return;
     const name = document.getElementById('s-ep-name').value.trim();
     const url  = document.getElementById('s-ep-url').value.trim();
     const key  = document.getElementById('s-ep-key').value.trim();
@@ -643,31 +793,51 @@ function _wireProvidersPane() {
       toast('add at least one manual model', 'error'); return;
     }
     const btn = document.getElementById('s-ep-add-btn');
+    const revision = _endpointAddRevision;
+    const configRevision = _endpointAddConfigRevision;
+    const visionRaw = document.getElementById('s-ep-vision')?.value.trim() || '';
+    const partial = _endpointPartialCreate?.configRevision === configRevision ? _endpointPartialCreate : null;
+    if (partial && _endpointPending.has(partial.id)) return;
+    let pendingId = null;
+    _endpointAddPending = true;
     btn.textContent = 'probing…'; btn.disabled = true;
     try {
-      const ep = await addEndpoint(name, url, key, adapter, manualModels, { providerId, authType });
-      const visionRaw = document.getElementById('s-ep-vision')?.value.trim() || '';
-      if (visionRaw && ep?.id) {
+      const ep = partial || await addEndpoint(name, url, key, adapter, manualModels, { providerId, authType });
+      if (ep?.id && configRevision === _endpointAddConfigRevision) {
+        _endpointPartialCreate = { id: ep.id, configRevision };
+      }
+      if ((visionRaw || partial) && ep?.id) {
+        if (_endpointPending.has(ep.id)) throw new Error('endpoint is busy; try again');
+        pendingId = ep.id;
+        _setEndpointPending(pendingId, true);
         const visionList = visionRaw.split(',').map(s => s.trim()).filter(Boolean);
-        await _fetchWithRecentOwner(`/api/models/endpoint/${ep.id}`, {
+        const response = await _fetchWithRecentOwner(`/api/models/endpoint/${ep.id}`, {
           method: 'PATCH', headers: {'content-type':'application/json'},
           body: JSON.stringify({ vision_models: JSON.stringify(visionList) }),
         });
+        if (response.status === 404 && _endpointPartialCreate?.id === ep.id) _endpointPartialCreate = null;
+        await _endpointJson(response);
       }
-      ['s-ep-name','s-ep-url','s-ep-key','s-ep-vision','s-ep-manual'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-      setDropdownValue(document.getElementById('s-ep-adapter'), 'auto');
-      setDropdownValue(document.getElementById('s-ep-provider'), 'custom');
-      setDropdownValue(document.getElementById('s-ep-auth'), 'api_key');
-      _showManualEndpointFields();
-      _showEndpointAuthFields();
-      document.getElementById('s-ep-add-details').open = false;
+      if (revision === _endpointAddRevision) {
+        _endpointPartialCreate = null;
+        ['s-ep-name','s-ep-url','s-ep-key','s-ep-vision','s-ep-manual'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        setDropdownValue(document.getElementById('s-ep-adapter'), 'auto');
+        setDropdownValue(document.getElementById('s-ep-provider'), 'custom');
+        setDropdownValue(document.getElementById('s-ep-auth'), 'api_key');
+        _showManualEndpointFields();
+        _showEndpointAuthFields();
+        document.getElementById('s-ep-add-details').open = false;
+      }
       toast('endpoint added', 'success');
       loadEpList();
       loadModels();
       renderModelList();
     } catch (e) { toast(`failed: ${e.message}`, 'error'); }
-    btn.disabled = false;
-    _showManualEndpointFields();
+    finally {
+      if (pendingId) _setEndpointPending(pendingId, false);
+      _endpointAddPending = false;
+      _showManualEndpointFields();
+    }
   });
 
   document.getElementById('s-local-refresh-btn')?.addEventListener('click', loadLocalModels);
@@ -678,7 +848,8 @@ function _wireProvidersPane() {
 
 export const providersPane = createSettingsPane({
   init: _wireProvidersPane,
-  load() {
+  load(isCurrent) {
+    _providersCurrent = isCurrent;
     _providersActive = true;
     return Promise.all([loadEpList(), loadLocalModels()]);
   },

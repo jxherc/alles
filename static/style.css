@@ -1888,7 +1888,7 @@ body.is-aide.is-incognito .incognito-bar {
 #backup-recovery-key-btn { margin-top: 0.5rem; }
 
 /* Jarvis is a compact connection card, not a separate assistant mode. */
-.jarvis-discord-head-state {
+:where(#settings-modal) .jarvis-discord-head-state {
   margin-left: auto;
   color: var(--muted);
   font-size: 0.75rem;
@@ -1896,14 +1896,14 @@ body.is-aide.is-incognito .incognito-bar {
   text-transform: lowercase;
 }
 :where(#s-pane-tools) .jarvis-discord-status,
-.jarvis-quiet-row {
+:where(#settings-modal) .jarvis-quiet-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
 }
 :where(#s-pane-tools) .jarvis-discord-status { margin-bottom: 0.75rem; }
-.jarvis-pairing {
+:where(#settings-modal) .jarvis-pairing {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1913,10 +1913,10 @@ body.is-aide.is-incognito .incognito-bar {
   padding: 0.7rem 0;
   margin-bottom: 0.75rem;
 }
-.jarvis-pairing-copy { display: grid; gap: 0.18rem; min-width: 0; }
-.jarvis-pairing-copy strong { font-size: 0.76rem; font-weight: 600; }
-.jarvis-pairing-copy span { color: var(--muted); font-size: 0.75rem; line-height: 1.45; }
-.jarvis-pairing-code {
+:where(#settings-modal) .jarvis-pairing-copy { display: grid; gap: 0.18rem; min-width: 0; }
+:where(#settings-modal) .jarvis-pairing-copy strong { font-size: 0.76rem; font-weight: 600; }
+:where(#settings-modal) .jarvis-pairing-copy span { color: var(--muted); font-size: 0.75rem; line-height: 1.45; }
+:where(#settings-modal) .jarvis-pairing-code {
   grid-column: 1 / -1;
   color: var(--accent);
   font: 600 1.35rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1928,20 +1928,20 @@ body.is-aide.is-incognito .incognito-bar {
   gap: 0.4rem;
   margin: -0.15rem 0 0.8rem;
 }
-.jarvis-quiet-row {
+:where(#settings-modal) .jarvis-quiet-row {
   border-top: 1px solid var(--faint);
   padding-top: 0.7rem;
   margin-top: 0.15rem;
 }
-.jarvis-quiet-fields {
+:where(#settings-modal) .jarvis-quiet-fields {
   display: grid;
   grid-template-columns: 0.65fr 0.65fr 1.4fr auto;
   align-items: end;
   gap: 0.45rem;
   padding: 0.6rem 0 0.8rem;
 }
-.jarvis-quiet-fields[hidden] { display: none; }
-.jarvis-quiet-fields label {
+:where(#settings-modal) .jarvis-quiet-fields[hidden] { display: none; }
+:where(#settings-modal) .jarvis-quiet-fields label {
   display: grid;
   gap: 0.22rem;
   color: var(--muted);
@@ -1950,11 +1950,11 @@ body.is-aide.is-incognito .incognito-bar {
 #jarvis-discord-disconnect { margin-top: 0.8rem; }
 
 @media (max-width: 680px) {
-  .jarvis-pairing { grid-template-columns: 1fr; align-items: stretch; }
-  .jarvis-pairing .btn { justify-self: start; }
-  .jarvis-quiet-fields { grid-template-columns: 1fr 1fr; }
-  .jarvis-quiet-fields label:nth-child(3) { grid-column: 1 / -1; }
-  .jarvis-quiet-fields .btn { justify-self: start; }
+  :where(#settings-modal) .jarvis-pairing { grid-template-columns: 1fr; align-items: stretch; }
+  :where(#settings-modal) .jarvis-pairing .btn { justify-self: start; }
+  :where(#settings-modal) .jarvis-quiet-fields { grid-template-columns: 1fr 1fr; }
+  :where(#settings-modal) .jarvis-quiet-fields label:nth-child(3) { grid-column: 1 / -1; }
+  :where(#settings-modal) .jarvis-quiet-fields .btn { justify-self: start; }
 }
 :where(#settings-modal) .s-provider-warning { margin: 0 0 0.75rem; }
 :where(#settings-modal) .s-behavior-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
@@ -4913,7 +4913,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .tx-del:hover { color: var(--error); }
 
 /* 4a — tags, splits, receipts, cleared, reconcile */
-.tx-tags { display: flex; gap: 0.25rem; flex-wrap: wrap; max-width: 150px; overflow: hidden; }
+:where(#money-view) .tx-tags { display: flex; gap: 0.25rem; flex-wrap: wrap; max-width: 150px; overflow: hidden; }
 :where(#money-view) .tx-tag { font: inherit; font-size: 0.75rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 4px; padding: 0 0.4rem; color: var(--accent); cursor: pointer; white-space: nowrap; }
 :where(#money-view) .tx-tag:hover { border-color: var(--accent); }
 :where(#money-view) .tx-actions { display: flex; gap: 0.25rem; align-items: center; flex-shrink: 0; }
@@ -4930,7 +4930,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .split-row-del { background: none; border: none; color: var(--muted); cursor: pointer; }
 :where(#money-view) .split-actions { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
 /* 4d — goals, reports, base currency */
-.goal-row { margin-bottom: 0.6rem; }
+:where(#money-view) .goal-row { margin-bottom: 0.6rem; }
 :where(#money-view) .goal-head { display: flex; align-items: center; gap: 0.4rem; font-size: 0.76rem; }
 :where(#money-view) .goal-name { flex: 1; }
 :where(#money-view) .goal-kind { font-size: 0.75rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 4px; padding: 0 0.35rem; }
@@ -8144,7 +8144,7 @@ body.compact .nav-item { padding: 0.25rem 1rem; }
 :root.density-compact { font-size: 15px; }
 :root.density-spacious { font-size: 17px; }
 
-.theme-frosted .s-modal, .theme-frosted .te-modal, .theme-frosted .dropdown-menu,
+.theme-frosted :where(#settings-modal) .s-modal, .theme-frosted .te-modal, .theme-frosted .dropdown-menu,
 .theme-frosted .cp-popover, .theme-frosted .ctx-menu, .theme-frosted .modal-card {
   background: color-mix(in srgb, var(--panel) 76%, transparent) !important;
   backdrop-filter: blur(13px) saturate(1.25); -webkit-backdrop-filter: blur(13px) saturate(1.25);
