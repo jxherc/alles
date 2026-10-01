@@ -1332,6 +1332,7 @@ class FinanceImportsPhase8Tests(ApiTest):
             {
                 "version": 1,
                 "account_id": self.account["id"],
+                "account_name": self.account["name"],
                 "profile": "cibc-csv",
                 "source_name": "statement.csv",
                 "source_sha256": preview["source_sha256"],

@@ -1082,6 +1082,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
   message.setAttribute('aria-live', 'polite');
   heading.append(
     _el('strong', '', receipt.source_name),
+    _el('span', '', receipt.receipt?.account_name || receipt.account_id),
     _el('span', '', `${receipt.counts.rows} rows · ${receipt.counts.pending} ready · ${receipt.counts.duplicates} duplicate · ${receipt.counts.conflicts} review`),
   );
   const rows = _el('div', 'finance-import-rows');
@@ -1090,10 +1091,13 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     const item = _el('div', `finance-import-row finance-import-row-${row.status}`);
     item.append(
       _el('span', 'finance-import-row-date', parsed.date || `line ${row.row_number}`),
-      _el('strong', '', parsed.payee || row.conflict_reason || 'needs review'),
+      _el('strong', '', parsed.payee || row.conflict_reason || (parsed.date ? 'unnamed transaction' : 'needs review')),
       _el('span', 'finance-import-row-amount', parsed.amount_text ? `${parsed.currency_code} ${parsed.amount_text}` : ''),
       _el('span', 'finance-import-row-status', row.status.replace('_', ' ')),
     );
+    for (const key of ['category', 'notes', 'tags']) {
+      if (parsed[key]) item.append(_el('small', 'finance-import-metadata', `${key}: ${parsed[key]}`));
+    }
     if (row.conflict_reason && parsed.payee) item.append(_el('small', '', row.conflict_reason));
     if (row.status === 'needs_review' && /conversion evidence/i.test(row.conflict_reason || '')) {
       const form = _el('form', 'finance-import-conversion');
@@ -1337,7 +1341,7 @@ async function _renderImports(target, request) {
   let previewGeneration = 0;
   let activePreviewGeneration = 0;
   const panel = _el('section', 'finance-import-panel');
-  const boundary = _el('p', 'specialist-group-note', 'reviewed files only. Alles never asks for a CIBC or China Merchants Bank password, and no direct provider is enabled.');
+  const boundary = _el('p', 'specialist-group-note', 'choose the destination account and preview every file before applying it. bank connections are managed separately.');
   const choices = _el('div', 'finance-import-choices');
   choices.append(
     _choiceField('account', accounts.map(account => ({ value: account.id, label: `${account.name} · ${account.currency_code || account.currency}` })), accountId, value => {

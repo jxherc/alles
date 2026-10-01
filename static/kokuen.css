@@ -1798,6 +1798,11 @@ body:is(
 
 :where(#finance-view) .finance-import-row:last-child { border-bottom: 0; }
 :where(#finance-view) .finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #df7474); }
+:where(#finance-view) .finance-import-row > .finance-import-metadata {
+  color: var(--k-ink-muted, var(--muted));
+  font-size: inherit;
+  overflow-wrap: anywhere;
+}
 :where(#finance-view) .finance-import-row-date,
 :where(#finance-view) .finance-import-row-status { color: var(--k-ink-muted, var(--muted)); }
 :where(#finance-view) .finance-import-row-amount { text-align: right; font-family: var(--k-mono); font-variant-numeric: tabular-nums; }

@@ -15,13 +15,21 @@ from sqlalchemy.orm import Session as DbSession
 from core.auth import require_auth, require_recent_owner
 from core.database import (
     Account,
+    CategoryRule,
     FinanceImportBatch,
     FinanceImportRow,
     FinanceLedgerState,
+    TagRule,
     Transaction,
     get_db,
 )
-from services import actual_finance, finance_connectors, finance_currency, finance_imports
+from services import (
+    actual_finance,
+    finance_connectors,
+    finance_currency,
+    finance_imports,
+    tag_rules,
+)
 
 router = APIRouter(prefix="/api/finance/imports", dependencies=[Depends(require_auth)])
 MAX_SOURCE_BYTES = 5 * 1024 * 1024
@@ -56,9 +64,22 @@ class RecoveryResolutionBody(BaseModel):
     decision: str
 
 
+def _import_metadata(parsed: dict, source_name: str) -> dict:
+    return {
+        "category": parsed.get("category", ""),
+        "notes": parsed.get("notes", f"imported from {source_name}"),
+        "tags": parsed.get("tags", ""),
+    }
+
+
 def _same(transaction: Transaction, parsed: dict, account_id: str) -> bool:
     return (
-        transaction.account_id == account_id
+        all(
+            (getattr(transaction, key) or "") == parsed[key]
+            for key in ("category", "notes", "tags")
+            if key in parsed
+        )
+        and transaction.account_id == account_id
         and transaction.date == parsed["date"]
         and Decimal(str(transaction.amount)) == Decimal(parsed["amount_text"])
         and Decimal(transaction.original_amount_text or str(transaction.amount))
@@ -93,7 +114,12 @@ def _same_actual(
         str(expected_base_amount)
     )
     return (
-        transaction["account_id"] == account_id
+        all(
+            (transaction.get(key) or "") == parsed[key]
+            for key in ("category", "notes", "tags")
+            if key in parsed
+        )
+        and transaction["account_id"] == account_id
         and transaction["date"] == parsed["date"]
         and Decimal(transaction["original_amount_text"]) == Decimal(parsed["amount_text"])
         and stored_base_matches
@@ -122,7 +148,8 @@ def _receipt_backend(batch: FinanceImportBatch, rows: list[FinanceImportRow], cu
 
 def _same_parsed(left: dict, right: dict) -> bool:
     return (
-        left["date"] == right["date"]
+        all(left.get(key) == right.get(key) for key in ("category", "notes", "tags"))
+        and left["date"] == right["date"]
         and Decimal(left["amount_text"]) == Decimal(right["amount_text"])
         and " ".join(left["payee"].casefold().split())
         == " ".join(right["payee"].casefold().split())
@@ -392,8 +419,10 @@ def _same_recovered_actual(
         and transaction["date"] == parsed["date"]
         and Decimal(str(transaction["amount"])) == Decimal(base_amount)
         and str(transaction.get("payee") or "") == str(parsed["payee"]).strip()
-        and str(transaction.get("category") or "") == ""
-        and str(transaction.get("notes") or "") == f"imported from {batch.source_name}"
+        and all(
+            (transaction.get(key) or "") == value
+            for key, value in _import_metadata(parsed, batch.source_name).items()
+        )
         and not bool(transaction.get("cleared"))
         and transaction["import_identity"] == stable_identity
     )
@@ -510,6 +539,7 @@ def _preview_locked(body: PreviewBody, db: DbSession):
     currency = finance_currency.currency_code(
         body.original_currency_code
         or finance_imports.PROFILES[body.profile]["default_currency_code"]
+        or (canonical_base_currency if canonical else account.currency_code or account.currency)
     )
     batch_id = str(uuid.uuid4())
     try:
@@ -522,6 +552,26 @@ def _preview_locked(body: PreviewBody, db: DbSession):
         )
     except ValueError as error:
         raise HTTPException(400, str(error)) from error
+
+    if body.profile == "generic-csv":
+        category_rules = (
+            [] if canonical else db.query(CategoryRule).order_by(CategoryRule.created_at).all()
+        )
+        tags = [] if canonical else db.query(TagRule).order_by(TagRule.created_at).all()
+        for item in parsed_rows:
+            if item["error"]:
+                continue
+            parsed = item["parsed"]
+            if not parsed["category"]:
+                parsed["category"] = next(
+                    (
+                        rule.category or ""
+                        for rule in category_rules
+                        if rule.match and rule.match.lower() in parsed["payee"].lower()
+                    ),
+                    "",
+                )
+            parsed["tags"] = tag_rules.apply_rules(parsed["payee"], tags, existing=parsed["tags"])
 
     account_name = (actual_account or {}).get("name") if canonical else account.name
     account_currency = (
@@ -680,6 +730,7 @@ def _preview_locked(body: PreviewBody, db: DbSession):
         "version": 1,
         "ledger_backend": "actual" if canonical else "alles",
         "account_id": body.account_id,
+        "account_name": account_name or "account",
         "profile": body.profile,
         "source_name": source_name,
         "source_sha256": source_sha,
@@ -919,6 +970,7 @@ def resolve_incomplete_actual_write(
                 "payee": existing.get("payee", ""),
                 "category": existing.get("category", ""),
                 "notes": existing.get("notes", ""),
+                "tags": existing.get("tags", ""),
                 "cleared": bool(existing.get("cleared")),
                 "import_identity": row.stable_identity,
             }
@@ -1321,7 +1373,7 @@ def _apply_batch_locked(batch_id: str, db: DbSession):
                         "date": parsed["date"],
                         "amount": conversion[0],
                         "payee": parsed["payee"],
-                        "notes": f"imported from {batch.source_name}",
+                        **_import_metadata(parsed, batch.source_name),
                         "import_identity": row.stable_identity,
                     },
                 )
@@ -1488,7 +1540,7 @@ def _apply_batch_locked(batch_id: str, db: DbSession):
                     "date": parsed["date"],
                     "amount": conversion[0],
                     "payee": parsed["payee"],
-                    "notes": f"imported from {batch.source_name}",
+                    **_import_metadata(parsed, batch.source_name),
                 },
                 source_id=source_id,
                 import_identity=row.stable_identity,
@@ -1505,7 +1557,7 @@ def _apply_batch_locked(batch_id: str, db: DbSession):
             date=parsed["date"],
             amount=_legacy_exact_float_amount(parsed["amount_text"]),
             payee=parsed["payee"],
-            notes=f"imported from {batch.source_name}",
+            **_import_metadata(parsed, batch.source_name),
             import_identity=row.stable_identity,
             import_batch_id=batch.id,
             import_source=f"finance_import:{batch.profile}",
@@ -1602,6 +1654,7 @@ def _undo_batch_locked(batch_id: str, db: DbSession):
                         and transaction.get("payee", "") == accepted.get("payee", "")
                         and transaction.get("category", "") == accepted.get("category", "")
                         and transaction.get("notes", "") == accepted.get("notes", "")
+                        and transaction.get("tags", "") == accepted.get("tags", "")
                         and bool(transaction.get("cleared")) == bool(accepted.get("cleared"))
                     )
                 else:
@@ -1612,8 +1665,10 @@ def _undo_batch_locked(batch_id: str, db: DbSession):
                         and transaction.get("import_identity") == row.stable_identity
                         and transaction.get("import_batch_id") == batch.id
                         and transaction.get("import_source") == f"finance_import:{batch.profile}"
-                        and transaction.get("notes") == f"imported from {batch.source_name}"
-                        and transaction.get("category", "") == ""
+                        and all(
+                            (transaction.get(key) or "") == value
+                            for key, value in _import_metadata(parsed, batch.source_name).items()
+                        )
                         and not bool(transaction.get("cleared"))
                         and _same_actual(
                             transaction,
@@ -1644,8 +1699,10 @@ def _undo_batch_locked(batch_id: str, db: DbSession):
                 and transaction.import_identity == row.stable_identity
                 and transaction.import_source == f"finance_import:{batch.profile}"
                 and transaction.import_row_number == row.row_number
-                and transaction.notes == f"imported from {batch.source_name}"
-                and (transaction.category or "") == ""
+                and all(
+                    (getattr(transaction, key) or "") == value
+                    for key, value in _import_metadata(parsed, batch.source_name).items()
+                )
                 and not bool(transaction.cleared)
                 and _same(transaction, parsed, batch.account_id)
             )

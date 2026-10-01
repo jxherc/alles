@@ -425,13 +425,20 @@ imports, with an optional gated move to an alles-managed actual budget core.
   retrying identical values returns the saved result; reusing the id with changed values returns
   409. deletion clears saved receipt content and retains a tombstone so a late retry returns 410
   instead of recreating the entry. requests without an id retain their existing behavior
-- **csv import / export**: pull in a bank statement (it maps a `description` column to the payee, copes with `$`/commas) and **skips rows you already imported** (matched on date + amount + payee) so re-importing an overlapping statement doesn't double-count; or export everything to a spreadsheet
+- **csv import / export**: money's import button opens the reviewed import flow. choose the
+  destination account, preview rows, then apply them with a receipt and supported undo. generic csv
+  accepts named date and amount (or debit/credit) columns in any order, with optional
+  payee/description, currency, reference, category, notes and tags. absent currency uses the selected account
+  or the canonical ledger's base currency. local category/tag rules are included in the preview;
+  changes to those rules after preview do not silently change the approved values. metadata survives
+  apply and retry; undo refuses to remove an imported row that was edited afterward. export all
+  transactions to csv; existing direct-import api callers keep their legacy behavior.
 - **budgets**: set a monthly cap per category; a progress bar turns red when you go over
 - **charts**: spending-by-category bars and a 6-month income-vs-spent trend (plain svg, no chart library)
 - this-month cards: net worth · income · spent · net
 - an additive currency foundation preserves exact original and base values, conversion evidence, and
   stable import identities without changing existing amounts or renewal history
-- reviewed cibc csv and china merchants bank csv/notification profiles always preview first; repeat
+- reviewed generic csv and supported bank statement/notification profiles always preview first; repeat
   rows are stable duplicates, changed source rows are conflicts, and undo removes only receipt-owned
   transactions. read-only simplefin and plaid connections are available after provider setup
 - managed actual 26.7.0 stays on loopback with private alles-owned authentication, cold backups, fresh
