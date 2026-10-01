@@ -11,6 +11,10 @@ let _token = null;     // the unlock token; sent back on every vault request
 let _entries = [];     // last loaded list, so a row click can open the editor
 let _entriesGeneration = 0;
 let _revealGeneration = 0;
+let _setupState = null;
+let _setupGeneration = 0;
+let _unlocking = false;
+let _unlockGeneration = 0;
 let _modalEl = null;   // the open add/edit overlay, if any
 let _modalFocusBoundary = null;
 let _totpTimer = null;  // live TOTP countdown interval
@@ -183,7 +187,46 @@ export async function loadVaultView(fetcher = fetch) {
   if ($('vault-bio-add-btn')) $('vault-bio-add-btn').style.display =
     (_unlocked && window.PublicKeyCredential) ? '' : 'none';
   if (_unlocked) { await _loadCustomTypes(fetcher); await _loadEntries(fetcher); await _loadVaults(fetcher); }
-  else await _refreshBioUnlock(fetcher);
+  else { _unlockError(''); await Promise.all([_refreshVaultSetup(fetcher), _refreshBioUnlock(fetcher)]); }
+}
+
+async function _refreshVaultSetup(fetcher = fetch) {
+  const generation = ++_setupGeneration;
+  const button = $('vault-unlock-btn');
+  const retry = $('vault-setup-retry');
+  if (!button) return;
+  _setupState = null;
+  button.textContent = 'checking…';
+  button.disabled = true;
+  if (retry) retry.hidden = true;
+  try {
+    const response = await fetcher('/api/vault/setup');
+    if (!response.ok) throw new Error('setup status unavailable');
+    const status = await response.json();
+    if (_unlocked || generation !== _setupGeneration) return;
+    if (!['setup', 'locked', 'recovery'].includes(status.state)) throw new Error('invalid setup status');
+    _setupState = status.state;
+    const creating = _setupState === 'setup';
+    $('vault-password-label').textContent = creating ? 'create a master password' : 'master password';
+    $('vault-pw-input').autocomplete = 'current-password';
+    if (creating) $('vault-pw-input').autocomplete = 'new-password';
+    $('vault-confirm-field').hidden = !creating;
+    if (!creating) $('vault-pw-confirm').value = '';
+    button.textContent = creating ? 'create vault' : 'unlock';
+    button.disabled = _unlocking || _setupState === 'recovery';
+    $('vault-lock-help').textContent = _setupState === 'recovery'
+      ? 'this vault is missing its password verification data. restore a valid backup before unlocking; creating a new password cannot recover these entries.'
+      : 'your vault password is separate from your alles sign-in. alles cannot reset it to recover your secrets. keep the password safe; use an enrolled biometric unlock or a backup whose vault password you still know if needed.';
+  } catch {
+    if (_unlocked || generation !== _setupGeneration) return;
+    _unlockError('could not check vault setup. retry to continue.');
+    if (retry) retry.hidden = false;
+  }
+}
+
+function _unlockError(message) {
+  const error = $('vault-unlock-error');
+  if (error) { error.textContent = message; error.hidden = !message; }
 }
 
 async function _loadCustomTypes(fetcher = fetch) {
@@ -214,6 +257,7 @@ function _defOf(key, typeKey) {
 
 export function initVault() {
   $('vault-unlock-btn')?.addEventListener('click', _doUnlock);
+  $('vault-setup-retry')?.addEventListener('click', () => { _unlockError(''); _refreshVaultSetup(); });
   $('vault-lock-btn')?.addEventListener('click', _doLock);
   $('vault-new-btn')?.addEventListener('click', () => openVaultForm());
   $('vault-watchtower-btn')?.addEventListener('click', showWatchtower);
@@ -223,6 +267,7 @@ export function initVault() {
   $('vault-bio-add-btn')?.addEventListener('click', _enableBiometric);
   $('vault-bio-unlock-btn')?.addEventListener('click', _bioUnlock);
   $('vault-pw-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
+  $('vault-pw-confirm')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
   // 8a — unified icons on the toolbar (settings is now rightmost)
   const dec = (id, name, label) => { const b = $(id); if (b) b.innerHTML = `${_si(name)} ${label}`; };
   dec('vault-manage-btn', 'gear', 'settings');
@@ -1427,26 +1472,47 @@ async function _delFromForm(id) {
 // ── unlock / lock ────────────────────────────────────────────────────────────
 
 async function _doUnlock() {
+  if (_unlocking || !['setup', 'locked'].includes(_setupState)) return;
   const pw = $('vault-pw-input')?.value;
-  if (!pw) { toast('enter master password', 'error'); return; }
+  if (!pw) { _unlockError('enter master password'); return; }
+  if (_setupState === 'setup') {
+    if (pw.length < 12) { _unlockError('use at least 12 characters'); return; }
+    if (pw !== $('vault-pw-confirm')?.value) { _unlockError("passwords don't match"); return; }
+  }
+  const generation = ++_unlockGeneration;
+  _unlocking = true;
+  $('vault-unlock-btn').disabled = true;
+  _unlockError('');
   try {
     const r = await fetch('/api/vault/unlock', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ password: pw }),
     });
+    if (generation !== _unlockGeneration) return;
     if (!r.ok) {
       const detail = (await r.json().catch(() => ({}))).detail;
-      toast(detail || 'wrong password', 'error');
+      if (generation !== _unlockGeneration) return;
+      _unlockError(typeof detail === 'string' ? detail : 'unlock failed. try again.');
+      await _refreshVaultSetup();
       return;
     }
     const j = await r.json();
+    if (generation !== _unlockGeneration) return;
     if (j.requires_2fa) { await _do2fa(pw, j); return; }   // 8c — second factor needed
     _token = j.token; _vaultId = j.vault_id || 'default';
     _unlocked = true;
     $('vault-pw-input').value = '';
+    $('vault-pw-confirm').value = '';
     await loadVaultView();
   } catch {
-    toast('unlock failed', 'error');
+    if (generation !== _unlockGeneration) return;
+    _unlockError('unlock failed. try again.');
+    await _refreshVaultSetup();
+  } finally {
+    if (generation === _unlockGeneration) {
+      _unlocking = false;
+      $('vault-unlock-btn').disabled = !['setup', 'locked'].includes(_setupState);
+    }
   }
 }
 
@@ -1538,6 +1604,11 @@ function _promptCode(title) {
 }
 
 async function _doLock() {
+  _unlockGeneration++;
+  _unlocking = false;
+  $('vault-pw-input').value = '';
+  $('vault-pw-confirm').value = '';
+  _unlockError('');
   const locking = fetch('/api/vault/lock', { method: 'POST', headers: _token ? { 'X-Vault-Token': _token } : {} }).catch(() => {});
   _token = null;
   _entries = [];

@@ -565,6 +565,14 @@ ordinary-entry receipts.
 - pick a **type** and the form changes to match: **logins** (username · password · website · notes), **credit cards** (cardholder · number · expiry · cvv · billing address), **api keys / tokens**, **secure notes**, and **identities · bank accounts · ssh keys · software licenses**; so a card never asks you for a "password" and an api key reads as a token, not a login
 - click any entry to open it, reveal or copy a field, edit it, or delete it
 - a built-in **password generator** (csprng, skips look-alike characters) and a live **strength meter** that flags common, repetitive, or sequential passwords
+- first use checks the default vault's setup state without creating a record. an empty vault asks
+  for a master password of at least 12 characters and confirmation; existing vaults ask to unlock.
+  a failed setup-state read offers retry. if initial creation succeeds but its response is lost,
+  checking the saved state switches the form to unlock rather than offering a password reset.
+  the screen explains that the vault password is separate from alles sign-in and cannot be reset
+  to recover encrypted entries. existing data or enrolled authentication without a verifier
+  requires a valid backup; it is never treated as a new empty vault. expired entry edits lock and
+  clear the form, preserving the saved value until the owner unlocks and deliberately edits again
 - *under the hood:* each entry is sealed with **aes-256-gcm** (a strong authenticated encryption) under a key derived from your master password with **pbkdf2-hmac-sha-256, 260,000 iterations** (a deliberately slow key-stretch so guessing the password is expensive). the master password is held **in memory only** and never written to disk. locked, the vault is unreadable even to someone holding a full copy of your database.
 
 <p align="center">
@@ -2797,6 +2805,7 @@ the compatibility snapshot locks the registered http surface:
 | `POST` | `/api/vault/strength` | `vault_strength` |
 | `GET` | `/api/vault/travel-mode` | `get_travel_mode` |
 | `PUT` | `/api/vault/travel-mode` | `set_travel_mode` |
+| `GET` | `/api/vault/setup` | `vault_setup` |
 | `POST` | `/api/vault/unlock` | `vault_unlock` |
 | `POST` | `/api/vault/unlock/2fa` | `twofa_unlock` |
 | `POST` | `/api/vault/unlock/2fa/totp` | `totp_unlock` |
