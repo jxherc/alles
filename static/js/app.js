@@ -7,7 +7,7 @@ import { chooseBootState } from './bootstate.js';
 import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
 import { canSendMessage, sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
-import { loadTasks, addTask } from './tasks.js';
+import { loadTasks, addTask, prepareTaskNavigation } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
 import { initSlash, tryExecuteSlashCommand } from './slash.js?v=283';
@@ -24,6 +24,7 @@ import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js?v=237';
 import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.js?v=238';
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
+import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, releaseSpecialistLegacyView } from './specialist_groups.js?v=6';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=241';
@@ -69,6 +70,7 @@ let _afterlifeFlags = {};
 let _authEnabled = false;
 let _restoringRoutePosition = null;
 let _popstateGeneration = 0;
+let _navigationGeneration = 0;
 
 async function init() {
   const params = new URLSearchParams(location.search);
@@ -455,6 +457,7 @@ function _consumeParams(names) {
 }
 
 async function _navigateWithHandoff(target, { replace = false, docsPrepared = false } = {}) {
+  if (!(await prepareTaskNavigation())) return false;
   if (!docsPrepared && typeof window._prepareDocsNavigation === 'function') {
     if (!(await window._prepareDocsNavigation())) return false;
   }
@@ -754,6 +757,11 @@ function showView(viewId, navKey, onShow, stateRootId = '') {
         ? 'partial'
         : 'ready';
     _paintSpecialistState(stateRoot, state, retry);
+    const target = readRecordTarget(location.href);
+    const route = target && groupRouteFor(target.view);
+    if ((state === 'ready' || (state === 'partial' && target?.view === 'calendar')) && route && GROUP_DEFINITIONS[route.group].rootId === stateRoot.id) {
+      return revealLinkedRecord();
+    }
   }).catch(() => {
     if (stateRoot.dataset.specialistRun !== run.id) return;
     _paintSpecialistState(stateRoot, 'error', retry);
@@ -789,7 +797,7 @@ window._openProject = (pid) => showView('project-view', 'project', () => import(
 
 // the command palette (search.js) reaches across subdomains, so expose the router
 // + an "ask aide / Andromeda search" handoff it can call from any app.
-window._navigateTo = (v) => navigateTo(v);
+window._navigateTo = (v, options) => navigateTo(v, options);
 window._navigateHome = () => navigateTo('today');
 
 window._openSearchResult = async (type, value) => {
@@ -806,6 +814,40 @@ window._openSearchResult = async (type, value) => {
   const { openNote } = await import('./docs.js?v=257');
   return openNote(value);
 };
+
+async function revealLinkedRecord() {
+  const target = readRecordTarget(location.href);
+  const route = target && groupRouteFor(target.view);
+  if (!route) return false;
+  const root = document.getElementById(GROUP_DEFINITIONS[route.group].rootId);
+  const url = location.href;
+  const isCurrent = () => location.href === url && Boolean(root?.getClientRects().length);
+  if (!isCurrent()) return false;
+  const state = root.querySelector(':scope > .specialist-state')?.dataset.state;
+  if (state !== 'ready' && !(state === 'partial' && target.view === 'calendar')) return false;
+  try {
+    if (await revealRecord(target, isCurrent)) return true;
+  } catch { /* Keep the source app's retry and saved state available. */ }
+  if (isCurrent()) toast('could not open this item; refresh to check whether it is still available', 'error');
+  return false;
+}
+
+async function openHomeRecord(view, id, occurrence) {
+  const target = recordTarget(view, id, occurrence);
+  if (!target) return false;
+  try {
+    const sub = viewToSub(view);
+    if (!singleHost() && currentSub() !== sub) {
+      const url = withRecordTarget(urlForApp(sub), target);
+      url.searchParams.set('view', view);
+      return await _navigateWithHandoff(url.toString());
+    }
+    return await navigateTo(view, { record: target });
+  } catch {
+    toast('could not open this item; try again', 'error');
+    return false;
+  }
+}
 
 async function showPrivateDayDraft(prompt) {
   if (!(await navigateTo('chat'))) return false;
@@ -933,7 +975,7 @@ window._askInChat = async (
 };
 const showModelsView  = () => showView('models-view',   'models',   () => renderSidebarModelList(document.getElementById('sidebar-model-search')?.value || ''));
 const showBrainView   = () => showView('brain-view',    'brain',    (_track, request) => loadBrainPanel(request));
-const showTasksView    = () => showView('tasks-view',    'tasks',    (_track, request) => loadTasks(request));
+const showTasksView    = () => showView('tasks-view',    'tasks',    (_track, request) => loadTasks(request, readRecordTarget(location.href)));
 const showCalendarView = () => showView('calendar-view', 'calendar', (_track, request) => loadCalendar(request));
 const showGalleryView  = () => showView('gallery-view',  'gallery',  () => { initGalleryUpload(); return loadGallery(); });
 const showCompareView  = () => showView('compare-view',  'compare',  () => { initCompareView(); return Promise.all([loadCompareModels(), loadCompareLeaderboard()]); });
@@ -968,7 +1010,7 @@ const showMailView       = () => showView('mail-view',      'mail',      (_track
 const showPhotosView     = () => showView('photos-view',    'photos',    (_track, request) => { initPhotos(); return loadPhotos(request); });
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=308'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=308'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
   _renderFirstRun();
   return result;
 };
@@ -982,7 +1024,7 @@ const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled',
 
 async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'calendar') return loadCalendar(request);
-  if (section === 'tasks') return loadTasks(request);
+  if (section === 'tasks') return loadTasks(request, readRecordTarget(location.href));
   if (section === 'reminders') return initReminderPanel(request);
   if (section === 'days') return import('./days.js?v=2').then(module => module.initDaysPanel(request));
   if (section === 'mail') return loadMail(request);
@@ -1015,6 +1057,9 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
     const previousOwner = resolveCompatibilityRoute({ view: previous, flags: _afterlifeFlags })?.host ?? currentSub();
     const nextOwner = route.host ?? viewToSub(groupRouteFor(identifier)?.group || identifier);
     if (previousOwner !== nextOwner) url.hash = '';
+    if (!replace) {
+      for (const param of ['record', 'record_view', 'occurrence']) url.searchParams.delete(param);
+    }
     url.searchParams.delete('app');
     if (route.section || singleHost() || !groupRouteFor(identifier)) url.searchParams.set('view', identifier);
     else url.searchParams.delete('view');
@@ -1027,11 +1072,18 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
 }
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
-async function navigateTo(v) {
+async function navigateTo(v, { record = null, preserveRecord = false } = {}) {
+  const generation = ++_navigationGeneration;
   if (v === 'home') v = 'today';
+  if (!(await prepareTaskNavigation())) return false;
   const docsVisible = document.getElementById('wiki-view')?.style.display !== 'none';
   if (docsVisible && typeof window._prepareDocsNavigation === 'function') {
     if (!(await window._prepareDocsNavigation())) return false;
+  }
+  if (generation !== _navigationGeneration) return false;
+  if (preserveRecord) {
+    const current = readRecordTarget(location.href);
+    record = current?.view === v ? current : null;
   }
   // memory now lives inside settings, not as its own view
   if (v === 'memory') { openSettings('memory'); return true; }
@@ -1058,6 +1110,7 @@ async function navigateTo(v) {
   }
   const knownRoute = groupedRoute || resolveCompatibilityRoute({ view: v, flags: _afterlifeFlags });
   if (knownRoute) _syncLocalViewUrl(knownRoute, groupedIdentifier, { replace: false });
+  if (record?.view === v) _replaceHistoryUrl(withRecordTarget(location.href, record));
   if (groupedRoute) {
     await renderLocalRoute(groupedRoute);
   } else {
@@ -1072,6 +1125,7 @@ window._navigateSpecialistSection = (group, section) => {
 
 window.addEventListener('popstate', async event => {
   const generation = ++_popstateGeneration;
+  ++_navigationGeneration;
   const targetPosition = targetRoutePosition(event.state);
   const currentPosition = routeHistoryPosition();
   if (_restoringRoutePosition !== null) {
@@ -1080,6 +1134,12 @@ window.addEventListener('popstate', async event => {
     if (restored) return;
   }
   if (targetPosition === currentPosition && location.pathname + location.search + location.hash === visibleRouteUrl()) return;
+  if (!(await prepareTaskNavigation())) {
+    if (generation !== _popstateGeneration) return;
+    _restoringRoutePosition = currentPosition;
+    if (!restoreDeniedRoute(targetPosition)) _restoringRoutePosition = null;
+    return;
+  }
   const url = new URL(location.href);
   const identifier = url.searchParams.get('view') || url.searchParams.get('app');
   const route = resolveCompatibilityRoute({

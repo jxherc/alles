@@ -315,9 +315,10 @@ def run():
                 action(a.get_by_role("tab", name="tasks", exact=True))
                 edit(a)
                 a.locator("#te-notes").fill("same document history draft")
+                draft_url = a.url
                 a.go_back(wait_until="domcontentloaded")
-                expect(a.locator("#te-notes")).to_have_value("same document history draft")
-                a.go_forward(wait_until="domcontentloaded")
+                a.get_by_role("alertdialog").get_by_role("button", name="cancel").click()
+                expect(a).to_have_url(draft_url)
                 expect(a.locator("#te-notes")).to_have_value("same document history draft")
                 discard(a)
                 a.reload(wait_until="networkidle")

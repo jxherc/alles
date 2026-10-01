@@ -1,4 +1,5 @@
 import { mdToHtml, toast } from './util.js';
+import { canRevertTool } from './agentview.js';
 import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown,
   showMessages, updateSessionName, createSession, getActiveId, markActive,
@@ -458,6 +459,7 @@ export async function sendMessage(text) {
           const step = document.createElement('div');
           step.className = 'agent-step running' + (DESTRUCTIVE_TOOLS.has(t.name) ? ' destructive' : '');
           step.dataset.callId = t.call_id || '';
+          step.dataset.toolName = t.name || '';
           step.innerHTML = `
             <div class="agent-step-head">
               <span class="agent-step-dot"></span>
@@ -501,8 +503,8 @@ export async function sendMessage(text) {
 
         if (chunk.tool_diff) {
           const t = chunk.tool_diff;
-          hadEdits = true;
           const step = toolEls.get(t.call_id);
+          hadEdits ||= canRevertTool(step?.dataset.toolName);
           if (step && t.diff) {
             let d = step.querySelector('.agent-step-diff');
             if (!d) {

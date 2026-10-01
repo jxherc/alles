@@ -76,6 +76,8 @@ COMMANDS = {
     "home-reminders": ("tests/pw_today_reminders.py",),
     "home-capture": ("tests/pw_home_capture.py",),
     "home-day-draft": ("tests/pw_home_day_draft.py",),
+    "home-record-links": ("tests/pw_home_record_links.py",),
+    "home-record-recovery": ("tests/pw_home_record_recovery.py",),
     "home-preferences": ("tests/pw_home_preferences.py",),
     "today-capture-confirm": ("tests/pw_today_capture_confirm.py",),
     "home-route-parity": ("tests/pw_home_route_parity.py",),
@@ -87,6 +89,7 @@ COMMANDS = {
     "aide-composer": ("tests/pw_aide_composer.py",),
     "aide-image-retry": ("tests/pw_aide_image_retry.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),
+    "aide-document-safety": ("tests/pw_aide_document_safety.py",),
     **{
         f"surfaces-{device}-{theme}": ("tests/pw_stability_surfaces.py", device, theme)
         for device in ("desktop", "phone")
