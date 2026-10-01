@@ -18,8 +18,24 @@ let _loadError = '';
 let _generation = 0;
 let _saving = false;
 let _draft = null;
+let _creation = null;
+let _showArchived = false;
+let _navigation = 0;
+
+function newRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 
 export function initHabits(fetcher = fetch) {
+  ++_navigation;
+  // A fresh navigation (including a Home record link) opens active habits.
+  if (_showArchived) { _showArchived = false; _habits = []; _hasLoaded = false; }
   if (!_inited) {
     _inited = true;
     document.addEventListener('visibilitychange', () => {
@@ -33,7 +49,7 @@ export async function loadHabits(fetcher = fetch) {
   const generation = ++_generation;
   _loading = true; _loadError = ''; _render();
   try {
-    const data = await api('/api/habits/overview', {}, fetcher);
+    const data = await api('/api/habits/overview' + (_showArchived ? '?archived=true' : ''), {}, fetcher);
     if (!Array.isArray(data.habits)) throw new Error('invalid habit response');
     if (generation !== _generation) return false;
     _habits = data.habits; _hasLoaded = true;
@@ -49,18 +65,23 @@ export async function loadHabits(fetcher = fetch) {
 function setBusy() {
   const body = $('habits-body');
   body?.setAttribute('aria-busy', String(_saving || _loading));
-  body?.querySelectorAll('button, input, .custom-select').forEach(el => { el.disabled = _saving; });
+  body?.querySelectorAll('button, input, .custom-select').forEach(el => {
+    el.disabled = _saving || (el.dataset.act === 'create' && !!_creation?.deleted);
+  });
 }
 
 async function writeHabit(change) {
   if (_saving) return;
+  const navigation = _navigation;
   const focus = document.activeElement;
   const cardId = focus?.closest('.habit-card')?.dataset.id;
   const day = focus?.dataset.toggle;
+  const action = focus?.dataset.act;
   const interruptedLoad = _loading;
   const generation = ++_generation;
   _saving = true; _loading = false; setBusy();
-  try { await change(); }
+  let resultFocus;
+  try { resultFocus = await change(); }
   catch (error) {
     toast(error.message === 'Failed to fetch' ? 'could not save. your input is kept; retry when connected.' : (error.message || 'could not save. try again.'), 'error');
     if (interruptedLoad && generation === _generation) {
@@ -70,10 +91,11 @@ async function writeHabit(change) {
   }
   finally {
     _saving = false; setBusy();
-    if ($('habits-body')?.offsetParent) {
+    if (navigation === _navigation && $('habits-body')?.offsetParent) {
       const card = cardId ? $('habits-body').querySelector(`[data-id="${CSS.escape(cardId)}"]`) : null;
-      const target = focus?.isConnected ? focus : (day ? card?.querySelector(`[data-toggle="${CSS.escape(day)}"]`) : card?.querySelector('[data-act="edit"]'));
-      (target || $('habits-add-toggle'))?.focus();
+      const target = focus?.isConnected && !focus.disabled ? focus : (day ? card?.querySelector(`[data-toggle="${CSS.escape(day)}"]`) : card?.querySelector('[data-act="edit"], [data-act="restore"]'));
+      const draftAction = action && _adding ? $('habits-body').querySelector(`.habit-add [data-act="${CSS.escape(action)}"]:not(:disabled)`) : null;
+      ((resultFocus?.isConnected ? resultFocus : null) || target || draftAction || $('habits-body').querySelector('.habit-card.editing [data-f="name"]') || $('habits-add-toggle') || $('habits-body').querySelector('[data-act="archive-view"]'))?.focus();
     }
   }
 }
@@ -93,6 +115,27 @@ function formPayload(card) {
 
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
+function upsertHabit(saved) {
+  _habits = _habits.filter(h => h.id !== saved.id);
+  if (saved.archived === _showArchived) _habits.push(saved);
+}
+
+async function closeAdd() {
+  if (_saving) return false;
+  const navigation = _navigation;
+  if (_creation?.uncertain && !await dlgConfirm('this habit may already be saved. close the draft and refresh the list?')) return false;
+  if (navigation !== _navigation) return false;
+  const refresh = _creation?.uncertain;
+  _adding = false; _creation = null; _draft = null;
+  if (refresh) {
+    // The caller may change views next; do not let a newer form open in between.
+    _saving = true; setBusy();
+    try { await loadHabits(); }
+    finally { _saving = false; setBusy(); }
+  }
+  return navigation === _navigation;
+}
+
 function _localDays(n) {
   const out = [];
   const t = new Date(); t.setHours(0, 0, 0, 0);
@@ -107,23 +150,33 @@ function _render() {
   if (!body) return;
   const active = body.contains(document.activeElement) ? document.activeElement : null;
   const field = active?.dataset.f;
+  const focusedRecord = active?.matches('.habit-card.record-target') ? active.dataset.id : null;
   const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
   const cards = _habits.map(h => h.id === _editing ? _editCard(h) : _card(h)).join('');
   body.innerHTML = `
     <div class="habits-bar">
-      <div class="habits-summary">${_habits.length ? `${_habits.length} habit${_habits.length !== 1 ? 's' : ''}` : ''}</div>
-      <button class="btn primary" id="habits-add-toggle">${_si('plus')} habit</button>
+      <div class="habits-summary">${_habits.length ? `${_habits.length} ${_showArchived ? 'archived ' : ''}habit${_habits.length !== 1 ? 's' : ''}` : ''}</div>
+      <div class="habit-actions">
+        <button class="btn" data-act="archive-view" aria-pressed="${_showArchived}">${_showArchived ? 'active habits' : 'archived habits'}</button>
+        ${_showArchived ? '' : `<button class="btn primary" id="habits-add-toggle">${_si('plus')} habit</button>`}
+      </div>
     </div>
     ${_loading ? '<div class="specialist-group-note" role="status">loading habits…</div>' : ''}
     ${_loadError ? `<div class="specialist-group-note legacy-load-note habit-load-error" role="alert"><span>${esc(_loadError)}</span><button type="button" class="btn" data-act="retry-load">retry</button></div>` : ''}
     ${_adding ? _addForm() : ''}
-    ${_habits.length ? `<div class="habits-list">${cards}</div>` : (_adding || !_hasLoaded || _loading ? '' : `<div class="habits-empty">no habits yet: track something daily (read, water, walk) or a few times a week. add one above.</div>`)}`;
+    ${_habits.length ? `<div class="habits-list">${cards}</div>` : (_adding || !_hasLoaded || _loading ? '' : `<div class="habits-empty">${_showArchived ? 'no archived habits. archived habits keep their history and can be restored here.' : 'no habits yet: track something daily (read, water, walk) or a few times a week. add one above.'}</div>`)}`;
   _wire(body);
   setBusy();
   if (field) {
     const input = body.querySelector(`.habit-card.editing [data-f="${CSS.escape(field)}"]`);
     input?.focus();
     if (selection && input?.setSelectionRange) input.setSelectionRange(...selection);
+  } else if (focusedRecord) {
+    const card = body.querySelector(`.habit-card[data-id="${CSS.escape(focusedRecord)}"]`);
+    if (card) {
+      card.classList.add('record-target'); card.tabIndex = -1;
+      card.focus({ preventScroll: true });
+    }
   }
 }
 
@@ -143,7 +196,7 @@ function _weekStrip(h) {
 
 function _card(h) {
   const accent = h.color || 'var(--accent)';
-  const slip = h.risk && h.risk.slipping
+  const slip = !h.archived && h.risk && h.risk.slipping
     ? `<span class="habit-slip" title="${esc(h.risk.reason)}">slipping</span>` : '';
   return `
     <div class="habit-card${slip ? ' at-risk' : ''}" data-id="${h.id}" style="--habit-accent:${esc(accent)}">
@@ -153,11 +206,11 @@ function _card(h) {
         ${slip}
         <span class="habit-streak${h.streak > 0 ? ' on' : ''}" title="current streak">${h.streak}${_si('fire')}</span>
         <div class="habit-actions">
-          <button class="icon-btn" data-act="edit" title="edit">${_si('edit')}</button>
+          ${h.archived ? '<button class="btn" data-act="restore">restore</button>' : `<button class="icon-btn" data-act="edit" title="edit">${_si('edit')}</button>`}
           <button class="icon-btn danger" data-act="del" title="delete">${_si('trash')}</button>
         </div>
       </div>
-      ${_weekStrip(h)}
+      ${h.archived ? '<div class="habit-meta">archived · history kept</div>' : _weekStrip(h)}
       ${_heat(h.grid)}
       <div class="habit-meta">${h.cadence === 'weekly' ? `${h.week_done}/${h.target} this week` : `${h.week_done}/7 days`} · ${h.pct}%</div>
     </div>`;
@@ -205,8 +258,10 @@ function _addForm() {
         <input type="text" class="settings-input" data-f="target" value="${esc(draft.target)}" inputmode="numeric" placeholder="x / week">
       </div>
       ${_colorPicker(draft.color)}
+      ${_creation?.error ? `<div class="habit-create-error specialist-group-note" role="alert">${esc(_creation.error)}</div>` : ''}
       <div class="habit-actions">
-        <button class="btn primary" data-act="create">add habit</button>
+        <button class="btn primary" data-act="create">${_creation?.uncertain ? 'retry save' : 'add habit'}</button>
+        ${_creation?.canOpen ? '<button class="btn" data-act="open-saved">open saved habit</button>' : ''}
         <button class="btn" data-act="cancel-add">cancel</button>
       </div>
     </div>`;
@@ -215,10 +270,21 @@ function _addForm() {
 function _wire(body) {
   body.querySelectorAll('.custom-select').forEach(initCustomDropdown);
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => {
-    if (typeof window._navigateTo === 'function') window._navigateTo('habits', { preserveRecord: true });
+    if (!_showArchived && typeof window._navigateTo === 'function') window._navigateTo('habits', { preserveRecord: true });
     else loadHabits();
   });
-  $('habits-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _editing = null; _draft = null; _render(); });
+  body.querySelector('[data-act="archive-view"]')?.addEventListener('click', async () => {
+    if (_saving || !await closeAdd()) return;
+    _showArchived = !_showArchived; _editing = null; _draft = null;
+    _habits = []; _hasLoaded = false; await loadHabits();
+  });
+  $('habits-add-toggle')?.addEventListener('click', async () => {
+    if (_saving) return;
+    if (_adding) { if (!await closeAdd()) return; }
+    else { _adding = true; _creation = { requestId: newRequestId() }; _draft = null; }
+    _editing = null; _render();
+    body.querySelector('.habit-add [data-f="name"]')?.focus();
+  });
   body.querySelectorAll('.habit-card.editing').forEach(card => {
     for (const event of ['input', 'change']) card.addEventListener(event, () => { _draft = readForm(card); });
   });
@@ -233,11 +299,49 @@ function _wire(body) {
   const add = body.querySelector('.habit-add');
   if (add) {
     add.querySelector('[data-act="create"]')?.addEventListener('click', () => writeHabit(async () => {
-      const saved = await api('/api/habits', { method: 'POST', body: formPayload(add) });
-      _habits.push(saved); _adding = false; _draft = null;
+      const payload = formPayload(add);
+      _draft = readForm(add);
+      let saved;
+      try {
+        saved = await api('/api/habits', { method: 'POST', body: { ...payload, request_id: _creation.requestId } });
+      } catch (error) {
+        _creation.uncertain ||= !error.status || error.status >= 500 || error.status === 409;
+        _creation.canOpen = _creation.uncertain && error.status !== 410;
+        _creation.deleted = error.status === 410;
+        _creation.error = error.status === 409 ? 'this request already saved a habit. open it to review your changes before correcting it.'
+          : error.status === 410 ? 'the saved habit was deleted. close this draft to start another.'
+          : _creation.uncertain ? 'could not confirm the save. your input is kept; retry safely or open the saved habit.'
+          : (error.message || 'could not save. your input is kept.');
+        _render(); throw error;
+      }
+      upsertHabit(saved); _adding = false; _draft = null; _creation = null;
       toast(`tracking ${saved.name}`, 'success'); await loadHabits();
     }));
-    add.querySelector('[data-act="cancel-add"]')?.addEventListener('click', () => { _adding = false; _draft = null; _render(); });
+    add.querySelector('[data-act="cancel-add"]')?.addEventListener('click', async () => { if (await closeAdd()) _render(); });
+    add.querySelector('[data-act="open-saved"]')?.addEventListener('click', async () => {
+      const navigation = _navigation;
+      if (_saving || !await dlgConfirm('open the saved habit and discard this unsaved draft?')) return;
+      if (navigation !== _navigation) return;
+      await writeHabit(async () => {
+        let saved;
+        try { saved = await api(`/api/habits/requests/${_creation.requestId}`); }
+        catch (error) {
+          if (navigation !== _navigation) return;
+          _creation.error = error.status === 404 ? 'no saved habit was found yet. your draft is kept; retry the save.'
+            : error.status === 410 ? 'the saved habit was deleted. close this draft to start another.'
+            : 'could not open the saved habit. your draft is kept; try again.';
+          if (error.status === 410) { _creation.deleted = true; _creation.canOpen = false; }
+          _render(); throw error;
+        }
+        if (navigation !== _navigation) return;
+        _showArchived = saved.archived; _habits = []; _hasLoaded = false; upsertHabit(saved);
+        _adding = false; _creation = null; _draft = null; _editing = saved.archived ? null : saved.id;
+        await loadHabits();
+        if (navigation !== _navigation) return;
+        toast(saved.archived ? 'this habit is archived. restore it to continue tracking.' : 'saved habit opened; review before saving changes.', 'success');
+        return $('habits-body').querySelector(`[data-id="${CSS.escape(saved.id)}"] ${saved.archived ? '[data-act="restore"]' : '[data-f="name"]'}`);
+      });
+    });
   }
 
   body.querySelectorAll('.habit-day[data-toggle]').forEach(btn => btn.addEventListener('click', () => writeHabit(async () => {
@@ -253,7 +357,7 @@ function _wire(body) {
     card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
       const act = btn.dataset.act;
       if (_saving) return;
-      if (act === 'edit') { _editing = id; _adding = false; _draft = null; _render(); return; }
+      if (act === 'edit') { if (!await closeAdd()) return; _editing = id; _draft = null; _render(); return; }
       if (act === 'cancel') { _editing = null; _draft = null; _render(); return; }
       if (act === 'del') {
         const h = _habits.find(x => x.id === id);
@@ -264,12 +368,13 @@ function _wire(body) {
           await api(`/api/habits/${id}`, { method: 'DELETE' });
           _habits = _habits.filter(h => h.id !== id);
           toast('deleted', 'success');
-        } else if (act === 'archive' || act === 'save') {
-          const saved = await api(`/api/habits/${id}`, { method: 'PATCH', body: act === 'archive' ? { archived: true } : formPayload(card) });
-          _habits = _habits.map(h => h.id === id ? saved : h).filter(h => !h.archived);
-          toast(act === 'archive' ? 'archived' : 'saved', 'success');
+        } else if (act === 'archive' || act === 'restore' || act === 'save') {
+          const saved = await api(`/api/habits/${id}`, { method: 'PATCH', body: act === 'save' ? formPayload(card) : { archived: act === 'archive' } });
+          upsertHabit(saved);
+          toast(act === 'archive' ? 'archived' : act === 'restore' ? 'restored to active habits' : 'saved', 'success');
         } else return;
-        _editing = null; _draft = null; await loadHabits();
+        if (_editing === id) { _editing = null; _draft = null; }
+        await loadHabits();
       });
     }));
   });
