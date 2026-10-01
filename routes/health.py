@@ -10,8 +10,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import HealthEntry, get_db
-from services.health_entries import HealthInputError, canonical_date, finite_value, save_entry
+from core.database import HealthCreateReceipt, HealthEntry, get_db
+from services.health_entries import (
+    HealthInputError,
+    canonical_date,
+    canonical_request_id,
+    finite_value,
+    recover_entry,
+    save_entry,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -53,6 +60,14 @@ def _fmt(e: HealthEntry) -> dict:
 
 
 # ── endpoints ──────────────────────────────────────────────────────────────────
+@router.get("/health/requests/{request_id}")
+def recover_saved_entry(request_id: str, db: DbSession = Depends(get_db)):
+    try:
+        return _fmt(recover_entry(db, request_id))
+    except HealthInputError as exc:
+        raise HTTPException(exc.status_code, str(exc)) from exc
+
+
 @router.get("/health/{kind}/anomalies")
 def health_anomalies(kind: str, k: float = 2.0, db: DbSession = Depends(get_db)):
     """4b - robust (MAD) anomaly flags + baseline for a health metric."""
@@ -178,6 +193,7 @@ class EntryBody(BaseModel):
     note: str = ""
     label: str = ""
     date: str = ""
+    request_id: str = ""
 
 
 @router.post("/health")
@@ -193,9 +209,11 @@ def create_entry(body: EntryBody, db: DbSession = Depends(get_db)):
             note=body.note,
             label=body.label,
             entry_date=body.date,
+            request_id=body.request_id,
         )
     except HealthInputError as exc:
-        raise HTTPException(400, str(exc)) from exc
+        detail = {"message": str(exc), "entry_id": exc.entry_id} if exc.entry_id else str(exc)
+        raise HTTPException(exc.status_code, detail) from exc
     return _fmt(e)
 
 
@@ -204,13 +222,21 @@ class EntryPatch(BaseModel):
     unit: str | None = None
     note: str | None = None
     date: str | None = None
+    create_request_id: str = ""
 
 
 @router.patch("/health/{eid}")
 def update_entry(eid: int, body: EntryPatch, db: DbSession = Depends(get_db)):
-    e = db.get(HealthEntry, eid)
+    try:
+        identity = canonical_request_id(body.create_request_id) if body.create_request_id else ""
+        e = recover_entry(db, identity) if identity else db.get(HealthEntry, eid)
+    except HealthInputError as exc:
+        raise HTTPException(exc.status_code, str(exc)) from exc
     if not e:
         raise HTTPException(404)
+    if e.id != eid:
+        raise HTTPException(409, "this save belongs to a different entry")
+    changes = {}
     if body.value is not None:
         try:
             finite_value(body.value)
@@ -218,13 +244,36 @@ def update_entry(eid: int, body: EntryPatch, db: DbSession = Depends(get_db)):
             raise HTTPException(400, str(exc)) from exc
     if body.date is not None:
         try:
-            e.date = canonical_date(body.date)
+            changes["date"] = canonical_date(body.date)
         except HealthInputError as exc:
             raise HTTPException(400, str(exc)) from exc
     for f in ("value", "unit", "note"):
         v = getattr(body, f)
         if v is not None:
-            setattr(e, f, v.strip() if isinstance(v, str) else v)
+            changes[f] = v.strip() if isinstance(v, str) else v
+    if identity:
+        if changes:
+            # The receipt must still refer to this row at the instant it is changed.
+            matched = (
+                db.query(HealthEntry)
+                .filter(
+                    HealthEntry.id == eid,
+                    HealthEntry.id.in_(
+                        db.query(HealthCreateReceipt.entry_id).filter_by(id=identity)
+                    ),
+                )
+                .update(changes, synchronize_session=False)
+            )
+            if not matched:
+                db.rollback()
+                raise HTTPException(410, "the entry from this save was deleted")
+            db.commit()
+        try:
+            return _fmt(recover_entry(db, identity))
+        except HealthInputError as exc:
+            raise HTTPException(exc.status_code, str(exc)) from exc
+    for key, value in changes.items():
+        setattr(e, key, value)
     db.commit()
     return _fmt(e)
 
@@ -234,6 +283,10 @@ def delete_entry(eid: int, db: DbSession = Depends(get_db)):
     e = db.get(HealthEntry, eid)
     if not e:
         raise HTTPException(404)
+    db.query(HealthCreateReceipt).filter_by(entry_id=eid).update(
+        {HealthCreateReceipt.entry_id: None, HealthCreateReceipt.payload_hash: ""},
+        synchronize_session=False,
+    )
     db.delete(e)
     db.commit()
     return {"ok": True}
