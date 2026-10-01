@@ -15,6 +15,12 @@ from services.finance_currency import (
 
 PROFILE_DETAILS = (
     {
+        "id": "generic-csv",
+        "label": "CSV (date, payee, amount)",
+        "kind": "statement",
+        "default_currency_code": "",
+    },
+    {
         "id": "cibc-csv",
         "label": "CIBC statement CSV",
         "kind": "statement",
@@ -187,7 +193,7 @@ def _csv_rows(content: str, profile: str) -> list[dict]:
 
 
 def _statement_row(profile: str, row: dict, requested_currency: str) -> dict:
-    if profile in CANADIAN_PROFILES:
+    if profile in CANADIAN_PROFILES or profile == "generic-csv":
         date = _pick(row, "transaction date", "date", "posting date", "transaction_date")
         payee = _pick(row, "description", "transaction details", "details", "payee", "memo")
         debit = _pick(row, "debit", "withdrawal", "withdrawals", "funds out")
@@ -196,7 +202,9 @@ def _statement_row(profile: str, row: dict, requested_currency: str) -> dict:
         external = _pick(
             row, "transaction id", "reference", "confirmation number", "reference number"
         )
-        currency = _pick(row, "currency", "currency code") or requested_currency or "CAD"
+        currency = _pick(row, "currency", "currency code") or requested_currency
+        if not currency and profile != "generic-csv":
+            currency = "CAD"
     else:
         date = _pick(row, "交易日期", "记账日期", "入账日期", "date")
         payee = _pick(row, "交易摘要", "摘要", "交易名称", "交易说明", "description", "payee")
@@ -227,13 +235,16 @@ def _statement_row(profile: str, row: dict, requested_currency: str) -> dict:
     amount_text = decimal_text(amount)
     if Decimal(amount_text) != Decimal(amount_text).quantize(Decimal("0.01")):
         raise ValueError("amount has more than two decimal places")
-    return {
+    parsed = {
         "date": _date_text(date),
         "amount_text": amount_text,
-        "payee": payee or "bank transaction",
+        "payee": payee if profile == "generic-csv" else payee or "bank transaction",
         "currency_code": resolved_currency,
         "external_id": external,
     }
+    if profile == "generic-csv":
+        parsed.update({key: _pick(row, key) for key in ("category", "notes", "tags")})
+    return parsed
 
 
 def _notification_row(line: str, requested_currency: str) -> dict:
