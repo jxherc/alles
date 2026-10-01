@@ -36,9 +36,13 @@ def is_done(db: Session, habit_id: str, raw_date: str) -> bool:
     return bool(_rows_on_day(db, habit_id, canonical_day(raw_date)))
 
 
-def toggle(db: Session, habit_id: str, raw_date: str) -> tuple[bool, str]:
+def toggle(
+    db: Session, habit_id: str, raw_date: str, *, done: bool | None = None
+) -> tuple[bool, str]:
     day = canonical_day(raw_date)
     matches = _rows_on_day(db, habit_id, day)
+    if done is not None and bool(matches) == done:
+        return done, day
     if matches:
         for row in matches:
             db.delete(row)

@@ -203,6 +203,7 @@ def delete_habit(hid: str, db: DbSession = Depends(get_db)):
 
 class ToggleBody(BaseModel):
     date: str = ""
+    done: bool | None = None
 
 
 @router.post("/habits/{hid}/toggle")
@@ -215,5 +216,5 @@ def toggle(hid: str, body: ToggleBody, db: DbSession = Depends(get_db)):
         day = habit_logs.canonical_day(raw_date)
     except ValueError:
         raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
-    done, day = habit_logs.toggle(db, hid, day)
+    done, day = habit_logs.toggle(db, hid, day, done=body.done)
     return {"done": done, "date": day}
