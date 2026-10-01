@@ -92,6 +92,7 @@ BROWSER_SUITES = {
     "questions": ("aide-questions",),
     "specialist": (
         "health-workflows",
+        "habit-recovery",
         "finance-workflows",
         "finance-networth-history",
         "finance-recurring-create",
@@ -145,6 +146,7 @@ BROWSER_SUITES = {
         "aide-questions",
         "aide-document-safety",
         "health-workflows",
+        "habit-recovery",
         "finance-workflows",
         "finance-networth-history",
         "finance-recurring-create",

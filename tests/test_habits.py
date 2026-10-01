@@ -99,6 +99,28 @@ class HabitApiTests(ApiTest):
         r2 = self.client.post(f"/api/habits/{hid}/toggle", json={"date": "2026-06-20"})
         self.assertFalse(r2.json()["done"])
 
+    def test_explicit_day_state_survives_repeated_acknowledgment_attempts(self):
+        hid = self._create().json()["id"]
+        for done in [True, True, False, False]:
+            response = self.client.post(
+                f"/api/habits/{hid}/toggle", json={"date": "2026-06-20", "done": done}
+            )
+            self.assertEqual(response.json(), {"date": "2026-06-20", "done": done})
+            with self.db() as db:
+                self.assertEqual(db.query(HabitLog).filter_by(habit_id=hid).count(), int(done))
+
+    def test_explicit_day_state_respects_existing_legacy_date_spellings(self):
+        hid = self._create().json()["id"]
+        with self.db() as db:
+            db.add(HabitLog(habit_id=hid, date="20260620"))
+            db.commit()
+        response = self.client.post(
+            f"/api/habits/{hid}/toggle", json={"date": "2026-06-20", "done": True}
+        )
+        self.assertTrue(response.json()["done"])
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).filter_by(habit_id=hid).count(), 1)
+
     def test_toggle_canonicalizes_accepted_compact_date_for_grid(self):
         hid = self._create().json()["id"]
         response = self.client.post(f"/api/habits/{hid}/toggle", json={"date": "20260620"})
