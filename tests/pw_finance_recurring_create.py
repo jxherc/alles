@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import show_money_sections
 
 from services.appearance import LIGHT_BASE
 
@@ -138,6 +139,7 @@ def run() -> None:
             tab = page.locator('#finance-tabs [data-group-section="money"]')
             if tab.get_attribute("aria-selected") != "true":
                 tab.click()
+            show_money_sections(page)
             card = page.locator('.money-card[data-card="recurring"]')
             expect(card.get_by_text("no auto-post schedules in Actual")).to_be_visible()
             expect(card.get_by_text("payee", exact=True)).to_be_visible()
@@ -173,6 +175,7 @@ def run() -> None:
                 path=str(output / f"recurring-create-{profile}-pending.png"), full_page=True
             )
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             retry = card.get_by_role("button", name="retry creation")
             expect(retry).to_be_visible()
             retry.focus()
@@ -185,6 +188,7 @@ def run() -> None:
             )
             state["phase"] = "edit_pending"
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             retry_edit = card.get_by_role("button", name="retry edit")
             expect(retry_edit).to_be_visible()
             expect(card.get_by_text("edit not confirmed", exact=False)).to_be_visible()
@@ -199,6 +203,7 @@ def run() -> None:
             )
             state["phase"] = "edit_review"
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             expect(
                 card.get_by_text("review the schedule there before retrying", exact=False)
             ).to_be_visible()

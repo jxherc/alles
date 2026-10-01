@@ -46,6 +46,7 @@ let _searchResults = null;   // array when a search/filter is active, else null
 let _searchTimer = null;
 let _cur = '$';
 let _inited = false;
+const _expandedMoneySections = new Set();
 let _editTxn = null;   // id of the txn row currently being edited inline
 let _splitTxn = null;  // id of the txn whose split editor is open (4a)
 let _splitRows = [];   // working split rows in the open editor
@@ -146,8 +147,38 @@ function _shiftMonth(m, delta) {
 function _monthLabel(m) {
   return formatCalendarDate(`${m}-01`, { month: 'long', year: 'numeric' }).toLowerCase();
 }
-const fmt = n => `${_cur}${formatNumber(Math.round((n || 0) * 100) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmt = n => `${_cur}${/^[A-Z]{3}$/.test(_cur) ? '\u00a0' : ''}${formatNumber(Math.round((n || 0) * 100) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const signed = n => (n >= 0 ? '+' : '−') + fmt(Math.abs(n));
+
+function moneyField(label, control) {
+  const layout = control.match(/ style="([^"]*)"/)?.[1] || '';
+  const native = control.startsWith('<input');
+  const tag = native ? 'label' : 'div';
+  const content = control.replace(/ style="[^"]*"/, '');
+  const labelled = native ? content : content.replace(/^<div /, `<div aria-label="${esc(label)}" `);
+  return `<${tag} class="money-field"${layout ? ` style="${layout}"` : ''}><span class="money-field-label">${esc(label)}</span>${labelled}</${tag}>`;
+}
+
+function moneySection(id, label, cards, attention = false) {
+  if (attention) _expandedMoneySections.add(id);
+  const open = _expandedMoneySections.has(id);
+  return `<section class="money-section">
+    <button type="button" class="money-section-toggle" data-money-section="${id}" aria-expanded="${open}" aria-controls="money-section-${id}"${attention ? ' disabled' : ''}>${label}${attention ? ' · needs attention' : ''}</button>
+    <div class="money-grid" id="money-section-${id}"${open ? '' : ' hidden'}>${cards}</div>
+  </section>`;
+}
+
+function toggleMoneySection(button) {
+  if (button.disabled) return;
+  const id = button.dataset.moneySection;
+  const content = $(`money-section-${id}`);
+  if (!content) return;
+  const open = !_expandedMoneySections.has(id);
+  if (open) _expandedMoneySections.add(id);
+  else _expandedMoneySections.delete(id);
+  content.hidden = !open;
+  button.setAttribute('aria-expanded', String(open));
+}
 
 export function initMoneyPanel(fetcher = fetch) {
   if (!_inited) {
@@ -329,50 +360,59 @@ function render() {
     return;
   }
   b.innerHTML =
+    `<button type="button" class="btn money-entry-action" id="money-entry-action">add transaction</button>` +
     summaryCards() +
     `<div id="money-alerts-content" role="status" tabindex="-1">${alertsStrip()}</div>` +
-    `<div class="money-grid">
+    `<section class="money-card money-txns">
+      <h3>transactions · ${_monthLabel(_month)}</h3>
+      ${addTxnRow()}${transferRow()}
+      <div class="txn-search-wrap" role="group" aria-label="filter transactions">
+        ${moneyField('search transactions', '<input type="text" id="txn-search" class="settings-input" placeholder="payee, category or notes" autocomplete="off">')}
+        ${moneyField('minimum amount', '<input type="text" id="txn-min" class="settings-input" placeholder="0.00" inputmode="decimal">')}
+        ${moneyField('maximum amount', '<input type="text" id="txn-max" class="settings-input" placeholder="0.00" inputmode="decimal">')}
+      </div>
+      <div id="txn-rows">${txnList()}</div>
+    </section>` +
+    moneySection('plans', 'accounts, budgets, schedules & goals', `
       <section class="money-card" data-card="accounts"><h3>accounts</h3>${accountsList()}<div id="money-acct-form-wrap"></div>
         <button class="btn money-add-acct" id="money-add-acct">+ account</button></section>
+      <section class="money-card money-envelope" data-card="envelope">${envelopeHeading()}${envelopeCard()}</section>
+      <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
+      <section class="money-card" data-card="budgets"><h3>spending caps</h3>${budgetsList()}${_budgetForm()}</section>
+      <section class="money-card" data-card="recurring"><h3 tabindex="-1">recurring</h3><div id="recurring-content"><div id="recurring-list">${recurringList()}</div>${_recurringForm()}</div></section>
+    `, _recurringError || _recurring.some(r => r.repair_needed || r.repair_pending || r.posting_pending || r.create_pending || r.create_needs_review || r.edit_pending || r.edit_needs_review || r.delete_pending || r.delete_needs_review) || !!_envelope?.pending_assignments?.length) +
+    moneySection('analytics', 'analytics & tools', `
       <section class="money-card" data-card="category"><h3>spending by category</h3>${catChart()}</section>
       <section class="money-card" data-card="trend"><h3>last 6 months</h3>${trendChart()}</section>
       <section class="money-card" data-card="networth"><h3 tabindex="-1">net worth over time</h3><div id="nw-history-content">${networthCard()}</div></section>
-      <section class="money-card money-envelope" data-card="envelope">${envelopeHeading()}${envelopeCard()}</section>
       <section class="money-card" data-card="holdings"><h3>investments</h3>${holdingsCard()}</section>
-      <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
       <section class="money-card" data-card="reports"><h3>reports</h3>${reportsCard()}</section>
-      <section class="money-card" data-card="budgets"><h3>spending caps</h3>${budgetsList()}${_budgetForm()}</section>
-      <section class="money-card" data-card="recurring"><h3 tabindex="-1">recurring</h3><div id="recurring-content"><div id="recurring-list">${recurringList()}</div>${_recurringForm()}</div></section>
       <section class="money-card" data-card="rules"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
-     </div>` +
-    `<section class="money-card money-txns">
-      <h3>transactions · ${_monthLabel(_month)}
-        <span class="txn-search-wrap">
-          <input type="text" id="txn-search" class="settings-input" placeholder="search payee / category / notes" autocomplete="off">
-          <input type="text" id="txn-min" class="settings-input" placeholder="min $" inputmode="decimal" title="min amount">
-          <input type="text" id="txn-max" class="settings-input" placeholder="max $" inputmode="decimal" title="max amount">
-        </span>
-      </h3>
-      ${addTxnRow()}${transferRow()}
-      <div id="txn-rows">${txnList()}</div>
-    </section>`;
+    `);
   wire();
 }
 
 function summaryCards() {
   const s = _sum || {};
   return `<div class="money-summary">
-    <div class="ms-card"><span class="ms-label">net worth</span><span class="ms-val">${fmt(s.net_worth)}</span></div>
-    <div class="ms-card"><span class="ms-label">income · this month</span><span class="ms-val pos">${fmt(s.income)}</span></div>
-    <div class="ms-card"><span class="ms-label">spent · this month</span><span class="ms-val neg">${fmt(s.expense)}</span></div>
-    <div class="ms-card"><span class="ms-label">net</span><span class="ms-val ${s.net >= 0 ? 'pos' : 'neg'}">${signed(s.net || 0)}</span></div>
+    <div class="ms-card"><span class="ms-label">net worth</span><span class="ms-val">${summaryAmount(s.net_worth)}</span></div>
+    <div class="ms-card"><span class="ms-label">income · this month</span><span class="ms-val pos">${summaryAmount(s.income)}</span></div>
+    <div class="ms-card"><span class="ms-label">spent · this month</span><span class="ms-val neg">${summaryAmount(s.expense)}</span></div>
+    <div class="ms-card"><span class="ms-label">net</span><span class="ms-val ${s.net >= 0 ? 'pos' : 'neg'}">${summaryAmount(s.net || 0, true)}</span></div>
     ${forecastCard()}
   </div>`;
 }
 
+function summaryAmount(n, showSign = false) {
+  const prefix = _cur + (/^[A-Z]{3}$/.test(_cur) ? '\u00a0' : '');
+  const amount = fmt(showSign ? Math.abs(n) : n).slice(prefix.length);
+  const sign = showSign ? (n >= 0 ? '+' : '−') : '';
+  return `${esc(sign + prefix)}<wbr><span class="ms-number">${esc(amount)}</span>`;
+}
+
 function forecastCard() {
   return `<div class="ms-card" data-forecast tabindex="-1"><span class="ms-label">projected · month-end</span>
-    ${_forecast ? `<span class="ms-val ${_forecast.projected < 0 ? 'neg' : ''}">${fmt(_forecast.projected)}</span>` : `<span class="ms-unavailable" role="status">${esc(_forecastError)}</span><button type="button" class="btn ms-retry" id="forecast-retry">retry</button>`}</div>`;
+    ${_forecast ? `<span class="ms-val ${_forecast.projected < 0 ? 'neg' : ''}">${summaryAmount(_forecast.projected)}</span>` : `<span class="ms-unavailable" role="status">${esc(_forecastError)}</span><button type="button" class="btn ms-retry" id="forecast-retry">retry</button>`}</div>`;
 }
 
 function forecastFailure(error) {
@@ -443,7 +483,7 @@ function networthCard() {
   return `<svg class="nw-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"></polyline></svg>
     <div class="trend-labels">${labels}</div>
     <div class="nw-now">now: ${fmt(vals[vals.length - 1])}</div>
-    <div class="nw-base"><input type="text" id="nw-base-cur" class="settings-input" placeholder="base (USD/EUR…)" style="width:120px"><button class="btn" id="nw-base-go">in base ↺</button><span id="nw-base-out" class="nw-base-out"></span></div>`;
+    <div class="nw-base">${moneyField('base currency', `<input type="text" id="nw-base-cur" class="settings-input" placeholder="base (USD/EUR…)" style="width:120px">`)}<button class="btn" id="nw-base-go">in base ↺</button><span id="nw-base-out" class="nw-base-out"></span></div>`;
 }
 
 async function retryNetworthHistory() {
@@ -478,19 +518,19 @@ function goalsCard() {
   }).join('');
   return `<div class="goals">${rows || '<div class="money-empty-sm">no goals: set a savings or debt-payoff goal</div>'}</div>
     <div class="goal-form">
-      <input type="text" id="gl-name" class="settings-input" placeholder="goal name" style="flex:1;min-width:100px">
-      <div class="settings-input custom-select" id="gl-kind" data-value="savings" data-options="savings|savings;debt|debt payoff" style="width:120px"></div>
-      <input type="text" id="gl-target" class="settings-input" placeholder="target" inputmode="decimal" style="width:80px">
-      <input type="text" id="gl-current" class="settings-input" placeholder="current" inputmode="decimal" style="width:80px">
-      <input type="text" id="gl-monthly" class="settings-input" placeholder="monthly" inputmode="decimal" style="width:80px">
+      ${moneyField('goal name', `<input type="text" id="gl-name" class="settings-input" placeholder="goal name" style="flex:1;min-width:100px">`)}
+      ${moneyField('goal type', `<div class="settings-input custom-select" id="gl-kind" data-value="savings" data-options="savings|savings;debt|debt payoff" style="width:120px"></div>`)}
+      ${moneyField('target amount', `<input type="text" id="gl-target" class="settings-input" placeholder="target" inputmode="decimal" style="width:80px">`)}
+      ${moneyField('current amount', `<input type="text" id="gl-current" class="settings-input" placeholder="current" inputmode="decimal" style="width:80px">`)}
+      ${moneyField('monthly amount', `<input type="text" id="gl-monthly" class="settings-input" placeholder="monthly" inputmode="decimal" style="width:80px">`)}
       <button class="btn" id="gl-add">add</button>
     </div>`;
 }
 
 function reportsCard() {
   return `<div class="report-form">
-      <div class="date-input" id="rp-start" data-type="date" data-value="" data-ph="start" style="width:128px"></div>
-      <div class="date-input" id="rp-end" data-type="date" data-value="" data-ph="end" style="width:128px"></div>
+      ${moneyField('start date', `<div class="date-input" id="rp-start" data-type="date" data-value="" data-ph="start" style="width:128px"></div>`)}
+      ${moneyField('end date', `<div class="date-input" id="rp-end" data-type="date" data-value="" data-ph="end" style="width:128px"></div>`)}
       <button class="btn" id="rp-run">run</button>
       <a class="btn" id="rp-export" href="#" style="display:none">export csv</a>
     </div>
@@ -513,10 +553,10 @@ function holdingsCard() {
     : '<div class="money-empty-sm">no holdings: add a stock/fund below</div>';
   return `<div class="holds">${rows}</div>${totRow}
     <div class="hold-form">
-      <input type="text" id="hd-sym" class="settings-input" placeholder="symbol" style="width:80px">
-      <input type="text" id="hd-qty" class="settings-input" placeholder="qty" inputmode="decimal" style="width:64px">
-      <input type="text" id="hd-cost" class="settings-input" placeholder="cost/sh" inputmode="decimal" style="width:74px">
-      <input type="text" id="hd-price" class="settings-input" placeholder="price" inputmode="decimal" style="width:64px">
+      ${moneyField('symbol', `<input type="text" id="hd-sym" class="settings-input" placeholder="symbol" style="width:80px">`)}
+      ${moneyField('quantity', `<input type="text" id="hd-qty" class="settings-input" placeholder="qty" inputmode="decimal" style="width:64px">`)}
+      ${moneyField('cost per share', `<input type="text" id="hd-cost" class="settings-input" placeholder="cost/sh" inputmode="decimal" style="width:74px">`)}
+      ${moneyField('price per share', `<input type="text" id="hd-price" class="settings-input" placeholder="price" inputmode="decimal" style="width:64px">`)}
       <button class="btn" id="hd-add">add</button>
     </div>`;
 }
@@ -530,7 +570,7 @@ function accountsList() {
       <div class="ma-bal ${a.balance < 0 ? 'neg' : ''}">${fmt(a.balance)}</div>
       <div class="ma-kind">${esc(a.kind)}</div>
       <div class="rc-panel" id="rc-panel-${a.id}" style="display:none">
-        <input type="text" class="settings-input" id="rc-stmt-${a.id}" placeholder="statement balance" inputmode="decimal">
+        ${moneyField('statement balance', `<input type="text" class="settings-input" id="rc-stmt-${a.id}" placeholder="statement balance" inputmode="decimal">`)}
         <button class="btn" data-rc-run="${a.id}">check</button>
         <div class="rc-out" id="rc-out-${a.id}"></div>
       </div>
@@ -613,7 +653,7 @@ function envelopeCard() {
   return banner + (rows
     ? `<div class="env-rows">${rows}</div>`
     : '<div class="money-empty-sm">assign money to a category to start budgeting</div>') +
-    `<div class="env-add"><input type="text" id="env-new-cat" class="settings-input" placeholder="category" style="flex:1"><input type="text" id="env-new-amt" class="settings-input" placeholder="assign" inputmode="decimal" style="width:90px"><button class="btn" id="env-assign-btn">assign</button></div>`;
+    `<div class="env-add">${moneyField('category', `<input type="text" id="env-new-cat" class="settings-input" placeholder="category" style="flex:1">`)}${moneyField('assignment amount', `<input type="text" id="env-new-amt" class="settings-input" placeholder="assign" inputmode="decimal" style="width:90px">`)}<button class="btn" id="env-assign-btn">assign</button></div>`;
 }
 
 function budgetsList() {
@@ -645,9 +685,9 @@ function rulesList() {
 
 function _ruleForm() {
   return `<div class="rule-form">
-    <input type="text" id="rl-match" class="settings-input" placeholder="if payee contains…" style="flex:1.2;min-width:120px">
+    ${moneyField('payee contains', `<input type="text" id="rl-match" class="settings-input" placeholder="if payee contains…" style="flex:1.2;min-width:120px">`)}
     <span class="rl-arrow">→</span>
-    <input type="text" id="rl-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">
+    ${moneyField('category', `<input type="text" id="rl-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">`)}
     <button class="btn" id="rl-add">add</button>
   </div>`;
 }
@@ -724,13 +764,13 @@ function _recurringForm() {
     <button type="button" class="btn primary" id="rc-add">add schedule</button>
   </div><p class="money-recurring-note">new schedules post in Actual. eligible linked guarded schedules can be edited or deleted here.</p>`;
   return `<div class="recur-form">
-    <input type="text" id="rc-payee" class="settings-input" placeholder="payee (e.g. rent)" style="flex:1.3;min-width:100px">
-    <input type="text" id="rc-cat" class="settings-input" placeholder="category" style="flex:1;min-width:80px">
-    <div class="settings-input custom-select" id="rc-sign" data-value="-" data-options="-|expense;+|income" style="width:104px"></div>
-    <input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:84px">
-    <div class="settings-input custom-select" id="rc-cycle" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly" style="width:120px"></div>
-    <div class="date-input" id="rc-next" data-type="date" data-value="${_today()}" data-ph="next date" style="width:128px"></div>
-    <div class="settings-input custom-select" id="rc-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>
+    ${moneyField('payee', `<input type="text" id="rc-payee" class="settings-input" placeholder="payee (e.g. rent)" style="flex:1.3;min-width:100px">`)}
+    ${moneyField('category', `<input type="text" id="rc-cat" class="settings-input" placeholder="category" style="flex:1;min-width:80px">`)}
+    ${moneyField('type', `<div class="settings-input custom-select" id="rc-sign" data-value="-" data-options="-|expense;+|income" style="width:104px"></div>`)}
+    ${moneyField('amount', `<input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:84px">`)}
+    ${moneyField('repeat', `<div class="settings-input custom-select" id="rc-cycle" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly" style="width:120px"></div>`)}
+    ${moneyField('next date', `<div class="date-input" id="rc-next" data-type="date" data-value="${_today()}" data-ph="next date" style="width:128px"></div>`)}
+    ${moneyField('account', `<div class="settings-input custom-select" id="rc-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>`)}
     <button class="btn primary" id="rc-add">add</button>
   </div>`;
 }
@@ -739,16 +779,16 @@ function addTxnRow() {
   const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const first = _accounts[0]?.id || '';
   return `<div class="txn-add">
-    <div class="date-input" id="tx-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>
-    <div class="settings-input custom-select" id="tx-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>
-    <input type="text" id="tx-payee" class="settings-input" placeholder="payee / what" style="flex:1.4;min-width:120px">
-    <input type="text" id="tx-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">
-    <input type="text" id="tx-tags" class="settings-input" placeholder="tags (comma)" style="flex:1;min-width:90px">
-    <div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|expense;+|income" style="width:106px"></div>
-    <input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">
-    <button class="btn primary" id="tx-add">add</button>
+    ${moneyField('date', `<div class="date-input" id="tx-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>`)}
+    ${moneyField('account', `<div class="settings-input custom-select" id="tx-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>`)}
+    ${moneyField('payee', `<input type="text" id="tx-payee" class="settings-input" placeholder="payee / what" style="flex:1.4;min-width:120px">`)}
+    ${moneyField('category', `<input type="text" id="tx-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">`)}
+    ${moneyField('tags (comma separated)', `<input type="text" id="tx-tags" class="settings-input" placeholder="tags (comma)" style="flex:1;min-width:90px">`)}
+    ${moneyField('type', `<div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|expense;+|income" style="width:106px"></div>`)}
+    ${moneyField('amount', `<input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
+    <button class="btn primary" id="tx-add">add transaction</button>
     ${_accounts.length >= 2 ? '<button class="btn" id="tx-transfer-toggle" title="move money between accounts">⇄ transfer</button>' : ''}
-  </div>`;
+  </div><p id="tx-amt-error" class="money-field-error" role="status"></p>`;
 }
 
 function transferRow() {
@@ -757,11 +797,11 @@ function transferRow() {
   const a0 = _accounts[0]?.id || '', a1 = _accounts[1]?.id || '';
   return `<div class="txn-transfer" id="txn-transfer" style="display:none">
     <span class="tr-lbl">move</span>
-    <div class="settings-input custom-select" id="tr-from" data-value="${esc(a0)}" data-options="${esc(opts)}" style="width:130px"></div>
+    ${moneyField('from account', `<div class="settings-input custom-select" id="tr-from" data-value="${esc(a0)}" data-options="${esc(opts)}" style="width:130px"></div>`)}
     <span class="tr-arrow">→</span>
-    <div class="settings-input custom-select" id="tr-to" data-value="${esc(a1)}" data-options="${esc(opts)}" style="width:130px"></div>
-    <div class="date-input" id="tr-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>
-    <input type="text" id="tr-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">
+    ${moneyField('to account', `<div class="settings-input custom-select" id="tr-to" data-value="${esc(a1)}" data-options="${esc(opts)}" style="width:130px"></div>`)}
+    ${moneyField('date', `<div class="date-input" id="tr-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>`)}
+    ${moneyField('amount', `<input type="text" id="tr-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
     <button class="btn primary" id="tr-do">transfer</button>
   </div>`;
 }
@@ -813,8 +853,8 @@ function _renderTxnMain(t, an) {
 function splitEditorRow(t) {
   const rows = (_splitRows.length ? _splitRows : [{ category: '', amount: '' }]).map((s, i) => `
     <div class="split-row" data-i="${i}">
-      <input type="text" class="settings-input split-cat" value="${esc(s.category || '')}" placeholder="category" style="flex:1">
-      <input type="text" class="settings-input split-amt" value="${esc(String(s.amount || ''))}" placeholder="amount" inputmode="decimal" style="width:90px">
+      ${moneyField('category', `<input type="text" class="settings-input split-cat" value="${esc(s.category || '')}" placeholder="category" style="flex:1">`)}
+      ${moneyField('amount', `<input type="text" class="settings-input split-amt" value="${esc(String(s.amount || ''))}" placeholder="amount" inputmode="decimal" style="width:90px">`)}
       <button class="btn split-row-del" data-i="${i}" title="remove">×</button>
     </div>`).join('');
   return `<div class="txn-split-editor" data-id="${t.id}">
@@ -832,12 +872,12 @@ function editTxnRow(t) {
   const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const neg = (t.amount || 0) < 0;
   return `<div class="txn txn-edit" data-id="${t.id}">
-    <div class="date-input" data-f="date" data-type="date" data-value="${esc(t.date || _today())}" data-ph="date" style="width:124px"></div>
-    <div class="settings-input custom-select" data-f="account_id" data-value="${esc(t.account_id)}" data-options="${esc(acctOpts)}" style="width:120px"></div>
-    <input type="text" class="settings-input" data-f="payee" value="${esc(t.payee || '')}" placeholder="payee" style="flex:1.4;min-width:90px">
-    <input type="text" class="settings-input" data-f="category" value="${esc(t.category || '')}" placeholder="category" style="flex:1;min-width:80px">
-    <div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|expense;+|income" style="width:100px"></div>
-    <input type="text" class="settings-input" data-f="amount" value="${Math.abs(t.amount || 0)}" inputmode="decimal" style="width:84px">
+    ${moneyField('date', `<div class="date-input" data-f="date" data-type="date" data-value="${esc(t.date || _today())}" data-ph="date" style="width:124px"></div>`)}
+    ${moneyField('account', `<div class="settings-input custom-select" data-f="account_id" data-value="${esc(t.account_id)}" data-options="${esc(acctOpts)}" style="width:120px"></div>`)}
+    ${moneyField('payee', `<input type="text" class="settings-input" data-f="payee" value="${esc(t.payee || '')}" placeholder="payee" style="flex:1.4;min-width:90px">`)}
+    ${moneyField('category', `<input type="text" class="settings-input" data-f="category" value="${esc(t.category || '')}" placeholder="category" style="flex:1;min-width:80px">`)}
+    ${moneyField('type', `<div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|expense;+|income" style="width:100px"></div>`)}
+    ${moneyField('amount', `<input type="text" class="settings-input" data-f="amount" value="${Math.abs(t.amount || 0)}" inputmode="decimal" style="width:84px">`)}
     <button class="btn primary" data-save-txn="${t.id}">save</button>
     <button class="btn" data-cancel-txn="${t.id}">×</button>
   </div>`;
@@ -846,17 +886,17 @@ function editTxnRow(t) {
 // ── inline forms ──────────────────────────────────────────────────────────────
 function _accountForm() {
   return `<div class="acct-form" id="acct-form">
-    <input type="text" id="af-name" class="settings-input" placeholder="account name (e.g. checking)" style="flex:1;min-width:150px">
-    <div class="settings-input custom-select" id="af-kind" data-value="checking" data-options="checking|checking;savings|savings;cash|cash;credit|credit card;investment|investment" style="width:150px"></div>
-    <input type="text" id="af-open" class="settings-input" placeholder="opening balance" inputmode="decimal" style="width:140px">
-    <input type="text" id="af-low" class="settings-input" placeholder="low-bal alert" inputmode="decimal" style="width:110px" title="alert when balance drops below this (0 = off)">
+    ${moneyField('account name', `<input type="text" id="af-name" class="settings-input" placeholder="account name (e.g. checking)" style="flex:1;min-width:150px">`)}
+    ${moneyField('account type', `<div class="settings-input custom-select" id="af-kind" data-value="checking" data-options="checking|checking;savings|savings;cash|cash;credit|credit card;investment|investment" style="width:150px"></div>`)}
+    ${moneyField('opening balance', `<input type="text" id="af-open" class="settings-input" placeholder="opening balance" inputmode="decimal" style="width:140px">`)}
+    ${moneyField('low balance alert (0 = off)', `<input type="text" id="af-low" class="settings-input" placeholder="low-bal alert" inputmode="decimal" style="width:110px" title="alert when balance drops below this (0 = off)">`)}
     <button class="btn primary" id="af-add">add account</button>
   </div>`;
 }
 function _budgetForm() {
   return `<div class="budget-form">
-    <input type="text" id="bf-cat" class="settings-input" placeholder="${_canonicalLedger ? 'Actual category' : 'category'}" style="flex:1;min-width:110px">
-    <input type="text" id="bf-amt" class="settings-input" placeholder="monthly cap" inputmode="decimal" style="width:120px">
+    ${moneyField('category', `<input type="text" id="bf-cat" class="settings-input" placeholder="${_canonicalLedger ? 'Actual category' : 'category'}" style="flex:1;min-width:110px">`)}
+    ${moneyField('monthly cap', `<input type="text" id="bf-amt" class="settings-input" placeholder="monthly cap" inputmode="decimal" style="width:120px">`)}
     <button class="btn" id="bf-add">set</button>
   </div>`;
 }
@@ -874,7 +914,13 @@ function _wireAccountForm() {
 }
 function wire() {
   _initControls();
+  $('money-body').querySelectorAll('[data-money-section]').forEach(button => button.addEventListener('click', () => toggleMoneySection(button)));
+  $('money-entry-action')?.addEventListener('click', () => {
+    $('tx-payee')?.focus();
+    $('tx-payee')?.scrollIntoView({ block: 'center' });
+  });
   $('tx-add')?.addEventListener('click', addTxn);
+  $('tx-amt')?.addEventListener('input', () => transactionAmountError(''));
   $('tx-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') addTxn(); });
   $('money-add-acct')?.addEventListener('click', () => {
     const wrap = $('money-acct-form-wrap');
@@ -1189,10 +1235,31 @@ async function delAccount(id) {
   try { await api(`/api/money/accounts/${id}`, { method: 'DELETE' }); await load(); }
   catch { toast('delete failed', 'error'); }
 }
+function transactionAmountError(message) {
+  const field = $('tx-amt'), error = $('tx-amt-error');
+  if (error) error.textContent = message;
+  if (message) {
+    field?.setAttribute?.('aria-invalid', 'true');
+    field?.setAttribute?.('aria-describedby', 'tx-amt-error');
+    field?.focus?.();
+  } else {
+    field?.removeAttribute?.('aria-invalid');
+    field?.removeAttribute?.('aria-describedby');
+  }
+}
+
 async function addTxn() {
   const amtRaw = _decimal($('tx-amt')?.value);
-  if (!_validAmounts(amtRaw)) return;
-  if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
+  if (!_validAmounts(amtRaw)) {
+    transactionAmountError('use a decimal point, e.g. 1234.56');
+    return;
+  }
+  if (!amtRaw || amtRaw <= 0) {
+    transactionAmountError('enter an amount greater than zero');
+    toast('enter an amount', 'error');
+    return;
+  }
+  transactionAmountError('');
   const sign = getDropdownValue($('tx-sign')) === '+' ? 1 : -1;
   let requestId = '';
   try {

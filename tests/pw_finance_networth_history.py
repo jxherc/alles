@@ -7,6 +7,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import show_money_sections
 
 
 def run():
@@ -90,6 +91,7 @@ def run():
             money_tab = page.locator('#finance-tabs [data-group-section="money"]')
             if money_tab.get_attribute("aria-selected") != "true":
                 money_tab.click()
+            show_money_sections(page)
             card = page.locator('.money-card[data-card="networth"]')
             expect(card.locator(".nw-svg")).to_be_visible()
             expect(card.locator(".nw-now")).to_contain_text("120")
@@ -125,6 +127,7 @@ def run():
 
             page.route("**/api/money/networth-history?*", history)
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             use_light_theme_on_phone()
             card = page.locator('.money-card[data-card="networth"]')
             retry = card.get_by_role("button", name="retry", exact=True)
@@ -167,6 +170,7 @@ def run():
 
             page.route("**/api/money/forecast?*", forecast)
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             projection = page.locator("[data-forecast]")
             retry_forecast = projection.get_by_role("button", name="retry", exact=True)
             expect(retry_forecast).to_be_visible()
@@ -207,6 +211,7 @@ def run():
 
             page.route("**/api/money/forecast?*", schedule_rule)
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             projection = page.locator("[data-forecast]")
             expect(projection).to_contain_text("fix Actual schedule")
             projection.scroll_into_view_if_needed()
@@ -324,6 +329,7 @@ def run():
             )
             page.route("**/api/money/recurring", canonical_recurring)
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             recurring_card = page.locator('.money-card[data-card="recurring"]')
             recurring_retry = recurring_card.get_by_role("button", name="retry", exact=True)
             expect(recurring_retry).to_be_visible()
@@ -362,6 +368,7 @@ def run():
 
             recurring_empty = True
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             recurring_card = page.locator('.money-card[data-card="recurring"]')
             expect(recurring_card).to_contain_text("no auto-post schedules in Actual")
             expect(recurring_card.locator("#rc-add")).to_be_visible()
@@ -427,6 +434,7 @@ def run():
 
             page.route("**/api/money/alerts?*", canonical_alerts)
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             use_light_theme_on_phone()
             alert_content = page.locator("#money-alerts-content")
             alert_retry = alert_content.get_by_role("button", name="retry", exact=True)
@@ -466,6 +474,7 @@ def run():
             alerts_empty = True
             alert_failures = 1
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             use_light_theme_on_phone()
             alert_content = page.locator("#money-alerts-content")
             alert_retry = alert_content.get_by_role("button", name="retry", exact=True)
@@ -478,6 +487,7 @@ def run():
             alert_content.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-alerts-empty-{profile}.png"))
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             expect(page.locator("#money-alerts-content")).to_be_empty()
 
             age_failures = 2
@@ -617,6 +627,7 @@ def run():
             page.route("**/api/money/envelope/target/bind", canonical_target_bind)
             page.route("**/api/money/envelope/target", canonical_target)
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             use_light_theme_on_phone()
             envelope_card = page.locator('.money-card[data-card="envelope"]')
             age_retry = envelope_card.locator("#age-retry")
@@ -708,6 +719,7 @@ def run():
                 }
             ]
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             envelope_card = page.locator('.money-card[data-card="envelope"]')
             pending_retry = envelope_card.get_by_role("button", name="retry the same amount")
             expect(pending_retry).to_be_visible()
@@ -750,7 +762,7 @@ def run():
                 "2027-02-01"
             )
             target_dialog.get_by_role("button", name="save").click()
-            expect(envelope_card).to_contain_text("target CAD200.00 by 2027-02-01")
+            expect(envelope_card).to_contain_text("target CAD\u00a0200.00 by 2027-02-01")
             assert target_writes[0]["category_id"] == target_writes[1]["category_id"] == "food-id"
             choose_category = envelope_card.get_by_role("button", name="choose category")
             if profile == "phone":
@@ -760,7 +772,7 @@ def run():
             picker = page.get_by_role("dialog", name="choose the category for old vacation")
             picker.get_by_role("button", name="plans / vacation").press("Enter")
             expect(envelope_card.locator(".env-unbound")).to_have_count(0)
-            expect(envelope_card).to_contain_text("target CAD100.00 by 2027-01-01")
+            expect(envelope_card).to_contain_text("target CAD\u00a0100.00 by 2027-01-01")
             expect(
                 envelope_card.get_by_role("button", name="edit funding target for plans / vacation")
             ).to_be_focused()
@@ -778,9 +790,9 @@ def run():
             mover.get_by_role("button", name="plans / books").press("Enter")
             expect(
                 envelope_card.locator('.env-row[data-category-id="vacation-id"]')
-            ).not_to_contain_text("target CAD100.00")
+            ).not_to_contain_text("target CAD\u00a0100.00")
             expect(envelope_card.locator('.env-row[data-category-id="books-id"]')).to_contain_text(
-                "target CAD100.00 by 2027-01-01"
+                "target CAD\u00a0100.00 by 2027-01-01"
             )
             envelope_card.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-target-moved-{profile}.png"))
@@ -799,6 +811,7 @@ def run():
             age_empty = True
             age_failures = 1
             page.reload(wait_until="networkidle")
+            show_money_sections(page)
             use_light_theme_on_phone()
             envelope_card = page.locator('.money-card[data-card="envelope"]')
             age_retry = envelope_card.locator("#age-retry")

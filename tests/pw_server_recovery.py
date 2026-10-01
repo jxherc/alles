@@ -17,6 +17,8 @@ from collections import Counter
 from pathlib import Path
 from urllib.parse import urlparse
 
+from pw_settings_helpers import choose_settings_section
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "scripts")]
 from run_browser_gates import (  # noqa: E402
@@ -763,7 +765,7 @@ def run():
                         page.goto("/?view=today")
                         page.locator("#today-settings").click()
                         expect(page.locator("#settings-modal")).to_be_visible()
-                        page.locator('.s-nav-item[data-pane="backup"]').click()
+                        choose_settings_section(page, "backup")
                         with page.expect_download() as download_event:
                             page.locator("#backup-export-btn").click()
                             expect(page.locator(".dialog-overlay")).to_be_visible()

@@ -17,6 +17,8 @@ from collections import Counter
 from pathlib import Path
 from urllib.parse import urlparse
 
+from pw_settings_helpers import choose_settings_section
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
@@ -220,7 +222,7 @@ def check_profile(browser, profile, output, records):
                     expect(page.locator("#setup-wizard")).to_be_hidden()
                     page.locator("#today-settings").click()
                     if profile == "phone":
-                        page.locator('.s-nav-item[data-pane="themes"]').click()
+                        choose_settings_section(page, "themes")
                         with page.expect_response(
                             lambda response: (
                                 response.url.endswith("/api/appearance")
@@ -230,7 +232,7 @@ def check_profile(browser, profile, output, records):
                             page.locator('[data-theme-mode="light"]').click()
                         assert appearance.value.ok
                         expect(page.locator("html")).to_have_attribute("data-theme", "light")
-                    page.locator('.s-nav-item[data-pane="backup"]').click()
+                    choose_settings_section(page, "backup")
                     page.locator("#setup-resume-btn").click()
                     expect(page.locator("#setup-dots")).to_contain_text("2 / 5")
                     passed()
@@ -381,7 +383,7 @@ def check_profile(browser, profile, output, records):
                     begin("setup-security.owner-setup.2")
                     expire()
                     page.locator("#today-settings").click()
-                    page.locator('.s-nav-item[data-pane="developer"]').click()
+                    choose_settings_section(page, "developer")
                     page.locator("#token-name").fill("Synthetic acceptance token")
                     generate = page.locator("#token-add-btn")
                     expected_http[("/api/tokens", 403)] += 3
@@ -415,7 +417,7 @@ def check_profile(browser, profile, output, records):
                     assert len(context.request.get(base + "/api/tokens").json()) == 1
                     page.reload(wait_until="networkidle")
                     page.locator("#today-settings").click()
-                    page.locator('.s-nav-item[data-pane="developer"]').click()
+                    choose_settings_section(page, "developer")
                     expect(page.locator("#token-list")).to_contain_text(
                         "Synthetic acceptance token"
                     )

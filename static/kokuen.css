@@ -3038,6 +3038,16 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   letter-spacing: 0;
 }
 
+#settings-modal[data-kokuen-surface="settings"] .s-navigation {
+  display: flex;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+#settings-modal[data-kokuen-surface="settings"] .s-section-trigger {
+  display: none;
+}
+
 #settings-modal[data-kokuen-surface="settings"] .s-nav {
   width: 204px;
   padding: var(--k-space-2);
@@ -3089,6 +3099,56 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   font-weight: 500;
   letter-spacing: 0;
   text-transform: lowercase;
+}
+
+#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure) > summary {
+  min-height: var(--k-control);
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  color: var(--k-text);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure, .home-settings-preview) > summary::after {
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  content: "";
+  border-right: 1px solid var(--k-muted);
+  border-bottom: 1px solid var(--k-muted);
+  transform: rotate(45deg);
+}
+
+#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure, .home-settings-preview)[open] > summary::after {
+  transform: rotate(225deg);
+}
+
+#settings-modal[data-kokuen-surface="settings"] .s-section-chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid var(--k-muted);
+  border-bottom: 1px solid var(--k-muted);
+  transform: rotate(45deg);
+}
+
+#settings-modal[data-kokuen-surface="settings"] .s-section-trigger[aria-expanded="true"] .s-section-chevron {
+  transform: rotate(225deg);
+}
+
+#settings-modal[data-kokuen-surface="settings"] .te-disclosure {
+  border: 0;
+  margin-top: var(--k-space-2);
+}
+
+#settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure)[open] > :not(summary) {
+  margin-top: var(--k-space-3);
+}
+
+#settings-modal[data-kokuen-surface="settings"] #te-preset-filter {
+  width: 100%;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-content {
@@ -3276,7 +3336,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-language-choice em {
-  color: var(--k-quiet);
+  color: var(--k-muted);
   font-size: 12px;
   font-style: normal;
   white-space: nowrap;
@@ -3362,10 +3422,10 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-choice-menu {
-  position: absolute;
+  position: fixed;
   z-index: 8;
-  inset: calc(100% + var(--k-space-1)) 0 auto;
-  max-height: 240px;
+  inset: auto;
+  max-height: 264px;
   overflow-y: auto;
   padding: var(--k-space-1);
   border: 1px solid var(--k-line-strong);
@@ -3769,7 +3829,6 @@ html[dir="rtl"] :where(
 
   #settings-modal[data-kokuen-surface="settings"] .locale-settings-preview {
     position: static;
-    order: -1;
   }
 }
 
@@ -3914,7 +3973,7 @@ html[dir="rtl"] :where(
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-row[data-enabled="false"] .home-settings-copy small {
-  color: var(--k-quiet);
+  color: var(--k-muted);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-copy {
@@ -4069,21 +4128,23 @@ html[dir="rtl"] :where(
   background: var(--k-page);
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview header {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-preview summary {
+  min-height: var(--k-control);
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--k-space-2);
+  cursor: pointer;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview h3 {
+#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-title {
   margin: 0;
   color: var(--k-text);
   font-size: 13px;
   font-weight: 500;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-preview header span,
+#settings-modal[data-kokuen-surface="settings"] #home-settings-preview-count,
 #settings-modal[data-kokuen-surface="settings"] .home-settings-preview p,
 #settings-modal[data-kokuen-surface="settings"] .home-settings-preview small {
   color: var(--k-muted);
@@ -4150,7 +4211,6 @@ html[dir="rtl"] :where(
 
   #settings-modal[data-kokuen-surface="settings"] .home-settings-preview {
     position: static;
-    order: -1;
   }
 
   #settings-modal[data-kokuen-surface="settings"] #home-settings-preview-list {
@@ -4349,14 +4409,14 @@ body.afterlife-aide-projects[data-space="aide"] #perm-mode-btn[data-value="full_
   color: var(--k-permission);
 }
 
-body.afterlife-aide-projects[data-space="aide"] :where(
+body.afterlife-aide-projects[data-space="aide"] :is(
   #perm-mode-btn.perm-auto,
   #perm-mode-btn[data-mode="full_auto"],
   #perm-mode-btn[data-mode="auto"],
   #perm-mode-btn[data-value="full_auto"],
   #perm-mode-btn[data-value="auto"]
 ) {
-  color: var(--k-accent);
+  color: var(--text) !important;
 }
 
 body.afterlife-aide-projects[data-space="aide"] :where(
@@ -5232,40 +5292,56 @@ body[data-app="files"] :where(.files-preview-pre) {
     flex-direction: column;
   }
 
-  #settings-modal[data-kokuen-surface="settings"] .s-nav {
-    width: auto;
-    display: flex;
+  #settings-modal[data-kokuen-surface="settings"] .s-navigation {
+    position: relative;
+    display: block;
+    width: 100%;
     flex-shrink: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
     padding: var(--k-space-2);
-    border-right: 0;
     border-bottom: 1px solid var(--k-line);
-    scrollbar-width: thin;
-    scrollbar-color: var(--k-line) transparent;
   }
 
-  #settings-modal[data-kokuen-surface="settings"] .s-nav::-webkit-scrollbar {
-    height: 4px;
+  #settings-modal[data-kokuen-surface="settings"] .s-section-trigger {
+    width: 100%;
+    min-height: var(--k-control);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--k-space-3);
+    border: 1px solid var(--k-line);
+    border-radius: var(--k-radius-control);
+    background: var(--k-page);
+    color: var(--k-text);
+    font: inherit;
+    font-size: 14px;
+    text-align: start;
+    cursor: pointer;
   }
 
-  #settings-modal[data-kokuen-surface="settings"] .s-nav::-webkit-scrollbar-thumb {
-    background: var(--k-line);
-    border-radius: 2px;
+  #settings-modal[data-kokuen-surface="settings"] .s-nav {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% - var(--k-space-1));
+    left: var(--k-space-2);
+    right: var(--k-space-2);
+    display: none;
+    width: auto;
+    overflow-y: auto;
+    border: 1px solid var(--k-line-strong);
+    background: var(--k-page);
   }
 
-  #settings-modal[data-kokuen-surface="settings"] .s-nav::-webkit-scrollbar-track {
-    background: transparent;
+  #settings-modal[data-kokuen-surface="settings"] .s-navigation.is-open .s-nav {
+    display: block;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .s-nav-group {
-    display: none;
+    display: block;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .s-nav-item {
-    width: auto;
-    min-width: max-content;
-    flex: 0 0 auto;
+    width: 100%;
+    min-height: var(--k-control);
   }
 
   #settings-modal[data-kokuen-surface="settings"] .s-content {
@@ -5740,12 +5816,13 @@ body[data-app="files"] #files-view .file-name-button {
   border: 0;
   padding: 0;
   background: transparent;
-  color: inherit;
+  color: var(--k-text);
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -6355,5 +6432,11 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
   body[data-app="files"]:has(#files-operation-dock:not([hidden])) .toast-container {
     right: var(--k-space-2);
     bottom: 256px;
+  }
+}
+
+@media (max-width: 760px) {
+  :is(#wiki-view .wiki-preview, body.afterlife-aide-projects .ai-content) :is(ul, ol) {
+    padding-inline-start: var(--k-space-5, 24px);
   }
 }

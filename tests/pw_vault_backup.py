@@ -18,6 +18,8 @@ from collections import Counter
 from pathlib import Path
 from urllib.parse import urlparse
 
+from pw_settings_helpers import choose_settings_section
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from run_browser_gates import (  # noqa: E402
@@ -320,7 +322,7 @@ def run_profile(browser, profile, output, records):
                         page.goto(base + "/?view=today")
                         expect(page.locator("#setup-wizard")).to_be_hidden()
                         page.locator("#today-settings").click()
-                        page.locator('.s-nav-item[data-pane="backup"]').click()
+                        choose_settings_section(page, "backup")
                         expect(page.locator("#backup-export-btn")).to_be_visible()
 
                     status = page.locator("#backup-restore-status")

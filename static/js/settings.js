@@ -63,7 +63,31 @@ const _ownedPanes = {
   backup: createBackupPane(closeSettings),
 };
 
+function _closeSectionPicker(returnFocus = false) {
+  const trigger = document.getElementById('settings-section-trigger');
+  const wasOpen = trigger?.getAttribute('aria-expanded') === 'true';
+  trigger?.setAttribute('aria-expanded', 'false');
+  document.querySelector('.s-navigation')?.classList.remove('is-open');
+  const list = document.getElementById('settings-section-list');
+  if (list) list.style.maxHeight = '';
+  if (returnFocus && wasOpen && trigger?.offsetParent !== null) trigger?.focus();
+}
+
+function _openSectionPicker() {
+  const trigger = document.getElementById('settings-section-trigger');
+  const list = document.getElementById('settings-section-list');
+  if (!trigger || !list) return;
+  document.querySelector('.s-navigation')?.classList.add('is-open');
+  trigger.setAttribute('aria-expanded', 'true');
+  const rect = trigger.getBoundingClientRect();
+  const modalBottom = document.querySelector('#settings-modal .s-modal')?.getBoundingClientRect().bottom || innerHeight;
+  list.style.maxHeight = `${Math.max(44, Math.min(innerHeight, modalBottom) - rect.bottom - 8)}px`;
+  list.querySelector('.active')?.focus();
+}
+
 function _switchPane(name) {
+  const pickerWasOpen = document.getElementById('settings-section-trigger')?.getAttribute('aria-expanded') === 'true';
+  _closeSectionPicker(pickerWasOpen);
   closeCustomDropdowns(document.getElementById('settings-modal'));
   _ownedPanes[_activePane]?.dispose();
   _invalidateRetainedReads(_activePane);
@@ -74,6 +98,12 @@ function _switchPane(name) {
   const selected = document.querySelector(`.s-nav-item[data-pane="${CSS.escape(name)}"]`);
   const context = document.getElementById('settings-pane-title');
   if (context) context.textContent = selected?.textContent.trim() || '';
+  const sectionTrigger = document.getElementById('settings-section-trigger');
+  if (sectionTrigger) {
+    const label = selected?.textContent.trim() || '';
+    sectionTrigger.firstElementChild.textContent = label;
+    sectionTrigger.setAttribute('aria-label', `settings section: ${label}`);
+  }
   document.querySelectorAll('.s-nav-item').forEach(n =>
     n.classList.toggle('active', n.dataset.pane === name));
   document.querySelectorAll('.s-nav-item').forEach(n =>
@@ -128,7 +158,9 @@ export function openSettings(pane, _allesOnly = false) {
 
   _switchPane(pane);
   requestAnimationFrame(() => {
-    const target = document.querySelector(`.s-nav-item[data-pane="${CSS.escape(_activePane)}"]`)
+    const picker = document.getElementById('settings-section-trigger');
+    const target = (picker?.offsetParent !== null ? picker : null)
+      || document.querySelector(`.s-nav-item[data-pane="${CSS.escape(_activePane)}"]`)
       || document.getElementById('settings-modal-close');
     target?.focus();
   });
@@ -138,6 +170,7 @@ export function closeSettings() {
   const modal = document.getElementById('settings-modal');
   if (!modal || modal.style.display === 'none') return;
   closeCustomDropdowns(document.getElementById('settings-modal'));
+  _closeSectionPicker(false);
   _ownedPanes[_activePane]?.dispose();
   _invalidateRetainedReads(_activePane);
   modal.style.display = 'none';
@@ -156,12 +189,39 @@ window._openSettings = openSettings;
 function _initSettings() {
   initCustomDropdowns(document.getElementById('settings-modal') || document);
 
+  const sectionTrigger = document.getElementById('settings-section-trigger');
+  sectionTrigger?.addEventListener('click', () => {
+    if (sectionTrigger.getAttribute('aria-expanded') === 'true') _closeSectionPicker(true);
+    else _openSectionPicker();
+  });
+  sectionTrigger?.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    _openSectionPicker();
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!event.target.closest('.s-navigation')) _closeSectionPicker(false);
+  });
+  window.addEventListener('resize', () => _closeSectionPicker(true));
+  document.querySelector('.s-navigation')?.addEventListener('focusout', event => {
+    if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) _closeSectionPicker(false);
+  });
+
   // nav clicks
   document.querySelectorAll('.s-nav-item').forEach(n => {
     n.setAttribute('role', 'button');
     n.tabIndex = 0;
     n.addEventListener('click', () => _switchPane(n.dataset.pane));
     n.addEventListener('keydown', event => {
+      if (sectionTrigger?.offsetParent !== null && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        const items = [...document.querySelectorAll('.s-nav-item')];
+        const index = items.indexOf(n);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+          : (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+        items[next]?.focus();
+        return;
+      }
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
       _switchPane(n.dataset.pane);
@@ -175,7 +235,8 @@ function _initSettings() {
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      closeSettings();
+      if (sectionTrigger?.getAttribute('aria-expanded') === 'true') _closeSectionPicker(true);
+      else closeSettings();
       return;
     }
     if (e.key !== 'Tab') return;
@@ -685,7 +746,7 @@ function _loadThemeColorControls() {
   if (box && !box.dataset.built) {
     box.dataset.built = '1';
     box.innerHTML = ACCENT_PRESETS.map(([hex, name]) =>
-      `<button class="accent-swatch" data-hex="${hex}" title="${name}" style="background:${hex}"></button>`).join('');
+      `<button type="button" class="accent-swatch" data-hex="${hex}" title="${name}" aria-label="${name} accent" style="background:${hex}"></button>`).join('');
     box.querySelectorAll('.accent-swatch').forEach(s => s.addEventListener('click', () => applyAccent(s.dataset.hex)));
   }
   const hexInp = document.getElementById('s-accent-hex');
