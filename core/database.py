@@ -69,6 +69,7 @@ from core.schema import GalleryImage as GalleryImage
 from core.schema import Goal as Goal
 from core.schema import Habit as Habit
 from core.schema import HabitLog as HabitLog
+from core.schema import HealthCreateReceipt as HealthCreateReceipt
 from core.schema import HealthEntry as HealthEntry
 from core.schema import Holding as Holding
 from core.schema import IndexChunk as IndexChunk

@@ -13,6 +13,8 @@ let _days = 30;
 let _draft = null;
 let _saving = false;
 let _formError = '';
+let _createUncertain = false;
+let _conflictId = null;
 let _returnFocus = '#health-add-toggle';
 let _fetcher = fetch;
 let _hasOverview = false;
@@ -23,6 +25,16 @@ const KIND_UNIT = { weight: 'kg', sleep: 'h', workout: 'min', med: '', custom: '
 const KIND_LABEL = { weight: 'weight', sleep: 'sleep', workout: 'workout', med: 'meds', custom: 'custom' };
 const RANGES = [[7, '7d'], [30, '30d'], [90, '90d'], [365, '1y']];
 const DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+
+function _newCreateRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 
 export function initHealth(fetcher = fetch) {
   _fetcher = fetcher;
@@ -169,28 +181,36 @@ function _addForm() {
         ${!editing && _draft.kind === 'custom' ? `<label class="health-field" for="health-label">metric name<input type="text" class="settings-input" id="health-label" value="${esc(_draft.label)}"></label>` : ''}
         <label class="health-field" for="health-note">note (optional)<input type="text" class="settings-input" id="health-note" value="${esc(_draft.note)}"></label>
         <div class="health-form-actions">
-          <button type="submit" class="btn primary" id="health-create">${_saving ? 'saving…' : editing ? 'save' : 'add'}</button>
+          <button type="submit" class="btn primary" id="health-create" ${_draft.openingSaved ? 'disabled' : ''}>${_saving ? 'saving…' : editing ? 'save' : 'add'}</button>
           <button type="button" class="btn" id="health-cancel">cancel</button>
         </div>
       </fieldset>
       <p id="health-entry-error" role="alert" ${_formError ? '' : 'hidden'}>${esc(_formError)}</p>
+      ${_conflictId != null ? `<button type="button" class="btn" id="health-open-saved" ${_saving || _draft.openingSaved ? 'disabled' : ''}>${_draft.openingSaved ? 'opening saved entry…' : 'open saved entry'}</button>` : ''}
     </form>`;
 }
 
 async function _openEntry(entry = null) {
   if (_saving) return;
-  if (_draft && !await dlgConfirm('discard this unsaved entry?')) return;
+  const previousDraft = _draft;
+  if (_draft && !await dlgConfirm(_createUncertain ? 'this entry may already be saved. discard this draft and check recent entries before adding another?' : 'discard this unsaved entry?')) return;
+  if (_draft !== previousDraft || _saving) return;
   _returnFocus = entry ? `.health-row[data-id="${entry.id}"] [data-act="edit"]` : '#health-add-toggle';
   _draft = entry ? { ...entry, value: String(entry.value) } : { kind: 'weight', value: '', unit: 'kg', date: '', label: '', note: '' };
   _formError = '';
+  _createUncertain = false; _conflictId = null;
   _render();
   $('health-value')?.focus();
 }
 
-function _closeEntry() {
+async function _closeEntry() {
+  if (_saving) return;
+  if (_createUncertain && !await dlgConfirm('this entry may already be saved. close this draft and check recent entries?')) return;
+  const refresh = _createUncertain;
   _draft = null;
-  _formError = '';
+  _formError = ''; _createUncertain = false; _conflictId = null;
   _render();
+  if (refresh) await loadHealth();
   document.querySelector(_returnFocus)?.focus();
 }
 
@@ -225,6 +245,32 @@ function _wire(body) {
     }
     $('health-entry-form')?.addEventListener('submit', event => { event.preventDefault(); _create(); });
     $('health-cancel')?.addEventListener('click', _closeEntry);
+    $('health-open-saved')?.addEventListener('click', async () => {
+      if (_saving || !_draft?.request_id || _draft.openingSaved) return;
+      const draft = _draft;
+      draft.openingSaved = true;
+      _render();
+      try {
+        const response = await fetch(`/api/health/requests/${encodeURIComponent(draft.request_id)}`);
+        const entry = await response.json().catch(() => ({}));
+        if (_draft !== draft) return;
+        if (!response.ok) {
+          if ([404, 410].includes(response.status)) _conflictId = null;
+          const reason = typeof entry.detail === 'string' ? entry.detail : 'could not open the saved entry';
+          throw new Error(reason + '. your input is kept.');
+        }
+        if (!$('health-body')?.getClientRects().length) return;
+        await _openEntry({ ...entry, create_request_id: draft.request_id });
+      } catch (error) {
+        if (_draft === draft) _formError = error.message || 'could not open the saved entry. your input is kept; try again.';
+      } finally {
+        draft.openingSaved = false;
+        if (_draft === draft) {
+          _render();
+          ($('health-open-saved') || $('health-create'))?.focus();
+        }
+      }
+    });
   }
 
   body.querySelectorAll('.health-card[data-kind] [data-act="set-target"]').forEach(btn => btn.addEventListener('click', async () => {
@@ -262,7 +308,7 @@ function _wire(body) {
 }
 
 async function _create() {
-  if (!_draft || _saving) return;
+  if (!_draft || _saving || _draft.openingSaved) return;
   const raw = _draft.value.trim();
   const value = Number(raw);
   const date = _draft.date.trim();
@@ -276,16 +322,30 @@ async function _create() {
   const editing = _draft.id != null;
   const payload = { value, unit: _draft.unit.trim(), note: _draft.note.trim() };
   if (date) payload.date = date;
+  if (editing && _draft.create_request_id) payload.create_request_id = _draft.create_request_id;
   if (!editing) Object.assign(payload, { kind: _draft.kind, label: _draft.kind === 'custom' ? _draft.label.trim() : '' });
+  const earlierUncertainty = _createUncertain;
   _saving = true;
   _render();
   try {
+    if (!editing) {
+      payload.request_id = _draft.request_id ||= _newCreateRequestId();
+      _createUncertain = true;
+    }
     const r = await fetch(editing ? `/api/health/${_draft.id}` : '/api/health', {
       method: editing ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!r.ok) throw new Error(`save failed (${r.status}). your input is kept; try again.`);
+    if (!r.ok) {
+      const detail = (await r.json().catch(() => ({}))).detail;
+      if (!editing && [400, 422].includes(r.status)) _createUncertain = earlierUncertainty;
+      if (!editing && r.status === 409 && Number.isInteger(detail?.entry_id)) _conflictId = detail.entry_id;
+      if (r.status === 410) _conflictId = null;
+      const reason = typeof detail === 'string' ? detail : detail?.message;
+      throw new Error(r.status < 500 && reason ? reason + '. your input is kept.' : `save failed (${r.status}). your input is kept; try again.`);
+    }
     _draft = null;
+    _createUncertain = false; _conflictId = null;
     toast(editing ? 'entry updated' : 'logged', 'success');
     await loadHealth();
     document.querySelector(_returnFocus)?.focus();
