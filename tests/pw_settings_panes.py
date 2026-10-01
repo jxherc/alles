@@ -136,6 +136,68 @@ def exercise(page, api, endpoint, destination):
         == before + 1
     )
 
+    # Successful saves remain owned by their pane when it closes and reopens.
+    held_saves = {}
+    for name, route_url, method, workbench, button, value in (
+        (
+            "home",
+            "**/api/today/preferences",
+            "PUT",
+            "home-settings-workbench",
+            "home-settings-save",
+            "comfortable",
+        ),
+        (
+            "notifications",
+            "**/api/settings",
+            "PATCH",
+            "locale-settings-workbench",
+            "s-locale-save",
+            "12",
+        ),
+    ):
+        pane(name)
+        expect(page.locator(f"#{workbench}")).to_have_attribute("aria-busy", "false")
+        choice = (
+            f'[data-home-density="{value}"]'
+            if name == "home"
+            else f'[data-locale-format="clock_format"][data-value="{value}"]'
+        )
+        page.locator(choice).click()
+        held = []
+
+        def hold_pane_save(route, request, expected_method=method):
+            if request.method == expected_method:
+                response = route.fetch()
+                assert response.ok
+                held.append((route, response))
+                page.evaluate("window.__settingsPaneHeldSaveReady = true")
+            else:
+                route.continue_()
+
+        page.evaluate("window.__settingsPaneHeldSaveReady = false")
+        page.route(route_url, hold_pane_save)
+        page.locator(f"#{button}").click()
+        page.wait_for_function("window.__settingsPaneHeldSaveReady === true")
+        expect(page.locator(f"#{button}")).to_be_disabled()
+        close_and_reopen(name)
+        expect(page.locator(f"#{workbench}")).to_have_attribute("aria-busy", "true")
+        expect(page.locator(f"#{button}")).to_be_disabled()
+        expect(page.locator(choice)).to_have_attribute("aria-checked", "true")
+        pane("general")
+        held[0][0].fulfill(response=held[0][1])
+        expect(page.locator(f"#{workbench}")).to_have_attribute("aria-busy", "false")
+        expect(page.locator('.s-nav-item[data-pane="general"]')).to_be_focused()
+        assert len(held) == 1
+        page.unroute(route_url, hold_pane_save)
+        pane(name)
+        expect(page.locator(f"#{workbench}")).to_have_attribute("aria-busy", "false")
+        expect(page.locator(choice)).to_have_attribute("aria-checked", "true")
+        saved = api.get("/api/today/preferences" if name == "home" else "/api/settings").json()
+        assert saved["density" if name == "home" else "clock_format"] == value
+        held_saves[name] = {"writes": len(held), "saved": value, "focus": "general"}
+    (destination / "pending-save-lifecycle.json").write_text(json.dumps(held_saves, indent=2))
+
     # The settings shortcut disposes a portal menu from the previous pane.
     pane("models")
     menu = page.locator('[data-role-select="aide_chat"]')
@@ -145,6 +207,130 @@ def exercise(page, api, endpoint, destination):
     expect(page.locator("#s-pane-general")).to_be_visible()
     expect(page.locator(".custom-dropdown-panel")).to_have_count(0)
     expect(menu).to_have_attribute("aria-expanded", "false")
+
+    # OAuth starts only create temporary UI for the opening that requested them.
+    pane("models")
+    page.locator("#s-gemini-oauth-toggle").click()
+    page.locator("#s-gemini-client-id").fill("example-client")
+    page.locator("#s-gemini-client-secret").fill("example")
+    page.locator("#s-gemini-project-id").fill("example-project")
+    page.evaluate(
+        """() => {
+            const h = window.__settingsPaneOAuth = {
+                open: window.open, interval: window.setInterval, clear: window.clearInterval,
+                opens: [], created: [], cleared: [], intervals: new Map(), next: 100000,
+                popup: {closed: false},
+            };
+            window.open = (...args) => { h.opens.push(args); return h.popup; };
+            window.setInterval = (callback, delay, ...args) => {
+                if (delay !== 2000) return h.interval(callback, delay, ...args);
+                const id = ++h.next;
+                h.intervals.set(id, {callback, args});
+                h.created.push({id, delay});
+                return id;
+            };
+            window.clearInterval = id => {
+                if (!h.intervals.has(id)) return h.clear(id);
+                h.intervals.delete(id);
+                h.cleared.push(id);
+            };
+        }"""
+    )
+    oauth_starts = []
+    oauth_evidence = {}
+
+    def hold_oauth_start(route):
+        assert route.request.method == "POST"
+        assert route.request.post_data_json == {
+            "client_id": "example-client",
+            "client_secret": "example",
+            "project_id": "example-project",
+        }
+        oauth_starts.append(route)
+        page.evaluate("count => window.__settingsPaneOAuthStarts = count", len(oauth_starts))
+
+    def oauth_snapshot():
+        return page.evaluate(
+            """() => {
+                const h = window.__settingsPaneOAuth;
+                return {opens: h.opens, created: h.created, cleared: h.cleared,
+                    active: [...h.intervals.keys()]};
+            }"""
+        )
+
+    page.route("**/api/models/oauth/gemini/start", hold_oauth_start)
+    start = page.locator("#s-gemini-oauth-start")
+    for mode in ("close", "reopen"):
+        expected_starts = len(oauth_starts) + 1
+        start.click()
+        page.wait_for_function(
+            "count => window.__settingsPaneOAuthStarts === count", arg=expected_starts
+        )
+        expect(start).to_be_disabled()
+        if mode == "close":
+            page.locator("#settings-modal-close").click()
+            expect(page.locator("#today-settings")).to_be_focused()
+        else:
+            close_and_reopen("models")
+            expect(start).to_be_disabled()
+        oauth_starts[-1].fulfill(json={"authorization_url": "https://oauth.example.test/authorize"})
+        expect(start).to_be_enabled()
+        expect(start).to_have_text("open Google authorization")
+        oauth_evidence[mode] = oauth_snapshot()
+        (destination / "oauth-lifecycle.json").write_text(json.dumps(oauth_evidence, indent=2))
+        assert oauth_evidence[mode]["opens"] == []
+        assert oauth_evidence[mode]["created"] == []
+        assert oauth_evidence[mode]["active"] == []
+        if mode == "close":
+            expect(page.locator("#settings-modal")).to_be_hidden()
+            expect(page.locator("#today-settings")).to_be_focused()
+            page.locator("#today-settings").click()
+            pane("models")
+
+    expected_starts = len(oauth_starts) + 1
+    start.click()
+    page.wait_for_function(
+        "count => window.__settingsPaneOAuthStarts === count", arg=expected_starts
+    )
+    oauth_starts[-1].fulfill(json={"authorization_url": "https://oauth.example.test/authorize"})
+    page.wait_for_function("window.__settingsPaneOAuth.intervals.size === 1")
+    expect(start).to_be_enabled()
+    active = oauth_snapshot()
+    assert active["opens"] == [
+        ["https://oauth.example.test/authorize", "alles-gemini-oauth", "popup,width=620,height=760"]
+    ]
+    assert len(active["created"]) == 1
+    page.wait_for_load_state("networkidle")
+    reads = []
+
+    def count_oauth_reads(request):
+        if request.method == "GET" and urlsplit(request.url).path == "/api/models":
+            reads.append(request.url)
+
+    page.on("request", count_oauth_reads)
+    page.evaluate(
+        """async () => {
+            const timer = window.__settingsPaneOAuth.intervals.values().next().value;
+            await timer.callback(...timer.args);
+        }"""
+    )
+    assert len(reads) == 1
+    page.remove_listener("request", count_oauth_reads)
+    pane("general")
+    oauth_evidence["active-disposed"] = oauth_snapshot()
+    assert oauth_evidence["active-disposed"]["active"] == []
+    assert oauth_evidence["active-disposed"]["cleared"] == active["active"]
+    (destination / "oauth-lifecycle.json").write_text(json.dumps(oauth_evidence, indent=2))
+    page.unroute("**/api/models/oauth/gemini/start", hold_oauth_start)
+    page.evaluate(
+        """() => {
+            const h = window.__settingsPaneOAuth;
+            window.open = h.open;
+            window.setInterval = h.interval;
+            window.clearInterval = h.clear;
+            delete window.__settingsPaneOAuth;
+        }"""
+    )
 
     # Read-only refreshes keep role and endpoint editor drafts separately.
     pane("models")
