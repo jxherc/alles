@@ -14,6 +14,8 @@ def run():
     artifacts = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     observations = []
     focus_observations = []
+    settings_observations = []
+    finance_observations = []
     actual_ready = {
         "service": {
             "available": True,
@@ -74,10 +76,23 @@ def run():
                         <div class="finance-actual-panel">outside authority panel</div>
                         <div class="txn-add"><span>outside transaction editor</span></div>
                         <div class="money-alerts">outside money alerts</div>
+                        <span class="tx-tags"><span>outside tag</span></span>
+                        <div class="goal-row">outside goal</div>
                         <div class="s-card">shared project card</div>
                         <div class="s-field"><label>shared editor field</label><input class="settings-input"></div>
                         <button class="s-switch" type="button" role="switch" aria-checked="false">shared switch</button>`;
                     document.body.append(probe);
+                    const owned = document.createElement('div');
+                    owned.innerHTML = '<span class="tx-tags"><span>inside tag</span></span>' +
+                        '<div class="goal-row">inside goal</div>';
+                    document.querySelector('#money-view').append(owned);
+                    const readFinance = host => {
+                        const tags = getComputedStyle(host.querySelector('.tx-tags'));
+                        const goal = getComputedStyle(host.querySelector('.goal-row'));
+                        return {tags: {display: tags.display, wrap: tags.flexWrap,
+                            maxWidth: tags.maxWidth, overflow: tags.overflow},
+                            goalMargin: goal.marginBottom};
+                    };
                     const style = selector => getComputedStyle(probe.querySelector(selector));
                     const result = {finance: style('.ms-card').display, home: style('.today-inner').width,
                         settings: style('.s-pane').display,
@@ -85,8 +100,9 @@ def run():
                         transaction: style('.txn-add > span').height,
                         alerts: style('.money-alerts').display,
                         card: style('.s-card').borderTopWidth, field: style('.s-field').flexDirection,
-                        switch: style('.s-switch').height};
-                    probe.remove(); return result;
+                        switch: style('.s-switch').height,
+                        financePrivate: {outside: readFinance(probe), inside: readFinance(owned)}};
+                    owned.remove(); probe.remove(); return result;
                 }""")
                 assert isolation["finance"] == "block", isolation
                 assert isolation["settings"] == "block", isolation
@@ -97,6 +113,25 @@ def run():
                 assert isolation["card"] == "1px", isolation
                 assert isolation["field"] == "column", isolation
                 assert isolation["switch"] == "44px", isolation
+                finance_private = isolation["financePrivate"]
+                finance_observations.append({"width": width, "theme": theme, **finance_private})
+                (artifacts / "finance-private-style-ownership.json").write_text(
+                    json.dumps(finance_observations, indent=2)
+                )
+                assert finance_private["outside"]["tags"] == {
+                    "display": "inline",
+                    "wrap": "nowrap",
+                    "maxWidth": "none",
+                    "overflow": "visible",
+                }, finance_private
+                assert finance_private["outside"]["goalMargin"] == "0px", finance_private
+                assert finance_private["inside"]["tags"] == {
+                    "display": "flex",
+                    "wrap": "wrap",
+                    "maxWidth": "150px",
+                    "overflow": "hidden",
+                }, finance_private
+                assert finance_private["inside"]["goalMargin"] == "9.6px", finance_private
                 for zoom in (1, 2):
                     page.evaluate(
                         "zoom => document.documentElement.style.zoom = String(zoom)", zoom
@@ -201,6 +236,68 @@ def run():
                             and ring["bottom"] <= boundary["bottom"] + 0.5
                         ), focused
                 assert actual_mutations == [], actual_mutations
+                page.goto(base + "/?view=today", wait_until="networkidle")
+                page.evaluate(
+                    """async theme => {
+                    const { applyAppearance, PRESETS } = await import('/static/js/theme.js');
+                    applyAppearance({ preset: theme, colors: PRESETS[theme].colors });
+                }""",
+                    theme,
+                )
+                page.locator("#today-settings").click()
+                page.locator('.s-nav-item[data-pane="tools"]').click()
+                private_styles = page.evaluate("""() => {
+                    document.body.classList.add('theme-frosted');
+                    const host = document.createElement('div');
+                    host.innerHTML = '<div class="jarvis-pairing"></div>' +
+                        '<div class="jarvis-quiet-row"></div>' +
+                        '<div class="jarvis-quiet-fields"></div><div class="s-modal"></div>';
+                    document.body.append(host);
+                    const quiet = document.querySelector('#settings-modal .jarvis-quiet-fields');
+                    const wasHidden = quiet.hidden;
+                    quiet.hidden = false;
+                    const read = el => {
+                        const s = getComputedStyle(el);
+                        return {display: s.display, border: s.borderTopWidth,
+                            padding: s.paddingTop, filter: s.backdropFilter,
+                            columns: s.gridTemplateColumns};
+                    };
+                    const result = Object.fromEntries([...host.children].map(el =>
+                        [el.className, {outside: read(el),
+                            inside: read(document.querySelector('#settings-modal .' + el.className))}]));
+                    quiet.hidden = true;
+                    result.hiddenQuietDisplay = getComputedStyle(quiet).display;
+                    quiet.hidden = wasHidden;
+                    host.remove();
+                    return result;
+                }""")
+                for name in ("jarvis-pairing", "jarvis-quiet-row", "jarvis-quiet-fields"):
+                    assert private_styles[name]["outside"]["display"] == "block", private_styles
+                    assert private_styles[name]["outside"]["border"] == "0px", private_styles
+                    assert private_styles[name]["outside"]["padding"] == "0px", private_styles
+                assert private_styles["jarvis-pairing"]["inside"]["display"] == "grid", (
+                    private_styles
+                )
+                assert private_styles["jarvis-pairing"]["inside"]["border"] == "1px", private_styles
+                assert private_styles["jarvis-quiet-row"]["inside"]["display"] == "flex", (
+                    private_styles
+                )
+                assert private_styles["jarvis-quiet-row"]["inside"]["border"] == "1px", (
+                    private_styles
+                )
+                assert private_styles["jarvis-quiet-fields"]["inside"]["display"] == "grid", (
+                    private_styles
+                )
+                assert private_styles["hiddenQuietDisplay"] == "none", private_styles
+                assert private_styles["s-modal"]["outside"]["filter"] == "none", private_styles
+                assert (
+                    private_styles["s-modal"]["inside"]["filter"] == "blur(13px) saturate(1.25)"
+                ), private_styles
+                settings_observations.append({"width": width, "theme": theme, **private_styles})
+                (artifacts / "settings-style-ownership.json").write_text(
+                    json.dumps(settings_observations, indent=2)
+                )
+                page.screenshot(path=str(artifacts / f"settings-frosted-{width}-{theme}.png"))
                 assert errors == [], errors
                 context.close()
         api.dispose()

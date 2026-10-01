@@ -138,7 +138,7 @@ test('Discord settings preserve drafts, reject stale loads, and roll back failed
 test('settings refreshes role state and provider catalogs without hiding failures', () => {
   const source = readFileSync(new URL('../../static/js/settings/providers.js', import.meta.url), 'utf8');
   const models = readFileSync(new URL('../../static/js/models.js', import.meta.url), 'utf8');
-  assert.match(source, /Promise\.allSettled\(endpoints\.map/);
+  assert.match(source, /Promise\.allSettled\(available\.map/);
   assert.match(source, /await window\._refreshAideModelDefault\?\.\(\)/);
   assert.match(source, /replace the unavailable model before saving/);
   assert.match(source, /finally \{[\s\S]*?await loadEpList\(\); await loadModels\(\)/);

@@ -70,8 +70,9 @@ def run():
             def snapshot(name):
                 page.screenshot(path=str(out / f"{profile}-{name}.png"), full_page=True)
 
-            def calendar():
-                page.get_by_role("tab", name="calendar", exact=True).click()
+            def calendar(select_tab=True):
+                if select_tab:
+                    page.get_by_role("tab", name="calendar", exact=True).click()
                 months = "January February March April May June July August September October November December".split()
                 for _ in range(120):
                     if page.locator("#cal-load-error").is_visible():
@@ -201,6 +202,7 @@ def run():
                 page.unroute("**/api/calendar", fail)
                 page.locator("#cal-load-error").get_by_role("button", name="retry").click()
                 expect(page.locator("#plan-view > .specialist-state")).to_be_hidden()
+                calendar(select_tab=False)
                 expect(page.locator(f'.cal-chip[data-id="{event["id"]}"]')).to_be_visible()
                 passed()
 
