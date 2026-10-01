@@ -35,6 +35,7 @@ from core.schema.application import EventAttendee as EventAttendee
 from core.schema.application import Face as Face
 from core.schema.application import GalleryImage as GalleryImage
 from core.schema.application import Habit as Habit
+from core.schema.application import HabitCreateReceipt as HabitCreateReceipt
 from core.schema.application import HabitLog as HabitLog
 from core.schema.application import HealthCreateReceipt as HealthCreateReceipt
 from core.schema.application import HealthEntry as HealthEntry

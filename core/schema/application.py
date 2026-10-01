@@ -1321,6 +1321,14 @@ class Habit(Base):
     archived = Column(Boolean, default=False)
 
 
+class HabitCreateReceipt(Base):
+    # Keep the request after deletion so a late retry cannot recreate the habit.
+    __tablename__ = "habit_create_receipts"
+    id = Column(String, primary_key=True)
+    habit_id = Column(String, index=True, nullable=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class HabitLog(Base):
     # presence of a row = the habit was done on that date (one per habit/day)
     __tablename__ = "habit_logs"
