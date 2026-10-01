@@ -9,6 +9,8 @@ const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, loa
 let _unlocked = false;
 let _token = null;     // the unlock token; sent back on every vault request
 let _entries = [];     // last loaded list, so a row click can open the editor
+let _entriesGeneration = 0;
+let _revealGeneration = 0;
 let _modalEl = null;   // the open add/edit overlay, if any
 let _modalFocusBoundary = null;
 let _totpTimer = null;  // live TOTP countdown interval
@@ -126,7 +128,7 @@ function _activateManagedModal(overlay, source, initialFocus) {
   if (!dialog) return;
   _modalFocusBoundary = createFocusBoundary(dialog, {
     trigger: source,
-    onEscape: _closeModal,
+    onEscape: _requestCloseModal,
   });
   _modalFocusBoundary.activate({ source, focus: initialFocus });
 }
@@ -994,6 +996,8 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
           <input type="file" id="vf-attach-input" hidden>
           <button type="button" class="btn" id="vf-attach-btn" style="font-size:0.75rem">+ attach file</button></div>` : ''}
       </div>
+      <p id="vf-error" class="vault-form-error" role="alert" hidden></p>
+      <button type="button" class="btn" id="vf-open-saved" hidden>open saved entry</button>
       <div class="vault-form-actions">
         ${editing ? '<button type="button" class="btn danger" id="vf-del" style="margin-right:auto">delete</button>' : ''}
         ${editing ? '<button type="button" class="btn" id="vf-share" title="share this item via a one-off link">🔗 share</button>' : ''}
@@ -1004,6 +1008,7 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
   document.body.appendChild(ov);
   _modalEl = ov;
   ov._entry = entry;
+  ov._vaultId = _vaultId;
 
   const typeSel = ov.querySelector('#vf-type');
   typeSel.setAttribute('aria-labelledby', 'vf-type-label');
@@ -1014,9 +1019,10 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
   ov.querySelector('#vf-name').value = editing ? (entry.name || '') : '';
   _renderFields(_currentFields(), _editVals());
 
-  ov.querySelector('#vf-x').onclick = _closeModal;
-  ov.querySelector('#vf-cancel').onclick = _closeModal;
+  ov.querySelector('#vf-x').onclick = _requestCloseModal;
+  ov.querySelector('#vf-cancel').onclick = _requestCloseModal;
   ov.querySelector('#vf-save').onclick = () => _saveForm(editing);
+  ov.querySelector('#vf-open-saved').onclick = () => _openSavedEntry(ov);
   ov.querySelector('#vf-del')?.addEventListener('click', () => _delFromForm(entry.id));
   if (editing) {
     _renderAttachments(entry.id);
@@ -1029,7 +1035,7 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
     });
     ov.querySelector('#vf-share')?.addEventListener('click', () => _shareItem(entry.id));
   }
-  ov.addEventListener('mousedown', e => { if (e.target === ov) _closeModal(); });
+  ov.addEventListener('mousedown', e => { if (e.target === ov) _requestCloseModal(); });
   _activateManagedModal(ov, returnFocus, ov.querySelector('#vf-name'));
 }
 
@@ -1069,12 +1075,95 @@ async function _shareItem(eid) {
   } catch { toast('share failed', 'error'); }
 }
 
+function _sameForm(ov, token) {
+  return _modalEl === ov && _unlocked && _token === token && ov._vaultId === _vaultId;
+}
+
+function _formError(ov, message) {
+  const error = ov.querySelector('#vf-error');
+  if (error) { error.textContent = message; error.hidden = !message; }
+  const open = ov.querySelector('#vf-open-saved');
+  if (open) open.hidden = !ov._conflict;
+}
+
+function _formBusy(ov, busy) {
+  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-save, #vf-open-saved, #vf-del, #vf-share');
+  if (busy && !ov._disabledBefore) {
+    ov._disabledBefore = new Map([...controls].map(control => [control, control.disabled]));
+    controls.forEach(control => { control.disabled = true; });
+  } else if (!busy && ov._disabledBefore) {
+    ov._disabledBefore.forEach((disabled, control) => { control.disabled = disabled; });
+    ov._disabledBefore = null;
+  }
+  const save = ov.querySelector('#vf-save');
+  if (save) save.textContent = ov._saving ? 'saving…' : ov._entry ? 'save' : 'add';
+  const open = ov.querySelector('#vf-open-saved');
+  if (open) open.textContent = ov._openingSaved ? 'opening saved entry…' : 'open saved entry';
+}
+
+async function _requestCloseModal() {
+  const ov = _modalEl;
+  if (!ov) return;
+  if (ov._createUncertain && !await confirm('this entry may already be saved. close this draft and check saved entries?')) return;
+  if (_modalEl !== ov) return;
+  _closeModal();
+  if (ov._createUncertain && _unlocked && ov._vaultId === _vaultId) await _loadEntries();
+}
+
+function _createRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+async function _openSavedEntry(ov) {
+  if (ov._saving || ov._openingSaved || !ov._requestId) return;
+  const token = _token;
+  if (!_sameForm(ov, token)) return;
+  ov._openingSaved = true;
+  _formBusy(ov, true);
+  try {
+    const response = await _vfetch(`/api/vault/requests/${encodeURIComponent(ov._requestId)}`);
+    const entry = await response.json().catch(() => ({}));
+    if (!_sameForm(ov, token)) return;
+    if (!response.ok) {
+      if (response.status === 403) {
+        await _doLock();
+        toast('vault access expired. unlock and check saved entries.', 'error');
+        return;
+      }
+      if ([404, 410].includes(response.status)) ov._conflict = false;
+      throw new Error(typeof entry.detail === 'string' ? entry.detail : 'could not open the saved entry');
+    }
+    if (!await confirm('discard this draft and open the saved entry?') || !_sameForm(ov, token)) return;
+    openVaultForm(entry);
+  } catch (error) {
+    if (_sameForm(ov, token)) _formError(ov, `${error.message || 'could not open the saved entry'}. your input is kept.`);
+  } finally {
+    ov._openingSaved = false;
+    if (_sameForm(ov, token)) {
+      _formBusy(ov, false);
+      (ov.querySelector('#vf-open-saved:not([hidden])') || ov.querySelector('#vf-save'))?.focus();
+    }
+  }
+}
+
 function _closeModal() {
+  _revealGeneration++;
   if (_totpTimer) { clearInterval(_totpTimer); _totpTimer = null; }
   _modalFocusBoundary?.deactivate();
   _modalFocusBoundary?.destroy();
   _modalFocusBoundary = null;
-  if (_modalEl) { _modalEl.remove(); _modalEl = null; }
+  if (_modalEl) {
+    _modalEl.querySelectorAll('input, textarea').forEach(input => { input.value = ''; });
+    _modalEl._entry = null;
+    _modalEl.remove();
+    _modalEl = null;
+  }
 }
 
 // 9a — live TOTP code + countdown for an entry that stores a totp secret
@@ -1237,6 +1326,7 @@ function _showStrength(s) {
 
 async function _saveForm(editing) {
   const ov = _modalEl;
+  if (!ov || ov._saving || ov._openingSaved || !_sameForm(ov, _token)) return;
   const name = ov.querySelector('#vf-name').value.trim();
   const typeKey = getDropdownValue(ov.querySelector('#vf-type'));
 
@@ -1274,19 +1364,57 @@ async function _saveForm(editing) {
   }
   if (!name) { toast('name required', 'error'); return; }
   if (!username && !Object.keys(fields).length) { toast('fill in at least one field', 'error'); return; }
-  const body = JSON.stringify({
+  const payload = {
     name, type: typeKey, fields, username,
     category: TYPE_BY_KEY[typeKey]?.label || typeKey,
-  });
+  };
   const id = editing ? ov._entry.id : null;
-  const r = await _vfetch(editing ? `/api/vault/${id}` : '/api/vault', {
-    method: editing ? 'PATCH' : 'POST',
-    headers: { 'content-type': 'application/json' }, body,
-  });
-  if (!r.ok) { toast('save failed: is the vault still unlocked?', 'error'); return; }
-  toast(editing ? 'saved' : 'entry added', 'success');
-  _closeModal();
-  await _loadEntries();
+  const token = _token;
+  const refreshDismissedForm = async () => {
+    if (_unlocked && _token === token && _vaultId === ov._vaultId) await _loadEntries();
+  };
+  const earlierUncertainty = ov._createUncertain;
+  ov._saving = true;
+  _formBusy(ov, true);
+  _formError(ov, '');
+  try {
+    if (!editing) {
+      payload.request_id = ov._requestId ||= _createRequestId();
+      ov._createUncertain = true;
+    }
+    const response = await _vfetch(editing ? `/api/vault/${id}` : '/api/vault', {
+      method: editing ? 'PATCH' : 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    if (!_sameForm(ov, token)) { await refreshDismissedForm(); return; }
+    if (!response.ok) {
+      const detail = (await response.json().catch(() => ({}))).detail;
+      if (!_sameForm(ov, token)) { await refreshDismissedForm(); return; }
+      if (response.status === 403) {
+        await _doLock();
+        toast('vault access expired. unlock and check saved entries before adding again.', 'error');
+        return;
+      }
+      if (!editing && [400, 422].includes(response.status)) ov._createUncertain = earlierUncertainty;
+      if (!editing && response.status === 409 && detail?.entry_id) ov._conflict = true;
+      if (response.status === 410) ov._conflict = false;
+      const reason = typeof detail === 'string' ? detail : detail?.message;
+      throw new Error(response.status < 500 && reason ? reason : `save failed (${response.status}); try again`);
+    }
+    ov._createUncertain = false;
+    toast(editing ? 'saved' : 'entry added', 'success');
+    _closeModal();
+    await _loadEntries();
+  } catch (error) {
+    if (_sameForm(ov, token)) _formError(ov, `${error.message || 'could not save; try again'}. your input is kept.`);
+    else await refreshDismissedForm();
+  } finally {
+    ov._saving = false;
+    if (_sameForm(ov, token)) {
+      _formBusy(ov, false);
+      ov.querySelector('#vf-save')?.focus();
+    }
+  }
 }
 
 async function _delFromForm(id) {
@@ -1410,14 +1538,16 @@ function _promptCode(title) {
 }
 
 async function _doLock() {
-  await fetch('/api/vault/lock', { method: 'POST', headers: _token ? { 'X-Vault-Token': _token } : {} }).catch(() => {});
+  const locking = fetch('/api/vault/lock', { method: 'POST', headers: _token ? { 'X-Vault-Token': _token } : {} }).catch(() => {});
   _token = null;
+  _entries = [];
   _unlocked = false;
   _vaultId = 'default';
   _wtOpen = false;
   $('vault-watchtower-btn')?.classList.remove('active');
   _closeModal();
-  loadVaultView();
+  await loadVaultView();
+  await locking;
 }
 
 // ── list ──────────────────────────────────────────────────────────────────────
@@ -1425,10 +1555,15 @@ async function _doLock() {
 async function _loadEntries(fetcher = fetch) {
   const list = $('vault-entry-list');
   if (!list) return;
+  const token = _token, vaultId = _vaultId;
+  const generation = ++_entriesGeneration;
+  const current = () => generation === _entriesGeneration && _unlocked && _token === token && _vaultId === vaultId;
   try {
     const response = await _vfetch('/api/vault', {}, fetcher);
     if (!response.ok) throw new Error(response.status === 403 ? 'vault access expired' : `request failed (${response.status})`);
-    _entries = await response.json();
+    const entries = await response.json();
+    if (!current()) return;
+    _entries = entries;
     if (!_entries.length) { list.innerHTML = '<div class="page-empty">no entries: hit “+ new”</div>'; return; }
     list.innerHTML = _entries.map(e => `
       <div class="vault-entry" data-id="${e.id}">
@@ -1450,6 +1585,7 @@ async function _loadEntries(fetcher = fetch) {
       button.addEventListener('click', () => window._vaultDel(button.dataset.vaultDelete));
     });
   } catch (error) {
+    if (!current()) return;
     const state = document.createElement('div');
     state.className = 'vault-load-error';
     state.setAttribute('role', 'alert');
@@ -1496,10 +1632,26 @@ window._vaultOpen = async id => {
   const row = _entries.find(e => e.id === id);
   if (!row) return;
   const returnFocus = document.activeElement;
+  const token = _token, vaultId = _vaultId, modal = _modalEl;
+  const generation = ++_revealGeneration;
+  const current = () => generation === _revealGeneration && _unlocked && _token === token && _vaultId === vaultId && _modalEl === modal
+    && $('vault-entry-list')?.getClientRects().length;
   try {
-    const d = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
+    const response = await _vfetch(`/api/vault/${id}/reveal`);
+    if (!current()) return;
+    if (!response.ok) {
+      if (response.status === 403) {
+        await _doLock();
+        toast('vault access expired. unlock and open the entry again.', 'error');
+        return;
+      }
+      throw new Error('reveal failed');
+    }
+    const d = await response.json();
+    if (!current()) return;
+    if (!d.fields || typeof d.fields !== 'object' || Array.isArray(d.fields)) throw new Error('invalid entry');
     openVaultForm({ id, name: row.name, category: row.category, username: row.username, type: row.type, fields: d.fields || {} }, returnFocus);
-  } catch { toast('reveal failed: vault may be locked', 'error'); }
+  } catch { if (current()) toast('could not open the entry. try again.', 'error'); }
 };
 
 window._vaultCopy = async id => {

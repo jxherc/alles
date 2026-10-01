@@ -511,6 +511,16 @@ class VaultEntry(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class VaultCreateReceipt(Base):
+    """A vault-scoped save identity with no secret fields or secret fingerprints."""
+
+    __tablename__ = "vault_create_receipts"
+    vault_id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True)
+    entry_id = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class VaultAttachment(Base):
     """9b — an encrypted file attached to a vault entry (blob on disk, AES-GCM)."""
 
