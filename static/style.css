@@ -8309,12 +8309,13 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 
 /* ── habits ───────────────────────────────────────────────────────────────────── */
 #habits-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }
-.habits-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
+.habits-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
 .habits-summary { font-size: 0.78rem; color: var(--muted); }
 .habits-list { display: flex; flex-direction: column; gap: 0.7rem; max-width: 640px; }
 .habits-empty { padding: 1.2rem 0; font-size: 0.75rem; color: var(--muted); max-width: 460px; }
 .habit-card { border: 1px solid var(--faint); border-radius: 4px; padding: 0.75rem 0.9rem; background: var(--panel); --habit-accent: var(--accent); }
 .habit-card.editing { display: flex; flex-direction: column; gap: 0.5rem; max-width: 460px; }
+.habit-create-error { color: var(--k-danger, var(--error)); }
 .habit-add { border-left: 2px solid var(--accent); margin-bottom: 1rem; }
 .habit-top { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
 .habit-icon { font-size: 1rem; }
@@ -8324,7 +8325,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .habit-streak.on { color: var(--accent); }
 .habit-slip { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--signal); border: 1px solid var(--signal); border-radius: 2px; padding: 0.05rem 0.3rem; cursor: help; }
 .habit-card.at-risk { border-color: color-mix(in srgb, var(--signal) 45%, var(--faint)); }
-.habit-actions { display: flex; gap: 0.25rem; }
+.habit-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .habit-actions .icon-btn svg { width: 14px; height: 14px; }
 .habit-actions .icon-btn.danger:hover { color: var(--error); }
 .habit-week { display: flex; gap: 0.3rem; margin-bottom: 0.6rem; }

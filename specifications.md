@@ -200,6 +200,12 @@ already be saved. new forms allow intentional repeated readings. create acknowle
 restarts and retain a content-free deletion marker so an old retry cannot recreate a deleted reading.
 unsent health forms stay in the open page; their contents are not copied into browser storage.
 
+habit forms also keep one create identity while a response is uncertain. a retry returns the same
+habit; changed or archived records require opening the current saved habit before correction.
+deleted habits cannot be recreated by retrying an old request. **archived habits** keeps completion
+history visible and provides an explicit restore action. restoring brings the same habit and history
+back to the active list; it does not create a replacement.
+
 [services/personal_index.py](services/personal_index.py) indexes supported records for recall. [services/journal_migration.py](services/journal_migration.py) stages verified markdown copies while the database remains authoritative; [services/journal_vault.py](services/journal_vault.py) provides the optional unlocked mirror. locked content is not copied to plaintext implicitly.
 
 install/update separates versioned code, private data, logs, and service ownership. candidates need validation before switching. restore/update journals and maintenance locks prevent normal startup through an unfinished swap.
@@ -1012,7 +1018,7 @@ erDiagram
     money_accounts |o--o{ money_transactions : records
     albums |o--o{ photos : groups
 ```
-the declared schema has **121 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+the declared schema has **124 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`**: your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`**: agent skills as `SKILL.md` files (frontmatter + steps).
 - **`data/`** (other): uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
@@ -1782,7 +1788,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/habits.py · 6 operations</summary>
+<summary>routes/habits.py · 7 operations</summary>
 
 [source](routes/habits.py)
 
@@ -1790,6 +1796,7 @@ the compatibility snapshot locks the registered http surface:
 | --- | --- | --- |
 | `POST` | `/api/habits` | `create_habit` |
 | `GET` | `/api/habits/overview` | `overview` |
+| `GET` | `/api/habits/requests/{request_id}` | `recover_habit` |
 | `DELETE` | `/api/habits/{hid}` | `delete_habit` |
 | `PATCH` | `/api/habits/{hid}` | `update_habit` |
 | `GET` | `/api/habits/{hid}/risk` | `habit_risk` |
