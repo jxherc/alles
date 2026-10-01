@@ -85,6 +85,7 @@ from core.schema.application import ToolChain as ToolChain
 from core.schema.application import Upload as Upload
 from core.schema.application import Vault as Vault
 from core.schema.application import VaultAttachment as VaultAttachment
+from core.schema.application import VaultCreateReceipt as VaultCreateReceipt
 from core.schema.application import VaultEntry as VaultEntry
 from core.schema.application import VaultShare as VaultShare
 from core.schema.application import WebAuthnCredential as WebAuthnCredential

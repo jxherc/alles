@@ -133,6 +133,7 @@ from core.schema import TxnSplit as TxnSplit
 from core.schema import Upload as Upload
 from core.schema import Vault as Vault
 from core.schema import VaultAttachment as VaultAttachment
+from core.schema import VaultCreateReceipt as VaultCreateReceipt
 from core.schema import VaultEntry as VaultEntry
 from core.schema import VaultShare as VaultShare
 from core.schema import Watch as Watch
