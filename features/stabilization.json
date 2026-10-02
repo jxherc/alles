@@ -1464,8 +1464,8 @@
       "id": "home.reminder-local-time",
       "feature": "home.capture-and-navigation",
       "app": "home",
-      "workflow": "show reminders on the viewer’s local day and clock",
-      "expected": "Use the viewer’s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "workflow": "show reminders on the viewer\u2019s local day and clock",
+      "expected": "Use the viewer\u2019s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -7123,6 +7123,214 @@
       "app": "inbox",
       "workflow": "mail vacation edit after enabled",
       "expected": "After a confirmed save, changing any vacation field immediately shows unsaved feedback; restoring confirmed values shows saved without another write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.success",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature success",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature reject",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.lost",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature lost",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.uncertain",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature uncertain",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.offline",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature offline",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.invalid-result",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature invalid-result",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.read-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature read-reject",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.read-invalid",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature read-invalid",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.read-late",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature read-late",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.refresh-late-save",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature refresh-late-save",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.busy",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature busy",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.empty-name",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature empty-name",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.cancel",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature cancel",
+      "expected": "Create a multiline signature, retain input on unconfirmed saves, retry with the same identity, recover failed reads, and insert escaped text into a persisted draft without stale reads replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.uncertain-edit",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature uncertain-edit",
+      "expected": "Edited retries retain one signature and a delayed older write cannot replace newer confirmed text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.late-edited-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature late-edited-retry",
+      "expected": "Edited retries retain one signature and a delayed older write cannot replace newer confirmed text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.signature.restore-revision",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail signature restore revision",
+      "expected": "Restoring earlier text confirms the current revision before closing the form, so a delayed intermediate edit cannot overwrite it.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [

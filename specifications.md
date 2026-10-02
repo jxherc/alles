@@ -419,6 +419,10 @@ a real email client (read + send), with one-click setup for the big providers an
 - drafts cannot reopen while deletion is pending. accepted sends keep their undo action after editor
   replacement, and send or schedule responses preserve text entered while the request was pending
 - keyboard formatting and the custom link dialog preserve the selected text; saved links reopen in drafts
+- signatures use a labelled name and multiline text form. failed reads offer retry; unconfirmed saves
+  retain the entered text. a checked saved record recovers a lost reply without a duplicate, and
+  inserted signatures preserve line breaks and treat markup as text. older timed-out saves cannot
+  overwrite a newer confirmed retry from the same form
 - saving a draft keeps that exact attempt in this tab before sending it, including recipients and
   reply headers. retry and reload check the same save without creating another draft. later typing
   stays in the editor and needs its own save; a checked current read confirms the saved version
