@@ -410,6 +410,17 @@ a real email client (read + send), with one-click setup for the big providers an
   an account is explicitly chosen. unreadable recovery data and failed cleanup have retry controls
 - draft writes are never replayed by the generic offline queue. older queued draft writes stay
   blocked for review; reconnecting alone does not send them
+- the delivery API accepts an optional `request_id` for exact queue retries. reusing it returns
+  the same message and current status, including sent, uncertain or canceled outcomes; changing
+  its payload returns a conflict. an undo retry keeps its original scheduled instant
+- `GET /api/mail/scheduled?context=true` includes mail-store recovery scopes. a `request_id`
+  lookup also returns terminal outcomes. scoped cancellation succeeds only before delivery starts;
+  sending, sent and uncertain messages keep their true status and return a conflict
+- clients can cancel an unresolved create with `reserve_if_missing=true`, a canonical request UUID
+  and a matching store scope. a content-free cancellation record prevents that request from being
+  queued later. ordinary cancellation of an unknown id still returns not found
+- schedule API timestamps require a valid date and time. explicit offsets normalize to UTC;
+  valid timestamps without an offset retain their legacy UTC meaning. existing records are unchanged
 - **ai:** summarize a long thread, turn an email into a task, or turn an email into a calendar event (the ai reads out the date/time/title for you)
 - **fast + offline-tolerant:** a persistent header cache means the inbox opens instantly and still shows your last sync when the network's slow or down; local search over the cache is instant
 - *under the hood:* built directly on python's standard `imaplib`/`smtplib`; no third-party mail library. it pools live connections, caches what it's read, loads the inbox by range (not a slow "search everything"), and opens a message by pulling *only* its text/html body (not the attachments), so it stays fast on a weak connection.
@@ -3078,7 +3089,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `mail_drafts` | `id: VARCHAR pk`, `account_id: VARCHAR ?`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: TEXT ?`, `updated_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_rules` | `id: VARCHAR pk`, `match_field: VARCHAR ?`, `match_value: VARCHAR ?`, `action: VARCHAR ?`, `action_arg: VARCHAR ?`, `enabled: BOOLEAN ?`, `created_at: DATETIME ?` | — |
 | `mail_saved_searches` | `id: VARCHAR pk`, `name: VARCHAR`, `query: TEXT ?`, `created_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
-| `mail_scheduled` | `id: VARCHAR pk`, `account_id: VARCHAR`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `html: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: VARCHAR ?`, `send_at: VARCHAR ?`, `status: VARCHAR ?`, `created_at: DATETIME ?` | — |
+| `mail_scheduled` | `id: VARCHAR pk`, `account_id: VARCHAR`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `html: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: VARCHAR ?`, `send_at: VARCHAR ?`, `request_kind: VARCHAR ?`, `request_delay: INTEGER ?`, `status: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `mcp_servers` | `id: VARCHAR pk`, `name: VARCHAR`, `transport: VARCHAR ?`, `command: VARCHAR ?`, `args: TEXT ? sealed`, `url: TEXT ? sealed`, `env: TEXT ? sealed`, `headers: TEXT ? sealed`, `enabled: BOOLEAN ?`, `disabled_tools: TEXT ?`, `created_at: DATETIME ?` | — |
 | `memories` | `id: VARCHAR pk`, `text: TEXT`, `category: VARCHAR ?`, `source: VARCHAR ?`, `session_id: VARCHAR ?`, `pinned: BOOLEAN ?`, `timestamp: DATETIME ?`, `confidence: FLOAT ?`, `vetoed: BOOLEAN ?`, `provenance: VARCHAR ?`, `scope: VARCHAR ?`, `project_id: VARCHAR ?`, `status: VARCHAR ?`, `trust: VARCHAR ?`, `updated_at: DATETIME ?`, `used_in_runs: TEXT ?` | — |
 | `messages` | `id: VARCHAR pk`, `session_id: VARCHAR`, `role: VARCHAR`, `content: TEXT ?`, `meta: TEXT ?`, `timestamp: DATETIME ?` | `session_id → sessions.id` |
@@ -3210,6 +3221,7 @@ known versions run in ascending order.
 | 55 | `commitment_sources` | [m0055_commitment_sources.py](core/migrations/m0055_commitment_sources.py) |
 | 56 | `mail_saved_search_recovery` | [m0056_mail_saved_search_recovery.py](core/migrations/m0056_mail_saved_search_recovery.py) |
 | 57 | `mail_draft_recovery` | [m0057_mail_draft_recovery.py](core/migrations/m0057_mail_draft_recovery.py) |
+| 58 | `mail_outbox_recovery` | [m0058_mail_outbox_recovery.py](core/migrations/m0058_mail_outbox_recovery.py) |
 
 </details>
 

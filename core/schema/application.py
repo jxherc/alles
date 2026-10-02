@@ -1278,6 +1278,8 @@ class ScheduledMail(Base):
     in_reply_to = Column(String, default="")
     references = Column(String, default="")
     send_at = Column(String, default="")  # ISO datetime
+    request_kind = Column(String, default="")
+    request_delay = Column(Integer, nullable=True)
     status = Column(
         String, default="scheduled"
     )  # scheduled | sending | sent | uncertain | canceled

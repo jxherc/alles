@@ -678,21 +678,27 @@ def delete_saved_search(sid: str, db: DbSession = Depends(get_db), recovery_scop
 
 
 # ── send control: schedule, undo, snooze (5b) ────────────────────────────────
+_OUTBOX_FIELDS = ("to", "cc", "bcc", "subject", "body", "html", "in_reply_to", "references")
+
+
+def _outbox_scope(scope):
+    if scope and scope not in _mail_recovery_scopes("alles-mail-outbox"):
+        raise HTTPException(403, "this message belongs to a different mail store")
+
+
 def _sched_fmt(s):
     return {
         "id": s.id,
         "account_id": s.account_id,
-        "to": s.to,
-        "cc": s.cc,
-        "bcc": s.bcc,
-        "subject": s.subject,
-        "body": s.body,
+        **{field: getattr(s, field) or "" for field in _OUTBOX_FIELDS},
         "send_at": s.send_at,
         "status": s.status,
+        "request_kind": s.request_kind or "",
+        "request_delay": s.request_delay,
     }
 
 
-class ScheduleBody(BaseModel):
+class OutboundBody(BaseModel):
     to: str = ""
     cc: str = ""
     bcc: str = ""
@@ -701,76 +707,187 @@ class ScheduleBody(BaseModel):
     html: str = ""
     in_reply_to: str = ""
     references: str = ""
+    request_id: str = ""
+    recovery_scope: str = ""
+
+
+class ScheduleBody(OutboundBody):
     send_at: str = ""
+
+
+class UndoableBody(OutboundBody):
+    delay: int = 10
+
+
+def _outbox_time(value):
+    if not re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?",
+        value,
+    ):
+        raise HTTPException(400, "choose a valid date and time")
+    try:
+        instant = datetime.fromisoformat(value)
+        if instant.tzinfo is not None:
+            instant = instant.astimezone(UTC).replace(tzinfo=None)
+        return instant.isoformat()
+    except (ValueError, OverflowError):
+        raise HTTPException(400, "choose a valid date and time") from None
+
+
+@contextmanager
+def _outbox_write(db, identity):
+    from core.database import ScheduledMail
+
+    try:
+        db.query(ScheduledMail).filter_by(id=identity).update(
+            {ScheduledMail.id: ScheduledMail.id}, synchronize_session=False
+        )
+        db.expire_all()
+        yield
+    finally:
+        db.rollback()
+
+
+def _queue_outgoing(aid, body, kind, send_at, delay, db):
+    from datetime import timedelta
+
+    from core.database import ScheduledMail
+
+    _outbox_scope(body.recovery_scope)
+    if body.request_id:
+        try:
+            if str(UUID(body.request_id)) != body.request_id:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(400, "request_id must be a canonical UUID") from None
+    fields = {field: getattr(body, field) for field in _OUTBOX_FIELDS}
+    with _outbox_write(db, body.request_id):
+        existing = db.get(ScheduledMail, body.request_id) if body.request_id else None
+        if existing:
+            if existing.request_kind == "canceled-before-queue":
+                raise HTTPException(410, "this delivery request was canceled before it was queued")
+            same = (
+                existing.request_kind == kind
+                and existing.account_id == aid
+                and all(
+                    (getattr(existing, field) or "") == value for field, value in fields.items()
+                )
+                and (
+                    existing.send_at == send_at
+                    if kind == "schedule"
+                    else existing.request_delay == delay
+                )
+            )
+            if not same:
+                raise HTTPException(
+                    409, "this delivery request is already used for another message"
+                )
+            return _sched_fmt(existing)
+        _get(db, aid)
+        if kind == "send":
+            try:
+                if not -(2**63) <= delay < 2**63:
+                    raise ValueError
+                send_at = (
+                    datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=max(1, delay))
+                ).isoformat()
+            except (OverflowError, ValueError):
+                raise HTTPException(400, "choose a valid send delay") from None
+        row = ScheduledMail(account_id=aid, status="scheduled", send_at=send_at, **fields)
+        if body.request_id:
+            row.id = body.request_id
+            row.request_kind = kind
+            row.request_delay = delay
+        db.add(row)
+        db.flush()
+        result = _sched_fmt(row)
+        db.commit()
+        return result
 
 
 @router.post("/schedule/{aid}")
 def schedule_send(aid: str, body: ScheduleBody, db: DbSession = Depends(get_db)):
-    from core.database import ScheduledMail
-
-    _get(db, aid)
-    s = ScheduledMail(account_id=aid, status="scheduled", **body.model_dump())
-    db.add(s)
-    db.commit()
-    db.refresh(s)
-    return _sched_fmt(s)
-
-
-class UndoableBody(BaseModel):
-    to: str = ""
-    cc: str = ""
-    bcc: str = ""
-    subject: str = ""
-    body: str = ""
-    html: str = ""
-    in_reply_to: str = ""
-    references: str = ""
-    delay: int = 10  # seconds the message sits in the outbox so you can undo
+    return _queue_outgoing(aid, body, "schedule", _outbox_time(body.send_at), None, db)
 
 
 @router.post("/send-undoable/{aid}")
 def send_undoable(aid: str, body: UndoableBody, db: DbSession = Depends(get_db)):
-    """schedule a send a few seconds out so it can be undone (canceled) in the window."""
-    from datetime import datetime, timedelta
-
-    from core.database import ScheduledMail
-
-    _get(db, aid)
-    send_at = (
-        datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=max(1, body.delay))
-    ).isoformat()
-    data = body.model_dump()
-    data.pop("delay", None)
-    s = ScheduledMail(account_id=aid, status="scheduled", send_at=send_at, **data)
-    db.add(s)
-    db.commit()
-    db.refresh(s)
-    return _sched_fmt(s)
+    return _queue_outgoing(aid, body, "send", "", body.delay, db)
 
 
 @router.get("/scheduled")
-def list_scheduled(db: DbSession = Depends(get_db)):
+def list_scheduled(
+    db: DbSession = Depends(get_db),
+    context: bool = False,
+    request_id: str = "",
+    recovery_scope: str = "",
+):
     from core.database import ScheduledMail
 
-    rows = (
-        db.query(ScheduledMail)
-        .filter(ScheduledMail.status.in_(("scheduled", "sending", "uncertain")))
-        .order_by(ScheduledMail.send_at.asc())
-        .all()
-    )
-    return {"scheduled": [_sched_fmt(s) for s in rows]}
+    _outbox_scope(recovery_scope)
+    query = db.query(ScheduledMail)
+    if request_id:
+        query = query.filter(ScheduledMail.id == request_id)
+    else:
+        query = query.filter(ScheduledMail.status.in_(("scheduled", "sending", "uncertain")))
+    result = {
+        "scheduled": [_sched_fmt(row) for row in query.order_by(ScheduledMail.send_at.asc()).all()]
+    }
+    if context:
+        result["recovery_scopes"] = _mail_recovery_scopes("alles-mail-outbox")
+    return result
 
 
 @router.post("/scheduled/{sid}/cancel")
-def cancel_scheduled(sid: str, db: DbSession = Depends(get_db)):
+def cancel_scheduled(
+    sid: str,
+    db: DbSession = Depends(get_db),
+    recovery_scope: str = "",
+    reserve_if_missing: bool = False,
+):
     from core.database import ScheduledMail
 
-    s = db.get(ScheduledMail, sid)
-    if not s:
-        raise HTTPException(404)
-    s.status = "canceled"
-    db.commit()
-    return {"ok": True, "status": s.status}
+    _outbox_scope(recovery_scope)
+    if reserve_if_missing:
+        if not recovery_scope:
+            raise HTTPException(400, "a mail store scope is required to cancel a pending request")
+        try:
+            if str(UUID(sid)) != sid:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(400, "request_id must be a canonical UUID") from None
+    try:
+        canceled = (
+            db.query(ScheduledMail)
+            .filter(ScheduledMail.id == sid, ScheduledMail.status == "scheduled")
+            .update({ScheduledMail.status: "canceled"}, synchronize_session=False)
+        )
+        db.expire_all()
+        message = db.get(ScheduledMail, sid)
+        if not message and reserve_if_missing:
+            # The conditional UPDATE holds the SQLite write reservation even when
+            # no row exists, so a delayed queue request cannot pass this cancellation.
+            message = ScheduledMail(
+                id=sid, account_id="", status="canceled", request_kind="canceled-before-queue"
+            )
+            db.add(message)
+            canceled = True
+        if not message:
+            raise HTTPException(404, "outbox message not found")
+        if message.status != "canceled":
+            explanations = {
+                "sending": "delivery has started; this message cannot be canceled",
+                "sent": "this message was already sent and cannot be canceled",
+                "uncertain": "delivery is uncertain; check Sent before trying again",
+            }
+            raise HTTPException(
+                409, explanations.get(message.status, "this message cannot be canceled")
+            )
+        if canceled:
+            db.commit()
+        return {"ok": True, "status": "canceled"}
+    finally:
+        db.rollback()
 
 
 class SnoozeBody(BaseModel):
