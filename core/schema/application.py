@@ -665,6 +665,13 @@ class MailAccount(Base):
     oauth_refresh_token = Column(EncryptedText("mail_accounts.oauth_refresh_token"), default="")
     oauth_expires_at = Column(Float, default=0.0)  # unix ts the access token expires
     created_at = Column(DateTime, default=_now)
+    revision = Column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MailAccountDeletion(Base):
+    __tablename__ = "mail_account_deletions"
+    id = Column(String, primary_key=True)
+    deleted_at = Column(DateTime, nullable=False, default=_now)
 
 
 class MailDraft(Base):
