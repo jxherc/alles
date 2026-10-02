@@ -200,6 +200,13 @@ already be saved. new forms allow intentional repeated readings. create acknowle
 restarts and retain a content-free deletion marker so an old retry cannot recreate a deleted reading.
 unsent health forms stay in the open page; their contents are not copied into browser storage.
 
+csv imports keep their file and batch identity in page memory after an uncertain response. retry
+checks the same batch; closing it warns before discarding that retry identity. the screen rejects
+invalid values and dates before importing any rows. a blank date uses today; old api clients may
+still skip invalid numeric rows and receive the skipped count. edits and deletes from the screen
+include a stable record identity so a stale action cannot change a replacement with a reused id.
+failed deletions offer refresh and a retry against the original reading.
+
 habit forms also keep one create identity while a response is uncertain. a retry returns the same
 habit; changed or archived records require opening the current saved habit before correction.
 deleted habits cannot be recreated by retrying an old request. **archived habits** keeps completion

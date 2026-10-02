@@ -17,6 +17,7 @@ from services.health_entries import (
     canonical_request_id,
     finite_value,
     recover_entry,
+    recover_record,
     save_entry,
 )
 
@@ -50,6 +51,7 @@ def series_for(entries, kind: str) -> list:
 def _fmt(e: HealthEntry) -> dict:
     return {
         "id": e.id,
+        "record_id": e.record_id,
         "kind": e.kind,
         "date": e.date,
         "value": e.value,
@@ -160,30 +162,20 @@ def set_target(body: TargetBody):
 
 class ImportBody(BaseModel):
     text: str = ""
+    request_id: str = ""
+    strict: bool = False
 
 
 @router.post("/health/import")
 def import_health(body: ImportBody, db: DbSession = Depends(get_db)):
-    """import a simple date/kind/value/unit csv. returns how many rows were added."""
-    from services.imports import parse_health_csv
+    from services.health_imports import import_entries
 
-    rows = parse_health_csv(body.text or "")
-    n = 0
-    for r in rows:
-        d = r["date"] or date.today().isoformat()
-        try:
-            d = canonical_date(d)
-        except HealthInputError:
-            d = date.today().isoformat()
-        # create_entry only allows KINDS; keep imports consistent - an out-of-set kind becomes a
-        # labeled custom metric instead of a kind the manual add path would reject
-        kind, label = r["kind"], ""
-        if kind not in KINDS:
-            kind, label = "custom", r["kind"]
-        db.add(HealthEntry(kind=kind, label=label, value=r["value"], unit=r["unit"], date=d))
-        n += 1
-    db.commit()
-    return {"imported": n}
+    try:
+        return import_entries(
+            db, body.text, kinds=KINDS, request_id=body.request_id, strict=body.strict
+        )
+    except HealthInputError as exc:
+        raise HTTPException(exc.status_code, str(exc)) from exc
 
 
 class EntryBody(BaseModel):
@@ -223,6 +215,7 @@ class EntryPatch(BaseModel):
     note: str | None = None
     date: str | None = None
     create_request_id: str = ""
+    record_id: str = ""
 
 
 @router.patch("/health/{eid}")
@@ -236,6 +229,9 @@ def update_entry(eid: int, body: EntryPatch, db: DbSession = Depends(get_db)):
         raise HTTPException(404)
     if e.id != eid:
         raise HTTPException(409, "this save belongs to a different entry")
+    if not e.record_id or (body.record_id and body.record_id != e.record_id):
+        raise HTTPException(409, "this is a different entry; reload before editing")
+    record_id = e.record_id
     changes = {}
     if body.value is not None:
         try:
@@ -251,42 +247,41 @@ def update_entry(eid: int, body: EntryPatch, db: DbSession = Depends(get_db)):
         v = getattr(body, f)
         if v is not None:
             changes[f] = v.strip() if isinstance(v, str) else v
+    target = db.query(HealthEntry).filter_by(id=eid, record_id=record_id)
     if identity:
-        if changes:
-            # The receipt must still refer to this row at the instant it is changed.
-            matched = (
-                db.query(HealthEntry)
-                .filter(
-                    HealthEntry.id == eid,
-                    HealthEntry.id.in_(
-                        db.query(HealthCreateReceipt.entry_id).filter_by(id=identity)
-                    ),
-                )
-                .update(changes, synchronize_session=False)
-            )
-            if not matched:
-                db.rollback()
-                raise HTTPException(410, "the entry from this save was deleted")
-            db.commit()
-        try:
-            return _fmt(recover_entry(db, identity))
-        except HealthInputError as exc:
-            raise HTTPException(exc.status_code, str(exc)) from exc
-    for key, value in changes.items():
-        setattr(e, key, value)
-    db.commit()
-    return _fmt(e)
+        target = target.filter(
+            HealthEntry.id.in_(db.query(HealthCreateReceipt.entry_id).filter_by(id=identity))
+        )
+    if changes:
+        # Bind the actual write to the displayed record, even when SQLite reuses its integer ID.
+        if not target.update(changes, synchronize_session=False):
+            db.rollback()
+            raise HTTPException(410, "the original entry no longer exists; reload recent entries")
+        db.commit()
+    try:
+        return _fmt(recover_record(db, eid, record_id))
+    except HealthInputError as exc:
+        raise HTTPException(exc.status_code, str(exc)) from exc
 
 
 @router.delete("/health/{eid}")
-def delete_entry(eid: int, db: DbSession = Depends(get_db)):
+def delete_entry(eid: int, db: DbSession = Depends(get_db), record_id: str = ""):
     e = db.get(HealthEntry, eid)
     if not e:
         raise HTTPException(404)
+    if not e.record_id or (record_id and record_id != e.record_id):
+        raise HTTPException(409, "this is a different entry; reload before deleting")
+    if (
+        not db.query(HealthEntry)
+        .filter_by(id=eid, record_id=e.record_id)
+        .delete(synchronize_session=False)
+    ):
+        db.rollback()
+        raise HTTPException(410, "the original entry no longer exists; reload recent entries")
+    # DELETE holds the write transaction before any receipt is changed or an ID can be reused.
     db.query(HealthCreateReceipt).filter_by(entry_id=eid).update(
         {HealthCreateReceipt.entry_id: None, HealthCreateReceipt.payload_hash: ""},
         synchronize_session=False,
     )
-    db.delete(e)
     db.commit()
     return {"ok": True}

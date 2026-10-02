@@ -47,26 +47,40 @@ def parse_goodreads_csv(text) -> list[dict]:
     return out
 
 
-def parse_health_csv(text) -> list[dict]:
-    """parse a simple csv with date / kind(or metric) / value / unit columns."""
-    out = []
+def iter_health_csv(text, *, strict=False):
+    """Yield the source line and parsed row, or None for a non-finite/missing value."""
+    reader = csv.DictReader(io.StringIO(text.removeprefix("\ufeff")), strict=True)
     try:
-        reader = csv.DictReader(io.StringIO(text))
-    except Exception:
-        return []
-    for row in reader:
-        r = {(k or "").strip().lower(): v for k, v in row.items()}
-        try:
-            value = finite_value(r.get("value"))
-        except HealthInputError:
-            continue
-        kind = (r.get("kind") or r.get("metric") or "custom").strip() or "custom"
-        out.append(
-            {
-                "kind": kind,
-                "value": value,
-                "unit": (r.get("unit") or "").strip(),
-                "date": (r.get("date") or "").strip()[:10],
-            }
-        )
-    return out
+        headers = [(name or "").strip().lower() for name in reader.fieldnames or []]
+        if len(set(headers)) != len(headers):
+            raise HealthInputError("CSV column names must be unique")
+        for row in reader:
+            if strict and None in row:
+                raise HealthInputError(
+                    f"line {reader.line_num} has more cells than the header; nothing imported"
+                )
+            r = {(k or "").strip().lower(): v for k, v in row.items()}
+            try:
+                value = finite_value(r.get("value"))
+            except HealthInputError:
+                yield reader.line_num, None
+                continue
+            kind = (r.get("kind") or r.get("metric") or "custom").strip() or "custom"
+            yield (
+                reader.line_num,
+                {
+                    "kind": kind,
+                    "value": value,
+                    "unit": (r.get("unit") or "").strip(),
+                    "date": (r.get("date") or "").strip(),
+                },
+            )
+    except csv.Error:
+        raise HealthInputError(f"could not read CSV near line {reader.line_num}") from None
+
+
+def parse_health_csv(text) -> list[dict]:
+    """Keep the legacy parser's valid-row list for callers that skip invalid values."""
+    return [
+        {**row, "date": row["date"][:10]} for _, row in iter_health_csv(text) if row is not None
+    ]
