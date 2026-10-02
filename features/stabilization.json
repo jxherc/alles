@@ -5647,6 +5647,487 @@
         "1440",
         "390"
       ]
+    },
+    {
+      "id": "inbox.outbox.lost-reply",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery lost reply",
+      "expected": "Confirm a committed schedule after a lost response and reload without queuing another message.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.failed-reload-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery failed reload retry",
+      "expected": "Retain the exact failed delivery request across reload, reopen its message and retry by keyboard without using later unsaved typing.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cancel-before-create",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cancel before create",
+      "expected": "Cancel an unresolved delivery before the delayed create arrives; retain message text and verify that the create cannot queue it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cancel-lost-reply",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cancel lost reply",
+      "expected": "Recover a canceled schedule after losing the cancellation response and reopen its message text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cancel-failed-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cancel failed reload",
+      "expected": "Keep a failed cancellation visible across reload, retry it explicitly and verify the canceled outcome.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.late-queue-new-text",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery late queue new text",
+      "expected": "Confirm the current queue result while the original reply is delayed and preserve newer unsent editor text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.offline",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery offline",
+      "expected": "Keep an offline delivery request for explicit recovery without putting it in the generic automatic replay queue.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cleanup-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cleanup failure",
+      "expected": "Keep a confirmed delivery separate from failed draft cleanup; retry deletion without queuing the message again.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.stale-draft-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery stale draft cleanup",
+      "expected": "Keep an externally changed saved draft when an older accepted delivery finishes.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.storage-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery storage failure",
+      "expected": "Preserve the editor and send no request when delivery recovery cannot be stored.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-lost-reply-undo",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send lost reply undo",
+      "expected": "Resolve a lost send acknowledgement as one accepted message, undo it by keyboard and recover the message text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-failed-reload-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send failed reload retry",
+      "expected": "Retain the exact failed send through reload, retry the same identity once and cancel it without duplicates.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-undo-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send undo failure",
+      "expected": "Keep a failed undo visible, recover cancellation after reload and reopen the original message.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cancel-claimed-delivery",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cancel claimed delivery",
+      "expected": "Reject cancellation after delivery has been claimed and preserve the current outcome instead of falsely reporting success.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.schedule-timezone",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery schedule timezone",
+      "expected": "Convert the selected configured local date and time to the correct UTC instant and show its local time in the outbox.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.legacy-outbox-quarantine",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery legacy outbox quarantine",
+      "expected": "Keep retained legacy schedule, send and cancellation writes blocked even when the offline queue is explicitly retried.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-offline",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send offline",
+      "expected": "Keep a failed offline send recoverable without automatic queue replay or a server delivery record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.metadata-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery metadata retry",
+      "expected": "Expose an outbox load failure, recover by keyboard with focus retained and complete a schedule afterward.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cancel-before-create-new-text",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cancel before create new text",
+      "expected": "Cancel before a delayed create while keeping newer editor text and the only retained original; explicitly recover and save the canceled version.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cancel-queued-new-text",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cancel queued new text",
+      "expected": "Keep both newer editor text and the canceled original after a queued request loses its acknowledgement; explicit recovery remains available.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cancel-plain-message",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cancel plain message",
+      "expected": "Recover a canceled plain-text scheduled message with literal markup characters and line breaks, then save it as a draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cancel-plain-message-new-editor",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cancel plain message new editor",
+      "expected": "Preserve another editor when canceling a plain-text message and reopen the exact text only after explicit replacement.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cancel-reopened-decline",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cancel reopened decline",
+      "expected": "Keep the canceled original after a failed cancellation, reopening, further edits and declining replacement; recover and save it only after accepting replacement.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cleanup-retired-delete",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cleanup retired delete",
+      "expected": "Keep newer draft text editable after a committed cleanup response is delayed and a second status check completes repeated cleanup; save the newer text as a new draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cleanup-canceled-delete",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cleanup canceled delete",
+      "expected": "Save newer editor text as a new draft after cancellation retires a committed cleanup response; retain the canceled original until explicitly dismissed.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-store-change-undo",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send store change undo",
+      "expected": "Retire an undo control when the mail store changes and prevent a stale control from issuing cancellation under a new recovery scope.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cleanup-canceled-lost-reply",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cleanup canceled lost reply",
+      "expected": "Save newer text independently after cancellation retires a committed cleanup whose response is lost.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cleanup-keep-lost-reply",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cleanup keep lost reply",
+      "expected": "Keep newer text saveable as a separate draft after a committed cleanup reply is lost and remaining cleanup is skipped.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-cancel-claimed-draft",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send cancel claimed draft",
+      "expected": "Finalize the accepted original and clean its captured saved draft when cancellation loses to delivery starting.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-cancel-sent-draft",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send cancel sent draft",
+      "expected": "Finalize the accepted original and clean its captured saved draft when cancellation finds the message already sent.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-cancel-uncertain-draft",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send cancel uncertain draft",
+      "expected": "Finalize the accepted original and preserve the uncertainty notice when cancellation finds uncertain delivery.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.newer-saved-draft-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery newer saved draft cleanup",
+      "expected": "Keep a newer saved draft version attached to its original identity when delivery cleans only the earlier captured version.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-cancel-claimed-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send cancel claimed cleanup",
+      "expected": "Offer working draft cleanup retry and keep choices after cancellation loses to delivery, preserving the accepted message and allowing the next composition.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-cancel-sent-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send cancel sent cleanup",
+      "expected": "Offer working draft cleanup retry and keep choices after cancellation loses to delivery, preserving the accepted message and allowing the next composition.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.send-cancel-uncertain-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery send cancel uncertain cleanup",
+      "expected": "Offer working draft cleanup retry and keep choices after cancellation loses to delivery, preserving the accepted message and allowing the next composition.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cleanup-reopen-accepted",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cleanup reopen accepted",
+      "expected": "Block reopening an accepted original while draft cleanup is pending, preventing another sendable copy after cleanup.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.outbox.cleanup-reopen-late-dialog",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delivery cleanup reopen late dialog",
+      "expected": "Reject a delayed recovery-open confirmation after delivery acceptance and cleanup have retired that request.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],

@@ -410,6 +410,17 @@ a real email client (read + send), with one-click setup for the big providers an
   an account is explicitly chosen. unreadable recovery data and failed cleanup have retry controls
 - draft writes are never replayed by the generic offline queue. older queued draft writes stay
   blocked for review; reconnecting alone does not send them
+- sending or scheduling retains the exact request in this tab before delivery is queued. a lost
+  response or reload checks that same request; later typing stays unsent. failed cancellation has
+  explicit status and retry controls, and canceled message text remains available to reopen
+- an accepted delivery removes only the captured saved draft version. newer saved versions remain;
+  unsaved text entered during delivery becomes a separate draft when that original is accepted.
+  failed cleanup can be retried separately without sending again. cancellation that loses to
+  delivery still finalizes the accepted request. recovery storage failures keep the editor and
+  prevent a new delivery request
+- scheduling uses the configured timezone and rejects invalid or nonexistent local times. send,
+  schedule and cancellation writes are excluded from automatic offline replay; older queued
+  delivery writes stay blocked for review
 - the delivery API accepts an optional `request_id` for exact queue retries. reusing it returns
   the same message and current status, including sent, uncertain or canceled outcomes; changing
   its payload returns a conflict. an undo retry keeps its original scheduled instant
