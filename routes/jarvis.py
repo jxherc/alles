@@ -3,6 +3,7 @@
 import re
 from typing import Literal
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -225,6 +226,13 @@ def _run(db: DbSession, row: JarvisRun, *, detail: bool = False) -> dict:
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
     if detail:
+        workflow = db.get(JarvisWorkflow, row.workflow_id) if row.workflow_id else None
+        result["title"] = workflow.name if workflow else "aide work"
+        result["can_retry"] = bool(
+            workflow
+            and workflow.deterministic_action == jarvis_handoff.HANDOFF_ACTION
+            and row.state in {"failed", "cancelled", "interrupted"}
+        )
         result["events"] = [
             _event(item)
             for item in db.query(JarvisRunEvent)
@@ -859,20 +867,44 @@ def cancel_run(run_id: str, db: DbSession = Depends(get_db)):
     return _run(db, row, detail=True)
 
 
+class RunRetryBody(BaseModel):
+    request_id: str = ""
+
+
 @router.post("/runs/{run_id}/retry")
-async def retry_run(run_id: str, db: DbSession = Depends(get_db)):
-    previous = db.get(JarvisRun, run_id)
-    if not previous:
-        raise HTTPException(404)
+async def retry_run(run_id: str, body: RunRetryBody | None = None, db: DbSession = Depends(get_db)):
+    identity = body.request_id if body else ""
+    if identity:
+        try:
+            canonical = str(UUID(identity))
+            if identity.lower() != canonical:
+                raise ValueError
+            identity = canonical
+        except ValueError:
+            _bad("invalid_retry_identity", "use a canonical request_id")
     try:
-        row = jarvis_handoff.retry_handoff(db, previous)
-    except ValueError as exc:
-        code = str(exc)
-        raise ApiError(409, code, code.replace("_", " ")) from exc
-    db.commit()
-    db.refresh(row)
-    jarvis_handoff.launch(row.id)
-    return _run(db, row, detail=True)
+        if identity:
+            # Reserve the write before checking identity, including concurrent retries.
+            db.query(JarvisRun).filter_by(id=run_id).update(
+                {JarvisRun.id: JarvisRun.id}, synchronize_session=False
+            )
+            db.expire_all()
+        previous = db.get(JarvisRun, run_id)
+        if not previous:
+            raise HTTPException(404)
+        replay = bool(identity and db.get(JarvisRun, identity))
+        try:
+            row = jarvis_handoff.retry_handoff(db, previous, request_id=identity)
+        except ValueError as exc:
+            code = str(exc)
+            raise ApiError(409, code, code.replace("_", " ")) from exc
+        db.commit()
+        db.refresh(row)
+        if not replay:
+            jarvis_handoff.launch(row.id)
+        return _run(db, row, detail=True)
+    finally:
+        db.rollback()
 
 
 class ChoiceAnswer(BaseModel):

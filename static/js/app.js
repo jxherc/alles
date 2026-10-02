@@ -26,6 +26,7 @@ import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, 
 import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.js?v=238';
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
+import { closeAideRun } from './aiderun.js';
 import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, releaseSpecialistLegacyView } from './specialist_groups.js?v=6';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=241';
@@ -655,6 +656,7 @@ const _VIEW_IDS = [
 ];
 
 function hideAllViews() {
+  closeAideRun({ clearTarget: false, restoreFocus: false });
   _VIEW_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
@@ -774,13 +776,13 @@ async function trackedImport(track, request, load, initialize) {
   return track(() => initialize(module, request));
 }
 
-const showChatView = () => {
+const showChatView = ({ preserveRecord = false } = {}) => {
   _setAfterlifeSpace('aide');
   if (singleHost()) _shChrome('chat', { onAide: true });
   // Direct chat entry from an Aide tool must switch routes before a session hash is added.
   const route = new URLSearchParams(location.search);
   if (singleHost() || route.has('view') || route.has('app')) {
-    _syncLocalViewUrl({ host: 'aide', view: 'chat' }, 'chat', { replace: false });
+    _syncLocalViewUrl({ host: 'aide', view: 'chat' }, 'chat', { replace: preserveRecord });
   }
   hideAllViews();
   document.getElementById('chat').style.display = 'flex';
@@ -819,13 +821,13 @@ window._openSearchResult = async (type, value) => {
 async function revealLinkedRecord() {
   const target = readRecordTarget(location.href);
   const route = target && groupRouteFor(target.view);
-  if (!route) return false;
-  const root = document.getElementById(GROUP_DEFINITIONS[route.group].rootId);
+  if (!route && target?.view !== 'chat') return false;
+  const root = document.getElementById(target.view === 'chat' ? 'chat' : GROUP_DEFINITIONS[route.group].rootId);
   const url = location.href;
   const isCurrent = () => location.href === url && Boolean(root?.getClientRects().length);
   if (!isCurrent()) return false;
   const state = root.querySelector(':scope > .specialist-state')?.dataset.state;
-  if (state !== 'ready' && !(state === 'partial' && ['calendar', 'mail'].includes(target.view))) return false;
+  if (target.view !== 'chat' && state !== 'ready' && !(state === 'partial' && ['calendar', 'mail'].includes(target.view))) return false;
   try {
     if (await revealRecord(target, isCurrent)) return true;
   } catch { /* Keep the source app's retry and saved state available. */ }
@@ -1186,7 +1188,7 @@ function renderLocalView(v, route = {}) {
   if (singleHost() && v !== 'settings') _shChrome(v, { onAide: staysInAide });
   if      (v === 'today')     showTodayView();
   else if (v === 'andromeda') return showAndromedaView();
-  else if (v === 'chat')      showChatView();
+  else if (v === 'chat')      { showChatView({ preserveRecord: true }); return revealLinkedRecord(); }
   else if (v === 'models')    showModelsView();
   else if (v === 'brain')     showBrainView();
   else if (v === 'plan')      return showSpecialistGroup('plan', route.section);
