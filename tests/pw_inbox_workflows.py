@@ -65,6 +65,31 @@ def seed_mail(request, base):
     return account
 
 
+def retain_fixture_send_delay(base, identity, submitted_delay):
+    """Keep synthetic sends safely in the future without changing their retry identity.
+
+    Browser fixtures replace only the initial API delay with 3600 before forwarding
+    it, then restore its original request metadata. Timing itself is covered by API
+    tests; the browser checks exact retries, current outcomes and editor ownership.
+    """
+    require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
+    data = Path(os.environ["ALLES_DATA"]).resolve()
+    assert os.environ.get("ALLES_TEST_DATA") == "1"
+    assert (data / ".alles-test-owner").read_text().strip() == os.environ["ALLES_TEST_RUN_ID"]
+    from datetime import UTC, datetime, timedelta
+
+    from core.database import ScheduledMail, SessionLocal
+
+    with SessionLocal() as db:
+        row = db.get(ScheduledMail, identity)
+        assert row is not None and row.status == "scheduled"
+        assert datetime.fromisoformat(row.send_at) > datetime.now(UTC).replace(
+            tzinfo=None
+        ) + timedelta(minutes=30)
+        row.request_delay = submitted_delay
+        db.commit()
+
+
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
     data = Path(os.environ["ALLES_DATA"]).resolve()

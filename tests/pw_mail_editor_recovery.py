@@ -9,7 +9,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
-from pw_inbox_workflows import seed_mail
+from pw_inbox_workflows import retain_fixture_send_delay, seed_mail
 
 
 def run():
@@ -156,10 +156,15 @@ def run():
 
                         def hold_send(route):
                             payload = route.request.post_data_json
+                            submitted_delay = payload.get("delay")
                             if not scheduling:
                                 payload["delay"] = 3600
                             response = route.fetch(post_data=json.dumps(payload))
                             assert response.ok
+                            if not scheduling:
+                                retain_fixture_send_delay(
+                                    base, response.json()["id"], submitted_delay
+                                )
                             held.append((route, response))
 
                         page.route(

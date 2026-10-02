@@ -81,6 +81,7 @@ COMMANDS = {
     "inbox-saved-searches": ("tests/pw_inbox_saved_searches.py",),
     "mail-editor-recovery": ("tests/pw_mail_editor_recovery.py",),
     "mail-draft-recovery": ("tests/pw_mail_draft_recovery.py",),
+    "mail-outbox-recovery": ("tests/pw_mail_outbox_recovery.py",),
     "vault-backup": ("tests/pw_vault_backup.py",),
     "vault-setup-desktop": ("tests/pw_vault_setup.py", "desktop"),
     "vault-setup-phone": ("tests/pw_vault_setup.py", "phone"),

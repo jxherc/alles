@@ -3770,9 +3770,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .mail-scheduled { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; padding: 0 0 0.4rem; }
 .mail-scheduled:empty { display: none; }
 .mail-sched-lbl { font-size: 0.75rem; color: var(--muted); }
-.mail-sched-chip { font-size: 0.75rem; border: 1px solid var(--faint); border-radius: 4px; padding: 0.1rem 0.5rem; display: inline-flex; align-items: center; gap: 0.3rem; color: var(--signal); }
-.mail-sched-cancel { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.8rem; padding: 0; }
-.mail-undo-bar { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 80; display: none; align-items: center; gap: 0.7rem; background: var(--panel); border: 1px solid var(--faint); border-radius: 4px; padding: 0.5rem 0.9rem; font-size: 0.8rem; }
+.mail-sched-chip { max-width: 100%; overflow-wrap: anywhere; font-size: 0.75rem; border: 1px solid var(--faint); border-radius: 4px; padding: 0.1rem 0.5rem; display: inline-flex; align-items: center; gap: 0.3rem; color: var(--signal); }
+.mail-sched-cancel { min-width: 44px; min-height: 44px; flex-shrink: 0; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.8rem; padding: 0; }
+.mail-undo-bar { max-width: calc(100% - 2rem); position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 80; display: none; align-items: center; gap: 0.7rem; background: var(--panel); border: 1px solid var(--faint); border-radius: 4px; padding: 0.5rem 0.9rem; font-size: 0.8rem; }
 .mc-sched-at { width: 180px; font-size: 0.75rem; }
 /* 5c rich compose */
 .mail-richbar { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-bottom: 0.3rem; }
@@ -9824,3 +9824,8 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .aide-run-detail dd { margin: 0; }
 .aide-run-events summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .aide-run-events ol { padding-left: 24px; }
+
+.mail-form-actions { flex-wrap: wrap; min-width: 0; max-width: 100%; flex-shrink: 1; }
+.mc-sched-wrap { flex-wrap: wrap; max-width: 100%; }
+.mc-sched-zone { flex-basis: 100%; color: var(--muted); font-size: 0.75rem; }
+.mc-sched-date, .mc-sched-time { min-height: 44px; }

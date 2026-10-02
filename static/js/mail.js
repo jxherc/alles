@@ -5,7 +5,8 @@ import { replaceRouteUrl } from './route_history.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { populateDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker as _dpInit } from './datepick.js';
-import { formatDate } from './i18n.js';
+import { formatDate, formatTime, resolvedTimeZone } from './i18n.js';
+import { reminderTimeFromWall } from './reminders.js';
 
 // monochrome ui icons (same global as files/etc) — keeps the row controls matching the app
 const _si = n => (window.icon ? window.icon(n) : '');
@@ -207,7 +208,7 @@ export function initMail() {
     localStorage.setItem('alles-mail-account-mode', _active);
     _reloadCurrent({ force: true });
   });
-  $('mail-refresh-btn')?.addEventListener('click', () => _reloadCurrent({ force: true }));
+  $('mail-refresh-btn')?.addEventListener('click', () => { _renderScheduled(); _reloadCurrent({ force: true }); });
   // conversation grouping is a mail-settings toggle now (4a) — not a toolbar button
   _applyThreadsSetting();
   window._reloadMail = () => { _applyThreadsSetting().then(() => { _expanded.clear(); renderInbox(_lastMsgs); }); };
@@ -759,6 +760,7 @@ export async function loadMail(fetcher = fetch) {
   if (_accounts.length > 1 && !localStorage.getItem('alles-mail-account-mode')) _active = 'all';
   syncAccountSelect();
   loadDraftRecovery();
+  _renderScheduled();
   if (!_accounts.length) {
     $('mail-list').innerHTML = '';
     if (mailEditor()) toast('the mail account is unavailable; your draft is still open', 'error');
@@ -766,7 +768,6 @@ export async function loadMail(fetcher = fetch) {
     return;
   }
   _renderSavedBar();
-  _renderScheduled();
   const query = $('mail-search')?.value.trim();
   return query ? searchMail(query, fetcher) : _reloadCurrent({ fetcher });
 }
@@ -1396,16 +1397,19 @@ async function loadAttachments(aid, uid, folder, isCurrent = () => true) {
 }
 
 async function compose(pre = {}, generation = null) {
+  const outgoingCurrent = () => !pre._outgoing || (sameOutgoing(pre._outgoing, _outboxPending) && _outboxOperation?.action !== 'cleanup');
+  if (!outgoingCurrent()) return;
   if (generation === null) {
     if (!await prepareMailNavigation()) return;
     generation = _messageGeneration;
   }
-  const currentRead = () => generation === _messageGeneration && Boolean(document.getElementById('mail-view')?.getClientRects().length);
+  const currentRead = () => outgoingCurrent() && generation === _messageGeneration && Boolean(document.getElementById('mail-view')?.getClientRects().length);
   if (!currentRead()) return;
   if (!_draftReady) await loadDraftRecovery();
+  if (!_outboxReady) await _renderScheduled();
   if (!currentRead()) return;
   // blank new message picks up the saved signature; replies keep their quote untouched
-  if (!pre.id && !pre._pending && !pre.body) {
+  if (!pre.id && !pre._pending && !pre._outgoing && !pre.body) {
     try {
       const sig = (await fetch('/api/settings').then(r => r.json())).mail_signature;
       if (sig) pre = { ...pre, body: '\n\n' + sig };
@@ -1424,13 +1428,14 @@ async function compose(pre = {}, generation = null) {
       <div class="mail-form-actions">
         <button class="btn" id="mc-close">close</button>
         <button class="btn" id="mc-save">save draft</button>
-        <span class="mc-sched-wrap" id="mc-sched-wrap" style="display:none">
-          <input class="settings-input date-input mc-sched-date" id="mc-sched-date" data-type="date" placeholder="date">
-          <input class="settings-input mc-sched-time" id="mc-sched-time" placeholder="HH:MM" value="09:00" maxlength="5">
-        </span>
         <button class="btn" id="mc-schedule" title="schedule for later">schedule</button>
         <button class="btn primary" id="mc-send">send</button>
       </div>
+    </div>
+    <div class="mc-sched-wrap" id="mc-sched-wrap" style="display:none">
+      <span class="mc-sched-zone">send at · ${esc(resolvedTimeZone())}</span>
+      <input class="settings-input date-input mc-sched-date" id="mc-sched-date" data-type="date" placeholder="date" aria-label="scheduled date">
+      <input class="settings-input mc-sched-time" id="mc-sched-time" placeholder="HH:MM" value="09:00" maxlength="5" aria-label="scheduled time">
     </div>
     ${_accounts.length > 1 || missingAccount ? `<div class="settings-input custom-select" id="mc-account" aria-label="sending account"></div>` : ''}
     <div class="mc-chipfield" data-role="to">
@@ -1479,6 +1484,7 @@ async function compose(pre = {}, generation = null) {
   _loadAddrBook();   // warm the autocomplete cache
   let _draftId = pre.id || '';
   const editor = {
+    outboxScope: _outboxScopes[0] || '', outgoing: pre._outgoing || null,
     root, draftId: _draftId, scope: pre.recovery_scope || _draftScopes[0] || '', revision: pre.revision || pre.expected_revision || '', pending: pre._pending || null, deleted: false,
     snapshot: () => JSON.stringify([serializeForm(root), getDropdownValue($('mc-account')) || defaultAid]),
     detach: () => { _draftId = ''; editor.draftId = ''; editor.revision = ''; editor.deleted = false; editor.initial = null; },
@@ -1489,6 +1495,7 @@ async function compose(pre = {}, generation = null) {
   };
   editor.initial = editor.snapshot();
   if (editor.pending) { editor.pendingSnapshot = editor.initial; editor.initial = null; }
+  if (editor.outgoing) { editor.outgoingSnapshot = editor.initial; editor.initial = null; }
   _mailEditor = editor;
   const current = () => mailEditor() === editor;
   const _draftBody = () => ({
@@ -1537,56 +1544,40 @@ async function compose(pre = {}, generation = null) {
       in_reply_to: pre.in_reply_to || '', references: pre.references || '',
     };
   };
-  // schedule send (5b) — first click reveals a date picker + time, second click schedules (4d)
+  const queueCompose = async (action, send_at = '') => {
+    if (!_outboxReady || _outboxOperation || _outboxPending || _outboxReadError || _outboxStorageError) { paintOutbox(); return; }
+    if (editor.outboxScope && !_outboxScopes.includes(editor.outboxScope)) { toast('reopen the editor for this mail store; your text is still here', 'error'); return; }
+    if (_draftPending) { toast('resolve the pending draft save before sending', 'error'); paintDraftRecovery(); return; }
+    const account_id = $('mc-account')?.value || defaultAid;
+    if (!_accounts.some(account => account.id === account_id)) { toast('choose an available sending account', 'error'); return; }
+    if (!$('mc-to').value.trim()) { toast('recipient required', 'error'); return; }
+    const pending = {
+      version: 1, action, request_id: savedRequestId(), recovery_scope: _outboxScopes[0], account_id,
+      subject: $('mc-subj').value,
+      message: { ..._composeBody(), ...(action === 'send' ? { delay: 8 } : { send_at }) },
+      ...(_draftId ? { draft: { id: _draftId, revision: editor.revision, scope: editor.scope } } : {}),
+    };
+    try { storePendingOutgoing(pending, editor, editor.snapshot()); }
+    catch { _outboxStorageError = 'could not retain this delivery for recovery. no new delivery request was sent.'; paintOutbox(); return; }
+    await submitOutgoing();
+  };
   $('mc-schedule').addEventListener('click', async () => {
+    if ($('mc-schedule').getAttribute('aria-disabled') === 'true') return;
     const wrap = $('mc-sched-wrap');
     if (wrap.style.display === 'none') {
-      wrap.style.display = '';
-      _dpInit($('mc-sched-date'));
-      $('mc-schedule').textContent = 'schedule send';
-      $('mc-sched-date').focus();
-      return;
+      wrap.style.display = ''; _dpInit($('mc-sched-date'));
+      $('mc-schedule').textContent = 'schedule send'; $('mc-sched-date').focus(); return;
     }
-    const aid = $('mc-account')?.value || defaultAid;
-    const to = $('mc-to').value.trim();
-    const date = $('mc-sched-date').value.trim();
-    const time = ($('mc-sched-time').value.trim() || '09:00');
-    if (!to) { toast('recipient required', 'error'); return; }
-    if (!date) { toast('pick a date', 'error'); return; }
-    if (!/^\d{1,2}:\d{2}$/.test(time)) { toast('time must be HH:MM', 'error'); return; }
-    const send_at = `${date}T${time.padStart(5, '0')}`, submitted = editor.snapshot();
-    const r = await fetch(`/api/mail/schedule/${aid}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ..._composeBody(), send_at }),
-    }).then(x => x.json()).catch(e => { console.error(e); return null; });
-    if (r?.id) {
-      if (current() && editor.snapshot() === submitted) {
-        if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(console.error);
-        clearMailEditor(editor);
-      }
-      toast('scheduled', 'success'); _renderScheduled(); loadInbox();
-    } else toast('schedule failed', 'error');
+    try {
+      const date = $('mc-sched-date').value.trim(), time = $('mc-sched-time').value.trim();
+      const instant = reminderTimeFromWall(`${date}T${time}`);
+      if (instant.getTime() <= Date.now()) throw new Error('choose a future date and time');
+      await queueCompose('schedule', instant.toISOString());
+    } catch (error) { toast(error.message || 'choose a valid date and time', 'error'); }
   });
-  // send with an undo window (5b): queue a few seconds out, offer undo
-  $('mc-send').addEventListener('click', async () => {
-    const aid = $('mc-account')?.value || defaultAid;
-    const to = $('mc-to').value.trim();
-    if (!to) { toast('recipient required', 'error'); return; }
-    const submitted = editor.snapshot();
-    const r = await fetch(`/api/mail/send-undoable/${aid}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ..._composeBody(), delay: 8 }),
-    }).then(x => x.json()).catch(e => { console.error(e); return null; });
-    if (r?.id) {
-      if (current() && editor.snapshot() === submitted) {
-        if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(console.error);
-        clearMailEditor(editor);
-      }
-      _showUndoBar(r.id);
-      loadInbox();
-    } else if (current()) { $('mc-status').textContent = 'send failed'; }
-    else toast('send failed', 'error');
-  });
+  $('mc-send').addEventListener('click', () => queueCompose('send'));
+  paintOutbox();
+  return editor;
 }
 
 async function _wireRichCompose(defaultAid, root, current) {
@@ -1668,41 +1659,260 @@ async function _wireRichCompose(defaultAid, root, current) {
   }
 }
 
-function _showUndoBar(scheduledId) {
-  let bar = $('mail-undo-bar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'mail-undo-bar'; bar.className = 'mail-undo-bar';
-    document.getElementById('mail-view')?.appendChild(bar);
-  }
-  bar.innerHTML = `<span>message sending…</span><button class="btn" id="mail-undo-btn">undo</button>`;
-  bar.style.display = 'flex';
-  const hide = () => { bar.style.display = 'none'; };
-  const t = setTimeout(hide, 8000);
-  $('mail-undo-btn').addEventListener('click', async () => {
-    clearTimeout(t);
-    await fetch(`/api/mail/scheduled/${scheduledId}/cancel`, { method: 'POST' }).catch(console.error);
-    toast('send canceled', '');
-    hide();
-    _renderScheduled();
-  });
+const OUTGOING_PREFIX = 'alles-mail-outbox:';
+const OUTGOING_FIELDS = ['to', 'cc', 'bcc', 'subject', 'body', 'html', 'in_reply_to', 'references'];
+const OUTGOING_STATES = ['scheduled', 'sending', 'sent', 'uncertain', 'canceled'];
+let _outboxScopes = [], _outboxRows = [], _outboxPending = null, _outboxKnown = null;
+let _outboxRead = 0, _outboxReady = false, _outboxOperation = null;
+let _outboxAnnounced = '';
+let _outboxReadError = '', _outboxStorageError = '', _outboxNotice = '', _outboxConflict = false;
+const outgoingKey = scope => OUTGOING_PREFIX + scope;
+const outgoingHtml = message => message.html || esc(message.body).replace(/\r\n?|\n/g, '<br>');
+const sameOutgoing = (a, b) => Boolean(a && b && JSON.stringify(a) === JSON.stringify(b));
+const outgoingInstant = value => new Date(value + (/(Z|[+-]\d\d:\d\d)$/.test(value) ? '' : 'Z')).getTime();
+const validOutgoingRow = row => row && typeof row.id === 'string' && row.id && typeof row.account_id === 'string' && OUTGOING_FIELDS.every(key => typeof row[key] === 'string') && OUTGOING_STATES.includes(row.status) && typeof row.send_at === 'string';
+function outgoingMatches(row, pending) {
+  if (row.id !== pending.request_id) return false;
+  if (pending.action === 'cancel' || row.request_kind === 'canceled-before-queue') return true;
+  return row.account_id === pending.account_id && row.request_kind === pending.action && OUTGOING_FIELDS.every(key => row[key] === pending.message[key]) && (pending.action === 'send' ? row.request_delay === pending.message.delay : outgoingInstant(row.send_at) === outgoingInstant(pending.message.send_at));
 }
-
-// scheduled-send strip (5b): pending scheduled messages with a cancel
-async function _renderScheduled() {
-  const bar = $('mail-scheduled'); if (!bar) return;
-  let items = [];
-  try { items = (await fetch('/api/mail/scheduled').then(r => r.json())).scheduled || []; } catch (e) { console.error(e); }
-  if (!items.length) { bar.innerHTML = ''; return; }
-  bar.innerHTML = `<span class="mail-sched-lbl">outbox</span>` + items.map(s => {
-    const uncertain = s.status === 'uncertain' || s.status === 'sending';
-    const state = uncertain ? 'delivery uncertain: check Sent before trying again' : (s.send_at || '').slice(0, 16);
-    return `<span class="mail-sched-chip" title="${uncertain ? esc(state) : `to ${esc(s.to)}`}">${uncertain ? '⚠' : '🕒'} ${esc(s.subject || '(no subject)')} · ${esc(state)}<button class="mail-sched-cancel" data-cancel="${esc(s.id)}" title="remove from outbox">×</button></span>`;
-  }).join('');
-  bar.querySelectorAll('.mail-sched-cancel').forEach(b => b.addEventListener('click', async () => {
-    await fetch(`/api/mail/scheduled/${b.dataset.cancel}/cancel`, { method: 'POST' }).catch(console.error);
-    _renderScheduled();
+function readPendingOutgoing() {
+  _outboxStorageError = '';
+  try {
+    let pending = null;
+    for (const scope of _outboxScopes) {
+      const raw = sessionStorage.getItem(outgoingKey(scope));
+      if (!raw) continue;
+      const value = JSON.parse(raw), queue = value?.action !== 'cancel';
+      if (value?.version !== 1 || value.recovery_scope !== scope || typeof value.request_id !== 'string' || !value.request_id || !['send', 'schedule', 'cancel'].includes(value.action) || typeof value.subject !== 'string' || (queue && (!/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value.request_id) || typeof value.account_id !== 'string' || !OUTGOING_FIELDS.every(key => typeof value.message?.[key] === 'string') || (value.action === 'send' ? !Number.isSafeInteger(value.message.delay) || value.message.delay < 1 : !Number.isFinite(outgoingInstant(value.message.send_at || '')))))) throw new Error('invalid recovery record');
+      if (pending && !sameOutgoing(pending, value)) throw new Error('more than one recovery record');
+      pending = value;
+    }
+    if (!sameOutgoing(pending, _outboxPending)) _outboxKnown = null;
+    _outboxPending = pending;
+  } catch { _outboxStorageError = 'could not read delivery recovery data. retry loading, or review Sent and the outbox before clearing it.'; }
+}
+function storePendingOutgoing(pending, editor, snapshot) {
+  ++_outboxRead;
+  const raw = JSON.stringify(pending), key = outgoingKey(pending.recovery_scope);
+  sessionStorage.setItem(key, raw);
+  _outboxPending = pending; _outboxKnown = null; _outboxConflict = false; _outboxNotice = '';
+  if (editor) { editor.outgoing = pending; editor.outgoingSnapshot = snapshot; }
+  if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain delivery recovery data');
+}
+function retireOutgoing() {
+  if (_outboxOperation) _outboxOperation.retired = true;
+  _outboxOperation = null;
+}
+function clearPendingOutgoing(pending) {
+  for (const scope of _outboxScopes) {
+    const key = outgoingKey(scope), raw = sessionStorage.getItem(key);
+    if (raw && sameOutgoing(JSON.parse(raw), pending)) {
+      sessionStorage.removeItem(key);
+      if (sessionStorage.getItem(key) !== null) throw new Error('could not clear delivery recovery data');
+    }
+  }
+  if (sameOutgoing(pending, _outboxPending)) { _outboxPending = null; _outboxKnown = null; }
+}
+function outgoingStatus(row) {
+  if (row.status === 'sending') return 'delivery has started; cancellation is no longer available';
+  if (row.status === 'uncertain') return 'delivery is uncertain. check Sent before sending again';
+  if (row.status === 'sent') return 'sent';
+  if (row.status === 'canceled') return 'delivery canceled';
+  const instant = new Date(outgoingInstant(row.send_at));
+  return Number.isFinite(instant.getTime()) ? `scheduled for ${formatDate(instant)} ${formatTime(instant, { hour: '2-digit', minute: '2-digit' })}` : 'scheduled time unavailable';
+}
+function paintOutbox() {
+  const bar = $('mail-outbox-recovery'), strip = $('mail-scheduled');
+  if (!bar || !strip) return;
+  const focused = bar.contains(document.activeElement) || strip.contains(document.activeElement) ? document.activeElement.id : '';
+  const pending = _outboxPending, busy = Boolean(_outboxOperation);
+  let message = _outboxReadError || _outboxStorageError || _outboxNotice;
+  if (!message && pending) message = pending.cancel_requested || pending.action === 'cancel' ? 'cancellation is unconfirmed. check the current outcome or retry cancellation.' : `delivery of “${pending.subject.trim() || 'untitled message'}” is unconfirmed. retry uses the same request.`;
+  if (busy) message = _outboxOperation.action === 'cancel' ? 'canceling delivery…' : (_outboxOperation.action === 'cleanup' ? 'removing the saved draft…' : 'queueing message…');
+  const button = (id, label, blocked = busy) => `<button type="button" class="btn" id="${id}" aria-disabled="${blocked}">${label}</button>`;
+  let actions = '';
+  if (pending || _outboxReadError || _outboxStorageError) actions += button('mail-outbox-check', 'check delivery status', false);
+  if (_outboxStorageError) actions += button('mail-outbox-clear', 'clear recovery data');
+  else if (pending) {
+    if (_outboxKnown && (_outboxKnown.status !== 'scheduled' || !(pending.cancel_requested || pending.action === 'cancel'))) {
+      actions += button('mail-outbox-finish', _outboxKnown.status === 'canceled' ? 'dismiss canceled message' : (pending.draft ? 'retry draft cleanup' : 'retry cleanup'));
+      if (pending.draft && _outboxKnown.status !== 'canceled') actions += button('mail-outbox-keep-draft', 'keep saved draft');
+    } else if (!_outboxConflict && !pending.cancel_requested && pending.action !== 'cancel') actions += button('mail-outbox-retry', 'retry delivery request', busy || Boolean(_outboxReadError));
+    if (!_outboxConflict && (!_outboxKnown || _outboxKnown.status === 'scheduled')) actions += button('mail-outbox-cancel', pending.cancel_requested || pending.action === 'cancel' ? 'retry cancellation' : 'cancel delivery', Boolean(busy && _outboxOperation.action === 'cancel'));
+    if (pending.action !== 'cancel' || _outboxKnown?.status === 'canceled') actions += button('mail-outbox-open', _outboxKnown?.status === 'canceled' ? 'open canceled message' : 'open pending message', busy && _outboxOperation.action === 'cleanup');
+    if (_outboxConflict) actions += button('mail-outbox-forget', 'dismiss recovery');
+  }
+  bar.hidden = !message && !actions;
+  bar.innerHTML = message || actions ? `<div class="mail-saved-status"><p id="mail-outbox-status" role="status" tabindex="-1">${esc(message)}</p>${actions}</div>` : '';
+  $('mail-outbox-check')?.addEventListener('click', () => _renderScheduled());
+  $('mail-outbox-retry')?.addEventListener('click', () => submitOutgoing());
+  $('mail-outbox-cancel')?.addEventListener('click', () => cancelOutgoing());
+  $('mail-outbox-finish')?.addEventListener('click', () => finishOutgoing(_outboxPending, _outboxKnown, _outboxKnown?.status === 'canceled'));
+  $('mail-outbox-keep-draft')?.addEventListener('click', () => finishOutgoing(_outboxPending, _outboxKnown, true));
+  $('mail-outbox-clear')?.addEventListener('click', () => forgetOutgoing(true));
+  $('mail-outbox-forget')?.addEventListener('click', () => forgetOutgoing(false));
+  $('mail-outbox-open')?.addEventListener('click', async () => {
+    const p = _outboxPending, row = _outboxKnown;
+    if (!p || _outboxOperation?.action === 'cleanup' || (p.action === 'cancel' && row?.status !== 'canceled')) return;
+    const message = p.action === 'cancel' ? row : p.message;
+    const recovered = await compose({ ...message, id: '', body: outgoingHtml(message), account_id: p.account_id || row.account_id, _outgoing: p });
+    if (row?.status === 'canceled' && recovered && mailEditor() === recovered && recovered.snapshot() === recovered.outgoingSnapshot && sameOutgoing(recovered.outgoing, p)) await finishOutgoing(p, row, true);
+  });
+  strip.innerHTML = _outboxRows.length ? '<span class="mail-sched-lbl">outbox</span>' + _outboxRows.map(row => `<span class="mail-sched-chip"><span>${esc(row.subject || '(no subject)')} · ${esc(outgoingStatus(row))}</span>${row.status === 'scheduled' ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-cancel-${esc(row.id)}" data-cancel="${esc(row.id)}" aria-label="cancel ${esc(row.subject || 'untitled message')}" aria-disabled="${Boolean(pending || busy || _outboxReadError || _outboxStorageError)}">cancel</button>` : ''}</span>`).join('') : '';
+  strip.querySelectorAll('[data-cancel]').forEach(button => button.addEventListener('click', () => {
+    if (button.getAttribute('aria-disabled') !== 'true') cancelOutgoing(_outboxRows.find(row => row.id === button.dataset.cancel));
   }));
+  const editor = mailEditor();
+  if (editor) for (const id of ['mc-send', 'mc-schedule']) editor.root.querySelector('#' + id)?.setAttribute('aria-disabled', String(!_outboxReady || busy || Boolean(pending || _outboxReadError || _outboxStorageError || (editor.outboxScope && !_outboxScopes.includes(editor.outboxScope)))));
+  if (focused && document.activeElement === document.body) {
+    const target = document.getElementById(focused) || (!bar.hidden ? $('mail-outbox-status') : editor?.root.querySelector('#mc-send') || $('mail-compose-btn'));
+    if (target?.getClientRects().length) target.focus();
+  }
+}
+async function _renderScheduled() {
+  const generation = ++_outboxRead;
+  try {
+    const data = await mailJson('/api/mail/scheduled?context=true', { cache: 'no-store' });
+    if (!Array.isArray(data?.scheduled) || data.scheduled.some(row => !validOutgoingRow(row)) || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('could not read outbox');
+    if (generation !== _outboxRead) return;
+    if (!_outboxScopes.some(scope => data.recovery_scopes.includes(scope))) {
+      retireOutgoing(); _outboxPending = null; _outboxKnown = null; _outboxNotice = ''; _outboxConflict = false;
+      $('mail-undo-bar')?.remove();
+    }
+    _outboxScopes = data.recovery_scopes; _outboxRows = data.scheduled; _outboxReady = true; _outboxReadError = '';
+    readPendingOutgoing();
+    const pending = _outboxPending;
+    if (pending && !_outboxStorageError) {
+      const result = await mailJson(`/api/mail/scheduled?request_id=${encodeURIComponent(pending.request_id)}&recovery_scope=${encodeURIComponent(pending.recovery_scope)}`, { cache: 'no-store' });
+      if (generation !== _outboxRead || !sameOutgoing(pending, _outboxPending)) return;
+      if (!Array.isArray(result?.scheduled) || result.scheduled.length > 1 || result.scheduled.some(row => !validOutgoingRow(row) || row.id !== pending.request_id)) throw new Error('could not confirm delivery status');
+      const row = result.scheduled[0];
+      _outboxKnown = null; _outboxConflict = false;
+      if (row) {
+        if (!outgoingMatches(row, pending)) { _outboxConflict = true; _outboxNotice = 'this request belongs to a different message. review the outbox and Sent before dismissing recovery.'; retireOutgoing(); }
+        else {
+          _outboxKnown = row;
+          _outboxRows = _outboxRows.filter(value => value.id !== row.id);
+          if (['scheduled', 'sending', 'uncertain'].includes(row.status)) _outboxRows.push(row);
+          if (!(pending.cancel_requested || pending.action === 'cancel') || row.status !== 'scheduled') {
+            retireOutgoing();
+            await finishOutgoing(pending, row);
+          }
+        }
+      }
+    }
+  } catch (error) { if (generation === _outboxRead) _outboxReadError = `could not check the outbox. ${error.message || 'retry loading.'}`; }
+  if (generation === _outboxRead || !_outboxOperation) paintOutbox();
+}
+async function finishOutgoing(pending, row, keepDraft = false) {
+  if (!pending || !row || !sameOutgoing(pending, _outboxPending) || !_outboxScopes.includes(pending.recovery_scope) || _outboxOperation) return;
+  const canceled = row.status === 'canceled', cancel = pending.cancel_requested || pending.action === 'cancel';
+  const editor = mailEditor();
+  const owns = editor?.outgoing?.request_id === pending.request_id && editor.outgoing.recovery_scope === pending.recovery_scope;
+  _outboxNotice = cancel && !canceled ? `could not cancel: ${outgoingStatus(row)}` : outgoingStatus(row);
+  if (canceled) {
+    const undo = $('mail-undo-bar'); if (undo?.dataset.id === row.id) undo.remove();
+    if (!keepDraft && !(owns && editor.snapshot() === editor.outgoingSnapshot)) {
+      if (editor) { paintOutbox(); return; }
+      const message = pending.action === 'cancel' ? row : pending.message;
+      await compose({ ...message, id: '', body: outgoingHtml(message), account_id: pending.account_id || row.account_id, _outgoing: pending });
+      if (!sameOutgoing(pending, _outboxPending) || !sameOutgoing(mailEditor()?.outgoing, pending)) return;
+    }
+    if (owns) editor.outgoing = null;
+  } else {
+    if (owns) {
+      editor.outgoing = null;
+      if (editor.snapshot() === editor.outgoingSnapshot) clearMailEditor(editor);
+    }
+    if (_outboxAnnounced !== pending.request_id) {
+      _outboxAnnounced = pending.request_id;
+      toast(row.status === 'scheduled' ? 'scheduled' : outgoingStatus(row), row.status === 'uncertain' ? 'error' : 'success');
+    }
+    if (row.request_kind === 'send' && row.status === 'scheduled') _showUndoBar(row, pending.recovery_scope);
+  }
+  // Once accepted, newer text is a separate draft even if cleanup's reply is lost.
+  if (!canceled && pending.draft) {
+    const live = mailEditor(), draft = pending.draft;
+    if (live?.draftId === draft.id && live.revision === draft.revision && _draftScopes.includes(live.scope) && _draftScopes.includes(draft.scope)) { live.detach(); paintDraftRecovery(); }
+  }
+  if (!canceled && pending.draft && !keepDraft) {
+    const operation = { pending, action: 'cleanup', retired: false };
+    _outboxOperation = operation; ++_outboxRead; paintOutbox();
+    try {
+      const draft = pending.draft;
+      if (!draft.id || !/^[a-f0-9]{64}$/.test(draft.revision) || !_draftScopes.includes(draft.scope)) throw new Error('reopen the saved draft to remove it');
+      await mailJson(`/api/mail/drafts/${encodeURIComponent(draft.id)}?expected_revision=${encodeURIComponent(draft.revision)}&recovery_scope=${encodeURIComponent(draft.scope)}`, { method: 'DELETE' });
+      const live = mailEditor();
+      if (live?.draftId === draft.id && live.revision === draft.revision && _draftScopes.includes(live.scope) && _draftScopes.includes(draft.scope)) { live.detach(); paintDraftRecovery(); }
+      if (operation.retired || !sameOutgoing(pending, _outboxPending)) return;
+    } catch (error) {
+      if (operation.retired) return;
+      if (![404, 409].includes(error.status)) { _outboxNotice = `${outgoingStatus(row)}. could not remove the saved draft; retry cleanup or keep it.`; return; }
+      _outboxNotice += error.status === 409 ? '. the saved draft changed and was kept.' : '. the saved draft is already absent.';
+    } finally { if (_outboxOperation === operation) _outboxOperation = null; paintOutbox(); }
+  }
+  try { clearPendingOutgoing(pending); readPendingOutgoing(); }
+  catch { _outboxNotice += '. recovery data could not be cleared; retry cleanup.'; }
+  if (canceled) { const undo = $('mail-undo-bar'); if (undo?.dataset.id === row.id) undo.remove(); }
+  paintOutbox();
+}
+async function submitOutgoing() {
+  const pending = _outboxPending;
+  if (!pending || pending.action === 'cancel' || pending.cancel_requested || _outboxOperation || _outboxKnown || _outboxConflict || _outboxReadError || _outboxStorageError) return;
+  if (pending.action === 'schedule' && outgoingInstant(pending.message.send_at) <= Date.now()) {
+    if (!await dlgConfirm('this scheduled time has passed. retrying the same request may send it now. retry?')) return;
+    if (!sameOutgoing(pending, _outboxPending) || _outboxOperation || _outboxKnown) return;
+  }
+  const operation = { pending, action: 'queue', retired: false };
+  _outboxOperation = operation; ++_outboxRead; _outboxNotice = ''; paintOutbox();
+  try {
+    await mailJson(`/api/mail/${pending.action === 'send' ? 'send-undoable' : 'schedule'}/${encodeURIComponent(pending.account_id)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...pending.message, request_id: pending.request_id, recovery_scope: pending.recovery_scope }) });
+  } catch (error) { if (!operation.retired && sameOutgoing(pending, _outboxPending)) _outboxNotice = `delivery request unconfirmed. ${error.message || 'check its status or retry.'}`; }
+  finally { if (_outboxOperation === operation) _outboxOperation = null; paintOutbox(); }
+  if (!operation.retired && sameOutgoing(pending, _outboxPending)) await _renderScheduled();
+}
+async function cancelOutgoing(row = null, scope = _outboxScopes[0]) {
+  if (_outboxStorageError || !_outboxReady || (_outboxOperation && _outboxOperation.action === 'cancel') || _outboxConflict) return;
+  let pending = _outboxPending;
+  if (row) {
+    if (pending || row.status !== 'scheduled' || !_outboxScopes.includes(scope)) return;
+    pending = { version: 1, action: 'cancel', request_id: row.id, recovery_scope: scope, subject: row.subject };
+  } else if (!pending || (_outboxKnown && _outboxKnown.status !== 'scheduled')) return;
+  else pending = { ...pending, cancel_requested: true };
+  try { storePendingOutgoing(pending); }
+  catch { _outboxStorageError = 'could not retain cancellation for recovery. no cancellation was sent.'; paintOutbox(); return; }
+  retireOutgoing();
+  const operation = { pending, action: 'cancel', retired: false };
+  _outboxOperation = operation; paintOutbox();
+  try {
+    const reserve = /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(pending.request_id);
+    await mailJson(`/api/mail/scheduled/${encodeURIComponent(pending.request_id)}/cancel?recovery_scope=${encodeURIComponent(pending.recovery_scope)}&reserve_if_missing=${reserve}`, { method: 'POST' });
+  } catch (error) { if (!operation.retired && sameOutgoing(pending, _outboxPending)) _outboxNotice = `cancellation unconfirmed. ${error.message || 'check its status or retry.'}`; }
+  finally { if (_outboxOperation === operation) _outboxOperation = null; paintOutbox(); }
+  if (!operation.retired && sameOutgoing(pending, _outboxPending)) await _renderScheduled();
+}
+async function forgetOutgoing(unreadable) {
+  if (_outboxOperation) return;
+  const pending = _outboxPending, scopes = [..._outboxScopes];
+  if (!await dlgConfirm('clear this recovery record? this does not cancel delivery. check Sent and the outbox before sending the message again.')) return;
+  if (_outboxOperation || scopes.join() !== _outboxScopes.join() || (!unreadable && !sameOutgoing(pending, _outboxPending))) return;
+  try {
+    if (unreadable) for (const scope of scopes) { sessionStorage.removeItem(outgoingKey(scope)); if (sessionStorage.getItem(outgoingKey(scope)) !== null) throw new Error('cleanup failed'); }
+    else clearPendingOutgoing(pending);
+    _outboxNotice = ''; _outboxConflict = false; readPendingOutgoing();
+  } catch { _outboxStorageError = 'could not clear delivery recovery data; it was kept.'; }
+  paintOutbox();
+}
+function _showUndoBar(row, scope) {
+  let bar = $('mail-undo-bar');
+  if (!bar) { bar = document.createElement('div'); bar.id = 'mail-undo-bar'; bar.className = 'mail-undo-bar'; $('mail-view')?.appendChild(bar); }
+  bar.dataset.id = row.id; bar.dataset.scope = scope;
+  bar.innerHTML = '<span>queued to send</span><button type="button" class="btn" id="mail-undo-btn">undo</button>';
+  bar.style.display = 'flex';
+  $('mail-undo-btn').addEventListener('click', () => { if (!_outboxScopes.includes(scope)) { bar.remove(); return; } if (!_outboxPending) cancelOutgoing(row, scope); else if (_outboxPending.request_id === row.id && _outboxPending.recovery_scope === scope) cancelOutgoing(); else $('mail-outbox-status')?.focus(); });
+  const remaining = Math.max(0, outgoingInstant(row.send_at) - Date.now());
+  setTimeout(() => { if (bar.dataset.id === row.id && bar.dataset.scope === scope) bar.remove(); }, Math.min(remaining, 2147483647));
 }
 
 async function rulesPanel() {
