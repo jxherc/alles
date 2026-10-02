@@ -85,6 +85,7 @@ COMMANDS = {
     "settings-selected": ("tests/pw_settings_selected.py",),
     "settings-context": ("tests/pw_settings_context.py",),
     "server-recovery": ("tests/pw_server_recovery.py",),
+    "reminder-recovery": ("tests/pw_reminder_recovery.py",),
     "home-reminders": ("tests/pw_today_reminders.py",),
     "home-capture": ("tests/pw_home_capture.py",),
     "home-day-draft": ("tests/pw_home_day_draft.py",),

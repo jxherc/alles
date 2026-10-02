@@ -22,7 +22,7 @@ from services.chat_turn import (
 )
 from services.llm import reasoning_control_supported, simple_complete
 from services.memory_store import apply_memory_tool_policy, inject_memories
-from services.model_resolver import ModelResolutionError, resolve_model
+from services.model_resolver import ModelResolutionError, resolve_session_model
 
 router = APIRouter(prefix="/api")
 
@@ -61,22 +61,8 @@ def _apply_persona_model(session: Session, ep: ModelEndpoint, model: str, db):
 
 
 def _resolve_session_model(session: Session, db, settings: dict | None = None):
-    persona = _resolve_persona(session, db)
-    explicit = {
-        "endpoint_id": session.endpoint_id if session.model else "",
-        "model": session.model or "",
-    }
-    workflow = {"model": persona.model} if persona and persona.model else {}
-    feature = {"endpoint_id": session.endpoint_id or ""}
     try:
-        selected = resolve_model(
-            db,
-            "aide_chat",
-            explicit=explicit,
-            workflow_override=workflow,
-            feature_default=feature,
-            settings=settings,
-        )
+        selected = resolve_session_model(db, session, settings=settings)
     except ModelResolutionError as exc:
         from core.api_errors import ApiError
 

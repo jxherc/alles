@@ -42,6 +42,7 @@ BROWSER_SUITES = {
         "files-upload-recovery",
         "files-transfer-clearance",
         "home-reminders",
+        "reminder-recovery",
         "home-capture",
         "home-day-draft",
         "home-record-links",
@@ -85,6 +86,7 @@ BROWSER_SUITES = {
     "creations": ("aide-creations",),
     "pwa": ("pwa-offline", "pwa-storage", "pwa-rejection"),
     "assistant": (
+        "reminder-recovery",
         "andromeda-cancellation",
         "aide-continuity",
         "aide-composer",
@@ -134,6 +136,7 @@ BROWSER_SUITES = {
         "files-upload-recovery",
         "files-transfer-clearance",
         "home-reminders",
+        "reminder-recovery",
         "home-capture",
         "home-day-draft",
         "home-record-links",
