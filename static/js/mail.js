@@ -1975,14 +1975,29 @@ function _showUndoBar(row, scope) {
   setTimeout(() => { if (bar.dataset.id === row.id && bar.dataset.scope === scope) bar.remove(); }, Math.min(remaining, 2147483647));
 }
 
+let _vacationWrite = null;
 async function rulesPanel() {
   if (!await prepareMailNavigation()) return;
   const generation = _messageGeneration;
   const main = $('mail-main');
-  main.innerHTML = '<div class="mail-empty">loading rules…</div>';
-  let rules = [], vac = { enabled: false, subject: 'Out of office', body: '' };
-  try { rules = (await fetch('/api/mail/rules').then(r => r.json())).rules || []; } catch (e) { console.error(e); }
-  try { vac = await fetch('/api/mail/vacation').then(r => r.json()); } catch (e) { console.error(e); }
+  main.innerHTML = '<div class="mail-empty" role="status">loading rules…</div>';
+  // A reopened form must read after its earlier save, not race a newer save against it.
+  if (_vacationWrite) await _vacationWrite.catch(() => {});
+  if (generation !== _messageGeneration) return;
+  let rules, vac;
+  try {
+    const [data, vacation] = await Promise.all([mailJson('/api/mail/rules'), mailJson('/api/mail/vacation')]);
+    if (!Array.isArray(data?.rules) || !data.rules.every(rule => rule && typeof rule.id === 'string') ||
+        typeof vacation?.enabled !== 'boolean' || typeof vacation.subject !== 'string' || typeof vacation.body !== 'string') {
+      throw new Error('could not confirm rules and vacation settings');
+    }
+    rules = data.rules; vac = vacation;
+  } catch (error) {
+    if (generation !== _messageGeneration) return;
+    main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || 'could not load rules and vacation settings')} <button type="button" class="btn">retry</button></div>`;
+    main.querySelector('button').addEventListener('click', () => rulesPanel());
+    return;
+  }
   if (generation !== _messageGeneration) return;
   const ruleRows = rules.map(r => `
     <div class="mail-rule-row" data-id="${esc(r.id)}">
@@ -2002,9 +2017,10 @@ async function rulesPanel() {
     <div class="mail-rule-actions"><button class="btn" id="mr-run">run rules now</button><span id="mr-run-status" class="mail-status"></span></div>
     <div class="mail-compose-head" style="margin-top:1rem">vacation responder</div>
     <button class="btn mail-vac-toggle${vac.enabled ? ' active' : ''}" id="mv-enabled" aria-pressed="${vac.enabled ? 'true' : 'false'}">${vac.enabled ? '✓ ' : ''}auto-reply when I'm away</button>
-    <input class="settings-input" id="mv-subject" placeholder="subject" value="${esc(vac.subject || '')}">
-    <textarea class="settings-input mail-compose-body" id="mv-body" placeholder="out-of-office message…">${esc(vac.body || '')}</textarea>
+    <input class="settings-input" id="mv-subject" aria-label="vacation subject" placeholder="subject" value="${esc(vac.subject || '')}">
+    <textarea class="settings-input mail-compose-body" id="mv-body" aria-label="vacation message" placeholder="out-of-office message…">${esc(vac.body || '')}</textarea>
     <button class="btn primary" id="mv-save">save vacation reply</button>
+    <div id="mv-status" class="mail-status" role="status" aria-live="polite"></div>
   </div>`;
   populateDropdown($('mr-field'), [{ value: 'from', label: 'from' }, { value: 'subject', label: 'subject' }], 'from');
   populateDropdown($('mr-action'), [
@@ -2039,12 +2055,46 @@ async function rulesPanel() {
     $('mr-run-status').textContent = `applied to ${total} message(s)`;
     loadInbox();
   });
-  $('mv-save').addEventListener('click', async () => {
-    await fetch('/api/mail/vacation', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ enabled: $('mv-enabled').getAttribute('aria-pressed') === 'true', subject: $('mv-subject').value, body: $('mv-body').value }),
-    }).catch(console.error);
-    toast('vacation reply saved', 'success');
+  const vacationRoot = main.querySelector('.mail-rules-panel');
+  const vacationSave = vacationRoot.querySelector('#mv-save');
+  const vacationStatus = vacationRoot.querySelector('#mv-status');
+  const vacationValue = () => ({
+    enabled: vacationRoot.querySelector('#mv-enabled').getAttribute('aria-pressed') === 'true',
+    subject: vacationRoot.querySelector('#mv-subject').value,
+    body: vacationRoot.querySelector('#mv-body').value,
+  });
+  const sameVacation = (a, b) => ['enabled', 'subject', 'body'].every(key => a?.[key] === b?.[key]);
+  let vacationSaved = null;
+  const updateVacationStatus = () => {
+    if (!vacationSaved || vacationSave.disabled) return;
+    vacationStatus.textContent = sameVacation(vacationValue(), vacationSaved)
+      ? 'vacation reply saved' : 'vacation changes are unsaved';
+  };
+  for (const id of ['mv-subject', 'mv-body']) vacationRoot.querySelector(`#${id}`).addEventListener('input', updateVacationStatus);
+  vacationRoot.querySelector('#mv-enabled').addEventListener('click', updateVacationStatus);
+  vacationSave.addEventListener('click', async () => {
+    if (vacationSave.disabled) return;
+    const body = vacationValue();
+    vacationSaved = null;
+    vacationSave.disabled = true;
+    vacationStatus.textContent = 'saving vacation reply…';
+    const writing = mailPost('/api/mail/vacation', body);
+    _vacationWrite = writing;
+    try {
+      const saved = await writing;
+      if (!sameVacation(saved, body)) throw new Error('could not confirm the saved vacation reply');
+      if (!vacationRoot.isConnected || generation !== _messageGeneration) return;
+      vacationSaved = body;
+      vacationStatus.textContent = sameVacation(vacationValue(), body)
+        ? 'vacation reply saved' : 'earlier vacation reply saved; newer changes are unsaved';
+    } catch (error) {
+      if (vacationRoot.isConnected && generation === _messageGeneration) {
+        vacationStatus.textContent = `save unconfirmed. ${error.message || 'check your connection and retry.'} your changes are still here.`;
+      }
+    } finally {
+      if (_vacationWrite === writing) _vacationWrite = null;
+      vacationSave.disabled = false;
+    }
   });
 }
 
