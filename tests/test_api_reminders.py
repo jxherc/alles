@@ -1,9 +1,24 @@
 from datetime import UTC, datetime, timedelta
 
+from core.database import ModelEndpoint, Session
 from tests._client import ApiTest
 
 
 class RemindersApiTest(ApiTest):
+    def scheduled_session(self):
+        with self.db() as db:
+            endpoint = ModelEndpoint(
+                name="fixture",
+                base_url="https://model.example.invalid",
+                cached_models='["fixture"]',
+            )
+            db.add(endpoint)
+            db.flush()
+            session = Session(name="fixture", endpoint_id=endpoint.id, model="fixture")
+            db.add(session)
+            db.commit()
+            return session.id
+
     def test_create_list_delete(self):
         future = (datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)).isoformat()
         r = self.client.post(
@@ -57,7 +72,13 @@ class RemindersApiTest(ApiTest):
     def test_message_type_not_in_due(self):
         past = (datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)).isoformat()
         self.client.post(
-            "/api/reminders", json={"text": "msg", "trigger_at": past, "type": "message"}
+            "/api/reminders",
+            json={
+                "text": "msg",
+                "trigger_at": past,
+                "type": "message",
+                "session_id": self.scheduled_session(),
+            },
         )
         self.assertEqual(self.client.get("/api/reminders/due").json(), [])
         # but it still shows in the active list since not fired
@@ -91,7 +112,13 @@ class RemindersApiTest(ApiTest):
     def test_create_custom_type(self):
         future = (datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)).isoformat()
         r = self.client.post(
-            "/api/reminders", json={"text": "hey", "trigger_at": future, "type": "message"}
+            "/api/reminders",
+            json={
+                "text": "hey",
+                "trigger_at": future,
+                "type": "message",
+                "session_id": self.scheduled_session(),
+            },
         ).json()
         self.assertEqual(r["type"], "message")
 

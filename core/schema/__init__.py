@@ -77,6 +77,7 @@ from core.schema.application import PushSubscription as PushSubscription
 from core.schema.application import ReadFeed as ReadFeed
 from core.schema.application import ReadItem as ReadItem
 from core.schema.application import Reminder as Reminder
+from core.schema.application import ReminderCreateReceipt as ReminderCreateReceipt
 from core.schema.application import ResearchFinding as ResearchFinding
 from core.schema.application import SavedSearch as SavedSearch
 from core.schema.application import ScheduledMail as ScheduledMail

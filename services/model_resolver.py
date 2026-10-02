@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from core.database import ModelEndpoint
+from core.database import ModelEndpoint, Persona
 from core.settings import load_settings
 from services.model_catalog import is_chat_model
 from services.routing import is_local_endpoint
@@ -183,6 +183,22 @@ def _fallback_for_role(
         ):
             return selection
     return None
+
+
+def resolve_session_model(db, session, *, settings=None) -> ResolvedModel:
+    """Use the same explicit, persona and inherited model for chat and scheduled messages."""
+    persona = db.get(Persona, session.persona_id) if session.persona_id else None
+    return resolve_model(
+        db,
+        "aide_chat",
+        explicit={
+            "endpoint_id": session.endpoint_id if session.model else "",
+            "model": session.model or "",
+        },
+        workflow_override={"model": persona.model} if persona and persona.model else {},
+        feature_default={"endpoint_id": session.endpoint_id or ""},
+        settings=settings,
+    )
 
 
 def resolve_model(

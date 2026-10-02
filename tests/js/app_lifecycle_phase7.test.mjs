@@ -171,7 +171,7 @@ test('specialist request accounting treats every non-ok response as a failure', 
 
 test('all four Aide tool pages report their initial API failures to showView', () => {
   assert.match(app, /showBrainView[\s\S]{0,180}loadBrainPanel\(request\)/);
-  assert.match(app, /showRemindersView[\s\S]{0,220}initReminderPanel\(request\)/);
+  assert.match(app, /showRemindersView[\s\S]{0,220}initReminderPanel\(request, showRemindersView\)/);
   assert.match(app, /showSkillsView[\s\S]{0,260}module\.initSkills\(request\)/);
   assert.match(app, /showAideScheduledView[\s\S]{0,320}module\.initAideScheduled\(request\)/);
   assert.match(reminders, /loadReminders\(fetcher = fetch\)/);

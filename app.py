@@ -374,24 +374,27 @@ async def _fire_due_reminders():
                 continue
             from datetime import datetime as dt
 
-            from core.database import Message, ModelEndpoint
+            from core.database import Message
+            from services.model_resolver import ModelResolutionError, resolve_session_model
 
-            ep = db.get(ModelEndpoint, s.endpoint_id)
-            if not ep:
+            settings = load_settings()
+            try:
+                selected = resolve_session_model(db, s, settings=settings)
+            except ModelResolutionError:
                 continue
+            ep, model = selected.endpoint, selected.model
             # Scheduled model calls can cost money even if the process stops
             # before their response is saved. Claim first; a stale claim waits
             # for owner review instead of spending again automatically.
             r.notified = True
             db.commit()
-            settings = load_settings()
             msgs = [{"role": "system", "content": build_aide_system_prompt(settings)}]
             for m in list(s.messages)[-20:]:
                 msgs.append({"role": m.role, "content": m.content})
             msgs.append({"role": "user", "content": r.text})
             acc = []
             try:
-                async for chunk in stream_chat(msgs, ep.base_url, ep.api_key, s.model):
+                async for chunk in stream_chat(msgs, ep.base_url, ep.api_key, model):
                     if "delta" in chunk:
                         acc.append(chunk["delta"])
             except Exception as e:

@@ -94,7 +94,9 @@ class FireDueReminderTests(ApiTest):
 
     def test_scheduled_message_is_fired_with_session_messages(self):
         d = self.db()
-        endpoint = ModelEndpoint(name="local", base_url="http://local.test")
+        endpoint = ModelEndpoint(
+            name="local", base_url="http://local.test", cached_models='["test-model"]'
+        )
         d.add(endpoint)
         d.flush()
         session = Session(name="scheduled", model="test-model", endpoint_id=endpoint.id)
@@ -129,3 +131,46 @@ class FireDueReminderTests(ApiTest):
             ],
         )
         d.close()
+
+    def test_inherited_model_delivers_once_and_preserves_automatic_selection(self):
+        with self.db() as db:
+            endpoint = ModelEndpoint(
+                name="inherited",
+                base_url="http://127.0.0.1:1/v1",
+                cached_models='["inherited-fixture"]',
+            )
+            session = Session(name="scheduled inherited", model="")
+            db.add_all([endpoint, session])
+            db.flush()
+            reminder = Reminder(
+                text="inherited update",
+                type="message",
+                session_id=session.id,
+                trigger_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
+            )
+            db.add(reminder)
+            db.commit()
+            sid, eid, rid = session.id, endpoint.id, reminder.id
+        settings = {
+            "model_roles": {"aide_chat": {"endpoint_id": eid, "model": "inherited-fixture"}}
+        }
+        calls = []
+
+        async def stream(messages, base_url, api_key, model):
+            calls.append(model)
+            yield {"delta": "inherited response"}
+
+        with (
+            mock.patch("core.settings.load_settings", return_value=settings),
+            mock.patch("services.model_resolver.load_settings", return_value=settings),
+            mock.patch("services.llm.stream_chat", stream),
+        ):
+            self._run_job(delivered=0)
+            self._run_job(delivered=0)
+        self.assertEqual(calls, ["inherited-fixture"])
+        with self.db() as db:
+            self.assertTrue(db.get(Reminder, rid).fired)
+            self.assertTrue(db.get(Reminder, rid).notified)
+            self.assertEqual(db.query(Message).filter_by(session_id=sid).count(), 2)
+            self.assertEqual(db.get(Session, sid).model, "")
+            self.assertIsNone(db.get(Session, sid).endpoint_id)
