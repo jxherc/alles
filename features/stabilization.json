@@ -4867,6 +4867,422 @@
         "1440",
         "390"
       ]
+    },
+    {
+      "id": "inbox.editor.message-race",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor message race",
+      "expected": "A delayed message response cannot replace a newer compose editor.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.draft-read-race",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor draft read race",
+      "expected": "A delayed draft response cannot replace newer compose text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.failed-delete-keeps-edits",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor failed delete keeps edits",
+      "expected": "A rejected deletion retains the saved draft and current unsaved text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.folder-keeps-edits",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor folder keeps edits",
+      "expected": "Changing the message category preserves the open compose editor.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.signature-read-race",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor signature read race",
+      "expected": "A delayed initial signature read cannot replace a newer message reader.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.section-keeps-edits",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor section keeps edits",
+      "expected": "Canceling a move to Contacts preserves the visible editor and text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.close-save-reopen",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor close save reopen",
+      "expected": "Cancel close, save, close and reopen the exact draft with its text preserved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.message-cancel-replace",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor message cancel replace",
+      "expected": "Opening another message requires a leave decision for unsaved text; cancel retains it and confirmation opens the intended message.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.section-history-cancel",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor section history cancel",
+      "expected": "Confirmed navigation discards only that editor; canceled browser history navigation restores its URL and current text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.delete-late-edit",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor delete late edit",
+      "expected": "Text edited during a successful deletion remains as an unsaved draft and can be saved with a new identity.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.image-late-new-editor",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor image late new editor",
+      "expected": "An older image upload cannot alter or steal focus from the newer editor.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.link-keyboard",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor link keyboard",
+      "expected": "A custom keyboard link dialog preserves the selected text and saved link across reopening.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.signature-repeat",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor signature repeat",
+      "expected": "Refreshing signatures does not duplicate rich toolbar handlers; one keyboard action applies formatting once.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.reload-protect",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor reload protect",
+      "expected": "A browser leave decision protects unsaved text; canceling reload leaves that editor intact.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.dismiss-refreshed-pending",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search dismiss refreshed pending",
+      "expected": "A current list refresh with unchanged pending values does not invalidate the dismissal confirmation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.dismiss-changed-pending",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search dismiss changed pending",
+      "expected": "Dismissal cannot clear changed pending values even when their request identity is unchanged.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.dismiss-changed-store",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search dismiss changed store",
+      "expected": "Dismissal cannot clear another mail store's pending save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.confirmed-delete-store-change",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search confirmed delete store change",
+      "expected": "A definitive403 refreshes the current store even after earlier removal confirmation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.failed-removal-store-roundtrip",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search failed removal store roundtrip",
+      "expected": "Unresolved removals remain tied to their own store and identity when visiting another store and returning.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.pending-removal-other-store-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search pending removal other store failure",
+      "expected": "A failed removal retains its recovery notice while a different store is displayed; returning shows that notice.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.pending-removal-other-store-success",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search pending removal other store success",
+      "expected": "A successful removal finishes its own operation without changing a different store's displayed result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.rich-preview",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor rich preview",
+      "expected": "The draft list shows readable message text rather than serialized HTML.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.rich-clean-close",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor rich clean close",
+      "expected": "Opening and hovering a saved rich-text link does not create a false dirty state or change the stored draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.account-choice-dirty",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor account choice dirty",
+      "expected": "Changing only the sending account requires a leave decision and cancel retains that choice without changing the saved draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.current-tab-keeps-editor",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor current tab keeps editor",
+      "expected": "Clicking the already-selected Mail tab keeps the editor without an unnecessary discard prompt.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.send-late-editor",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor send late editor",
+      "expected": "An accepted send keeps its undo action after replacing the composer, and the newer text remains intact.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.send-late-edit",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor send late edit",
+      "expected": "An accepted send preserves edits made while the request was pending and still offers undo.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.schedule-late-editor",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor schedule late editor",
+      "expected": "An accepted scheduled message is acknowledged after replacing the composer, and newer text remains intact.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.schedule-late-edit",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor schedule late edit",
+      "expected": "An accepted schedule preserves text entered while the request was pending.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.delete-reopen",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor delete reopen",
+      "expected": "A draft being deleted cannot reopen and remain attached to the removed saved record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.delete-pending-read",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor delete pending read",
+      "expected": "A read started before deletion cannot reopen the deleted draft after the delete response.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.editor.delete-old-read-new-compose",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail editor delete old read new compose",
+      "expected": "Deleting an obsolete pending draft read does not cancel a newer composer loading its signature, and the older response cannot replace the new text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],

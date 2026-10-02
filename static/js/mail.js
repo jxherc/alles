@@ -37,6 +37,7 @@ async function _showAc(input, addFn) {
   const q = input.value.trim().toLowerCase();
   if (!q) { _hideAc(); return; }
   const book = await _loadAddrBook();
+  if (!input.isConnected || document.activeElement !== input || input.value.trim().toLowerCase() !== q) return;
   const m = book.filter(e => e.email.toLowerCase().includes(q) || (e.name || '').toLowerCase().includes(q)).slice(0, 6);
   _hideAc();
   if (!m.length) return;
@@ -162,10 +163,45 @@ function providerHelpHtml() {
 }
 
 let _messageGeneration = 0;
+let _mailEditor = null, _mailLeave = null, _openingDraft = null;
+const _deletingDrafts = new Set();
+function mailEditor() {
+  if (_mailEditor?.root.isConnected) return _mailEditor;
+  _mailEditor = null;
+  return null;
+}
+function clearMailEditor(editor) {
+  if (mailEditor() !== editor) return;
+  _hideAc();
+  editor.root.remove();
+  _mailEditor = null;
+}
+export async function prepareMailNavigation() {
+  const generation = ++_messageGeneration;
+  const editor = mailEditor();
+  if (!editor) return true;
+  if (!_mailLeave) {
+    const snapshot = editor.snapshot();
+    _mailLeave = (async () => {
+      if (snapshot !== editor.initial && !await dlgConfirm('discard unsaved draft changes?')) return false;
+      if (mailEditor() !== editor || editor.snapshot() !== snapshot) return false;
+      clearMailEditor(editor);
+      return true;
+    })().finally(() => { _mailLeave = null; });
+  }
+  return await _mailLeave && generation === _messageGeneration;
+}
 let _inited = false;
 export function initMail() {
   if (_inited) return;
   _inited = true;
+  window.addEventListener('beforeunload', event => {
+    const editor = mailEditor();
+    if (editor && editor.snapshot() !== editor.initial) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
   $('mail-account')?.addEventListener('change', e => {
     _active = e.target.value;
     localStorage.setItem('alles-mail-account-mode', _active);
@@ -509,7 +545,8 @@ export async function loadMail(fetcher = fetch) {
   syncAccountSelect();
   if (!_accounts.length) {
     $('mail-list').innerHTML = '';
-    accountsPanel(true);
+    if (mailEditor()) toast('the mail account is unavailable; your draft is still open', 'error');
+    else accountsPanel(true);
     return;
   }
   _renderSavedBar();
@@ -612,18 +649,35 @@ function setFilter(f) {
 
 async function loadCategory(cat, { preserveReader = false } = {}) {
   _searchView = ''; _labelFilter = '';
-  if (!preserveReader) { ++_messageGeneration; $('mail-main').innerHTML = ''; }
+  if (!preserveReader) { ++_messageGeneration; if (!mailEditor()) $('mail-main').innerHTML = ''; }
   return loadCachedMail(`category:${cat}`, `loading ${cat}…`, a => `/api/mail/category/${a.id}?cat=${encodeURIComponent(cat)}`);
 }
 async function loadByLabel(label, { preserveReader = false } = {}) {
   _searchView = ''; _labelFilter = label;
-  if (!preserveReader) { ++_messageGeneration; $('mail-main').innerHTML = ''; }
+  if (!preserveReader) { ++_messageGeneration; if (!mailEditor()) $('mail-main').innerHTML = ''; }
   return loadCachedMail(`label:${label}`, `label “${label}”…`, a => `/api/mail/by-label/${a.id}?label=${encodeURIComponent(label)}`);
 }
 async function loadSmart(filter, { preserveReader = false } = {}) {
   _searchView = ''; _labelFilter = '';
-  if (!preserveReader) { ++_messageGeneration; $('mail-main').innerHTML = ''; }
+  if (!preserveReader) { ++_messageGeneration; if (!mailEditor()) $('mail-main').innerHTML = ''; }
   return loadCachedMail(`smart:${filter}`, `loading ${filter}…`, a => `/api/mail/smart/${a.id}?filter=${encodeURIComponent(filter)}`);
+}
+
+function draftPreview(html) {
+  const template = document.createElement('template');
+  template.innerHTML = String(html || '');
+  template.content.querySelectorAll('script, style').forEach(node => node.remove());
+  template.content.querySelectorAll('br, p, div, li, blockquote, h1, h2, h3, h4, h5, h6, tr').forEach(node => node.after(document.createTextNode(' ')));
+  return [...template.content.textContent.replace(/\s+/g, ' ').trim()].slice(0, 80).join('');
+}
+function draftHtml(element) {
+  if (!element) return '';
+  const copy = element.cloneNode(true);
+  // Control decoration is transient UI state, not authored message content.
+  for (const attribute of ['data-kokuen-primitive', 'data-kokuen-state', 'data-kokuen-state-message']) {
+    copy.querySelectorAll(`[${attribute}]`).forEach(node => node.removeAttribute(attribute));
+  }
+  return copy.innerHTML;
 }
 
 async function loadDrafts({ preserveReader = false } = {}) {
@@ -633,7 +687,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
   _searchView = '';
   _labelFilter = '';
   const list = $('mail-list'); const main = $('mail-main');
-  if (!preserveReader) { ++_messageGeneration; main.innerHTML = ''; }
+  if (!preserveReader) { ++_messageGeneration; if (!mailEditor()) main.innerHTML = ''; }
   list.setAttribute('aria-busy', 'true');
   list.innerHTML = '<div class="mail-empty">loading drafts…</div>';
   let drafts = [];
@@ -656,21 +710,56 @@ async function loadDrafts({ preserveReader = false } = {}) {
   list.innerHTML = drafts.map(d => `
     <div class="mail-row mail-draft-row" data-id="${esc(d.id)}">
       <span class="mail-from">${esc(d.to || '(no recipient)')}</span>
-      <button type="button" class="mail-open mail-subj">${esc(d.subject || '(no subject)')}</button>
-      <button class="mail-draft-del" data-id="${esc(d.id)}" aria-label="delete draft">×</button>
-      <div class="mail-snippet">${esc((d.body || '').slice(0, 80))}</div>
+      <button type="button" class="mail-open mail-subj" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>${esc(d.subject || '(no subject)')}</button>
+      <button class="mail-draft-del" data-id="${esc(d.id)}" aria-label="delete draft" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>×</button>
+      <div class="mail-snippet">${esc(draftPreview(d.body))}</div>
     </div>`).join('');
   list.querySelectorAll('.mail-draft-row').forEach(row => {
     row.addEventListener('click', async e => {
-      if (e.target.closest('.mail-draft-del')) return;
-      const d = await fetch(`/api/mail/drafts/${row.dataset.id}`).then(r => r.json());
-      compose(d);
+      if (e.target.closest('.mail-draft-del') || _deletingDrafts.has(row.dataset.id)) return;
+      if (!await prepareMailNavigation() || _deletingDrafts.has(row.dataset.id)) return;
+      const generation = _messageGeneration, opening = { id: row.dataset.id, canceled: false, generation };
+      _openingDraft = opening;
+      try {
+        const d = await mailJson(`/api/mail/drafts/${encodeURIComponent(row.dataset.id)}`);
+        if (generation !== _messageGeneration || opening.canceled) return;
+        if (d?.id !== row.dataset.id || typeof d.body !== 'string' || typeof d.subject !== 'string') throw new Error('could not confirm this draft');
+        await compose(d, generation);
+      } catch (error) { if (generation === _messageGeneration && !opening.canceled) toast(error.message || 'could not open draft', 'error'); }
+      finally { if (_openingDraft === opening) _openingDraft = null; }
     });
   });
   list.querySelectorAll('.mail-draft-del').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
-    await fetch(`/api/mail/drafts/${b.dataset.id}`, { method: 'DELETE' });
-    loadDrafts();
+    if (b.disabled) return;
+    const id = b.dataset.id, editor = mailEditor();
+    if (_deletingDrafts.has(id)) return;
+    const snapshot = editor?.draftId === id ? editor.snapshot() : null;
+    if (snapshot !== null && snapshot !== editor.initial) {
+      if (!await dlgConfirm('delete the saved draft and discard these changes?')) return;
+      if (mailEditor() !== editor || editor.snapshot() !== snapshot) return;
+    }
+    if (_deletingDrafts.has(id)) return;
+    _deletingDrafts.add(id);
+    b.disabled = true;
+    b.closest('.mail-draft-row')?.querySelector('.mail-open')?.setAttribute('disabled', '');
+    if (_openingDraft?.id === id) {
+      _openingDraft.canceled = true;
+      if (_openingDraft.generation === _messageGeneration) ++_messageGeneration;
+    }
+    try {
+      const result = await mailJson(`/api/mail/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (result?.ok !== true) throw new Error('could not confirm draft deletion');
+      if (mailEditor() === editor && editor?.draftId === id) {
+        if (editor.snapshot() === snapshot) clearMailEditor(editor);
+        else editor.detach();
+      }
+      if (_filter === 'drafts') await loadDrafts({ preserveReader: true });
+    } catch (error) { toast(error.message || 'could not delete draft', 'error'); }
+    finally {
+      _deletingDrafts.delete(id); b.disabled = false;
+      $('mail-list').querySelectorAll(`.mail-draft-row[data-id="${CSS.escape(id)}"] button`).forEach(button => { button.disabled = false; });
+    }
   }));
 }
 
@@ -909,8 +998,9 @@ function _wireRows(list) {
 
 export async function openMailSource(id, isCurrent = () => true) {
   const match = /^(task|event)-([a-zA-Z0-9_-]+)$/.exec(id);
-  if (!match || !isCurrent()) return false;
-  const generation = ++_messageGeneration;
+  if (!match || !isCurrent() || !await prepareMailNavigation()) return false;
+  if (!isCurrent()) return false;
+  const generation = _messageGeneration;
   const main = $('mail-main');
   main.innerHTML = '<div class="mail-empty" role="status">loading original message…</div>';
   const current = () => generation === _messageGeneration && isCurrent();
@@ -938,7 +1028,8 @@ export async function openMailSource(id, isCurrent = () => true) {
 }
 
 async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurrent = () => true) {
-  const generation = ++_messageGeneration;
+  if (!await prepareMailNavigation() || !isCurrent()) return;
+  const generation = _messageGeneration;
   if (!verified && readRecordTarget(location.href)?.view === 'mail') {
     const url = new URL(location.href);
     for (const key of ['record', 'record_view', 'occurrence']) url.searchParams.delete(key);
@@ -1088,7 +1179,13 @@ async function loadAttachments(aid, uid, folder, isCurrent = () => true) {
   head.appendChild(row);
 }
 
-async function compose(pre = {}) {
+async function compose(pre = {}, generation = null) {
+  if (generation === null) {
+    if (!await prepareMailNavigation()) return;
+    generation = _messageGeneration;
+  }
+  const currentRead = () => generation === _messageGeneration && Boolean(document.getElementById('mail-view')?.getClientRects().length);
+  if (!currentRead()) return;
   // blank new message picks up the saved signature; replies keep their quote untouched
   if (!pre.body) {
     try {
@@ -1096,7 +1193,8 @@ async function compose(pre = {}) {
       if (sig) pre = { ...pre, body: '\n\n' + sig };
     } catch (e) { console.error(e); }
   }
-  const main = $('mail-main');
+  if (!currentRead()) return;
+  const main = document.getElementById('mail-main');
   const defaultAid = pre.account_id || (_active !== 'all' ? _active : _accounts[0]?.id);
   main.innerHTML = `<div class="mail-compose">
     <div class="mail-form-head">
@@ -1146,6 +1244,8 @@ async function compose(pre = {}) {
     <input type="file" id="mc-image-input" accept="image/*" style="display:none">
     <div id="mc-status" class="mail-status"></div>
   </div>`;
+  const root = main.querySelector('.mail-compose');
+  const $ = id => root.querySelector('#' + id);
   if ($('mc-account')) populateDropdown($('mc-account'), _accounts.map(a => ({ value: a.id, label: a.name || a.email })), defaultAid);
   // recipient chip fields + address autocomplete (4d)
   main.querySelectorAll('.mc-chipfield').forEach(f => _initChipField(f));
@@ -1156,31 +1256,38 @@ async function compose(pre = {}) {
   $('mc-add-bcc')?.addEventListener('click', () => { $('mc-bcc-row').style.display = ''; $('mc-bcc-row').querySelector('.mc-chip-input').focus(); });
   _loadAddrBook();   // warm the autocomplete cache
   let _draftId = pre.id || '';
-  let initial = serializeForm(main);
+  const editor = {
+    root, draftId: _draftId,
+    snapshot: () => JSON.stringify([serializeForm(root), getDropdownValue($('mc-account')) || defaultAid]),
+    detach: () => { _draftId = ''; editor.draftId = ''; editor.initial = null; },
+  };
+  editor.initial = editor.snapshot();
+  _mailEditor = editor;
+  const current = () => mailEditor() === editor;
   const _draftBody = () => ({
     id: _draftId, account_id: $('mc-account')?.value || defaultAid,
     to: $('mc-to').value.trim(), cc: $('mc-cc').value.trim(), bcc: $('mc-bcc').value.trim(),
-    subject: $('mc-subj').value, body: $('mc-html')?.innerHTML || '',
+    subject: $('mc-subj').value, body: draftHtml($('mc-html')),
     in_reply_to: pre.in_reply_to || '', references: pre.references || '',
   });
   // rich-compose toolbar + signatures (5c)
-  _wireRichCompose(defaultAid);
+  _wireRichCompose(defaultAid, root, current);
   (pre.id ? $('mc-subj') : main.querySelector('.mc-chip-input'))?.focus();
   $('mc-save').addEventListener('click', async () => {
-    const savedState = serializeForm(main);
+    const savedState = editor.snapshot(), savedId = _draftId;
     const d = await fetch('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(_draftBody()) }).then(r => r.ok ? r.json() : null).catch(() => null);
-    if (typeof d?.id === 'string' && d.id) { _draftId = d.id; initial = savedState; toast('draft saved', 'success'); } else toast('save failed', 'error');
+    if (!current() || _draftId !== savedId) return;
+    if (typeof d?.id === 'string' && d.id) { _draftId = d.id; editor.draftId = d.id; editor.initial = savedState; toast('draft saved', 'success'); } else toast('save failed', 'error');
   });
   $('mc-close').addEventListener('click', async () => {
-    if (serializeForm(main) !== initial && !await dlgConfirm('discard this draft?')) return;
-    main.innerHTML = '';
-    $('mail-list').querySelector(`.mail-draft-row[data-id="${CSS.escape(_draftId)}"] .mail-open`)?.focus();
+    if (!await prepareMailNavigation()) return;
+    document.getElementById('mail-list').querySelector(`.mail-draft-row[data-id="${CSS.escape(_draftId)}"] .mail-open`)?.focus();
   });
   const _composeBody = () => {
     const el = $('mc-html');
     return {
       to: $('mc-to').value.trim(), cc: $('mc-cc').value.trim(), bcc: $('mc-bcc').value.trim(),
-      subject: $('mc-subj').value, body: el?.innerText || '', html: el?.innerHTML || '',
+      subject: $('mc-subj').value, body: el?.innerText || '', html: draftHtml(el),
       in_reply_to: pre.in_reply_to || '', references: pre.references || '',
     };
   };
@@ -1201,14 +1308,17 @@ async function compose(pre = {}) {
     if (!to) { toast('recipient required', 'error'); return; }
     if (!date) { toast('pick a date', 'error'); return; }
     if (!/^\d{1,2}:\d{2}$/.test(time)) { toast('time must be HH:MM', 'error'); return; }
-    const send_at = `${date}T${time.padStart(5, '0')}`;
+    const send_at = `${date}T${time.padStart(5, '0')}`, submitted = editor.snapshot();
     const r = await fetch(`/api/mail/schedule/${aid}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ..._composeBody(), send_at }),
     }).then(x => x.json()).catch(e => { console.error(e); return null; });
     if (r?.id) {
-      if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(console.error);
-      toast('scheduled', 'success'); main.innerHTML = ''; _renderScheduled(); loadInbox();
+      if (current() && editor.snapshot() === submitted) {
+        if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(console.error);
+        clearMailEditor(editor);
+      }
+      toast('scheduled', 'success'); _renderScheduled(); loadInbox();
     } else toast('schedule failed', 'error');
   });
   // send with an undo window (5b): queue a few seconds out, offer undo
@@ -1216,55 +1326,76 @@ async function compose(pre = {}) {
     const aid = $('mc-account')?.value || defaultAid;
     const to = $('mc-to').value.trim();
     if (!to) { toast('recipient required', 'error'); return; }
+    const submitted = editor.snapshot();
     const r = await fetch(`/api/mail/send-undoable/${aid}`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ..._composeBody(), delay: 8 }),
     }).then(x => x.json()).catch(e => { console.error(e); return null; });
     if (r?.id) {
-      if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(console.error);
-      main.innerHTML = '';
+      if (current() && editor.snapshot() === submitted) {
+        if (_draftId) fetch(`/api/mail/drafts/${_draftId}`, { method: 'DELETE' }).catch(console.error);
+        clearMailEditor(editor);
+      }
       _showUndoBar(r.id);
       loadInbox();
-    } else { $('mc-status').textContent = 'send failed'; }
+    } else if (current()) { $('mc-status').textContent = 'send failed'; }
+    else toast('send failed', 'error');
   });
 }
 
-async function _wireRichCompose(defaultAid) {
-  document.querySelectorAll('#mc-richbar .mc-rt').forEach(b => b.addEventListener('mousedown', e => {
-    e.preventDefault();  // keep the editor selection
-    const cmd = b.dataset.cmd;
-    if (cmd === 'createLink') {
-      const url = window.prompt('link URL:');
-      if (url) document.execCommand('createLink', false, url);
-    } else document.execCommand(cmd, false, null);
-  }));
-  $('mc-suggest')?.addEventListener('click', async () => {
-    const box = $('mc-suggest-box'); if (!box) return;
-    box.innerHTML = '<span class="mail-suggest-off">thinking…</span>';
-    const ctx = $('mc-html')?.innerText || $('mc-subj')?.value || '';
-    let d;
-    try { d = await fetch('/api/mail/smart-reply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: ctx }) }).then(r => r.json()); }
-    catch (e) { console.error(e); d = { enabled: false, suggestions: [] }; }
-    if (!d.enabled) { box.innerHTML = '<span class="mail-suggest-off">configure a model in aide to get reply suggestions</span>'; return; }
-    if (!d.suggestions.length) { box.innerHTML = '<span class="mail-suggest-off">no suggestions</span>'; return; }
-    box.innerHTML = d.suggestions.map((s, i) => `<button class="btn mc-suggest-chip" data-i="${i}">${esc(s.slice(0, 80))}</button>`).join('');
-    box.querySelectorAll('.mc-suggest-chip').forEach((bn, i) => bn.addEventListener('click', () => {
-      const ed = $('mc-html'); if (ed) ed.innerHTML += esc(d.suggestions[i]).replace(/\n/g, '<br>');
-    }));
-  });
-  $('mc-image')?.addEventListener('click', () => $('mc-image-input')?.click());
-  $('mc-image-input')?.addEventListener('change', async e => {
-    const f = e.target.files?.[0]; if (!f) return;
-    const fd = new FormData(); fd.append('file', f);
-    try {
-      const up = await fetch('/api/uploads', { method: 'POST', body: fd }).then(r => r.json());
-      const ed = $('mc-html'); ed?.focus();
-      document.execCommand('insertHTML', false, `<img src="/api/uploads/${up.id}" alt="${esc(up.name || '')}" style="max-width:100%">`);
-    } catch (e) { console.error(e); toast('image upload failed', 'error'); }
-  });
+async function _wireRichCompose(defaultAid, root, current) {
+  const $ = id => root.querySelector('#' + id);
+  const toolbar = $('mc-richbar');
+  if (!toolbar.dataset.bound) {
+    toolbar.dataset.bound = '1';
+    toolbar.querySelectorAll('.mc-rt').forEach(button => {
+      button.addEventListener('mousedown', event => event.preventDefault());
+      button.addEventListener('click', async () => {
+        if (!current()) return;
+        const editor = $('mc-html'), selection = window.getSelection();
+        const range = selection?.rangeCount && editor.contains(selection.getRangeAt(0).commonAncestorContainer)
+          ? selection.getRangeAt(0).cloneRange() : null;
+        const command = button.dataset.cmd;
+        const value = command === 'createLink' ? await dlgPrompt('link URL:') : null;
+        if (!current() || (command === 'createLink' && !value)) return;
+        editor.focus();
+        if (range && editor.contains(range.commonAncestorContainer)) {
+          selection.removeAllRanges(); selection.addRange(range);
+        }
+        document.execCommand(command, false, value);
+      });
+    });
+    $('mc-suggest')?.addEventListener('click', async () => {
+      const box = $('mc-suggest-box'); if (!box) return;
+      box.innerHTML = '<span class="mail-suggest-off">thinking…</span>';
+      const ctx = $('mc-html')?.innerText || $('mc-subj')?.value || '';
+      let d;
+      try { d = await fetch('/api/mail/smart-reply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: ctx }) }).then(r => r.json()); }
+      catch (e) { console.error(e); d = { enabled: false, suggestions: [] }; }
+      if (!current()) return;
+      if (!d.enabled) { box.innerHTML = '<span class="mail-suggest-off">configure a model in aide to get reply suggestions</span>'; return; }
+      if (!d.suggestions.length) { box.innerHTML = '<span class="mail-suggest-off">no suggestions</span>'; return; }
+      box.innerHTML = d.suggestions.map((s, i) => `<button class="btn mc-suggest-chip" data-i="${i}">${esc(s.slice(0, 80))}</button>`).join('');
+      box.querySelectorAll('.mc-suggest-chip').forEach((bn, i) => bn.addEventListener('click', () => {
+        const ed = $('mc-html'); if (ed) ed.innerHTML += esc(d.suggestions[i]).replace(/\n/g, '<br>');
+      }));
+    });
+    $('mc-image')?.addEventListener('click', () => $('mc-image-input')?.click());
+    $('mc-image-input')?.addEventListener('change', async e => {
+      const f = e.target.files?.[0]; if (!f) return;
+      const fd = new FormData(); fd.append('file', f);
+      try {
+        const up = await fetch('/api/uploads', { method: 'POST', body: fd }).then(r => r.json());
+        if (!current()) return;
+        const ed = $('mc-html'); ed?.focus();
+        document.execCommand('insertHTML', false, `<img src="/api/uploads/${up.id}" alt="${esc(up.name || '')}" style="max-width:100%">`);
+      } catch (e) { console.error(e); toast('image upload failed', 'error'); }
+    });
+  }
   // signature chips — click to append (5c)
   let sigs = [];
   try { sigs = (await fetch('/api/mail/signatures').then(r => r.json())).signatures || []; } catch (e) { console.error(e); }
+  if (!current()) return;
   const list = $('mc-sig-list');
   if (list) {
     list.innerHTML = sigs.map(s => `<button class="btn mc-sig-chip" data-sig="${esc(s.id)}" title="insert signature">✎ ${esc(s.name)}</button>`).join('');
@@ -1274,16 +1405,21 @@ async function _wireRichCompose(defaultAid) {
       ed.innerHTML += `<div class="mail-sig" data-sig>--<br>${esc(s.body).replace(/\n/g, '<br>')}</div>`;
     }));
   }
-  $('mc-sig-add')?.addEventListener('click', async () => {
-    const name = await dlgPrompt('signature name:'); if (!name) return;
-    const bodyTxt = await dlgPrompt('signature text:'); if (bodyTxt == null) return;
-    await fetch('/api/mail/signatures', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, body: bodyTxt }),
-    }).catch(console.error);
-    toast('signature saved', 'success');
-    _wireRichCompose(defaultAid);  // refresh the picker
-  });
+  const addSignature = $('mc-sig-add');
+  if (addSignature && !addSignature.dataset.bound) {
+    addSignature.dataset.bound = '1';
+    addSignature.addEventListener('click', async () => {
+      const name = await dlgPrompt('signature name:'); if (!name || !current()) return;
+      const bodyTxt = await dlgPrompt('signature text:'); if (bodyTxt == null || !current()) return;
+      await fetch('/api/mail/signatures', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name, body: bodyTxt }),
+      }).catch(console.error);
+      if (!current()) return;
+      toast('signature saved', 'success');
+      _wireRichCompose(defaultAid, root, current);  // refresh the picker
+    });
+  }
 }
 
 function _showUndoBar(scheduledId) {
@@ -1324,11 +1460,14 @@ async function _renderScheduled() {
 }
 
 async function rulesPanel() {
+  if (!await prepareMailNavigation()) return;
+  const generation = _messageGeneration;
   const main = $('mail-main');
   main.innerHTML = '<div class="mail-empty">loading rules…</div>';
   let rules = [], vac = { enabled: false, subject: 'Out of office', body: '' };
   try { rules = (await fetch('/api/mail/rules').then(r => r.json())).rules || []; } catch (e) { console.error(e); }
   try { vac = await fetch('/api/mail/vacation').then(r => r.json()); } catch (e) { console.error(e); }
+  if (generation !== _messageGeneration) return;
   const ruleRows = rules.map(r => `
     <div class="mail-rule-row" data-id="${esc(r.id)}">
       <span>if <b>${esc(r.match_field)}</b> contains “${esc(r.match_value)}” → <b>${esc(r.action)}</b>${r.action_arg ? ` (${esc(r.action_arg)})` : ''}</span>
@@ -1393,7 +1532,8 @@ async function rulesPanel() {
   });
 }
 
-function accountsPanel(firstRun = false) {
+async function accountsPanel(firstRun = false) {
+  if (!await prepareMailNavigation()) return;
   const main = $('mail-main');
   const rows = _accounts.map(a => `
     <div class="mail-acct-row">
@@ -1614,6 +1754,6 @@ function friendlyMailError(err) {
 
 function serializeForm(root) {
   return [...root.querySelectorAll('input,textarea,select,[contenteditable="true"]')]
-    .map(el => `${el.id || el.name || el.placeholder}:${el.isContentEditable ? el.innerHTML : el.value}`)
+    .map(el => `${el.id || el.name || el.placeholder}:${el.isContentEditable ? draftHtml(el) : el.value}`)
     .join('\n');
 }
