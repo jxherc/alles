@@ -2152,7 +2152,10 @@ mail rule creation accepts an optional canonical UUID `request_id` and a `recove
 `GET /api/mail/rules`. retrying the same normalized fields returns the original rule; different
 fields with the same id return 409. deleted ids return 410 and stay excluded from rule execution.
 a scoped deletion can reserve a pending id before its create request arrives. clients without
-these optional fields retain the existing creation behavior.
+these optional fields retain the existing creation behavior. the rule editor retains an unconfirmed
+change for this browser tab, offers retry or cancellation, and preserves vacation edits while
+updating the rule list. manual runs report confirmed action counts and any unconfirmed accounts.
+
 
 </details>
 
