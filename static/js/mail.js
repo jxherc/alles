@@ -191,35 +191,94 @@ async function _applyThreadsSetting() {
   try { _threads = (await fetch('/api/settings').then(r => r.json())).mail_threads === 'group'; } catch (e) { console.error(e); }
 }
 
-async function searchMail(q) {
+let _listGeneration = 0, _mailLoadGeneration = 0, _listContext = '';
+async function mailJson(url, options = {}, fetcher = fetch) {
+  const response = await fetcher(url, options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data?.message || data?.detail?.message || (typeof data?.detail === 'string' ? data.detail : 'mail is unavailable'));
+  return data;
+}
+function preserveMailReadFocus(list) {
+  const label = node => node.getAttribute('aria-label') || node.getAttribute('title') || node.textContent.trim();
+  const describe = node => {
+    if (!list.contains(node)) return null;
+    const row = node.closest('.mail-row');
+    return { id: node.id, label: label(node), row: row && Object.fromEntries(['aid', 'uid', 'folder', 'id', 'thread'].map(key => [key, row.dataset[key] || ''])) };
+  };
+  const initial = describe(document.activeElement);
+  return render => {
+    const focus = describe(document.activeElement) || (document.activeElement === document.body ? initial : null);
+    render();
+    if (!focus || document.activeElement !== document.body) return;
+    let target = focus.id && list.querySelector(`#${CSS.escape(focus.id)}`);
+    if (!target && focus.row) {
+      const row = [...list.querySelectorAll('.mail-row')].find(node => Object.entries(focus.row).every(([key, value]) => (node.dataset[key] || '') === value));
+      target = row && ([...row.querySelectorAll('button')].find(node => label(node) === focus.label) || row.querySelector('.mail-open'));
+    }
+    target ||= list.querySelector('#mail-read-retry, .mail-open, [role="status"]');
+    if (target) { if (!target.matches('button')) target.tabIndex = -1; target.focus(); }
+  };
+}
+function beginMailRead(key, label) {
+  const generation = ++_listGeneration;
+  const list = $('mail-list');
+  const context = `${_active}:${key}`;
+  const previous = _listContext === context ? [..._lastMsgs] : [];
+  _listContext = context;
+  if (!previous.length) _lastMsgs = [];
+  const renderWithFocus = preserveMailReadFocus(list);
+  if (!previous.length) list.innerHTML = `<div class="mail-empty" role="status">${esc(label)}</div>`;
+  list.setAttribute('aria-busy', 'true');
+  return {
+    previous,
+    current: () => generation === _listGeneration && Boolean($('mail-view')?.getClientRects().length),
+    finish: render => {
+      renderWithFocus(render);
+      list.setAttribute('aria-busy', 'false');
+    },
+  };
+}
+async function loadCachedMail(key, label, urlFor, empty = 'no mail here', fetcher = fetch) {
+  const owner = beginMailRead(key, label);
+  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
+  const results = await Promise.allSettled(accts.map(async account => {
+    const data = await mailJson(urlFor(account), {}, fetcher);
+    if (!Array.isArray(data?.messages) || data.error) throw new Error(data?.error || 'could not read messages');
+    return data.messages.map(message => ({ ...message, account_id: account.id, account_name: account.name || account.email }));
+  }));
+  if (!owner.current()) return;
+  const messages = [], errors = [];
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') messages.push(...result.value);
+    else {
+      const account = accts[index];
+      errors.push(`${acctName(account.id)}: ${result.reason?.message || 'could not read messages'}`);
+      messages.push(...owner.previous.filter(message => message.account_id === account.id));
+    }
+  });
+  owner.finish(() => {
+    if (!messages.length && !errors.length) {
+      _lastMsgs = [];
+      $('mail-list').innerHTML = `<div class="mail-empty" role="status">${esc(empty)}</div>`;
+    } else renderInbox(messages, errors);
+  });
+}
+async function searchMail(q, fetcher = fetch) {
   _searchView = q;
   _labelFilter = '';
-  const list = $('mail-list');
-  list.innerHTML = '<div class="mail-empty">searching…</div>';
   _lastSearch = q;
   _renderSavedBar();
-  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
-  const all = [];
-  // adv-search runs over the local cache, so it's instant, offline-friendly, and
-  // understands from:/subject:/before:/after: operators (5a)
-  await Promise.all(accts.map(async a => {
-    try {
-      const d = await fetch(`/api/mail/adv-search/${a.id}?q=${encodeURIComponent(q)}&limit=40`).then(r => r.json());
-      (d.messages || []).forEach(msg => { msg.account_id = a.id; msg.account_name = a.name || a.email; all.push(msg); });
-    } catch (e) { console.error(e); }
-  }));
-  if (!all.length) { list.innerHTML = `<div class="mail-empty">no mail matches “${esc(q)}”</div>`; return; }
-  renderInbox(all);
+  return loadCachedMail(`search:${q}`, 'searching…', a => `/api/mail/adv-search/${a.id}?q=${encodeURIComponent(q)}&limit=40`, `no mail matches “${q}”`, fetcher);
 }
 
-function _reloadCurrent({ force = false, silent = false } = {}) {
-  if (_searchView) return searchMail(_searchView);
-  if (_labelFilter) return loadByLabel(_labelFilter);
-  if (_filter === 'flagged') return loadSmart('flagged');
-  if (_filter === 'vip') return loadSmart('vip');
-  if (_filter === 'drafts') return loadDrafts();
-  if (_filter.startsWith('cat:')) return loadCategory(_filter.slice(4));
-  return loadInbox(force, silent);
+function _reloadCurrent({ force = false, silent = false, fetcher = fetch } = {}) {
+  if (_searchView) return searchMail(_searchView, fetcher);
+  if (_labelFilter) return loadByLabel(_labelFilter, { preserveReader: true });
+  if (_filter === 'flagged') return loadSmart('flagged', { preserveReader: true });
+  if (_filter === 'vip') return loadSmart('vip', { preserveReader: true });
+  if (_filter === 'drafts') return loadDrafts({ preserveReader: true });
+  if (_filter.startsWith('cat:')) return loadCategory(_filter.slice(4), { preserveReader: true });
+  return loadInbox(force, silent, fetcher);
 }
 
 // saved searches (5a): a chip bar above the list — save the current query, click to run, × to drop
@@ -256,7 +315,12 @@ export async function loadMail(fetcher = fetch) {
   ++_messageGeneration;
   showPendingCapture($('mail-view'));
   startMailPoll(fetcher).catch(error => console.error(error));
-  _accounts = await fetcher('/api/mail/accounts').then(r => r.json()).catch(e => { console.error(e); return []; });
+  const generation = ++_mailLoadGeneration;
+  ++_listGeneration;
+  const accounts = await mailJson('/api/mail/accounts', {}, fetcher);
+  if (generation !== _mailLoadGeneration) return;
+  if (!Array.isArray(accounts)) throw new Error('could not read mail accounts');
+  _accounts = accounts;
   if (_accounts.length > 1 && !localStorage.getItem('alles-mail-account-mode')) _active = 'all';
   syncAccountSelect();
   if (!_accounts.length) {
@@ -266,7 +330,8 @@ export async function loadMail(fetcher = fetch) {
   }
   _renderSavedBar();
   _renderScheduled();
-  return loadInbox(false, false, fetcher);
+  const query = $('mail-search')?.value.trim();
+  return query ? searchMail(query, fetcher) : _reloadCurrent({ fetcher });
 }
 
 function syncAccountSelect() {
@@ -290,17 +355,19 @@ async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = fals
   // quick=1 lets the server skip the full header re-fetch when the mailbox tip
   // hasn't moved — keeps the 30s background poll cheap on slow connections
   const url = `/api/mail/inbox/${account.id}?folder=${encodeURIComponent(folder)}&limit=${limit}${quick ? '&quick=1' : ''}`;
-  const d = await fetcher(url).then(r => r.json());
+  const d = await mailJson(url, {}, fetcher);
+  if (!Array.isArray(d?.messages)) throw new Error('could not read messages');
   const map = ms => ms.map(m => ({ ...m, account_id: account.id, account_name: account.name || account.email, folder }));
   // IMAP failed but the server handed back the cached copy → show it (offline-friendly) instead of erroring
-  if (d.error) { if ((d.messages || []).length) return map(d.messages); throw new Error(d.error); }
-  return map(d.messages || []);
+  if (d.error && !d.messages.length) throw new Error(d.error);
+  return { messages: map(d.messages), warning: d.error ? `showing saved mail; ${d.error}` : '' };
 }
 
 // providers don't agree on a sent-folder name; sniff it once per account
 async function sentFolderFor(account, fetcher = fetch) {
   if (_sentFolders[account.id]) return _sentFolders[account.id];
-  const d = await fetcher(`/api/mail/folders/${account.id}`).then(r => r.json()).catch(e => { console.error(e); return { folders: [] }; });
+  const d = await mailJson(`/api/mail/folders/${account.id}`, {}, fetcher);
+  if (!Array.isArray(d?.folders) || d.error) throw new Error(d?.error || 'could not read mail folders');
   const f = (d.folders || []).find(x => /sent/i.test(x)) || 'Sent';
   _sentFolders[account.id] = f;
   return f;
@@ -350,6 +417,7 @@ function setFilter(f) {
   _searchView = '';
   _labelFilter = '';
   _filter = f;
+  if ($('mail-search')) $('mail-search').value = '';
   document.querySelectorAll('.mail-nav-item').forEach(t => t.classList.toggle('active', t.dataset.filter === f));
   if (f === 'drafts') loadDrafts();
   else if (f === 'flagged') loadSmart('flagged');
@@ -358,51 +426,31 @@ function setFilter(f) {
   else loadInbox();
 }
 
-async function loadCategory(cat) {
-  _searchView = '';
-  _labelFilter = '';
-  const list = $('mail-list'); const main = $('mail-main'); main.innerHTML = '';
-  list.innerHTML = `<div class="mail-empty">loading ${esc(cat)}…</div>`;
-  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
-  const results = await Promise.allSettled(accts.map(a =>
-    fetch(`/api/mail/category/${a.id}?cat=${encodeURIComponent(cat)}`).then(r => r.json())));
-  let msgs = [];
-  for (const r of results) if (r.status === 'fulfilled') msgs = msgs.concat(r.value.messages || []);
-  renderInbox(msgs);
+async function loadCategory(cat, { preserveReader = false } = {}) {
+  _searchView = ''; _labelFilter = '';
+  if (!preserveReader) { ++_messageGeneration; $('mail-main').innerHTML = ''; }
+  return loadCachedMail(`category:${cat}`, `loading ${cat}…`, a => `/api/mail/category/${a.id}?cat=${encodeURIComponent(cat)}`);
+}
+async function loadByLabel(label, { preserveReader = false } = {}) {
+  _searchView = ''; _labelFilter = label;
+  if (!preserveReader) { ++_messageGeneration; $('mail-main').innerHTML = ''; }
+  return loadCachedMail(`label:${label}`, `label “${label}”…`, a => `/api/mail/by-label/${a.id}?label=${encodeURIComponent(label)}`);
+}
+async function loadSmart(filter, { preserveReader = false } = {}) {
+  _searchView = ''; _labelFilter = '';
+  if (!preserveReader) { ++_messageGeneration; $('mail-main').innerHTML = ''; }
+  return loadCachedMail(`smart:${filter}`, `loading ${filter}…`, a => `/api/mail/smart/${a.id}?filter=${encodeURIComponent(filter)}`);
 }
 
-async function loadByLabel(label) {
-  _searchView = '';
-  _labelFilter = label;
-  const list = $('mail-list'); const main = $('mail-main'); main.innerHTML = '';
-  list.innerHTML = `<div class="mail-empty">label “${esc(label)}”…</div>`;
-  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
-  const results = await Promise.allSettled(accts.map(a =>
-    fetch(`/api/mail/by-label/${a.id}?label=${encodeURIComponent(label)}`).then(r => r.json())));
-  let msgs = [];
-  for (const r of results) if (r.status === 'fulfilled') msgs = msgs.concat(r.value.messages || []);
-  renderInbox(msgs);
-}
-
-async function loadSmart(filter) {
+async function loadDrafts({ preserveReader = false } = {}) {
+  const generation = ++_listGeneration;
+  const current = () => generation === _listGeneration && Boolean($('mail-view')?.getClientRects().length);
+  _listContext = ''; _lastMsgs = [];
   _searchView = '';
   _labelFilter = '';
   const list = $('mail-list'); const main = $('mail-main');
-  main.innerHTML = '';
-  list.innerHTML = `<div class="mail-empty">loading ${esc(filter)}…</div>`;
-  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
-  const results = await Promise.allSettled(accts.map(a =>
-    fetch(`/api/mail/smart/${a.id}?filter=${encodeURIComponent(filter)}`).then(r => r.json())));
-  let msgs = [];
-  for (const r of results) if (r.status === 'fulfilled') msgs = msgs.concat(r.value.messages || []);
-  renderInbox(msgs);
-}
-
-async function loadDrafts() {
-  _searchView = '';
-  _labelFilter = '';
-  const list = $('mail-list'); const main = $('mail-main');
-  main.innerHTML = '';
+  if (!preserveReader) { ++_messageGeneration; main.innerHTML = ''; }
+  list.setAttribute('aria-busy', 'true');
   list.innerHTML = '<div class="mail-empty">loading drafts…</div>';
   let drafts = [];
   try {
@@ -410,10 +458,14 @@ async function loadDrafts() {
     const response = await fetch(url);
     if (!response.ok) throw new Error('drafts unavailable');
     drafts = await response.json();
+    if (!current()) return;
     if (!Array.isArray(drafts)) throw new Error('invalid drafts response');
+    list.setAttribute('aria-busy', 'false');
   } catch {
+    if (!current()) return;
+    list.setAttribute('aria-busy', 'false');
     list.innerHTML = '<div class="mail-empty" role="alert">could not load drafts. <button class="btn" id="mail-drafts-retry">retry</button></div>';
-    list.querySelector('#mail-drafts-retry').addEventListener('click', loadDrafts);
+    list.querySelector('#mail-drafts-retry').addEventListener('click', () => loadDrafts({ preserveReader: true }));
     return;
   }
   if (!drafts.length) { list.innerHTML = '<div class="mail-empty">no drafts</div>'; return; }
@@ -439,38 +491,50 @@ async function loadDrafts() {
 }
 
 async function loadInbox(force = false, silent = false, fetcher = fetch) {
+  silent = silent && !force;
   _searchView = '';
   _labelFilter = '';
   const list = $('mail-list');
-  const main = $('mail-main');
-  if (!_accounts.length) return;
+  const generation = ++_listGeneration;
+  const account = _active, filter = _filter;
+  _listContext = `${account}:inbox:${filter}`;
+  if (!_accounts.length) { list.setAttribute('aria-busy', 'false'); return; }
+  list.setAttribute('aria-busy', 'true');
   const cached = readCache();
+  const renderWithFocus = preserveMailReadFocus(list);
   if (!silent) {
     if (cached?.length) renderInbox(applyFilter(cached), []);   // instant, stale
     else list.innerHTML = `<div class="mail-empty">loading ${_filter}...</div>`;
-    if (force) main.innerHTML = '';
   }
 
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
   const results = await Promise.allSettled(accts.map(async a => {
-    const folder = _filter === 'sent' ? await sentFolderFor(a, fetcher) : 'INBOX';
-    return fetchInboxFor(a, _active === 'all' ? 30 : 45, folder, silent, fetcher);   // silent poll → cheap quick fetch
+    const folder = filter === 'sent' ? await sentFolderFor(a, fetcher) : 'INBOX';
+    return fetchInboxFor(a, account === 'all' ? 30 : 45, folder, silent, fetcher);   // silent poll → cheap quick fetch
   }));
-  const messages = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
-  const errors = results
-    .map((r, i) => r.status === 'rejected' ? `${acctName(accts[i].id)}: ${r.reason?.message || 'failed'}` : '')
-    .filter(Boolean);
-  if (messages.length || !cached?.length) {
-    const newest = _newestKey(messages);
-    if (silent && _lastNewest && newest === _lastNewest) return;   // nothing new — leave the UI alone
-    if (silent && _lastNewest && newest !== _lastNewest) {
-      const top = [...messages].sort((a, b) => _msgTime(b) - _msgTime(a))[0];
-      if (top && !top.seen) toast(`new mail: ${fromName(top.from)}: ${(top.subject || '').slice(0, 60)}`, 'success');
+  if (generation !== _listGeneration || account !== _active || filter !== _filter || !$('mail-view')?.getClientRects().length) return;
+  list.setAttribute('aria-busy', 'false');
+  const messages = [], errors = [];
+  results.forEach((result, index) => {
+    const id = accts[index].id;
+    if (result.status === 'fulfilled') {
+      messages.push(...result.value.messages);
+      if (result.value.warning) errors.push(`${acctName(id)}: ${result.value.warning}`);
+    } else {
+      errors.push(`${acctName(id)}: ${result.reason?.message || 'could not read messages'}`);
+      if (Array.isArray(cached)) messages.push(...cached.filter(message => message.account_id === id));
     }
-    _lastNewest = newest;
-    renderInbox(applyFilter(messages), errors);
-    if (messages.length) writeCache(messages);
+  });
+  const newest = _newestKey(messages);
+  if (silent && !errors.length && !list.querySelector('.mail-error-strip') && _lastNewest && newest === _lastNewest) return;
+  if (silent && _lastNewest && newest !== _lastNewest) {
+    const top = [...messages].sort((a, b) => _msgTime(b) - _msgTime(a))[0];
+    if (top && !top.seen) toast(`new mail: ${fromName(top.from)}: ${(top.subject || '').slice(0, 60)}`, 'success');
   }
+  _lastNewest = newest;
+  renderWithFocus(() => renderInbox(applyFilter(messages), errors));
+  writeCache(messages);
+
 }
 
 // ── live inbox: poll while the mail view is visible ─────────────────────────
@@ -540,14 +604,15 @@ function renderInbox(messages, errors = []) {
   messages = [...messages].sort((a, b) => msgTime(b) - msgTime(a));
   _lastMsgs = messages;
   if (!messages.length && !errors.length) {
-    list.innerHTML = `<div class="mail-empty">nothing in ${esc(_filter)}</div>`;
+    list.innerHTML = `<div class="mail-empty" role="status">nothing in ${esc(_filter)}</div>`;
     return;
   }
   const errHtml = errors.length
-    ? `<div class="mail-error-strip">${errors.map(esc).join('<br>')}</div>`
+    ? `<div class="mail-error-strip" role="alert">${errors.map(esc).join('<br>')} <button type="button" class="btn" id="mail-read-retry">retry</button></div>`
     : '';
   list.innerHTML = errHtml + (_threads ? _renderThreads(messages, msgTime) : messages.map(m => _msgRow(m)).join(''));
   _wireRows(list);
+  list.querySelector('#mail-read-retry')?.addEventListener('click', () => _reloadCurrent({ force: true }));
 }
 
 function _renderThreads(messages, msgTime) {
@@ -697,16 +762,31 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   }
   const current = () => generation === _messageGeneration && isCurrent() && Boolean($('mail-view')?.getClientRects().length);
   const main = $('mail-main');
-  main.innerHTML = '<div class="mail-empty">loading message...</div>';
+  const hadFocus = main.contains(document.activeElement);
+  const restoreFocus = () => {
+    if (!hadFocus || document.activeElement !== document.body) return;
+    const target = main.querySelector('#mail-message-retry, .mail-reader-subject');
+    if (target) { if (!target.matches('button')) target.tabIndex = -1; target.focus(); }
+  };
+  main.innerHTML = '<div class="mail-empty" role="status">loading message...</div>';
   let m;
   try {
-    m = verified || await fetch(`/api/mail/message/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`).then(r => r.json());
+    m = verified || await mailJson(`/api/mail/message/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`);
     if (!current()) return;
-  } catch (e) { console.error(e);
-    if (current()) main.innerHTML = '<div class="mail-empty">failed to load message</div>';
+    if (m?.error) throw new Error(m.error);
+    if (typeof m?.from !== 'string' || typeof m.subject !== 'string' || typeof m.text !== 'string' || typeof m.html !== 'string' || (m.uid != null && String(m.uid) !== String(uid))) throw new Error('could not confirm this message');
+  } catch (error) {
+    if (current()) {
+      main.innerHTML = `<div class="mail-empty" role="alert">could not load message: ${esc(error.message)} <button type="button" class="btn" id="mail-message-retry">retry</button></div>`;
+      main.querySelector('button').onclick = () => {
+        const target = verified && readRecordTarget(location.href);
+        if (target?.view === 'mail') return openMailSource(target.id, isCurrent);
+        return openMessage(aid, uid, folder, null, isCurrent);
+      };
+      restoreFocus();
+    }
     return;
   }
-  if (m.error) { main.innerHTML = `<div class="mail-empty">${esc(m.error)}</div>`; return; }
   // actually mark it read on the server (+ locally so a refresh stays read)
   fetch(`/api/mail/seen/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(console.error);
   markSeenLocal(aid, uid);
@@ -799,6 +879,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     btn.disabled = false; btn.textContent = 'summarize';
   });
   $('mail-to-cal')?.addEventListener('click', event => reviewCapture('event', event.currentTarget));
+  restoreFocus();
 }
 
 const fmtBytes = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`;

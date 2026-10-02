@@ -384,6 +384,11 @@ a real email client (read + send), with one-click setup for the big providers an
 
 - connects to **any imap/smtp account** (imap = how apps read your inbox, smtp = how they send); one-click presets for gmail, outlook, icloud, yahoo, fastmail, or your own domain
 - live inbox that auto-refreshes; open, read, and reply to mail
+- search and folder reads keep failures visible with retry; an older response cannot replace a
+  newer selection. offline cached mail is labelled, partial account failures keep known rows,
+  and a successful empty refresh clears stale rows. a failed message read does not mark it read
+  or open an empty message. refreshing or retrying the current list preserves the reader and
+  unsaved reply. keyboard retries keep focus unless it has moved elsewhere
 - **conversation threads**: a toggle collapses the inbox into conversations (everything with the same subject, re:/fwd: stripped), expand one to read the whole back-and-forth
 - **attachments**: a message shows its attachments as chips you click to download (the body still loads attachment-free for speed)
 - compose and send with **cc + bcc**; replies set the proper `in-reply-to`/`references` headers so they thread correctly in apple mail, gmail, and everywhere else

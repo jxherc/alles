@@ -102,6 +102,7 @@ def run():
                         "to": "me@example.invalid",
                         "subject": "Planning from mail",
                         "text": "Meet today at 11.",
+                        "html": "",
                         "date": date.today().isoformat(),
                         "date_ts": time.time(),
                         "seen": True,

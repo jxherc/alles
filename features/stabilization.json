@@ -1464,8 +1464,8 @@
       "id": "home.reminder-local-time",
       "feature": "home.capture-and-navigation",
       "app": "home",
-      "workflow": "show reminders on the viewer’s local day and clock",
-      "expected": "Use the viewer’s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "workflow": "show reminders on the viewer\u2019s local day and clock",
+      "expected": "Use the viewer\u2019s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -4320,6 +4320,227 @@
         "390",
         "localhost-1440",
         "localhost-390"
+      ]
+    },
+    {
+      "id": "inbox.read.search-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "search retry",
+      "expected": "A rejected query shows an error, keeps the query and keyboard retry focus, then opens the matching result after recovery.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.search-order",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "search order",
+      "expected": "An older search response cannot replace the current query results.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.message-retry-and-draft",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "message retry and draft",
+      "expected": "Failed message reads never mark it seen or render an empty message; retry restores focus, prepares a reply and saves a real draft that reopens after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.message-order",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "message order",
+      "expected": "A late message response cannot replace a newer selected message or mark the old message read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.filter-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "filter failure",
+      "expected": "Failed category and smart-folder reads show retryable errors and keep the selected filter.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.cached-inbox-recovery",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "cached inbox recovery",
+      "expected": "Provider failure labels saved mail, failed refresh retains known rows, and a verified empty result clears the old list and cache.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.inbox-to-search-order",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "inbox to search order",
+      "expected": "An inbox refresh that finishes after a search cannot replace its results.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.accounts-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "accounts failure",
+      "expected": "A failed account read uses the existing Inbox error state instead of first-run setup; retry loads the existing account.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.empty-inbox",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "empty inbox",
+      "expected": "A verified empty inbox response clears cached rows, including after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.sent-folder-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "sent folder failure",
+      "expected": "Failed folder discovery reports its error without fetching a guessed sent folder; retry resolves the real folder.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.retry-preserves-moved-focus",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "retry preserves moved focus",
+      "expected": "A message retry that completes after the user moves focus does not steal it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.partial-account-search",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "partial account search",
+      "expected": "A failed account retains its known results alongside successful results with a warning; a later confirmed empty response removes only the recovered account rows.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.filtered-retry-keeps-reply",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "filtered retry keeps reply",
+      "expected": "Category, flagged and label retries preserve the unsaved reply through a repeated failure and a confirmed recovery.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.inbox-retry-focus",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "inbox retry focus",
+      "expected": "Keyboard retry stays focused on a repeated inbox error, then moves to the confirmed empty status.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.sent-retry-focus",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "sent retry focus",
+      "expected": "Keyboard retry stays focused on a repeated sent-folder error, then moves to the confirmed empty status.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.inbox-retry-moved-focus",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "inbox retry moved focus",
+      "expected": "A delayed inbox retry preserves focus moved to the search field before the response arrives.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.read.accounts-preserve-newer-draft",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "delayed account discovery",
+      "expected": "Delayed account discovery, failed draft refresh and retries preserve an open reply and its unsaved edits.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
       ]
     }
   ],
