@@ -402,6 +402,14 @@ a real email client (read + send), with one-click setup for the big providers an
 - drafts cannot reopen while deletion is pending. accepted sends keep their undo action after editor
   replacement, and send or schedule responses preserve text entered while the request was pending
 - keyboard formatting and the custom link dialog preserve the selected text; saved links reopen in drafts
+- saving a draft keeps that exact attempt in this tab before sending it, including recipients and
+  reply headers. retry and reload check the same save without creating another draft. later typing
+  stays in the editor and needs its own save; a checked current read confirms the saved version
+- changed or deleted drafts keep the pending version for review or an explicit separate copy.
+  recovery is tied to the current mail store; removed sending accounts remain identifiable until
+  an account is explicitly chosen. unreadable recovery data and failed cleanup have retry controls
+- draft writes are never replayed by the generic offline queue. older queued draft writes stay
+  blocked for review; reconnecting alone does not send them
 - **ai:** summarize a long thread, turn an email into a task, or turn an email into a calendar event (the ai reads out the date/time/title for you)
 - **fast + offline-tolerant:** a persistent header cache means the inbox opens instantly and still shows your last sync when the network's slow or down; local search over the cache is instant
 - *under the hood:* built directly on python's standard `imaplib`/`smtplib`; no third-party mail library. it pools live connections, caches what it's read, loads the inbox by range (not a slow "search everything"), and opens a message by pulling *only* its text/html body (not the attachments), so it stays fast on a weak connection.
@@ -3067,7 +3075,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `jarvis_workflows` | `id: VARCHAR pk`, `name: VARCHAR`, `purpose: TEXT ?`, `project_id: VARCHAR ?`, `prompt: TEXT ?`, `deterministic_action: VARCHAR ?`, `model_override: VARCHAR ?`, `capability_ceiling: TEXT ?`, `concurrency_mode: VARCHAR ?`, `context_mode: VARCHAR ?`, `delivery_policy: TEXT ?`, `enabled: BOOLEAN ?`, `active_run_id: VARCHAR ?`, `legacy_automation_id: VARCHAR ?`, `review_state: VARCHAR`, `legacy_enabled_intent: BOOLEAN ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | `project_id → projects.id` |
 | `journal_entries` | `id: VARCHAR pk`, `date: VARCHAR ?`, `content: TEXT ?`, `mood: VARCHAR ?`, `tags: VARCHAR ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `mail_accounts` | `id: VARCHAR pk`, `name: VARCHAR ?`, `email: VARCHAR ?`, `imap_host: VARCHAR ?`, `imap_port: INTEGER ?`, `smtp_host: VARCHAR ?`, `smtp_port: INTEGER ?`, `username: VARCHAR ?`, `password: TEXT ? sealed`, `use_ssl: BOOLEAN ?`, `auth_type: VARCHAR ?`, `oauth_provider: VARCHAR ?`, `oauth_access_token: TEXT ? sealed`, `oauth_refresh_token: TEXT ? sealed`, `oauth_expires_at: FLOAT ?`, `created_at: DATETIME ?` | — |
-| `mail_drafts` | `id: VARCHAR pk`, `account_id: VARCHAR ?`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: TEXT ?`, `updated_at: DATETIME ?` | — |
+| `mail_drafts` | `id: VARCHAR pk`, `account_id: VARCHAR ?`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: TEXT ?`, `updated_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_rules` | `id: VARCHAR pk`, `match_field: VARCHAR ?`, `match_value: VARCHAR ?`, `action: VARCHAR ?`, `action_arg: VARCHAR ?`, `enabled: BOOLEAN ?`, `created_at: DATETIME ?` | — |
 | `mail_saved_searches` | `id: VARCHAR pk`, `name: VARCHAR`, `query: TEXT ?`, `created_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_scheduled` | `id: VARCHAR pk`, `account_id: VARCHAR`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `html: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: VARCHAR ?`, `send_at: VARCHAR ?`, `status: VARCHAR ?`, `created_at: DATETIME ?` | — |
@@ -3201,6 +3209,7 @@ known versions run in ascending order.
 | 54 | `reminder_create_receipts` | [m0054_reminder_create_receipts.py](core/migrations/m0054_reminder_create_receipts.py) |
 | 55 | `commitment_sources` | [m0055_commitment_sources.py](core/migrations/m0055_commitment_sources.py) |
 | 56 | `mail_saved_search_recovery` | [m0056_mail_saved_search_recovery.py](core/migrations/m0056_mail_saved_search_recovery.py) |
+| 57 | `mail_draft_recovery` | [m0057_mail_draft_recovery.py](core/migrations/m0057_mail_draft_recovery.py) |
 
 </details>
 

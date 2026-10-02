@@ -1,3 +1,5 @@
+import json
+import re
 import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -24,19 +26,19 @@ from services.commitment_sources import (
 router = APIRouter(prefix="/api/mail")
 
 
+_DRAFT_FIELDS = ("account_id", "to", "cc", "bcc", "subject", "body", "in_reply_to", "references")
+
+
 def _draft_fmt(d: MailDraft) -> dict:
-    return {
+    result = {
         "id": d.id,
-        "account_id": d.account_id,
-        "to": d.to,
-        "cc": d.cc,
-        "bcc": d.bcc,
-        "subject": d.subject,
-        "body": d.body,
-        "in_reply_to": d.in_reply_to,
-        "references": d.references,
+        **{field: getattr(d, field) or "" for field in _DRAFT_FIELDS},
         "updated_at": d.updated_at.isoformat() if d.updated_at else "",
     }
+    result["revision"] = sha256(
+        json.dumps(result, ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+    return result
 
 
 class DraftBody(BaseModel):
@@ -49,19 +51,84 @@ class DraftBody(BaseModel):
     body: str = ""
     in_reply_to: str = ""
     references: str = ""
+    request_id: str = ""
+    expected_revision: str = ""
+    recovery_scope: str = ""
+
+
+def _draft_scope(scope):
+    if scope and scope not in _mail_recovery_scopes("alles-mail-draft"):
+        raise HTTPException(403, "this draft belongs to a different mail store")
+
+
+def _draft_revision(revision):
+    if revision and not re.fullmatch(r"[0-9a-f]{64}", revision):
+        raise HTTPException(400, "expected_revision must be a draft revision")
+
+
+@contextmanager
+def _draft_write(db, identity):
+    try:
+        # Reserve SQLite before reading. Preserve the onupdate timestamp for no-op retries.
+        db.query(MailDraft).filter_by(id=identity).update(
+            {MailDraft.id: MailDraft.id, MailDraft.updated_at: MailDraft.updated_at},
+            synchronize_session=False,
+        )
+        db.expire_all()
+        yield
+    finally:
+        db.rollback()
 
 
 @router.post("/drafts")
 def save_draft(body: DraftBody, db: DbSession = Depends(get_db)):
-    d = db.get(MailDraft, body.id) if body.id else None
-    if not d:
-        d = MailDraft()
-        db.add(d)
-    for f in ("account_id", "to", "cc", "bcc", "subject", "body", "in_reply_to", "references"):
-        setattr(d, f, getattr(body, f))
-    db.commit()
-    db.refresh(d)
-    return _draft_fmt(d)
+    _draft_scope(body.recovery_scope)
+    _draft_revision(body.expected_revision)
+    if body.request_id:
+        try:
+            if str(UUID(body.request_id)) != body.request_id or body.id or body.expected_revision:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(
+                400, "request_id must be a canonical UUID for a new draft"
+            ) from None
+    if body.expected_revision and not body.id:
+        raise HTTPException(400, "a draft id is required for an update")
+    identity = body.id or body.request_id
+    with _draft_write(db, identity):
+        draft = db.get(MailDraft, identity) if identity else None
+        if draft and draft.deleted_at is not None:
+            raise HTTPException(410, "this draft was deleted; save a new draft explicitly")
+        if draft:
+            same = all(
+                (getattr(draft, field) or "") == getattr(body, field) for field in _DRAFT_FIELDS
+            )
+            if body.request_id:
+                if not same:
+                    raise HTTPException(
+                        409, "this draft has changed; open the saved draft to review it"
+                    )
+                return _draft_fmt(draft)
+            if body.expected_revision:
+                if same:
+                    return _draft_fmt(draft)
+                if _draft_fmt(draft)["revision"] != body.expected_revision:
+                    raise HTTPException(
+                        409, "this draft has changed; open the saved draft to review it"
+                    )
+        elif body.expected_revision:
+            raise HTTPException(404, "draft not found")
+        if not draft:
+            draft = MailDraft()
+            if body.request_id:
+                draft.id = body.request_id
+            db.add(draft)
+        for field in _DRAFT_FIELDS:
+            setattr(draft, field, getattr(body, field))
+        db.flush()
+        result = _draft_fmt(draft)
+        db.commit()
+        return result
 
 
 @router.get("/recipients")
@@ -100,28 +167,47 @@ def recipients(q: str = "", limit: int = 12, db: DbSession = Depends(get_db)):
 
 
 @router.get("/drafts")
-def list_drafts(account_id: str = "", db: DbSession = Depends(get_db)):
-    q = db.query(MailDraft)
+def list_drafts(account_id: str = "", db: DbSession = Depends(get_db), context: bool = False):
+    q = db.query(MailDraft).filter(MailDraft.deleted_at.is_(None))
     if account_id:
         q = q.filter(MailDraft.account_id == account_id)
-    return [_draft_fmt(d) for d in q.order_by(MailDraft.updated_at.desc()).all()]
+    rows = [_draft_fmt(d) for d in q.order_by(MailDraft.updated_at.desc()).all()]
+    return (
+        {"drafts": rows, "recovery_scopes": _mail_recovery_scopes("alles-mail-draft")}
+        if context
+        else rows
+    )
 
 
 @router.get("/drafts/{did}")
-def get_draft(did: str, db: DbSession = Depends(get_db)):
+def get_draft(did: str, db: DbSession = Depends(get_db), recovery_scope: str = ""):
+    _draft_scope(recovery_scope)
     d = db.get(MailDraft, did)
-    if not d:
+    if not d or d.deleted_at is not None:
         raise HTTPException(404, "draft not found")
     return _draft_fmt(d)
 
 
 @router.delete("/drafts/{did}")
-def delete_draft(did: str, db: DbSession = Depends(get_db)):
-    d = db.get(MailDraft, did)
-    if d:
-        db.delete(d)
-        db.commit()
-    return {"ok": True}
+def delete_draft(
+    did: str, db: DbSession = Depends(get_db), expected_revision: str = "", recovery_scope: str = ""
+):
+    _draft_scope(recovery_scope)
+    _draft_revision(expected_revision)
+    with _draft_write(db, did):
+        draft = db.get(MailDraft, did)
+        if not draft:
+            if expected_revision:
+                raise HTTPException(404, "draft not found")
+            return {"ok": True}
+        if draft.deleted_at is None:
+            if expected_revision and _draft_fmt(draft)["revision"] != expected_revision:
+                raise HTTPException(409, "this draft has changed; refresh before deleting it")
+            for field in _DRAFT_FIELDS:
+                setattr(draft, field, "")
+            draft.deleted_at = datetime.now(UTC).replace(tzinfo=None)
+            db.commit()
+        return {"ok": True}
 
 
 def _acct_dict(a: MailAccount) -> dict:
@@ -496,7 +582,7 @@ def _saved_search_fmt(search):
     return {"id": search.id, "name": search.name, "query": search.query or ""}
 
 
-def _saved_search_scopes():
+def _mail_recovery_scopes(namespace="alles-mail-search"):
     from services.recovery_consistency import recovery_consistency_lock
     from services.secretstore import active_key_id, key_ids
 
@@ -504,8 +590,7 @@ def _saved_search_scopes():
         active = active_key_id()
         keys = [active, *sorted(key_ids() - {active})]
     return [
-        sha256(f"alles-mail-search:{Path(DB_PATH).resolve()}:{key}".encode()).hexdigest()
-        for key in keys
+        sha256(f"{namespace}:{Path(DB_PATH).resolve()}:{key}".encode()).hexdigest() for key in keys
     ]
 
 
@@ -536,7 +621,7 @@ def list_saved_searches(db: DbSession = Depends(get_db)):
     )
     return {
         "searches": [_saved_search_fmt(search) for search in rows],
-        "recovery_scopes": _saved_search_scopes(),
+        "recovery_scopes": _mail_recovery_scopes(),
     }
 
 
@@ -547,7 +632,7 @@ def add_saved_search(body: SavedSearchBody, db: DbSession = Depends(get_db)):
     name, query = body.name.strip(), body.query.strip()
     if not name:
         raise HTTPException(400, "name required")
-    if body.recovery_scope and body.recovery_scope not in _saved_search_scopes():
+    if body.recovery_scope and body.recovery_scope not in _mail_recovery_scopes():
         raise HTTPException(403, "this pending save belongs to a different mail store")
     identity = body.request_id
     if identity:
@@ -578,7 +663,7 @@ def add_saved_search(body: SavedSearchBody, db: DbSession = Depends(get_db)):
 def delete_saved_search(sid: str, db: DbSession = Depends(get_db), recovery_scope: str = ""):
     from core.database import SavedSearch
 
-    if recovery_scope and recovery_scope not in _saved_search_scopes():
+    if recovery_scope and recovery_scope not in _mail_recovery_scopes():
         raise HTTPException(403, "this saved search belongs to a different mail store")
     with _saved_search_write(db, sid):
         search = db.get(SavedSearch, sid)

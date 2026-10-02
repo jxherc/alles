@@ -511,7 +511,9 @@ def run():
                             failure == "network",
                         )
                         page.get_by_role("button", name="save draft", exact=True).click()
-                        expect(page.get_by_text("save failed", exact=True).last).to_be_visible()
+                        expect(
+                            page.get_by_text("save unconfirmed", exact=True).last
+                        ).to_be_visible()
                     page.get_by_role("button", name="close", exact=True).click()
                     expect(page.get_by_role("alertdialog")).to_contain_text(
                         "discard unsaved draft changes?"
@@ -528,6 +530,13 @@ def run():
                     )
                     if handler:
                         page.unroute(base + "/api/mail/drafts", handler)
+                        page.locator("#mail-draft-dismiss").click()
+                        page.get_by_role("alertdialog").get_by_role(
+                            "button", name="confirm", exact=True
+                        ).click()
+                        expect(
+                            page.get_by_role("textbox", name="message", exact=True)
+                        ).to_have_text(body)
                 shot("mail-body-retained")
                 with page.expect_response(
                     lambda r: r.url.endswith("/api/mail/drafts") and r.request.method == "POST"
@@ -597,6 +606,8 @@ def run():
                     lambda r: r.url.endswith("/api/mail/drafts") and r.request.method == "POST"
                 ):
                     page.get_by_role("button", name="save draft", exact=True).click()
+                expect(page.locator("#mc-save")).to_have_attribute("aria-disabled", "false")
+                expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
                 page.get_by_role("button", name="close", exact=True).click()
                 expect(page.get_by_role("alertdialog")).to_have_count(0)
                 inbox("mail", reload=True)

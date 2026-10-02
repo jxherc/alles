@@ -680,6 +680,8 @@ class MailDraft(Base):
     references = Column(Text, default="")
     updated_at = Column(DateTime, default=_now, onupdate=_now)
 
+    deleted_at = Column(DateTime, nullable=True)
+
 
 class Album(Base):
     __tablename__ = "albums"

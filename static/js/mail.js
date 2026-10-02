@@ -530,6 +530,221 @@ async function deleteSavedSearch(id) {
   } finally { _savedBusy = false; paintSavedBar(); }
 }
 
+const DRAFT_PENDING_PREFIX = 'alles-mail-draft:';
+const DRAFT_FIELDS = ['account_id', 'to', 'cc', 'bcc', 'subject', 'body', 'in_reply_to', 'references'];
+let _draftScopes = [], _draftRows = [], _draftPending = null, _draftConfirmed = null;
+let _draftRead = 0, _draftReady = false, _draftBusy = false, _draftSave = null;
+let _draftReadError = '', _draftStorageError = '', _draftNotice = '', _draftConflict = '';
+const draftKey = scope => DRAFT_PENDING_PREFIX + scope;
+const draftIdentity = value => value.id || value.request_id;
+const draftIntentKey = value => value && JSON.stringify([value.id || '', value.request_id || '', value.expected_revision || '', value.recovery_scope, ...DRAFT_FIELDS.map(field => value[field])]);
+const sameDraftIntent = (a, b) => Boolean(a && b && draftIntentKey(a) === draftIntentKey(b));
+const draftMatches = (row, pending) => row?.id === draftIdentity(pending) && DRAFT_FIELDS.every(field => row[field] === pending[field]);
+const validDraft = row => row && typeof row.id === 'string' && row.id && /^[a-f0-9]{64}$/.test(row.revision || '') && DRAFT_FIELDS.every(field => typeof row[field] === 'string');
+
+function readPendingDraft() {
+  _draftStorageError = '';
+  try {
+    let pending = null;
+    for (const scope of _draftScopes) {
+      const raw = sessionStorage.getItem(draftKey(scope));
+      if (!raw) continue;
+      const value = JSON.parse(raw);
+      const identity = value?.id
+        ? typeof value.id === 'string' && /^[a-f0-9]{64}$/.test(value.expected_revision || '') && !value.request_id
+        : /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value?.request_id || '') && !value.expected_revision;
+      if (!identity || value.recovery_scope !== scope || !DRAFT_FIELDS.every(field => typeof value[field] === 'string')) throw new Error('invalid pending draft');
+      pending ||= value;
+    }
+    if (!sameDraftIntent(pending, _draftPending)) _draftConfirmed = null;
+    _draftPending = pending;
+  } catch { _draftStorageError = 'could not read draft recovery data. retry loading, or clear the unreadable data.'; }
+}
+function storePendingDraft(pending, editor, snapshot) {
+  ++_draftRead;
+  const key = draftKey(pending.recovery_scope), raw = JSON.stringify(pending);
+  sessionStorage.setItem(key, raw);
+  _draftPending = pending; _draftConfirmed = null; _draftConflict = ''; _draftNotice = '';
+  if (editor) {
+    editor.scope = pending.recovery_scope; editor.pending = pending; editor.pendingSnapshot = snapshot;
+  }
+  if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain this draft');
+}
+function clearPendingDraft(pending) {
+  for (const scope of _draftScopes) {
+    const key = draftKey(scope), raw = sessionStorage.getItem(key);
+    if (raw && sameDraftIntent(JSON.parse(raw), pending)) {
+      sessionStorage.removeItem(key);
+      if (sessionStorage.getItem(key) !== null) throw new Error('could not clear draft recovery data');
+    }
+  }
+  if (sameDraftIntent(_draftPending, pending)) _draftPending = null;
+}
+function retireDraftSave(pending) {
+  if (!sameDraftIntent(_draftSave?.pending, pending)) return;
+  _draftSave.retired = true; _draftSave = null; _draftBusy = false;
+}
+function confirmDraft(row, pending) {
+  if (!validDraft(row) || !draftMatches(row, pending)) throw new Error('could not confirm the saved draft');
+  const already = sameDraftIntent(_draftConfirmed?.pending, pending);
+  _draftConfirmed = { pending, row };
+  retireDraftSave(pending);
+  const editor = mailEditor();
+  if (editor && sameDraftIntent(editor.pending, pending)) editor.accept(row);
+  if (!already) toast('draft saved', 'success');
+  _draftNotice = 'draft saved'; _draftConflict = '';
+  try { clearPendingDraft(pending); _draftNotice = ''; }
+  catch { _draftNotice = 'draft saved. recovery data could not be cleared; retry cleanup.'; }
+}
+function paintDraftRecovery() {
+  const bar = $('mail-draft-recovery'); if (!bar) return;
+  const focused = bar.contains(document.activeElement) ? document.activeElement.id : '';
+  const pending = _draftPending;
+  let message = _draftReadError || _draftStorageError || _draftNotice;
+  if (pending && !message) message = `saving “${pending.subject.trim() || 'untitled draft'}” is unconfirmed. retry checks the same save.`;
+  if (_draftBusy && !_draftConfirmed) message = 'saving draft…';
+  let actions = '';
+  const button = (id, label, blocked = _draftBusy) => `<button type="button" class="btn" id="${id}" aria-disabled="${blocked}">${label}</button>`;
+  if (_draftReadError || _draftStorageError) actions += button('mail-draft-load-retry', 'retry loading drafts', false);
+  if (_draftStorageError) actions += button('mail-draft-clear', 'clear recovery data');
+  else if (pending) {
+    if (_draftConfirmed) actions += button('mail-draft-cleanup', 'retry cleanup');
+    else {
+      if (!_draftConflict) actions += button('mail-draft-retry', 'retry saving draft', _draftBusy || Boolean(_draftReadError));
+      actions += button('mail-draft-pending', 'open pending draft', false);
+      if (_draftConflict === 'changed') actions += button('mail-draft-current', 'open saved draft', false);
+      if (_draftConflict) actions += button('mail-draft-copy', 'save pending as new draft');
+      actions += button('mail-draft-dismiss', 'dismiss');
+    }
+  }
+  bar.hidden = !message && !actions;
+  bar.innerHTML = message || actions ? `<div class="mail-saved-status"><p id="mail-draft-status" role="status" tabindex="-1">${esc(message)}</p>${actions}</div>` : '';
+  $('mail-draft-load-retry')?.addEventListener('click', () => loadDraftRecovery());
+  $('mail-draft-clear')?.addEventListener('click', () => dismissPendingDraft(true));
+  $('mail-draft-dismiss')?.addEventListener('click', () => dismissPendingDraft(false));
+  $('mail-draft-retry')?.addEventListener('click', () => savePendingDraft());
+  $('mail-draft-pending')?.addEventListener('click', () => { if (_draftPending) compose({ ..._draftPending, _pending: _draftPending }); });
+  $('mail-draft-current')?.addEventListener('click', () => openCurrentDraft());
+  $('mail-draft-copy')?.addEventListener('click', () => copyPendingDraft());
+  $('mail-draft-cleanup')?.addEventListener('click', () => {
+    if (_draftBusy || !_draftPending || !_draftConfirmed) return;
+    try { clearPendingDraft(_draftPending); _draftNotice = ''; readPendingDraft(); }
+    catch { _draftNotice = 'draft saved. recovery data still could not be cleared.'; }
+    paintDraftRecovery();
+  });
+  const editor = mailEditor(), save = editor?.root.querySelector('#mc-save');
+  if (save) {
+    const owned = sameDraftIntent(editor.pending, pending);
+    save.textContent = owned && !_draftConfirmed ? 'retry saving draft' : (editor.deleted ? 'save as new draft' : 'save draft');
+    const status = editor.root.querySelector('#mc-status');
+    const recoveryMessage = editor.scope && !_draftScopes.includes(editor.scope) ? 'this editor belongs to a different mail store. your text is still here.' : (editor.deleted ? 'this saved draft was deleted. your text is still here; save it as a new draft.' : '');
+    if (recoveryMessage) { status.textContent = recoveryMessage; status.dataset.draftRecovery = '1'; }
+    else if (status.dataset.draftRecovery) { status.textContent = ''; delete status.dataset.draftRecovery; }
+    save.setAttribute('aria-disabled', String(_draftBusy || !_draftReady || Boolean(editor.scope && !_draftScopes.includes(editor.scope)) || Boolean(_draftReadError || _draftStorageError || (pending && (!owned || _draftConflict || _draftConfirmed)))));
+  }
+  if (focused && document.activeElement === document.body) {
+    const target = bar.hidden ? save || $('mail-compose-btn') : document.getElementById(focused) || $('mail-draft-status');
+    if (target?.getClientRects().length) target.focus();
+  }
+}
+async function loadDraftRecovery() {
+  const generation = ++_draftRead;
+  try {
+    const data = await mailJson('/api/mail/drafts?context=true', { cache: 'no-store' });
+    if (!Array.isArray(data?.drafts) || data.drafts.some(row => !validDraft(row)) || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('could not confirm draft recovery');
+    if (generation !== _draftRead) return data;
+    if (_draftScopes.length && !data.recovery_scopes.some(scope => _draftScopes.includes(scope))) {
+      _draftPending = null; _draftConfirmed = null; _draftNotice = ''; _draftConflict = '';
+      if (_draftSave) _draftSave.retired = true;
+      _draftSave = null; _draftBusy = false;
+    }
+    _draftRows = data.drafts; _draftScopes = data.recovery_scopes; _draftReady = true; _draftReadError = '';
+    readPendingDraft();
+    if (_draftPending && !_draftStorageError) {
+      const pending = _draftPending, row = _draftRows.find(value => value.id === draftIdentity(pending));
+      if (row && draftMatches(row, pending)) confirmDraft(row, pending);
+      else if (!_draftConfirmed) {
+        const knownDeleted = _draftConflict === 'deleted' && !row;
+        _draftConflict = row && (!pending.id || row.revision !== pending.expected_revision) ? 'changed' : (!row && (pending.id || knownDeleted) ? 'deleted' : '');
+        if (_draftConflict === 'changed') _draftNotice = 'the saved draft has changed. your pending version is kept; review the saved draft or save a separate copy.';
+        else if (_draftConflict === 'deleted') _draftNotice = 'the saved draft is no longer available. your pending version is kept; save a separate copy or dismiss it.';
+        if (_draftConflict) retireDraftSave(pending);
+      }
+    }
+    const editor = mailEditor();
+    if (editor?.draftId && _draftScopes.includes(editor.scope) && !_draftRows.some(row => row.id === editor.draftId) && !_deletingDrafts.has(editor.draftId)) { editor.deleted = true; editor.initial = null; }
+    paintDraftRecovery();
+    return data;
+  } catch (error) {
+    if (generation === _draftRead) { _draftReadError = `could not load draft recovery: ${error.message}`; paintDraftRecovery(); }
+    return null;
+  }
+}
+async function savePendingDraft() {
+  if (_draftBusy || !_draftPending || _draftConfirmed || _draftReadError || _draftStorageError || _draftConflict) return;
+  const pending = _draftPending, operation = { pending, retired: false };
+  if (!_draftScopes.includes(pending.recovery_scope)) return;
+  ++_draftRead;
+  _draftSave = operation; _draftBusy = true; _draftNotice = ''; paintDraftRecovery();
+  try {
+    const row = await mailJson('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending) });
+    if (operation.retired || !_draftScopes.includes(pending.recovery_scope)) return;
+    if (!validDraft(row) || !draftMatches(row, pending)) throw new Error('could not confirm the saved draft');
+  } catch (error) {
+    if (operation.retired || !_draftScopes.includes(pending.recovery_scope)) return;
+    if (error.status === 410 || error.status === 404) {
+      _draftConflict = 'deleted'; _draftNotice = 'this draft was deleted. your pending version is kept; save a separate copy or dismiss it.';
+    } else if (error.status === 409) {
+      _draftConflict = 'changed'; _draftNotice = 'the saved draft has changed. your pending version is kept; review it before saving a separate copy.';
+    } else _draftNotice = `save is unconfirmed: ${error.message}. retry checks the same draft.`;
+    toast('save unconfirmed', 'error');
+  } finally {
+    if (_draftSave === operation) { _draftSave = null; _draftBusy = false; }
+    paintDraftRecovery();
+  }
+  await loadDraftRecovery();
+}
+async function dismissPendingDraft(unreadable) {
+  if (_draftBusy) return;
+  const pending = _draftPending, scopes = [..._draftScopes];
+  if (!await dlgConfirm('stop checking this draft save? it may already be saved. this does not delete a saved draft.')) return;
+  if (_draftBusy || scopes.join() !== _draftScopes.join() || (!unreadable && !sameDraftIntent(pending, _draftPending))) return;
+  try {
+    if (unreadable) for (const scope of scopes) {
+      const key = draftKey(scope); sessionStorage.removeItem(key);
+      if (sessionStorage.getItem(key) !== null) throw new Error('could not clear recovery data');
+    }
+    else if (pending) clearPendingDraft(pending);
+    const editor = mailEditor();
+    if (editor && sameDraftIntent(editor.pending, pending)) editor.pending = null;
+    _draftConfirmed = null; _draftConflict = ''; _draftNotice = ''; readPendingDraft();
+  } catch { _draftStorageError = 'could not clear draft recovery data. the pending save was kept.'; }
+  paintDraftRecovery();
+}
+async function copyPendingDraft() {
+  if (_draftBusy || !_draftPending || !_draftConflict) return;
+  const pending = _draftPending;
+  if (!await dlgConfirm('save the pending version as a separate draft? the current saved draft stays unchanged. newer editor changes stay unsaved.')) return;
+  if (_draftBusy || !sameDraftIntent(pending, _draftPending) || !_draftScopes.includes(pending.recovery_scope)) return;
+  const copy = { ...pending, id: '', expected_revision: '', request_id: savedRequestId() };
+  try {
+    const current = mailEditor(), editor = current && sameDraftIntent(current.pending, pending) ? current : null;
+    storePendingDraft(copy, editor, editor?.pendingSnapshot);
+    await savePendingDraft();
+  } catch { _draftStorageError = 'could not keep the new draft for recovery. no new save was sent.'; paintDraftRecovery(); }
+}
+async function openCurrentDraft() {
+  const pending = _draftPending;
+  if (!pending || !_draftScopes.includes(pending.recovery_scope)) return;
+  if (!await prepareMailNavigation()) return;
+  const generation = _messageGeneration;
+  try {
+    const row = await mailJson(`/api/mail/drafts/${encodeURIComponent(draftIdentity(pending))}?recovery_scope=${encodeURIComponent(pending.recovery_scope)}`, { cache: 'no-store' });
+    if (generation !== _messageGeneration || !sameDraftIntent(pending, _draftPending) || !validDraft(row) || row.id !== draftIdentity(pending)) return;
+    await compose({ ...row, recovery_scope: pending.recovery_scope }, generation);
+  } catch (error) { toast(error.message || 'could not open saved draft', 'error'); }
+}
+
 export async function loadMail(fetcher = fetch) {
   initMail();
   ++_messageGeneration;
@@ -543,6 +758,7 @@ export async function loadMail(fetcher = fetch) {
   _accounts = accounts;
   if (_accounts.length > 1 && !localStorage.getItem('alles-mail-account-mode')) _active = 'all';
   syncAccountSelect();
+  loadDraftRecovery();
   if (!_accounts.length) {
     $('mail-list').innerHTML = '';
     if (mailEditor()) toast('the mail account is unavailable; your draft is still open', 'error');
@@ -692,12 +908,10 @@ async function loadDrafts({ preserveReader = false } = {}) {
   list.innerHTML = '<div class="mail-empty">loading drafts…</div>';
   let drafts = [];
   try {
-    const url = _active && _active !== 'all' ? `/api/mail/drafts?account_id=${encodeURIComponent(_active)}` : '/api/mail/drafts';
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('drafts unavailable');
-    drafts = await response.json();
+    const data = await loadDraftRecovery();
     if (!current()) return;
-    if (!Array.isArray(drafts)) throw new Error('invalid drafts response');
+    if (!data || !data.recovery_scopes.some(scope => _draftScopes.includes(scope))) throw new Error('drafts unavailable');
+    drafts = data.drafts.filter(draft => !_active || _active === 'all' || draft.account_id === _active);
     list.setAttribute('aria-busy', 'false');
   } catch {
     if (!current()) return;
@@ -714,6 +928,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
       <button class="mail-draft-del" data-id="${esc(d.id)}" aria-label="delete draft" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>×</button>
       <div class="mail-snippet">${esc(draftPreview(d.body))}</div>
     </div>`).join('');
+  const draftScope = _draftScopes[0];
   list.querySelectorAll('.mail-draft-row').forEach(row => {
     row.addEventListener('click', async e => {
       if (e.target.closest('.mail-draft-del') || _deletingDrafts.has(row.dataset.id)) return;
@@ -721,10 +936,10 @@ async function loadDrafts({ preserveReader = false } = {}) {
       const generation = _messageGeneration, opening = { id: row.dataset.id, canceled: false, generation };
       _openingDraft = opening;
       try {
-        const d = await mailJson(`/api/mail/drafts/${encodeURIComponent(row.dataset.id)}`);
+        const d = await mailJson(`/api/mail/drafts/${encodeURIComponent(row.dataset.id)}?recovery_scope=${encodeURIComponent(draftScope)}`);
         if (generation !== _messageGeneration || opening.canceled) return;
         if (d?.id !== row.dataset.id || typeof d.body !== 'string' || typeof d.subject !== 'string') throw new Error('could not confirm this draft');
-        await compose(d, generation);
+        await compose({ ...d, recovery_scope: draftScope }, generation);
       } catch (error) { if (generation === _messageGeneration && !opening.canceled) toast(error.message || 'could not open draft', 'error'); }
       finally { if (_openingDraft === opening) _openingDraft = null; }
     });
@@ -732,7 +947,8 @@ async function loadDrafts({ preserveReader = false } = {}) {
   list.querySelectorAll('.mail-draft-del').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
     if (b.disabled) return;
-    const id = b.dataset.id, editor = mailEditor();
+    const id = b.dataset.id, editor = mailEditor(), listed = drafts.find(draft => draft.id === id);
+    if (!listed || !_draftScopes.includes(draftScope)) return;
     if (_deletingDrafts.has(id)) return;
     const snapshot = editor?.draftId === id ? editor.snapshot() : null;
     if (snapshot !== null && snapshot !== editor.initial) {
@@ -748,7 +964,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
       if (_openingDraft.generation === _messageGeneration) ++_messageGeneration;
     }
     try {
-      const result = await mailJson(`/api/mail/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const result = await mailJson(`/api/mail/drafts/${encodeURIComponent(id)}?expected_revision=${encodeURIComponent(listed.revision)}&recovery_scope=${encodeURIComponent(draftScope)}`, { method: 'DELETE' });
       if (result?.ok !== true) throw new Error('could not confirm draft deletion');
       if (mailEditor() === editor && editor?.draftId === id) {
         if (editor.snapshot() === snapshot) clearMailEditor(editor);
@@ -1186,8 +1402,10 @@ async function compose(pre = {}, generation = null) {
   }
   const currentRead = () => generation === _messageGeneration && Boolean(document.getElementById('mail-view')?.getClientRects().length);
   if (!currentRead()) return;
+  if (!_draftReady) await loadDraftRecovery();
+  if (!currentRead()) return;
   // blank new message picks up the saved signature; replies keep their quote untouched
-  if (!pre.body) {
+  if (!pre.id && !pre._pending && !pre.body) {
     try {
       const sig = (await fetch('/api/settings').then(r => r.json())).mail_signature;
       if (sig) pre = { ...pre, body: '\n\n' + sig };
@@ -1196,6 +1414,7 @@ async function compose(pre = {}, generation = null) {
   if (!currentRead()) return;
   const main = document.getElementById('mail-main');
   const defaultAid = pre.account_id || (_active !== 'all' ? _active : _accounts[0]?.id);
+  const missingAccount = Boolean(defaultAid && !_accounts.some(account => account.id === defaultAid));
   main.innerHTML = `<div class="mail-compose">
     <div class="mail-form-head">
       <div>
@@ -1213,7 +1432,7 @@ async function compose(pre = {}, generation = null) {
         <button class="btn primary" id="mc-send">send</button>
       </div>
     </div>
-    ${_accounts.length > 1 ? `<div class="settings-input custom-select" id="mc-account"></div>` : ''}
+    ${_accounts.length > 1 || missingAccount ? `<div class="settings-input custom-select" id="mc-account" aria-label="sending account"></div>` : ''}
     <div class="mc-chipfield" data-role="to">
       <span class="mc-chip-label">to</span><div class="mc-chips"></div>
       <input class="mc-chip-input" autocomplete="off" placeholder="recipients…">
@@ -1246,7 +1465,10 @@ async function compose(pre = {}, generation = null) {
   </div>`;
   const root = main.querySelector('.mail-compose');
   const $ = id => root.querySelector('#' + id);
-  if ($('mc-account')) populateDropdown($('mc-account'), _accounts.map(a => ({ value: a.id, label: a.name || a.email })), defaultAid);
+  if ($('mc-account')) populateDropdown($('mc-account'), [
+    ...(missingAccount ? [{ value: defaultAid, label: 'unavailable account' }] : []),
+    ..._accounts.map(a => ({ value: a.id, label: a.name || a.email })),
+  ], defaultAid);
   // recipient chip fields + address autocomplete (4d)
   main.querySelectorAll('.mc-chipfield').forEach(f => _initChipField(f));
   if (pre.to) main.querySelector('.mc-chipfield[data-role="to"]')._add(pre.to);
@@ -1257,15 +1479,20 @@ async function compose(pre = {}, generation = null) {
   _loadAddrBook();   // warm the autocomplete cache
   let _draftId = pre.id || '';
   const editor = {
-    root, draftId: _draftId,
+    root, draftId: _draftId, scope: pre.recovery_scope || _draftScopes[0] || '', revision: pre.revision || pre.expected_revision || '', pending: pre._pending || null, deleted: false,
     snapshot: () => JSON.stringify([serializeForm(root), getDropdownValue($('mc-account')) || defaultAid]),
-    detach: () => { _draftId = ''; editor.draftId = ''; editor.initial = null; },
+    detach: () => { _draftId = ''; editor.draftId = ''; editor.revision = ''; editor.deleted = false; editor.initial = null; },
+    accept: row => {
+      _draftId = row.id; editor.draftId = row.id; editor.revision = row.revision; editor.deleted = false;
+      editor.initial = editor.pendingSnapshot; editor.pending = null;
+    },
   };
   editor.initial = editor.snapshot();
+  if (editor.pending) { editor.pendingSnapshot = editor.initial; editor.initial = null; }
   _mailEditor = editor;
   const current = () => mailEditor() === editor;
   const _draftBody = () => ({
-    id: _draftId, account_id: $('mc-account')?.value || defaultAid,
+    id: _draftId, account_id: $('mc-account')?.value || defaultAid || '',
     to: $('mc-to').value.trim(), cc: $('mc-cc').value.trim(), bcc: $('mc-bcc').value.trim(),
     subject: $('mc-subj').value, body: draftHtml($('mc-html')),
     in_reply_to: pre.in_reply_to || '', references: pre.references || '',
@@ -1274,11 +1501,30 @@ async function compose(pre = {}, generation = null) {
   _wireRichCompose(defaultAid, root, current);
   (pre.id ? $('mc-subj') : main.querySelector('.mc-chip-input'))?.focus();
   $('mc-save').addEventListener('click', async () => {
-    const savedState = editor.snapshot(), savedId = _draftId;
-    const d = await fetch('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(_draftBody()) }).then(r => r.ok ? r.json() : null).catch(() => null);
-    if (!current() || _draftId !== savedId) return;
-    if (typeof d?.id === 'string' && d.id) { _draftId = d.id; editor.draftId = d.id; editor.initial = savedState; toast('draft saved', 'success'); } else toast('save failed', 'error');
+    if (_draftBusy || !_draftReady || _draftReadError || _draftStorageError) { paintDraftRecovery(); return; }
+    if (editor.scope && !_draftScopes.includes(editor.scope)) { paintDraftRecovery(); return; }
+    if (_draftPending) {
+      if (sameDraftIntent(editor.pending, _draftPending)) await savePendingDraft();
+      else toast('resolve the pending draft save first', 'error');
+      return;
+    }
+    if (editor.deleted) {
+      const snapshot = editor.snapshot();
+      if (!await dlgConfirm('this saved draft was deleted. save this text as a new draft?')) return;
+      if (!current() || editor.snapshot() !== snapshot || _draftPending || _draftBusy) return;
+      editor.detach();
+    }
+    if (_draftId && !/^[a-f0-9]{64}$/.test(editor.revision)) { toast('reopen this draft before saving changes', 'error'); return; }
+    const pending = { ..._draftBody(), recovery_scope: editor.scope || _draftScopes[0], ...(_draftId ? { expected_revision: editor.revision } : { request_id: savedRequestId() }) };
+    try {
+      storePendingDraft(pending, editor, editor.snapshot());
+      await savePendingDraft();
+    } catch {
+      _draftStorageError = 'could not keep this save for recovery. no save was sent. retry loading drafts.';
+      paintDraftRecovery();
+    }
   });
+  paintDraftRecovery();
   $('mc-close').addEventListener('click', async () => {
     if (!await prepareMailNavigation()) return;
     document.getElementById('mail-list').querySelector(`.mail-draft-row[data-id="${CSS.escape(_draftId)}"] .mail-open`)?.focus();
