@@ -527,6 +527,7 @@ def run():
                             "owned signature text"
                         )
                         dialog.get_by_role("button", name="save", exact=True).click()
+                        expect(dialog).to_be_hidden()
                         expect(page.locator("#mc-sig-list")).to_contain_text("owned signature")
                         body.fill("bold once")
                         body.focus()

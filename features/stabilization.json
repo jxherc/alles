@@ -7337,6 +7337,617 @@
         "1440",
         "390"
       ]
+    },
+    {
+      "id": "inbox.accounts.success",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account success",
+      "expected": "Save a manual account, confirm incoming connectivity separately, and preserve one saved account.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.create-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account create reject",
+      "expected": "A rejected create keeps exact input and retries the same request identity.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.create-lost",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account create lost",
+      "expected": "A lost create response retries the same saved account without duplication.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.create-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account create reload",
+      "expected": "Reload retains only nonsecret pending metadata; cancellation blocks a delayed create.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.create-reload-lost",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account create reload lost",
+      "expected": "Reload can open an already saved account without restoring its password in browser storage.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.cancel-late",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account cancel late",
+      "expected": "Cancelling uncertain creation prevents delayed creation from restoring the account.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.double-create",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account double create",
+      "expected": "Repeated pointer activation during a save creates one account.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.edit-tls",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account edit tls",
+      "expected": "Editing the account label preserves the existing incoming TLS choice.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.edit-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account edit reject",
+      "expected": "A rejected edit preserves input and retries its captured fields and revision.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.newer-input",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account newer input",
+      "expected": "An acknowledged earlier save preserves newer fields and password text for a subsequent edit.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.late-save",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account late save",
+      "expected": "A save response after navigation preserves the new composer without runtime errors.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.test-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account test reject",
+      "expected": "Connection failure is distinct from saved configuration; retrying the test does not save another account.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.test-late",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account test late",
+      "expected": "A late connection response does not replace a newer composer.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.delete-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account delete reject",
+      "expected": "Rejected removal remains visible and can be explicitly retried.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.delete-lost",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account delete lost",
+      "expected": "Lost removal acknowledgement can be retried without recreating an account.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.delete-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account delete reload",
+      "expected": "Pending removal survives reload and completes after an explicit retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.list-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account list reject",
+      "expected": "Failed account reads show an error and retry instead of reporting an empty list.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.list-invalid",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account list invalid",
+      "expected": "Malformed account context is rejected and can be reloaded.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.storage-write",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account storage write",
+      "expected": "Unavailable recovery storage blocks creation before sending and retains entered credentials in the form.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.storage-read",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account storage read",
+      "expected": "Unreadable recovery state blocks mutation until a successful reread.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.storage-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account storage cleanup",
+      "expected": "Confirmed saves with failed recovery cleanup remain blocked until cleanup succeeds without resending.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.cancel-navigation",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account cancel navigation",
+      "expected": "Cancelling a discard prompt retains editable input and permits a subsequent save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.keyboard",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account keyboard",
+      "expected": "The custom TLS control works by keyboard and invalid ports focus the field without a request.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.edit-conflict",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account edit conflict",
+      "expected": "A stale edit preserves newer server settings until the owner explicitly reviews them.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.edit-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account edit reload",
+      "expected": "Reloaded uncertain edits can retain current saved settings and exclude late older edits.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.delete-conflict",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account delete conflict",
+      "expected": "A stale removal cannot delete a newer configuration; explicit review retains that account.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.keep-before-late-edit",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account keep before late edit",
+      "expected": "Keeping current settings claims their revision before an older pending edit can execute.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.cancel-must-remove",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account cancel must remove",
+      "expected": "An unconditional pending cancellation can only resolve removal; keeping settings cannot falsely fence a delayed delete.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.retain-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account retain retry",
+      "expected": "Retrying a retention request acknowledges its actual fields and preserves different local input as unsaved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.retain-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account retain cleanup",
+      "expected": "Retention acknowledgement with failed metadata cleanup never marks discarded edits or passwords saved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.retain-newer",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account retain newer",
+      "expected": "Fields entered during retention remain available as unsaved changes after it finishes.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.unsent-close",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account unsent close",
+      "expected": "Failure to persist metadata sends no write and does not bypass the unsaved-input discard prompt.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.local-email",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account local address",
+      "expected": "Editing an existing account preserves addresses with local domains accepted by the account API.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.default-port",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account default port",
+      "expected": "An existing zero IMAP port remains editable and uses the incoming default matching its saved TLS setting.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.invalid-port",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account port correction",
+      "expected": "An invalid saved IMAP port does not hide account controls and can be corrected through the account editor.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.cancel-unsent-close",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account cancelled creation",
+      "expected": "Cancelling an uncertain creation does not bypass the discard prompt for a later unsent save when recovery storage fails.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.deleted-elsewhere",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account deleted elsewhere",
+      "expected": "A fresh read finding an account deleted elsewhere exposes cancellation and clears the pending edit without reopening the panel.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.retain-matching-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account retain matching retry",
+      "expected": "Retrying retention acknowledges matching saved fields as clean and allows closing without a discard warning.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.retain-matching-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account retain matching cleanup",
+      "expected": "After retention cleanup, restoring fields to saved settings removes the unsaved-input navigation warning.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.retain-matching-newer",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account retain matching newer",
+      "expected": "Input changed to match the saved settings during retention is acknowledged as clean when that retention completes.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.retain-store-write",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account retain store write",
+      "expected": "Failed storage of replacement retention intent keeps original local fields protected by the discard prompt.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.retain-store-readback",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account retain store readback",
+      "expected": "Failed readback after writing replacement retention metadata does not bypass the unsaved-input discard prompt.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.oauth-close",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account oauth close",
+      "expected": "Closing an account form with only Google setup edits requires a discard decision and cancellation preserves those inputs.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.oauth-compose",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account oauth compose",
+      "expected": "Opening a composer with unsaved Google setup fields requires a discard decision and cancellation preserves the account form.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.oauth-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account oauth reload",
+      "expected": "A real reload prompts before discarding unsaved Google client id, secret and redirect base; dismissing keeps all entered fields.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.provider-change",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account provider change",
+      "expected": "Selecting a provider after a successful save and connection test marks the visible configuration unsaved without writing it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.accounts.provider-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail account provider cleanup",
+      "expected": "Changing provider after confirmed recovery cleanup clears old recovery feedback and marks the visible configuration unsaved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],
