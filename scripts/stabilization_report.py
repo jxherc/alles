@@ -30,6 +30,7 @@ BROWSER_SUITES = {
     "surfaces": SURFACE_GATES,
     "daily": (
         "inbox-read-recovery",
+        "inbox-saved-searches",
         "minimal-workflows",
         "docs-editor-loading",
         "docs-workbench-navigation",
@@ -127,6 +128,7 @@ BROWSER_SUITES = {
         "library-workflows",
         "inbox-workflows",
         "inbox-read-recovery",
+        "inbox-saved-searches",
         "vault-backup",
         "vault-actions-recovery",
         "vault-create-recovery",
@@ -197,6 +199,7 @@ BROWSER_SUITES = {
         "library-workflows",
         "inbox-workflows",
         "inbox-read-recovery",
+        "inbox-saved-searches",
         "vault-backup",
         "vault-actions-recovery",
         "vault-create-recovery",

@@ -1,12 +1,12 @@
 /* alles service worker — offline shell + web push */
 const VERSION = 'v291';   // Refresh the shell cache for independently owned settings panes.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '340';   // keep in sync with index.html ?v= / const _v
+const STAMP = '341';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
-const NOQUEUE = ['/api/auth', '/api/chat', '/api/agent', '/api/jarvis', '/api/share', '/api/vault', '/api/vault-transfer', '/api/carddav', '/api/photos/sync', '/api/photos/rescan', '/api/files/operations', '/api/storage-locations', '/api/money', '/api/subscriptions', '/api/finance/actual', '/api/finance/imports', '/api/finance/connections', '/api/system/searxng', '/api/system/services', '/api/system/companions', '/api/system/host-services', '/api/system/policy'];   // auth / streaming / agent actions / native actions / vault / durable Files, storage, Finance authority, and every service or policy change — never queue
+const NOQUEUE = ['/api/mail/saved-searches', '/api/auth', '/api/chat', '/api/agent', '/api/jarvis', '/api/share', '/api/vault', '/api/vault-transfer', '/api/carddav', '/api/photos/sync', '/api/photos/rescan', '/api/files/operations', '/api/storage-locations', '/api/money', '/api/subscriptions', '/api/finance/actual', '/api/finance/imports', '/api/finance/connections', '/api/system/searxng', '/api/system/services', '/api/system/companions', '/api/system/host-services', '/api/system/policy'];   // auth / streaming / agent actions / native actions / vault / durable Files, storage, Finance authority, and every service or policy change — never queue
 
 // 11b: precache the app shell on install so a cold offline load still boots (network-first
 // only fills the cache after a visit; this guarantees the core shell survives an eviction).
