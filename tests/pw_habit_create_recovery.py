@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
@@ -64,6 +65,10 @@ def run():
                 )
                 name = f"reading {case} {width}"
                 overview = base + "/api/habits/overview"
+                archived_route = re.compile(
+                    re.escape(overview) + r"\?date_q=\d{4}-\d{2}-\d{2}&archived=true$"
+                )
+                overview_route = re.compile(re.escape(overview) + r"\?date_q=\d{4}-\d{2}-\d{2}$")
                 form = page.locator(".habit-add")
                 result = {
                     "scenario_id": "habits.create." + case,
@@ -125,12 +130,12 @@ def run():
                         keyboard(card.locator('[data-act="edit"]'))
                         keyboard(card.locator('[data-act="archive"]'))
                         expect(card).to_have_count(0)
-                        page.route(overview + "?archived=true", unavailable)
+                        page.route(archived_route, unavailable)
                         keyboard(page.locator('[data-act="archive-view"]'))
                         expect(page.locator(".habit-load-error")).to_be_visible()
                         expect(page.locator(".habits-empty")).to_have_count(0)
                         expect(card).to_have_count(0)
-                        page.unroute(overview + "?archived=true")
+                        page.unroute(archived_route)
                         keyboard(page.locator('[data-act="retry-load"]'))
                         expect(card.locator('[data-act="restore"]')).to_be_visible()
                         expect(card.locator(".habit-day")).to_have_count(0)
@@ -239,7 +244,7 @@ def run():
                             pattern = (
                                 base + "/api/habits/requests/**"
                                 if case == "recovery-navigation"
-                                else overview + "?archived=true"
+                                else archived_route
                             )
                             page.route(pattern, lambda route: held.append(route))
                             keyboard(form.locator('[data-act="open-saved"]'))
@@ -268,7 +273,7 @@ def run():
                         elif case in {"archive-close-pending", "archive-close-navigation"}:
                             held = []
                             page.route(
-                                overview,
+                                overview_route,
                                 lambda route: held.append(route) if not held else route.continue_(),
                             )
                             keyboard(page.locator('[data-act="archive-view"]'))
@@ -290,7 +295,7 @@ def run():
                                 ).to_be_focused()
                             for route in list(held):
                                 route.fulfill(response=route.fetch())
-                            page.unroute(overview)
+                            page.unroute(overview_route)
                             expect(form).to_have_count(0)
                             if case == "archive-close-navigation":
                                 expect(page.locator('[data-act="archive-view"]')).to_have_text(
@@ -400,14 +405,14 @@ def run():
                                 expect(
                                     page.locator(f'.habit-card[data-id="{saved["id"]}"]')
                                 ).to_be_visible()
-                                page.route(overview, unavailable)
+                                page.route(overview_route, unavailable)
                             keyboard(form.locator('[data-act="create"]'))
                             expect(form).to_have_count(0)
                             expect(page.locator(".habit-card[data-id]")).to_have_count(1)
                             assert len(rows()) == 1 and rows()[0]["id"] == saved["id"]
                             if case == "retry-list-failed":
                                 expect(page.locator(".habit-load-error")).to_be_visible()
-                                page.unroute(overview)
+                                page.unroute(overview_route)
                                 keyboard(page.locator('[data-act="retry-load"]'))
                                 expect(page.locator(".habit-load-error")).to_have_count(0)
                         if case not in {"cancel", "archive-restore"}:

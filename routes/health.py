@@ -94,12 +94,16 @@ def list_entries(kind: str = "", db: DbSession = Depends(get_db)):
 
 
 @router.get("/health/overview")
-def overview(days: int = 365, db: DbSession = Depends(get_db)):
+def overview(days: int = 365, db: DbSession = Depends(get_db), date_q: str = ""):
     from core.settings import load_settings
     from services import life_stats
 
     targets = load_settings().get("health_targets") or {}
-    since = (date.today() - timedelta(days=max(1, days))).isoformat()
+    try:
+        day = date.fromisoformat(date_q) if date_q else date.today()
+        since = (day - timedelta(days=max(1, days))).isoformat()
+    except (ValueError, OverflowError):
+        raise HTTPException(400, "date_q and days must form a valid date range") from None
     rows = db.query(HealthEntry).filter(HealthEntry.date >= since).all()
     # bucket the in-range rows by (kind, label) once, tracking the latest per key by DATE (ties
     # broken by insertion via id-asc + >=) so a backfilled older-dated row can't beat a newer one.
@@ -164,6 +168,7 @@ class ImportBody(BaseModel):
     text: str = ""
     request_id: str = ""
     strict: bool = False
+    default_date: str = ""
 
 
 @router.post("/health/import")
@@ -172,7 +177,12 @@ def import_health(body: ImportBody, db: DbSession = Depends(get_db)):
 
     try:
         return import_entries(
-            db, body.text, kinds=KINDS, request_id=body.request_id, strict=body.strict
+            db,
+            body.text,
+            kinds=KINDS,
+            request_id=body.request_id,
+            strict=body.strict,
+            default_date=body.default_date,
         )
     except HealthInputError as exc:
         raise HTTPException(exc.status_code, str(exc)) from exc
