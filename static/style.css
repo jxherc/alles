@@ -3784,10 +3784,21 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .mail-rich-body img { max-width: 100%; }
 .mail-sig { color: var(--muted); margin-top: 0.6rem; font-size: 0.85em; }
 /* 5d rules + suggest */
-.mail-rules-panel { display: flex; flex-direction: column; gap: 0.5rem; max-width: 640px; }
-.mail-rule-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.78rem; padding: 0.35rem 0; border-bottom: 1px solid var(--faint); }
-.mail-rule-form { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
-.mail-rule-actions { display: flex; gap: 0.6rem; align-items: center; }
+.mail-rules-panel { display: flex; flex-direction: column; gap: var(--k-space-2); max-width: 640px; padding: var(--k-space-4); }
+.mail-rule-row { display: flex; justify-content: space-between; align-items: center; gap: var(--k-space-2); font-size: 0.875rem; padding: var(--k-space-2) 0; border-bottom: 1px solid var(--faint); }
+.mail-rule-row > span { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.mail-rule-del { flex-shrink: 0; }
+.mail-rule-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k-space-3); }
+.mail-rule-form label { display: flex; flex-direction: column; gap: var(--k-space-1); min-width: 0; font-size: 0.8125rem; color: var(--muted); }
+.mail-rule-form .settings-input { width: 100%; min-width: 0; }
+.mail-rule-form textarea { resize: vertical; }
+.mail-rules-panel #mr-add { align-self: flex-start; }
+.mail-rules-panel [aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.mail-rule-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2); align-items: center; }
+.mail-rule-actions .mail-status { min-width: 0; overflow-wrap: anywhere; }
+.mail-rules-panel #mr-recovery { gap: var(--k-space-2); }
+.mail-rules-panel #mr-status:empty { display: none; }
+@media (max-width: 480px) { .mail-rule-form { grid-template-columns: minmax(0, 1fr); } }
 .mail-vac-toggle { align-self: flex-start; }
 .mail-suggest-box { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem; }
 .mc-suggest-chip { font-size: 0.75rem; max-width: 100%; white-space: normal; text-align: left; }
