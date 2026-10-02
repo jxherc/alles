@@ -1261,6 +1261,7 @@ class MailRule(Base):
     action_arg = Column(String, default="")
     enabled = Column(Boolean, default=True)
     created_at = Column(DateTime, default=_now)
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class ScheduledMail(Base):
