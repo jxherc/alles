@@ -963,22 +963,26 @@ def save_signature(body: SignatureBody):
     import uuid
 
     from core.settings import load_settings, save_settings
+    from services.recovery_consistency import recovery_consistency_lock
 
-    sigs = [s for s in load_settings().get("mail_signatures", []) if s.get("id")]
-    sid = body.id or uuid.uuid4().hex
-    row = {"id": sid, "name": (body.name or "signature").strip(), "body": body.body or ""}
-    sigs = [s for s in sigs if s["id"] != sid] + [row]
-    save_settings({"mail_signatures": sigs})
-    return row
+    with recovery_consistency_lock:
+        sigs = [s for s in load_settings().get("mail_signatures", []) if s.get("id")]
+        sid = body.id or uuid.uuid4().hex
+        row = {"id": sid, "name": (body.name or "signature").strip(), "body": body.body or ""}
+        sigs = [s for s in sigs if s["id"] != sid] + [row]
+        save_settings({"mail_signatures": sigs})
+        return row
 
 
 @router.delete("/signatures/{sid}")
 def delete_signature(sid: str):
     from core.settings import load_settings, save_settings
+    from services.recovery_consistency import recovery_consistency_lock
 
-    sigs = [s for s in load_settings().get("mail_signatures", []) if s.get("id") != sid]
-    save_settings({"mail_signatures": sigs})
-    return {"ok": True}
+    with recovery_consistency_lock:
+        sigs = [s for s in load_settings().get("mail_signatures", []) if s.get("id") != sid]
+        save_settings({"mail_signatures": sigs})
+        return {"ok": True}
 
 
 # ── rules engine, vacation responder, smart reply (5d) ───────────────────────
