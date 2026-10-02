@@ -138,6 +138,7 @@ from core.schema import VaultAttachment as VaultAttachment
 from core.schema import VaultCreateReceipt as VaultCreateReceipt
 from core.schema import VaultEntry as VaultEntry
 from core.schema import VaultShare as VaultShare
+from core.schema import VaultUploadReceipt as VaultUploadReceipt
 from core.schema import Watch as Watch
 from core.schema import WebAuthnCredential as WebAuthnCredential
 from core.schema import Webhook as Webhook

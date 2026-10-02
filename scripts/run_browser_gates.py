@@ -76,6 +76,7 @@ COMMANDS = {
     "vault-backup": ("tests/pw_vault_backup.py",),
     "vault-setup-desktop": ("tests/pw_vault_setup.py", "desktop"),
     "vault-setup-phone": ("tests/pw_vault_setup.py", "phone"),
+    "vault-actions-recovery": ("tests/pw_vault_actions_recovery.py",),
     "vault-create-recovery": ("tests/pw_vault_create_recovery.py",),
     "setup-auth": ("tests/pw_setup_auth.py",),
     "settings-recovery": ("tests/pw_settings_recovery.py",),
