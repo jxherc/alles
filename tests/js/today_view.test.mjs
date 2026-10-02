@@ -125,11 +125,12 @@ test('Home presents configured destinations as pinned apps without an unexplaine
 test('Home note confirmation precedes refresh and tasks use reviewed acceptance', () => {
   const today = readFileSync(new URL('../../static/js/today.js', import.meta.url), 'utf8');
   const submit = today.match(/form\.addEventListener\('submit'[\s\S]*?\n  }\);/)?.[0] || '';
-  assert.match(submit, /toast\(t\('home\.note_saved'\), 'success'\)/);
+  assert.match(submit, /await saveNote\(value, safeTitle\(value\)\);\s*homeNoteSaved\(result, value\)/);
   assert.match(submit, /preview: true, today: calendarDateKey\(\)/);
   assert.match(submit, /reviewed = await openCaptureReview\(proposal, submit, homeCaptureSaved\)/);
   assert.doesNotMatch(submit, /json\('\/api\/tasks'/);
-  assert.ok(submit.indexOf('toast(') < submit.indexOf('await load()'));
+  const confirmed = today.match(/function homeNoteSaved\([\s\S]*?\n}/)?.[0] || '';
+  assert.ok(confirmed.indexOf('toast(') < confirmed.indexOf('void load()'));
   assert.doesNotMatch(submit, /if \(refreshed\)/);
 });
 

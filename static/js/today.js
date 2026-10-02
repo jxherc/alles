@@ -307,6 +307,7 @@ async function load() {
   if (recovery) import('./capture.js').then(({ showPendingCapture }) => showPendingCapture(recovery, homeCaptureSaved)).catch(() => {
     recovery.textContent = 'capture recovery could not load; reload to retry';
   });
+  void loadNoteRecovery();
   showStatus(t('home.loading'));
   try {
     const date = calendarDateKey();
@@ -379,7 +380,8 @@ async function load() {
 function safeTitle(value) {
   let title = String(value || '').trim().split('\n')[0].replace(/^#+\s*/, '').replace(/^[-*]\s+(\[[ xX]\]\s+)?/, '').trim();
   title = title.replace(/[\\/:*?"<>|#\[\]]+/g, ' ').replace(/\s+/g, ' ').trim();
-  if (title.length > 60) title = title.slice(0, 60).replace(/\s+\S*$/, '').trim();
+  const characters = [...title];
+  if (characters.length > 60) title = characters.slice(0, 60).join('').replace(/\s+\S*$/, '').trim();
   return title || 'note';
 }
 
@@ -393,12 +395,34 @@ async function json(url, options = {}) {
   return response.json();
 }
 
-async function captureNote(text) {
-  const title = safeTitle(text);
-  return json('/api/vault-md/file', {
-    method: 'POST',
-    body: { path: title, content: `${text.trim()}\n`, unique: true },
-  });
+async function openCapturedNote(path) {
+  return window._openSearchResult?.('note', path);
+}
+
+async function loadNoteRecovery() {
+  const host = document.getElementById('today-note-recovery');
+  if (!host) return;
+  try {
+    const { showNoteRecovery } = await import('./note_capture.js');
+    await showNoteRecovery(host, homeNoteSaved, openCapturedNote);
+  } catch { host.textContent = 'note recovery could not load; reload to retry'; }
+}
+
+function homeNoteSaved(saved, text, focus = false) {
+  const input = document.getElementById('today-capture-input');
+  const asTask = document.getElementById('today-capture-mode')?.getAttribute('aria-pressed') === 'true';
+  if (input && !asTask && input.value === text) input.value = '';
+  const host = document.getElementById('today-note-recovery');
+  if (host) {
+    host.dataset.savedNoteRequest = saved.request_id;
+    const status = document.createElement('p'); status.textContent = t('home.note_saved'); status.setAttribute('role', 'status');
+    const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = 'open note';
+    open.onclick = () => openCapturedNote(saved.path).catch(() => toast('could not open the saved note', 'error'));
+    host.replaceChildren(status, open);
+    if (focus && input?.getClientRects().length) open.focus();
+  }
+  toast(t('home.note_saved'), 'success');
+  if (input?.getClientRects().length) void load();
 }
 
 function homeCaptureSaved(saved, kind) {
@@ -441,14 +465,13 @@ function wireCapture() {
         const { openCaptureReview } = await import('./capture.js');
         reviewed = await openCaptureReview(proposal, submit, homeCaptureSaved);
       } else {
-        const result = await captureNote(value);
-        if (result?.created !== true) throw new Error('unconfirmed capture');
-        input.value = '';
-        toast(t('home.note_saved'), 'success');
-        await load();
+        const { saveNote } = await import('./note_capture.js');
+        const result = await saveNote(value, safeTitle(value));
+        homeNoteSaved(result, value);
       }
     } catch (error) {
-      showStatus(asTask ? `could not prepare task: ${error.message}; your text is still here` : 'could not confirm note; check Docs before retrying');
+      showStatus(asTask ? `could not prepare task: ${error.message}; your text is still here` : `could not confirm note: ${error.message}; your text is still here`);
+      if (!asTask) await loadNoteRecovery();
     }
     finally {
       form.removeAttribute('aria-busy');

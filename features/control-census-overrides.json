@@ -66,7 +66,8 @@
     "static/js/uploads.js": "aide.conversation-and-execution",
     "static/js/util.js": "developer-interfaces.api-cli",
     "static/js/vault.js": "passwords.vault-and-browser",
-    "static/js/watch.js": "server.management"
+    "static/js/watch.js": "server.management",
+    "static/js/note_capture.js": "home.capture-and-navigation"
   },
   "controls": {
     "app-drawer-btn": "accessibility.interface-contract",

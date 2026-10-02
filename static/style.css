@@ -9807,3 +9807,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .capture-status { overflow-wrap: anywhere; }
 .capture-resume, .mail-source-error { padding: 12px; border: 1px solid var(--faint); }
 .capture-resume { flex: 0 0 auto; }
+.note-resume { flex-direction: column; align-items: stretch; }
+.note-resume [hidden] { display: none !important; }
+.note-resume p { margin: 0; overflow-wrap: anywhere; }
+.note-resume .btn, .note-resume summary, #today-note-recovery > .btn { min-height: 44px; }

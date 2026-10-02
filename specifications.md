@@ -329,9 +329,10 @@ your whole day on one screen the moment you open alles.
   visibility, density, and pinned apps; the home settings action and the section's **edit** action open
   that pane directly. needs you
   cannot be hidden, and loading, empty, partial, offline, and error states remain visible
-- home capture creates tasks in plan and uniquely named markdown notes in docs → documents; an
-  unconfirmed response keeps the draft for inspection, while a confirmed offline task queue is labelled
-  as queued rather than saved. capture never auto-retries an uncertain write.
+- home capture reviews tasks before acceptance into plan and saves uniquely named markdown notes in
+  docs → documents. an unconfirmed response keeps the original text and request identity for manual
+  retry after reload; an unknown or queued reply is not treated as a confirmed save. saved notes open
+  directly in docs. capture never auto-retries an uncertain write.
 
 ### activity
 one scrollable feed of *everything you did*, across every app, newest first. if today is what's coming up, activity is what already happened.
@@ -1223,9 +1224,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 905 http method/path pairs
-- 888 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `f5e9fbc07f7a0f28aa78990aa122720dd25193451aba3b47efc80b8d58b6a800`
+- 906 http method/path pairs
+- 889 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `1ed482c2f703bb7dc5cc80534a5f4d36961978c50fd9a4fc6c0d270a5c8e2106`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -2006,7 +2007,7 @@ the compatibility snapshot locks the registered http surface:
 
 inbox task and event capture opens an editable review before acceptance into plan. a cancelled review writes nothing. acceptance uses a durable request identity; an uncertain response can be retried after reload without creating another item. task/event edits and recurrence keep the original message reference. opening that source checks a fresh message against its saved fingerprint; missing or changed sources show the retained excerpt and a retry action. legacy mail API callers without `preview: true` retain their direct-create behavior. pending acceptance details stay in owner-scoped browser session storage until confirmed or explicitly discarded.
 
-home reuses this review and acceptance flow. `POST /api/tasks/quick` with `preview: true` returns a parsed candidate and a bounded literal-text source without writing; optional `today` supplies the displayed calendar day. calls without preview retain direct quick-add behavior. literal sources preserve up to 6000 characters exactly and require a matching sha256 fingerprint. mail and literal sources remain attached through task recurrence and event edits. home's note mode creates a separate markdown document and does not use the Plan acceptance receipt.
+home reuses this review and acceptance flow. `POST /api/tasks/quick` with `preview: true` returns a parsed candidate and a bounded literal-text source without writing; optional `today` supplies the displayed calendar day. calls without preview retain direct quick-add behavior. literal sources preserve up to 6000 characters exactly and require a matching sha256 fingerprint. mail and literal sources remain attached through task recurrence and event edits. home's note mode creates a separate markdown document with an optional unique-create request identity. pending note text and identity remain in owner-scoped session storage across reloads; retry resolves the same file, and saved notes open directly in docs. private document-safety receipts and atomic create-only publication preserve existing files through collisions and interrupted responses. changed or deleted results require inspection or explicit discard rather than creating another note. if publication was interrupted before its completed receipt became durable, recovery stops for inspection; matching file contents alone never prove that this request created a note. legacy clients without a request identity retain their existing behavior.
 
 [source](routes/mail.py)
 

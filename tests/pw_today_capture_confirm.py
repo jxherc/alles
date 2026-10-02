@@ -122,13 +122,11 @@ def run() -> None:
                     response.url.endswith("/api/vault-md/file")
                     and response.request.method == "POST"
                 )
-            ):
+            ) as note_unknown:
                 submit.click()
             expect(form).not_to_have_attribute("aria-busy", "true")
             expect(capture).to_have_value("note with unknown result")
-            expect(page.locator("#today-status")).to_contain_text(
-                "could not confirm note; check Docs before retrying"
-            )
+            expect(page.locator("#today-status")).to_contain_text("could not confirm note:")
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
             )
@@ -145,23 +143,22 @@ def run() -> None:
                     else route.continue_()
                 ),
             )
-            capture.fill("note with lost response")
             with page.expect_response(
                 lambda response: (
                     response.url.endswith("/api/vault-md/file")
                     and response.request.method == "POST"
                 )
-            ):
+            ) as note_lost:
                 submit.click()
             expect(form).not_to_have_attribute("aria-busy", "true")
-            expect(capture).to_have_value("note with lost response")
-            expect(page.locator("#today-status")).to_contain_text(
-                "could not confirm note; check Docs before retrying"
+            expect(capture).to_have_value("note with unknown result")
+            assert (
+                note_lost.value.request.post_data_json == note_unknown.value.request.post_data_json
             )
+            expect(page.locator("#today-status")).to_contain_text("could not confirm note:")
             page.unroute("**/api/vault-md/file")
 
-            real = f"confirmed note {width}"
-            capture.fill(real)
+            real = "note with unknown result"
             with page.expect_response(
                 lambda response: (
                     response.url.endswith("/api/vault-md/file")
@@ -171,9 +168,14 @@ def run() -> None:
                 submit.click()
             expect(form).not_to_have_attribute("aria-busy", "true")
             assert response.value.json().get("created") is True
+            assert (
+                response.value.request.post_data_json == note_unknown.value.request.post_data_json
+            )
             expect(capture).to_have_value("")
             expect(page.locator("#toast-container .toast.success").last).to_have_text("note saved")
-            saved = context.request.get(f"{base}/api/vault-md/file", params={"path": f"{real}.md"})
+            saved = context.request.get(
+                f"{base}/api/vault-md/file", params={"path": response.value.json()["path"]}
+            )
             assert saved.ok and saved.json()["content"] == f"{real}\n"
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
