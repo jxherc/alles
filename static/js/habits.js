@@ -4,6 +4,7 @@
 import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm } from './dialog.js';
+import { calendarDateKey } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -21,6 +22,7 @@ let _draft = null;
 let _creation = null;
 let _showArchived = false;
 let _navigation = 0;
+let _day = calendarDateKey();
 
 function newRequestId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -47,12 +49,13 @@ export function initHabits(fetcher = fetch) {
 
 export async function loadHabits(fetcher = fetch) {
   const generation = ++_generation;
+  const day = calendarDateKey();
   _loading = true; _loadError = ''; _render();
   try {
-    const data = await api('/api/habits/overview' + (_showArchived ? '?archived=true' : ''), {}, fetcher);
+    const data = await api('/api/habits/overview?date_q=' + day + (_showArchived ? '&archived=true' : ''), {}, fetcher);
     if (!Array.isArray(data.habits)) throw new Error('invalid habit response');
     if (generation !== _generation) return false;
-    _habits = data.habits; _hasLoaded = true;
+    _habits = data.habits; _hasLoaded = true; _day = day;
   } catch {
     if (generation !== _generation) return false;
     _loadError = 'could not load habits. ' + (_hasLoaded ? 'the last loaded habits are still shown.' : 'retry to see your habits.');
@@ -138,7 +141,8 @@ async function closeAdd() {
 
 function _localDays(n) {
   const out = [];
-  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const [year, month, day] = _day.split('-').map(Number);
+  const t = new Date(year, month - 1, day);
   for (let i = n - 1; i >= 0; i--) { const d = new Date(t); d.setDate(t.getDate() - i); out.push(d); }
   return out;
 }
@@ -150,6 +154,7 @@ function _render() {
   if (!body) return;
   const active = body.contains(document.activeElement) ? document.activeElement : null;
   const field = active?.dataset.f;
+  const toolbarFocus = active?.closest('.habits-bar') ? (active.id ? `#${CSS.escape(active.id)}` : `[data-act="${CSS.escape(active.dataset.act)}"]`) : null;
   const focusedRecord = active?.matches('.habit-card.record-target') ? active.dataset.id : null;
   const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
   const cards = _habits.map(h => h.id === _editing ? _editCard(h) : _card(h)).join('');
@@ -177,6 +182,8 @@ function _render() {
       card.classList.add('record-target'); card.tabIndex = -1;
       card.focus({ preventScroll: true });
     }
+  } else if (toolbarFocus) {
+    body.querySelector(`${toolbarFocus}:not(:disabled)`)?.focus({ preventScroll: true });
   }
 }
 

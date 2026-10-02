@@ -4,6 +4,7 @@ import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { wireChoiceGroup } from './kokuen.js';
+import { calendarDateKey } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -83,7 +84,7 @@ export async function loadHealth(fetcher = _fetcher, { clearWriteError = false }
   _loadState = { state: 'loading', message: 'loading health data…' };
   _render();
   const [overviewResult, entriesResult] = await Promise.allSettled([
-    _json(fetcher, '/api/health/overview?days=' + _days),
+    _json(fetcher, '/api/health/overview?days=' + _days + '&date_q=' + calendarDateKey()),
     _json(fetcher, '/api/health'),
   ]);
   if (generation !== _loadGeneration) return;
@@ -224,12 +225,13 @@ async function _runImport(draft) {
       draft.file = null;
     }
     draft.requestId ||= _newCreateRequestId();
+    draft.defaultDate ||= calendarDateKey();
     draft.phase = 'saving'; _render();
     const previousUncertainty = draft.uncertain;
     draft.uncertain = true;
     let result;
     try {
-      result = await api('/api/health/import', { method: 'POST', body: { text: draft.text, request_id: draft.requestId, strict: true } });
+      result = await api('/api/health/import', { method: 'POST', body: { text: draft.text, request_id: draft.requestId, strict: true, default_date: draft.defaultDate } });
     } catch (error) {
       if ([400, 422].includes(error.status)) draft.uncertain = previousUncertainty;
       throw error;
@@ -457,6 +459,7 @@ async function _create() {
   const payload = { value, unit: _draft.unit.trim(), note: _draft.note.trim() };
   if (editing) payload.record_id = _draft.record_id;
   if (date) payload.date = date;
+  else if (!editing) payload.date = _draft.date = calendarDateKey();
   if (editing && _draft.create_request_id) payload.create_request_id = _draft.create_request_id;
   if (!editing) Object.assign(payload, { kind: _draft.kind, label: _draft.kind === 'custom' ? _draft.label.trim() : '' });
   const earlierUncertainty = _createUncertain;
