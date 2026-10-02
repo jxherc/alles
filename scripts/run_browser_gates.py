@@ -77,6 +77,7 @@ COMMANDS = {
     "finance-recurring-repair": ("tests/pw_finance_recurring_repair.py",),
     "library-workflows": ("tests/pw_library_workflows.py",),
     "inbox-workflows": ("tests/pw_inbox_workflows.py",),
+    "inbox-read-recovery": ("tests/pw_inbox_read_recovery.py",),
     "vault-backup": ("tests/pw_vault_backup.py",),
     "vault-setup-desktop": ("tests/pw_vault_setup.py", "desktop"),
     "vault-setup-phone": ("tests/pw_vault_setup.py", "phone"),

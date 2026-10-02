@@ -29,6 +29,7 @@ BROWSER_SUITES = {
     "smoke": SMOKE_GATES,
     "surfaces": SURFACE_GATES,
     "daily": (
+        "inbox-read-recovery",
         "minimal-workflows",
         "docs-editor-loading",
         "docs-workbench-navigation",
@@ -125,6 +126,7 @@ BROWSER_SUITES = {
         "finance-recurring-repair",
         "library-workflows",
         "inbox-workflows",
+        "inbox-read-recovery",
         "vault-backup",
         "vault-actions-recovery",
         "vault-create-recovery",
@@ -194,6 +196,7 @@ BROWSER_SUITES = {
         "finance-recurring-repair",
         "library-workflows",
         "inbox-workflows",
+        "inbox-read-recovery",
         "vault-backup",
         "vault-actions-recovery",
         "vault-create-recovery",
