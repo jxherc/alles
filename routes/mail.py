@@ -402,10 +402,14 @@ def unified(limit: int = 50, db: DbSession = Depends(get_db)):
 
 @router.get("/smart/{aid}")
 def smart(aid: str, filter: str = "unread", limit: int = 50, db: DbSession = Depends(get_db)):
-    """smart mailbox over the cache: filter = unread | flagged | vip."""
+    """smart mailbox over the cache: unread, flagged, vip, muted or snoozed."""
     from services import mail_cache
 
     _get(db, aid)
+    if filter == "muted":
+        return {"messages": mail_cache.get_muted(db, aid, limit)}
+    if filter == "snoozed":
+        return {"messages": mail_cache.snoozed(db, aid)[: max(0, limit)]}
     if filter == "vip":
         from core.settings import load_settings
 
@@ -538,6 +542,7 @@ def smart_search(aid: str, q: str = "", limit: int = 200, db: DbSession = Depend
 
 class MuteBody(BaseModel):
     subject: str
+    muted: bool = True
 
 
 @router.post("/mute/{aid}")
@@ -545,7 +550,7 @@ def mute_thread(aid: str, body: MuteBody, db: DbSession = Depends(get_db)):
     from services import mail_cache
 
     _get(db, aid)
-    return {"muted": mail_cache.mute(db, aid, body.subject)}
+    return {"muted": mail_cache.mute(db, aid, body.subject, body.muted)}
 
 
 class ArchiveBody(BaseModel):
