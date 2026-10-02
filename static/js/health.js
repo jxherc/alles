@@ -1,6 +1,6 @@
 // health — a simple health/fitness log. log weight/sleep/workout/meds/custom, see the
 // latest reading + a hand-drawn trend line per metric over a range. mirrors panel conventions.
-import { toast } from './util.js';
+import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { wireChoiceGroup } from './kokuen.js';
@@ -20,6 +20,11 @@ let _fetcher = fetch;
 let _hasOverview = false;
 let _hasEntries = false;
 let _loadState = { state: 'resting', message: '' };
+let _loadGeneration = 0;
+let _navigation = 0;
+let _importDraft = null;
+const _deleteErrors = new Map();
+const _deleting = new Set();
 
 const KIND_UNIT = { weight: 'kg', sleep: 'h', workout: 'min', med: '', custom: '' };
 const KIND_LABEL = { weight: 'weight', sleep: 'sleep', workout: 'workout', med: 'meds', custom: 'custom' };
@@ -37,6 +42,7 @@ function _newCreateRequestId() {
 }
 
 export function initHealth(fetcher = fetch) {
+  ++_navigation;
   _fetcher = fetcher;
   return loadHealth(fetcher);
 }
@@ -71,14 +77,16 @@ function _loadNotice() {
   </div>`;
 }
 
-export async function loadHealth(fetcher = _fetcher) {
+export async function loadHealth(fetcher = _fetcher, { clearWriteError = false } = {}) {
   _fetcher = fetcher;
+  const generation = ++_loadGeneration;
   _loadState = { state: 'loading', message: 'loading health data…' };
   _render();
   const [overviewResult, entriesResult] = await Promise.allSettled([
     _json(fetcher, '/api/health/overview?days=' + _days),
     _json(fetcher, '/api/health'),
   ]);
+  if (generation !== _loadGeneration) return;
   const failures = [];
   const successes = [];
   if (overviewResult.status === 'fulfilled' && Array.isArray(overviewResult.value.kinds)) {
@@ -89,6 +97,7 @@ export async function loadHealth(fetcher = _fetcher) {
   if (entriesResult.status === 'fulfilled' && Array.isArray(entriesResult.value.entries)) {
     _entries = entriesResult.value.entries;
     _hasEntries = true;
+    if (clearWriteError) _deleteErrors.clear();
     successes.push('recent entries');
   } else failures.push(['recent entries', entriesResult.reason]);
   _loadState = failures.length ? _loadFailure(failures, successes) : { state: 'resting', message: '' };
@@ -139,18 +148,26 @@ function _fmtNum(v) { return (Math.round(v * 10) / 10).toString(); }
 function _render() {
   const body = $('health-body');
   if (!body) return;
+  const active = document.activeElement;
+  const row = active?.closest('.health-row');
+  const focus = body.contains(active) ? (active.id ? `#${CSS.escape(active.id)}`
+    : row && active.dataset.act ? `.health-row[data-record-id="${CSS.escape(row.dataset.recordId)}"] [data-act="${CSS.escape(active.dataset.act)}"]`
+      : active.dataset.days ? `[data-days="${CSS.escape(active.dataset.days)}"]` : null) : null;
+  const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
   body.innerHTML = `
     <div class="health-bar">
       <div class="health-ranges" role="radiogroup" aria-label="health history range">${RANGES.map(([d, l]) => `<button type="button" role="radio" aria-checked="${_days === d}" class="health-chip${_days === d ? ' active' : ''}" data-days="${d}">${l}</button>`).join('')}</div>
       <div class="health-bar-actions">
-        <button class="btn" id="health-import" title="import a date,kind,value,unit csv">import</button>
+        <button class="btn" id="health-import" title="import a date,kind,value,unit csv" ${_importDraft ? 'disabled' : ''}>import</button>
         <button class="btn primary" id="health-add-toggle">${_si('plus')} entry</button>
       </div>
     </div>
     ${_loadNotice()}
+    ${_deleteErrors.size ? `<div class="specialist-group-note legacy-load-note" role="alert" id="health-write-error"><div>${[..._deleteErrors.values()].map(message => `<p>${esc(message)}</p>`).join('')}</div><button type="button" class="btn" id="health-refresh">refresh</button></div>` : ''}
+    ${_importDraft ? _importForm() : ''}
     ${_draft ? _addForm() : ''}
     ${_data.kinds.length ? `<div class="health-grid">${_data.kinds.map(_kindCard).join('')}</div>`
-      : (_draft || !_hasOverview || _loadState.state !== 'resting' ? '' : `
+      : (_draft || _importDraft || !_hasOverview || _loadState.state !== 'resting' ? '' : `
         <div class="empty-state">
           <div class="empty-state-icon">${_si('heart')}</div>
           <div class="empty-state-title">no entries yet</div>
@@ -159,11 +176,131 @@ function _render() {
         </div>`)}
     ${_entries.length ? `<div class="health-recent"><div class="health-recent-h">recent</div>${_entries.slice(0, 30).map(_row).join('')}</div>` : ''}`;
   _wire(body);
+  const restored = focus && body.querySelector(focus);
+  if (restored && !restored.disabled && body.getClientRects().length) {
+    restored.focus({ preventScroll: true });
+    if (selection && restored.setSelectionRange) restored.setSelectionRange(...selection);
+  }
+}
+
+function _focusIfUnclaimed(selector, navigation) {
+  if (navigation === _navigation && document.activeElement === document.body && $('health-body')?.getClientRects().length) {
+    document.querySelector(selector)?.focus({ preventScroll: true });
+  }
 }
 
 function _row(e) {
   const label = e.label || KIND_LABEL[e.kind] || e.kind;
-  return `<div class="health-row" data-id="${e.id}"><span class="health-row-date">${esc(e.date)}</span><span class="health-row-kind">${esc(label)}</span><span class="health-row-val">${esc(e.value)} ${esc(e.unit)}</span><span class="health-row-note">${esc(e.note)}</span><div class="health-row-actions"><button class="btn" data-act="edit" aria-label="edit ${esc(label)} entry from ${esc(e.date)}">edit</button><button class="icon-btn danger" data-act="del" title="delete" aria-label="delete ${esc(label)} entry from ${esc(e.date)}">${_si('trash')}</button></div></div>`;
+  const busy = _deleting.has(e.record_id) || _saving;
+  return `<div class="health-row" data-id="${e.id}" data-record-id="${esc(e.record_id)}" aria-busy="${busy}"><span class="health-row-date">${esc(e.date)}</span><span class="health-row-kind">${esc(label)}</span><span class="health-row-val">${esc(e.value)} ${esc(e.unit)}</span><span class="health-row-note">${esc(e.note)}</span><div class="health-row-actions"><button class="btn" data-act="edit" ${busy ? 'disabled' : ''} aria-label="edit ${esc(label)} entry from ${esc(e.date)}">edit</button><button class="icon-btn danger" data-act="del" ${busy ? 'disabled' : ''} title="delete" aria-label="delete ${esc(label)} entry from ${esc(e.date)}">${_si('trash')}</button></div></div>`;
+}
+
+function _importForm() {
+  const draft = _importDraft;
+  const pending = ['reading', 'saving'].includes(draft.phase);
+  const status = draft.phase === 'reading' ? 'reading file…' : draft.phase === 'saving' ? 'importing…'
+    : draft.phase === 'done' ? (draft.result.replayed ? `this batch was already imported (${draft.result.imported} entries).`
+      : `imported ${draft.result.imported} entr${draft.result.imported === 1 ? 'y' : 'ies'}.`) : '';
+  return `<section class="health-add" id="health-import-form" aria-label="import health entries" aria-busy="${pending}">
+    <div class="health-form-title">${esc(draft.name)}</div>
+    ${status ? `<p role="status">${esc(status)}</p>` : ''}
+    ${draft.error ? `<p id="health-import-error" role="alert">${esc(draft.error)}</p>` : ''}
+    <div class="health-form-actions">
+      ${draft.phase === 'error' ? '<button type="button" class="btn primary" id="health-import-retry">retry import</button>' : ''}
+      <button type="button" class="btn" id="health-import-close" ${draft.phase === 'saving' ? 'disabled' : ''}>${draft.phase === 'done' ? 'done' : 'close'}</button>
+    </div>
+  </section>`;
+}
+
+async function _runImport(draft) {
+  if (_importDraft !== draft || draft.phase === 'saving') return;
+  const navigation = _navigation;
+  draft.error = '';
+  try {
+    if (draft.text == null) {
+      draft.phase = 'reading'; _render();
+      draft.text = await draft.file.text();
+      if (_importDraft !== draft) return;
+      draft.file = null;
+    }
+    draft.requestId ||= _newCreateRequestId();
+    draft.phase = 'saving'; _render();
+    const previousUncertainty = draft.uncertain;
+    draft.uncertain = true;
+    let result;
+    try {
+      result = await api('/api/health/import', { method: 'POST', body: { text: draft.text, request_id: draft.requestId, strict: true } });
+    } catch (error) {
+      if ([400, 422].includes(error.status)) draft.uncertain = previousUncertainty;
+      throw error;
+    }
+    if (!Number.isInteger(result?.imported) || result.imported < 0 || result.skipped !== 0 || typeof result.replayed !== 'boolean') throw new Error('the import could not be confirmed');
+    draft.result = result; draft.phase = 'done'; draft.uncertain = false; draft.text = null;
+    await loadHealth();
+  } catch (error) {
+    if (_importDraft !== draft) return;
+    draft.phase = 'error';
+    const reason = error.status && error.status < 500 && typeof error.data?.detail === 'string' ? error.data.detail : 'could not confirm the import';
+    draft.error = `${reason}. ${draft.uncertain ? 'this batch may already be saved. retry checks the same import without adding it twice.' : 'your file is kept. retry, or close to choose a corrected file.'}`;
+  } finally {
+    if (_importDraft === draft) {
+      _render();
+      _focusIfUnclaimed(draft.phase === 'error' ? '#health-import-retry' : '#health-import-close', navigation);
+    }
+  }
+}
+
+function _chooseImport() {
+  if (_importDraft) return;
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,text/csv';
+  inp.onchange = () => {
+    const file = inp.files[0];
+    if (!file || _importDraft) return;
+    _importDraft = { file, name: file.name, text: null, phase: 'reading', error: '', uncertain: false };
+    _runImport(_importDraft);
+  };
+  inp.click();
+}
+
+async function _closeImport() {
+  const draft = _importDraft, navigation = _navigation;
+  if (!draft || draft.phase === 'saving') return;
+  if (draft.uncertain && !await dlgConfirm('this batch may already be imported. close and check recent entries before importing it again?')) return;
+  if (_importDraft !== draft || draft.phase === 'saving' || navigation !== _navigation) return;
+  _importDraft = null; _render();
+  if (draft.uncertain) await loadHealth();
+  _focusIfUnclaimed('#health-import', navigation);
+}
+
+async function _deleteEntry(entry) {
+  if (!entry || _deleting.has(entry.record_id) || _saving) return;
+  if (!entry.record_id) { _deleteErrors.set(`missing:${entry.id}`, 'refresh health entries before deleting this reading.'); _render(); return; }
+  const navigation = _navigation;
+  if (!await dlgConfirm('delete this entry?') || navigation !== _navigation || _deleting.has(entry.record_id) || _saving) return;
+  ++_loadGeneration;
+  _deleting.add(entry.record_id); _render();
+  let removed = false;
+  try {
+    await api(`/api/health/${entry.id}?record_id=${encodeURIComponent(entry.record_id)}`, { method: 'DELETE' });
+    removed = true;
+  } catch (error) {
+    if ([404, 410].includes(error.status)) removed = true;
+    else {
+      const reading = `${entry.label || KIND_LABEL[entry.kind] || entry.kind}, ${entry.date}`;
+      const message = error.status === 409 ? 'this reading changed. refresh and review the current entry before deleting it.'
+        : 'could not confirm deletion. refresh to check, or retry deleting the same entry.';
+      _deleteErrors.set(entry.record_id, `${reading}: ${message}`);
+    }
+  } finally {
+    if (removed) {
+      _deleteErrors.delete(entry.record_id);
+      _entries = _entries.filter(item => item.record_id !== entry.record_id);
+      if (_draft?.record_id === entry.record_id) { _draft = null; _formError = ''; }
+    }
+    _deleting.delete(entry.record_id);
+    await loadHealth();
+    _focusIfUnclaimed(_deleteErrors.size ? '#health-refresh' : '#health-add-toggle', navigation);
+  }
 }
 
 function _addForm() {
@@ -195,7 +332,7 @@ async function _openEntry(entry = null) {
   const previousDraft = _draft;
   if (_draft && !await dlgConfirm(_createUncertain ? 'this entry may already be saved. discard this draft and check recent entries before adding another?' : 'discard this unsaved entry?')) return;
   if (_draft !== previousDraft || _saving) return;
-  _returnFocus = entry ? `.health-row[data-id="${entry.id}"] [data-act="edit"]` : '#health-add-toggle';
+  _returnFocus = entry ? `.health-row[data-record-id="${CSS.escape(entry.record_id || '')}"] [data-act="edit"]` : '#health-add-toggle';
   _draft = entry ? { ...entry, value: String(entry.value) } : { kind: 'weight', value: '', unit: 'kg', date: '', label: '', note: '' };
   _formError = '';
   _createUncertain = false; _conflictId = null;
@@ -220,15 +357,13 @@ function _wire(body) {
   body.querySelectorAll('.health-chip').forEach(c => c.addEventListener('click', () => { _days = +c.dataset.days; loadHealth(); }));
   $('health-add-toggle')?.addEventListener('click', () => _openEntry());
   $('health-empty-add')?.addEventListener('click', () => _openEntry());
-  $('health-import')?.addEventListener('click', () => {
-    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,text/csv';
-    inp.onchange = async () => {
-      const f = inp.files[0]; if (!f) return;
-      const r = await fetch('/api/health/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: await f.text() }) });
-      const d = await r.json().catch(() => ({}));
-      toast(`imported ${d.imported || 0} entr${d.imported === 1 ? 'y' : 'ies'}`, 'success'); loadHealth();
-    };
-    inp.click();
+  $('health-import')?.addEventListener('click', _chooseImport);
+  $('health-import-retry')?.addEventListener('click', () => _runImport(_importDraft));
+  $('health-import-close')?.addEventListener('click', _closeImport);
+  $('health-refresh')?.addEventListener('click', async () => {
+    const navigation = _navigation;
+    await loadHealth(_fetcher, { clearWriteError: true });
+    _focusIfUnclaimed('#health-add-toggle', navigation);
   });
 
   if (_draft) {
@@ -297,18 +432,16 @@ function _wire(body) {
 
   body.querySelectorAll('.health-row[data-id]').forEach(row => {
     row.querySelector('[data-act="edit"]')?.addEventListener('click', () => {
-      const entry = _entries.find(item => String(item.id) === row.dataset.id);
+      const entry = _entries.find(item => item.record_id === row.dataset.recordId);
       if (entry) _openEntry(entry);
     });
-    row.querySelector('[data-act="del"]')?.addEventListener('click', async () => {
-      if (!await dlgConfirm('delete this entry?')) return;
-      await fetch(`/api/health/${row.dataset.id}`, { method: 'DELETE' }); loadHealth();
-    });
+    row.querySelector('[data-act="del"]')?.addEventListener('click', () => _deleteEntry(_entries.find(item => item.record_id === row.dataset.recordId)));
   });
 }
 
 async function _create() {
   if (!_draft || _saving || _draft.openingSaved) return;
+  const navigation = _navigation;
   const raw = _draft.value.trim();
   const value = Number(raw);
   const date = _draft.date.trim();
@@ -320,7 +453,9 @@ async function _create() {
     return;
   }
   const editing = _draft.id != null;
+  if (editing && !_draft.record_id) { _formError = 'refresh and reopen this entry before saving. your input is kept.'; _render(); return; }
   const payload = { value, unit: _draft.unit.trim(), note: _draft.note.trim() };
+  if (editing) payload.record_id = _draft.record_id;
   if (date) payload.date = date;
   if (editing && _draft.create_request_id) payload.create_request_id = _draft.create_request_id;
   if (!editing) Object.assign(payload, { kind: _draft.kind, label: _draft.kind === 'custom' ? _draft.label.trim() : '' });
@@ -348,14 +483,12 @@ async function _create() {
     _createUncertain = false; _conflictId = null;
     toast(editing ? 'entry updated' : 'logged', 'success');
     await loadHealth();
-    document.querySelector(_returnFocus)?.focus();
+    _focusIfUnclaimed(_returnFocus, navigation);
   } catch (error) {
     _formError = error.message || 'could not save. your input is kept; try again.';
   } finally {
     _saving = false;
-    if (_draft) {
-      _render();
-      $('health-create')?.focus();
-    }
+    _render();
+    _focusIfUnclaimed(_draft ? '#health-create' : _returnFocus, navigation);
   }
 }

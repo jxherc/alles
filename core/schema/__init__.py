@@ -39,6 +39,7 @@ from core.schema.application import HabitCreateReceipt as HabitCreateReceipt
 from core.schema.application import HabitLog as HabitLog
 from core.schema.application import HealthCreateReceipt as HealthCreateReceipt
 from core.schema.application import HealthEntry as HealthEntry
+from core.schema.application import HealthImportReceipt as HealthImportReceipt
 from core.schema.application import Insight as Insight
 from core.schema.application import JarvisConnector as JarvisConnector
 from core.schema.application import JarvisDeliveryAttempt as JarvisDeliveryAttempt

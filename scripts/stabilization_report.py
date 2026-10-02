@@ -96,6 +96,7 @@ BROWSER_SUITES = {
     "specialist": (
         "health-workflows",
         "health-create-recovery",
+        "health-import-recovery",
         "habit-recovery",
         "habit-create-recovery",
         "finance-workflows",
@@ -156,6 +157,7 @@ BROWSER_SUITES = {
         "aide-document-safety",
         "health-workflows",
         "health-create-recovery",
+        "health-import-recovery",
         "habit-recovery",
         "habit-create-recovery",
         "finance-workflows",

@@ -8493,7 +8493,11 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .health-field { display: flex; flex-direction: column; min-width: 0; gap: var(--k-space-1, 4px); color: var(--muted); font-size: 13px; }
 .health-field .settings-input { width: 100%; min-width: 0; }
 .health-form-actions, .health-row-actions { display: flex; gap: var(--k-space-2, 8px); align-items: center; }
-#health-entry-error { color: var(--error); margin: 0; font-size: 14px; }
+#health-entry-error, #health-import-error { color: var(--error); margin: 0; font-size: 14px; }
+#health-import-form .health-form-title { overflow-wrap: anywhere; }
+#health-import-form p { margin: 0; }
+#health-write-error p { margin: 0; }
+#health-write-error p + p { margin-top: var(--k-space-2, 8px); }
 .health-recent { max-width: 880px; }
 .health-recent-h { font-size: 13px; color: var(--muted); margin-bottom: var(--k-space-2, 8px); }
 .health-row { display: grid; grid-template-columns: 100px minmax(64px, 1fr) minmax(80px, 1fr) minmax(0, 2fr) auto; gap: var(--k-space-2, 8px); align-items: center; padding: var(--k-space-2, 8px) 0; border-bottom: 1px solid var(--faint); font-size: 14px; }

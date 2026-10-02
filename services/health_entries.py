@@ -69,6 +69,22 @@ def recover_entry(db, request_id: str):
     return found[1]
 
 
+def recover_record(db, eid: int, record_id: str):
+    from core.database import HealthEntry
+
+    if not record_id:
+        raise HealthInputError("entry identity is missing; reload before changing it", 409)
+    entry = (
+        db.query(HealthEntry)
+        .filter_by(id=eid, record_id=record_id)
+        .populate_existing()
+        .one_or_none()
+    )
+    if entry is None:
+        raise HealthInputError("the original entry no longer exists; reload recent entries", 410)
+    return entry
+
+
 def save_entry(
     db,
     *,
@@ -125,11 +141,11 @@ def save_entry(
         **fields,
     )
     db.add(entry)
+    db.flush()
+    eid, record_id = entry.id, entry.record_id
     if receipt is not None:
-        db.flush()
         receipt.entry_id = entry.id
     db.commit()
     if receipt is not None:
         return recover_entry(db, identity)
-    db.refresh(entry)
-    return entry
+    return recover_record(db, eid, record_id)

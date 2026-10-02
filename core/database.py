@@ -72,6 +72,7 @@ from core.schema import HabitCreateReceipt as HabitCreateReceipt
 from core.schema import HabitLog as HabitLog
 from core.schema import HealthCreateReceipt as HealthCreateReceipt
 from core.schema import HealthEntry as HealthEntry
+from core.schema import HealthImportReceipt as HealthImportReceipt
 from core.schema import Holding as Holding
 from core.schema import IndexChunk as IndexChunk
 from core.schema import Insight as Insight
