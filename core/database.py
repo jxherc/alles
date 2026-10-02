@@ -87,6 +87,7 @@ from core.schema import JarvisTrigger as JarvisTrigger
 from core.schema import JarvisWorkflow as JarvisWorkflow
 from core.schema import JournalEntry as JournalEntry
 from core.schema import MailAccount as MailAccount
+from core.schema import MailAccountDeletion as MailAccountDeletion
 from core.schema import MailDraft as MailDraft
 from core.schema import MailRule as MailRule
 from core.schema import McpServer as McpServer

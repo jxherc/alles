@@ -28,7 +28,7 @@ class SchemaOwnershipTest(ApiTest):
                 "from core.schema import Base; "
                 "from sqlalchemy.orm import configure_mappers; configure_mappers(); "
                 "assert 'core.database' not in sys.modules; "
-                "assert len(Base.metadata.tables) == 128; "
+                "assert len(Base.metadata.tables) == 129; "
                 "assert Account.metadata is Base.metadata",
             ],
             env=dict(os.environ, PYTHON_DOTENV_DISABLED="1"),
@@ -39,7 +39,7 @@ class SchemaOwnershipTest(ApiTest):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_legacy_exports_share_the_complete_registry_and_relationships(self):
-        self.assertEqual(len(database.Base.registry.mappers), 128)
+        self.assertEqual(len(database.Base.registry.mappers), 129)
         for mapper in database.Base.registry.mappers:
             self.assertIs(getattr(database, mapper.class_.__name__), mapper.class_)
             self.assertIs(mapper.local_table.metadata, database.Base.metadata)
