@@ -211,15 +211,28 @@ def advanced_search(db, account_id, spec, limit=50) -> list[dict]:
     return [_to_msg(r) for r in rows]
 
 
-def mute(db, account_id, subject) -> int:
-    """mute a whole thread: flag every cached message whose normalized subject matches."""
+def get_muted(db, account_id, limit=50) -> list[dict]:
+    if limit <= 0:
+        return []
+    rows = (
+        db.query(CachedMessage)
+        .filter_by(account_id=account_id, muted=True)
+        .order_by(CachedMessage.date_ts.desc())
+        .limit(limit)
+        .all()
+    )
+    return [_to_msg(row) for row in rows]
+
+
+def mute(db, account_id, subject, muted: bool = True) -> int:
+    """set the mute state of this account's normalized-subject thread."""
     from services.mail import normalize_subject
 
     norm = normalize_subject(subject).lower()
     n = 0
     for r in db.query(CachedMessage).filter_by(account_id=account_id):
         if normalize_subject(r.subject or "").lower() == norm:
-            r.muted = True
+            r.muted = bool(muted)
             n += 1
     db.commit()
     return n

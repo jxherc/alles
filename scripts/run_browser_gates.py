@@ -85,6 +85,7 @@ COMMANDS = {
     "mail-triage-recovery": ("tests/pw_mail_triage_recovery.py",),
     "mail-triage-races": ("tests/pw_mail_triage_races.py",),
     "mail-triage-read-timing": ("tests/pw_mail_triage_read_timing.py",),
+    "mail-hidden-recovery": ("tests/pw_mail_hidden_recovery.py",),
     "vault-backup": ("tests/pw_vault_backup.py",),
     "vault-setup-desktop": ("tests/pw_vault_setup.py", "desktop"),
     "vault-setup-phone": ("tests/pw_vault_setup.py", "phone"),

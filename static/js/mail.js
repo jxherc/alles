@@ -313,7 +313,7 @@ function _reloadCurrent({ force = false, silent = false, fetcher = fetch } = {})
   if (_searchView) return searchMail(_searchView, fetcher);
   if (_labelFilter) return loadByLabel(_labelFilter, { preserveReader: true });
   if (_filter === 'flagged') return loadSmart('flagged', { preserveReader: true });
-  if (_filter === 'vip') return loadSmart('vip', { preserveReader: true });
+  if (['vip', 'muted', 'snoozed'].includes(_filter)) return loadSmart(_filter, { preserveReader: true });
   if (_filter === 'drafts') return loadDrafts({ preserveReader: true });
   if (_filter.startsWith('cat:')) return loadCategory(_filter.slice(4), { preserveReader: true });
   return loadInbox(force, silent, fetcher);
@@ -868,6 +868,8 @@ const _MAIL_NAV = [
   { f: 'unread', label: 'unread', icon: 'bell' },
   { f: 'flagged', label: 'flagged', icon: 'bookmark' },
   { f: 'vip', label: 'vip', icon: 'star' },
+  { f: 'muted', label: 'muted', icon: 'mute' },
+  { f: 'snoozed', label: 'snoozed', icon: 'snooze' },
   { f: 'sent', label: 'sent', icon: 'send' },
   { f: 'drafts', label: 'drafts', icon: 'edit' },
 ];
@@ -897,7 +899,7 @@ function setFilter(f) {
   document.querySelectorAll('.mail-nav-item').forEach(t => t.classList.toggle('active', t.dataset.filter === f));
   if (f === 'drafts') loadDrafts();
   else if (f === 'flagged') loadSmart('flagged');
-  else if (f === 'vip') loadSmart('vip');
+  else if (['vip', 'muted', 'snoozed'].includes(f)) loadSmart(f);
   else if (f.startsWith('cat:')) loadCategory(f.slice(4));
   else loadInbox();
 }
@@ -1106,6 +1108,8 @@ function _unsubLink(raw) {
 }
 
 const _msgRow = (m, indent = false) => {
+  // Match the cache filter's UTC comparison, including timestamps without a suffix.
+  const snoozed = (m.snoozed_until || '') > new Date().toISOString().slice(0, -1);
   const unsub = _unsubLink(m.list_unsubscribe);
   return `
     <div class="mail-row${m.seen ? '' : ' unread'}${indent ? ' mail-row-child' : ''}" data-aid="${esc(m.account_id)}" data-uid="${esc(m.uid)}" data-folder="${esc(m.folder || 'INBOX')}" data-subject="${esc(m.subject)}">
@@ -1117,8 +1121,8 @@ const _msgRow = (m, indent = false) => {
       <span class="mail-row-acts">
         ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" title="unsubscribe">${_si('x-circle')}</button>` : ''}
         <button class="mail-act" data-label title="add a label">${_si('tag')}</button>
-        <button class="mail-act" data-snooze title="snooze until tomorrow">${_si('snooze')}</button>
-        <button class="mail-act" data-mute title="mute thread">${_si('mute')}</button>
+        <button class="mail-act" data-snooze data-snoozed="${snoozed}" title="${snoozed ? 'end snooze' : 'snooze until tomorrow'}">${_si('snooze')}</button>
+        <button class="mail-act" data-mute data-muted="${Boolean(m.muted)}" title="${m.muted ? 'unmute thread' : 'mute thread'}">${_si('mute')}</button>
         <button class="mail-act" data-archive title="archive">${_si('archive')}</button>
         <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag title="flag">${_si(m.flagged ? 'star-fill' : 'star')}</button>
       </span>
@@ -1171,6 +1175,11 @@ function _renderThreads(messages, msgTime) {
   }).join('');
 }
 
+function hideRemovesRow(view, hidden) {
+  if (_searchView || _labelFilter || !['muted', 'snoozed'].includes(_filter)) return hidden;
+  return _filter === view && !hidden;
+}
+
 function _wireRows(list) {
   list.querySelectorAll('.mail-thread-head').forEach(h => h.addEventListener('click', () => {
     const k = h.dataset.thread;
@@ -1203,10 +1212,11 @@ function _wireRows(list) {
   list.querySelectorAll('[data-mute]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
     const { aid, uid, folder, subject } = btn.closest('.mail-row').dataset;
-    changeMail(btn, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/mute/${aid}`, { subject }),
+    const muted = btn.dataset.muted !== 'true';
+    changeMail(btn, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/mute/${aid}`, { subject, muted }),
       result => Number.isInteger(result?.muted) && result.muted > 0,
-      () => updateMailRows(message => message.account_id === aid && threadKey(message.subject) === threadKey(subject), {}, true),
-      'thread muted', 'could not confirm mute');
+      () => updateMailRows(message => message.account_id === aid && threadKey(message.subject) === threadKey(subject), { muted }, hideRemovesRow('muted', muted)),
+      muted ? 'thread muted' : 'thread unmuted', `could not confirm ${muted ? 'mute' : 'unmute'}`);
   }));
   list.querySelectorAll('[data-archive]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
@@ -1234,11 +1244,11 @@ function _wireRows(list) {
   list.querySelectorAll('[data-snooze]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
     const { aid, uid, folder } = btn.closest('.mail-row').dataset;
-    const until = new Date(Date.now() + 864e5).toISOString();
+    const until = btn.dataset.snoozed === 'true' ? '' : new Date(Date.now() + 864e5).toISOString();
     changeMail(btn, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/snooze/${aid}`, { uid, folder, until }),
       result => Number.isInteger(result?.snoozed) && result.snoozed > 0,
-      () => updateMailRows(row => sameMail(row, aid, uid, folder), {}, true),
-      'snoozed until tomorrow', 'could not confirm snooze');
+      () => updateMailRows(row => sameMail(row, aid, uid, folder), { snoozed_until: until }, hideRemovesRow('snoozed', Boolean(until))),
+      until ? 'snoozed until tomorrow' : 'snooze ended', `could not confirm ${until ? 'snooze' : 'ending snooze'}`);
   }));
   paintMailChanges();
 }
