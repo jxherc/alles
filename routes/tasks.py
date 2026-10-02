@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session as DbSession
 from core.database import DB_PATH, Task, get_db
 from core.settings import load_settings
 from services.commitment_requests import create_request
-from services.commitment_sources import MailSource, source_dict, source_json
+from services.commitment_sources import CommitmentSource, capture_source, source_dict, source_json
 from services.task_nl import parse_task, reschedule_date
 from services.task_status import TASK_STAGES, apply_status
 from services.task_status import normalize_stage as _stage
@@ -228,7 +228,7 @@ class TaskBody(BaseModel):
     stage: str = "backlog"
     nl: bool = False  # parse the title as natural language
     request_id: str = ""
-    source: MailSource | None = None
+    source: CommitmentSource | None = None
 
 
 @router.post("/tasks")
@@ -284,6 +284,8 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
 class QuickBody(BaseModel):
     text: str
     project: str = ""
+    preview: bool = False
+    today: date | None = None
 
 
 @router.post("/tasks/quick")
@@ -291,7 +293,20 @@ def quick_add(body: QuickBody, db: DbSession = Depends(get_db)):
     """natural-language quick add: 'pay rent every 1st !', 'call mom tomorrow #home'."""
     if not body.text.strip():
         raise HTTPException(400, "empty")
-    p = parse_task(body.text, language=load_settings().get("language", "en"))
+    if body.preview and len(body.text) > 6000:
+        raise HTTPException(400, "capture must be at most 6000 characters")
+    p = parse_task(
+        body.text,
+        today=body.today if body.preview else None,
+        language=load_settings().get("language", "en"),
+    )
+    if body.preview:
+        return {
+            "preview": True,
+            "kind": "task",
+            "candidate": {**p, "project": body.project},
+            "source": capture_source(body.text),
+        }
     _due = p["due_date"] or ""
     t = Task(
         title=p["title"],
