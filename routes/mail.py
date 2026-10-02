@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import DB_PATH, MailAccount, MailDraft, get_db
@@ -949,6 +949,7 @@ class SignatureBody(BaseModel):
     id: str = ""
     name: str = ""
     body: str = ""
+    revision: int | None = Field(default=None, ge=1, strict=True)
 
 
 @router.get("/signatures")
@@ -967,8 +968,21 @@ def save_signature(body: SignatureBody):
 
     with recovery_consistency_lock:
         sigs = [s for s in load_settings().get("mail_signatures", []) if s.get("id")]
+        if body.revision is not None and not body.id:
+            raise HTTPException(422, "a versioned signature save requires an id")
         sid = body.id or uuid.uuid4().hex
         row = {"id": sid, "name": (body.name or "signature").strip(), "body": body.body or ""}
+        previous = next((s for s in sigs if s["id"] == sid), None)
+        revision = previous.get("revision", 0) if previous else 0
+        if body.revision is not None:
+            if previous and body.revision <= revision:
+                if all(previous[key] == row[key] for key in row):
+                    return previous
+                raise HTTPException(409, "a newer signature save is already stored")
+            row["revision"] = body.revision
+        elif revision:
+            # Legacy edits still work, and invalidate older versioned retries.
+            row["revision"] = revision + 1
         sigs = [s for s in sigs if s["id"] != sid] + [row]
         save_settings({"mail_signatures": sigs})
         return row

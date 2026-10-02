@@ -519,12 +519,14 @@ def run():
                     elif case == "signature-repeat":
                         compose()
                         page.locator("#mc-sig-add").click()
-                        dialog = page.get_by_role("dialog", name="signature name:", exact=True)
-                        dialog.get_by_role("textbox").fill("owned signature")
-                        dialog.get_by_role("button", name="ok", exact=True).click()
-                        dialog = page.get_by_role("dialog", name="signature text:", exact=True)
-                        dialog.get_by_role("textbox").fill("owned signature text")
-                        dialog.get_by_role("button", name="ok", exact=True).click()
+                        dialog = page.get_by_role("dialog", name="signature", exact=True)
+                        dialog.get_by_role("textbox", name="name", exact=True).fill(
+                            "owned signature"
+                        )
+                        dialog.get_by_role("textbox", name="signature text", exact=True).fill(
+                            "owned signature text"
+                        )
+                        dialog.get_by_role("button", name="save", exact=True).click()
                         expect(page.locator("#mc-sig-list")).to_contain_text("owned signature")
                         body.fill("bold once")
                         body.focus()

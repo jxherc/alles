@@ -2,7 +2,7 @@ import { toast } from './util.js';
 import { openCaptureReview, showPendingCapture } from './capture.js';
 import { readRecordTarget } from './recordlinks.js';
 import { replaceRouteUrl } from './route_history.js';
-import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
+import { confirm as dlgConfirm, prompt as dlgPrompt, fields as dlgFields } from './dialog.js';
 import { populateDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker as _dpInit } from './datepick.js';
 import { formatDate, formatTime, resolvedTimeZone } from './i18n.js';
@@ -1522,6 +1522,8 @@ async function compose(pre = {}, generation = null) {
       <button class="btn" id="mc-suggest" title="AI reply suggestions">✨ suggest</button>
       <span class="mail-sig-wrap" id="mc-sig-list"></span>
       <button class="btn" id="mc-sig-add" title="save a new signature">＋ sig</button>
+      <button class="btn" id="mc-sig-retry" style="display:none">retry signatures</button>
+      <span id="mc-sig-status" class="mail-status" role="status"></span>
     </div>
     <div class="settings-input mail-compose-body mail-rich-body" id="mc-html" contenteditable="true" role="textbox" aria-label="message" aria-multiline="true" data-ph="write your message…">${pre.body || ''}</div>
     <div id="mc-suggest-box" class="mail-suggest-box"></div>
@@ -1689,34 +1691,72 @@ async function _wireRichCompose(defaultAid, root, current) {
       } catch (e) { console.error(e); toast('image upload failed', 'error'); }
     });
   }
-  // signature chips — click to append (5c)
-  let sigs = [];
-  try { sigs = (await fetch('/api/mail/signatures').then(r => r.json())).signatures || []; } catch (e) { console.error(e); }
-  if (!current()) return;
-  const list = $('mc-sig-list');
-  if (list) {
+  const list = $('mc-sig-list'), status = $('mc-sig-status'), retry = $('mc-sig-retry');
+  let sigs = [], readGeneration = 0;
+  const validSignature = signature => signature && ['id', 'name', 'body'].every(key => typeof signature[key] === 'string') && signature.id;
+  const readSignatures = async () => {
+    const data = await mailJson('/api/mail/signatures', { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    if (!Array.isArray(data?.signatures) || !data.signatures.every(validSignature)) throw new Error('could not confirm the signature list');
+    return data.signatures;
+  };
+  const renderSignatures = () => {
     list.innerHTML = sigs.map(s => `<button class="btn mc-sig-chip" data-sig="${esc(s.id)}" title="insert signature">✎ ${esc(s.name)}</button>`).join('');
-    list.querySelectorAll('.mc-sig-chip').forEach(b => b.addEventListener('click', () => {
-      const s = sigs.find(x => x.id === b.dataset.sig); if (!s) return;
-      const ed = $('mc-html'); if (!ed) return;
-      ed.innerHTML += `<div class="mail-sig" data-sig>--<br>${esc(s.body).replace(/\n/g, '<br>')}</div>`;
-    }));
-  }
-  const addSignature = $('mc-sig-add');
-  if (addSignature && !addSignature.dataset.bound) {
-    addSignature.dataset.bound = '1';
-    addSignature.addEventListener('click', async () => {
-      const name = await dlgPrompt('signature name:'); if (!name || !current()) return;
-      const bodyTxt = await dlgPrompt('signature text:'); if (bodyTxt == null || !current()) return;
-      await fetch('/api/mail/signatures', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, body: bodyTxt }),
-      }).catch(console.error);
+    list.querySelectorAll('.mc-sig-chip').forEach(button => button.addEventListener('click', () => {
       if (!current()) return;
-      toast('signature saved', 'success');
-      _wireRichCompose(defaultAid, root, current);  // refresh the picker
-    });
-  }
+      const signature = sigs.find(row => row.id === button.dataset.sig);
+      if (!signature) return;
+      $('mc-html').innerHTML += `<div class="mail-sig" data-sig>--<br>${esc(signature.body).replace(/\n/g, '<br>')}</div>`;
+    }));
+  };
+  const loadSignatures = async () => {
+    const generation = ++readGeneration;
+    retry.disabled = true;
+    status.textContent = 'loading signatures…';
+    try {
+      const rows = await readSignatures();
+      if (!current() || generation !== readGeneration) return;
+      sigs = rows; renderSignatures();
+      status.textContent = ''; retry.style.display = 'none';
+    } catch (error) {
+      if (!current() || generation !== readGeneration) return;
+      status.textContent = `could not load signatures. ${error.message || 'check your connection.'}`;
+      retry.style.display = '';
+    } finally { if (generation === readGeneration) retry.disabled = false; }
+  };
+  retry.addEventListener('click', loadSignatures);
+  $('mc-sig-add').addEventListener('click', async () => {
+    if (!current()) return;
+    const id = savedRequestId();
+    let confirmed, attempt = null;
+    const values = await dlgFields('signature', [
+      { id: 'name', label: 'name' },
+      { id: 'body', label: 'signature text', multiline: true },
+    ], { submit: async fields => {
+      if (!current()) throw new Error('the original message is no longer open; your signature text is still here');
+      const desired = { id, name: fields.name.trim(), body: fields.body };
+      if (!desired.name) throw new Error('enter a signature name');
+      const unchanged = attempt && ['name', 'body'].every(key => attempt[key] === desired[key]);
+      desired.revision = unchanged ? attempt.revision : (attempt?.revision || 0) + 1;
+      attempt = desired;
+      const matches = row => validSignature(row) && Number.isInteger(row.revision) && row.revision >= desired.revision && ['id', 'name', 'body'].every(key => row[key] === desired[key]);
+      try {
+        const row = await mailJson('/api/mail/signatures', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(desired), signal: AbortSignal.timeout(15000),
+        });
+        if (!matches(row)) throw new Error('could not confirm the saved signature');
+        confirmed = row;
+      } catch (error) {
+        try { confirmed = (await readSignatures()).find(matches); } catch { /* Keep the original save error and form for retry. */ }
+        if (!confirmed) throw new Error(`save unconfirmed. ${error.message || 'check your connection and retry.'}`);
+      }
+    } });
+    if (!values || !confirmed || !current()) return;
+    sigs = [...sigs.filter(row => row.id !== confirmed.id), confirmed]; renderSignatures();
+    toast('signature saved', 'success');
+    await loadSignatures();
+  });
+  await loadSignatures();
 }
 
 const OUTGOING_PREFIX = 'alles-mail-outbox:';
