@@ -2015,6 +2015,179 @@ function _showUndoBar(row, scope) {
   setTimeout(() => { if (bar.dataset.id === row.id && bar.dataset.scope === scope) bar.remove(); }, Math.min(remaining, 2147483647));
 }
 
+let _ruleWrite = null;
+const ruleFields = ['match_field', 'match_value', 'action', 'action_arg', 'enabled'];
+const ruleMatches = (row, pending) => row?.id === pending.request_id && ruleFields.every(key => row[key] === pending[key]);
+const validRule = row => row && typeof row.id === 'string' && ['from', 'subject'].includes(row.match_field) &&
+  typeof row.match_value === 'string' && ['markread', 'mute', 'label', 'autoreply'].includes(row.action) &&
+  typeof row.action_arg === 'string' && typeof row.enabled === 'boolean';
+const ruleKey = scope => 'alles-mail-rule:' + scope;
+const ruleRequest = (url, options = {}) => mailJson(url, { ...options, signal: AbortSignal.timeout(15000) });
+
+function mountRuleEditor(root, generation, initialRows, scopes) {
+  const current = () => root.isConnected && generation === _messageGeneration;
+  const el = id => root.querySelector('#' + id);
+  let rows = initialRows, pending = null, busy = false, confirmed = false, storageError = '', notice = '';
+  const fields = () => ({ match_field: getDropdownValue(el('mr-field')), match_value: savedText(el('mr-value').value),
+    action: getDropdownValue(el('mr-action')), action_arg: savedText(el('mr-arg').value), enabled: true });
+  const sameFields = value => ruleFields.every(key => fields()[key] === value[key]);
+  const initialFields = fields();
+  function keep(value) {
+    const raw = JSON.stringify(value), key = ruleKey(value.recovery_scope);
+    sessionStorage.setItem(key, raw);
+    if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain the pending rule');
+    pending = value; confirmed = false;
+  }
+  function clear() {
+    const key = ruleKey(pending.recovery_scope), raw = sessionStorage.getItem(key);
+    if (raw && JSON.parse(raw).request_id !== pending.request_id) throw new Error('recovery data changed');
+    sessionStorage.removeItem(key);
+    if (sessionStorage.getItem(key) !== null) throw new Error('could not clear recovery data');
+    pending = null; confirmed = false;
+  }
+  function finish(deleted = false) {
+    confirmed = true;
+    notice = deleted ? 'rule removed' : 'rule saved';
+    if (!deleted && current() && sameFields(pending)) { el('mr-value').value = ''; el('mr-arg').value = ''; }
+    else if (!deleted && current()) notice += '; newer changes are unsaved';
+    try { clear(); }
+    catch { notice += '. recovery data could not be cleared; retry cleanup.'; }
+  }
+  function readPending() {
+    storageError = '';
+    try {
+      pending = null; confirmed = false;
+      for (const scope of scopes) {
+        const raw = sessionStorage.getItem(ruleKey(scope));
+        if (!raw) continue;
+        const value = JSON.parse(raw);
+        if (!['create', 'delete'].includes(value?.kind) || value.recovery_scope !== scope ||
+            !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value.request_id || '') ||
+            !validRule({ ...value, id: value.request_id })) throw new Error('invalid recovery data');
+        if (pending) throw new Error('multiple pending rules');
+        pending = value;
+      }
+    } catch { storageError = 'could not read rule recovery data. retry reading it before making changes.'; }
+  }
+  function paint() {
+    if (!current()) return;
+    const focus = root.contains(document.activeElement) ? document.activeElement.id : '';
+    const blocked = busy || Boolean(pending || storageError);
+    el('mail-rules-list').innerHTML = rows.map(row => `<div class="mail-rule-row" data-id="${esc(row.id)}">
+      <span>if <b>${esc(row.match_field)}</b> contains “${esc(row.match_value)}” → <b>${esc(({ markread: 'mark read', autoreply: 'auto-reply' })[row.action] || row.action)}</b>${row.action_arg ? ` (${esc(row.action_arg)})` : ''}${row.enabled ? '' : ' · paused'}</span>
+      <button type="button" class="btn danger mail-rule-del" id="mr-delete-${esc(row.id)}" data-id="${esc(row.id)}" aria-label="remove rule for ${esc(row.match_value)}" aria-disabled="${blocked}">remove</button>
+    </div>`).join('') || '<div class="mail-empty-sm">no rules yet</div>';
+    el('mr-add').setAttribute('aria-disabled', String(blocked));
+    el('mr-run').setAttribute('aria-disabled', String(blocked || !_accounts.length));
+    const message = busy ? 'saving rule changes…' : storageError || notice || (pending ? `saving the rule for “${pending.match_value}” is unconfirmed. retry uses the same rule.` : '');
+    let actions = '';
+    if (storageError) actions = '<button type="button" class="btn" id="mr-read-retry">retry reading recovery data</button><button type="button" class="btn" id="mr-clear">clear recovery data</button>';
+    else if (pending) actions = confirmed ? '<button type="button" class="btn" id="mr-cleanup">retry cleanup</button>' :
+      `<button type="button" class="btn" id="mr-retry">${pending.kind === 'delete' ? 'retry removing rule' : 'retry saving rule'}</button>${pending.kind === 'create' ? '<button type="button" class="btn" id="mr-cancel">cancel pending rule</button>' : ''}`;
+    el('mr-status').textContent = message;
+    el('mr-recovery-actions').innerHTML = actions;
+    el('mr-recovery').querySelectorAll('button').forEach(button => button.setAttribute('aria-disabled', String(busy)));
+    root.querySelectorAll('.mail-rule-del').forEach(button => button.onclick = () => {
+      if (blocked) return;
+      const row = rows.find(value => value.id === button.dataset.id);
+      start({ ...row, kind: 'delete', request_id: row.id, recovery_scope: scopes[0] });
+    });
+    el('mr-retry')?.addEventListener('click', save);
+    el('mr-cancel')?.addEventListener('click', () => {
+      if (busy || !pending) return;
+      start({ ...pending, kind: 'delete' });
+    });
+    el('mr-cleanup')?.addEventListener('click', () => {
+      if (busy || !pending) return;
+      try { clear(); notice = 'rule recovery data cleared'; } catch { notice = 'could not clear rule recovery data; retry cleanup.'; }
+      paint();
+    });
+    el('mr-read-retry')?.addEventListener('click', () => { if (!busy) { readPending(); reconcilePending(); paint(); } });
+    el('mr-clear')?.addEventListener('click', async () => {
+      if (busy || !await dlgConfirm('clear unreadable rule recovery data? an earlier change may already be saved. check the rule list before adding it again.') || !current()) return;
+      try {
+        for (const scope of scopes) { sessionStorage.removeItem(ruleKey(scope)); if (sessionStorage.getItem(ruleKey(scope)) !== null) throw new Error('cleanup failed'); }
+        pending = null; storageError = ''; notice = 'recovery data cleared. check saved rules before adding another.';
+      } catch { storageError = 'could not clear rule recovery data. retry reading it.'; }
+      paint();
+    });
+    if (focus && document.activeElement === document.body) {
+      const target = el(focus) || el('mr-status');
+      (target?.getClientRects().length ? target : el('mr-add')).focus();
+    }
+  }
+  function start(value) {
+    if (busy || storageError) return;
+    notice = '';
+    try { keep(value); save(); }
+    catch { storageError = 'could not retain this change for recovery. no request was sent. retry reading recovery data.'; paint(); }
+  }
+  async function save() {
+    if (busy || !pending || confirmed || storageError) return;
+    const desired = pending;
+    busy = true; notice = ''; paint();
+    const writing = (async () => {
+      try {
+        if (desired.kind === 'delete') {
+          const data = await ruleRequest(`/api/mail/rules/${encodeURIComponent(desired.request_id)}?recovery_scope=${encodeURIComponent(desired.recovery_scope)}`, { method: 'DELETE' });
+          if (data?.ok !== true) throw new Error('could not confirm removal');
+          rows = rows.filter(row => row.id !== desired.request_id); finish(true);
+        } else {
+          const row = await ruleRequest('/api/mail/rules', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(desired) });
+          if (!validRule(row) || !ruleMatches(row, desired)) throw new Error('could not confirm the saved rule');
+          rows = [...rows.filter(value => value.id !== row.id), row]; finish();
+        }
+      } catch (error) {
+        if (error.status === 410 && desired.kind === 'create') { rows = rows.filter(row => row.id !== desired.request_id); finish(true); }
+        else notice = `${desired.kind === 'delete' ? 'removal' : 'save'} unconfirmed. ${error.message || 'check your connection and retry.'} your rule is kept for retry.`;
+      } finally { busy = false; paint(); }
+    })();
+    _ruleWrite = writing;
+    try { await writing; } finally { if (_ruleWrite === writing) _ruleWrite = null; }
+  }
+  function reconcilePending() {
+    if (!pending || storageError) return;
+    if (pending.kind === 'create') {
+      if (sameFields(initialFields)) {
+        el('mr-field').value = pending.match_field; el('mr-value').value = pending.match_value;
+        el('mr-action').value = pending.action; el('mr-arg').value = pending.action_arg;
+      }
+      if (rows.some(row => ruleMatches(row, pending))) finish();
+    } else notice = `removal of the rule for “${pending.match_value}” is unconfirmed. retry removing it.`;
+  }
+  readPending(); reconcilePending();
+  el('mr-add').addEventListener('click', () => {
+    if (busy || pending || storageError) return;
+    const value = fields();
+    if (!value.match_value) { notice = 'enter text to match'; paint(); el('mr-value').focus(); return; }
+    if (['label', 'autoreply'].includes(value.action) && !value.action_arg) { notice = value.action === 'label' ? 'enter a label' : 'enter a reply message'; paint(); el('mr-arg').focus(); return; }
+    start({ ...value, kind: 'create', request_id: savedRequestId(), recovery_scope: scopes[0] });
+  });
+  el('mr-run').addEventListener('click', async () => {
+    if (busy || pending || storageError || !_accounts.length) return;
+    busy = true; paint(); el('mr-status').textContent = '';
+    el('mr-run-status').textContent = 'running rules…';
+    const accounts = [..._accounts];
+    const running = (async () => {
+      let total = 0, completed = 0; const failed = [];
+      for (const account of accounts) {
+        try {
+          const result = await ruleRequest(`/api/mail/rules/run/${encodeURIComponent(account.id)}`, { method: 'POST' });
+          if (!Number.isSafeInteger(result?.applied) || result.applied < 0) throw new Error('could not confirm result');
+          total += result.applied; completed++;
+        } catch { failed.push(account.name || account.email || 'account'); }
+      }
+      if (current()) {
+        el('mr-run-status').textContent = `${total} rule action(s) confirmed across ${completed} account(s).${failed.length ? ` could not confirm: ${failed.join(', ')}. check inbox before running again.` : ''}`;
+        loadInbox();
+      }
+    })();
+    _ruleWrite = running;
+    try { await running; } finally { if (_ruleWrite === running) _ruleWrite = null; busy = false; paint(); }
+  });
+  paint();
+}
+
 let _vacationWrite = null;
 async function rulesPanel() {
   if (!await prepareMailNavigation()) return;
@@ -2023,15 +2196,17 @@ async function rulesPanel() {
   main.innerHTML = '<div class="mail-empty" role="status">loading rules…</div>';
   // A reopened form must read after its earlier save, not race a newer save against it.
   if (_vacationWrite) await _vacationWrite.catch(() => {});
+  if (_ruleWrite) await _ruleWrite.catch(() => {});
   if (generation !== _messageGeneration) return;
-  let rules, vac;
+  let rules, vac, scopes;
   try {
     const [data, vacation] = await Promise.all([mailJson('/api/mail/rules'), mailJson('/api/mail/vacation')]);
-    if (!Array.isArray(data?.rules) || !data.rules.every(rule => rule && typeof rule.id === 'string') ||
+    if (!Array.isArray(data?.rules) || !data.rules.every(validRule) ||
+        !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || !data.recovery_scopes.every(scope => /^[a-f0-9]{64}$/.test(scope)) ||
         typeof vacation?.enabled !== 'boolean' || typeof vacation.subject !== 'string' || typeof vacation.body !== 'string') {
       throw new Error('could not confirm rules and vacation settings');
     }
-    rules = data.rules; vac = vacation;
+    rules = data.rules; vac = vacation; scopes = data.recovery_scopes;
   } catch (error) {
     if (generation !== _messageGeneration) return;
     main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || 'could not load rules and vacation settings')} <button type="button" class="btn">retry</button></div>`;
@@ -2039,22 +2214,18 @@ async function rulesPanel() {
     return;
   }
   if (generation !== _messageGeneration) return;
-  const ruleRows = rules.map(r => `
-    <div class="mail-rule-row" data-id="${esc(r.id)}">
-      <span>if <b>${esc(r.match_field)}</b> contains “${esc(r.match_value)}” → <b>${esc(r.action)}</b>${r.action_arg ? ` (${esc(r.action_arg)})` : ''}</span>
-      <button class="btn danger mail-rule-del" data-id="${esc(r.id)}">×</button>
-    </div>`).join('') || '<div class="mail-empty-sm">no rules yet</div>';
   main.innerHTML = `<div class="mail-rules-panel">
     <div class="mail-compose-head">rules</div>
-    <div id="mail-rules-list">${ruleRows}</div>
+    <div id="mail-rules-list"></div>
     <div class="mail-rule-form">
-      <div class="settings-input custom-select" id="mr-field" style="width:100px"></div>
-      <input class="settings-input" id="mr-value" placeholder="contains…" style="flex:1;min-width:120px">
-      <div class="settings-input custom-select" id="mr-action" style="width:120px"></div>
-      <input class="settings-input" id="mr-arg" placeholder="label / reply (optional)" style="width:150px">
-      <button class="btn primary" id="mr-add">add rule</button>
+      <label><span>match field</span><div class="settings-input custom-select" id="mr-field" aria-label="match field"></div></label>
+      <label><span>contains</span><input class="settings-input" id="mr-value"></label>
+      <label><span>action</span><div class="settings-input custom-select" id="mr-action" aria-label="rule action"></div></label>
+      <label><span>label or reply message</span><textarea class="settings-input" id="mr-arg" rows="2" placeholder="for label or auto-reply rules"></textarea></label>
     </div>
-    <div class="mail-rule-actions"><button class="btn" id="mr-run">run rules now</button><span id="mr-run-status" class="mail-status"></span></div>
+    <button type="button" class="btn primary" id="mr-add">add rule</button>
+    <div class="mail-saved-status" id="mr-recovery"><p id="mr-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="mr-recovery-actions"></div></div>
+    <div class="mail-rule-actions"><button type="button" class="btn" id="mr-run">run rules now</button><span id="mr-run-status" class="mail-status" role="status" aria-live="polite"></span></div>
     <div class="mail-compose-head" style="margin-top:1rem">vacation responder</div>
     <button class="btn mail-vac-toggle${vac.enabled ? ' active' : ''}" id="mv-enabled" aria-pressed="${vac.enabled ? 'true' : 'false'}">${vac.enabled ? '✓ ' : ''}auto-reply when I'm away</button>
     <input class="settings-input" id="mv-subject" aria-label="vacation subject" placeholder="subject" value="${esc(vac.subject || '')}">
@@ -2073,28 +2244,7 @@ async function rulesPanel() {
     $('mv-enabled').classList.toggle('active', on);
     $('mv-enabled').textContent = (on ? '✓ ' : '') + "auto-reply when I'm away";
   });
-  main.querySelectorAll('.mail-rule-del').forEach(b => b.addEventListener('click', async () => {
-    await fetch(`/api/mail/rules/${b.dataset.id}`, { method: 'DELETE' }).catch(console.error);
-    rulesPanel();
-  }));
-  $('mr-add').addEventListener('click', async () => {
-    const val = $('mr-value').value.trim();
-    if (!val) { toast('enter a match value', 'error'); return; }
-    await fetch('/api/mail/rules', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ match_field: getDropdownValue($('mr-field')) || 'from', match_value: val, action: getDropdownValue($('mr-action')) || 'markread', action_arg: $('mr-arg').value.trim() }),
-    }).catch(console.error);
-    rulesPanel();
-  });
-  $('mr-run').addEventListener('click', async () => {
-    let total = 0;
-    for (const a of _accounts) {
-      const d = await fetch(`/api/mail/rules/run/${a.id}`, { method: 'POST' }).then(r => r.json()).catch(e => { console.error(e); return { applied: 0 }; });
-      total += d.applied || 0;
-    }
-    $('mr-run-status').textContent = `applied to ${total} message(s)`;
-    loadInbox();
-  });
+  mountRuleEditor(main.querySelector('.mail-rules-panel'), generation, rules, scopes);
   const vacationRoot = main.querySelector('.mail-rules-panel');
   const vacationSave = vacationRoot.querySelector('#mv-save');
   const vacationStatus = vacationRoot.querySelector('#mv-status');
