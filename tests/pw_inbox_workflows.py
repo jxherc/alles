@@ -448,6 +448,8 @@ def run():
                 expect(page.locator(".mail-row")).to_have_count(2)
                 page.get_by_role("button", name="drafts", exact=True).focus()
                 page.keyboard.press("Tab")
+                expect(page.locator("#mail-read-retry")).to_be_focused()
+                page.keyboard.press("Tab")
                 opener = page.get_by_role(
                     "button", name="Receipt 中文 with a long subject", exact=True
                 )
