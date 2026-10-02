@@ -90,6 +90,7 @@ from core.schema.application import VaultAttachment as VaultAttachment
 from core.schema.application import VaultCreateReceipt as VaultCreateReceipt
 from core.schema.application import VaultEntry as VaultEntry
 from core.schema.application import VaultShare as VaultShare
+from core.schema.application import VaultUploadReceipt as VaultUploadReceipt
 from core.schema.application import WebAuthnCredential as WebAuthnCredential
 from core.schema.application import Webhook as Webhook
 from core.schema.base import Base as Base

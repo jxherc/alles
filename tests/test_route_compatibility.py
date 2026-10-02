@@ -30,8 +30,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 900)
-        self.assertEqual(digest, "4a693cbe5721d9350937946037585e3b90aaf281f63c10b2a4de30883af67f37")
+        self.assertEqual(len(rows), 904)
+        self.assertEqual(digest, "98bd1b184eb7503eeb1f21248893bf7cc01261a08ba4aa543184bd0d3ba44bfe")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -40,7 +40,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 883, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 887, "v1": 2, "public": 15})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 
