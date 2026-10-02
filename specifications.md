@@ -403,6 +403,9 @@ a real email client (read + send), with one-click setup for the big providers an
   result stays visible and asks for a mailbox refresh before another attempt
 - mail changes are never added to the generic offline queue, and older queued mail writes remain
   blocked for review. saved labels can be opened from the keyboard
+- vacation settings require a confirmed read before editing, retain changes after rejected or
+  uncertain saves, and allow retry. saved feedback distinguishes newer unsaved edits; late
+  responses cannot replace a different open mail form.
 - muted and snoozed views keep hidden messages reachable. unmute a thread or end a message’s snooze
   from its row; if both apply, clear both to return it to the inbox. failed restores remain visible,
   and retries keep the same requested state. hidden results retain their account and folder
