@@ -195,7 +195,7 @@ let _listGeneration = 0, _mailLoadGeneration = 0, _listContext = '';
 async function mailJson(url, options = {}, fetcher = fetch) {
   const response = await fetcher(url, options);
   const data = await response.json();
-  if (!response.ok) throw new Error(data?.message || data?.detail?.message || (typeof data?.detail === 'string' ? data.detail : 'mail is unavailable'));
+  if (!response.ok) throw Object.assign(new Error(data?.message || data?.detail?.message || (typeof data?.detail === 'string' ? data.detail : 'mail is unavailable')), { status: response.status });
   return data;
 }
 function preserveMailReadFocus(list) {
@@ -281,33 +281,217 @@ function _reloadCurrent({ force = false, silent = false, fetcher = fetch } = {})
   return loadInbox(force, silent, fetcher);
 }
 
-// saved searches (5a): a chip bar above the list — save the current query, click to run, × to drop
-async function _renderSavedBar() {
+const SAVED_SEARCH_PREFIX = 'alles-mail-search:';
+let _savedRows = [], _savedScopes = [], _savedPending = null;
+let _savedRead = 0, _savedReady = false, _savedBusy = false, _savedConfirmed = false;
+let _savedReadError = '', _savedRecoveryError = '', _savedNotice = '';
+let _savedSave = null;
+const _savedRemovals = new Set();
+// Match Python str.strip() used by the saved-search API, including U+0085.
+const savedText = value => value.replace(/^[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g, '');
+const savedLabel = value => value.name.trim() || value.query.trim() || 'saved search';
+const savedKey = scope => SAVED_SEARCH_PREFIX + scope;
+const savedMatches = (row, pending) => row.id === pending.request_id && row.name === pending.name && row.query === pending.query;
+const savedIntentMatches = (a, b) => a?.request_id === b?.request_id && a?.recovery_scope === b?.recovery_scope && a?.name === b?.name && a?.query === b?.query;
+
+function savedRequestId() {
+  if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+function readPendingSearch() {
+  _savedRecoveryError = '';
+  try {
+    let pending = null;
+    for (const scope of _savedScopes) {
+      const raw = sessionStorage.getItem(savedKey(scope));
+      if (!raw) continue;
+      const value = JSON.parse(raw);
+      if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value?.request_id || '') || typeof value.name !== 'string' || !savedText(value.name) || typeof value.query !== 'string' || value.recovery_scope !== scope) throw new Error('invalid pending search');
+      pending ||= value;
+    }
+    _savedPending = pending;
+    _savedConfirmed = false;
+  } catch {
+    _savedRecoveryError = 'could not read the pending search. retry, or clear its recovery data.';
+  }
+}
+function clearPendingSearch(pending) {
+  for (const scope of _savedScopes) {
+    const key = savedKey(scope), raw = sessionStorage.getItem(key);
+    if (raw && JSON.parse(raw).request_id === pending.request_id) {
+      sessionStorage.removeItem(key);
+      if (sessionStorage.getItem(key) !== null) throw new Error('could not clear recovery data');
+    }
+  }
+  if (_savedPending?.request_id === pending.request_id) _savedPending = null;
+}
+function confirmSavedSearch(row, pending) {
+  if (!savedMatches(row, pending)) throw new Error('could not confirm the saved search');
+  if (_savedSave?.pending.request_id === pending.request_id && _savedSave.pending.recovery_scope === pending.recovery_scope) _savedSave.confirmed = true;
+  _savedConfirmed = true;
+  _savedNotice = 'search saved';
+  try { clearPendingSearch(pending); }
+  catch { _savedNotice = 'search saved. its recovery data could not be cleared; retry cleanup.'; }
+}
+function paintSavedBar() {
   const bar = $('mail-saved'); if (!bar) return;
-  let saved = [];
-  try { saved = (await fetch('/api/mail/saved-searches').then(r => r.json())).searches || []; } catch (e) { console.error(e); }
-  const chips = saved.map(s => `<span class="mail-saved-chip" data-q="${esc(s.query)}">${esc(s.name)}<button class="mail-saved-del" data-del="${esc(s.id)}" title="remove">×</button></span>`).join('');
-  const saveBtn = _lastSearch ? `<button class="btn mail-saved-save" id="mail-saved-save" title="save this search">★ save “${esc(_lastSearch.slice(0, 20))}”</button>` : '';
-  bar.innerHTML = chips + saveBtn;
-  bar.querySelectorAll('.mail-saved-chip').forEach(c => c.addEventListener('click', e => {
-    if (e.target.closest('.mail-saved-del')) return;
-    const inp = $('mail-search'); if (inp) inp.value = c.dataset.q;
-    searchMail(c.dataset.q);
-  }));
-  bar.querySelectorAll('.mail-saved-del').forEach(b => b.addEventListener('click', async e => {
-    e.stopPropagation();
-    await fetch(`/api/mail/saved-searches/${b.dataset.del}`, { method: 'DELETE' }).catch(catchErr('failed to delete search'));
-    _renderSavedBar();
-  }));
-  $('mail-saved-save')?.addEventListener('click', async () => {
-    const name = _lastSearch.slice(0, 40);
-    await fetch('/api/mail/saved-searches', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, query: _lastSearch }),
-    }).catch(catchErr('failed to save search'));
-    toast('search saved', '');
-    _renderSavedBar();
+  const focused = bar.contains(document.activeElement) ? document.activeElement.id : '';
+  const blocked = _savedBusy || !_savedReady || Boolean(_savedReadError || _savedRecoveryError || _savedPending);
+  const query = savedText(_lastSearch);
+  const existing = _savedRows.find(row => row.query === query);
+  const chips = _savedRows.map(row => `<span class="mail-saved-item"><button type="button" class="mail-saved-chip" id="mail-saved-open-${esc(row.id)}" data-open="${esc(row.id)}">${esc(savedLabel(row))}</button><button type="button" class="mail-saved-del" id="mail-saved-delete-${esc(row.id)}" data-del="${esc(row.id)}" aria-label="remove saved search ${esc(savedLabel(row))}" aria-disabled="${_savedBusy || Boolean(_savedPending)}">×</button></span>`).join('');
+  const save = query && !existing ? `<button type="button" class="btn mail-saved-save" id="mail-saved-save" aria-disabled="${blocked || Boolean(existing)}">${existing ? 'saved' : 'save'} “${esc([...savedLabel({ name: query, query })].slice(0, 20).join(''))}”</button>` : '';
+  const removalNotice = [..._savedRemovals].filter(value => value.error && value.scopes.some(scope => _savedScopes.includes(scope))).map(value => `could not confirm removal of “${value.name}”: ${value.error}. retry removing this search.`).join(' ');
+  let message = _savedReadError || _savedRecoveryError || removalNotice || _savedNotice;
+  if (_savedBusy) message = 'saving changes…';
+  else if (_savedPending && !_savedConfirmed && !_savedReadError && !_savedRecoveryError) message = _savedNotice || `saving “${savedLabel(_savedPending)}” is unconfirmed. retry checks the same save.`;
+  let actions = '';
+  if (_savedReadError || _savedRecoveryError) actions += '<button type="button" class="btn" id="mail-saved-load-retry">retry loading saved searches</button>';
+  if (_savedRecoveryError) actions += '<button type="button" class="btn" id="mail-saved-clear">clear recovery data</button>';
+  else if (_savedPending) actions += _savedConfirmed
+    ? `<button type="button" class="btn" id="mail-saved-cleanup" aria-disabled="${_savedBusy}">retry cleanup</button>`
+    : `<button type="button" class="btn" id="mail-saved-retry" aria-disabled="${_savedBusy || Boolean(_savedReadError)}">retry saving search</button><button type="button" class="btn" id="mail-saved-discard" aria-disabled="${_savedBusy}">dismiss</button>`;
+  bar.innerHTML = chips + save + (message || actions ? `<div class="mail-saved-status"><p id="mail-saved-status" role="status" tabindex="-1">${esc(message)}</p>${actions}</div>` : '');
+  bar.querySelectorAll('[data-open]').forEach(button => button.onclick = () => {
+    const row = _savedRows.find(value => value.id === button.dataset.open);
+    if (!row) return;
+    $('mail-search').value = row.query;
+    searchMail(row.query);
   });
+  bar.querySelectorAll('[data-del]').forEach(button => button.onclick = () => deleteSavedSearch(button.dataset.del));
+  $('mail-saved-save')?.addEventListener('click', () => {
+    if (blocked || existing) return;
+    const pending = { request_id: savedRequestId(), name: savedText([...query].slice(0, 40).join('')), query, recovery_scope: _savedScopes[0] };
+    try {
+      const raw = JSON.stringify(pending), key = savedKey(pending.recovery_scope);
+      sessionStorage.setItem(key, raw);
+      if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain search');
+      _savedPending = pending; _savedConfirmed = false; _savedNotice = '';
+      savePendingSearch();
+    } catch {
+      _savedRecoveryError = 'could not keep this save for recovery. no save was sent. retry loading saved searches.';
+      paintSavedBar();
+    }
+  });
+  $('mail-saved-load-retry')?.addEventListener('click', () => _renderSavedBar());
+  $('mail-saved-retry')?.addEventListener('click', savePendingSearch);
+  $('mail-saved-discard')?.addEventListener('click', () => discardPendingSearch(false));
+  $('mail-saved-clear')?.addEventListener('click', () => discardPendingSearch(true));
+  $('mail-saved-cleanup')?.addEventListener('click', () => {
+    if (_savedBusy || !_savedPending) return;
+    try { clearPendingSearch(_savedPending); _savedNotice = 'search saved'; readPendingSearch(); }
+    catch { _savedNotice = 'search saved. recovery data still could not be cleared.'; }
+    paintSavedBar();
+  });
+  if (focused && bar.getClientRects().length && document.activeElement === document.body) {
+    (document.getElementById(focused) || bar.querySelector('.mail-saved-chip, #mail-saved-save, #mail-saved-status'))?.focus();
+  }
+}
+async function _renderSavedBar() {
+  const generation = ++_savedRead;
+  paintSavedBar();
+  try {
+    const data = await mailJson('/api/mail/saved-searches', { cache: 'no-store' });
+    if (generation !== _savedRead) return;
+    if (!Array.isArray(data?.searches) || data.searches.some(row => !row || typeof row.id !== 'string' || typeof row.name !== 'string' || typeof row.query !== 'string') || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('could not confirm saved searches');
+    if (_savedScopes.length && !data.recovery_scopes.some(scope => _savedScopes.includes(scope))) {
+      _savedPending = null; _savedConfirmed = false; _savedNotice = '';
+    }
+    _savedRows = data.searches; _savedScopes = data.recovery_scopes;
+    _savedReady = true; _savedReadError = '';
+    readPendingSearch();
+    for (const removal of _savedRemovals) {
+      if (removal.scopes.some(scope => _savedScopes.includes(scope)) && !_savedRows.some(row => row.id === removal.id)) {
+        removal.confirmed = true;
+        _savedRemovals.delete(removal);
+        if (!_savedPending && !_savedNotice) _savedNotice = 'saved search removed';
+      }
+    }
+    if (_savedPending && !_savedRecoveryError) {
+      const row = _savedRows.find(value => value.id === _savedPending.request_id);
+      if (row && savedMatches(row, _savedPending)) confirmSavedSearch(row, _savedPending);
+      else if (row) _savedNotice = 'the saved search differs from the pending values. dismiss this pending save to keep it.';
+    }
+  } catch (error) {
+    if (generation !== _savedRead) return;
+    _savedReadError = `could not load saved searches: ${error.message}`;
+  }
+  paintSavedBar();
+}
+async function savePendingSearch() {
+  if (_savedBusy || !_savedPending || _savedReadError || _savedRecoveryError || _savedConfirmed) return;
+  const pending = _savedPending;
+  const operation = { pending, confirmed: false };
+  _savedSave = operation;
+  _savedBusy = true; _savedNotice = ''; paintSavedBar();
+  try {
+    const row = await mailJson('/api/mail/saved-searches', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending),
+    });
+    if (operation.confirmed || !_savedScopes.includes(pending.recovery_scope)) return;
+    if (!savedMatches(row, pending)) throw new Error('could not confirm the saved search');
+    _savedNotice = `saving “${savedLabel(pending)}” is unconfirmed. retry checks the same save.`;
+    await _renderSavedBar();
+  } catch (error) {
+    if (!_savedScopes.includes(pending.recovery_scope)) return;
+    if (error.status === 410) {
+      _savedRows = _savedRows.filter(row => row.id !== pending.request_id);
+      _savedConfirmed = false;
+      _savedNotice = _savedPending?.request_id === pending.request_id
+        ? 'this saved search was deleted. dismiss the pending save to start again.'
+        : 'this saved search was deleted.';
+    } else {
+      if (operation.confirmed && error.status !== 403) return;
+      _savedNotice = `could not confirm saving “${savedLabel(pending)}”: ${error.message}. retry checks the same save.`;
+    }
+    await _renderSavedBar();
+  } finally { _savedSave = null; _savedBusy = false; paintSavedBar(); }
+}
+
+async function discardPendingSearch(clearUnreadable) {
+  if (_savedBusy) return;
+  const pending = _savedPending, scopes = [..._savedScopes];
+  if (!await dlgConfirm('stop checking this save? it may already be saved. this does not remove a saved search.')) return;
+  if (_savedBusy || !savedIntentMatches(pending, _savedPending) || scopes.join() !== _savedScopes.join()) return;
+  try {
+    if (clearUnreadable) {
+      for (const scope of scopes) {
+        const key = savedKey(scope); sessionStorage.removeItem(key);
+        if (sessionStorage.getItem(key) !== null) throw new Error('could not clear recovery data');
+      }
+    } else if (pending) clearPendingSearch(pending);
+    _savedNotice = ''; _savedRecoveryError = ''; readPendingSearch();
+  } catch { _savedRecoveryError = 'could not clear the pending search. its recovery data was kept.'; }
+  paintSavedBar();
+}
+async function deleteSavedSearch(id) {
+  if (_savedBusy || _savedPending) return;
+  const scopes = [..._savedScopes], row = _savedRows.find(value => value.id === id);
+  const name = row ? savedLabel(row) : 'this search';
+  for (const previous of _savedRemovals) {
+    if (previous.id === id && previous.scopes.some(scope => scopes.includes(scope))) _savedRemovals.delete(previous);
+  }
+  const operation = { id, name, scopes, confirmed: false, error: '' };
+  _savedRemovals.add(operation);
+  _savedBusy = true; _savedNotice = ''; paintSavedBar();
+  try {
+    const result = await mailJson(`/api/mail/saved-searches/${encodeURIComponent(id)}?recovery_scope=${encodeURIComponent(scopes[0])}`, { method: 'DELETE' });
+    if (result?.ok !== true) throw new Error('could not confirm removal');
+    if (operation.confirmed) return;
+    operation.confirmed = true;
+    _savedRemovals.delete(operation);
+    if (!scopes.some(scope => _savedScopes.includes(scope))) return;
+    _savedRows = _savedRows.filter(row => row.id !== id);
+    _savedNotice = 'saved search removed';
+    await _renderSavedBar();
+  } catch (error) {
+    if (operation.confirmed && error.status !== 403) return;
+    if (!operation.confirmed) operation.error = error.message;
+    await _renderSavedBar();
+  } finally { _savedBusy = false; paintSavedBar(); }
 }
 
 export async function loadMail(fetcher = fetch) {

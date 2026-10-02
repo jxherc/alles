@@ -1,12 +1,16 @@
 import time
-from datetime import UTC
+from contextlib import contextmanager
+from datetime import UTC, datetime
+from hashlib import sha256
+from pathlib import Path
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import MailAccount, MailDraft, get_db
+from core.database import DB_PATH, MailAccount, MailDraft, get_db
 from services import mail as mailsvc
 from services import mail_oauth
 from services.commitment_sources import (
@@ -484,40 +488,108 @@ def move_message(aid: str, body: MoveBody, db: DbSession = Depends(get_db)):
 class SavedSearchBody(BaseModel):
     name: str
     query: str = ""
+    request_id: str = ""
+    recovery_scope: str = ""
+
+
+def _saved_search_fmt(search):
+    return {"id": search.id, "name": search.name, "query": search.query or ""}
+
+
+def _saved_search_scopes():
+    from services.recovery_consistency import recovery_consistency_lock
+    from services.secretstore import active_key_id, key_ids
+
+    with recovery_consistency_lock:
+        active = active_key_id()
+        keys = [active, *sorted(key_ids() - {active})]
+    return [
+        sha256(f"alles-mail-search:{Path(DB_PATH).resolve()}:{key}".encode()).hexdigest()
+        for key in keys
+    ]
+
+
+@contextmanager
+def _saved_search_write(db, identity):
+    from core.database import SavedSearch
+
+    try:
+        # Reserve the write before checking identity, including across server workers.
+        db.query(SavedSearch).filter_by(id=identity).update(
+            {SavedSearch.id: SavedSearch.id}, synchronize_session=False
+        )
+        db.expire_all()
+        yield
+    finally:
+        db.rollback()
 
 
 @router.get("/saved-searches")
 def list_saved_searches(db: DbSession = Depends(get_db)):
     from core.database import SavedSearch
 
-    rows = db.query(SavedSearch).order_by(SavedSearch.created_at.asc()).all()
-    return {"searches": [{"id": s.id, "name": s.name, "query": s.query or ""} for s in rows]}
+    rows = (
+        db.query(SavedSearch)
+        .filter(SavedSearch.deleted_at.is_(None))
+        .order_by(SavedSearch.created_at.asc())
+        .all()
+    )
+    return {
+        "searches": [_saved_search_fmt(search) for search in rows],
+        "recovery_scopes": _saved_search_scopes(),
+    }
 
 
 @router.post("/saved-searches")
 def add_saved_search(body: SavedSearchBody, db: DbSession = Depends(get_db)):
     from core.database import SavedSearch
 
-    name = (body.name or "").strip()
+    name, query = body.name.strip(), body.query.strip()
     if not name:
         raise HTTPException(400, "name required")
-    s = SavedSearch(name=name, query=(body.query or "").strip())
-    db.add(s)
-    db.commit()
-    db.refresh(s)
-    return {"id": s.id, "name": s.name, "query": s.query or ""}
+    if body.recovery_scope and body.recovery_scope not in _saved_search_scopes():
+        raise HTTPException(403, "this pending save belongs to a different mail store")
+    identity = body.request_id
+    if identity:
+        try:
+            if str(UUID(identity)) != identity:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(400, "request_id must be a canonical UUID") from None
+    with _saved_search_write(db, identity):
+        search = db.get(SavedSearch, identity) if identity else None
+        if search:
+            if search.deleted_at is not None:
+                raise HTTPException(410, "this saved search was deleted; dismiss this pending save")
+            if (search.name, search.query or "") != (name, query):
+                raise HTTPException(409, "this request_id already saved a different search")
+            return _saved_search_fmt(search)
+        search = SavedSearch(name=name, query=query)
+        if identity:
+            search.id = identity
+        db.add(search)
+        db.flush()
+        result = _saved_search_fmt(search)
+        db.commit()
+        return result
 
 
 @router.delete("/saved-searches/{sid}")
-def delete_saved_search(sid: str, db: DbSession = Depends(get_db)):
+def delete_saved_search(sid: str, db: DbSession = Depends(get_db), recovery_scope: str = ""):
     from core.database import SavedSearch
 
-    s = db.get(SavedSearch, sid)
-    if not s:
-        raise HTTPException(404)
-    db.delete(s)
-    db.commit()
-    return {"ok": True}
+    if recovery_scope and recovery_scope not in _saved_search_scopes():
+        raise HTTPException(403, "this saved search belongs to a different mail store")
+    with _saved_search_write(db, sid):
+        search = db.get(SavedSearch, sid)
+        if not search:
+            raise HTTPException(404)
+        if search.deleted_at is None:
+            search.name = ""
+            search.query = ""
+            search.deleted_at = datetime.now(UTC).replace(tzinfo=None)
+            db.commit()
+        return {"ok": True}
 
 
 # ── send control: schedule, undo, snooze (5b) ────────────────────────────────

@@ -91,6 +91,16 @@ test('retry never bypasses a changed replay policy', async () => {
   assert.equal(h.rows.get(1).blocked_reason, 'replay_policy_changed');
 });
 
+test('saved mail search recovery quarantines old generic offline writes', async () => {
+  const original = entry(1, { url: 'https://alles.test/api/mail/saved-searches', body: '{"name":"owned","query":"Project"}' });
+  const h = harness([original]);
+  await h.flush();
+  await h.flush({ retryId: 1 });
+  assert.equal(h.requests.length, 0);
+  assert.equal(h.rows.get(1).blocked_reason, 'replay_policy_changed');
+  assert.equal(h.rows.get(1).body, original.body);
+});
+
 test('overlapping drains and manual retries send a queued row only once', async () => {
   let release;
   const waiting = new Promise(resolve => { release = resolve; });

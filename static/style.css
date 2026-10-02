@@ -3757,10 +3757,15 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .mail-act:hover { color: var(--text); }
 .mail-saved { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0 0 0.4rem; align-items: center; }
 .mail-saved:empty { display: none; }
-.mail-saved-chip { font-size: 0.75rem; border: 1px solid var(--faint); border-radius: 4px; padding: 0.1rem 0.5rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; color: var(--accent); }
-.mail-saved-chip:hover { border-color: var(--accent); }
-.mail-saved-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.75rem; padding: 0; }
-.mail-saved-save { font-size: 0.75rem; }
+.mail-saved-item { display: inline-flex; align-items: stretch; max-width: 100%; border: 1px solid var(--faint); }
+.mail-saved-chip, .mail-saved-del { min-height: 44px; min-width: 44px; background: none; border: none; cursor: pointer; font-size: 0.75rem; }
+.mail-saved-chip { color: var(--text); padding: 0.4rem 0.6rem; overflow-wrap: anywhere; text-align: left; }
+.mail-saved-chip:hover, .mail-saved-del:hover { background: var(--panel); }
+.mail-saved-del { color: var(--muted); border-left: 1px solid var(--faint); }
+.mail-saved-save { font-size: 0.75rem; overflow-wrap: anywhere; white-space: normal; }
+.mail-saved [aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.mail-saved-status { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.mail-saved-status p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
 /* 5b send control */
 .mail-scheduled { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; padding: 0 0 0.4rem; }
 .mail-scheduled:empty { display: none; }

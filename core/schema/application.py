@@ -1289,6 +1289,7 @@ class SavedSearch(Base):
     name = Column(String, nullable=False)
     query = Column(Text, default="")
     created_at = Column(DateTime, default=_now)
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class ModelVote(Base):

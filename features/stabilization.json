@@ -4542,6 +4542,331 @@
         "1440",
         "390"
       ]
+    },
+    {
+      "id": "inbox.saved-search.save-keyboard-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search save keyboard reload",
+      "expected": "Save a query, activate its custom button with the keyboard, reload, and find the same saved query and matching mail.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.save-rejected",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search save rejected",
+      "expected": "A rejected save stays pending with the same identity; keyboard retry preserves the frozen query and current input.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.lost-reply-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search lost reply reload",
+      "expected": "After a committed save loses its response and confirmation read, reload and recovery find one exact saved search without another create.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.cleanup-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search cleanup failure",
+      "expected": "A confirmed saved search stays usable when browser recovery cleanup fails; cleanup retry sends no new create.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.storage-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search storage failure",
+      "expected": "If pending recovery cannot be retained, send no create; retry after storage recovery saves one search.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.delete-rejected",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search delete rejected",
+      "expected": "Rejected removal keeps the exact search and keyboard focus; retry confirms its removal.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.delete-lost-reply",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search delete lost reply",
+      "expected": "A removal with a lost response is confirmed from the current list; the deleted create identity cannot recreate it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.read-order",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search read order",
+      "expected": "An older saved-search list response cannot remove a newer confirmed search or replace the current query.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.deleted-pending",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search deleted pending",
+      "expected": "A save deleted while its response is unknown cannot be recreated by retry; explicit dismissal allows a separate new save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.unicode",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search unicode",
+      "expected": "Names truncate by Unicode code point while preserving the full saved query.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.delete-focus-moved",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search delete focus moved",
+      "expected": "A delayed removal does not take focus back from the search field.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.delayed-save-new-query",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search delayed save new query",
+      "expected": "A delayed save retains its original query and identity while newer input remains available for a distinct save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.offline-save",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search offline save",
+      "expected": "With the real service worker active, an offline save remains pending without a generic queued write; reconnect and explicit retry save one search.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.delete-confirmation-store-change",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search delete confirmation store change",
+      "expected": "A failed removal cannot interpret another mail store as confirmation or replace that store's pending-save notice.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.confirmed-save-late-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search confirmed save late failure",
+      "expected": "A delayed failed save response cannot undo exact saved-row confirmation already obtained from an intervening list read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.confirmed-save-late-success",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search confirmed save late success",
+      "expected": "A delayed successful save reply cannot restore a row removed after a newer list already confirmed the save and its subsequent absence.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.delete-later-confirmation",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search delete later confirmation",
+      "expected": "After a lost removal reply and failed confirmation read, a later successful same-store retry resolves the warning without requiring a removed control.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.unicode-whitespace",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search unicode whitespace",
+      "expected": "Frozen search names and queries use server-compatible Unicode whitespace normalization and clear recovery after exact confirmation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.delete-other-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search independent removal failures",
+      "expected": "Confirming removal of one saved search preserves an unresolved removal warning for another; each clears only after its own confirmation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.unconfirmed-save-late-success",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search unconfirmed save late success",
+      "expected": "An intervening list read takes precedence over an older create acknowledgement even when the save was never observed before another client removed it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.unicode-recovery-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search unicode recovery reload",
+      "expected": "App-generated Unicode recovery values remain readable after reload, retain readable query controls, and confirm the same committed identity without another create.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.delete-success-new-store-read",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search delete success new store read",
+      "expected": "A delayed removal acknowledgement reconciles intervening reads without discarding the current store state.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.confirmed-retry-deleted",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search confirmed retry deleted",
+      "expected": "A definitive tombstone response reconciles an earlier save confirmation and does not leave a deleted chip or false success.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.confirmed-delete-late-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search confirmed delete late failure",
+      "expected": "Same-store list confirmation of an in-flight removal survives a later failed acknowledgement without requiring another read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.saved-search.confirmed-retry-store-change",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "saved search confirmed retry store change",
+      "expected": "A definitive different-store rejection triggers current-store reconciliation even if a list previously confirmed the captured save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],
