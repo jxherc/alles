@@ -416,6 +416,7 @@ def run():
                             page.route(
                                 message_url, lambda route: route.fulfill(json=message("702"))
                             )
+                            previous_reply = None
                             for choice, endpoint in [
                                 ("primary", "category"),
                                 ("flagged", "smart"),
@@ -435,7 +436,14 @@ def run():
                                 expect(mailbox.get_by_role("alert")).to_contain_text(
                                     "synthetic unavailable"
                                 )
+                                if previous_reply is not None:
+                                    expect(page.locator("#mc-html")).to_have_text(previous_reply)
                                 row("702").click()
+                                if previous_reply is not None:
+                                    dialog = page.get_by_role("alertdialog")
+                                    expect(dialog).to_be_visible()
+                                    expect(page.locator("#mc-html")).to_have_text(previous_reply)
+                                    dialog.get_by_role("button", name="confirm", exact=True).click()
                                 expect(main.locator(".mail-reader-subject")).to_have_text(
                                     "owned message 702"
                                 )
@@ -454,6 +462,7 @@ def run():
                                 expect(page.locator("#mc-html")).to_have_text(
                                     f"unsaved {choice} reply {width}"
                                 )
+                                previous_reply = f"unsaved {choice} reply {width}"
                         elif case in {
                             "inbox-retry-focus",
                             "sent-retry-focus",

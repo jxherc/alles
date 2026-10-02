@@ -79,6 +79,7 @@ COMMANDS = {
     "inbox-workflows": ("tests/pw_inbox_workflows.py",),
     "inbox-read-recovery": ("tests/pw_inbox_read_recovery.py",),
     "inbox-saved-searches": ("tests/pw_inbox_saved_searches.py",),
+    "mail-editor-recovery": ("tests/pw_mail_editor_recovery.py",),
     "vault-backup": ("tests/pw_vault_backup.py",),
     "vault-setup-desktop": ("tests/pw_vault_setup.py", "desktop"),
     "vault-setup-phone": ("tests/pw_vault_setup.py", "phone"),

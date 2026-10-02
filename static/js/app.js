@@ -19,7 +19,7 @@ import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './co
 import { loadVaultView, initVault } from './vault.js?v=282';
 import { loadContacts, addContact } from './contacts.js';
 import { loadFiles, initFiles } from './filesphase7.js?v=273';
-import { loadMail, startMailPoll } from './mail.js';
+import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js?v=237';
@@ -459,6 +459,7 @@ function _consumeParams(names) {
 }
 
 async function _navigateWithHandoff(target, { replace = false, docsPrepared = false } = {}) {
+  if (!await prepareMailNavigation()) return false;
   if (!(await prepareTaskNavigation())) return false;
   if (!docsPrepared && typeof window._prepareDocsNavigation === 'function') {
     if (!(await window._prepareDocsNavigation())) return false;
@@ -1079,6 +1080,8 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
 async function navigateTo(v, { record = null, preserveRecord = false } = {}) {
   const generation = ++_navigationGeneration;
   if (v === 'home') v = 'today';
+  if (v === 'mail' && !record && !preserveRecord && document.getElementById('mail-view')?.getClientRects().length) return true;
+  if (v !== 'settings' && v !== 'memory' && !await prepareMailNavigation()) return false;
   if (!(await prepareTaskNavigation())) return false;
   const docsVisible = document.getElementById('wiki-view')?.style.display !== 'none';
   if (docsVisible && typeof window._prepareDocsNavigation === 'function') {
@@ -1138,7 +1141,7 @@ window.addEventListener('popstate', async event => {
     if (restored) return;
   }
   if (targetPosition === currentPosition && location.pathname + location.search + location.hash === visibleRouteUrl()) return;
-  if (!(await prepareTaskNavigation())) {
+  if (!await prepareMailNavigation() || !(await prepareTaskNavigation())) {
     if (generation !== _popstateGeneration) return;
     _restoringRoutePosition = currentPosition;
     if (!restoreDeniedRoute(targetPosition)) _restoringRoutePosition = null;

@@ -395,6 +395,13 @@ a real email client (read + send), with one-click setup for the big providers an
 - **conversation threads**: a toggle collapses the inbox into conversations (everything with the same subject, re:/fwd: stripped), expand one to read the whole back-and-forth
 - **attachments**: a message shows its attachments as chips you click to download (the body still loads attachment-free for speed)
 - compose and send with **cc + bcc**; replies set the proper `in-reply-to`/`references` headers so they thread correctly in apple mail, gmail, and everywhere else
+- compose text stays open when switching message lists. replacing the editor or leaving mail asks
+  before discarding changes; browsers that support leave warnings also protect unsaved text on reload
+- late message, draft, signature and image reads cannot replace newer work. failed draft deletion
+  keeps the editor; edits made during successful deletion remain available to save as a new draft
+- drafts cannot reopen while deletion is pending. accepted sends keep their undo action after editor
+  replacement, and send or schedule responses preserve text entered while the request was pending
+- keyboard formatting and the custom link dialog preserve the selected text; saved links reopen in drafts
 - **ai:** summarize a long thread, turn an email into a task, or turn an email into a calendar event (the ai reads out the date/time/title for you)
 - **fast + offline-tolerant:** a persistent header cache means the inbox opens instantly and still shows your last sync when the network's slow or down; local search over the cache is instant
 - *under the hood:* built directly on python's standard `imaplib`/`smtplib`; no third-party mail library. it pools live connections, caches what it's read, loads the inbox by range (not a slow "search everything"), and opens a message by pulling *only* its text/html body (not the attachments), so it stays fast on a weak connection.

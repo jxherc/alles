@@ -513,7 +513,9 @@ def run():
                         page.get_by_role("button", name="save draft", exact=True).click()
                         expect(page.get_by_text("save failed", exact=True).last).to_be_visible()
                     page.get_by_role("button", name="close", exact=True).click()
-                    expect(page.get_by_role("alertdialog")).to_contain_text("discard this draft?")
+                    expect(page.get_by_role("alertdialog")).to_contain_text(
+                        "discard unsaved draft changes?"
+                    )
                     page.get_by_role("alertdialog").get_by_role(
                         "button", name="cancel", exact=True
                     ).click()
