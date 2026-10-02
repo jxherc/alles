@@ -1464,8 +1464,8 @@
       "id": "home.reminder-local-time",
       "feature": "home.capture-and-navigation",
       "app": "home",
-      "workflow": "show reminders on the viewer\u2019s local day and clock",
-      "expected": "Use the viewer\u2019s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "workflow": "show reminders on the viewer’s local day and clock",
+      "expected": "Use the viewer’s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -3252,6 +3252,264 @@
         "desktop-dark",
         "phone-light",
         "phone-dark"
+      ]
+    },
+    {
+      "id": "inbox.capture.review-and-cancel",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "review or cancel extracted commitments",
+      "expected": "Editable details are shown before acceptance, cancellation writes nothing and restores focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.rejected-retries-preserve-uncertain-identity",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "retry after a rejected request",
+      "expected": "Authentication or validation rejection after an uncertain acceptance retains the same UUID and frozen values.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.lost-response-reload-and-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "reload after a lost acceptance response",
+      "expected": "Recovery reuses the stored acceptance and confirms one existing task or event without duplicates.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.open-exact-plan-record",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "open the accepted Plan record",
+      "expected": "The exact saved record and original source action are visible in the appropriate Plan editor.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.edit-reschedule-and-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "edit and reschedule an accepted item",
+      "expected": "The edited title and date persist after reload while the original source reference stays unchanged.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.original-source-link-and-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "open the original message and reload",
+      "expected": "The linked source opens the exact controlled message; real-provider identity validation is separately covered by API tests.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.changed-source-retained-excerpt-and-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "recover a changed source",
+      "expected": "A changed message is not shown as the original; the retained excerpt stays visible and retry can recover.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.complete-and-open-history",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "complete a captured task and reopen its link",
+      "expected": "The completed record opens from history with its original source action available.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "task-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.storage-failure-keeps-editable-review-without-writing",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "accept while browser recovery storage fails",
+      "expected": "The draft remains editable and no write is sent without a retained acceptance identity.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.deleted-uncertain-target-never-recreated-and-explicit-discard",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "retry after the accepted item was deleted",
+      "expected": "The deleted target stays deleted, and discarding the pending retry requires explicit confirmation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.console",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "inspect capture browser errors",
+      "expected": "Only the deliberately injected failure responses occur; no page error is reported.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.all-day-round-trip-keeps-duration",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "toggle a timed proposal to all-day and back",
+      "expected": "The valid original duration survives the round trip.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "event-1440",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.edit-aware-time-in-configured-zone-preserves-other-instant",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "edit a UTC-offset proposal in the selected timezone",
+      "expected": "The changed start maps to the intended instant and the untouched end retains its exact value.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "event-1440",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.dst-fold-unchanged",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "accept an event across the autumn clock rollback",
+      "expected": "Equal displayed clock times preserve the distinct original start and end instants and the original one-hour duration.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "event-1440",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.dst-fold-all-day-round-trip",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "accept an event across the autumn clock rollback after toggling all-day mode",
+      "expected": "Equal displayed clock times preserve the distinct original start and end instants and the original one-hour duration.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "event-1440",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.invalid-title-keeps-correction-focus",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "correct an empty capture title",
+      "expected": "No write occurs and keyboard focus stays in the empty title field.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.invalid-date-keeps-correction-focus",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "correct invalid event dates",
+      "expected": "No write occurs and focus stays in the event start control.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "event-1440",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.html-only-excerpt-survives-acceptance-and-unavailable-source",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "recover an HTML-only source",
+      "expected": "Readable source text survives acceptance, a changed source and reload without executing source markup.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
       ]
     }
   ],

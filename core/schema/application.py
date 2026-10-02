@@ -237,9 +237,19 @@ class Task(Base):
         Integer, nullable=True
     )  # original day-of-month so monthly/yearly repeats don't drift
     notes = Column(Text, default="")
+    source_json = Column(Text, default="{}")
     project = Column(String, default="")
     sort_order = Column(Integer, default=0)  # manual drag-reorder
     completed_at = Column(DateTime, nullable=True)  # when done flipped true (for the activity feed)
+    created_at = Column(DateTime, default=_now)
+
+
+class CommitmentCreateReceipt(Base):
+    __tablename__ = "commitment_create_receipts"
+    id = Column(String, primary_key=True)
+    kind = Column(String, nullable=False)
+    payload_hash = Column(String, nullable=False)
+    resource_id = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=_now)
 
 
@@ -263,6 +273,7 @@ class CalendarEvent(Base):
     calendar_id = Column(String, default="")  # which Calendar it belongs to
     title = Column(String, nullable=False)
     description = Column(Text, default="")
+    source_json = Column(Text, default="{}")
     location = Column(String, default="")
     guests = Column(Text, default="")  # freeform / comma list
     start_dt = Column(String, nullable=False)  # ISO8601

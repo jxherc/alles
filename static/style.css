@@ -9788,3 +9788,22 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 
 #sub-create-status { flex-basis: 100%; }
 .sub-hist-pop { max-width: min(24rem, calc(100vw - 2rem)); max-height: 22rem; overflow-y: auto; overflow-wrap: anywhere; }
+
+/* Reviewed capture reuses the compact editor and control tokens. */
+.capture-overlay { position: fixed; inset: 0; z-index: 410; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.capture-review [hidden] { display: none !important; }
+.capture-review { background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 20px; width: 480px; max-width: 100%; max-height: calc(100dvh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.capture-review h2, .capture-review p { margin: 0; }
+.capture-review h2 { font-size: 1.1rem; }
+.capture-fields { display: grid; gap: 8px; min-width: 0; }
+.capture-fields .settings-input, .capture-fields .date-input { width: 100%; min-width: 0; }
+.capture-fields label { font-size: .85rem; }
+.capture-fields textarea { min-height: 80px; resize: vertical; }
+.capture-actions, .capture-resume { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.capture-actions { justify-content: flex-end; }
+.capture-review .btn, .capture-review .date-input, .capture-review .custom-select, .capture-review summary { min-height: 44px; }
+.capture-source summary { cursor: pointer; display: flex; align-items: center; overflow-wrap: anywhere; }
+.capture-source pre, .mail-source-error pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow-y: auto; font: inherit; }
+.capture-status { overflow-wrap: anywhere; }
+.capture-resume, .mail-source-error { padding: 12px; border: 1px solid var(--faint); }
+.capture-resume { flex: 0 0 auto; }

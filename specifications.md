@@ -1050,7 +1050,7 @@ erDiagram
     money_accounts |o--o{ money_transactions : records
     albums |o--o{ photos : groups
 ```
-the declared schema has **127 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+the declared schema has **128 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`**: your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`**: agent skills as `SKILL.md` files (frontmatter + steps).
 - **`data/`** (other): uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
@@ -1222,9 +1222,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 904 http method/path pairs
-- 887 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `98bd1b184eb7503eeb1f21248893bf7cc01261a08ba4aa543184bd0d3ba44bfe`
+- 905 http method/path pairs
+- 888 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `f5e9fbc07f7a0f28aa78990aa122720dd25193451aba3b47efc80b8d58b6a800`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -2001,7 +2001,9 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/mail.py · 62 operations</summary>
+<summary>routes/mail.py · 63 operations</summary>
+
+inbox task and event capture opens an editable review before acceptance into plan. a cancelled review writes nothing. acceptance uses a durable request identity; an uncertain response can be retried after reload without creating another item. task/event edits and recurrence keep the original message reference. opening that source checks a fresh message against its saved fingerprint; missing or changed sources show the retained excerpt and a retry action. legacy mail API callers without `preview: true` retain their direct-create behavior. pending acceptance details stay in owner-scoped browser session storage until confirmed or explicitly discarded.
 
 [source](routes/mail.py)
 
@@ -2030,6 +2032,7 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/api/mail/inbox/{aid}` | `inbox` |
 | `POST` | `/api/mail/labels/{aid}` | `set_labels` |
 | `POST` | `/api/mail/make-task` | `make_task` |
+| `GET` | `/api/mail/source/{kind}/{record_id}` | `commitment_source` |
 | `GET` | `/api/mail/message/{aid}` | `message` |
 | `POST` | `/api/mail/move/{aid}` | `move_message` |
 | `POST` | `/api/mail/mute/{aid}` | `mute_thread` |
@@ -2967,7 +2970,7 @@ the compatibility snapshot locks the registered http surface:
 
 ## database table inventory
 
-this lists **127 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **128 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -2991,7 +2994,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `books` | `id: VARCHAR pk`, `title: VARCHAR`, `author: VARCHAR ?`, `status: VARCHAR ?`, `rating: INTEGER ?`, `started: VARCHAR ?`, `finished: VARCHAR ?`, `cover: VARCHAR ?`, `notes: TEXT ?`, `isbn: VARCHAR ?`, `year: INTEGER ?`, `created_at: DATETIME ?` | — |
 | `browser_connections` | `id: VARCHAR pk`, `vault_id: VARCHAR`, `name: VARCHAR`, `secret_hash: VARCHAR`, `extension_origin: VARCHAR`, `created_at: DATETIME ?`, `last_seen_at: DATETIME ?`, `revoked_at: DATETIME ?` | — |
 | `cached_messages` | `id: VARCHAR pk`, `account_id: VARCHAR`, `folder: VARCHAR ?`, `uid: VARCHAR`, `sender: TEXT ?`, `recipients: TEXT ?`, `subject: TEXT ?`, `date: VARCHAR ?`, `date_ts: FLOAT ?`, `seen: BOOLEAN ?`, `flagged: BOOLEAN ?`, `has_attachment: BOOLEAN ?`, `list_unsubscribe: TEXT ?`, `muted: BOOLEAN ?`, `snoozed_until: VARCHAR ?`, `labels: TEXT ?`, `autoreplied: BOOLEAN ?`, `message_id: VARCHAR ?`, `in_reply_to: VARCHAR ?`, `references: TEXT ?`, `thread_id: VARCHAR ?`, `body_indexed: BOOLEAN ?`, `cached_at: DATETIME ?` | — |
-| `calendar_events` | `id: VARCHAR pk`, `calendar_id: VARCHAR ?`, `title: VARCHAR`, `description: TEXT ?`, `location: VARCHAR ?`, `guests: TEXT ?`, `start_dt: VARCHAR`, `end_dt: VARCHAR ?`, `all_day: BOOLEAN ?`, `color: VARCHAR ?`, `reminders: TEXT ?`, `recurrence: VARCHAR ?`, `recur_interval: INTEGER ?`, `recur_byday: VARCHAR ?`, `recur_count: INTEGER ?`, `recur_until: VARCHAR ?`, `recur_except: TEXT ?`, `caldav_uid: VARCHAR ?`, `subscription_id: VARCHAR ?`, `meeting_url: VARCHAR ?`, `created_at: DATETIME ?` | — |
+| `calendar_events` | `id: VARCHAR pk`, `calendar_id: VARCHAR ?`, `title: VARCHAR`, `description: TEXT ?`, `source_json: TEXT ?`, `location: VARCHAR ?`, `guests: TEXT ?`, `start_dt: VARCHAR`, `end_dt: VARCHAR ?`, `all_day: BOOLEAN ?`, `color: VARCHAR ?`, `reminders: TEXT ?`, `recurrence: VARCHAR ?`, `recur_interval: INTEGER ?`, `recur_byday: VARCHAR ?`, `recur_count: INTEGER ?`, `recur_until: VARCHAR ?`, `recur_except: TEXT ?`, `caldav_uid: VARCHAR ?`, `subscription_id: VARCHAR ?`, `meeting_url: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `calendar_subscriptions` | `id: VARCHAR pk`, `name: VARCHAR`, `url: VARCHAR`, `calendar_id: VARCHAR ?`, `last_synced: VARCHAR ?`, `last_status: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `calendars` | `id: VARCHAR pk`, `name: VARCHAR`, `color: VARCHAR ?`, `visible: BOOLEAN ?`, `is_default: BOOLEAN ?`, `sort_order: INTEGER ?`, `created_at: DATETIME ?` | — |
 | `capability_grant_events` | `id: VARCHAR pk`, `grant_id: VARCHAR ?`, `action_id: VARCHAR ?`, `kind: VARCHAR`, `actor: VARCHAR ?`, `scope_kind: VARCHAR ?`, `scope_id: VARCHAR ?`, `capability: VARCHAR ?`, `created_at: DATETIME ?` | `grant_id → capability_grants.id`, `action_id → delegated_actions.id` |
@@ -3001,6 +3004,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `contact_group_members` | `id: VARCHAR pk`, `group_id: VARCHAR`, `contact_id: VARCHAR` | — |
 | `contact_groups` | `id: VARCHAR pk`, `name: VARCHAR`, `smart: BOOLEAN ?`, `rule_tag: VARCHAR ?`, `rule_company: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `contact_links` | `id: VARCHAR pk`, `from_id: VARCHAR`, `to_id: VARCHAR`, `kind: VARCHAR ?`, `created_at: DATETIME ?` | — |
+| `commitment_create_receipts` | `id: VARCHAR pk`, `kind: VARCHAR`, `payload_hash: VARCHAR`, `resource_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `contacts` | `id: VARCHAR pk`, `name: VARCHAR`, `email: VARCHAR ?`, `phone: VARCHAR ?`, `notes: TEXT ?`, `tags: TEXT ?`, `company: VARCHAR ?`, `title: VARCHAR ?`, `address: TEXT ?`, `birthday: VARCHAR ?`, `website: VARCHAR ?`, `favorite: BOOLEAN ?`, `avatar: VARCHAR ?`, `is_me: BOOLEAN ?`, `carddav_uid: VARCHAR ?`, `carddav_href: VARCHAR ?`, `carddav_etag: VARCHAR ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `cookbook` | `id: VARCHAR pk`, `name: VARCHAR`, `description: VARCHAR ?`, `prompt: TEXT`, `created_at: DATETIME ?` | — |
 | `day_events` | `id: VARCHAR pk`, `name: VARCHAR`, `date: VARCHAR`, `repeat: VARCHAR ?`, `category: VARCHAR ?`, `notes: TEXT ?`, `pinned: BOOLEAN ?`, `notify_days: INTEGER ?`, `last_notified: VARCHAR ?`, `created_at: DATETIME ?` | — |
@@ -3091,7 +3095,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `sub_payments` | `id: VARCHAR pk`, `sub_id: VARCHAR`, `date: VARCHAR`, `amount: FLOAT ?`, `txn_id: VARCHAR ?`, `created_at: DATETIME ?`, `original_amount_text: VARCHAR ?`, `original_currency_code: VARCHAR ?`, `base_amount_text: VARCHAR ?`, `base_currency_code: VARCHAR ?`, `fx_rate_text: VARCHAR ?`, `fx_rate_date: VARCHAR ?`, `fx_source: VARCHAR ?` | — |
 | `sub_price_changes` | `id: VARCHAR pk`, `sub_id: VARCHAR`, `old_price: FLOAT ?`, `new_price: FLOAT ?`, `date: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `subscriptions` | `id: VARCHAR pk`, `name: VARCHAR`, `price: FLOAT ?`, `currency: VARCHAR ?`, `cycle: VARCHAR ?`, `cycle_days: INTEGER ?`, `next_due: VARCHAR`, `category: VARCHAR ?`, `url: VARCHAR ?`, `notes: TEXT ?`, `active: BOOLEAN ?`, `remind_days: INTEGER ?`, `last_notified_due: VARCHAR ?`, `account_id: VARCHAR ?`, `last_posted_due: VARCHAR ?`, `trial_end: VARCHAR ?`, `cancel_url: VARCHAR ?`, `created_at: DATETIME ?`, `original_price_text: VARCHAR ?`, `original_currency_code: VARCHAR ?`, `base_price_text: VARCHAR ?`, `base_currency_code: VARCHAR ?`, `fx_rate_text: VARCHAR ?`, `fx_rate_date: VARCHAR ?`, `fx_source: VARCHAR ?` | — |
-| `tasks` | `id: VARCHAR pk`, `title: VARCHAR`, `done: BOOLEAN ?`, `stage: VARCHAR ?`, `priority: INTEGER ?`, `due_date: VARCHAR ?`, `parent_id: VARCHAR ?`, `tags: VARCHAR ?`, `repeat: VARCHAR ?`, `anchor_day: INTEGER ?`, `notes: TEXT ?`, `project: VARCHAR ?`, `sort_order: INTEGER ?`, `completed_at: DATETIME ?`, `created_at: DATETIME ?` | — |
+| `tasks` | `id: VARCHAR pk`, `title: VARCHAR`, `done: BOOLEAN ?`, `stage: VARCHAR ?`, `priority: INTEGER ?`, `due_date: VARCHAR ?`, `parent_id: VARCHAR ?`, `tags: VARCHAR ?`, `repeat: VARCHAR ?`, `anchor_day: INTEGER ?`, `notes: TEXT ?`, `source_json: TEXT ?`, `project: VARCHAR ?`, `sort_order: INTEGER ?`, `completed_at: DATETIME ?`, `created_at: DATETIME ?` | — |
 | `tool_chains` | `id: VARCHAR pk`, `name: VARCHAR`, `steps: TEXT ?`, `created_at: DATETIME ?` | — |
 | `trash_items` | `id: VARCHAR pk`, `kind: VARCHAR`, `ref: VARCHAR`, `location_id: VARCHAR ?`, `normalized_path: VARCHAR ?`, `name: VARCHAR ?`, `payload: TEXT ?`, `trashed_at: DATETIME ?`, `expires_at: DATETIME ?` | — |
 | `uploads` | `id: VARCHAR pk`, `filename: VARCHAR`, `original_name: VARCHAR`, `mime_type: VARCHAR ?`, `size: INTEGER ?`, `session_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
@@ -3171,6 +3175,7 @@ known versions run in ascending order.
 | 52 | `health_import_identity` | [m0052_health_import_identity.py](core/migrations/m0052_health_import_identity.py) |
 | 53 | `vault_upload_receipts` | [m0053_vault_upload_receipts.py](core/migrations/m0053_vault_upload_receipts.py) |
 | 54 | `reminder_create_receipts` | [m0054_reminder_create_receipts.py](core/migrations/m0054_reminder_create_receipts.py) |
+| 55 | `commitment_sources` | [m0055_commitment_sources.py](core/migrations/m0055_commitment_sources.py) |
 
 </details>
 

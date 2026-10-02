@@ -591,9 +591,9 @@ def _fetch_message_rfc822(M, uid_b):
     }
 
 
-def fetch_message(acct, uid: str, folder: str = "INBOX") -> dict:
+def fetch_message(acct, uid: str, folder: str = "INBOX", *, refresh: bool = False) -> dict:
     cache_key = (_acct_key(acct), folder, str(uid))
-    cached = _cached(_MESSAGE_CACHE, cache_key)
+    cached = None if refresh else _cached(_MESSAGE_CACHE, cache_key)
     if cached is not None:
         return cached
 

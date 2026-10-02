@@ -3,6 +3,7 @@
   "title": "Alles literal control census semantic overrides",
   "notes": "This file is deliberately small. Generated inventory is authoritative for source presence and activation paths. Each path carries source provenance and conservative exact test-control mentions. A test mention is never upgraded into pointer or keyboard proof without an explicit path-specific override. Where source cannot name an authority, outcome, transition, or recovery, the generated map records a bounded no-source-declaration classification rather than guessing.",
   "module_feature_hints": {
+    "static/js/capture.js": "plan.tasks-calendar",
     "static/js/activity.js": "server.management",
     "static/js/agentview.js": "aide.conversation-and-execution",
     "static/js/aidebackground.js": "aide.conversation-and-execution",

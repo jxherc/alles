@@ -760,7 +760,7 @@ function showView(viewId, navKey, onShow, stateRootId = '') {
     _paintSpecialistState(stateRoot, state, retry);
     const target = readRecordTarget(location.href);
     const route = target && groupRouteFor(target.view);
-    if ((state === 'ready' || (state === 'partial' && target?.view === 'calendar')) && route && GROUP_DEFINITIONS[route.group].rootId === stateRoot.id) {
+    if ((state === 'ready' || (state === 'partial' && ['calendar', 'mail'].includes(target?.view))) && route && GROUP_DEFINITIONS[route.group].rootId === stateRoot.id) {
       return revealLinkedRecord();
     }
   }).catch(() => {
@@ -825,7 +825,7 @@ async function revealLinkedRecord() {
   const isCurrent = () => location.href === url && Boolean(root?.getClientRects().length);
   if (!isCurrent()) return false;
   const state = root.querySelector(':scope > .specialist-state')?.dataset.state;
-  if (state !== 'ready' && !(state === 'partial' && target.view === 'calendar')) return false;
+  if (state !== 'ready' && !(state === 'partial' && ['calendar', 'mail'].includes(target.view))) return false;
   try {
     if (await revealRecord(target, isCurrent)) return true;
   } catch { /* Keep the source app's retry and saved state available. */ }
@@ -849,6 +849,7 @@ async function openHomeRecord(view, id, occurrence) {
     return false;
   }
 }
+window._openRecord = openHomeRecord;
 
 async function showPrivateDayDraft(prompt) {
   if (!(await navigateTo('chat'))) return false;

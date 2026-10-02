@@ -136,10 +136,19 @@ def run():
                             button.click()
                     assert captured.value.ok, captured.value.text()
                     result = captured.value.json()
-                    expect(page.locator("#toast-container .toast.success")).to_contain_text(
-                        "added to calendar"
+                    assert result["preview"] is True
+                    assert result["candidate"]["end_dt"] == f"{date.today().isoformat()}T12:00:00"
+                    expect(page.locator(".capture-review")).to_be_visible()
+                    before = context.request.get(base + "/api/calendar").json()
+                    with page.expect_response(base + "/api/calendar") as accepted:
+                        page.locator("#capture-accept").click()
+                    assert accepted.value.ok, accepted.value.text()
+                    result = accepted.value.json()
+                    expect(page.locator(".capture-status")).to_contain_text("saved in plan")
+                    assert (
+                        len(context.request.get(base + "/api/calendar").json()) == len(before) + 1
                     )
-                    assert result["end"] == f"{date.today().isoformat()}T12:00:00"
+                    page.locator("#capture-cancel").click()
 
                     saved = next(
                         row

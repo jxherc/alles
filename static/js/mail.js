@@ -1,4 +1,7 @@
 import { toast } from './util.js';
+import { openCaptureReview, showPendingCapture } from './capture.js';
+import { readRecordTarget } from './recordlinks.js';
+import { replaceRouteUrl } from './route_history.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { populateDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker as _dpInit } from './datepick.js';
@@ -158,6 +161,7 @@ function providerHelpHtml() {
   ).join('');
 }
 
+let _messageGeneration = 0;
 let _inited = false;
 export function initMail() {
   if (_inited) return;
@@ -249,6 +253,8 @@ async function _renderSavedBar() {
 
 export async function loadMail(fetcher = fetch) {
   initMail();
+  ++_messageGeneration;
+  showPendingCapture($('mail-view'));
   startMailPoll(fetcher).catch(error => console.error(error));
   _accounts = await fetcher('/api/mail/accounts').then(r => r.json()).catch(e => { console.error(e); return []; });
   if (_accounts.length > 1 && !localStorage.getItem('alles-mail-account-mode')) _active = 'all';
@@ -652,14 +658,52 @@ function _wireRows(list) {
   }));
 }
 
-async function openMessage(aid, uid, folder = 'INBOX') {
+export async function openMailSource(id, isCurrent = () => true) {
+  const match = /^(task|event)-([a-zA-Z0-9_-]+)$/.exec(id);
+  if (!match || !isCurrent()) return false;
+  const generation = ++_messageGeneration;
+  const main = $('mail-main');
+  main.innerHTML = '<div class="mail-empty" role="status">loading original message…</div>';
+  const current = () => generation === _messageGeneration && isCurrent();
+  let data;
+  try {
+    const response = await fetch(`/api/mail/source/${match[1]}/${encodeURIComponent(match[2])}`, { cache: 'no-store' });
+    data = await response.json();
+    if (!current()) return false;
+    if (!response.ok) throw new Error(data.detail?.message || (typeof data.detail === 'string' ? data.detail : 'could not open the original message'));
+    if (!data.message || data.source?.kind !== 'mail') throw new Error('could not confirm the original message');
+    await openMessage(data.source.account_id, data.source.uid, data.source.folder, data.message, isCurrent);
+    if (isCurrent()) {
+      const heading = main.querySelector('.mail-reader-subject');
+      if (heading) { heading.tabIndex = -1; heading.focus(); }
+    }
+    return true;
+  } catch (error) {
+    if (!current()) return false;
+    const source = data?.detail?.source;
+    main.innerHTML = `<div class="mail-source-error"><p role="status" tabindex="-1">${esc(error.message)}</p>${source ? `<details open><summary>saved excerpt: ${esc(source.label)}</summary><pre>${esc(source.excerpt)}</pre></details>` : ''}<button class="btn" type="button">retry original message</button></div>`;
+    main.querySelector('button').onclick = () => openMailSource(id, isCurrent);
+    main.querySelector('[role="status"]').focus();
+    return true;
+  }
+}
+
+async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurrent = () => true) {
+  const generation = ++_messageGeneration;
+  if (!verified && readRecordTarget(location.href)?.view === 'mail') {
+    const url = new URL(location.href);
+    for (const key of ['record', 'record_view', 'occurrence']) url.searchParams.delete(key);
+    replaceRouteUrl(url.pathname + url.search + url.hash);
+  }
+  const current = () => generation === _messageGeneration && isCurrent() && Boolean($('mail-view')?.getClientRects().length);
   const main = $('mail-main');
   main.innerHTML = '<div class="mail-empty">loading message...</div>';
   let m;
   try {
-    m = await fetch(`/api/mail/message/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`).then(r => r.json());
+    m = verified || await fetch(`/api/mail/message/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`).then(r => r.json());
+    if (!current()) return;
   } catch (e) { console.error(e);
-    main.innerHTML = '<div class="mail-empty">failed to load message</div>';
+    if (current()) main.innerHTML = '<div class="mail-empty">failed to load message</div>';
     return;
   }
   if (m.error) { main.innerHTML = `<div class="mail-empty">${esc(m.error)}</div>`; return; }
@@ -679,8 +723,8 @@ async function openMessage(aid, uid, folder = 'INBOX') {
         <button class="btn" id="mail-reply">reply</button>
         <button class="btn" id="mail-unread" title="mark as unread">unread</button>
         <button class="btn" id="mail-vip" title="VIP sender">+ VIP</button>
-        <button class="btn" id="mail-to-task" title="create a task from this mail">→ task</button>
-        <button class="btn" id="mail-to-cal" title="AI-extract the event and add it to your calendar">→ calendar</button>
+        <button class="btn" id="mail-to-task" title="review a task from this mail">→ task</button>
+        <button class="btn" id="mail-to-cal" title="extract and review an event from this mail">→ calendar</button>
         <button class="btn" id="mail-summarize" title="AI summary + action items">summarize</button>
       </div>
     </div>
@@ -692,7 +736,7 @@ async function openMessage(aid, uid, folder = 'INBOX') {
     f.srcdoc = mailBodySrcdoc(m.html);
   }
   // attachment chips — backend lists/serves them, the reader just never showed them
-  loadAttachments(aid, uid, folder);
+  loadAttachments(aid, uid, folder, current);
   const senderAddr = ((/<([^>]+)>/.exec(m.from) || [, m.from])[1] || '').trim().toLowerCase();
   $('mail-unread')?.addEventListener('click', async () => {
     await fetch(`/api/mail/read/${aid}?uid=${encodeURIComponent(uid)}&seen=false&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(console.error);
@@ -703,6 +747,7 @@ async function openMessage(aid, uid, folder = 'INBOX') {
   });
   (async () => {
     const vips = ((await fetch('/api/mail/vips').then(r => r.json()).catch(e => { console.error(e); return { vips: [] }; })).vips || []).map(v => v.toLowerCase());
+    if (!current()) return;
     const btn = $('mail-vip'); if (btn) { const on = vips.includes(senderAddr); btn.classList.toggle('on', on); btn.textContent = on ? 'VIP ★' : '+ VIP'; }
   })();
   $('mail-vip')?.addEventListener('click', async () => {
@@ -720,13 +765,24 @@ async function openMessage(aid, uid, folder = 'INBOX') {
       in_reply_to: m.message_id || '', references: m.references || '',
     });
   });
-  $('mail-to-task')?.addEventListener('click', async () => {
-    const r = await fetch('/api/mail/make-task', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: m.subject || `mail from ${fromName(m.from)}` }),
-    });
-    toast(r.ok ? 'task created' : 'failed to create task', r.ok ? 'success' : 'error');
-  });
+  const origin = { account_id: aid, folder, uid: String(uid), ...Object.fromEntries(['message_id', 'from', 'to', 'subject', 'date', 'text', 'html'].map(key => [key, m[key] || ''])) };
+  async function reviewCapture(kind, button) {
+    const originalLabel = button.textContent;
+    button.disabled = true; button.textContent = kind === 'event' ? 'extracting…' : 'preparing…';
+    try {
+      const response = await fetch(kind === 'task' ? '/api/mail/make-task' : '/api/mail/extract-event', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ preview: true, source: origin, ...(kind === 'task' ? { title: m.subject || `mail from ${fromName(m.from)}` } : { subject: m.subject || '', body: m.text || '', date: m.date || '' }) }),
+      });
+      const proposal = await response.json();
+      if (!current()) return;
+      if (!response.ok) throw new Error(typeof proposal.detail === 'string' ? proposal.detail : 'could not prepare the capture');
+      if (kind === 'event' && !proposal.found) { toast('no event found in this mail', ''); return; }
+      await openCaptureReview(proposal, button);
+    } catch (error) { if (current()) toast(error.message || 'could not prepare the capture; try again', 'error'); }
+    finally { button.disabled = false; button.textContent = originalLabel; }
+  }
+  $('mail-to-task')?.addEventListener('click', event => reviewCapture('task', event.currentTarget));
   $('mail-summarize')?.addEventListener('click', async () => {
     const btn = $('mail-summarize');
     const box = $('mail-summary');
@@ -742,33 +798,17 @@ async function openMessage(aid, uid, folder = 'INBOX') {
     } catch (e) { console.error(e); toast('summarize failed', 'error'); }
     btn.disabled = false; btn.textContent = 'summarize';
   });
-  $('mail-to-cal')?.addEventListener('click', async () => {
-    const btn = $('mail-to-cal');
-    btn.disabled = true; btn.textContent = 'extracting...';
-    try {
-      const r = await fetch('/api/mail/extract-event', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ subject: m.subject || '', body: m.text || '', date: m.date || '' }),
-      });
-      const d = await r.json();
-      if (!r.ok) { toast(d.detail || 'extraction failed', 'error'); }
-      else if (!d.found) { toast('no event found in this mail', ''); }
-      else {
-        const when = d.all_day ? d.start.slice(0, 10) : d.start.replace('T', ' ');
-        toast(`added to calendar: ${d.title}: ${when}`, 'success');
-      }
-    } catch (e) { console.error(e); toast('extraction failed', 'error'); }
-    btn.disabled = false; btn.textContent = '→ calendar';
-  });
+  $('mail-to-cal')?.addEventListener('click', event => reviewCapture('event', event.currentTarget));
 }
 
 const fmtBytes = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`;
 
-async function loadAttachments(aid, uid, folder) {
+async function loadAttachments(aid, uid, folder, isCurrent = () => true) {
   let d;
   try {
     d = await fetch(`/api/mail/attachments/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`).then(r => r.json());
   } catch (e) { console.error(e); return; }
+  if (!isCurrent()) return;
   const atts = d?.attachments || [];
   if (!atts.length) return;
   const head = $('mail-main')?.querySelector('.mail-reader-head');

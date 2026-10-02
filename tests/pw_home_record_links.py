@@ -143,6 +143,13 @@ def run():
                     page.locator("#today-sections button").filter(has_text=f"edited task {label}")
                 ).to_have_count(0)
                 page.goto(saved_link, wait_until="networkidle")
+                expect(page.locator("#te-title")).to_have_value(f"edited task {label}")
+                page.locator("#te-cancel").click()
+                expect(page.locator('.tasks-tab[data-tab="done"]')).to_have_attribute(
+                    "aria-pressed", "true"
+                )
+                assert context.request.delete(base + "/api/tasks/" + task_id).ok
+                page.reload(wait_until="networkidle")
                 expect(page.locator("#te-title")).to_have_count(0)
                 expect(page.locator("#toast-container .toast.error").last).to_contain_text(
                     "could not open this item"

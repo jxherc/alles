@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session as DbSession
 
 from core.database import DB_PATH, Task, get_db
 from core.settings import load_settings
+from services.commitment_requests import create_request
+from services.commitment_sources import MailSource, source_dict, source_json
 from services.task_nl import parse_task, reschedule_date
 from services.task_status import TASK_STAGES, apply_status
 from services.task_status import normalize_stage as _stage
@@ -36,6 +38,7 @@ def _fmt(t: Task) -> dict:
         "tags": [x for x in (t.tags or "").split(",") if x],
         "repeat": t.repeat or "",
         "notes": t.notes or "",
+        "source": source_dict(t.source_json),
         "project": t.project or "",
         "sort_order": t.sort_order or 0,
         "created_at": t.created_at.isoformat(),
@@ -224,46 +227,58 @@ class TaskBody(BaseModel):
     notes: str = ""
     stage: str = "backlog"
     nl: bool = False  # parse the title as natural language
+    request_id: str = ""
+    source: MailSource | None = None
 
 
 @router.post("/tasks")
 def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
-    title = body.title.strip()
-    if not title:
-        raise HTTPException(400, "empty title")
-    stage = _validate_stage(body.stage)
-    fields = dict(
-        title=title,
-        priority=body.priority,
-        due_date=body.due_date,
-        parent_id=body.parent_id,
-        tags=body.tags,
-        repeat=body.repeat,
-        project=body.project,
-        notes=body.notes,
-        stage=stage,
-        done=stage == "done",
-    )
-    if body.nl:
-        p = parse_task(title, language=load_settings().get("language", "en"))
-        fields["title"] = p["title"]
-        fields["priority"] = max(body.priority, p["priority"])
-        fields["due_date"] = body.due_date or p["due_date"]
-        fields["repeat"] = body.repeat or p["repeat"]
-        fields["tags"] = body.tags or p["tags"]
-    if (
-        fields.get("repeat")
-        and (fields.get("due_date") or "")[:10]
-        and len(fields["due_date"]) >= 10
+    with create_request(db, "task", body.request_id, body.model_dump(exclude={"request_id"})) as (
+        receipt,
+        existing,
     ):
-        fields["anchor_day"] = int(
-            fields["due_date"][8:10]
-        )  # pin the day so monthly/yearly don't drift
-    t = Task(**fields)
-    db.add(t)
-    db.commit()
-    db.refresh(t)
-    return _fmt(t)
+        if existing is not None:
+            return _fmt(existing)
+        title = body.title.strip()
+        if not title:
+            raise HTTPException(400, "empty title")
+        stage = _validate_stage(body.stage)
+        fields = dict(
+            title=title,
+            priority=body.priority,
+            due_date=body.due_date,
+            parent_id=body.parent_id,
+            tags=body.tags,
+            repeat=body.repeat,
+            project=body.project,
+            notes=body.notes,
+            source_json=source_json(body.source),
+            stage=stage,
+            done=stage == "done",
+        )
+        if body.nl:
+            p = parse_task(title, language=load_settings().get("language", "en"))
+            fields["title"] = p["title"]
+            fields["priority"] = max(body.priority, p["priority"])
+            fields["due_date"] = body.due_date or p["due_date"]
+            fields["repeat"] = body.repeat or p["repeat"]
+            fields["tags"] = body.tags or p["tags"]
+        if (
+            fields.get("repeat")
+            and (fields.get("due_date") or "")[:10]
+            and len(fields["due_date"]) >= 10
+        ):
+            fields["anchor_day"] = int(
+                fields["due_date"][8:10]
+            )  # pin the day so monthly/yearly don't drift
+        t = Task(**fields)
+        db.add(t)
+        if receipt is not None:
+            db.flush()
+            receipt.resource_id = t.id
+        db.commit()
+        db.refresh(t)
+        return _fmt(t)
 
 
 class QuickBody(BaseModel):

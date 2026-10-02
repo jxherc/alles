@@ -142,6 +142,21 @@ export async function loadTasks(fetcher = fetch, target = null) {
   }
   if (generation !== _loadGeneration || tab !== _tab || search !== _search) return;
   if (isTree) { _tree = data; renderTree(); } else { _tasks = data; renderTasks(); }
+  if (target?.view === 'tasks' && isTree && !_findTask(target.id)) {
+    const response = await fetcher('/api/tasks/done');
+    if (!response.ok) throw new Error(`request failed (${response.status})`);
+    const completed = await response.json();
+    if (generation !== _loadGeneration || tab !== _tab || search !== _search) return;
+    if (completed.some(task => task.id === target.id)) {
+      _tab = 'done'; _tasks = completed;
+      document.querySelectorAll('.tasks-tab').forEach(button => {
+        const selected = button.dataset.tab === _tab;
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-pressed', String(selected));
+      });
+      renderTasks();
+    }
+  }
   // Exact links open their own draft; other retained drafts stay available by task.
   if (target?.view !== 'tasks') await recoverTaskDraft(generation);
 }
@@ -282,7 +297,7 @@ export async function prepareTaskNavigation() {
 export async function openTaskRecord(id, isCurrent = () => true) {
   const existing = document.querySelector('.task-editor-ov');
   if (existing) return existing.dataset.taskId === id;
-  if (_tab !== 'active' || _search) {
+  if (!_findTask(id) && (_tab !== 'active' || _search)) {
     _tab = 'active';
     _search = '';
     const search = document.getElementById('tasks-search');
@@ -344,6 +359,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
         <button type="button" class="btn" data-task-recovery="mine" hidden>${esc(tr('tasks.keep_changes'))}</button>
       </div>
     </div>
+    ${savedTask?.source?.kind === 'mail' ? '<button type="button" class="btn" id="te-source">open original message</button>' : ''}
     <div class="te-actions"><button type="button" class="btn" id="te-cancel">${esc(tr('common.cancel'))}</button><button type="button" class="btn primary" id="te-save">${esc(tr('common.save'))}</button></div>
   </div>`;
   document.body.appendChild(ov);
@@ -434,6 +450,9 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
   focusBoundary = createFocusBoundary(dialog, { trigger: source, onEscape: close });
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
   ov.querySelector('#te-cancel').onclick = close;
+  ov.querySelector('#te-source')?.addEventListener('click', async () => {
+    if (await close({ restoreFocus: false })) await window._openRecord?.('mail', `task-${id}`);
+  });
   ov.querySelectorAll('.te-rs').forEach(b => b.addEventListener('click', () => {
     ov.querySelector('#te-due').value = _reschedDate(b.dataset.w);
     storeDraft();
