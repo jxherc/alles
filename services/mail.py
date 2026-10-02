@@ -744,20 +744,28 @@ def _has_uidplus(M) -> bool:
 def _do_move(M, uid, dest, src):
     """move one uid from src to dest. UID MOVE (RFC 6851) when the server has it, else the
     portable COPY + \\Deleted + EXPUNGE dance. operates on an already-open connection."""
-    M.select(src)
+
+    def checked(response, action):
+        status = response[0] if isinstance(response, (tuple, list)) and response else ""
+        if isinstance(status, bytes):
+            status = status.decode("ascii", errors="replace")
+        if status != "OK":
+            raise RuntimeError(f"mail server did not confirm {action}")
+
+    checked(M.select(src), "select the source folder")
     u = uid.encode() if isinstance(uid, str) else uid
     if _has_move(M):
-        M.uid("MOVE", u, dest)
+        checked(M.uid("MOVE", u, dest), "move the message")
     else:
-        M.uid("COPY", u, dest)
-        M.uid("STORE", u, "+FLAGS", r"(\Deleted)")
+        checked(M.uid("COPY", u, dest), "copy the message")
+        checked(M.uid("STORE", u, "+FLAGS", r"(\Deleted)"), "mark the source message deleted")
         # scope the expunge to JUST this uid (UIDPLUS) — a plain EXPUNGE would purge every
         # other \Deleted message the user has flagged in this folder. fall back only if the
         # server has neither MOVE nor UIDPLUS.
         if _has_uidplus(M):
-            M.uid("EXPUNGE", u)
+            checked(M.uid("EXPUNGE", u), "remove the source message")
         else:
-            M.expunge()
+            checked(M.expunge(), "remove deleted messages")
     return True
 
 
