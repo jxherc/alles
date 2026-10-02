@@ -389,6 +389,9 @@ a real email client (read + send), with one-click setup for the big providers an
   and a successful empty refresh clears stale rows. a failed message read does not mark it read
   or open an empty message. refreshing or retrying the current list preserves the reader and
   unsaved reply. keyboard retries keep focus unless it has moved elsewhere
+- save a search and reopen it from the keyboard. failed saves retain their exact query for retry
+  after reload; a lost response cannot create duplicates. deleted searches stay deleted on retry,
+  and removal failures remain visible until confirmed
 - **conversation threads**: a toggle collapses the inbox into conversations (everything with the same subject, re:/fwd: stripped), expand one to read the whole back-and-forth
 - **attachments**: a message shows its attachments as chips you click to download (the body still loads attachment-free for speed)
 - compose and send with **cc + bcc**; replies set the proper `in-reply-to`/`references` headers so they thread correctly in apple mail, gmail, and everywhere else
@@ -3059,7 +3062,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `mail_accounts` | `id: VARCHAR pk`, `name: VARCHAR ?`, `email: VARCHAR ?`, `imap_host: VARCHAR ?`, `imap_port: INTEGER ?`, `smtp_host: VARCHAR ?`, `smtp_port: INTEGER ?`, `username: VARCHAR ?`, `password: TEXT ? sealed`, `use_ssl: BOOLEAN ?`, `auth_type: VARCHAR ?`, `oauth_provider: VARCHAR ?`, `oauth_access_token: TEXT ? sealed`, `oauth_refresh_token: TEXT ? sealed`, `oauth_expires_at: FLOAT ?`, `created_at: DATETIME ?` | — |
 | `mail_drafts` | `id: VARCHAR pk`, `account_id: VARCHAR ?`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: TEXT ?`, `updated_at: DATETIME ?` | — |
 | `mail_rules` | `id: VARCHAR pk`, `match_field: VARCHAR ?`, `match_value: VARCHAR ?`, `action: VARCHAR ?`, `action_arg: VARCHAR ?`, `enabled: BOOLEAN ?`, `created_at: DATETIME ?` | — |
-| `mail_saved_searches` | `id: VARCHAR pk`, `name: VARCHAR`, `query: TEXT ?`, `created_at: DATETIME ?` | — |
+| `mail_saved_searches` | `id: VARCHAR pk`, `name: VARCHAR`, `query: TEXT ?`, `created_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_scheduled` | `id: VARCHAR pk`, `account_id: VARCHAR`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `html: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: VARCHAR ?`, `send_at: VARCHAR ?`, `status: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `mcp_servers` | `id: VARCHAR pk`, `name: VARCHAR`, `transport: VARCHAR ?`, `command: VARCHAR ?`, `args: TEXT ? sealed`, `url: TEXT ? sealed`, `env: TEXT ? sealed`, `headers: TEXT ? sealed`, `enabled: BOOLEAN ?`, `disabled_tools: TEXT ?`, `created_at: DATETIME ?` | — |
 | `memories` | `id: VARCHAR pk`, `text: TEXT`, `category: VARCHAR ?`, `source: VARCHAR ?`, `session_id: VARCHAR ?`, `pinned: BOOLEAN ?`, `timestamp: DATETIME ?`, `confidence: FLOAT ?`, `vetoed: BOOLEAN ?`, `provenance: VARCHAR ?`, `scope: VARCHAR ?`, `project_id: VARCHAR ?`, `status: VARCHAR ?`, `trust: VARCHAR ?`, `updated_at: DATETIME ?`, `used_in_runs: TEXT ?` | — |
@@ -3190,6 +3193,7 @@ known versions run in ascending order.
 | 53 | `vault_upload_receipts` | [m0053_vault_upload_receipts.py](core/migrations/m0053_vault_upload_receipts.py) |
 | 54 | `reminder_create_receipts` | [m0054_reminder_create_receipts.py](core/migrations/m0054_reminder_create_receipts.py) |
 | 55 | `commitment_sources` | [m0055_commitment_sources.py](core/migrations/m0055_commitment_sources.py) |
+| 56 | `mail_saved_search_recovery` | [m0056_mail_saved_search_recovery.py](core/migrations/m0056_mail_saved_search_recovery.py) |
 
 </details>
 
