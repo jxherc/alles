@@ -33,7 +33,7 @@ const dataFor = url => ({
   '/api/subscriptions/detect': { candidates: [] },
 })[url];
 
-const resp = data => ({ json: async () => data });
+const resp = data => ({ ok: true, status: 200, headers: new Headers({ 'content-type': 'application/json' }), json: async () => data });
 
 test('loadSubs starts panel requests together', async () => {
   const calls = [];
