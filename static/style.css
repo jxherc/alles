@@ -5647,7 +5647,10 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   animation: rise 0.12s ease forwards;
 }
 .schedule-pop-title { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
-.schedule-pop-actions { display: flex; gap: 0.4rem; justify-content: flex-end; }
+.schedule-pop-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
+.schedule-pop button, .schedule-pop .date-input { min-height: 44px; }
+#schedule-status { font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+#schedule-status:empty { display: none; }
 
 /* ── memory full-page view ── */
 .mem-view {
@@ -7641,7 +7644,14 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: flex-start;
   padding: 0 0 0.5rem;
 }
-.reminder-add-form input, .reminder-add-form select { height: 32px; }
+.reminder-add-form input, .reminder-add-form button, .reminder-add-form .date-input, .reminder-add-form .custom-select { min-height: 44px; }
+.reminder-add-form input { min-width: min(100%, 220px); }
+.reminder-add-form [hidden] { display: none; }
+#reminder-status { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
+#reminder-status:empty { display: none; }
+.reminder-meta { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+#reminder-list .row-name { overflow-wrap: anywhere; }
+#reminder-list button { min-height: 44px; }
 
 /* ── vision badge ── */
 .model-vision-badge {

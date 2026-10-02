@@ -761,6 +761,15 @@ class Reminder(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class ReminderCreateReceipt(Base):
+    """A create identity retained after cancellation, without reminder text."""
+
+    __tablename__ = "reminder_create_receipts"
+    id = Column(String, primary_key=True)
+    reminder_id = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class AutomationRule(Base):
     __tablename__ = "automation_rules"
     id = Column(String, primary_key=True, default=_uid)

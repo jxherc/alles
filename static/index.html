@@ -561,14 +561,16 @@
       </div>
       <div class="page-view-body aide-tool-content">
         <div id="reminder-list" style="margin-bottom:0.75rem"></div>
+        <p id="reminder-status" role="status" aria-live="polite"></p>
         <div class="reminder-add-form">
-          <input type="text" id="reminder-text" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
+          <input type="text" id="reminder-text" aria-label="reminder text" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
           <div class="date-input" id="reminder-time" data-type="datetime" data-ph="when" style="width:200px"></div>
-          <div id="reminder-type-select" class="settings-input custom-select" data-value="reminder" data-options="reminder|reminder;message|send message to AI" style="width:auto;min-width:150px"></div>
+          <div id="reminder-type-select" aria-label="reminder type" class="settings-input custom-select" data-value="reminder" data-options="reminder|reminder;message|send message to AI" style="width:auto;min-width:150px"></div>
           <button type="button" class="btn primary" id="reminder-add-btn">set</button>
+          <button type="button" class="btn" id="reminder-discard" hidden>discard retry</button>
         </div>
         <div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">
-          tip: use <code>/remind in 2h check deployment</code> or <code>/send at 3pm summarize my day</code> from chat
+          <span id="reminder-zone"></span>. tip: use <code>/remind in 2h check deployment</code> or <code>/send at 3pm summarize my day</code> from chat
         </div>
       </div>
     </div>

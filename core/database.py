@@ -116,6 +116,7 @@ from core.schema import ReadFeed as ReadFeed
 from core.schema import ReadItem as ReadItem
 from core.schema import RecurringTxn as RecurringTxn
 from core.schema import Reminder as Reminder
+from core.schema import ReminderCreateReceipt as ReminderCreateReceipt
 from core.schema import ResearchFinding as ResearchFinding
 from core.schema import SavedSearch as SavedSearch
 from core.schema import ScheduledMail as ScheduledMail

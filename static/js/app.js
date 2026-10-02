@@ -7,6 +7,7 @@ import { chooseBootState } from './bootstate.js';
 import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
 import { canSendMessage, sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
+import { confirm as confirmDialog } from './dialog.js';
 import { loadTasks, addTask, prepareTaskNavigation } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
@@ -48,7 +49,7 @@ import { initAideWorkspace } from './aideworkspace.js?v=278';
 import { beginBusy, createFocusBoundary, initKokuenPrimitives, setControlState } from './kokuen.js?v=1';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=248';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
-import { startReminderPoll, initReminderPanel } from './reminders.js?v=243';
+import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=243';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
 import { cachedLocalizationSettings, configureLocalization, formatDateTime, prepareLocalization, t } from './i18n.js';
@@ -989,7 +990,7 @@ const showVaultView      = () => showView('vault-view',      'vault',     (_trac
 const showContactsView   = () => showView('contacts-view',  'contacts',  (_track, request) => loadContacts('', request));
 const showRemindersView  = () => {
   releaseSpecialistLegacyView('plan', 'reminders');
-  return showView('reminders-view', 'aide-reminders', (_track, request) => initReminderPanel(request));
+  return showView('reminders-view', 'aide-reminders', (_track, request) => initReminderPanel(request, showRemindersView));
 };
 const showSubsView       = () => showView('subs-view',      'subs',      (track, request) => trackedImport(track, request, () => import('./subs.js'), module => module.initSubsPanel(request)));
 const showMoneyView      = () => showView('money-view',     'money',     (track, request) => trackedImport(track, request, () => import('./money.js'), module => module.initMoneyPanel(request)));
@@ -1025,7 +1026,7 @@ const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled',
 async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'calendar') return loadCalendar(request);
   if (section === 'tasks') return loadTasks(request, readRecordTarget(location.href));
-  if (section === 'reminders') return initReminderPanel(request);
+  if (section === 'reminders') return initReminderPanel(request, () => showSpecialistGroup(group, section));
   if (section === 'days') return import('./days.js?v=2').then(module => module.initDaysPanel(request));
   if (section === 'mail') return loadMail(request);
   if (section === 'contacts') return loadContacts('', request);
@@ -1999,8 +2000,13 @@ async function doSend() {
   const ta = document.getElementById('composer-ta');
   let text = ta.value.trim();
   if (!text) return;
-  if (await tryExecuteSlashCommand(text)) {
-    ta.value = ''; ta.style.height = 'auto'; clearDraft();
+  const sendingSession = getActiveId();
+  const slashResult = await tryExecuteSlashCommand(text);
+  if (slashResult) {
+    if (slashResult !== 'keep-draft' && getActiveId() === sendingSession && ta.value.trim() === text) {
+      ta.value = ''; ta.style.height = 'auto'; clearDraft();
+      ta.dispatchEvent(new Event('input'));
+    }
     return;
   }
   // a cookbook slash command rewrites the composer to its expanded prompt and returns
@@ -2016,7 +2022,9 @@ async function doSend() {
 
 // schedule-send dialog (pointer and keyboard context paths on the send button)
 async function _openSchedulePop(text, ta) {
-  document.querySelector('.schedule-pop')?.remove();
+  const existing = document.querySelector('.schedule-pop');
+  if (existing) { existing.querySelector('#schedule-go')?.focus(); return; }
+  const sourceSession = getActiveId();
   const pop = document.createElement('div');
   pop.className = 'schedule-pop';
   pop.setAttribute('role', 'dialog');
@@ -2024,6 +2032,7 @@ async function _openSchedulePop(text, ta) {
   pop.innerHTML = `
     <div class="schedule-pop-title" id="schedule-pop-title">send later</div>
     <div class="date-input" id="schedule-when" data-type="datetime" data-ph="when to send"></div>
+    <div id="schedule-status" role="status" aria-live="polite"></div>
     <div class="schedule-pop-actions">
       <button class="btn primary" id="schedule-go" type="button">schedule</button>
       <button class="btn" id="schedule-cancel" type="button">cancel</button>
@@ -2035,51 +2044,76 @@ async function _openSchedulePop(text, ta) {
   pop.style.bottom = `${Math.max(8, window.innerHeight - btnRect.top + 8)}px`;
   const { initDatePicker } = await import('./datepick.js');
   const when = pop.querySelector('#schedule-when');
+  const scheduleButton = pop.querySelector('#schedule-go');
+  const cancelButton = pop.querySelector('#schedule-cancel');
+  const status = pop.querySelector('#schedule-status');
   initDatePicker(when);
-  let focusBoundary = null;
-  const close = ({ restoreFocus = true } = {}) => {
+  let focusBoundary = null, request = null, uncertain = false, busy = false, closing = false;
+  const ownsFocus = () => pop.contains(document.activeElement) || document.activeElement === document.body;
+  const close = async ({ restoreFocus = true } = {}) => {
+    if (busy || closing) return;
+    closing = true;
+    if (uncertain && !await confirmDialog('this message may already be scheduled. discard this retry? check reminders before scheduling it again.')) {
+      closing = false;
+      return;
+    }
     document.removeEventListener('click', outside);
-    focusBoundary?.deactivate({ restoreFocus });
+    focusBoundary?.deactivate({ restoreFocus: restoreFocus && ownsFocus() && getActiveId() === sourceSession });
     pop.remove();
   };
-  const outside = e => {
-    if (!pop.contains(e.target) && !document.querySelector('.date-panel')?.contains(e.target)) {
+  const outside = event => {
+    if (!pop.contains(event.target) && !document.querySelector('.date-panel')?.contains(event.target) && !event.target.closest('.dialog-overlay') && !document.querySelector('.dialog-overlay')) {
       close({ restoreFocus: false });
     }
   };
   focusBoundary = createFocusBoundary(pop, { trigger, onEscape: close });
   focusBoundary.activate({ focus: when, source: trigger });
   setTimeout(() => document.addEventListener('click', outside), 0);
-  pop.querySelector('#schedule-cancel').addEventListener('click', close);
-  const scheduleButton = pop.querySelector('#schedule-go');
+  cancelButton.addEventListener('click', close);
   scheduleButton.addEventListener('click', async () => {
-    const at = when.value;
-    if (!at) { toast('pick a time', 'error'); return; }
-    if (new Date(at) <= new Date()) { toast('that time is in the past', 'error'); return; }
+    if (busy || closing) return;
     const finishBusy = beginBusy(scheduleButton, 'scheduling');
     if (!finishBusy) return;
+    busy = true;
+    cancelButton.disabled = true;
     try {
-      let sid = getActiveId();
-      if (!sid) {
-        const session = await createSession();
-        sid = session?.id;
+      if (!request) {
+        const at = reminderTimeFromWall(when.value);
+        if (at <= new Date()) throw new Error('pick a future time');
+        let sid = sourceSession;
+        if (!sid) {
+          const selected = getSelected();
+          if (!selected?.model || !selected?.endpointId) throw new Error('choose a model before scheduling a message');
+          const session = await createSession(selected.model, selected.endpointId);
+          sid = session?.id;
+        }
+        if (!sid) throw new Error('could not create a conversation');
+        request = reminderRequest(text, at, 'message', sid);
       }
-      if (!sid) throw new Error('no session to schedule into');
-      const response = await fetch('/api/reminders', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, trigger_at: at, type: 'message', session_id: sid }),
-      });
-      if (!response.ok) throw new Error('failed to schedule');
+      when.setAttribute('aria-disabled', 'true'); when.tabIndex = -1;
+      status.textContent = 'scheduling…';
+      const result = await createReminder(request);
+      uncertain = false;
       finishBusy({ state: 'resting', text: 'schedule' });
-      ta.value = ''; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input'));
-      const whenText = formatDateTime(at, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toLowerCase();
-      toast(t('schedule.confirmed', { when: whenText }), 'success');
+      if (getActiveId() === sourceSession && ta.value.trim() === text) {
+        ta.value = ''; ta.style.height = 'auto'; clearDraft(); ta.dispatchEvent(new Event('input'));
+      }
+      const whenText = formatDateTime(request.trigger_at, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toLowerCase();
+      toast(result.fired ? 'message already delivered' : t('schedule.confirmed', { when: whenText }), 'success');
+      busy = false;
       close();
     } catch (error) {
+      if (request) uncertain ||= reminderMayHaveSaved(error);
+      if (!uncertain) request = null;
+      when.setAttribute('aria-disabled', String(!!request)); when.tabIndex = request ? -1 : 0;
+      const message = `${error.message || 'could not schedule message'}${uncertain ? '. retry to confirm the same message.' : ''}`;
       finishBusy({ state: 'error', text: 'retry schedule' });
-      setControlState(scheduleButton, 'error', { message: error?.message || 'failed to schedule' });
-      toast(error?.message || 'failed to schedule', 'error');
-      when.focus();
+      setControlState(scheduleButton, 'error', { message });
+      status.textContent = message;
+      toast(message, 'error');
+    } finally {
+      busy = false; cancelButton.disabled = false;
+      cancelButton.textContent = uncertain ? 'discard retry' : 'cancel';
     }
   });
 }

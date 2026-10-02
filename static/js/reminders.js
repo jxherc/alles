@@ -1,192 +1,356 @@
 import { toast } from './util.js';
+import { confirm } from './dialog.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
-import { initDatePicker } from './datepick.js';
-import { formatDate, formatTime } from './i18n.js';
+import { initDatePicker, dateTimeParts } from './datepick.js';
+import { calendarDateKey, formatDate, formatDateParts, formatTime, resolvedTimeZone } from './i18n.js';
 
 let _reminders = [];
 let _pollTimer = null;
+let _checking = false;
 let _revision = 0;
+let _loaded = false;
+let _loading = false;
+let _loadError = '';
+let _creation = null;
+let _saving = false;
+let _reloadPanel = null;
+const _pendingChanges = new Set();
+const _cancelling = new Set();
 
 export async function loadReminders(fetcher = fetch) {
-  const revision = _revision;
-  let rows;
+  const retryFocused = document.activeElement?.hasAttribute('data-reminder-retry');
+  const revision = ++_revision;
+  _loading = true;
+  _loadError = '';
+  _render();
   try {
     const r = await fetcher('/api/reminders');
-    if (!r.ok) throw new Error('failed to load reminders');
-    rows = await r.json();
+    if (!r.ok) throw new Error('could not load reminders');
+    const rows = await r.json();
+    if (!Array.isArray(rows)) throw new Error('could not load reminders');
+    if (revision !== _revision) return;
+    _reminders = rows;
+    _loaded = true;
   } catch (error) {
-    if (revision === _revision) {
-      _reminders = [];
-      _render();
-    }
+    if (revision === _revision) _loadError = 'could not load reminders';
     throw error;
+  } finally {
+    if (revision === _revision) {
+      _loading = false;
+      _render();
+      _focusLoadResult(retryFocused);
+    }
   }
-  if (revision !== _revision) return;
-  _reminders = rows;
-  _render();
+}
+
+function _focusLoadResult(owned) {
+  if (!owned || document.activeElement !== document.body) return;
+  const target = document.querySelector('#reminder-list [data-reminder-retry], #reminder-list [data-reminder-cancel]:not(:disabled)') || document.getElementById('reminder-text');
+  if (target?.getClientRects().length) target.focus();
+}
+
+async function _retryLoad() {
+  const owned = document.activeElement?.hasAttribute('data-reminder-retry');
+  try {
+    if (_reloadPanel) await _reloadPanel();
+    else await loadReminders();
+  } catch {} finally { _focusLoadResult(owned); }
 }
 
 function _render() {
   const el = document.getElementById('reminder-list');
   if (!el) return;
-  if (!_reminders.length) {
-    el.innerHTML = '<div class="page-empty">no reminders</div>';
-    return;
-  }
-  el.innerHTML = _reminders.map(r => `
-    <div class="settings-list-row" data-id="${r.id}">
-      <div style="flex:1;min-width:0">
-        <div class="row-name">${_esc(r.text)}</div>
-        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">
-          ${_fmtTime(r.trigger_at)} · ${r.type}
-          ${r.session_id ? ' · in session' : ''}
+  const focusedId = el.contains(document.activeElement) ? document.activeElement.dataset.reminderCancel : null;
+  const focusedRetry = el.contains(document.activeElement) && document.activeElement.hasAttribute('data-reminder-retry');
+  const status = _loadError
+    ? `<div role="alert">${_loadError} <button type="button" class="btn" data-reminder-retry>retry</button></div>`
+    : _loading ? '<div role="status" data-reminder-loading>loading reminders…</div>' : '';
+  el.innerHTML = status + (!_reminders.length
+    ? (_loaded && !_loadError && !_loading ? '<div class="page-empty">no reminders</div>' : '')
+    : _reminders.map(r => `
+      <div class="settings-list-row" data-id="${_esc(r.id)}">
+        <div style="flex:1;min-width:0">
+          <div class="row-name">${_esc(r.text)}</div>
+          <div class="reminder-meta">${_esc(_fmtTime(r.trigger_at))} · ${r.type === 'message' ? 'scheduled message' : 'reminder'}${r.delivery_started ? ' · delivery started; check the conversation for a reply' : ''}</div>
         </div>
-      </div>
-      <button class="act-btn" data-id="${r.id}" onclick="window._delReminder('${r.id}')">cancel</button>
-    </div>`).join('');
+        <button type="button" class="act-btn" data-reminder-cancel="${_esc(r.id)}"${_cancelling.has(r.id) ? ' disabled' : ''}>cancel</button>
+      </div>`).join(''));
+  el.querySelector('[data-reminder-retry]')?.addEventListener('click', _retryLoad);
+  el.querySelectorAll('[data-reminder-cancel]').forEach(button => {
+    button.addEventListener('click', () => window._delReminder(button.dataset.reminderCancel, button));
+  });
+  if (focusedRetry && document.activeElement === document.body) {
+    el.querySelector('[data-reminder-retry]')?.focus();
+  } else if (focusedId && document.activeElement === document.body) {
+    const target = [...el.querySelectorAll('[data-reminder-cancel]')].find(button => button.dataset.reminderCancel === focusedId);
+    (target && !target.disabled ? target : document.getElementById('reminder-text'))?.focus();
+  }
 }
 
 function _fmtTime(iso) {
   if (!iso) return '';
-  const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z'));
-  const now = Date.now();
-  const diff = d.getTime() - now;
-  if (diff < 0) return 'overdue';
+  const d = new Date(iso + (/(Z|[+-]\d\d:\d\d)$/.test(iso) ? '' : 'Z'));
+  const diff = d.getTime() - Date.now();
+  if (diff < 0) return 'due now';
   if (diff < 60000) return 'in <1m';
-  if (diff < 3600000) return `in ${Math.round(diff/60000)}m`;
-  if (diff < 86400000) return `in ${Math.round(diff/3600000)}h`;
+  if (diff < 3600000) return `in ${Math.round(diff / 60000)}m`;
+  if (diff < 86400000) return `in ${Math.round(diff / 3600000)}h`;
   return `${formatDate(d)} ${formatTime(d, { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-export async function createReminder(text, triggerAt, type = 'reminder', sessionId = null) {
-  const r = await fetch('/api/reminders', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text, trigger_at: triggerAt.toISOString(), type, session_id: sessionId }),
-  });
-  if (!r.ok) { toast('failed to set reminder', 'error'); return null; }
-  const data = await r.json();
+// The picker displays the configured timezone, which may differ from this browser's zone.
+export function reminderTimeFromWall(value) {
+  const p = dateTimeParts(value);
+  if (!p) throw new Error('pick a valid date and time');
+  const wall = Date.UTC(p.y, p.mo, p.d, p.h, p.mi);
+  const options = {
+    timeZone: resolvedTimeZone(), calendar: 'gregory', numberingSystem: 'latn',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  };
+  const asWall = instant => {
+    const parts = Object.fromEntries(formatDateParts(new Date(instant), options).map(part => [part.type, Number(part.value)]));
+    return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+  };
+  const offsets = new Set();
+  for (let hours = -36; hours <= 36; hours += 6) {
+    const instant = wall + hours * 3600000;
+    offsets.add(asWall(instant) - instant);
+  }
+  const matches = [...offsets].map(offset => wall - offset).filter(instant => asWall(instant) === wall).sort((a, b) => a - b);
+  if (!matches.length) throw new Error('that time does not exist in this timezone; choose another time');
+  // A repeated autumn clock time selects its first occurrence.
+  return new Date(matches[0]);
+}
+
+function newRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+export function reminderRequest(text, triggerAt, type = 'reminder', sessionId = null) {
+  return Object.freeze({ text, trigger_at: triggerAt.toISOString(), type, session_id: sessionId, request_id: newRequestId() });
+}
+
+function _beginReminderChange() {
+  let resolve;
+  const pending = new Promise(done => { resolve = done; });
+  _pendingChanges.add(pending);
   _revision++;
-  _reminders.unshift(data);
+  return () => {
+    _revision++;
+    _loading = false;
+    document.querySelector('#reminder-list [data-reminder-loading]')?.remove();
+    _pendingChanges.delete(pending);
+    resolve();
+  };
+}
+
+export async function createReminder(request) {
+  let data;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await Promise.all([..._pendingChanges]);
+    const revision = _revision;
+    const response = await fetch('/api/reminders', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      const error = new Error(typeof body.detail === 'string' ? body.detail : 'could not save reminder');
+      error.status = response.status;
+      if (response.status === 410) await loadReminders().catch(() => {});
+      throw error;
+    }
+    data = await response.json();
+    if (!data.id || data.text !== request.text || data.type !== request.type || data.session_id !== request.session_id || typeof data.fired !== 'boolean') {
+      throw new Error('could not confirm the saved reminder');
+    }
+    await Promise.all([..._pendingChanges]);
+    if (revision === _revision) break;
+    // A cancellation or acknowledgment may have overtaken this response. Replay the
+    // same identity to confirm current server state before publishing success.
+    if (attempt === 2) throw new Error('reminders changed while saving; retry to confirm');
+  }
+  _revision++;
+  _loading = false;
+  _reminders = _reminders.filter(row => row.id !== data.id);
+  if (!data.fired) _reminders.push(data);
+  _reminders.sort((a, b) => a.trigger_at.localeCompare(b.trigger_at));
   _render();
   return data;
 }
 
-window._delReminder = async id => {
+export function reminderMayHaveSaved(error) {
+  return ![400, 401, 403, 404, 422].includes(error?.status);
+}
+
+window._delReminder = async (id, button) => {
+  if (_cancelling.has(id)) return false;
+  _cancelling.add(id);
+  const hadFocus = button && document.activeElement === button;
+  if (button) button.disabled = true;
+  const settle = _beginReminderChange();
   try {
-    const response = await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
-    if (!response.ok) throw new Error('reminder cancellation failed');
+    const response = await fetch(`/api/reminders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(typeof data.detail === 'string' ? data.detail : 'could not cancel reminder; try again');
+    }
     _revision++;
+    _loading = false;
     _reminders = _reminders.filter(r => r.id !== id);
-    _render();
     return true;
-  } catch {
-    toast('failed to cancel reminder', 'error');
+  } catch (error) {
+    toast(error.message || 'could not cancel reminder; try again', 'error');
     return false;
+  } finally {
+    settle();
+    _cancelling.delete(id);
+    _render();
+    if (hadFocus && document.activeElement === document.body) {
+      const retry = [...document.querySelectorAll('[data-reminder-cancel]')].find(node => node.dataset.reminderCancel === id);
+      const target = retry || document.getElementById('reminder-text');
+      if (target?.getClientRects().length) target.focus();
+    }
   }
 };
 
-// start polling for due reminders every 30s
 export function startReminderPoll() {
   if (_pollTimer) return;
   _pollTimer = setInterval(_checkDue, 30000);
-  // check immediately on first load too
   setTimeout(_checkDue, 2000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) _checkDue(); });
 }
 
 async function _checkDue() {
+  if (_checking || document.hidden) return;
+  _checking = true;
   try {
     const r = await fetch('/api/reminders/due');
+    if (!r.ok) return;
     const due = await r.json();
+    if (!Array.isArray(due)) return;
     for (const rem of due) {
+      if (document.hidden) break;
       toast(`reminder: ${rem.text}`, 'success');
-      const ack = await fetch(`/api/reminders/${rem.id}/ack`, { method: 'POST' });
-      if (ack.ok) {
-        _revision++;
+      const settle = _beginReminderChange();
+      try {
+        const ack = await fetch(`/api/reminders/${encodeURIComponent(rem.id)}/ack`, { method: 'POST' });
+        if (!ack.ok) throw new Error('could not confirm reminder delivery');
         _reminders = _reminders.filter(x => x.id !== rem.id);
-      }
+      } catch {
+        // A failed reply can follow a committed acknowledgment. Refresh known state;
+        // if that read also fails, the list retains its rows and exposes retry.
+        await loadReminders().catch(() => {});
+      } finally { settle(); }
     }
     if (due.length) _render();
-  } catch {}
+  } catch {} finally { _checking = false; }
 }
 
-export function initReminderPanel(fetcher = fetch) {
+function _panelState(message = '') {
+  const locked = _saving || !!_creation;
+  const text = document.getElementById('reminder-text');
+  const time = document.getElementById('reminder-time');
+  const type = document.getElementById('reminder-type-select');
+  const add = document.getElementById('reminder-add-btn');
+  const discard = document.getElementById('reminder-discard');
+  if (text) text.disabled = locked;
+  if (time) { time.setAttribute('aria-disabled', String(locked)); time.tabIndex = locked ? -1 : 0; }
+  if (type) type.disabled = locked;
+  if (add) { add.disabled = _saving; add.textContent = _saving ? 'saving…' : _creation ? 'retry save' : 'set'; }
+  if (discard) { discard.hidden = !_creation; discard.disabled = _saving; }
+  const status = document.getElementById('reminder-status');
+  if (status) status.textContent = message;
+}
+
+export function initReminderPanel(fetcher = fetch, reloadPanel = null) {
+  _reloadPanel = reloadPanel;
   const loading = loadReminders(fetcher);
   import('./push.js').then(m => m.initPushButton()).catch(() => {});
-
   const addBtn = document.getElementById('reminder-add-btn');
   const textEl = document.getElementById('reminder-text');
   const timeEl = document.getElementById('reminder-time');
   const typeEl = document.getElementById('reminder-type-select');
   initCustomDropdown(typeEl);
   initDatePicker(timeEl);
-
+  document.getElementById('reminder-zone').textContent = `times use ${resolvedTimeZone()}`;
   if (!addBtn || addBtn.dataset.wired === '1') return loading;
   addBtn.dataset.wired = '1';
+  document.getElementById('reminder-discard').addEventListener('click', async () => {
+    if (_saving || !_creation) return;
+    if (!await confirm('this reminder may already be saved. discard this retry? check the reminder list before creating another.')) return;
+    _creation = null;
+    textEl.value = ''; timeEl.value = '';
+    _panelState(); textEl.focus();
+  });
   addBtn.addEventListener('click', async () => {
-    const text = textEl?.value.trim();
-    const timeVal = timeEl?.value;
-    if (!text || !timeVal) { toast('enter text and time', 'error'); return; }
-    const triggerAt = new Date(timeVal);
-    if (isNaN(triggerAt.getTime()) || triggerAt <= new Date()) {
-      toast('pick a future time', 'error'); return;
-    }
-    const type = typeEl?.value || 'reminder';
-    const sessionId = type === 'message' ? (window._currentSession?.id || null) : null;
-    const result = await createReminder(text, triggerAt, type, sessionId);
-    if (result) {
-      if (textEl) textEl.value = '';
-      if (timeEl) timeEl.value = '';
-      toast(type === 'message' ? 'message scheduled' : 'reminder set', 'success');
+    if (_saving) return;
+    const hadFocus = document.activeElement === addBtn;
+    let saved = false;
+    try {
+      if (!_creation) {
+        const text = textEl.value.trim();
+        if (!text) throw new Error('enter reminder text');
+        const triggerAt = reminderTimeFromWall(timeEl.value);
+        if (triggerAt <= new Date()) throw new Error('pick a future time');
+        const type = typeEl.value || 'reminder';
+        _creation = { request: reminderRequest(text, triggerAt, type, type === 'message' ? window._currentSession?.id || null : null), uncertain: false };
+      }
+      _saving = true;
+      _panelState('saving…');
+      const result = await createReminder(_creation.request);
+      saved = true;
+      _creation = null;
+      textEl.value = ''; timeEl.value = '';
+      toast(result.fired ? 'reminder already delivered' : result.type === 'message' ? 'message scheduled' : 'reminder set', 'success');
+      _panelState();
+    } catch (error) {
+      if (_creation) {
+        _creation.uncertain ||= reminderMayHaveSaved(error);
+        if (!_creation.uncertain) _creation = null;
+      }
+      const message = `${error.message || 'could not save reminder'}${_creation ? '. retry to confirm the same reminder, or discard this retry.' : ''}`;
+      _panelState(message);
+      toast(message, 'error');
+    } finally {
+      _saving = false;
+      _panelState(document.getElementById('reminder-status').textContent);
+      if (hadFocus && document.activeElement === document.body && addBtn.getClientRects().length) {
+        (saved ? textEl : addBtn).focus();
+      }
     }
   });
   return loading;
 }
 
-// parse time from slash command: "in 2h", "in 30m", "at 15:30", "at 3pm", "tomorrow at 9am"
 export function parseReminderTime(str) {
   const s = str.trim().toLowerCase();
-
-  // "in Xm" / "in Xh" / "in Xd"
-  const relM = s.match(/^in\s+(\d+)\s*(m(?:in)?|h(?:r|our)?|d(?:ay)?)$/);
-  if (relM) {
-    const n = parseInt(relM[1]);
-    const unit = relM[2][0];
-    const ms = unit === 'm' ? n*60000 : unit === 'h' ? n*3600000 : n*86400000;
-    return new Date(Date.now() + ms);
+  const relative = s.match(/^in\s+(\d+)\s*(m(?:in)?|h(?:r|our)?|d(?:ay)?)$/);
+  if (relative) {
+    const duration = Number(relative[1]) * ({ m: 60000, h: 3600000, d: 86400000 }[relative[2][0]]);
+    const date = new Date(Date.now() + duration);
+    return duration > 0 && !isNaN(date) ? date : null;
   }
-
-  // "at HH:MM" or "at 3pm"
-  const atM = s.match(/^(?:today\s+)?at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
-  if (atM) {
-    let h = parseInt(atM[1]);
-    const m = parseInt(atM[2] || '0');
-    const ampm = atM[3];
-    if (ampm === 'pm' && h < 12) h += 12;
-    if (ampm === 'am' && h === 12) h = 0;
-    const d = new Date();
-    d.setHours(h, m, 0, 0);
-    if (d <= new Date()) d.setDate(d.getDate() + 1);
-    return d;
-  }
-
-  // "tomorrow at ..."
-  const tomM = s.match(/^tomorrow\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
-  if (tomM) {
-    let h = parseInt(tomM[1]);
-    const m = parseInt(tomM[2] || '0');
-    const ampm = tomM[3];
-    if (ampm === 'pm' && h < 12) h += 12;
-    if (ampm === 'am' && h === 12) h = 0;
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(h, m, 0, 0);
-    return d;
-  }
-
-  return null;
+  const clock = s.match(/^(?:(today|tomorrow)\s+)?at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+  if (!clock) return null;
+  let hour = Number(clock[2]);
+  const minute = Number(clock[3] || 0), period = clock[4];
+  if (minute > 59 || (period ? hour < 1 || hour > 12 : hour > 23)) return null;
+  if (period) hour = hour % 12 + (period === 'pm' ? 12 : 0);
+  const day = new Date(calendarDateKey() + 'T12:00:00Z');
+  if (clock[1] === 'tomorrow') day.setUTCDate(day.getUTCDate() + 1);
+  const parse = () => reminderTimeFromWall(`${day.toISOString().slice(0, 10)}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+  try {
+    let result = parse();
+    if (result <= new Date() && clock[1] !== 'tomorrow') { day.setUTCDate(day.getUTCDate() + 1); result = parse(); }
+    return result;
+  } catch { return null; }
 }
 
 function _esc(s = '') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }

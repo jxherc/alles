@@ -1,6 +1,10 @@
 import { toast, escapeHtml } from './util.js';
-import { exportActiveSessionMarkdown } from './sessions.js';
+import { exportActiveSessionMarkdown, getActiveId } from './sessions.js';
 import { formatTime } from './i18n.js';
+import { confirm } from './dialog.js';
+
+let _reminderPending = null;
+let _reminderBusy = false;
 
 // ── built-in command registry ────────────────────────────────────────
 const BUILTINS = [
@@ -458,30 +462,43 @@ export async function tryExecuteSlashCommand(text) {
 
     case 'remind':
     case 'send': {
-      // usage: /remind in 2h <text>  OR  /remind at 3pm <text>
-      const { parseReminderTime, createReminder } = await import('./reminders.js');
-      const timePatterns = [
-        /^(in\s+\d+\s*(?:m(?:in)?|h(?:r|our)?|d(?:ay)?))\s+(.+)$/i,
-        /^((?:today\s+)?at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(.+)$/i,
-        /^(tomorrow\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(.+)$/i,
-      ];
-      let timePart = null, textPart = null;
-      for (const pat of timePatterns) {
-        const m = args.match(pat);
-        if (m) { timePart = m[1]; textPart = m[2]; break; }
-      }
-      if (!timePart || !textPart) {
-        toast(`usage: /${cmd} in 2h <text> OR /${cmd} at 3pm <text>`, 'error');
-        return true;
-      }
-      const triggerAt = parseReminderTime(timePart);
-      if (!triggerAt) { toast('could not parse time', 'error'); return true; }
-      const type = cmd === 'send' ? 'message' : 'reminder';
-      const sessionId = type === 'message' ? (window._currentSession?.id || null) : null;
-      await createReminder(textPart, triggerAt, type, sessionId);
-      const when = formatTime(triggerAt, { hour: '2-digit', minute: '2-digit' });
-      toast(type === 'message' ? `scheduled for ${when}` : `reminder set for ${when}`, 'success');
-      return true;
+      if (_reminderBusy) return 'keep-draft';
+      _reminderBusy = true;
+      try {
+        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=243');
+        const type = cmd === 'send' ? 'message' : 'reminder';
+        const sessionId = getActiveId();
+        const command = `/${cmd} ${args}`;
+        if (_reminderPending && (_reminderPending.command !== command || _reminderPending.sessionId !== sessionId)) {
+          if (!await confirm('the previous reminder may already be saved. discard its retry and create this one?')) return 'keep-draft';
+          _reminderPending = null;
+        }
+        if (!_reminderPending) {
+          const patterns = [
+            /^(in\s+\d+\s*(?:m(?:in)?|h(?:r|our)?|d(?:ay)?))\s+(.+)$/i,
+            /^((?:(?:today|tomorrow)\s+)?at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(.+)$/i,
+          ];
+          const match = patterns.map(pattern => args.match(pattern)).find(Boolean);
+          const triggerAt = match && parseReminderTime(match[1]);
+          if (!triggerAt) {
+            toast(`use /${cmd} in 2h <text> or /${cmd} at 3pm <text> with a valid time`, 'error');
+            return 'keep-draft';
+          }
+          _reminderPending = { command, sessionId, request: reminderRequest(match[2], triggerAt, type, type === 'message' ? sessionId : null), uncertain: false };
+        }
+        try {
+          const result = await createReminder(_reminderPending.request);
+          const when = formatTime(new Date(_reminderPending.request.trigger_at), { hour: '2-digit', minute: '2-digit' });
+          _reminderPending = null;
+          toast(result.fired ? 'reminder already delivered' : type === 'message' ? `scheduled for ${when}` : `reminder set for ${when}`, 'success');
+          return true;
+        } catch (error) {
+          _reminderPending.uncertain ||= reminderMayHaveSaved(error);
+          if (!_reminderPending.uncertain) _reminderPending = null;
+          toast(`${error.message || 'could not save reminder'}${_reminderPending ? '. send this command again to confirm the same reminder.' : ''}`, 'error');
+          return 'keep-draft';
+        }
+      } finally { _reminderBusy = false; }
     }
 
     case 'reminders':
