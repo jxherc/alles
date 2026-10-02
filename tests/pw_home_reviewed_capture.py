@@ -251,6 +251,61 @@ def run():
                 assert page.locator("#capture-due").evaluate("el => el.value") == "2032-01-02"
                 page.locator("#capture-cancel").click()
                 record("relative-dates-use-displayed-home-day")
+                for cleanup in ("before", "after"):
+                    page.goto(base + "/?view=today", wait_until="networkidle")
+                    original = f"confirmed cleanup {cleanup} {width}"
+                    entry.fill(original)
+                    submit.click()
+                    expect(page.locator("#capture-accept")).to_be_visible()
+                    before = len(api.get("/api/tasks").json())
+                    page.evaluate(
+                        """when => {
+                        window.__captureRemove = Storage.prototype.removeItem;
+                        Storage.prototype.removeItem = function(key) {
+                            if (!key.startsWith('alles.capture.pending.v1:')) return window.__captureRemove.call(this, key);
+                            if (when === 'after') window.__captureRemove.call(this, key);
+                            throw new Error('synthetic cleanup failure');
+                        };
+                    }""",
+                        cleanup,
+                    )
+                    with page.expect_response(
+                        lambda r: r.url == base + "/api/tasks" and r.request.method == "POST"
+                    ) as confirmed:
+                        page.locator("#capture-accept").click()
+                    assert confirmed.value.ok, confirmed.value.text()
+                    saved = confirmed.value.json()
+                    expect(page.locator(".capture-status")).to_contain_text("saved in plan:")
+                    expect(page.locator(".capture-status")).to_contain_text(
+                        "browser retry copy could not be cleared"
+                    )
+                    expect(page.locator("#capture-open")).to_be_focused()
+                    expect(entry).to_have_value("")
+                    page.screenshot(
+                        path=str(out / f"{width}-cleanup-{cleanup}.png"), full_page=True
+                    )
+                    page.keyboard.press("Enter")
+                    expect(page.locator("#te-title")).to_have_value(saved["title"])
+                    assert saved["id"] in page.url
+                    assert len(api.get("/api/tasks").json()) == before + 1
+                    page.evaluate(
+                        "() => { Storage.prototype.removeItem = window.__captureRemove; }"
+                    )
+                    page.goto(base + "/?view=today", wait_until="networkidle")
+                    pending = page.locator("#today-capture-recovery .capture-resume button")
+                    if cleanup == "before":
+                        expect(pending).to_be_visible()
+                        pending.click()
+                        with page.expect_response(
+                            lambda r: r.url == base + "/api/tasks" and r.request.method == "POST"
+                        ) as repeated:
+                            page.locator("#capture-accept").click()
+                        assert repeated.value.json()["id"] == saved["id"]
+                        expect(page.locator(".capture-status")).to_contain_text("saved in plan:")
+                        page.locator("#capture-cancel").click()
+                    expect(pending).to_have_count(0)
+                    assert len(api.get("/api/tasks").json()) == before + 1
+                    record("confirmed-cleanup-" + cleanup)
                 assert not errors, errors
                 assert all("503" in text for text in console), console
                 record("console", page_errors=errors, expected_console=console)

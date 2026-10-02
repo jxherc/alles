@@ -448,6 +448,58 @@ def run():
                                 page.locator("#capture-cancel").click()
                                 record("dst-fold-" + variant)
                             page.unroute("**/api/mail/extract-event", aware_proposal)
+                        for cleanup in ("before", "after"):
+                            open_mail()
+                            page.locator(button).click()
+                            expect(page.locator("#capture-accept")).to_be_visible()
+                            before = len(api.get(endpoint).json())
+                            page.evaluate(
+                                """when => {
+                                window.__captureRemove = Storage.prototype.removeItem;
+                                Storage.prototype.removeItem = function(key) {
+                                    if (!key.startsWith('alles.capture.pending.v1:')) return window.__captureRemove.call(this, key);
+                                    if (when === 'after') window.__captureRemove.call(this, key);
+                                    throw new Error('synthetic cleanup failure');
+                                };
+                            }""",
+                                cleanup,
+                            )
+                            with page.expect_response(
+                                lambda r: r.url == base + endpoint and r.request.method == "POST"
+                            ) as confirmed:
+                                page.locator("#capture-accept").click()
+                            assert confirmed.value.ok, confirmed.value.text()
+                            saved = confirmed.value.json()
+                            expect(page.locator(".capture-status")).to_contain_text(
+                                "saved in plan:"
+                            )
+                            expect(page.locator("#capture-open")).to_be_focused()
+                            page.keyboard.press("Enter")
+                            expect(page.locator(source_button)).to_be_visible()
+                            assert saved["id"] in page.url
+                            assert len(api.get(endpoint).json()) == before + 1
+                            page.evaluate(
+                                "() => { Storage.prototype.removeItem = window.__captureRemove; }"
+                            )
+                            if cleanup == "before":
+                                open_mail()
+                                page.locator(button).click()
+                                expect(page.locator(".capture-status")).to_contain_text(
+                                    "previous acceptance"
+                                )
+                                with page.expect_response(
+                                    lambda r: (
+                                        r.url == base + endpoint and r.request.method == "POST"
+                                    )
+                                ) as repeated:
+                                    page.locator("#capture-accept").click()
+                                assert repeated.value.json()["id"] == saved["id"]
+                                expect(page.locator(".capture-status")).to_contain_text(
+                                    "saved in plan:"
+                                )
+                                page.locator("#capture-cancel").click()
+                            assert len(api.get(endpoint).json()) == before + 1
+                            record("confirmed-cleanup-" + cleanup)
                         mail.update(
                             text="",
                             html="<head><meta charset=utf-8><title>private-title</title><body><p>Meet <b>today</b> at 11 &amp; bring the plan.</p><script>window.captureSourceExecuted = true;</script>",

@@ -3935,6 +3935,62 @@
         "localhost-1440",
         "localhost-390"
       ]
+    },
+    {
+      "id": "home.capture.confirmed-cleanup-before",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "keep confirmed acceptance and exact plan navigation when browser cleanup fails before removing its retry copy; reconfirm retained identity without duplicates",
+      "expected": "keep confirmed acceptance and exact plan navigation when browser cleanup fails before removing its retry copy; reconfirm retained identity without duplicates",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.confirmed-cleanup-after",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "keep confirmed acceptance and exact plan navigation when browser cleanup fails after removing its retry copy; reconfirm retained identity without duplicates",
+      "expected": "keep confirmed acceptance and exact plan navigation when browser cleanup fails after removing its retry copy; reconfirm retained identity without duplicates",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.capture.confirmed-cleanup-before",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "keep confirmed acceptance and exact plan navigation when browser cleanup fails before removing its retry copy; reconfirm retained identity without duplicates",
+      "expected": "keep confirmed acceptance and exact plan navigation when browser cleanup fails before removing its retry copy; reconfirm retained identity without duplicates",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
+    },
+    {
+      "id": "inbox.capture.confirmed-cleanup-after",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "keep confirmed acceptance and exact plan navigation when browser cleanup fails after removing its retry copy; reconfirm retained identity without duplicates",
+      "expected": "keep confirmed acceptance and exact plan navigation when browser cleanup fails after removing its retry copy; reconfirm retained identity without duplicates",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "task-1440",
+        "event-1440",
+        "task-390",
+        "event-390"
+      ]
     }
   ],
   "findings": [],
