@@ -140,10 +140,13 @@ export async function openCaptureReview(proposal, trigger, onSaved = null) {
       finally { confirming = false; dialog.inert = false; }
       if (!discard) { cancel.focus(); return false; }
     }
-    try { store.clear(); }
-    catch { status.textContent = 'could not clear the saved retry; try closing again'; status.focus(); return false; }
+    let cleared = false;
+    try { store.clear(); cleared = true; }
+    catch {
+      if (!saved) { status.textContent = 'could not clear the saved retry; try closing again'; status.focus(); return false; }
+    }
     focus.deactivate({ restoreFocus }); focus.destroy(); ov.remove(); active = false;
-    document.querySelectorAll('.capture-resume').forEach(node => node.remove());
+    if (cleared) document.querySelectorAll('.capture-resume').forEach(node => node.remove());
     return true;
   }
   cancel.onclick = () => close();
@@ -185,8 +188,10 @@ export async function openCaptureReview(proposal, trigger, onSaved = null) {
         throw new Error(typeof data.detail === 'string' ? data.detail : 'could not confirm this item; your details are still here');
       }
       if (!recordTarget(kind === 'task' ? 'tasks' : 'calendar', data?.id) || typeof data.title !== 'string' || (source && data.source?.fingerprint !== source.fingerprint)) throw new Error('plan did not confirm the item; retry confirmation');
-      store.clear(); saved = data;
+      saved = data;
       status.textContent = `saved in plan: ${data.title}${data.done ? ' (completed)' : ''}`;
+      try { store.clear(); }
+      catch { status.textContent += '; its browser retry copy could not be cleared'; }
     } catch (error) { status.textContent = frozen ? `${error.message}. retry uses the same acceptance and cannot add a second item.` : error.message; }
     finally { busy = false; lock(); if (attemptedSave && dialog.contains(document.activeElement)) (saved ? open : accept).focus(); }
     if (saved) onSaved?.(saved, kind);
