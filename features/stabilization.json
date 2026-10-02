@@ -6128,6 +6128,604 @@
         "1440",
         "390"
       ]
+    },
+    {
+      "id": "inbox.triage.success-flag",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail success flag",
+      "expected": "Confirm flag through the visible control and the saved result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.success-label",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail success label",
+      "expected": "Confirm label through the visible control and the saved result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.success-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail success mute",
+      "expected": "Confirm mute through the visible control and the saved result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.success-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail success snooze",
+      "expected": "Confirm snooze through the visible control and the saved result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.success-unread",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail success unread",
+      "expected": "Confirm unread through the visible control and the saved result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.success-vip",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail success vip",
+      "expected": "Confirm vip through the visible control and the saved result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.success-archive",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail success archive",
+      "expected": "Confirm archive through the visible control and the saved result.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.lost-flag",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail lost flag",
+      "expected": "Keep flag unconfirmed after a lost reply and recover its committed result through a fresh mailbox read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.lost-label",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail lost label",
+      "expected": "Keep label unconfirmed after a lost reply and recover its committed result through a fresh mailbox read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.lost-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail lost mute",
+      "expected": "Keep mute unconfirmed after a lost reply and recover its committed result through a fresh mailbox read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.lost-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail lost snooze",
+      "expected": "Keep snooze unconfirmed after a lost reply and recover its committed result through a fresh mailbox read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.lost-unread",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail lost unread",
+      "expected": "Keep unread unconfirmed after a lost reply and recover its committed result through a fresh mailbox read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.lost-vip",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail lost vip",
+      "expected": "Keep vip unconfirmed after a lost reply and recover its committed result through a fresh mailbox read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.lost-archive",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail lost archive",
+      "expected": "Keep archive unconfirmed after a lost reply and recover its committed result through a fresh mailbox read.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.offline-flag",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail offline flag",
+      "expected": "Keep flag unchanged offline without creating a queued write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.offline-label",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail offline label",
+      "expected": "Keep label unchanged offline without creating a queued write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.offline-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail offline mute",
+      "expected": "Keep mute unchanged offline without creating a queued write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.offline-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail offline snooze",
+      "expected": "Keep snooze unchanged offline without creating a queued write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.offline-unread",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail offline unread",
+      "expected": "Keep unread unchanged offline without creating a queued write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.offline-vip",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail offline vip",
+      "expected": "Keep vip unchanged offline without creating a queued write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.offline-archive",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail offline archive",
+      "expected": "Keep archive unchanged offline without creating a queued write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.reject-flag",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail reject flag",
+      "expected": "Keep flag unchanged and report a rejected write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.reject-label",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail reject label",
+      "expected": "Keep label unchanged and report a rejected write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.reject-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail reject mute",
+      "expected": "Keep mute unchanged and report a rejected write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.reject-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail reject snooze",
+      "expected": "Keep snooze unchanged and report a rejected write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.reject-unread",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail reject unread",
+      "expected": "Keep unread unchanged and report a rejected write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.reject-vip",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail reject vip",
+      "expected": "Keep vip unchanged and report a rejected write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.reject-archive",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail reject archive",
+      "expected": "Keep archive unchanged and report a rejected write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.folder-flag",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail folder flag",
+      "expected": "Apply a flag to the exact account, folder and UID without changing the same UID in another folder.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.late-unread",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail late unread",
+      "expected": "Let an older unread result update only its original row while a newer reader stays open.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.double-flag",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail double flag",
+      "expected": "Send one flag change while a second keyboard activation is blocked.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.negative-flag",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail negative flag",
+      "expected": "Reject an HTTP200 result that reports no matching saved message.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.lost-label-next-add",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail lost label next add",
+      "expected": "Adding another label after a lost reply preserves both stored labels.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.pending-flag-open",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail pending flag open",
+      "expected": "Opening a message while its flag request is pending still marks it read after that request settles.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.unread-return",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail unread return",
+      "expected": "Marking the open reader unread restores its row in the unread view.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.label-dialog-other-row",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail label dialog other row",
+      "expected": "Submitting a label after another row rerenders still saves it on the intended message.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.vip-reader-success-add",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "VIP add with success response after opening another message",
+      "expected": "Keep the new reader busy until the pending sender change settles, then show stored membership.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.vip-reader-success-remove",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "VIP remove with success response after opening another message",
+      "expected": "Keep the new reader busy until the pending sender change settles, then show stored membership.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.vip-reader-lost-add",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "VIP add with lost response after opening another message",
+      "expected": "Keep the new reader busy until the pending sender change settles, then show stored membership.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.vip-reader-lost-remove",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "VIP remove with lost response after opening another message",
+      "expected": "Keep the new reader busy until the pending sender change settles, then show stored membership.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.vip-reader-reject-add",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "VIP add with reject response after opening another message",
+      "expected": "Keep the new reader busy until the pending sender change settles, then show stored membership.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.vip-reader-reject-remove",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "VIP remove with reject response after opening another message",
+      "expected": "Keep the new reader busy until the pending sender change settles, then show stored membership.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.label-read-pending",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail label read pending",
+      "expected": "A confirmed label waits for the automatic read mutation and is saved.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.label-unread-pending",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail label unread pending",
+      "expected": "A confirmed label is saved even when pending read marking removes its row from the unread view.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.label-unread-settled",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail label unread settled",
+      "expected": "A label dialog still saves its exact message after read marking has removed the row.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.triage.unread-row-pending",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail unread row pending",
+      "expected": "The reader unread control is disabled during a mutation on its exact message, then works after settlement.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],

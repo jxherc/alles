@@ -94,6 +94,7 @@ let _filter = 'inbox';        // inbox | unread | sent
 let _threads = false;   // group by conversation — driven by the mail_threads setting (4a)
 const _sentFolders = {};      // account_id -> detected sent folder name
 const _expanded = new Set();  // thread keys currently expanded
+let _mailErrors = [];
 let _lastMsgs = [];           // last rendered message set (for re-render on toggle)
 let _lastSearch = '';         // last advanced-search query (5a, for the save-search button)
 let _searchView = '';         // active search results view, if any
@@ -813,13 +814,50 @@ async function sentFolderFor(account, fetcher = fetch) {
 
 const applyFilter = msgs => _filter === 'unread' ? msgs.filter(m => !m.seen) : msgs;
 
-// remember the read state locally so a refresh (from cache) doesn't re-bold it
-function markSeenLocal(aid, uid) {
-  const c = readCache();
-  if (!c) return;
-  const m = c.find(x => String(x.uid) === String(uid) && x.account_id === aid);
-  if (m && !m.seen) { m.seen = true; writeCache(c); }
+const mailIdentity = (aid, uid, folder) => JSON.stringify([aid, folder || 'INBOX', String(uid)]);
+const sameMail = (message, aid, uid, folder) => mailIdentity(message.account_id, message.uid, message.folder) === mailIdentity(aid, uid, folder);
+const _mailChanges = new Map();
+function paintMailChanges() {
+  const unread = $('mail-unread');
+  if (unread?.dataset.mailIdentity) unread.setAttribute('aria-disabled', String(_mailChanges.has(unread.dataset.mailIdentity)));
+  $('mail-list')?.querySelectorAll('.mail-row[data-aid]').forEach(row => {
+    const busy = _mailChanges.has(mailIdentity(row.dataset.aid, row.dataset.uid, row.dataset.folder));
+    row.querySelectorAll('[data-flag], [data-mute], [data-archive], [data-label], [data-snooze]').forEach(button => button.setAttribute('aria-disabled', String(busy)));
+  });
 }
+function updateMailRows(matches, changes, remove = false) {
+  const update = rows => remove ? rows.filter(row => !matches(row)) : rows.map(row => matches(row) ? { ...row, ...changes } : row);
+  const cached = readCache();
+  if (Array.isArray(cached)) writeCache(update(cached));
+  if (!_lastMsgs.some(matches)) return;
+  _lastMsgs = update(_lastMsgs);
+  if (_filter === 'unread') _lastMsgs = _lastMsgs.filter(row => !row.seen);
+  if (_filter === 'flagged') _lastMsgs = _lastMsgs.filter(row => row.flagged);
+  const list = $('mail-list');
+  if (list?.querySelector('.mail-row[data-aid]')) preserveMailReadFocus(list)(() => renderInbox(_lastMsgs, _mailErrors));
+}
+async function changeMail(button, key, request, valid, apply, success, failure, waitWhileCurrent = null) {
+  while (_mailChanges.has(key)) {
+    if (!waitWhileCurrent || !waitWhileCurrent()) return;
+    button?.setAttribute('aria-disabled', 'true');
+    await _mailChanges.get(key);
+  }
+  if (waitWhileCurrent && !waitWhileCurrent()) return;
+  let release;
+  _mailChanges.set(key, new Promise(resolve => { release = resolve; }));
+  button?.setAttribute('aria-disabled', 'true'); paintMailChanges();
+  try {
+    const result = await request();
+    if (!valid(result)) throw new Error(result?.error || 'the saved result could not be confirmed');
+    apply(result);
+    if (success) toast(success, 'success');
+  } catch (error) {
+    toast(`${failure}. ${error.message || 'check the mailbox before trying again'}`, 'error');
+  } finally {
+    _mailChanges.delete(key); release(); button?.setAttribute('aria-disabled', 'false'); paintMailChanges();
+  }
+}
+const mailPost = (url, body) => mailJson(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
 // Gmail-style left sidebar (4b): folders/categories as icon+label rows
 const _MAIL_NAV = [
@@ -1075,7 +1113,7 @@ const _msgRow = (m, indent = false) => {
         <span class="mail-from">${esc(fromName(m.from))}</span>
         <span class="mail-date">${esc(shortDate(m.date))}</span>
       </div>
-      <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || '(no subject)')}</button>${(m.labels || []).map(l => `<span class="mail-label-chip" data-labelfilter="${esc(l)}">${esc(l)}</span>`).join('')}</div>
+      <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || '(no subject)')}</button>${(m.labels || []).map(l => `<button type="button" class="mail-label-chip" data-labelfilter="${esc(l)}">${esc(l)}</button>`).join('')}</div>
       <span class="mail-row-acts">
         ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" title="unsubscribe">${_si('x-circle')}</button>` : ''}
         <button class="mail-act" data-label title="add a label">${_si('tag')}</button>
@@ -1092,7 +1130,7 @@ function renderInbox(messages, errors = []) {
   const list = $('mail-list');
   const msgTime = m => Number(m.date_ts || 0) || Math.floor((Date.parse(m.date || '') || 0) / 1000);
   messages = [...messages].sort((a, b) => msgTime(b) - msgTime(a));
-  _lastMsgs = messages;
+  _lastMsgs = messages; _mailErrors = errors;
   if (!messages.length && !errors.length) {
     list.innerHTML = `<div class="mail-empty" role="status">nothing in ${esc(_filter)}</div>`;
     return;
@@ -1141,18 +1179,18 @@ function _wireRows(list) {
   }));
   list.querySelectorAll('.mail-row:not(.mail-thread-head)').forEach(r => r.addEventListener('click', () => {
     list.querySelectorAll('.mail-row').forEach(x => x.classList.remove('sel'));
-    r.classList.add('sel'); r.classList.remove('unread');
+    r.classList.add('sel');
     openMessage(r.dataset.aid, r.dataset.uid, r.dataset.folder);
   }));
-  list.querySelectorAll('.mail-flag').forEach(btn => btn.addEventListener('click', async e => {
+  list.querySelectorAll('.mail-flag').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
-    const row = btn.closest('.mail-row');
+    const { aid, uid, folder } = btn.closest('.mail-row').dataset;
     const on = !btn.classList.contains('on');
-    btn.classList.toggle('on', on); btn.innerHTML = _si(on ? 'star-fill' : 'star');
-    const m = _lastMsgs.find(x => String(x.uid) === row.dataset.uid && (x.account_id || '') === row.dataset.aid);
-    if (m) m.flagged = on;
-    await fetch(`/api/mail/flag/${row.dataset.aid}?uid=${encodeURIComponent(row.dataset.uid)}&folder=${encodeURIComponent(row.dataset.folder)}&flagged=${on}`, { method: 'POST' }).catch(catchErr('failed to flag message'));
-    if (_filter === 'flagged' && !on) row.remove();   // unflagged in the flagged view → drop it
+    changeMail(btn, mailIdentity(aid, uid, folder),
+      () => mailJson(`/api/mail/flag/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}&flagged=${on}`, { method: 'POST' }),
+      result => result?.ok === true && result.flagged === on,
+      () => updateMailRows(message => sameMail(message, aid, uid, folder), { flagged: on }),
+      on ? 'flag saved' : 'flag removed', 'could not confirm flag change');
   }));
   // 5a triage row actions
   list.querySelectorAll('[data-unsub]').forEach(btn => btn.addEventListener('click', e => {
@@ -1162,55 +1200,47 @@ function _wireRows(list) {
     else window.open(link, '_blank', 'noopener');
     toast('opened unsubscribe', '');
   }));
-  list.querySelectorAll('[data-mute]').forEach(btn => btn.addEventListener('click', async e => {
+  list.querySelectorAll('[data-mute]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
-    const row = btn.closest('.mail-row');
-    await fetch(`/api/mail/mute/${row.dataset.aid}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ subject: row.dataset.subject }),
-    }).catch(console.error);
-    toast('thread muted', '');
-    _reloadCurrent();
+    const { aid, uid, folder, subject } = btn.closest('.mail-row').dataset;
+    changeMail(btn, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/mute/${aid}`, { subject }),
+      result => Number.isInteger(result?.muted) && result.muted > 0,
+      () => updateMailRows(message => message.account_id === aid && threadKey(message.subject) === threadKey(subject), {}, true),
+      'thread muted', 'could not confirm mute');
   }));
-  list.querySelectorAll('[data-archive]').forEach(btn => btn.addEventListener('click', async e => {
+  list.querySelectorAll('[data-archive]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
-    const row = btn.closest('.mail-row');
-    await fetch(`/api/mail/archive/${row.dataset.aid}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ uid: row.dataset.uid, folder: row.dataset.folder }),
-    }).catch(console.error);
-    row.remove();
-    toast('archived', '');
+    const { aid, uid, folder } = btn.closest('.mail-row').dataset;
+    changeMail(btn, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/archive/${aid}`, { uid, folder, require_server: true }),
+      result => result?.moved_on_server === true,
+      () => updateMailRows(message => sameMail(message, aid, uid, folder), {}, true),
+      'archived', 'archive is unconfirmed; refresh the mailbox before trying again');
   }));
   list.querySelectorAll('[data-label]').forEach(btn => btn.addEventListener('click', async e => {
     e.stopPropagation();
-    const row = btn.closest('.mail-row');
+    const { aid, uid, folder } = btn.closest('.mail-row').dataset;
+    if (_mailChanges.has(mailIdentity(aid, uid, folder))) return;
     const label = await dlgPrompt('label this message:'); if (!label || !label.trim()) return;
-    const m = _lastMsgs.find(x => String(x.uid) === row.dataset.uid && (x.account_id || '') === row.dataset.aid);
-    const labels = [...new Set([...((m && m.labels) || []), label.trim().toLowerCase()])];
-    await fetch(`/api/mail/labels/${row.dataset.aid}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ uid: row.dataset.uid, folder: row.dataset.folder, labels }),
-    }).catch(console.error);
-    if (m) m.labels = labels;
-    renderInbox(_lastMsgs);
-    toast('labeled', '');
+    const target = [...list.querySelectorAll('.mail-row[data-aid]')].find(row => mailIdentity(row.dataset.aid, row.dataset.uid, row.dataset.folder) === mailIdentity(aid, uid, folder))?.querySelector('[data-label]');
+    changeMail(target, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/labels/${aid}`, { uid, folder, add_label: label.trim() }),
+      result => result?.ok === true && Array.isArray(result.labels) && result.labels.every(value => typeof value === 'string'),
+      result => updateMailRows(row => sameMail(row, aid, uid, folder), { labels: result.labels }),
+      'labeled', 'could not confirm label', () => true);
   }));
   list.querySelectorAll('[data-labelfilter]').forEach(c => c.addEventListener('click', e => {
     e.stopPropagation();
     loadByLabel(c.dataset.labelfilter);
   }));
-  list.querySelectorAll('[data-snooze]').forEach(btn => btn.addEventListener('click', async e => {
+  list.querySelectorAll('[data-snooze]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
-    const row = btn.closest('.mail-row');
-    const until = new Date(Date.now() + 864e5).toISOString();  // +1 day
-    await fetch(`/api/mail/snooze/${row.dataset.aid}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ uid: row.dataset.uid, folder: row.dataset.folder, until }),
-    }).catch(console.error);
-    row.remove();
-    toast('snoozed until tomorrow', '');
+    const { aid, uid, folder } = btn.closest('.mail-row').dataset;
+    const until = new Date(Date.now() + 864e5).toISOString();
+    changeMail(btn, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/snooze/${aid}`, { uid, folder, until }),
+      result => Number.isInteger(result?.snoozed) && result.snoozed > 0,
+      () => updateMailRows(row => sameMail(row, aid, uid, folder), {}, true),
+      'snoozed until tomorrow', 'could not confirm snooze');
   }));
+  paintMailChanges();
 }
 
 export async function openMailSource(id, isCurrent = () => true) {
@@ -1279,9 +1309,6 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     }
     return;
   }
-  // actually mark it read on the server (+ locally so a refresh stays read)
-  fetch(`/api/mail/seen/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(console.error);
-  markSeenLocal(aid, uid);
   const bodyHtml = m.html
     ? `<div class="mail-reader-meta">remote images are blocked for privacy</div><iframe class="mail-body-frame" sandbox></iframe>`
     : `<pre class="mail-body-text">${esc(m.text || '(no content)')}</pre>`;
@@ -1310,23 +1337,46 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   // attachment chips — backend lists/serves them, the reader just never showed them
   loadAttachments(aid, uid, folder, current);
   const senderAddr = ((/<([^>]+)>/.exec(m.from) || [, m.from])[1] || '').trim().toLowerCase();
-  $('mail-unread')?.addEventListener('click', async () => {
-    await fetch(`/api/mail/read/${aid}?uid=${encodeURIComponent(uid)}&seen=false&folder=${encodeURIComponent(folder)}`, { method: 'POST' }).catch(console.error);
-    const row = [...document.querySelectorAll('.mail-row')].find(r => r.dataset.uid === String(uid) && r.dataset.aid === aid);
-    if (row) row.classList.add('unread');
-    const lm = _lastMsgs.find(x => String(x.uid) === String(uid) && (x.account_id || '') === aid); if (lm) lm.seen = false;
-    toast('marked unread', 'success');
-  });
-  (async () => {
-    const vips = ((await fetch('/api/mail/vips').then(r => r.json()).catch(e => { console.error(e); return { vips: [] }; })).vips || []).map(v => v.toLowerCase());
-    if (!current()) return;
-    const btn = $('mail-vip'); if (btn) { const on = vips.includes(senderAddr); btn.classList.toggle('on', on); btn.textContent = on ? 'VIP ★' : '+ VIP'; }
-  })();
-  $('mail-vip')?.addEventListener('click', async () => {
-    const btn = $('mail-vip'); const adding = !btn.classList.contains('on');
-    await fetch('/api/mail/vips', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: senderAddr, add: adding }) }).catch(console.error);
-    btn.classList.toggle('on', adding); btn.textContent = adding ? 'VIP ★' : '+ VIP';
-    toast(adding ? 'added to VIP' : 'removed from VIP', 'success');
+  const unread = $('mail-unread'), vip = $('mail-vip');
+  unread.dataset.mailIdentity = mailIdentity(aid, uid, folder);
+  const changeRead = seen => changeMail(unread, mailIdentity(aid, uid, folder),
+    () => mailJson(`/api/mail/read/${aid}?uid=${encodeURIComponent(uid)}&seen=${seen}&folder=${encodeURIComponent(folder)}`, { method: 'POST' }),
+    result => result?.ok === true && result.seen === seen,
+    () => {
+      const matches = row => sameMail(row, aid, uid, folder);
+      const missing = !_lastMsgs.some(matches);
+      updateMailRows(matches, { seen });
+      if (!seen && missing && _filter === 'unread' && !_searchView && !_labelFilter && folder === 'INBOX' && (_active === 'all' || _active === aid)) loadInbox(true).catch(console.error);
+    },
+    seen ? '' : 'marked unread', `could not confirm ${seen ? 'read' : 'unread'} status`, seen ? current : null);
+  unread.addEventListener('click', () => { if (current() && unread.getAttribute('aria-disabled') !== 'true') changeRead(false); });
+  changeRead(true);
+  let vipState = null, vipLoading = false;
+  const paintVip = on => { vipState = on; vip.classList.toggle('on', on); vip.textContent = on ? 'VIP ★' : '+ VIP'; };
+  const loadVip = async () => {
+    if (vipLoading || !current()) return;
+    vipLoading = true; vip.setAttribute('aria-disabled', 'true');
+    try {
+      while (_mailChanges.has('vip:' + senderAddr)) {
+        await _mailChanges.get('vip:' + senderAddr);
+        if (!current()) return;
+      }
+      const result = await mailJson('/api/mail/vips', { cache: 'no-store' });
+      if (!Array.isArray(result?.vips) || result.vips.some(value => typeof value !== 'string')) throw new Error('could not read VIP senders');
+      if (current()) paintVip(result.vips.some(value => value.toLowerCase() === senderAddr));
+    } catch (error) {
+      if (current()) { vip.textContent = 'retry VIP status'; toast(error.message || 'could not read VIP senders', 'error'); }
+    } finally { vipLoading = false; vip.setAttribute('aria-disabled', 'false'); }
+  };
+  loadVip();
+  vip.addEventListener('click', () => {
+    if (!current() || vipLoading) return;
+    if (vipState === null) { loadVip(); return; }
+    const adding = !vipState;
+    changeMail(vip, 'vip:' + senderAddr, () => mailPost('/api/mail/vips', { email: senderAddr, add: adding }),
+      result => Array.isArray(result?.vips) && result.vips.every(value => typeof value === 'string') && result.vips.some(value => value.toLowerCase() === senderAddr) === adding,
+      () => { if (current()) paintVip(adding); },
+      adding ? 'added to VIP' : 'removed from VIP', 'could not confirm VIP change');
   });
   $('mail-reply')?.addEventListener('click', () => {
     const addr = (/<([^>]+)>/.exec(m.from) || [, m.from])[1];
