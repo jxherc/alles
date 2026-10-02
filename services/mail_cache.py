@@ -54,6 +54,22 @@ def set_labels(db, account_id, folder, uid, labels):
     return n
 
 
+def add_label(db, account_id, folder, uid, label):
+    rows = db.query(CachedMessage).filter_by(account_id=account_id, folder=folder, uid=str(uid))
+    # Reserve the SQLite writer before reading so concurrent additions cannot replace each other.
+    if not rows.update({"labels": CachedMessage.labels}, synchronize_session=False):
+        db.commit()
+        return None
+    messages = rows.populate_existing().all()
+    labels = _norm_labels(
+        [value for row in messages for value in (row.labels or "").split(",")] + [label]
+    )
+    for row in messages:
+        row.labels = labels
+    db.commit()
+    return [value for value in labels.split(",") if value]
+
+
 def by_label(db, account_id, label, limit=200):
     if limit <= 0:
         return []

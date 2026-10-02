@@ -1124,6 +1124,7 @@ class LabelsBody(BaseModel):
     uid: str
     labels: list[str] = []
     folder: str = "INBOX"
+    add_label: str | None = None
 
 
 @router.post("/labels/{aid}")
@@ -1131,6 +1132,9 @@ def set_labels(aid: str, body: LabelsBody, db: DbSession = Depends(get_db)):
     from services import mail_cache
 
     _get(db, aid)
+    if body.add_label is not None:
+        labels = mail_cache.add_label(db, aid, body.folder, body.uid, body.add_label)
+        return {"ok": labels is not None, "labels": labels or []}
     return {"ok": bool(mail_cache.set_labels(db, aid, body.folder, body.uid, body.labels))}
 
 

@@ -392,6 +392,17 @@ a real email client (read + send), with one-click setup for the big providers an
 - save a search and reopen it from the keyboard. failed saves retain their exact query for retry
   after reload; a lost response cannot create duplicates. deleted searches stay deleted on retry,
   and removal failures remain visible until confirmed
+- flag, label, mute, snooze, unread and VIP controls check the saved result before showing success.
+  failed changes keep the current message visible; refresh can recover a change whose reply was lost.
+  actions use the exact account, folder and message UID, and delayed replies preserve a newer reader
+- adding a label merges with the stored labels, including after a lost reply or concurrent addition.
+  the label API accepts `add_label` for additions; existing `labels` replacement requests keep their behavior.
+  opening a message waits for its pending action before marking it read; marking it unread restores
+  its row in the unread view
+- archive asks the server to confirm its move before removing the local message. an unconfirmed
+  result stays visible and asks for a mailbox refresh before another attempt
+- mail changes are never added to the generic offline queue, and older queued mail writes remain
+  blocked for review. saved labels can be opened from the keyboard
 - **conversation threads**: a toggle collapses the inbox into conversations (everything with the same subject, re:/fwd: stripped), expand one to read the whole back-and-forth
 - **attachments**: a message shows its attachments as chips you click to download (the body still loads attachment-free for speed)
 - compose and send with **cc + bcc**; replies set the proper `in-reply-to`/`references` headers so they thread correctly in apple mail, gmail, and everywhere else
