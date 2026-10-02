@@ -1466,6 +1466,7 @@ class HealthEntry(Base):
     # health/fitness log: a single measurement (weight, sleep hrs, workout min, med, custom)
     __tablename__ = "health_entries"
     id = Column(Integer, primary_key=True, autoincrement=True)
+    record_id = Column(String, default=_uid, nullable=False, unique=True, index=True)
     kind = Column(String, index=True)  # weight | sleep | workout | med | custom
     date = Column(String, index=True)  # ISO YYYY-MM-DD (viewer-local)
     value = Column(Float, default=0.0)
@@ -1482,4 +1483,13 @@ class HealthCreateReceipt(Base):
     id = Column(String, primary_key=True)
     payload_hash = Column(String(64), nullable=False)
     entry_id = Column(Integer, nullable=True, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
+class HealthImportReceipt(Base):
+    __tablename__ = "health_import_receipts"
+    id = Column(String, primary_key=True)
+    payload_hash = Column(String(64), nullable=False)
+    imported = Column(Integer, nullable=False, default=0)
+    skipped = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=_now)
