@@ -9841,3 +9841,13 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .mc-sched-wrap { flex-wrap: wrap; max-width: 100%; }
 .mc-sched-zone { flex-basis: 100%; color: var(--muted); font-size: 0.75rem; }
 .mc-sched-date, .mc-sched-time { min-height: 44px; }
+
+/* Account settings keep labels and recovery actions readable at narrow widths. */
+.mail-accounts .btn { min-height: var(--ui-control-height, 44px); }
+.mail-accounts .mail-form-actions, .mail-accounts .mail-acct-actions { flex-wrap: wrap; }
+.mail-accounts .mail-form-head { flex-wrap: wrap; }
+.mail-account-field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; color: var(--muted); font-size: 0.75rem; }
+.mail-account-field .settings-input { width: 100%; min-width: 0; min-height: var(--ui-control-height, 44px); }
+.mail-accounts .mail-status, .mail-accounts .mail-saved-status { overflow-wrap: anywhere; }
+.mail-accounts [aria-disabled="true"] { opacity: 0.5; cursor: default; }
+#ma-tls { align-self: flex-start; }
