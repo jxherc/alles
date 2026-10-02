@@ -127,6 +127,33 @@ function _vfetch(url, opts = {}, fetcher = fetch) {
   return fetcher(url, { ...opts, headers });
 }
 
+async function _checkedVault(url, opts = {}) {
+  const response = await _vfetch(url, opts);
+  if (!response.ok) throw Object.assign(new Error('vault request failed'), { status: response.status });
+  return response;
+}
+
+function _sameVault(token, vaultId) {
+  return _unlocked && _token === token && _vaultId === vaultId;
+}
+
+async function _formAction(ov, work, failure) {
+  const token = _token;
+  if (!ov || ov._acting || ov._saving || ov._openingSaved || !_sameForm(ov, token)) return;
+  ov._acting = true; _formError(ov, ''); _formBusy(ov, true);
+  const current = () => _sameForm(ov, token);
+  try { await work(current); }
+  catch (error) {
+    if (!current()) return;
+    if (error.status === 403) {
+      await _doLock(); toast('vault access expired. unlock and check the entry again.', 'error');
+    } else _formError(ov, failure);
+  } finally {
+    ov._acting = false;
+    if (current()) _formBusy(ov, false);
+  }
+}
+
 function _activateManagedModal(overlay, source, initialFocus) {
   const dialog = overlay.querySelector('[role="dialog"], [role="alertdialog"]');
   if (!dialog) return;
@@ -1039,13 +1066,21 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
         ${editing ? `<div class="vform-divider"></div>
         <div class="vform-field"><label>attachments</label><div id="vf-attach"></div>
           <input type="file" id="vf-attach-input" hidden>
-          <button type="button" class="btn" id="vf-attach-btn" style="font-size:0.75rem">+ attach file</button></div>` : ''}
+          <button type="button" class="btn" id="vf-attach-btn">+ attach file</button>
+          <button type="button" class="btn" id="vf-attach-clear" hidden>discard upload retry</button>
+          <div id="vf-upload-status" role="status" hidden></div></div>
+        <div class="vform-field" id="vf-share-result" hidden>
+          <label for="vf-share-url">share link</label>
+          <input id="vf-share-url" class="settings-input vform-input" readonly>
+          <small>anyone with this link can read the saved entry. revoking it stops future access.</small>
+          <button type="button" class="btn" id="vf-share-copy">copy link</button>
+        </div>` : ''}
       </div>
       <p id="vf-error" class="vault-form-error" role="alert" hidden></p>
       <button type="button" class="btn" id="vf-open-saved" hidden>open saved entry</button>
       <div class="vault-form-actions">
         ${editing ? '<button type="button" class="btn danger" id="vf-del" style="margin-right:auto">delete</button>' : ''}
-        ${editing ? '<button type="button" class="btn" id="vf-share" title="share this item via a one-off link">🔗 share</button>' : ''}
+        ${editing ? '<button type="button" class="btn" id="vf-share" title="share the saved entry via a one-off link">share</button><button type="button" class="btn" id="vf-share-revoke" title="revoke any existing share link for this entry">revoke link</button>' : ''}
         <button type="button" class="btn" id="vf-cancel">cancel</button>
         <button type="button" class="btn primary" id="vf-save">${editing ? 'save' : 'add'}</button>
       </div>
@@ -1070,54 +1105,123 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
   ov.querySelector('#vf-open-saved').onclick = () => _openSavedEntry(ov);
   ov.querySelector('#vf-del')?.addEventListener('click', () => _delFromForm(entry.id));
   if (editing) {
-    _renderAttachments(entry.id);
-    ov.querySelector('#vf-attach-btn')?.addEventListener('click', () => ov.querySelector('#vf-attach-input').click());
-    ov.querySelector('#vf-attach-input')?.addEventListener('change', async e => {
-      const f = e.target.files[0]; if (!f) return;
-      const fd = new FormData(); fd.append('file', f);
-      await _vfetch(`/api/vault/${entry.id}/attachments`, { method: 'POST', body: fd });
-      e.target.value = ''; _renderAttachments(entry.id);
-    });
-    ov.querySelector('#vf-share')?.addEventListener('click', () => _shareItem(entry.id));
+    _renderAttachments(entry.id, ov);
+    ov.querySelector('#vf-attach-btn').onclick = () => ov._upload ? _uploadAttachment(ov) : ov.querySelector('#vf-attach-input').click();
+    ov.querySelector('#vf-attach-input').onchange = e => {
+      const file = e.target.files[0]; if (!file || ov._upload) return;
+      ov._upload = { file, id: _createRequestId(), uncertain: false };
+      _uploadAttachment(ov);
+    };
+    ov.querySelector('#vf-attach-clear').onclick = async () => {
+      const token = _token;
+      if (ov._acting || !await confirm('this file may already be attached. discard the retry and check attachments?') || !_sameForm(ov, token)) return;
+      ov._upload = null; ov.querySelector('#vf-attach-input').value = ''; _uploadStatus(ov);
+      await _renderAttachments(entry.id, ov);
+    };
+    ov.querySelector('#vf-share').onclick = () => _shareItem(entry.id, ov);
+    ov.querySelector('#vf-share-copy').onclick = () => _copyShare(ov);
+    ov.querySelector('#vf-share-revoke').onclick = () => _formAction(ov, async current => {
+      await _checkedVault(`/api/vault/${entry.id}/share`, { method: 'DELETE' });
+      if (!current()) return;
+      ov.querySelector('#vf-share-url').value = ''; ov.querySelector('#vf-share-result').hidden = true;
+      toast('share link revoked', 'success');
+    }, 'could not confirm revocation. retry to revoke the link.');
   }
   ov.addEventListener('mousedown', e => { if (e.target === ov) _requestCloseModal(); });
   _activateManagedModal(ov, returnFocus, ov.querySelector('#vf-name'));
 }
 
-// 9b — encrypted attachments on an entry
-async function _renderAttachments(eid) {
-  const box = _modalEl?.querySelector('#vf-attach');
-  if (!box) return;
-  const list = await _vfetch(`/api/vault/${eid}/attachments`).then(r => r.json()).catch(() => []);
-  if (!list.length) { box.innerHTML = '<div class="vf-attach-empty">none</div>'; return; }
-  box.innerHTML = list.map(a => `
-    <div class="vf-attach-row" data-id="${a.id}">
-      <span class="vf-attach-name">📎 ${_esc(a.filename)}</span>
-      <span class="vf-attach-size">${Math.max(1, Math.round(a.size / 1024))} KB</span>
-      <button type="button" class="act-btn" data-dl="${a.id}" data-name="${_esc(a.filename)}">download</button>
-      <button type="button" class="act-btn danger" data-rm="${a.id}">remove</button>
-    </div>`).join('');
-  box.querySelectorAll('[data-dl]').forEach(b => b.onclick = async () => {
-    const r = await _vfetch(`/api/vault/attachments/${b.dataset.dl}`);
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = b.dataset.name; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
-  box.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
-    if (!await confirm(`remove ${b.closest('.vf-attach-row')?.querySelector('.vf-attach-name')?.textContent?.replace(/^📎\s*/, '') || 'this attachment'}?`)) return;
-    await _vfetch(`/api/vault/attachments/${b.dataset.rm}`, { method: 'DELETE' });
-    _renderAttachments(eid);
-  });
+function _uploadStatus(ov) {
+  const pending = ov._upload;
+  ov.querySelector('#vf-attach-btn').textContent = pending ? 'retry upload' : '+ attach file';
+  ov.querySelector('#vf-attach-clear').hidden = !pending;
+  const status = ov.querySelector('#vf-upload-status');
+  status.hidden = !pending;
+  status.textContent = pending ? `${pending.file.name}: ${ov._acting ? 'uploading…' : 'the file is kept here. retry this upload or discard the retry.'}` : '';
 }
 
-async function _shareItem(eid) {
+async function _uploadAttachment(ov) {
+  if (!ov._upload) return;
+  await _formAction(ov, async current => {
+    const pending = ov._upload;
+    pending.uncertain = true; _uploadStatus(ov);
+    const body = new FormData(); body.append('file', pending.file); body.append('request_id', pending.id);
+    const response = await _checkedVault(`/api/vault/${ov._entry.id}/attachments`, { method: 'POST', body });
+    const saved = await response.json();
+    if (!current()) return;
+    if (!saved.id || typeof saved.filename !== 'string' || saved.size !== pending.file.size) throw new Error('invalid upload acknowledgment');
+    ov._upload = null; ov.querySelector('#vf-attach-input').value = ''; _uploadStatus(ov);
+    await _renderAttachments(ov._entry.id, ov);
+  }, 'could not confirm the upload. retry the same file safely, or check attachments after closing.');
+  if (_modalEl === ov && ov._upload) _uploadStatus(ov);
+}
+
+async function _renderAttachments(eid, ov = _modalEl) {
+  const box = ov?.querySelector('#vf-attach'), token = _token;
+  if (!box || !_sameForm(ov, token)) return;
+  const generation = ov._attachmentGeneration = (ov._attachmentGeneration || 0) + 1;
+  const current = () => _sameForm(ov, token) && ov._attachmentGeneration === generation;
+  box.innerHTML = '<div role="status">loading attachments…</div>';
   try {
-    const d = await _vfetch(`/api/vault/${eid}/share`, { method: 'POST' }).then(r => r.json());
-    const url = location.origin + d.url;  // includes #key in the fragment
-    try { await navigator.clipboard.writeText(url); toast('share link copied (anyone with it can read this item)', 'success'); }
-    catch { toast(url, ''); }
-  } catch { toast('share failed', 'error'); }
+    const response = await _checkedVault(`/api/vault/${eid}/attachments`);
+    const list = await response.json();
+    if (!current()) return;
+    if (!Array.isArray(list)) throw new Error('invalid attachment list');
+    box.innerHTML = list.length ? list.map(a => `
+      <div class="vf-attach-row" data-id="${_esc(a.id)}">
+        <span class="vf-attach-name">${_esc(a.filename)}</span>
+        <span class="vf-attach-size">${Math.max(1, Math.round(a.size / 1024))} KB</span>
+        <button type="button" class="act-btn" data-dl="${_esc(a.id)}" data-name="${_esc(a.filename)}">download</button>
+        <button type="button" class="act-btn danger" data-rm="${_esc(a.id)}">remove</button>
+      </div>`).join('') : '<div class="vf-attach-empty">none</div>';
+    box.querySelectorAll('[data-dl]').forEach(button => button.onclick = () => _formAction(ov, async active => {
+      const response = await _checkedVault(`/api/vault/attachments/${button.dataset.dl}`);
+      const blob = await response.blob();
+      if (!active()) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = button.dataset.name; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, 'could not download this attachment. retry the download.'));
+    box.querySelectorAll('[data-rm]').forEach(button => button.onclick = async () => {
+      if (ov._acting || !await confirm(`remove ${button.closest('.vf-attach-row').querySelector('.vf-attach-name').textContent}?`) || !current()) return;
+      await _formAction(ov, async active => {
+        const response = await _vfetch(`/api/vault/attachments/${button.dataset.rm}`, { method: 'DELETE' });
+        if (!response.ok && response.status !== 404) throw Object.assign(new Error('delete failed'), { status: response.status });
+        if (active()) await _renderAttachments(eid, ov);
+      }, 'could not confirm removal. retry safely or reopen the entry to check attachments.');
+    });
+    if (ov._acting || ov._saving) _formBusy(ov, true);
+  } catch (error) {
+    if (!current()) return;
+    if (error.status === 403) { await _doLock(); toast('vault access expired. unlock and open the entry again.', 'error'); return; }
+    box.innerHTML = '<div role="alert">could not load attachments.</div><button type="button" class="btn" data-attach-retry>retry attachments</button>';
+    box.querySelector('[data-attach-retry]').onclick = () => _renderAttachments(eid, ov);
+    if (ov._acting || ov._saving) _formBusy(ov, true);
+  }
+}
+
+async function _copyShare(ov) {
+  const token = _token, value = ov.querySelector('#vf-share-url').value;
+  if (!_sameForm(ov, token) || !value) return;
+  try {
+    await navigator.clipboard.writeText(value);
+    if (_sameForm(ov, token)) toast('share link copied', 'success');
+  } catch {
+    if (_sameForm(ov, token)) _formError(ov, 'clipboard unavailable. select the share link and copy it manually.');
+  }
+}
+
+async function _shareItem(eid, ov = _modalEl) {
+  await _formAction(ov, async current => {
+    ov.querySelector('#vf-share-url').value = ''; ov.querySelector('#vf-share-result').hidden = true;
+    const response = await _checkedVault(`/api/vault/${eid}/share`, { method: 'POST' });
+    const result = await response.json();
+    if (!current()) return;
+    if (typeof result.url !== 'string' || !/^\/sv\/[^/#?]+#[^#]+$/.test(result.url)) throw new Error('invalid share acknowledgment');
+    ov.querySelector('#vf-share-url').value = location.origin + result.url;
+    ov.querySelector('#vf-share-result').hidden = false;
+    await _copyShare(ov);
+  }, 'could not create a share link. retry to create a new link.');
 }
 
 function _sameForm(ov, token) {
@@ -1132,10 +1236,13 @@ function _formError(ov, message) {
 }
 
 function _formBusy(ov, busy) {
-  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-save, #vf-open-saved, #vf-del, #vf-share');
-  if (busy && !ov._disabledBefore) {
-    ov._disabledBefore = new Map([...controls].map(control => [control, control.disabled]));
-    controls.forEach(control => { control.disabled = true; });
+  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-save, #vf-open-saved, #vf-del, #vf-share, #vf-share-revoke');
+  if (busy) {
+    ov._disabledBefore ||= new Map();
+    controls.forEach(control => {
+      if (!ov._disabledBefore.has(control)) ov._disabledBefore.set(control, control.disabled);
+      control.disabled = true;
+    });
   } else if (!busy && ov._disabledBefore) {
     ov._disabledBefore.forEach((disabled, control) => { control.disabled = disabled; });
     ov._disabledBefore = null;
@@ -1150,6 +1257,7 @@ async function _requestCloseModal() {
   const ov = _modalEl;
   if (!ov) return;
   if (ov._createUncertain && !await confirm('this entry may already be saved. close this draft and check saved entries?')) return;
+  if (ov._upload?.uncertain && !await confirm('this file may already be attached. close and check attachments when you reopen the entry?')) return;
   if (_modalEl !== ov) return;
   _closeModal();
   if (ov._createUncertain && _unlocked && ov._vaultId === _vaultId) await _loadEntries();
@@ -1206,6 +1314,7 @@ function _closeModal() {
   if (_modalEl) {
     _modalEl.querySelectorAll('input, textarea').forEach(input => { input.value = ''; });
     _modalEl._entry = null;
+    _modalEl._upload = null;
     _modalEl.remove();
     _modalEl = null;
   }
@@ -1323,8 +1432,19 @@ function _renderFields(defs, values = {}) {
     b.textContent = show ? 'hide' : 'show';
   });
   box.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
-    await navigator.clipboard.writeText(box.querySelector('#' + b.dataset.copy).value);
-    toast('copied', 'success');
+    const ov = _modalEl, token = _token;
+    if (!ov || !_sameForm(ov, token)) return;
+    const input = box.querySelector('#' + b.dataset.copy);
+    const value = input.value === input._vaultOriginal?.rendered ? input._vaultOriginal.value : input.value;
+    try {
+      await navigator.clipboard.writeText(value);
+      if (_sameForm(ov, token)) toast('copied', 'success');
+    } catch {
+      if (_sameForm(ov, token)) {
+        _formError(ov, 'clipboard unavailable. show the field and copy it manually.');
+        toast('clipboard unavailable. copy the field manually.', 'error');
+      }
+    }
   });
   box.querySelector('#vf-f-password')?.addEventListener('input', _checkStrength);
   _startTotp();
@@ -1371,7 +1491,8 @@ function _showStrength(s) {
 
 async function _saveForm(editing) {
   const ov = _modalEl;
-  if (!ov || ov._saving || ov._openingSaved || !_sameForm(ov, _token)) return;
+  if (!ov || ov._saving || ov._openingSaved || ov._acting || !_sameForm(ov, _token)) return;
+  if (ov._upload) { _formError(ov, 'retry or discard the pending upload before saving this entry.'); return; }
   const name = ov.querySelector('#vf-name').value.trim();
   const typeKey = getDropdownValue(ov.querySelector('#vf-type'));
 
@@ -1463,10 +1584,14 @@ async function _saveForm(editing) {
 }
 
 async function _delFromForm(id) {
-  if (!await confirm('delete this entry?')) return;
-  await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
-  _closeModal();
-  await _loadEntries();
+  const ov = _modalEl, token = _token;
+  if (!ov || ov._acting || !await confirm('delete this entry?') || !_sameForm(ov, token)) return;
+  await _formAction(ov, async current => {
+    const response = await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) throw Object.assign(new Error('delete failed'), { status: response.status });
+    if (!current()) return;
+    _closeModal(); await _loadEntries();
+  }, 'could not confirm deletion. your input is kept. retry safely or close and check the list.');
 }
 
 // ── unlock / lock ────────────────────────────────────────────────────────────
@@ -1612,6 +1737,7 @@ async function _doLock() {
   const locking = fetch('/api/vault/lock', { method: 'POST', headers: _token ? { 'X-Vault-Token': _token } : {} }).catch(() => {});
   _token = null;
   _entries = [];
+  $('vault-entry-list')?.replaceChildren();
   _unlocked = false;
   _vaultId = 'default';
   _wtOpen = false;
@@ -1726,17 +1852,37 @@ window._vaultOpen = async id => {
 };
 
 window._vaultCopy = async id => {
+  const token = _token, vaultId = _vaultId, modal = _modalEl;
+  const generation = ++_revealGeneration;
+  const current = () => _sameVault(token, vaultId) && generation === _revealGeneration && _modalEl === modal && $('vault-view')?.offsetParent;
   try {
-    const d = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
-    await navigator.clipboard.writeText(_primarySecret(d));
-    toast('copied', 'success');
-  } catch { toast('copy failed', 'error'); }
+    const response = await _checkedVault(`/api/vault/${id}/reveal`);
+    const data = await response.json();
+    if (!current()) return;
+    if (!data.fields || typeof data.fields !== 'object' || Array.isArray(data.fields)) throw new Error('invalid reveal');
+    const value = _primarySecret(data);
+    if (typeof value !== 'string') throw new Error('invalid value');
+    await navigator.clipboard.writeText(value);
+    if (current()) toast('copied', 'success');
+  } catch (error) {
+    if (!current()) return;
+    if (error.status === 403) await _doLock();
+    toast('could not copy. unlock if needed, then open the entry to copy manually or retry.', 'error');
+  }
 };
 
 window._vaultDel = async id => {
-  if (!await confirm('delete this entry?')) return;
-  await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
-  await _loadEntries();
+  const token = _token, vaultId = _vaultId;
+  if (!await confirm('delete this entry?') || !_sameVault(token, vaultId)) return;
+  try {
+    const response = await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) throw Object.assign(new Error('delete failed'), { status: response.status });
+    if (_sameVault(token, vaultId)) await _loadEntries();
+  } catch (error) {
+    if (!_sameVault(token, vaultId)) return;
+    if (error.status === 403) await _doLock();
+    toast('could not confirm deletion. retry safely or refresh the list to check.', 'error');
+  }
 };
 
 function _esc(s = '') {

@@ -599,6 +599,16 @@ ordinary-entry receipts.
   to recover encrypted entries. existing data or enrolled authentication without a verifier
   requires a valid backup; it is never treated as a new empty vault. expired entry edits lock and
   clear the form, preserving the saved value until the owner unlocks and deliberately edits again
+- attachment uploads keep a request UUID and the selected file in browser memory until confirmed.
+  retrying the same upload returns its saved attachment; changed files or destinations conflict,
+  and deleted uploads cannot be recreated by a retry. the vault-scoped receipt stores no file
+  content or secret fingerprint. migration 53 adds these receipts without changing existing files
+- failed copy, delete, attachment and share actions show recovery instructions. failed attachment
+  reads offer retry instead of claiming the list is empty. locking clears the open form and pending
+  upload; late responses cannot trigger a copy, download or share-link display after that lock
+- sharing uses the saved entry. the form provides a copyable link when clipboard access fails,
+  plus revocation for existing links. revocation prevents future access; it cannot erase a copy
+  someone already read
 - *under the hood:* each entry is sealed with **aes-256-gcm** (a strong authenticated encryption) under a key derived from your master password with **pbkdf2-hmac-sha-256, 260,000 iterations** (a deliberately slow key-stretch so guessing the password is expensive). the master password is held **in memory only** and never written to disk. locked, the vault is unreadable even to someone holding a full copy of your database.
 
 <p align="center">
@@ -1038,7 +1048,7 @@ erDiagram
     money_accounts |o--o{ money_transactions : records
     albums |o--o{ photos : groups
 ```
-the declared schema has **125 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+the declared schema has **126 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`**: your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`**: agent skills as `SKILL.md` files (frontmatter + steps).
 - **`data/`** (other): uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
@@ -1210,9 +1220,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 900 http method/path pairs
-- 883 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `4a693cbe5721d9350937946037585e3b90aaf281f63c10b2a4de30883af67f37`
+- 904 http method/path pairs
+- 887 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `98bd1b184eb7503eeb1f21248893bf7cc01261a08ba4aa543184bd0d3ba44bfe`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -1832,6 +1842,7 @@ the compatibility snapshot locks the registered http surface:
 | method | path | handler |
 | --- | --- | --- |
 | `GET` | `/api/health` | `list_entries` |
+| `GET` | `/api/health/requests/{request_id}` | `recover_saved_entry` |
 | `POST` | `/api/health` | `create_entry` |
 | `POST` | `/api/health/import` | `import_health` |
 | `GET` | `/api/health/overview` | `overview` |
@@ -2810,6 +2821,7 @@ the compatibility snapshot locks the registered http surface:
 | method | path | handler |
 | --- | --- | --- |
 | `GET` | `/api/vault` | `list_vault` |
+| `GET` | `/api/vault/requests/{request_id}` | `recover_created_entry` |
 | `POST` | `/api/vault` | `create_entry` |
 | `GET` | `/api/vault/2fa` | `twofa_status` |
 | `PUT` | `/api/vault/2fa` | `twofa_set` |
@@ -2953,7 +2965,7 @@ the compatibility snapshot locks the registered http surface:
 
 ## database table inventory
 
-this lists **121 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **126 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -3007,9 +3019,12 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `finance_import_rows` | `id: VARCHAR pk`, `batch_id: VARCHAR`, `row_number: INTEGER`, `stable_identity: VARCHAR`, `raw_json: TEXT`, `parsed_json: TEXT`, `conversion_json: TEXT ?`, `status: VARCHAR ?`, `existing_transaction_id: VARCHAR ?`, `created_transaction_id: VARCHAR ?`, `conflict_reason: VARCHAR ?`, `created_at: DATETIME ?` | `batch_id → finance_import_batches.id` |
 | `finance_ledger_state` | `id: VARCHAR pk`, `mode: VARCHAR`, `base_currency_code: VARCHAR`, `active_run_id: VARCHAR ?`, `actual_budget_id: VARCHAR ?`, `actual_sync_id: VARCHAR ?`, `legacy_read_only: BOOLEAN`, `cutover_at: DATETIME ?`, `rollback_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `gallery_images` | `id: VARCHAR pk`, `filename: VARCHAR`, `prompt: TEXT ?`, `tags: TEXT ?`, `source: VARCHAR ?`, `created_at: DATETIME ?` | — |
+| `habit_create_receipts` | `id: VARCHAR pk`, `habit_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `habit_logs` | `id: INTEGER pk`, `habit_id: VARCHAR ?`, `date: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `habits` | `id: VARCHAR pk`, `name: VARCHAR`, `icon: VARCHAR ?`, `color: VARCHAR ?`, `cadence: VARCHAR ?`, `target: INTEGER ?`, `created_at: DATETIME ?`, `archived: BOOLEAN ?` | — |
-| `health_entries` | `id: INTEGER pk`, `kind: VARCHAR ?`, `date: VARCHAR ?`, `value: FLOAT ?`, `unit: VARCHAR ?`, `note: VARCHAR ?`, `label: VARCHAR ?`, `created_at: DATETIME ?` | — |
+| `health_create_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR(64)`, `entry_id: INTEGER ?`, `created_at: DATETIME ?` | — |
+| `health_entries` | `id: INTEGER pk`, `record_id: VARCHAR`, `kind: VARCHAR ?`, `date: VARCHAR ?`, `value: FLOAT ?`, `unit: VARCHAR ?`, `note: VARCHAR ?`, `label: VARCHAR ?`, `created_at: DATETIME ?` | — |
+| `health_import_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR(64)`, `imported: INTEGER`, `skipped: INTEGER`, `created_at: DATETIME ?` | — |
 | `index_chunks` | `id: VARCHAR pk`, `kind: VARCHAR`, `ref: VARCHAR`, `location_id: VARCHAR ?`, `normalized_path: VARCHAR ?`, `chunk_no: INTEGER ?`, `text: TEXT ?`, `vec: TEXT ?`, `created_at: DATETIME ?` | — |
 | `insights` | `id: VARCHAR pk`, `kind: VARCHAR ?`, `title: VARCHAR`, `body: TEXT ?`, `evidence: TEXT ?`, `dedupe_key: VARCHAR ?`, `pinned: BOOLEAN ?`, `dismissed: BOOLEAN ?`, `created_at: DATETIME ?` | — |
 | `jarvis_connectors` | `id: VARCHAR pk`, `name: VARCHAR`, `kind: VARCHAR`, `config: TEXT ?`, `secret: TEXT ? sealed`, `allowlist: TEXT ?`, `enabled: BOOLEAN ?`, `external: BOOLEAN ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
@@ -3078,8 +3093,10 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `trash_items` | `id: VARCHAR pk`, `kind: VARCHAR`, `ref: VARCHAR`, `location_id: VARCHAR ?`, `normalized_path: VARCHAR ?`, `name: VARCHAR ?`, `payload: TEXT ?`, `trashed_at: DATETIME ?`, `expires_at: DATETIME ?` | — |
 | `uploads` | `id: VARCHAR pk`, `filename: VARCHAR`, `original_name: VARCHAR`, `mime_type: VARCHAR ?`, `size: INTEGER ?`, `session_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `vault_attachments` | `id: VARCHAR pk`, `entry_id: VARCHAR`, `filename: VARCHAR ?`, `size: INTEGER ?`, `created_at: DATETIME ?` | — |
+| `vault_create_receipts` | `vault_id: VARCHAR pk`, `id: VARCHAR pk`, `entry_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `vault_entries` | `id: VARCHAR pk`, `vault_id: VARCHAR ?`, `name: VARCHAR`, `username: VARCHAR ?`, `value_encrypted: TEXT ?`, `category: VARCHAR ?`, `type: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `vault_shares` | `id: VARCHAR pk`, `token: VARCHAR ?`, `entry_id: VARCHAR`, `blob: TEXT ?`, `created_at: DATETIME ?` | — |
+| `vault_upload_receipts` | `vault_id: VARCHAR pk`, `id: VARCHAR pk`, `attachment_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `vaults` | `id: VARCHAR pk`, `name: VARCHAR`, `verifier: VARCHAR ?`, `travel_safe: BOOLEAN ?`, `biometric_blob: TEXT ?`, `created_at: DATETIME ?` | — |
 | `webauthn_credentials` | `id: VARCHAR pk`, `vault_id: VARCHAR ?`, `label: VARCHAR ?`, `credential_id: VARCHAR ?`, `public_key: TEXT ?`, `sign_count: INTEGER ?`, `role: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `webhooks` | `id: VARCHAR pk`, `name: VARCHAR`, `url: VARCHAR`, `events: TEXT ?`, `enabled: BOOLEAN ?`, `secret: TEXT ? sealed`, `last_status: VARCHAR ?`, `last_error: VARCHAR ?`, `last_triggered: DATETIME ?`, `created_at: DATETIME ?` | — |
@@ -3145,6 +3162,11 @@ known versions run in ascending order.
 | 46 | `jarvis_structured_questions` | [m0046_jarvis_structured_questions.py](core/migrations/m0046_jarvis_structured_questions.py) |
 | 47 | `model_provider_auth` | [m0047_model_provider_auth.py](core/migrations/m0047_model_provider_auth.py) |
 | 48 | `finance_connections` | [m0048_finance_connections.py](core/migrations/m0048_finance_connections.py) |
+| 49 | `health_create_receipts` | [m0049_health_create_receipts.py](core/migrations/m0049_health_create_receipts.py) |
+| 50 | `vault_create_receipts` | [m0050_vault_create_receipts.py](core/migrations/m0050_vault_create_receipts.py) |
+| 51 | `habit_create_receipts` | [m0051_habit_create_receipts.py](core/migrations/m0051_habit_create_receipts.py) |
+| 52 | `health_import_identity` | [m0052_health_import_identity.py](core/migrations/m0052_health_import_identity.py) |
+| 53 | `vault_upload_receipts` | [m0053_vault_upload_receipts.py](core/migrations/m0053_vault_upload_receipts.py) |
 
 </details>
 

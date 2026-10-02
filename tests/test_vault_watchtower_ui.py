@@ -33,7 +33,7 @@ class WatchtowerUi(unittest.TestCase):
     def test_lock_resets_state(self):
         # locking clears the open flag so reopening the vault doesn't think it's still showing
         i = JS.index("async function _doLock")
-        self.assertIn("_wtOpen = false", JS[i : i + 400])
+        self.assertIn("_wtOpen = false", JS[i : JS.index("\n}\n", i)])
 
     def test_layout_css_present(self):
         self.assertRegex(CSS, r"\.wt-section\s*\{[^}]*border")

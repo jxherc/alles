@@ -532,6 +532,16 @@ class VaultAttachment(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class VaultUploadReceipt(Base):
+    """A vault-scoped upload identity without file content or fingerprints."""
+
+    __tablename__ = "vault_upload_receipts"
+    vault_id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True)
+    attachment_id = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class VaultShare(Base):
     """9b — a per-item share: only the envelope ciphertext lives here; the key is in the URL."""
 

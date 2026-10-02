@@ -4,8 +4,9 @@ import re
 import secrets
 import time
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import func
@@ -19,6 +20,7 @@ from core.database import (
     VaultCreateReceipt,
     VaultEntry,
     VaultShare,
+    VaultUploadReceipt,
     WebAuthnCredential,
     get_db,
 )
@@ -113,6 +115,13 @@ def _require_current_vault_password(db, pw: str, vid: str) -> "Vault":
     if not vault or not vault.verifier or not verify_master(pw, vault.verifier):
         raise HTTPException(403, "vault locked")
     return vault
+
+
+def _reserve_vault_write(db, pw, vid):
+    # Reserve SQLite's write before reading files/receipts, including across workers.
+    db.query(Vault).filter_by(id=vid).update({Vault.id: Vault.id}, synchronize_session=False)
+    db.expire_all()
+    return _require_current_vault_password(db, pw, vid)
 
 
 def _travel_on() -> bool:
@@ -501,12 +510,9 @@ def delete_vault(vid: str, db: DbSession = Depends(get_db), ctx: tuple = Depends
     pw, unlocked_vid = ctx
     if unlocked_vid != vid:
         raise HTTPException(404)
-    v = db.get(Vault, vid)
-    if not v:
-        raise HTTPException(404)
-    eids = [r.id for r in db.query(VaultEntry).filter(VaultEntry.vault_id == vid).all()]
     with recovery_consistency_lock:
-        _require_current_vault_password(db, pw, vid)
+        v = _reserve_vault_write(db, pw, vid)
+        eids = [r.id for r in db.query(VaultEntry).filter(VaultEntry.vault_id == vid).all()]
         _purge_entry_data(db, eids)  # shares + attachment blobs for every entry in the vault
         db.query(WebAuthnCredential).filter(WebAuthnCredential.vault_id == vid).delete(
             synchronize_session=False
@@ -516,6 +522,7 @@ def delete_vault(vid: str, db: DbSession = Depends(get_db), ctx: tuple = Depends
         )
         db.query(VaultEntry).filter(VaultEntry.vault_id == vid).delete(synchronize_session=False)
         db.query(VaultCreateReceipt).filter_by(vault_id=vid).delete(synchronize_session=False)
+        db.query(VaultUploadReceipt).filter_by(vault_id=vid).delete(synchronize_session=False)
         db.delete(v)
         db.commit()
         from services.browser_passwords import lock_vault
@@ -881,6 +888,9 @@ def _purge_entry_data(db, eids):
         return
     db.query(VaultShare).filter(VaultShare.entry_id.in_(eids)).delete(synchronize_session=False)
     for a in db.query(VaultAttachment).filter(VaultAttachment.entry_id.in_(eids)).all():
+        db.query(VaultUploadReceipt).filter_by(attachment_id=a.id).update(
+            {VaultUploadReceipt.attachment_id: None}, synchronize_session=False
+        )
         (_attach_dir() / f"{a.id}.enc").unlink(missing_ok=True)
     db.query(VaultAttachment).filter(VaultAttachment.entry_id.in_(eids)).delete(
         synchronize_session=False
@@ -889,9 +899,10 @@ def _purge_entry_data(db, eids):
 
 @router.delete("/vault/{entry_id}")
 def delete_entry(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
-    _, vid = ctx
-    e = _scoped_entry(db, entry_id, vid)
+    pw, vid = ctx
     with recovery_consistency_lock:
+        _reserve_vault_write(db, pw, vid)
+        e = _scoped_entry(db, entry_id, vid)
         _purge_entry_data(db, [entry_id])
         db.query(VaultCreateReceipt).filter_by(vault_id=vid, entry_id=entry_id).update(
             {VaultCreateReceipt.entry_id: None}, synchronize_session=False
@@ -993,21 +1004,45 @@ async def add_attachment(
     file: UploadFile = File(...),
     db: DbSession = Depends(get_db),
     ctx: tuple = Depends(_ctx),
+    request_id: Annotated[str, Form()] = "",
 ):
-    from services.crypto import encrypt_bytes
+    from services.crypto import decrypt_bytes, encrypt_bytes
 
     pw, vid = ctx
     data = await file.read()
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(400, "attachment too large (25MB max)")
+    identity = _create_identity(request_id) if request_id else None
     att = VaultAttachment(entry_id=entry_id, filename=file.filename or "file", size=len(data))
     with recovery_consistency_lock:
-        _require_current_vault_password(db, pw, vid)
+        _reserve_vault_write(db, pw, vid)
         _scoped_entry(db, entry_id, vid)
+        receipt = db.get(VaultUploadReceipt, (vid, identity)) if identity else None
+        if receipt is not None:
+            saved = (
+                db.get(VaultAttachment, receipt.attachment_id) if receipt.attachment_id else None
+            )
+            if saved is None:
+                raise HTTPException(410, "the attachment from this upload was deleted")
+            if saved.entry_id != entry_id or saved.filename != att.filename:
+                raise HTTPException(409, "this upload was already saved with different values")
+            try:
+                saved_data = decrypt_bytes(pw, (_attach_dir() / f"{saved.id}.enc").read_bytes())
+            except Exception:
+                raise HTTPException(500, "could not read the saved attachment") from None
+            if saved_data != data:
+                raise HTTPException(409, "this upload was already saved with different values")
+            return {"id": saved.id, "filename": saved.filename, "size": saved.size}
         path = None
         try:
+            if identity:
+                receipt = VaultUploadReceipt(vault_id=vid, id=identity)
+                db.add(receipt)
+                db.flush()
             db.add(att)
             db.flush()
+            if receipt is not None:
+                receipt.attachment_id = att.id
             path = _attach_dir() / f"{att.id}.enc"
             path.write_bytes(encrypt_bytes(pw, data))
             db.commit()
@@ -1058,9 +1093,13 @@ def download_attachment(aid: str, db: DbSession = Depends(get_db), ctx: tuple = 
 
 @router.delete("/vault/attachments/{aid}")
 def delete_attachment(aid: str, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
-    _, vid = ctx
-    a = _scoped_attachment(db, aid, vid)
+    pw, vid = ctx
     with recovery_consistency_lock:
+        _reserve_vault_write(db, pw, vid)
+        a = _scoped_attachment(db, aid, vid)
+        db.query(VaultUploadReceipt).filter_by(vault_id=vid, attachment_id=aid).update(
+            {VaultUploadReceipt.attachment_id: None}, synchronize_session=False
+        )
         try:
             (_attach_dir() / f"{aid}.enc").unlink(missing_ok=True)
         except Exception:
