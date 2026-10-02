@@ -12,6 +12,7 @@ from core.database import CachedMessage
 def _to_msg(r: CachedMessage) -> dict:
     return {
         "uid": r.uid,
+        "folder": r.folder,
         "from": r.sender,
         "to": r.recipients or "",
         "subject": r.subject,
