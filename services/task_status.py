@@ -50,6 +50,7 @@ def apply_status(
                 tags=task.tags,
                 project=task.project,
                 notes=task.notes,
+                source_json=task.source_json,
                 parent_id=task.parent_id,
                 stage="backlog",
             )

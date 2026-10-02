@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from core.database import BookingPage, Calendar, CalendarEvent, EventAttendee, SessionLocal
 from core.settings import load_settings
+from services.commitment_requests import create_request
+from services.commitment_sources import source_dict, source_json
 
 
 def json_list(value: str) -> list:
@@ -25,6 +27,7 @@ def event_dict(event: CalendarEvent) -> dict:
         "calendar_id": event.calendar_id or "",
         "title": event.title,
         "description": event.description,
+        "source": source_dict(event.source_json),
         "location": event.location or "",
         "guests": event.guests or "",
         "start_dt": event.start_dt,
@@ -65,9 +68,13 @@ def default_calendar_id(db: Session) -> str:
         or db.query(Calendar).order_by(Calendar.sort_order).first()
     )
     if not cal:
-        seed_default_calendar()
-        cal = db.query(Calendar).filter(Calendar.is_default == True).first()
-    return cal.id if cal else ""
+        cal = Calendar(name="Personal", color="accent", is_default=True, sort_order=0)
+        db.add(cal)
+        db.flush()
+        db.query(CalendarEvent).filter(
+            (CalendarEvent.calendar_id == "") | (CalendarEvent.calendar_id.is_(None))
+        ).update({"calendar_id": cal.id})
+    return cal.id
 
 
 def default_duration() -> int:
@@ -99,6 +106,9 @@ def validate_event(data):
 
 
 def event_columns(data):
+    data = dict(data)
+    if "source" in data:
+        data["source_json"] = source_json(data.pop("source"))
     return {
         **data,
         "reminders": json.dumps(data.get("reminders") or []),
@@ -106,17 +116,31 @@ def event_columns(data):
     }
 
 
-def create_event(db: Session, data: dict) -> CalendarEvent:
+def prepare_event(data: dict) -> dict:
+    """Validate a proposal and resolve its duration without creating any records."""
     data = dict(data)
-    data["calendar_id"] = data.get("calendar_id") or default_calendar_id(db)
     if not data.get("all_day") and not data.get("end_dt") and data.get("start_dt"):
         data["end_dt"] = plus_minutes(data["start_dt"], default_duration()) or data.get("end_dt")
     validate_event(data)
-    event = CalendarEvent(**event_columns(data))
-    db.add(event)
-    db.commit()
-    db.refresh(event)
-    return event
+    return data
+
+
+def create_event(db: Session, data: dict) -> CalendarEvent:
+    data = dict(data)
+    request_id = data.pop("request_id", "")
+    with create_request(db, "event", request_id, data) as (receipt, existing):
+        if existing is not None:
+            return existing
+        data = prepare_event(data)
+        data["calendar_id"] = data.get("calendar_id") or default_calendar_id(db)
+        event = CalendarEvent(**event_columns(data))
+        db.add(event)
+        if receipt is not None:
+            db.flush()
+            receipt.resource_id = event.id
+        db.commit()
+        db.refresh(event)
+        return event
 
 
 def delete_event(db: Session, event: CalendarEvent) -> None:

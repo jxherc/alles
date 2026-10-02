@@ -9,6 +9,13 @@ from sqlalchemy.orm import Session as DbSession
 from core.database import MailAccount, MailDraft, get_db
 from services import mail as mailsvc
 from services import mail_oauth
+from services.commitment_sources import (
+    MailOrigin,
+    mail_fingerprint,
+    mail_source_text,
+    preview_mail_source,
+    source_dict,
+)
 
 router = APIRouter(prefix="/api/mail")
 
@@ -997,6 +1004,8 @@ async def summarize_mail(body: SummarizeBody, db: DbSession = Depends(get_db)):
 
 class MakeTaskBody(BaseModel):
     title: str
+    preview: bool = False
+    source: MailOrigin | None = None
 
 
 @router.post("/make-task")
@@ -1006,6 +1015,17 @@ def make_task(body: MakeTaskBody, db: DbSession = Depends(get_db)):
     title = body.title.strip()[:300]
     if not title:
         raise HTTPException(400, "empty title")
+    if body.preview:
+        from core.settings import load_settings
+        from services.task_nl import parse_task
+
+        candidate = parse_task(title, language=load_settings().get("language", "en"))
+        return {
+            "preview": True,
+            "kind": "task",
+            "candidate": candidate,
+            "source": preview_mail_source(db, body.source),
+        }
     t = Task(title=title)
     db.add(t)
     db.commit()
@@ -1016,6 +1036,8 @@ class ExtractEventBody(BaseModel):
     subject: str = ""
     body: str = ""
     date: str = ""  # the mail's own date header, helps resolve "next tuesday"
+    preview: bool = False
+    source: MailOrigin | None = None
 
 
 class ExtractedEvent(BaseModel):
@@ -1047,6 +1069,9 @@ async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db))
         raise HTTPException(400, "no model available")
 
     today = datetime.now().strftime("%A, %Y-%m-%d")
+    content = body.body
+    if body.preview and body.source and not content.strip():
+        content = mail_source_text(body.source)
     prompt = [
         {
             "role": "system",
@@ -1062,7 +1087,7 @@ async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db))
             "role": "user",
             "content": (
                 (f"Email date: {body.date}\n" if body.date else "")
-                + f"Subject: {body.subject}\n\n{body.body[:6000]}"
+                + f"Subject: {body.subject}\n\n{content[:6000]}"
             ),
         },
     ]
@@ -1083,17 +1108,24 @@ async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db))
     if data.location:
         desc += f" — {data.location}"
     try:
-        ev = calendar_events.create_event(
-            db,
-            {
-                "title": (data.title or body.subject or "event")[:200],
-                "description": desc,
-                "start_dt": data.start,
-                "end_dt": data.end,
-                "all_day": data.all_day,
-                "color": "accent",
-            },
-        )
+        candidate = {
+            "title": (data.title or body.subject or "event")[:200],
+            "description": desc,
+            "start_dt": data.start,
+            "end_dt": data.end,
+            "all_day": data.all_day,
+            "color": "accent",
+        }
+        if body.preview:
+            candidate.update(description="", location=data.location or "")
+            return {
+                "found": True,
+                "preview": True,
+                "kind": "event",
+                "candidate": calendar_events.prepare_event(candidate),
+                "source": preview_mail_source(db, body.source),
+            }
+        ev = calendar_events.create_event(db, candidate)
     except HTTPException as exc:
         if exc.status_code != 400:
             raise
@@ -1106,3 +1138,36 @@ async def extract_event(body: ExtractEventBody, db: DbSession = Depends(get_db))
         "end": ev.end_dt,
         "all_day": ev.all_day,
     }
+
+
+@router.get("/source/{kind}/{record_id}")
+def commitment_source(kind: str, record_id: str, db: DbSession = Depends(get_db)):
+    """Open only the same message whose content was reviewed before acceptance."""
+    from core.database import CalendarEvent, Task
+
+    model = {"task": Task, "event": CalendarEvent}.get(kind)
+    if model is None:
+        raise HTTPException(400, "source must belong to a task or event")
+    record = db.get(model, record_id)
+    source = source_dict(record.source_json) if record else None
+    if source is None:
+        raise HTTPException(404, "source is no longer available")
+
+    def unavailable(status, message):
+        raise HTTPException(status, {"message": message, "source": source})
+
+    account = db.get(MailAccount, source["account_id"])
+    if account is None:
+        unavailable(404, "source account is no longer available")
+    try:
+        message = mailsvc.fetch_message(
+            _acct_dict(account), source["uid"], source["folder"], refresh=True
+        )
+    except Exception:
+        unavailable(502, "could not load the source message; retry")
+    if message.get("error"):
+        status = 404 if message["error"] == "message not found" else 502
+        unavailable(status, "source message is unavailable; retry or check the inbox")
+    if mail_fingerprint(message) != source["fingerprint"]:
+        unavailable(409, "source message changed; the saved excerpt is still available")
+    return {"source": source, "message": message}

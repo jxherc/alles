@@ -39,6 +39,7 @@ from core.schema import CalendarSubscription as CalendarSubscription
 from core.schema import CapabilityGrant as CapabilityGrant
 from core.schema import CapabilityGrantEvent as CapabilityGrantEvent
 from core.schema import CategoryRule as CategoryRule
+from core.schema import CommitmentCreateReceipt as CommitmentCreateReceipt
 from core.schema import Connection as Connection
 from core.schema import Contact as Contact
 from core.schema import ContactField as ContactField
