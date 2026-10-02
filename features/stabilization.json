@@ -6934,6 +6934,201 @@
         "1440",
         "390"
       ]
+    },
+    {
+      "id": "inbox.vacation.success",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation success",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation reject",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.lost",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation lost",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.offline",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation offline",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.read-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation read reject",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.read-malformed",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation read malformed",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.newer-input",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation newer input",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.write-stale",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation write stale",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.read-rules",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation read rules",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.read-stale",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation read stale",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.invalid-result",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation invalid result",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.pending-reopen",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation pending reopen",
+      "expected": "Read verified vacation settings, preserve edits on failed or uncertain saves, retry safely, and keep late responses from replacing newer work.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.edit-after-subject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation edit after subject",
+      "expected": "After a confirmed save, changing any vacation field immediately shows unsaved feedback; restoring confirmed values shows saved without another write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.edit-after-body",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation edit after body",
+      "expected": "After a confirmed save, changing any vacation field immediately shows unsaved feedback; restoring confirmed values shows saved without another write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.vacation.edit-after-enabled",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail vacation edit after enabled",
+      "expected": "After a confirmed save, changing any vacation field immediately shows unsaved feedback; restoring confirmed values shows saved without another write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],
