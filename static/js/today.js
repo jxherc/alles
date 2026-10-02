@@ -265,7 +265,7 @@ function render() {
       await module.activateAideScheduledTab(button.dataset.aideSection);
     }
   }));
-  root.querySelectorAll('[data-run]').forEach(button => button.addEventListener('click', () => navigate('chat')));
+  root.querySelectorAll('[data-run]').forEach(button => button.addEventListener('click', () => openRecord?.('chat', button.dataset.run)));
   root.querySelector('[data-home-pinned-edit]')?.addEventListener('click', () => {
     document.getElementById('today-settings')?.click();
   });

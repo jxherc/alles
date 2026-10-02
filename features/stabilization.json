@@ -1464,8 +1464,8 @@
       "id": "home.reminder-local-time",
       "feature": "home.capture-and-navigation",
       "app": "home",
-      "workflow": "show reminders on the viewer\u2019s local day and clock",
-      "expected": "Use the viewer\u2019s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "workflow": "show reminders on the viewer’s local day and clock",
+      "expected": "Use the viewer’s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -3990,6 +3990,336 @@
         "event-1440",
         "task-390",
         "event-390"
+      ]
+    },
+    {
+      "id": "home.aide.home-opens-exact-job",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "home opens exact job",
+      "expected": "Home opens the selected job and loads its exact id and current state.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.reload-back-and-forward-preserve-job",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "reload back and forward preserve job",
+      "expected": "Reload, back and forward preserve the exact job target across local and specialist hosts.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.keyboard-close-restores-chat",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "keyboard close restores chat",
+      "expected": "Escape closes the dialog, clears the target and returns keyboard focus to the conversation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.failed-read-recovers-in-place",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "failed read recovers in place",
+      "expected": "A failed detail read remains visible and refresh loads the same job.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.missing-job-is-explicit",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "missing job is explicit",
+      "expected": "A missing job reports its absence without offering invalid actions.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.lost-cancel-reply-checks-current-state",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "lost cancel reply checks current state",
+      "expected": "A lost cancellation reply is checked against the durable job state.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.choice-keeps-selection-and-confirms-lost-reply",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "choice keeps selection and confirms lost reply",
+      "expected": "A failed answer keeps its selection and focus; a lost successful reply confirms one durable answer.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.structured-answer-survives-refresh",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "structured answer survives refresh",
+      "expected": "Refreshing preserves structured selections and text; submitting stores the exact answer.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.structured-question-cancel-is-durable",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "structured question cancel is durable",
+      "expected": "Cancelling a structured question records the cancellation and focuses its visible confirmation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.answer-preserves-focus-moved-elsewhere",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "answer preserves focus moved elsewhere",
+      "expected": "An answer completing after focus moves elsewhere does not steal that focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.late-read-cannot-reopen-closed-job",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "late read cannot reopen closed job",
+      "expected": "A late detail response cannot reopen the closed job.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.exact-approval-deny",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "exact approval deny",
+      "expected": "Denying the exact reviewed action persists the decision without executing its target.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.exact-approval-allow",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "exact approval allow",
+      "expected": "Allowing the exact reviewed action persists permission without this fixture executing its target.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.owner-challenge-cancel-keeps-action-pending",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "owner challenge cancel keeps action pending",
+      "expected": "Cancelling a simulated recent-owner challenge leaves the durable action pending.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.stale-approval-cannot-reverse-a-decision",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "stale approval cannot reverse a decision",
+      "expected": "A stale view cannot reverse a decision made through another client.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.uncertain-job-cannot-retry",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "uncertain job cannot retry",
+      "expected": "An uncertain outcome remains explicit and offers no blind retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.lost-retry-reload-creates-one-child",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "lost retry reload creates one child",
+      "expected": "A lost retry reply followed by reload resolves the same child job and launches at most once.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.open-exact-conversation",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "open exact conversation",
+      "expected": "The job opens its original conversation by id.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.console",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "console",
+      "expected": "The complete workflow has no unexpected console or page errors.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.closed-retry-keeps-one-child",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "closed retry keeps one child",
+      "expected": "Closing before a confirmed retry reply finishes preserves its identity; reopening the parent resolves the same child.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.failed-child-navigation-keeps-one-child",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "failed child navigation keeps one child",
+      "expected": "A declined child navigation keeps the saved retry identity and a visible recovery message; retry opens the same child.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.aide.superseded-child-navigation-keeps-one-child",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "superseded child navigation keeps one child",
+      "expected": "Closing the child before its navigation finishes preserves the original retry identity, so reopening the parent creates no duplicate.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
       ]
     }
   ],

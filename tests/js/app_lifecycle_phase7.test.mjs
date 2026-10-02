@@ -152,7 +152,7 @@ test('specialist request accounting propagates through awaits and ignores stale 
 });
 
 test('single-host chat transitions always restore Aide chrome', () => {
-  const showChatView = app.match(/const showChatView = \(\) => \{[\s\S]*?\n};/)?.[0] || '';
+  const showChatView = app.match(/const showChatView = \(\{ preserveRecord = false \} = \{\}\) => \{[\s\S]*?\n};/)?.[0] || '';
   assert.match(showChatView, /if \(singleHost\(\)\) _shChrome\('chat', \{ onAide: true \}\)/);
 });
 

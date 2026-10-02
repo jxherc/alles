@@ -9811,3 +9811,11 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .note-resume [hidden] { display: none !important; }
 .note-resume p { margin: 0; overflow-wrap: anywhere; }
 .note-resume .btn, .note-resume summary, #today-note-recovery > .btn { min-height: 44px; }
+
+.aide-run-detail { width: min(760px, calc(100vw - 32px)); }
+.aide-run-detail p, .aide-run-detail dd, .aide-run-detail li { overflow-wrap: anywhere; white-space: pre-wrap; }
+.aide-run-detail h3 { font-size: 16px; margin: var(--k-space-4) 0 var(--k-space-2); }
+.aide-run-detail dl { display: grid; grid-template-columns: minmax(64px, auto) minmax(0, 1fr); gap: var(--k-space-2) var(--k-space-4); }
+.aide-run-detail dd { margin: 0; }
+.aide-run-events summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.aide-run-events ol { padding-left: 24px; }

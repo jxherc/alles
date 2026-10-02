@@ -89,7 +89,7 @@ test('aide uses one safe permission control and a focused add menu', () => {
   assert.doesNotMatch(app, /data-tool="photos"/);
   assert.doesNotMatch(app, /data-tool="connections"/);
   assert.doesNotMatch(app, /data-tool="shell"/);
-  assert.match(app, /const showChatView = \(\) => \{\s*_setAfterlifeSpace\('aide'\)/);
+  assert.match(app, /const showChatView = \(\{ preserveRecord = false \} = \{\}\) => \{\s*_setAfterlifeSpace\('aide'\)/);
   assert.match(app, /function _setAfterlifeSpace\(space\) \{\s*document\.body\.dataset\.space = space \|\| ''/);
 });
 

@@ -109,8 +109,10 @@ def create_run(
     scheduled_for: datetime | None = None,
     occurrence_key: str | None = None,
     session_id: str | None = None,
+    run_id: str | None = None,
 ) -> JarvisRun:
     run = JarvisRun(
+        **({"id": run_id} if run_id else {}),
         workflow_id=workflow.id,
         trigger_id=trigger_id,
         project_id=workflow.project_id,

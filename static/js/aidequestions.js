@@ -54,7 +54,7 @@ export function markAideQuestionResolved(root, id, cancelled = false) {
   if (status) status.textContent = cancelled ? 'cancelled' : 'answer saved';
 }
 
-export function renderAideQuestion(root, request, { onResolved } = {}) {
+export function renderAideQuestion(root, request, { onResolved, sendAnswer, focus = true, allowCancel = true } = {}) {
   if (!root || !request?.id || !Array.isArray(request.questions)) return null;
   const prior = root.querySelector(`[data-aide-question-request="${CSS.escape(request.id)}"]`);
   if (prior) return prior;
@@ -77,12 +77,13 @@ export function renderAideQuestion(root, request, { onResolved } = {}) {
     const heading = document.createElement('h4');
     heading.id = `aide-question-${request.id}-${question.id}`;
     heading.textContent = question.prompt;
-    section.appendChild(heading);
+    const usesTitle = request.questions.length === 1 && question.prompt === title.textContent;
+    if (!usesTitle) section.appendChild(heading);
 
     const group = document.createElement('div');
     group.className = 'aide-question-choices';
     group.setAttribute('role', question.selection === 'multiple' ? 'group' : 'radiogroup');
-    group.setAttribute('aria-labelledby', heading.id);
+    group.setAttribute('aria-labelledby', usesTitle ? title.id : heading.id);
     for (const choice of question.choices || []) {
       const button = choiceButton(choice, question.selection);
       button.addEventListener('click', () => {
@@ -133,6 +134,7 @@ export function renderAideQuestion(root, request, { onResolved } = {}) {
   cancel.type = 'button';
   cancel.className = 'aide-question-cancel';
   cancel.textContent = 'cancel';
+  cancel.hidden = !allowCancel;
   const submit = document.createElement('button');
   submit.type = 'button';
   submit.className = 'aide-question-submit';
@@ -142,27 +144,32 @@ export function renderAideQuestion(root, request, { onResolved } = {}) {
   card.appendChild(footer);
 
   const send = async payload => {
+    const focusBefore = document.activeElement;
+    const hadFocus = card.contains(focusBefore);
+    const restoreFocus = () => card.isConnected && hadFocus && (document.activeElement === focusBefore || document.activeElement === document.body || card.contains(document.activeElement));
     setDisabled(card, true);
     status.textContent = 'saving…';
     try {
-      const response = await fetch(`/api/agent/questions/${encodeURIComponent(request.id)}/answer`, {
+      const response = sendAnswer ? await sendAnswer(payload) : await fetch(`/api/agent/questions/${encodeURIComponent(request.id)}/answer`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('answer_not_saved');
       markAideQuestionResolved(root, request.id, payload.cancelled === true);
+      if (restoreFocus()) { status.tabIndex = -1; status.focus(); }
       onResolved?.(payload);
     } catch {
       setDisabled(card, false);
       submit.disabled = !isComplete(card, request);
       status.textContent = 'could not save - try again';
+      if (restoreFocus()) focusBefore.focus();
     }
   };
   submit.addEventListener('click', () => send(answerPayload(card, request)));
   cancel.addEventListener('click', () => send({ cancelled: true, answers: {} }));
 
   root.appendChild(card);
-  card.querySelector('[data-choice-id]')?.focus();
+  if (focus) card.querySelector('[data-choice-id]')?.focus();
   return card;
 }

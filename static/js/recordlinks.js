@@ -1,6 +1,6 @@
 import { replaceRouteUrl } from './route_history.js';
 
-const VIEWS = new Set(['tasks', 'calendar', 'reminders', 'habits', 'subs', 'days', 'mail']);
+const VIEWS = new Set(['tasks', 'calendar', 'reminders', 'habits', 'subs', 'days', 'mail', 'chat']);
 
 export function recordTarget(view, id, occurrence = '') {
   if (!VIEWS.has(view) || typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,160}$/.test(id)) return null;
@@ -32,6 +32,10 @@ export function replaceLinkedRecord(view, previousId, id, occurrence) {
 }
 
 export async function revealRecord(target, isCurrent = () => true) {
+  if (target.view === 'chat') {
+    const module = await import('./aiderun.js');
+    return isCurrent() && module.openAideRun(target.id, isCurrent);
+  }
   if (target.view === 'mail') {
     const module = await import('./mail.js');
     return isCurrent() && module.openMailSource(target.id, isCurrent);
