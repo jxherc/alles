@@ -241,6 +241,7 @@ def _fmt(a: MailAccount) -> dict:  # never leaks the password or tokens
         "use_ssl": a.use_ssl,
         "auth_type": a.auth_type,
         "oauth_provider": a.oauth_provider,
+        "revision": a.revision,
     }
 
 
@@ -251,9 +252,39 @@ def _get(db, aid) -> MailAccount:
     return a
 
 
+def _account_scope(scope):
+    if scope and scope not in _mail_recovery_scopes("alles-mail-account"):
+        raise HTTPException(403, "this pending account belongs to a different mail store")
+
+
+def _account_request_id(identity):
+    try:
+        if str(UUID(identity)) != identity:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(400, "request_id must be a canonical UUID") from None
+
+
+@contextmanager
+def _account_write(db, identity):
+    try:
+        db.query(MailAccount).filter_by(id=identity).update(
+            {MailAccount.id: MailAccount.id}, synchronize_session=False
+        )
+        db.expire_all()
+        yield
+    finally:
+        db.rollback()
+
+
 @router.get("/accounts")
-def accounts(db: DbSession = Depends(get_db)):
-    return [_fmt(a) for a in db.query(MailAccount).order_by(MailAccount.created_at).all()]
+def accounts(db: DbSession = Depends(get_db), context: bool = False):
+    rows = [_fmt(a) for a in db.query(MailAccount).order_by(MailAccount.created_at).all()]
+    return (
+        {"accounts": rows, "recovery_scopes": _mail_recovery_scopes("alles-mail-account")}
+        if context
+        else rows
+    )
 
 
 class AcctBody(BaseModel):
@@ -266,38 +297,106 @@ class AcctBody(BaseModel):
     username: str = ""
     password: str = ""
     use_ssl: bool = True
+    request_id: str = ""
+    recovery_scope: str = ""
+    expected_revision: int | None = Field(default=None, strict=True, ge=1)
+
+
+def _account_fields(body, *, partial=False):
+    data = body.model_dump(
+        exclude_unset=partial, exclude={"request_id", "recovery_scope", "expected_revision"}
+    )
+    if partial and not data.get("password"):
+        data.pop("password", None)
+    return data
 
 
 @router.post("/accounts")
 def add_account(body: AcctBody, db: DbSession = Depends(get_db)):
-    a = MailAccount(**body.model_dump())
-    db.add(a)
-    db.commit()
-    db.refresh(a)
-    mailsvc.clear_cache()
-    return _fmt(a)
+    from core.database import MailAccountDeletion
+
+    _account_scope(body.recovery_scope)
+    if body.expected_revision is not None:
+        raise HTTPException(400, "expected_revision is only for an existing account")
+    if body.request_id:
+        _account_request_id(body.request_id)
+    data = _account_fields(body)
+    with _account_write(db, body.request_id):
+        if body.request_id and db.get(MailAccountDeletion, body.request_id):
+            raise HTTPException(410, "this account was removed; start a new account explicitly")
+        a = db.get(MailAccount, body.request_id) if body.request_id else None
+        if a:
+            if any(getattr(a, key) != value for key, value in data.items()):
+                raise HTTPException(
+                    409, "this account has changed; open the saved account to review it"
+                )
+            return _fmt(a)
+        a = MailAccount(**data)
+        if body.request_id:
+            a.id = body.request_id
+        db.add(a)
+        db.flush()
+        result = _fmt(a)
+        db.commit()
+        mailsvc.clear_cache()
+        return result
 
 
 @router.patch("/accounts/{aid}")
 def patch_account(aid: str, body: AcctBody, db: DbSession = Depends(get_db)):
-    a = _get(db, aid)
-    data = body.model_dump(exclude_unset=True)
-    if not data.get("password"):
-        data.pop("password", None)  # keep the existing password if the form left it blank
-    for k, v in data.items():
-        setattr(a, k, v)
-    db.commit()
-    mailsvc.clear_cache()
-    return _fmt(a)
+    _account_scope(body.recovery_scope)
+    if body.request_id:
+        raise HTTPException(400, "request_id is only for a new account")
+    data = _account_fields(body, partial=True)
+    with _account_write(db, aid):
+        a = _get(db, aid)
+        same = all(getattr(a, key) == value for key, value in data.items())
+        if body.expected_revision is not None:
+            if body.expected_revision != a.revision:
+                if same:
+                    return _fmt(a)
+                raise HTTPException(409, "this account has changed; reload it before saving")
+        elif same:
+            return _fmt(a)
+        # Claim a matching revision even for unchanged values to exclude older pending edits.
+        for key, value in data.items():
+            setattr(a, key, value)
+        a.revision += 1
+        db.flush()
+        result = _fmt(a)
+        db.commit()
+        mailsvc.clear_cache()
+        return result
 
 
 @router.delete("/accounts/{aid}")
-def del_account(aid: str, db: DbSession = Depends(get_db)):
-    a = _get(db, aid)
-    db.delete(a)
-    db.commit()
-    mailsvc.clear_cache()
-    return {"ok": True}
+def del_account(
+    aid: str,
+    db: DbSession = Depends(get_db),
+    recovery_scope: str = "",
+    expected_revision: int | None = None,
+):
+    from core.database import MailAccountDeletion
+
+    _account_scope(recovery_scope)
+    if expected_revision is not None and expected_revision < 1:
+        raise HTTPException(400, "expected_revision must be positive")
+    with _account_write(db, aid):
+        if db.get(MailAccountDeletion, aid):
+            return {"ok": True}
+        a = db.get(MailAccount, aid)
+        if a:
+            if expected_revision is not None and expected_revision != a.revision:
+                raise HTTPException(409, "this account has changed; reload it before removing")
+            db.delete(a)
+        else:
+            if not recovery_scope or expected_revision is not None:
+                raise HTTPException(404, "account not found")
+            _account_request_id(aid)
+        db.add(MailAccountDeletion(id=aid))
+        db.commit()
+        mailsvc.clear_cache()
+        return {"ok": True}
 
 
 # these hit the network (sync def → runs in a threadpool)
@@ -343,23 +442,26 @@ def oauth_callback(
     if not email:
         return _back("noemail")
 
-    a = db.query(MailAccount).filter(MailAccount.email == email).first()
-    if not a:
-        a = MailAccount(email=email, name=email)
-        db.add(a)
-    a.auth_type = "oauth"
-    a.oauth_provider = "google"
-    a.username = email
-    a.password = ""  # oauth accounts carry no password
-    a.imap_host, a.imap_port = mail_oauth.GMAIL_IMAP
-    a.smtp_host, a.smtp_port = mail_oauth.GMAIL_SMTP
-    a.use_ssl = True
-    a.oauth_access_token = access
-    if tok.get("refresh_token"):  # google only returns it on first consent
-        a.oauth_refresh_token = tok["refresh_token"]
-    a.oauth_expires_at = time.time() + int(tok.get("expires_in", 3600))
-    db.commit()
-    mailsvc.clear_cache()
+    with _account_write(db, ""):
+        a = db.query(MailAccount).filter(MailAccount.email == email).first()
+        if not a:
+            a = MailAccount(email=email, name=email)
+            db.add(a)
+        else:
+            a.revision += 1
+        a.auth_type = "oauth"
+        a.oauth_provider = "google"
+        a.username = email
+        a.password = ""  # oauth accounts carry no password
+        a.imap_host, a.imap_port = mail_oauth.GMAIL_IMAP
+        a.smtp_host, a.smtp_port = mail_oauth.GMAIL_SMTP
+        a.use_ssl = True
+        a.oauth_access_token = access
+        if tok.get("refresh_token"):  # google only returns it on first consent
+            a.oauth_refresh_token = tok["refresh_token"]
+        a.oauth_expires_at = time.time() + int(tok.get("expires_in", 3600))
+        db.commit()
+        mailsvc.clear_cache()
     return _back("ok")
 
 

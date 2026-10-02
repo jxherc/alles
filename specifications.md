@@ -1123,7 +1123,7 @@ erDiagram
     money_accounts |o--o{ money_transactions : records
     albums |o--o{ photos : groups
 ```
-the declared schema has **128 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+the declared schema has **129 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`**: your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`**: agent skills as `SKILL.md` files (frontmatter + steps).
 - **`data/`** (other): uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
@@ -2148,6 +2148,18 @@ home reuses this review and acceptance flow. `POST /api/tasks/quick` with `previ
 | `GET` | `/api/mail/vips` | `get_vips` |
 | `POST` | `/api/mail/vips` | `set_vip` |
 
+mail account creation accepts an optional canonical UUID `request_id` for repeatable saves.
+matching retries return the existing account; conflicting fields return 409 and removed ids return
+410. `GET /api/mail/accounts?context=true` adds recovery scopes while the default response remains
+an array. optional `expected_revision` protects edits and deletion from replacing newer account
+configuration. a matching conditional revision advances even if the fields are unchanged, closing
+out older pending edits. identical retries with an already-consumed revision return the current
+result; legacy edits still work and advance the revision when fields change. an empty password on edit keeps the
+stored value. OAuth configuration replacement also advances the revision. account deletion remains
+physical; a separate identity-only record prevents delayed creation retries from restoring it.
+scoped cancellation can reserve an unknown pending id before creation arrives. these are api
+contracts; the account editor does not yet use the new recovery fields.
+
 mail rule creation accepts an optional canonical UUID `request_id` and a `recovery_scope` from
 `GET /api/mail/rules`. retrying the same normalized fields returns the original rule; different
 fields with the same id return 409. deleted ids return 410 and stay excluded from rule execution.
@@ -3054,7 +3066,7 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 
 ## database table inventory
 
-this lists **128 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **129 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -3126,7 +3138,8 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `jarvis_triggers` | `id: VARCHAR pk`, `workflow_id: VARCHAR`, `kind: VARCHAR`, `config: TEXT ?`, `timezone: VARCHAR ?`, `enabled: BOOLEAN ?`, `next_run_at: DATETIME ?`, `last_run_at: DATETIME ?`, `fingerprint: VARCHAR ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | `workflow_id → jarvis_workflows.id` |
 | `jarvis_workflows` | `id: VARCHAR pk`, `name: VARCHAR`, `purpose: TEXT ?`, `project_id: VARCHAR ?`, `prompt: TEXT ?`, `deterministic_action: VARCHAR ?`, `model_override: VARCHAR ?`, `capability_ceiling: TEXT ?`, `concurrency_mode: VARCHAR ?`, `context_mode: VARCHAR ?`, `delivery_policy: TEXT ?`, `enabled: BOOLEAN ?`, `active_run_id: VARCHAR ?`, `legacy_automation_id: VARCHAR ?`, `review_state: VARCHAR`, `legacy_enabled_intent: BOOLEAN ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | `project_id → projects.id` |
 | `journal_entries` | `id: VARCHAR pk`, `date: VARCHAR ?`, `content: TEXT ?`, `mood: VARCHAR ?`, `tags: VARCHAR ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
-| `mail_accounts` | `id: VARCHAR pk`, `name: VARCHAR ?`, `email: VARCHAR ?`, `imap_host: VARCHAR ?`, `imap_port: INTEGER ?`, `smtp_host: VARCHAR ?`, `smtp_port: INTEGER ?`, `username: VARCHAR ?`, `password: TEXT ? sealed`, `use_ssl: BOOLEAN ?`, `auth_type: VARCHAR ?`, `oauth_provider: VARCHAR ?`, `oauth_access_token: TEXT ? sealed`, `oauth_refresh_token: TEXT ? sealed`, `oauth_expires_at: FLOAT ?`, `created_at: DATETIME ?` | — |
+| `mail_account_deletions` | `id: VARCHAR pk`, `deleted_at: DATETIME` | — |
+| `mail_accounts` | `id: VARCHAR pk`, `name: VARCHAR ?`, `email: VARCHAR ?`, `imap_host: VARCHAR ?`, `imap_port: INTEGER ?`, `smtp_host: VARCHAR ?`, `smtp_port: INTEGER ?`, `username: VARCHAR ?`, `password: TEXT ? sealed`, `use_ssl: BOOLEAN ?`, `auth_type: VARCHAR ?`, `oauth_provider: VARCHAR ?`, `oauth_access_token: TEXT ? sealed`, `oauth_refresh_token: TEXT ? sealed`, `oauth_expires_at: FLOAT ?`, `created_at: DATETIME ?`, `revision: INTEGER` | — |
 | `mail_drafts` | `id: VARCHAR pk`, `account_id: VARCHAR ?`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: TEXT ?`, `updated_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_rules` | `id: VARCHAR pk`, `match_field: VARCHAR ?`, `match_value: VARCHAR ?`, `action: VARCHAR ?`, `action_arg: VARCHAR ?`, `enabled: BOOLEAN ?`, `created_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_saved_searches` | `id: VARCHAR pk`, `name: VARCHAR`, `query: TEXT ?`, `created_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
@@ -3264,6 +3277,7 @@ known versions run in ascending order.
 | 57 | `mail_draft_recovery` | [m0057_mail_draft_recovery.py](core/migrations/m0057_mail_draft_recovery.py) |
 | 58 | `mail_outbox_recovery` | [m0058_mail_outbox_recovery.py](core/migrations/m0058_mail_outbox_recovery.py) |
 | 59 | `mail_rule_recovery` | [m0059_mail_rule_recovery.py](core/migrations/m0059_mail_rule_recovery.py) |
+| 60 | `mail_account_recovery` | [m0060_mail_account_recovery.py](core/migrations/m0060_mail_account_recovery.py) |
 
 </details>
 
