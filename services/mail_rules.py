@@ -73,6 +73,11 @@ def apply_rules(msg, rules):
 def run_on_cache(db, account_id, rules):
     """apply markread / mute / label / autoreply rules over an account's cached messages.
     returns count applied. label dedupes; autoreply enqueues once per message (autoreplied guard)."""
+    # Reserve the writer before reading cached guards, including across server workers.
+    db.query(MailAccount).filter_by(id=account_id).update(
+        {MailAccount.id: MailAccount.id}, synchronize_session=False
+    )
+    db.expire_all()
     n = 0
     own = _self_addrs(db, account_id)
     for row in db.query(CachedMessage).filter_by(account_id=account_id, folder="INBOX").all():
