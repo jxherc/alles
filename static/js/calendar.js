@@ -1286,6 +1286,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
     <textarea class="note-editor-body" id="cal-desc" rows="3" placeholder="description…">${esc(event?.description || '')}</textarea>
     ${event?.source?.kind === 'mail' ? '<button type="button" class="btn" id="cal-source">open original message</button>' : ''}
+    ${event?.source?.kind === 'capture' ? `<details class="capture-source"><summary>original capture</summary><pre>${esc(event.source.excerpt)}</pre></details>` : ''}
     <div id="cal-save-error" class="cal-save-error" role="alert" hidden></div>
     <div class="cal-ed-actions">
       ${isNew ? '' : '<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">delete</button>'}

@@ -2,7 +2,9 @@
 
 import json
 import os
+from pathlib import Path
 
+from browser_gate_safety import require_server_ownership
 from playwright.sync_api import Route, sync_playwright
 
 PORT = os.environ.get("PORT", "8931")
@@ -62,6 +64,8 @@ def mock_home(route: Route) -> None:
 
 
 def run() -> None:
+    require_server_ownership(BASE, os.environ["ALLES_TEST_RUN_ID"])
+    output = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     errors: list[str] = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
@@ -116,11 +120,10 @@ def run() -> None:
                         const url = String(input);
                         if (url === '/api/tasks' && init.method === 'POST') {
                           window.__captureCalls += 1;
-                          return new Promise(resolve => {
-                            window.__releaseCapture = () => resolve(new Response(
-                              JSON.stringify({id: 'capture-fixture'}),
-                              {status: 200, headers: {'content-type': 'application/json'}},
-                            ));
+                          return new Promise((resolve, reject) => {
+                            originalFetch(input, init).then(response => {
+                              window.__releaseCapture = () => resolve(response);
+                            }, reject);
                           });
                         }
                         if (url.startsWith('/api/today?') && window.__failNextHomeLoad) {
@@ -134,14 +137,21 @@ def run() -> None:
                 capture = page.locator("#today-capture-input")
                 capture.fill("one task only")
                 capture.press("Enter")
+                page.wait_for_selector(".capture-review")
+                page.locator("#capture-accept").click()
                 page.wait_for_function("window.__captureCalls === 1")
-                page.evaluate("document.getElementById('today-capture').requestSubmit()")
+                page.evaluate("document.getElementById('capture-accept').click()")
                 assert page.evaluate("window.__captureCalls") == 1
-                assert capture.is_disabled()
-                assert page.locator("#today-capture-mode").is_disabled()
-                assert page.locator('.today-capture [type="submit"]').is_disabled()
-                page.evaluate("window.__failNextHomeLoad = true; window.__releaseCapture();")
+                assert page.locator(".capture-fields").evaluate("el => el.inert")
+                assert page.locator("#capture-accept").is_disabled()
+                assert page.locator("#capture-cancel").is_disabled()
+                page.wait_for_function("typeof window.__releaseCapture === 'function'")
+                page.evaluate(
+                    "() => { window.__failNextHomeLoad = true; window.__releaseCapture(); }"
+                )
                 page.wait_for_selector("#today-retry", state="visible")
+                page.locator("#capture-cancel").click()
+                assert capture.input_value() == ""
                 page.wait_for_timeout(1_800)
                 assert page.locator("#today-retry").is_visible()
                 page.locator("#today-retry").click()
@@ -165,9 +175,9 @@ def run() -> None:
             first_clock = page.locator("#today-clock").inner_text()
             page.wait_for_timeout(1_100)
             assert page.locator("#today-clock").inner_text() != first_clock
-            page.screenshot(path=f"/tmp/alles-home-{label}.png", full_page=True)
+            page.screenshot(path=str(output / f"home-{label}.png"), full_page=True)
             page.locator(".today-shortcut-section").scroll_into_view_if_needed()
-            page.screenshot(path=f"/tmp/alles-home-pinned-apps-{label}.png")
+            page.screenshot(path=str(output / f"home-pinned-apps-{label}.png"))
 
             page.locator('.today-shortcut[data-view="plan"]').click()
             page.wait_for_selector("#plan-view:visible")
@@ -188,7 +198,7 @@ def run() -> None:
             assert page.locator(".app-drawer-group").count() == 4
             assert page.locator(".app-drawer-item").count() == 12
             assert page.locator(".app-drawer-group h3").all_inner_texts() == [
-                "primary spaces",
+                "main spaces",
                 "everyday",
                 "personal",
                 "manage",
@@ -222,7 +232,7 @@ def run() -> None:
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
             )
 
-            page.screenshot(path=f"/tmp/alles-apps-{label}.png", full_page=True)
+            page.screenshot(path=str(output / f"apps-{label}.png"), full_page=True)
             page.locator("#app-drawer-close").click()
             assert page.locator("#app-drawer").is_hidden()
             assert page.locator("#today-view").is_visible()

@@ -228,7 +228,8 @@ test('Today capture uses atomic unique creation and preserves refresh warnings',
   const today = specialistSources.today || readFileSync(new URL('../../static/js/today.js', import.meta.url), 'utf8');
   assert.doesNotMatch(today, /\/api\/vault-md\/names/);
   assert.match(today, /body: \{ path: title, content: `\$\{text\.trim\(\)\}\\n`, unique: true \}/);
-  assert.match(today, /toast\(asTask \? t\('home\.task_added'\) : t\('home\.note_saved'\), 'success'\);\s*await load\(\)/);
+  assert.match(today, /toast\(t\('home\.note_saved'\), 'success'\);\s*await load\(\)/);
+  assert.match(today, /reviewed = await openCaptureReview/);
   assert.doesNotMatch(today, /if \(refreshed\) showStatus/);
   assert.match(today, /partial\.length[\s\S]*?return false/);
 });

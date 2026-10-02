@@ -55,18 +55,18 @@ def run() -> None:
                 ),
             )
             capture.fill("task with unknown result")
+            submit.click()
+            expect(page.locator(".capture-review")).to_be_visible()
             with page.expect_response(
                 lambda response: (
                     response.url.endswith("/api/tasks") and response.request.method == "POST"
                 )
-            ):
-                submit.click()
+            ) as unknown:
+                page.locator("#capture-accept").click()
             expect(form).not_to_have_attribute("aria-busy", "true")
             expect(capture).to_have_value("task with unknown result")
-            expect(page.locator("#today-status")).to_contain_text(
-                "could not confirm task; check Plan before retrying"
-            )
-            expect(capture).to_be_focused()
+            expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+            expect(page.locator("#capture-accept")).to_be_focused()
             page.unroute("**/api/tasks")
 
             page.route(
@@ -85,14 +85,24 @@ def run() -> None:
                 lambda response: (
                     response.url.endswith("/api/tasks") and response.request.method == "POST"
                 )
-            ):
-                submit.click()
+            ) as queued:
+                page.locator("#capture-accept").click()
             expect(form).not_to_have_attribute("aria-busy", "true")
-            expect(capture).to_have_value("")
-            expect(page.locator("#today-status")).to_have_text(
-                "task queued; it will sync when online"
-            )
+            expect(capture).to_have_value("task with unknown result")
+            expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+            assert queued.value.request.post_data_json == unknown.value.request.post_data_json
             page.unroute("**/api/tasks")
+            with page.expect_response(
+                lambda response: (
+                    response.url.endswith("/api/tasks") and response.request.method == "POST"
+                )
+            ) as confirmed:
+                page.locator("#capture-accept").click()
+            assert confirmed.value.ok, confirmed.value.text()
+            assert confirmed.value.request.post_data_json == unknown.value.request.post_data_json
+            expect(page.locator(".capture-status")).to_contain_text("saved in plan")
+            expect(capture).to_have_value("")
+            page.locator("#capture-cancel").click()
 
             mode.click()
             expect(mode).to_have_attribute("aria-pressed", "false")

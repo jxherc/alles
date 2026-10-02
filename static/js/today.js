@@ -303,6 +303,10 @@ function hideStatus() {
 
 async function load() {
   const generation = ++loadGeneration;
+  const recovery = document.getElementById('today-capture-recovery');
+  if (recovery) import('./capture.js').then(({ showPendingCapture }) => showPendingCapture(recovery, homeCaptureSaved)).catch(() => {
+    recovery.textContent = 'capture recovery could not load; reload to retry';
+  });
   showStatus(t('home.loading'));
   try {
     const date = calendarDateKey();
@@ -389,13 +393,19 @@ async function json(url, options = {}) {
   return response.json();
 }
 
-async function capture(text, asTask) {
-  if (asTask) return json('/api/tasks', { method: 'POST', body: { title: text } });
+async function captureNote(text) {
   const title = safeTitle(text);
   return json('/api/vault-md/file', {
     method: 'POST',
     body: { path: title, content: `${text.trim()}\n`, unique: true },
   });
+}
+
+function homeCaptureSaved(saved, kind) {
+  const input = document.getElementById('today-capture-input');
+  const asTask = document.getElementById('today-capture-mode')?.getAttribute('aria-pressed') === 'true';
+  if (input && asTask && kind === 'task' && saved.source?.kind === 'capture' && input.value === saved.source.excerpt) input.value = '';
+  if (input?.getClientRects().length) void load();
 }
 
 function wireCapture() {
@@ -414,35 +424,38 @@ function wireCapture() {
   form.addEventListener('submit', async event => {
     event.preventDefault();
     if (form.getAttribute('aria-busy') === 'true') return;
-    const value = input.value.trim();
-    if (!value) return;
+    const value = input.value;
+    if (!value.trim()) return;
     const asTask = mode.getAttribute('aria-pressed') === 'true';
-    const uncertain = asTask
-      ? 'could not confirm task; check Plan before retrying'
-      : 'could not confirm note; check Docs before retrying';
+    let reviewed = false;
     form.setAttribute('aria-busy', 'true');
     input.disabled = true;
     mode.disabled = true;
     const submit = form.querySelector('[type="submit"]');
     if (submit) submit.disabled = true;
     try {
-      const result = await capture(value, asTask);
-      if (asTask && result?.queued === true && result?.offline === true) {
-        input.value = '';
-        showStatus('task queued; it will sync when online');
+      if (asTask) {
+        if ([...value].length > 6000) throw new Error('capture must be at most 6000 characters');
+        const proposal = await json('/api/tasks/quick', { method: 'POST', body: { text: value, preview: true, today: calendarDateKey() } });
+        if (proposal?.preview !== true || proposal.kind !== 'task' || !proposal.candidate?.title || proposal.source?.excerpt !== value) throw new Error('task preview was not confirmed');
+        const { openCaptureReview } = await import('./capture.js');
+        reviewed = await openCaptureReview(proposal, submit, homeCaptureSaved);
       } else {
-        if (!(asTask ? result?.id : result?.created === true)) throw new Error('unconfirmed capture');
+        const result = await captureNote(value);
+        if (result?.created !== true) throw new Error('unconfirmed capture');
         input.value = '';
-        toast(asTask ? t('home.task_added') : t('home.note_saved'), 'success');
+        toast(t('home.note_saved'), 'success');
         await load();
       }
-    } catch { showStatus(uncertain); }
+    } catch (error) {
+      showStatus(asTask ? `could not prepare task: ${error.message}; your text is still here` : 'could not confirm note; check Docs before retrying');
+    }
     finally {
       form.removeAttribute('aria-busy');
       input.disabled = false;
       mode.disabled = false;
       if (submit) submit.disabled = false;
-      input.focus();
+      if (!reviewed && input.getClientRects().length) input.focus();
     }
   });
 }

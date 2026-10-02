@@ -38,6 +38,7 @@ BROWSER_SUITES = {
         "calendar-workflows",
         "mail-calendar-capture",
         "reviewed-capture",
+        "home-reviewed-capture",
         "calendar-metadata-picker",
         "files-workflows",
         "files-upload-recovery",
@@ -81,6 +82,7 @@ BROWSER_SUITES = {
         "calendar-metadata-picker",
         "mail-calendar-capture",
         "reviewed-capture",
+        "home-reviewed-capture",
     ),
     "recurring": (
         "finance-recurring-create",
@@ -138,6 +140,7 @@ BROWSER_SUITES = {
         "calendar-workflows",
         "mail-calendar-capture",
         "reviewed-capture",
+        "home-reviewed-capture",
         "calendar-metadata-picker",
         "files-workflows",
         "files-upload-recovery",

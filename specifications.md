@@ -400,6 +400,7 @@ a calendar with month / week / day views and repeating events.
 a real to-do list: type tasks in plain english, with recurring ones and smart views.
 
 - **natural-language quick-add**: "pay rent every 1st !" or "call mom tomorrow #home" parses the due date, repeat, `#tags` and `!` priority for you (deterministic, no deps, all local)
+- home task capture previews these fields before saving, using home's displayed day for relative dates. the accepted task keeps the exact original text, available in its editor and completed history; an uncertain acceptance can be resumed from home after reload without creating another task.
 - **recurring tasks**: finish one and it rolls forward to the next occurrence (daily / weekly / monthly / yearly, leap-day safe)
 - **today / upcoming / someday** views by due date, plus tags, subtasks, projects, and manual drag-reorder
 - compatible task stages include backlog, next, doing, waiting, and done while the existing checked/unchecked behavior still works
@@ -2004,6 +2005,8 @@ the compatibility snapshot locks the registered http surface:
 <summary>routes/mail.py · 63 operations</summary>
 
 inbox task and event capture opens an editable review before acceptance into plan. a cancelled review writes nothing. acceptance uses a durable request identity; an uncertain response can be retried after reload without creating another item. task/event edits and recurrence keep the original message reference. opening that source checks a fresh message against its saved fingerprint; missing or changed sources show the retained excerpt and a retry action. legacy mail API callers without `preview: true` retain their direct-create behavior. pending acceptance details stay in owner-scoped browser session storage until confirmed or explicitly discarded.
+
+home reuses this review and acceptance flow. `POST /api/tasks/quick` with `preview: true` returns a parsed candidate and a bounded literal-text source without writing; optional `today` supplies the displayed calendar day. calls without preview retain direct quick-add behavior. literal sources preserve up to 6000 characters exactly and require a matching sha256 fingerprint. mail and literal sources remain attached through task recurrence and event edits. home's note mode creates a separate markdown document and does not use the Plan acceptance receipt.
 
 [source](routes/mail.py)
 
