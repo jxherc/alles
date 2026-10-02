@@ -118,7 +118,7 @@ def run():
                         page.evaluate(
                             "() => {const real=window.fetch;window.__newSettingsReturned=false;window.__oldDraftReturned=false;window.fetch=async(...args)=>{const response=await real(...args);const settings=String(args[0])==='/api/settings';const draft=!args[1]?.method && String(args[0]).includes('/api/mail/drafts/');if(settings || draft){const json=response.json.bind(response);response.json=async()=>{const data=await json();setTimeout(()=>{if(settings)window.__newSettingsReturned=true;else window.__oldDraftReturned=true},0);return data}}return response}}"
                         )
-                        page.route(base + "/api/mail/drafts/" + draft["id"], hold_draft)
+                        page.route(base + "/api/mail/drafts/" + draft["id"] + "?*", hold_draft)
                         page.get_by_role("button", name="old reading", exact=True).click()
                         held_one(reads)
                         page.route(base + "/api/settings", hold_settings)
@@ -227,7 +227,7 @@ def run():
                             else:
                                 route.continue_()
 
-                        page.route(base + "/api/mail/drafts/" + draft["id"], hold_draft)
+                        page.route(base + "/api/mail/drafts/" + draft["id"] + "?*", hold_draft)
                         if case == "delete-pending-read":
                             page.get_by_role("button", name="owned deletion", exact=True).click()
                             held_one(reads)
@@ -438,7 +438,7 @@ def run():
                             assert response.ok
                             held.append((route, response))
 
-                        page.route(base + "/api/mail/drafts/" + draft["id"], hold_delete)
+                        page.route(base + "/api/mail/drafts/" + draft["id"] + "?*", hold_delete)
                         page.get_by_role("button", name="delete draft", exact=True).click()
                         held_one(held)
                         body.fill("later unsaved edit")
@@ -606,7 +606,7 @@ def run():
                             response = route.fetch()
                             held.append((route, response))
 
-                        page.route(base + "/api/mail/drafts/" + draft["id"], hold)
+                        page.route(base + "/api/mail/drafts/" + draft["id"] + "?*", hold)
                         page.get_by_role("button", name="older draft", exact=True).click()
                         held_one(held)
                         compose()
@@ -627,7 +627,7 @@ def run():
                         page.get_by_role("button", name="owned draft", exact=True).click()
                         body.fill("owned unsaved reply")
                         page.route(
-                            base + "/api/mail/drafts/" + draft["id"],
+                            base + "/api/mail/drafts/" + draft["id"] + "?*",
                             lambda route: route.fulfill(
                                 status=503, json={"detail": "owned deletion failure"}
                             ),
