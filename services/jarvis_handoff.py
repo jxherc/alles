@@ -6,7 +6,7 @@ import logging
 
 from core.database import JarvisRun, JarvisRunEvent, JarvisWorkflow, Session, SessionLocal
 from core.settings import load_settings
-from services.jarvis_store import append_event, create_run, json_text, transition_run
+from services.jarvis_store import append_event, create_run, json_text, json_value, transition_run
 from services.memory_store import apply_memory_tool_policy, inject_memories
 from services.model_resolver import ModelResolutionError, resolve_model
 
@@ -197,7 +197,23 @@ def _has_discord_origin(db, run: JarvisRun) -> bool:
     return bool(data.get("origin_kind") == "discord" and data.get("origin_connector_id"))
 
 
-def retry_handoff(db, previous: JarvisRun) -> JarvisRun:
+def retry_handoff(db, previous: JarvisRun, *, request_id: str = "") -> JarvisRun:
+    if request_id:
+        existing = db.get(JarvisRun, request_id)
+        if existing:
+            event = (
+                db.query(JarvisRunEvent)
+                .filter_by(run_id=existing.id, kind="handoff_requested")
+                .order_by(JarvisRunEvent.sequence)
+                .first()
+            )
+            data = json_value(event.data, dict) if event else {}
+            if (
+                data.get("previous_run_id") != previous.id
+                or data.get("retry_request_id") != request_id
+            ):
+                raise ValueError("retry_identity_conflict")
+            return existing
     if previous.state not in {"failed", "cancelled", "interrupted"}:
         raise ValueError("handoff_not_retryable")
     workflow = db.get(JarvisWorkflow, previous.workflow_id) if previous.workflow_id else None
@@ -214,7 +230,7 @@ def retry_handoff(db, previous: JarvisRun) -> JarvisRun:
         origin,
         session_context,
     ) = _handoff_input(db, previous)
-    run = create_run(db, workflow, session_id=previous.session_id)
+    run = create_run(db, workflow, session_id=previous.session_id, run_id=request_id or None)
     workflow.active_run_id = run.id
     append_event(
         db,
@@ -230,6 +246,7 @@ def retry_handoff(db, previous: JarvisRun) -> JarvisRun:
             "reasoning_mode": reasoning_mode,
             "custom_effort": custom_effort,
             "previous_run_id": previous.id,
+            "retry_request_id": request_id,
             "origin_kind": origin["kind"],
             "origin_connector_id": origin["connector_id"],
             "origin_generation": origin["generation"],

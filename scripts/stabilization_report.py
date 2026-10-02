@@ -40,6 +40,7 @@ BROWSER_SUITES = {
         "reviewed-capture",
         "home-reviewed-capture",
         "home-note-recovery",
+        "home-aide-runs",
         "calendar-metadata-picker",
         "files-workflows",
         "files-upload-recovery",
@@ -85,6 +86,7 @@ BROWSER_SUITES = {
         "reviewed-capture",
         "home-reviewed-capture",
         "home-note-recovery",
+        "home-aide-runs",
     ),
     "recurring": (
         "finance-recurring-create",
@@ -96,6 +98,7 @@ BROWSER_SUITES = {
     "creations": ("aide-creations",),
     "pwa": ("pwa-offline", "pwa-storage", "pwa-rejection"),
     "assistant": (
+        "home-aide-runs",
         "reminder-recovery",
         "andromeda-cancellation",
         "aide-continuity",
@@ -144,6 +147,7 @@ BROWSER_SUITES = {
         "reviewed-capture",
         "home-reviewed-capture",
         "home-note-recovery",
+        "home-aide-runs",
         "calendar-metadata-picker",
         "files-workflows",
         "files-upload-recovery",

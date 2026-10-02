@@ -114,6 +114,14 @@ class DecisionBody(BaseModel):
     exact_hash: str
 
 
+@router.get("/actions/{action_id}")
+def get_action(action_id: str, db: DbSession = Depends(get_db)):
+    row = db.get(DelegatedAction, action_id)
+    if not row:
+        raise HTTPException(404)
+    return _action(row)
+
+
 @router.post("/actions/{action_id}/decision", dependencies=[Depends(require_recent_owner)])
 def action_decision(
     action_id: str,

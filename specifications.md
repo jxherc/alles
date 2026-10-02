@@ -314,7 +314,12 @@ related apps now open together without merging their records.
 ### home
 your whole day on one screen the moment you open alles.
 
-- **needs you** keeps approvals, choices, conflicts, uncertain results, and failed work visible
+- **needs you** keeps approvals, choices, conflicts, uncertain results, and failed work visible.
+  aide job links open the exact job with its current state, result and activity; reload and browser
+  history preserve that target. answer its pending question, review and decide an exact action,
+  cancel eligible work, or open the original conversation. eligible failed, cancelled or interrupted
+  handoffs can be retried; a retained request identity confirms the same child after a lost reply.
+  uncertain outcomes require inspection and cannot be retried from this view
 - **today** combines events, due work, reminders, habits, renewals, and important dates
 - **in progress** shows active background aide work; **briefs** holds completed reports
 - **pinned apps** opens the app destinations selected in **settings → home**
@@ -1224,9 +1229,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 906 http method/path pairs
-- 889 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `1ed482c2f703bb7dc5cc80534a5f4d36961978c50fd9a4fc6c0d270a5c8e2106`
+- 907 http method/path pairs
+- 890 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `7afc73dd69ef226c7097d1c2ec80f5c3c5475b05e386399150f89a389ba6de15`
 
 <details>
 <summary>app.py · 6 operations</summary>
