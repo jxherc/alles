@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=335">
+<link rel="stylesheet" href="/static/style.css?v=336">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -193,6 +193,7 @@
           <input id="today-capture-input" type="text" aria-label="capture a task" placeholder="capture something…" data-i18n-aria-label="home.capture_task" data-i18n-placeholder="home.capture_placeholder" autocomplete="off">
           <button class="today-capture-send" type="submit" aria-label="save capture" data-i18n-aria-label="home.save_capture">↑</button>
         </form>
+        <div id="today-capture-recovery"></div>
         <div class="today-status" id="today-status" role="status" aria-live="polite" data-i18n="home.loading">loading today…</div>
         <div class="today-sections" id="today-sections"></div>
       </div>
@@ -2793,7 +2794,7 @@
 </div>
 
 <script type="module">
-const _v = '335';
+const _v = '336';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

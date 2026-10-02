@@ -3511,6 +3511,175 @@
         "task-390",
         "event-390"
       ]
+    },
+    {
+      "id": "home.capture.review-edit-and-cancel-without-writing",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "review and cancel a home task",
+      "expected": "Parsed title, tags and date can be inspected; cancellation writes nothing and preserves the original input and return focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.lost-response-reload-and-same-acceptance",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "confirm a home task after a lost response",
+      "expected": "Reload and retry use the same acceptance UUID and return the same saved task.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.exact-plan-edit-reschedule-reload-and-original-text",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "edit a captured task in plan",
+      "expected": "The exact task opens, edits and reschedules persist, and the original capture text remains unchanged after reload.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.completed-history-retains-original-text",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "complete and reopen a captured task",
+      "expected": "The completed item opens in history and retains its literal source.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.preview-failure-keeps-input-and-retries",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "retry a failed task preview",
+      "expected": "The home input survives a preview failure; retry opens the editable review with correct focus.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.older-pending-acceptance-preserves-new-home-input",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "resolve an older acceptance before a new task",
+      "expected": "Confirming the older task preserves the newer home input and reuses the older saved identity.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.confirmed-save-clears-only-the-matching-input",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "finish a reviewed home capture",
+      "expected": "Only verified acceptance clears the matching input; the recovery notice disappears after confirmation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.relative-dates-use-displayed-home-day",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "capture tomorrow near a timezone date boundary",
+      "expected": "The proposed due date follows the calendar day displayed in home, not the server day.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.console",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "inspect home task capture errors",
+      "expected": "Only injected failure responses occur and no page errors are reported.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.recovered-input-submit",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "confirm matching text through home submission",
+      "expected": "Confirming the existing acceptance clears matching task input and keeps exactly one saved task.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.recovered-input-notice",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "confirm matching text from the recovery notice",
+      "expected": "The recovery notice clears matching task input after confirmation without a second acceptance.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.recovered-input-note",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "confirm a task while keeping a note draft",
+      "expected": "A note draft with the same words remains intact when the pending task is confirmed.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "home.capture.unicode-limit-matches-api",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "review supplementary Unicode text",
+      "expected": "The browser accepts Unicode code points consistently with the source API limit and cancellation preserves the original text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],

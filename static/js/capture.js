@@ -45,7 +45,7 @@ function requestId() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-export async function showPendingCapture(host) {
+export async function showPendingCapture(host, onSaved = null) {
   try {
     const store = await pendingStore();
     host.querySelector('.capture-resume')?.remove();
@@ -53,12 +53,12 @@ export async function showPendingCapture(host) {
     const notice = document.createElement('div');
     notice.className = 'capture-resume';
     notice.innerHTML = '<span>a capture still needs confirmation</span><button class="btn" type="button">review pending capture</button>';
-    notice.querySelector('button').onclick = event => openCaptureReview(null, event.currentTarget).catch(error => toast(error.message, 'error'));
+    notice.querySelector('button').onclick = event => openCaptureReview(null, event.currentTarget, onSaved).catch(error => toast(error.message, 'error'));
     host.prepend(notice);
   } catch { /* Acceptance reports a recovery error before sending any write. */ }
 }
 
-export async function openCaptureReview(proposal, trigger) {
+export async function openCaptureReview(proposal, trigger, onSaved = null) {
   if (active) return false;
   active = true;
   let store;
@@ -86,6 +86,7 @@ export async function openCaptureReview(proposal, trigger) {
         <label for="capture-due">due date</label><div id="capture-due" class="date-input" data-type="date" data-value="${esc(candidate.due_date || '')}" aria-label="due date"></div>
         <label id="capture-priority-label">priority</label><div class="settings-input custom-select" id="capture-priority" aria-labelledby="capture-priority-label"></div>
         <label id="capture-repeat-label">repeat</label><div class="settings-input custom-select" id="capture-repeat" aria-labelledby="capture-repeat-label"></div>
+        <label for="capture-tags">tags</label><input class="settings-input" id="capture-tags" value="${esc(candidate.tags || '')}">
         <label for="capture-project">project</label><input class="settings-input" id="capture-project" value="${esc(candidate.project || '')}">
         <label for="capture-notes">notes</label><textarea class="settings-input" id="capture-notes">${esc(candidate.notes || '')}</textarea>
       ` : `
@@ -160,7 +161,7 @@ export async function openCaptureReview(proposal, trigger) {
         const title = el('title').value.trim();
         if (!title) { status.textContent = 'add a title'; el('title').focus(); return; }
         const body = { ...candidate, title, source, request_id: requestId() };
-        if (kind === 'task') Object.assign(body, { due_date: el('due').value || null, priority: Number(getDropdownValue(el('priority'))), repeat: getDropdownValue(el('repeat')), project: el('project').value, notes: el('notes').value });
+        if (kind === 'task') Object.assign(body, { due_date: el('due').value || null, priority: Number(getDropdownValue(el('priority'))), repeat: getDropdownValue(el('repeat')), tags: el('tags').value, project: el('project').value, notes: el('notes').value });
         else {
           const allDay = el('all-day').getAttribute('aria-checked') === 'true';
           const start = el('start').value, end = el('end').value;
@@ -188,6 +189,7 @@ export async function openCaptureReview(proposal, trigger) {
       status.textContent = `saved in plan: ${data.title}${data.done ? ' (completed)' : ''}`;
     } catch (error) { status.textContent = frozen ? `${error.message}. retry uses the same acceptance and cannot add a second item.` : error.message; }
     finally { busy = false; lock(); if (attemptedSave && dialog.contains(document.activeElement)) (saved ? open : accept).focus(); }
+    if (saved) onSaved?.(saved, kind);
   };
   if (frozen) status.textContent = 'the previous acceptance was not confirmed. retry to check the same item.';
   lock(); focus.activate({ focus: frozen ? accept : el('title'), source: trigger });

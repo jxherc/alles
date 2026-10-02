@@ -130,15 +130,18 @@ def run() -> None:
             mode.click()
             expect(mode).to_have_attribute("aria-pressed", "true")
             capture.fill(f"captured task {width}")
+            submit.click()
+            expect(page.locator(".capture-review")).to_be_visible()
             with page.expect_response(
                 lambda response: (
                     response.url.endswith("/api/tasks") and response.request.method == "POST"
                 )
             ) as task_response:
-                submit.click()
+                page.locator("#capture-accept").click()
             assert task_response.value.ok and task_response.value.json().get("id")
             expect(capture).to_have_value("")
-            expect(page.locator("#toast-container .toast.success").last).to_have_text("task added")
+            expect(page.locator(".capture-status")).to_contain_text("saved in plan")
+            page.locator("#capture-cancel").click()
 
             page.route(
                 "**/api/tasks",
@@ -153,18 +156,33 @@ def run() -> None:
                 ),
             )
             capture.fill(f"queued task {width}")
+            submit.click()
+            expect(page.locator(".capture-review")).to_be_visible()
             with page.expect_response(
                 lambda response: (
                     response.url.endswith("/api/tasks") and response.request.method == "POST"
                 )
-            ):
-                submit.click()
+            ) as queued:
+                page.locator("#capture-accept").click()
             expect(page.locator("#today-capture")).not_to_have_attribute("aria-busy", "true")
-            expect(capture).to_have_value("")
-            expect(page.locator("#today-status")).to_have_text(
-                "task queued; it will sync when online"
-            )
+            expect(capture).to_have_value(f"queued task {width}")
+            expect(page.locator(".capture-status")).to_contain_text("same acceptance")
             page.unroute("**/api/tasks")
+            with page.expect_response(
+                lambda response: (
+                    response.url.endswith("/api/tasks") and response.request.method == "POST"
+                )
+            ) as confirmed:
+                page.locator("#capture-accept").click()
+            assert confirmed.value.ok, confirmed.value.text()
+            assert confirmed.value.request.post_data_json == queued.value.request.post_data_json
+            expect(page.locator(".capture-status")).to_contain_text("saved in plan")
+            expect(capture).to_have_value("")
+            saved_tasks = context.request.get(f"{base}/api/tasks").json()
+            assert (
+                len([task for task in saved_tasks if task["title"] == f"queued task {width}"]) == 1
+            )
+            page.locator("#capture-cancel").click()
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
             )

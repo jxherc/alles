@@ -120,18 +120,22 @@ def run(device: str) -> None:
                 mode.click()
             capture = page.locator("#today-capture-input")
             capture.fill(title)
+            if device == "phone":
+                page.locator('#today-capture [type="submit"]').click()
+            else:
+                capture.press("Enter")
+            expect(page.locator(".capture-review")).to_be_visible()
+            expect(page.locator("#capture-title")).to_be_focused()
             with page.expect_response(
                 lambda response: (
                     response.url.endswith("/api/tasks") and response.request.method == "POST"
                 )
             ) as saved:
-                if device == "phone":
-                    page.locator('#today-capture [type="submit"]').click()
-                else:
-                    capture.press("Enter")
+                page.locator("#capture-accept").click()
             assert saved.value.ok, saved.value.text()
             expect(capture).to_have_value("")
             expect(capture).to_be_enabled()
+            page.locator("#capture-cancel").click()
             page.reload(wait_until="domcontentloaded")
             expect(page.locator("#today-view")).to_be_visible()
             tasks = context.request.get(base + "/api/tasks").json()

@@ -1152,6 +1152,8 @@ def commitment_source(kind: str, record_id: str, db: DbSession = Depends(get_db)
     source = source_dict(record.source_json) if record else None
     if source is None:
         raise HTTPException(404, "source is no longer available")
+    if source["kind"] != "mail":
+        raise HTTPException(400, "source is not an inbox message")
 
     def unavailable(status, message):
         raise HTTPException(status, {"message": message, "source": source})

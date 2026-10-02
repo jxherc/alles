@@ -360,6 +360,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
       </div>
     </div>
     ${savedTask?.source?.kind === 'mail' ? '<button type="button" class="btn" id="te-source">open original message</button>' : ''}
+    ${savedTask?.source?.kind === 'capture' ? `<details class="capture-source"><summary>original capture</summary><pre>${esc(savedTask.source.excerpt)}</pre></details>` : ''}
     <div class="te-actions"><button type="button" class="btn" id="te-cancel">${esc(tr('common.cancel'))}</button><button type="button" class="btn primary" id="te-save">${esc(tr('common.save'))}</button></div>
   </div>`;
   document.body.appendChild(ov);

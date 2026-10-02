@@ -122,10 +122,13 @@ test('Home presents configured destinations as pinned apps without an unexplaine
   assert.match(app, /initToday\(\{ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord \}\)/);
 });
 
-test('a successful Home capture is confirmed independently of a partial refresh', () => {
+test('Home note confirmation precedes refresh and tasks use reviewed acceptance', () => {
   const today = readFileSync(new URL('../../static/js/today.js', import.meta.url), 'utf8');
   const submit = today.match(/form\.addEventListener\('submit'[\s\S]*?\n  }\);/)?.[0] || '';
-  assert.match(submit, /toast\(asTask \? t\('home\.task_added'\) : t\('home\.note_saved'\), 'success'\)/);
+  assert.match(submit, /toast\(t\('home\.note_saved'\), 'success'\)/);
+  assert.match(submit, /preview: true, today: calendarDateKey\(\)/);
+  assert.match(submit, /reviewed = await openCaptureReview\(proposal, submit, homeCaptureSaved\)/);
+  assert.doesNotMatch(submit, /json\('\/api\/tasks'/);
   assert.ok(submit.indexOf('toast(') < submit.indexOf('await load()'));
   assert.doesNotMatch(submit, /if \(refreshed\)/);
 });

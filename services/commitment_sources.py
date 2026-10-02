@@ -6,7 +6,14 @@ from html.parser import HTMLParser
 from typing import Literal
 
 from fastapi import HTTPException
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    TypeAdapter,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from core.database import MailAccount
 
@@ -45,6 +52,29 @@ class MailOrigin(BaseModel):
     @classmethod
     def no_control_characters(cls, value):
         return MailSource.no_control_characters(value)
+
+
+class CaptureSource(BaseModel):
+    kind: Literal["capture"] = "capture"
+    label: Literal["original capture"] = "original capture"
+    excerpt: str = Field(min_length=1, max_length=6000)
+    fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def matching_text(self):
+        if hashlib.sha256(self.excerpt.encode()).hexdigest() != self.fingerprint:
+            raise ValueError("capture source does not match its fingerprint")
+        return self
+
+
+CommitmentSource = MailSource | CaptureSource
+_SOURCE = TypeAdapter(CommitmentSource)
+
+
+def capture_source(text: str) -> dict:
+    return CaptureSource(
+        excerpt=text, fingerprint=hashlib.sha256(text.encode()).hexdigest()
+    ).model_dump()
 
 
 def mail_fingerprint(message: dict) -> str:
@@ -127,13 +157,13 @@ def source_dict(value: str) -> dict | None:
     if not value or value == "{}":
         return None
     try:
-        return MailSource.model_validate(json.loads(value)).model_dump()
+        return _SOURCE.validate_python(json.loads(value)).model_dump()
     except (ValueError, TypeError, ValidationError):
         return None
 
 
-def source_json(source: MailSource | dict | None) -> str:
+def source_json(source: CommitmentSource | dict | None) -> str:
     if source is None:
         return "{}"
-    value = source if isinstance(source, MailSource) else MailSource.model_validate(source)
+    value = _SOURCE.validate_python(source)
     return json.dumps(value.model_dump(), ensure_ascii=False, separators=(",", ":"))

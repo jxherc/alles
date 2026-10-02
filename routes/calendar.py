@@ -16,7 +16,7 @@ from core.database import (
 )
 from core.settings import load_settings
 from services import calendar_events
-from services.commitment_sources import MailSource
+from services.commitment_sources import CommitmentSource
 
 router = APIRouter(prefix="/api")
 
@@ -248,7 +248,7 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
 class EventBody(BaseModel):
     title: str
     request_id: str = ""
-    source: MailSource | None = None
+    source: CommitmentSource | None = None
     calendar_id: str = ""
     description: str = ""
     location: str = ""
