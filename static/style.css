@@ -3793,8 +3793,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .mc-suggest-chip { font-size: 0.75rem; max-width: 100%; white-space: normal; text-align: left; }
 .mail-suggest-off { font-size: 0.75rem; color: var(--muted); }
 /* 5e labels */
-.mail-label-chip { display: inline-block; font-size: 0.75rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 4px; padding: 0 0.35rem; margin-left: 0.3rem; color: var(--accent); cursor: pointer; vertical-align: middle; }
+.mail-label-chip { display: inline-flex; align-items: center; justify-content: center; min-width: var(--ui-control-height, 44px); min-height: var(--ui-control-height, 44px); font-size: 0.75rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 4px; padding: 0 0.35rem; margin-left: 0.3rem; color: var(--accent); cursor: pointer; vertical-align: middle; }
 .mail-label-chip:hover { border-color: var(--accent); }
+#mail-view .mail-label-chip:focus-visible { outline-offset: -3px; }
 .mail-flag.on { color: var(--accent); opacity: 1; }
 #mail-vip.on { color: var(--accent); border-color: var(--accent); }
 
