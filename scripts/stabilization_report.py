@@ -31,6 +31,7 @@ BROWSER_SUITES = {
     "daily": (
         "inbox-read-recovery",
         "inbox-saved-searches",
+        "mail-editor-recovery",
         "minimal-workflows",
         "docs-editor-loading",
         "docs-workbench-navigation",
@@ -129,6 +130,7 @@ BROWSER_SUITES = {
         "inbox-workflows",
         "inbox-read-recovery",
         "inbox-saved-searches",
+        "mail-editor-recovery",
         "vault-backup",
         "vault-actions-recovery",
         "vault-create-recovery",
@@ -200,6 +202,7 @@ BROWSER_SUITES = {
         "inbox-workflows",
         "inbox-read-recovery",
         "inbox-saved-searches",
+        "mail-editor-recovery",
         "vault-backup",
         "vault-actions-recovery",
         "vault-create-recovery",
