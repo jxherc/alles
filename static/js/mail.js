@@ -180,6 +180,14 @@ function clearMailEditor(editor) {
 }
 export async function prepareMailNavigation() {
   const generation = ++_messageGeneration;
+  const account = _accountEditor?.root.isConnected ? _accountEditor : null;
+  if (account && ((account.snapshot() !== account.initial && account.snapshot() !== account.pendingSnapshot) || account.extraSnapshot() !== account.extraInitial)) {
+    const snapshot = () => JSON.stringify([account.snapshot(), account.extraSnapshot()]);
+    const leaving = snapshot();
+    if (!await dlgConfirm('discard unsaved account changes?')) return false;
+    if (generation !== _messageGeneration || snapshot() !== leaving) return false;
+  }
+  _accountEditor = null;
   const editor = mailEditor();
   if (!editor) return true;
   if (!_mailLeave) {
@@ -199,7 +207,8 @@ export function initMail() {
   _inited = true;
   window.addEventListener('beforeunload', event => {
     const editor = mailEditor();
-    if (editor && editor.snapshot() !== editor.initial) {
+    const account = _accountEditor?.root.isConnected ? _accountEditor : null;
+    if ((editor && editor.snapshot() !== editor.initial) || (account && (account.snapshot() !== account.initial || account.extraSnapshot() !== account.extraInitial)) || _accountRecovery.pending) {
       event.preventDefault();
       event.returnValue = '';
     }
@@ -2288,45 +2297,250 @@ async function rulesPanel() {
   });
 }
 
+const accountFields = ['email', 'name', 'imap_host', 'imap_port', 'smtp_host', 'smtp_port', 'username', 'use_ssl'];
+const validAccount = row => row && typeof row.id === 'string' && row.id &&
+  ['email', 'name', 'imap_host', 'smtp_host', 'username'].every(key => typeof row[key] === 'string') &&
+  ['imap_port', 'smtp_port'].every(key => Number.isSafeInteger(row[key])) &&
+  Number.isSafeInteger(row.revision) && row.revision > 0 && typeof row.use_ssl === 'boolean';
+const accountMatches = (row, fields) => accountFields.every(key => row?.[key] === fields[key]);
+const accountSnapshot = fields => JSON.stringify([...accountFields.map(key => fields[key]), fields.password]);
+const accountKey = scope => 'alles-mail-account-pending:' + scope;
+const accountRequest = (url, options = {}) => mailJson(url, { ...options, signal: AbortSignal.timeout(15000) });
+const _accountRecovery = { scopes: [], pending: null, attempt: null, confirmed: false, error: '', notice: '', write: null };
+let _accountEditor = null;
+
+async function readAccountContext() {
+  const data = await accountRequest('/api/mail/accounts?context=true');
+  if (!Array.isArray(data?.accounts) || !data.accounts.every(validAccount) ||
+      !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || !data.recovery_scopes.every(scope => /^[a-f0-9]{64}$/.test(scope))) {
+    throw new Error('could not confirm mail accounts');
+  }
+  return data;
+}
+function readAccountRecovery(scopes) {
+  const state = _accountRecovery;
+  state.scopes = scopes; state.error = '';
+  try {
+    let pending = null;
+    for (const scope of scopes) {
+      const raw = sessionStorage.getItem(accountKey(scope));
+      if (!raw) continue;
+      const value = JSON.parse(raw);
+      if (!['create', 'edit', 'delete'].includes(value?.kind) || value.recovery_scope !== scope ||
+          !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value.id || '') || typeof value.label !== 'string' ||
+          (value.kind === 'edit' && (!Number.isSafeInteger(value.expected_revision) || value.expected_revision < 1)) ||
+          (value.expected_revision !== undefined && (!Number.isSafeInteger(value.expected_revision) || value.expected_revision < 1)) || pending) {
+        throw new Error('invalid account recovery data');
+      }
+      pending = value;
+    }
+    if (JSON.stringify(pending) !== JSON.stringify(state.pending)) {
+      state.attempt = null; state.confirmed = false; state.notice = '';
+    }
+    state.pending = pending;
+    if (!pending && _accountEditor) _accountEditor.pendingSnapshot = null;
+  } catch { state.error = 'could not read account recovery data. retry reading it before making changes.'; }
+}
+function keepAccountAttempt(pending, body = null) {
+  const state = _accountRecovery;
+  state.notice = ''; state.confirmed = false;
+  // Only identifiers and revision metadata survive reload. Credentials remain in memory.
+  state.pending = pending; state.attempt = body;
+  const raw = JSON.stringify(pending), key = accountKey(pending.recovery_scope);
+  try {
+    sessionStorage.setItem(key, raw);
+    if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain account recovery');
+  } catch {
+    if (_accountEditor) _accountEditor.pendingSnapshot = null;
+    state.error = 'could not retain account recovery. no request was sent; retry reading recovery data.';
+    return false;
+  }
+  return true;
+}
+function clearAccountAttempt() {
+  const state = _accountRecovery, pending = state.pending;
+  if (!pending) return;
+  const key = accountKey(pending.recovery_scope), raw = sessionStorage.getItem(key);
+  if (raw && JSON.stringify(JSON.parse(raw)) !== JSON.stringify(pending)) throw new Error('account recovery changed');
+  sessionStorage.removeItem(key);
+  if (sessionStorage.getItem(key) !== null) throw new Error('could not clear account recovery');
+  state.pending = null; state.attempt = null; state.confirmed = false;
+  if (_accountEditor) _accountEditor.pendingSnapshot = null;
+}
+function confirmAccountAttempt(result) {
+  const state = _accountRecovery;
+  state.confirmed = true; state.attempt = null;
+  if (result.removed) {
+    _accounts = _accounts.filter(row => row.id !== result.id);
+    if (_active === result.id) _active = 'all';
+    state.notice = 'account removed';
+  } else {
+    _accounts = [..._accounts.filter(row => row.id !== result.row.id), result.row];
+    state.notice = 'account saved';
+  }
+  syncAccountSelect();
+  try { clearAccountAttempt(); }
+  catch { state.notice += '. recovery data could not be cleared; retry cleanup.'; }
+}
+async function writeAccountAttempt() {
+  const state = _accountRecovery;
+  if (state.write || state.error || !state.pending || state.confirmed) return null;
+  const pending = state.pending, body = state.attempt;
+  if (pending.kind !== 'delete' && !body) return null;
+  if (body && _accountEditor?.root.isConnected) _accountEditor.pendingSnapshot = accountSnapshot(body);
+  state.notice = pending.kind === 'delete' ? 'removing account…' : 'saving account…';
+  const writing = (async () => {
+    try {
+      let result;
+      if (pending.kind === 'delete') {
+        const query = new URLSearchParams({ recovery_scope: pending.recovery_scope });
+        if (pending.expected_revision !== undefined) query.set('expected_revision', pending.expected_revision);
+        const value = await accountRequest(`/api/mail/accounts/${encodeURIComponent(pending.id)}?${query}`, { method: 'DELETE' });
+        if (value?.ok !== true) throw new Error('could not confirm account removal');
+        result = { removed: true, id: pending.id };
+      } else {
+        const creating = pending.kind === 'create';
+        const row = await accountRequest(creating ? '/api/mail/accounts' : `/api/mail/accounts/${encodeURIComponent(pending.id)}`, {
+          method: creating ? 'POST' : 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ...body, recovery_scope: pending.recovery_scope,
+            ...(creating ? { request_id: pending.id } : { expected_revision: pending.expected_revision }) }),
+        });
+        if (!validAccount(row) || row.id !== pending.id || !accountMatches(row, body)) throw new Error('could not confirm the saved account');
+        result = { row, fields: body };
+      }
+      confirmAccountAttempt(result);
+      return result;
+    } catch (error) {
+      state.notice = `${pending.kind === 'delete' ? 'removal' : 'save'} unconfirmed. ${error.message || 'check your connection and retry.'}`;
+      return null;
+    }
+  })();
+  state.write = writing;
+  try { return await writing; } finally { if (state.write === writing) state.write = null; }
+}
+function mountAccountRecovery(root, current, changed) {
+  const state = _accountRecovery;
+  const status = root.querySelector('#ma-recovery-status'), actions = root.querySelector('#ma-recovery-actions');
+  function paint() {
+    if (!current()) return;
+    const focus = actions.contains(document.activeElement);
+    const pending = state.pending, row = pending && _accounts.find(value => value.id === pending.id);
+    status.textContent = state.error || state.notice || (pending ? `the last ${pending.kind === 'delete' ? 'removal' : 'save'} for “${pending.label}” is unconfirmed.` : '');
+    actions.replaceChildren();
+    const button = (label, fn) => {
+      const node = document.createElement('button'); node.type = 'button'; node.className = 'btn'; node.textContent = label;
+      node.setAttribute('aria-disabled', String(Boolean(state.write)));
+      node.addEventListener('click', async () => { if (!state.write) await fn(); }); actions.appendChild(node);
+    };
+    const update = result => { if (current()) { changed(result); paint(); } };
+    if (state.error) button('retry reading account recovery', async () => { readAccountRecovery(state.scopes); update(); });
+    else if (pending && state.confirmed) button('retry account recovery cleanup', () => {
+      try { clearAccountAttempt(); state.notice = 'account recovery cleared'; } catch { state.notice = 'recovery data could not be cleared; retry cleanup.'; }
+      update();
+    });
+    else if (pending) {
+      if (state.attempt || pending.kind === 'delete') button(pending.kind === 'delete' ? 'retry removal' : 'retry saved changes', async () => {
+        const writing = writeAccountAttempt(); paint(); update(await writing);
+      });
+      if (pending.kind === 'create' && row) button('review saved account', () => {
+        try { clearAccountAttempt(); acctForm(row); } catch { state.notice = 'recovery data could not be cleared; retry.'; update(); }
+      });
+      if (pending.kind === 'create' || (pending.kind === 'edit' && !row)) button('remove pending account', async () => {
+        if (!await dlgConfirm('remove this pending account? any delayed save will also be cancelled.')) return;
+        if (!current() || state.write || state.pending !== pending) return;
+        if (!keepAccountAttempt({ kind: 'delete', id: pending.id, label: pending.label, recovery_scope: pending.recovery_scope })) { update(); return; }
+        const writing = writeAccountAttempt(); paint(); update(await writing);
+      });
+      if (pending.kind === 'edit' || (pending.kind === 'delete' && row && Number.isSafeInteger(pending.expected_revision))) button('review current settings', async () => {
+        if (!await dlgConfirm('keep the currently saved settings? the unconfirmed account change will be cancelled.')) return;
+        if (!current() || state.write || state.pending !== pending) return;
+        const draftSnapshot = () => JSON.stringify([serializeForm(root), root.querySelector('#ma-tls')?.getAttribute('aria-pressed')]);
+        const initialDraft = draftSnapshot();
+        // Claim the current revision so an older in-flight edit/removal cannot replace it.
+        const operation = (async () => {
+          const data = await readAccountContext();
+          if (!data.recovery_scopes.includes(pending.recovery_scope)) throw new Error('account storage has changed; reopen accounts');
+          _accounts = data.accounts; syncAccountSelect();
+          const saved = data.accounts.find(value => value.id === pending.id);
+          if (!saved) throw new Error('this account was removed elsewhere. remove the pending account to finish recovery.');
+          return { saved, data };
+        })();
+        state.write = operation; paint();
+        let data;
+        try { data = await operation; }
+        catch (error) { state.notice = error.message || 'could not read current settings'; }
+        finally { if (state.write === operation) state.write = null; }
+        if (!data || !current()) { update(); return; }
+        const body = Object.fromEntries(accountFields.map(key => [key, data.saved[key]])); body.password = '';
+        if (!keepAccountAttempt({ kind: 'edit', id: pending.id, label: pending.label, recovery_scope: pending.recovery_scope, expected_revision: data.saved.revision }, body)) { update(); return; }
+        const writing = writeAccountAttempt(); paint();
+        const result = await writing;
+        if (current() && result?.row && !state.pending && draftSnapshot() === initialDraft) acctForm(result.row);
+        else update(result);
+      });
+      if (!state.attempt && pending.kind === 'create' && !row) status.textContent += ' the password was not stored in this browser. remove the pending account before starting again.';
+    }
+    if (focus && document.activeElement === document.body) {
+      const target = actions.querySelector('button') || (status.textContent ? status : root.querySelector('#ma-save, #mail-add-acct'));
+      target?.focus();
+    }
+  }
+  return paint;
+}
+const accountRecoveryHtml = '<div class="mail-saved-status"><p id="ma-recovery-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="ma-recovery-actions"></div></div>';
+
 async function accountsPanel(firstRun = false) {
   if (!await prepareMailNavigation()) return;
-  const main = $('mail-main');
-  const rows = _accounts.map(a => `
-    <div class="mail-acct-row">
-      <span><b>${esc(a.name || a.email)}</b><em>${esc(a.email)}</em></span>
-      <span class="mail-acct-actions">
-        <button class="btn mail-acct-edit" data-id="${esc(a.id)}">edit</button>
-        <button class="btn mail-acct-del" data-id="${esc(a.id)}">remove</button>
-      </span>
-    </div>`).join('');
+  const main = $('mail-main'), generation = _messageGeneration;
+  const current = () => main.isConnected && generation === _messageGeneration;
+  main.innerHTML = '<div class="mail-empty" role="status">loading accounts…</div>';
+  if (_accountRecovery.write) await _accountRecovery.write.catch(() => {});
+  if (!current()) return;
+  try {
+    const data = await readAccountContext();
+    if (!current()) return;
+    _accounts = data.accounts; syncAccountSelect(); readAccountRecovery(data.recovery_scopes);
+  } catch (error) {
+    if (!current()) return;
+    main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || 'could not load accounts')} <button type="button" class="btn">retry</button></div>`;
+    main.querySelector('button').addEventListener('click', () => accountsPanel(firstRun)); return;
+  }
   main.innerHTML = `<div class="mail-accounts">
-    <div class="mail-form-head">
-      <div>
-        <div class="mail-compose-head">accounts</div>
-        <div class="mail-form-sub">${firstRun ? 'connect a mailbox to get started' : `${_accounts.length} connected`}</div>
-      </div>
-      <div class="mail-form-actions">
-        <button class="btn" id="mail-accounts-close">close</button>
-        <button class="btn primary" id="mail-add-acct">add</button>
-      </div>
-    </div>
-    <div class="mail-service-links">${providerHelpHtml()}</div>
-    ${rows || '<div class="mail-empty" style="padding:0.75rem 0">credentials stay on this machine.</div>'}
-  </div>`;
-  $('mail-accounts-close')?.addEventListener('click', () => { main.innerHTML = ''; });
-  $('mail-add-acct')?.addEventListener('click', () => acctForm(null));
-  main.querySelectorAll('.mail-acct-edit').forEach(b => b.addEventListener('click', () => acctForm(_accounts.find(a => a.id === b.dataset.id))));
-  main.querySelectorAll('.mail-acct-del').forEach(b => b.addEventListener('click', async () => {
-    if (!await dlgConfirm('remove this account?')) return;
-    await fetch(`/api/mail/accounts/${b.dataset.id}`, { method: 'DELETE' });
-    if (_active === b.dataset.id) _active = 'all';
-    await loadMail();
-  }));
+    <div class="mail-form-head"><div><div class="mail-compose-head">accounts</div><div class="mail-form-sub">${firstRun ? 'connect a mailbox to get started' : 'manage saved mailboxes'}</div></div>
+      <div class="mail-form-actions"><button type="button" class="btn" id="mail-accounts-close">close</button><button type="button" class="btn primary" id="mail-add-acct">add</button></div></div>
+    <div class="mail-service-links">${providerHelpHtml()}</div>${accountRecoveryHtml}<div id="mail-account-rows"></div></div>`;
+  const root = main.querySelector('.mail-accounts');
+  const live = () => current() && root.isConnected;
+  const paintRecovery = mountAccountRecovery(root, live, paintRows);
+  function paintRows() {
+    if (!live()) return;
+    const state = _accountRecovery, blocked = Boolean(state.write || state.pending || state.error);
+    root.querySelector('#mail-add-acct').setAttribute('aria-disabled', String(blocked));
+    const list = root.querySelector('#mail-account-rows'), focused = list.contains(document.activeElement);
+    list.innerHTML = _accounts.map(a => `<div class="mail-acct-row"><span><b>${esc(a.name || a.email)}</b><em>${esc(a.email)}</em></span><span class="mail-acct-actions">
+      <button type="button" class="btn mail-acct-edit" data-id="${esc(a.id)}" aria-disabled="${blocked}">edit</button><button type="button" class="btn mail-acct-del" data-id="${esc(a.id)}" aria-disabled="${blocked}">remove</button></span></div>`).join('') || '<div class="mail-empty">no saved accounts</div>';
+    list.querySelectorAll('.mail-acct-edit').forEach(button => button.addEventListener('click', () => { if (!blocked) acctForm(_accounts.find(a => a.id === button.dataset.id)); }));
+    list.querySelectorAll('.mail-acct-del').forEach(button => button.addEventListener('click', async () => {
+      if (blocked) return;
+      const row = _accounts.find(a => a.id === button.dataset.id);
+      if (!row || !await dlgConfirm(`remove ${row.name || row.email}?`)) return;
+      if (!live() || state.pending || state.write || state.error) return;
+      if (!keepAccountAttempt({ kind: 'delete', id: row.id, label: row.name || row.email, recovery_scope: state.scopes[0], expected_revision: row.revision })) { paintRows(); paintRecovery(); return; }
+      const writing = writeAccountAttempt(); paintRows(); paintRecovery(); await writing; paintRows(); paintRecovery();
+    }));
+    if (focused && document.activeElement === document.body) root.querySelector('#mail-add-acct').focus();
+  }
+  root.querySelector('#mail-add-acct').addEventListener('click', () => { if (!_accountRecovery.pending && !_accountRecovery.error && !_accountRecovery.write) acctForm(null); });
+  root.querySelector('#mail-accounts-close').addEventListener('click', () => { if (live()) { ++_messageGeneration; root.remove(); _reloadCurrent(); } });
+  paintRows(); paintRecovery();
 }
 
 function acctForm(acct) {
   const main = $('mail-main');
   const a = acct || {};
+  ++_messageGeneration;
+  let existing = acct, testing = false;
+  const state = _accountRecovery;
   main.innerHTML = `<div class="mail-accounts">
     <div class="mail-form-head">
       <div>
@@ -2335,49 +2549,58 @@ function acctForm(acct) {
       </div>
       <div class="mail-form-actions">
         <button class="btn" id="ma-close">close</button>
-        <button class="btn primary" id="ma-save">save</button>
+        <button type="button" class="btn primary" id="ma-save">save</button>
       </div>
     </div>
     <div class="mail-oauth" id="ma-oauth"></div>
-    <input class="settings-input" id="ma-email" placeholder="email address" value="${esc(a.email || '')}">
-    <input class="settings-input" id="ma-name" placeholder="label (optional)" value="${esc(a.name || '')}">
+    <label class="mail-account-field"><span>email address</span><input class="settings-input" id="ma-email" placeholder="email address" value="${esc(a.email || '')}"></label>
+    <label class="mail-account-field"><span>label (optional)</span><input class="settings-input" id="ma-name" placeholder="label (optional)" value="${esc(a.name || '')}"></label>
     <div class="mail-provider-row">
       ${PRESETS.map(p => `<button class="mail-provider-btn" type="button" data-provider="${esc(p.key)}">${esc(p.label)}</button>`).join('')}
     </div>
     <div class="mail-provider-note" id="ma-provider-note">pick a provider, or paste your own IMAP/SMTP hosts.</div>
     <div class="mail-guide" id="ma-guide"></div>
     <div class="mail-form-grid">
-      <input class="settings-input" id="ma-imaph" placeholder="imap host" value="${esc(a.imap_host || '')}">
-      <input class="settings-input" id="ma-imapp" placeholder="imap port" value="${esc(a.imap_port || 993)}">
-      <input class="settings-input" id="ma-smtph" placeholder="smtp host" value="${esc(a.smtp_host || '')}">
-      <input class="settings-input" id="ma-smtpp" placeholder="smtp port" value="${esc(a.smtp_port || 587)}">
+      <label class="mail-account-field"><span>IMAP host</span><input class="settings-input" id="ma-imaph" placeholder="imap host" value="${esc(a.imap_host || '')}"></label>
+      <label class="mail-account-field"><span>IMAP port</span><input class="settings-input" id="ma-imapp" placeholder="imap port" value="${esc(a.imap_port || (a.use_ssl === false ? 143 : 993))}"></label>
+      <label class="mail-account-field"><span>SMTP host</span><input class="settings-input" id="ma-smtph" placeholder="smtp host" value="${esc(a.smtp_host || '')}"></label>
+      <label class="mail-account-field"><span>SMTP port</span><input class="settings-input" id="ma-smtpp" placeholder="smtp port" value="${esc(a.smtp_port || 587)}"></label>
     </div>
-    <input class="settings-input" id="ma-user" placeholder="username (usually your email)" value="${esc(a.username || a.email || '')}">
-    <input class="settings-input" type="password" id="ma-pass" placeholder="${acct ? 'password (leave blank to keep)' : 'app-specific password'}">
-    <div id="ma-status" class="mail-status"></div>
+    <label class="mail-account-field"><span>username</span><input class="settings-input" id="ma-user" placeholder="username (usually your email)" value="${esc(a.username || a.email || '')}"></label>
+    <label class="mail-account-field"><span>password</span><input class="settings-input" type="password" id="ma-pass" placeholder="${acct ? 'password (leave blank to keep)' : 'app-specific password'}"></label>
+    <button type="button" class="btn" id="ma-tls" aria-pressed="${a.use_ssl !== false}">IMAP over TLS: ${a.use_ssl !== false ? 'on' : 'off'}</button>
+    <div class="mail-form-sub">this switch and the connection test apply to incoming mail.</div>
+    <button type="button" class="btn" id="ma-test">test saved IMAP connection</button>
+    <div id="ma-status" class="mail-status" role="status" aria-live="polite" tabindex="-1"></div>
+    ${accountRecoveryHtml}
   </div>`;
 
+  const root = main.querySelector('.mail-accounts');
+  const el = id => root.querySelector('#' + id);
+  const current = () => root.isConnected;
   const applyProvider = (p) => {
-    const em = $('ma-email').value.trim();
+    const em = el('ma-email').value.trim();
     if (!p) return;
     if (p.key === 'domain') {
       const domain = domainFromEmail(em);
       if (domain) {
-        $('ma-imaph').value = `imap.${domain}`;
-        $('ma-smtph').value = `smtp.${domain}`;
-        if (!$('ma-name').value) $('ma-name').value = domain;
+        el('ma-imaph').value = `imap.${domain}`;
+        el('ma-smtph').value = `smtp.${domain}`;
+        if (!el('ma-name').value) el('ma-name').value = domain;
       }
-      $('ma-provider-note').innerHTML = 'Own domain: point MX to your mail server/provider, then use its IMAP/SMTP host here. Add SPF, DKIM, and DMARC for deliverability.';
+      el('ma-provider-note').innerHTML = 'Own domain: point MX to your mail server/provider, then use its IMAP/SMTP host here. Add SPF, DKIM, and DMARC for deliverability.';
     } else {
-      $('ma-imaph').value = p.imap;
-      $('ma-smtph').value = p.smtp;
-      $('ma-provider-note').innerHTML = `${esc(p.note)} ${p.help ? `<a href="${esc(p.help)}" target="_blank" rel="noreferrer">setup help</a>` : ''}`;
+      el('ma-imaph').value = p.imap;
+      el('ma-smtph').value = p.smtp;
+      el('ma-provider-note').innerHTML = `${esc(p.note)} ${p.help ? `<a href="${esc(p.help)}" target="_blank" rel="noreferrer">setup help</a>` : ''}`;
     }
-    $('ma-imapp').value = 993;
-    $('ma-smtpp').value = 587;
-    if (!$('ma-user').value) $('ma-user').value = em;
+    el('ma-tls').setAttribute('aria-pressed', 'true');
+    el('ma-tls').textContent = 'IMAP over TLS: on';
+    el('ma-imapp').value = 993;
+    el('ma-smtpp').value = 587;
+    if (!el('ma-user').value) el('ma-user').value = em;
     // the quick-login guide: one tap to the exact app-password page + steps
-    const guide = $('ma-guide');
+    const guide = el('ma-guide');
     if (guide) {
       if (p && p.apppw) {
         guide.innerHTML = `
@@ -2391,61 +2614,103 @@ function acctForm(acct) {
         guide.innerHTML = '';
       }
     }
+    noteAccountChanges();
   };
-  document.querySelectorAll('.mail-provider-btn').forEach(btn => {
+  root.querySelectorAll('.mail-provider-btn').forEach(btn => {
     btn.addEventListener('click', () => applyProvider(PRESETS.find(p => p.key === btn.dataset.provider)));
   });
-  $('ma-email').addEventListener('blur', () => {
-    const p = providerForEmail($('ma-email').value.trim());
-    if (p && !$('ma-imaph').value && !$('ma-smtph').value) applyProvider(p);
+  el('ma-email').addEventListener('blur', () => {
+    const p = providerForEmail(el('ma-email').value.trim());
+    if (p && !el('ma-imaph').value && !el('ma-smtph').value) applyProvider(p);
   });
 
   const collect = () => ({
-    email: $('ma-email').value.trim(),
-    name: $('ma-name').value.trim(),
-    imap_host: $('ma-imaph').value.trim(),
-    imap_port: +$('ma-imapp').value || 993,
-    smtp_host: $('ma-smtph').value.trim(),
-    smtp_port: +$('ma-smtpp').value || 587,
-    username: $('ma-user').value.trim() || $('ma-email').value.trim(),
-    password: $('ma-pass').value,
-    use_ssl: true,
+    email: el('ma-email').value.trim(),
+    name: el('ma-name').value.trim(),
+    imap_host: el('ma-imaph').value.trim(),
+    imap_port: Number(el('ma-imapp').value),
+    smtp_host: el('ma-smtph').value.trim(),
+    smtp_port: Number(el('ma-smtpp').value),
+    username: el('ma-user').value.trim() || el('ma-email').value.trim(),
+    password: el('ma-pass').value,
+    use_ssl: el('ma-tls').getAttribute('aria-pressed') === 'true',
   });
-  const initial = serializeForm(main);
-  $('ma-close').addEventListener('click', async () => {
-    if (serializeForm(main) !== initial && !await dlgConfirm('discard account changes?')) return;
-    accountsPanel();
+  const extraSnapshot = () => JSON.stringify(['ma-cid', 'ma-csec', 'ma-rbase'].map(id => el(id)?.value || ''));
+  const editor = { root, snapshot: () => accountSnapshot(collect()), initial: accountSnapshot(collect()), pendingSnapshot: null, extraSnapshot, extraInitial: extraSnapshot() };
+  _accountEditor = editor;
+  const dirty = () => editor.snapshot() !== editor.initial;
+  function paintForm() {
+    if (!current()) return;
+    const blocked = Boolean(state.write || state.pending || state.error || testing);
+    el('ma-save').setAttribute('aria-disabled', String(blocked));
+    el('ma-test').setAttribute('aria-disabled', String(blocked || !existing));
+  }
+  function acceptResult(result) {
+    if (result?.row) {
+      const saved = result.row;
+      existing = saved;
+      // Clear only the acknowledged password, keeping input typed during the save.
+      const captured = result.fields;
+      if (captured) {
+        if (el('ma-pass').value === captured.password) el('ma-pass').value = '';
+        editor.initial = accountSnapshot({ ...captured, password: '' });
+      }
+      editor.pendingSnapshot = null;
+      if (!state.pending) state.notice = '';
+      el('ma-status').textContent = dirty() ? 'earlier account settings saved; newer changes are unsaved' : 'account saved';
+    } else if (result?.removed && existing?.id === result.id) {
+      existing = null; editor.pendingSnapshot = null;
+      el('ma-status').textContent = 'account removed; entered settings are unsaved';
+    }
+    paintForm();
+  }
+  const paintRecovery = mountAccountRecovery(root, current, acceptResult);
+  async function testConnection() {
+    if (!current() || testing || state.pending || state.error || state.write || !existing) return;
+    const savedId = existing.id;
+    testing = true; paintForm(); el('ma-status').textContent = 'account saved; testing the saved connection…';
+    try {
+      const result = await accountRequest(`/api/mail/test/${encodeURIComponent(savedId)}`);
+      if (typeof result?.ok !== 'boolean') throw new Error('could not confirm the connection test');
+      if (!result.ok) throw new Error(friendlyMailError(result.error));
+      if (current()) el('ma-status').textContent = 'account saved; incoming mail connected' + (dirty() ? '; newer changes are unsaved' : '');
+    } catch (error) {
+      if (current()) el('ma-status').textContent = `account saved, but connection unconfirmed: ${error.message || 'check your connection and retry.'}` + (dirty() ? ' newer changes are unsaved.' : '');
+    } finally { testing = false; paintForm(); }
+  }
+  function noteAccountChanges() {
+    if (!state.pending) { state.notice = ''; paintRecovery(); }
+    if (!testing) el('ma-status').textContent = dirty() ? 'account changes are unsaved' : '';
+  }
+  el('ma-close').addEventListener('click', () => accountsPanel());
+  el('ma-test').addEventListener('click', testConnection);
+  el('ma-tls').addEventListener('click', () => {
+    const on = el('ma-tls').getAttribute('aria-pressed') !== 'true';
+    el('ma-tls').setAttribute('aria-pressed', String(on)); el('ma-tls').textContent = `IMAP over TLS: ${on ? 'on' : 'off'}`;
+    noteAccountChanges();
   });
-  // `existing` flips to the created account after a POST, so re-saving after a
-  // failed test edits it instead of making a duplicate
-  let existing = acct;
-  $('ma-save').addEventListener('click', async () => {
+  root.querySelectorAll('input').forEach(input => input.addEventListener('input', noteAccountChanges));
+  el('ma-save').addEventListener('click', async () => {
+    if (state.write || state.pending || state.error || testing || !current()) return;
     const body = collect();
-    if (!body.email || !body.imap_host || !body.smtp_host) {
-      toast('email, imap, and smtp are required', 'error');
-      return;
-    }
-    if (!existing && !body.password) { toast('paste your app password first', 'error'); return; }
-    $('ma-status').textContent = 'saving...';
-    const url = existing ? `/api/mail/accounts/${existing.id}` : '/api/mail/accounts';
-    const method = existing ? 'PATCH' : 'POST';
-    const res = await fetch(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()).catch(e => { console.error(e); return { error: 'network' }; });
-    if (res.error) { $('ma-status').textContent = 'failed: ' + res.error; return; }
-    if (res.id) existing = res;   // now in edit mode
-    const id = existing?.id;
-    _active = id || _active;
-    localStorage.setItem('alles-mail-account-mode', _active);
-    // auto-test so the user knows right away whether the password worked
-    $('ma-status').innerHTML = '<span class="mail-status-test">testing connection...</span>';
-    const t = id ? await fetch(`/api/mail/test/${id}`).then(r => r.json()).catch(e => { console.error(e); return { ok: false, error: 'network' }; }) : { ok: true };
-    if (t.ok) {
-      toast('connected ✓', 'success');
-      await loadMail();
-      accountsPanel();
-    } else {
-      $('ma-status').innerHTML = `<span class="mail-status-err">saved, but couldn't connect: ${esc(friendlyMailError(t.error))}</span>`;
-    }
+    let issue;
+    if (!body.email) issue = ['ma-email', 'enter an email address'];
+    else if (!body.imap_host) issue = ['ma-imaph', 'enter the IMAP host'];
+    else if (!Number.isInteger(body.imap_port) || body.imap_port < 1 || body.imap_port > 65535) issue = ['ma-imapp', 'enter an IMAP port from 1 to 65535'];
+    else if (!body.smtp_host) issue = ['ma-smtph', 'enter the SMTP host'];
+    else if (!Number.isInteger(body.smtp_port) || body.smtp_port < 1 || body.smtp_port > 65535) issue = ['ma-smtpp', 'enter an SMTP port from 1 to 65535'];
+    else if (!existing && !body.password) issue = ['ma-pass', 'paste your app password'];
+    if (issue) { el('ma-status').textContent = issue[1]; el(issue[0]).focus(); return; }
+    const pending = { kind: existing ? 'edit' : 'create', id: existing?.id || savedRequestId(), label: body.name || body.email, recovery_scope: state.scopes[0], ...(existing ? { expected_revision: existing.revision } : {}) };
+    if (!keepAccountAttempt(pending, body)) { paintForm(); paintRecovery(); return; }
+    el('ma-status').textContent = '';
+    const writing = writeAccountAttempt(); paintForm(); paintRecovery();
+    const result = await writing;
+    if (!current()) return;
+    acceptResult(result); paintRecovery();
+    if (result?.row && !dirty()) await testConnection();
   });
+  paintForm(); paintRecovery();
 
   renderOauthBox(acct);
 }
@@ -2456,6 +2721,7 @@ async function renderOauthBox(acct) {
   if (!box) return;
   let st = {};
   try { st = await fetch('/api/mail/oauth/status').then(r => r.json()); } catch (e) { console.error(e); }
+  if (!box.isConnected) return;
   const editingOauth = acct && acct.auth_type === 'oauth';
   if (st.configured) {
     box.innerHTML = `

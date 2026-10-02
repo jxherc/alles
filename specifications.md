@@ -2157,8 +2157,18 @@ out older pending edits. identical retries with an already-consumed revision ret
 result; legacy edits still work and advance the revision when fields change. an empty password on edit keeps the
 stored value. OAuth configuration replacement also advances the revision. account deletion remains
 physical; a separate identity-only record prevents delayed creation retries from restoring it.
-scoped cancellation can reserve an unknown pending id before creation arrives. these are api
-contracts; the account editor does not yet use the new recovery fields.
+scoped cancellation can reserve an unknown pending id before creation arrives.
+
+the manual account editor uses these identities and revisions for checked saves and removals.
+uncertain retries keep their captured fields; newer form input stays available for the next save.
+only pending operation metadata is kept in session storage; passwords stay in memory and encrypted
+server storage. after reload, a saved account can be reviewed, an unresolved new account can be
+cancelled, and an uncertain edit can retain the current saved settings while excluding older writes.
+storage failures block another mutation until recovery succeeds. saving settings and testing the
+incoming IMAP connection have separate feedback; the test does not verify outgoing SMTP delivery.
+failed reads, invalid ports, conflicts and rejected removals offer explicit recovery. incoming TLS
+is an accessible button choice and existing values are preserved. real provider connectivity and
+Google authorization require the configured provider.
 
 mail rule creation accepts an optional canonical UUID `request_id` and a `recovery_scope` from
 `GET /api/mail/rules`. retrying the same normalized fields returns the original rule; different

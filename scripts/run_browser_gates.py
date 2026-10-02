@@ -88,6 +88,8 @@ COMMANDS = {
     "mail-hidden-recovery": ("tests/pw_mail_hidden_recovery.py",),
     "mail-vacation-recovery": ("tests/pw_mail_vacation_recovery.py",),
     "mail-rule-recovery": ("tests/pw_mail_rule_recovery.py",),
+    "mail-account-recovery": ("tests/pw_mail_account_recovery.py",),
+    "mail-account-recovery-edges": ("tests/pw_mail_account_recovery_edges.py",),
     "mail-signature-recovery": ("tests/pw_mail_signature_recovery.py",),
     "vault-backup": ("tests/pw_vault_backup.py",),
     "vault-setup-desktop": ("tests/pw_vault_setup.py", "desktop"),
