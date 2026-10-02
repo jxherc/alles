@@ -2148,6 +2148,12 @@ home reuses this review and acceptance flow. `POST /api/tasks/quick` with `previ
 | `GET` | `/api/mail/vips` | `get_vips` |
 | `POST` | `/api/mail/vips` | `set_vip` |
 
+mail rule creation accepts an optional canonical UUID `request_id` and a `recovery_scope` from
+`GET /api/mail/rules`. retrying the same normalized fields returns the original rule; different
+fields with the same id return 409. deleted ids return 410 and stay excluded from rule execution.
+a scoped deletion can reserve a pending id before its create request arrives. clients without
+these optional fields retain the existing creation behavior.
+
 </details>
 
 <details>
@@ -3119,7 +3125,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `journal_entries` | `id: VARCHAR pk`, `date: VARCHAR ?`, `content: TEXT ?`, `mood: VARCHAR ?`, `tags: VARCHAR ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `mail_accounts` | `id: VARCHAR pk`, `name: VARCHAR ?`, `email: VARCHAR ?`, `imap_host: VARCHAR ?`, `imap_port: INTEGER ?`, `smtp_host: VARCHAR ?`, `smtp_port: INTEGER ?`, `username: VARCHAR ?`, `password: TEXT ? sealed`, `use_ssl: BOOLEAN ?`, `auth_type: VARCHAR ?`, `oauth_provider: VARCHAR ?`, `oauth_access_token: TEXT ? sealed`, `oauth_refresh_token: TEXT ? sealed`, `oauth_expires_at: FLOAT ?`, `created_at: DATETIME ?` | — |
 | `mail_drafts` | `id: VARCHAR pk`, `account_id: VARCHAR ?`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: TEXT ?`, `updated_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
-| `mail_rules` | `id: VARCHAR pk`, `match_field: VARCHAR ?`, `match_value: VARCHAR ?`, `action: VARCHAR ?`, `action_arg: VARCHAR ?`, `enabled: BOOLEAN ?`, `created_at: DATETIME ?` | — |
+| `mail_rules` | `id: VARCHAR pk`, `match_field: VARCHAR ?`, `match_value: VARCHAR ?`, `action: VARCHAR ?`, `action_arg: VARCHAR ?`, `enabled: BOOLEAN ?`, `created_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_saved_searches` | `id: VARCHAR pk`, `name: VARCHAR`, `query: TEXT ?`, `created_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_scheduled` | `id: VARCHAR pk`, `account_id: VARCHAR`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `html: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: VARCHAR ?`, `send_at: VARCHAR ?`, `request_kind: VARCHAR ?`, `request_delay: INTEGER ?`, `status: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `mcp_servers` | `id: VARCHAR pk`, `name: VARCHAR`, `transport: VARCHAR ?`, `command: VARCHAR ?`, `args: TEXT ? sealed`, `url: TEXT ? sealed`, `env: TEXT ? sealed`, `headers: TEXT ? sealed`, `enabled: BOOLEAN ?`, `disabled_tools: TEXT ?`, `created_at: DATETIME ?` | — |
@@ -3254,6 +3260,7 @@ known versions run in ascending order.
 | 56 | `mail_saved_search_recovery` | [m0056_mail_saved_search_recovery.py](core/migrations/m0056_mail_saved_search_recovery.py) |
 | 57 | `mail_draft_recovery` | [m0057_mail_draft_recovery.py](core/migrations/m0057_mail_draft_recovery.py) |
 | 58 | `mail_outbox_recovery` | [m0058_mail_outbox_recovery.py](core/migrations/m0058_mail_outbox_recovery.py) |
+| 59 | `mail_rule_recovery` | [m0059_mail_rule_recovery.py](core/migrations/m0059_mail_rule_recovery.py) |
 
 </details>
 
