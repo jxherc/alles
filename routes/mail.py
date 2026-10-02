@@ -1017,21 +1017,61 @@ class RuleBody(BaseModel):
     action: str = "markread"
     action_arg: str = ""
     enabled: bool = True
+    request_id: str = ""
+    recovery_scope: str = ""
+
+
+def _rule_scope(scope):
+    if scope and scope not in _mail_recovery_scopes("alles-mail-rules"):
+        raise HTTPException(403, "this pending rule belongs to a different mail store")
+
+
+def _rule_request_id(identity):
+    try:
+        if str(UUID(identity)) != identity:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(400, "request_id must be a canonical UUID") from None
+
+
+@contextmanager
+def _rule_write(db, identity):
+    from core.database import MailRule
+
+    try:
+        db.query(MailRule).filter_by(id=identity).update(
+            {MailRule.id: MailRule.id}, synchronize_session=False
+        )
+        db.expire_all()
+        yield
+    finally:
+        db.rollback()
 
 
 @router.get("/rules")
 def list_rules(db: DbSession = Depends(get_db)):
     from core.database import MailRule
 
-    rows = db.query(MailRule).order_by(MailRule.created_at.asc()).all()
-    return {"rules": [_rule_fmt(r) for r in rows]}
+    rows = (
+        db.query(MailRule)
+        .filter(MailRule.deleted_at.is_(None))
+        .order_by(MailRule.created_at.asc())
+        .all()
+    )
+    return {
+        "rules": [_rule_fmt(r) for r in rows],
+        "recovery_scopes": _mail_recovery_scopes("alles-mail-rules"),
+    }
 
 
 @router.post("/rules")
 def add_rule(body: RuleBody, db: DbSession = Depends(get_db)):
     from core.database import MailRule
 
-    r = MailRule(
+    _rule_scope(body.recovery_scope)
+    if body.request_id:
+        _rule_request_id(body.request_id)
+    fields = dict(
         match_field=body.match_field if body.match_field in ("from", "subject") else "from",
         match_value=(body.match_value or "").strip(),
         action=body.action
@@ -1040,22 +1080,44 @@ def add_rule(body: RuleBody, db: DbSession = Depends(get_db)):
         action_arg=(body.action_arg or "").strip(),
         enabled=body.enabled,
     )
-    db.add(r)
-    db.commit()
-    db.refresh(r)
-    return _rule_fmt(r)
+    with _rule_write(db, body.request_id):
+        row = db.get(MailRule, body.request_id) if body.request_id else None
+        if row:
+            if row.deleted_at is not None:
+                raise HTTPException(410, "this rule was deleted; dismiss this pending save")
+            if any(_rule_fmt(row)[key] != value for key, value in fields.items()):
+                raise HTTPException(409, "this request_id already saved a different rule")
+            return _rule_fmt(row)
+        row = MailRule(**fields)
+        if body.request_id:
+            row.id = body.request_id
+        db.add(row)
+        db.flush()
+        result = _rule_fmt(row)
+        db.commit()
+        return result
 
 
 @router.delete("/rules/{rid}")
-def delete_rule(rid: str, db: DbSession = Depends(get_db)):
+def delete_rule(rid: str, db: DbSession = Depends(get_db), recovery_scope: str = ""):
     from core.database import MailRule
 
-    r = db.get(MailRule, rid)
-    if not r:
-        raise HTTPException(404)
-    db.delete(r)
-    db.commit()
-    return {"ok": True}
+    _rule_scope(recovery_scope)
+    with _rule_write(db, rid):
+        row = db.get(MailRule, rid)
+        if not row:
+            if not recovery_scope:
+                raise HTTPException(404)
+            # A scoped pending save can be cancelled before its first request arrives.
+            _rule_request_id(rid)
+            row = MailRule(id=rid)
+            db.add(row)
+        if row.deleted_at is None:
+            row.match_value = row.action_arg = ""
+            row.enabled = False
+            row.deleted_at = datetime.now(UTC).replace(tzinfo=None)
+            db.commit()
+        return {"ok": True}
 
 
 @router.post("/rules/run/{aid}")
@@ -1064,7 +1126,13 @@ def run_rules(aid: str, db: DbSession = Depends(get_db)):
     from services import mail_rules
 
     _get(db, aid)
-    rules = [_rule_fmt(r) for r in db.query(MailRule).filter(MailRule.enabled == True).all()]  # noqa: E712
+    rules = [
+        _rule_fmt(r)
+        for r in db.query(MailRule)
+        .filter_by(enabled=True)
+        .filter(MailRule.deleted_at.is_(None))
+        .all()
+    ]
     return {"applied": mail_rules.run_on_cache(db, aid, rules)}
 
 
