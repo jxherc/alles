@@ -207,6 +207,11 @@ still skip invalid numeric rows and receive the skipped count. edits and deletes
 include a stable record identity so a stale action cannot change a replacement with a reused id.
 failed deletions offer refresh and a retry against the original reading.
 
+health's default dates, habit grids and overview use the configured timezone, or the browser's
+timezone when automatic. a reading or csv batch keeps the same chosen day through an uncertain
+retry, including across midnight. csv rows with explicit dates keep those dates. api callers that
+omit a calendar day retain the server-day default.
+
 habit forms also keep one create identity while a response is uncertain. a retry returns the same
 habit; changed or archived records require opening the current saved habit before correction.
 deleted habits cannot be recreated by retrying an old request. **archived habits** keeps completion

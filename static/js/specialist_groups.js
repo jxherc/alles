@@ -684,9 +684,10 @@ async function _renderLibrary(target, request) {
 }
 
 async function _renderHealth(target, request) {
+  const day = _todayKey();
   const [healthResult, habitsResult] = await Promise.allSettled([
-    _json(request, '/api/health/overview'),
-    _json(request, '/api/habits/overview'),
+    _json(request, '/api/health/overview?date_q=' + day),
+    _json(request, '/api/habits/overview?date_q=' + day),
   ]);
   const health = _asArray(_settled(healthResult, {}), 'kinds');
   const habits = _asArray(_settled(habitsResult, {}), 'habits');

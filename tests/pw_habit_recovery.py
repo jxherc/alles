@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
@@ -23,6 +24,7 @@ def run():
         "save",
         "create",
         "create-during-load",
+        "toolbar-focus",
     ]
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
@@ -51,6 +53,7 @@ def run():
                 ).json()
                 endpoint = base + "/api/habits/" + item["id"]
                 overview = base + "/api/habits/overview"
+                overview_route = re.compile(re.escape(overview) + r"\?date_q=\d{4}-\d{2}-\d{2}$")
                 result = {
                     "scenario_id": "habits.recovery." + case,
                     "feature_id": "health.logs-and-habits",
@@ -77,9 +80,9 @@ def run():
                     context.request.post(base + "/api/setup/dismiss")
                     held = []
                     if case == "load-first":
-                        page.route(overview, reject)
+                        page.route(overview_route, reject)
                     if case == "create-during-load":
-                        page.route(overview, lambda route: held.append(route))
+                        page.route(overview_route, lambda route: held.append(route))
                     page.goto(
                         base + "/?view=habits",
                         wait_until="domcontentloaded"
@@ -98,7 +101,7 @@ def run():
                         page.locator('.habit-add [data-act="create"]').click()
                         expect(page.locator(".toast.error").last).to_be_visible()
                         assert held, "initial overview was not held"
-                        page.unroute(overview)
+                        page.unroute(overview_route)
                         for route in held:
                             route.fulfill(response=route.fetch())
                         expect(page.locator(".habit-load-error")).to_be_visible()
@@ -123,11 +126,37 @@ def run():
                             )
                             == 1
                         )
+                    elif case == "toolbar-focus":
+                        for selector in ['[data-act="archive-view"]', "#habits-add-toggle"]:
+                            held.clear()
+                            page.route(overview_route, lambda route: held.append(route))
+                            page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+                            expect(page.locator('#habits-body [role="status"]')).to_contain_text(
+                                "loading"
+                            )
+                            control = page.locator(selector)
+                            control.focus()
+                            expect(control).to_be_focused()
+                            for _ in range(100):
+                                if held:
+                                    break
+                                page.wait_for_timeout(10)
+                            assert held, "overview refresh was not held"
+                            for route in list(held):
+                                route.fulfill(response=route.fetch())
+                            page.unroute(overview_route)
+                            expect(page.locator('#habits-body [role="status"]')).to_have_count(0)
+                            expect(control).to_be_focused()
+                        page.keyboard.press("Enter")
+                        draft = page.locator('.habit-add [data-f="name"]')
+                        expect(draft).to_be_focused()
+                        draft.fill("keyboard draft after refresh")
+                        expect(draft).to_have_value("keyboard draft after refresh")
                     elif case.startswith("load"):
                         if case == "load-draft":
                             card.locator('[data-act="edit"]').click()
                             card.locator('[data-f="name"]').fill("retained draft")
-                            page.route(overview, reject)
+                            page.route(overview_route, reject)
                             page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
                         expect(page.locator(".habit-load-error")).to_contain_text("could not load")
                         expect(page.locator(".habits-empty")).to_have_count(0)
@@ -142,7 +171,7 @@ def run():
                         page.screenshot(
                             path=str(output / f"{case}-{width}-error.png"), full_page=True
                         )
-                        page.unroute(overview)
+                        page.unroute(overview_route)
                         retry.focus()
                         page.keyboard.press("Enter")
                         expect(page.locator(".habit-load-error")).to_have_count(0)
@@ -229,13 +258,21 @@ def run():
                                 == 1
                             )
                     assert not errors, errors
-                    assert len(console) == 1 and "503" in console[0], console
+                    assert (
+                        (not console)
+                        if case == "toolbar-focus"
+                        else (len(console) == 1 and "503" in console[0])
+                    ), console
                     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (
                         "horizontal overflow"
                     )
                     page.reload(wait_until="networkidle")
                     assert not errors, errors
-                    assert len(console) == 1 and "503" in console[0], console
+                    assert (
+                        (not console)
+                        if case == "toolbar-focus"
+                        else (len(console) == 1 and "503" in console[0])
+                    ), console
                     result["status"] = "passed"
                 except Exception as error:
                     result["error"] = str(error)

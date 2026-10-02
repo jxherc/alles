@@ -22,13 +22,16 @@ def _import_date(raw):
         raise
 
 
-def import_entries(db, text: str, *, kinds, request_id: str = "", strict: bool = False):
+def import_entries(
+    db, text: str, *, kinds, request_id: str = "", strict: bool = False, default_date: str = ""
+):
     from core.database import HealthEntry, HealthImportReceipt
 
     identity = canonical_request_id(request_id) if request_id else ""
-    digest = hashlib.sha256(
-        json.dumps({"text": text, "strict": strict}, ensure_ascii=False).encode()
-    ).hexdigest()
+    payload = {"text": text, "strict": strict}
+    if default_date:
+        payload["default_date"] = default_date
+    digest = hashlib.sha256(json.dumps(payload, ensure_ascii=False).encode()).hexdigest()
 
     def replay(receipt):
         if receipt.payload_hash != digest:
@@ -40,6 +43,10 @@ def import_entries(db, text: str, *, kinds, request_id: str = "", strict: bool =
         if existing is not None:
             return replay(existing)
 
+    try:
+        fallback_day = _import_date(default_date)
+    except ValueError:
+        raise HealthInputError("default_date must be a valid date (YYYY-MM-DD)") from None
     entries, skipped = [], 0
     for line, row in iter_health_csv(text, strict=strict):
         if row is None:
@@ -50,7 +57,7 @@ def import_entries(db, text: str, *, kinds, request_id: str = "", strict: bool =
             skipped += 1
             continue
         try:
-            day = _import_date(row["date"])
+            day = _import_date(row["date"]) if row["date"] else fallback_day
         except ValueError:
             raise HealthInputError(
                 f"line {line} needs a valid date (YYYY-MM-DD); nothing imported"
