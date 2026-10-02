@@ -1285,6 +1285,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     </div>
 
     <textarea class="note-editor-body" id="cal-desc" rows="3" placeholder="description…">${esc(event?.description || '')}</textarea>
+    ${event?.source?.kind === 'mail' ? '<button type="button" class="btn" id="cal-source">open original message</button>' : ''}
     <div id="cal-save-error" class="cal-save-error" role="alert" hidden></div>
     <div class="cal-ed-actions">
       ${isNew ? '' : '<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">delete</button>'}
@@ -1361,6 +1362,11 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   _readDraft = () => JSON.stringify(collectBody(byday));
   _draftSnapshot = _readDraft();
   document.getElementById('cal-back').addEventListener('click', leaveEditor);
+  document.getElementById('cal-source')?.addEventListener('click', async () => {
+    if (_saving) return;
+    if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm('discard unsaved event changes?'))) return;
+    await window._openRecord?.('mail', `event-${event.id}`);
+  });
   document.getElementById('cal-del')?.addEventListener('click', () => deleteEvent());
   document.getElementById('cal-dup')?.addEventListener('click', async () => {
     if (!_editing?.id) return;

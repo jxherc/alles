@@ -27,6 +27,17 @@ test('task links discard unrelated event occurrences', () => {
   assert.deepEqual(readRecordTarget(url), { view: 'tasks', id: 'task-1', occurrence: '' });
 });
 
+test('mail source links keep only the Plan record identity across hosts', () => {
+  for (const kind of ['task', 'event']) {
+    const target = recordTarget('mail', `${kind}-abc-123`);
+    const url = withRecordTarget('https://inbox.example.test/?view=mail', target);
+    assert.deepEqual(readRecordTarget(url), target);
+    assert.equal(url.searchParams.get('record'), `${kind}-abc-123`);
+  }
+  assert.equal(recordTarget('mail', 'account-123'), null);
+  assert.equal(recordTarget('mail', 'task-'), null);
+});
+
 test('saving a linked series keeps its selected day and follows an explicit date change', () => {
   const previousLocation = globalThis.location;
   const previousHistory = globalThis.history;
