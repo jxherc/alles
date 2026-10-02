@@ -6726,6 +6726,214 @@
         "1440",
         "390"
       ]
+    },
+    {
+      "id": "inbox.hidden.success-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden success mute",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.success-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden success snooze",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.lost-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden lost mute",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.lost-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden lost snooze",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.reject-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden reject mute",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.reject-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden reject snooze",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.offline-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden offline mute",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.offline-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden offline snooze",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.reload-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden reload mute",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.reload-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden reload snooze",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.folder-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden folder mute",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.folder-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden folder snooze",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.timezone-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden timezone snooze",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.both-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden both mute",
+      "expected": "Find hidden mail and restore the intended thread or message, preserving other folders and recovering rejected, lost or offline writes without automatic replay.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.cross-mute",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden cross mute",
+      "expected": "Adding and clearing another hiding reason preserves membership and restore controls in the current hidden view; clearing the final reason returns the message to Inbox.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.hidden.cross-snooze",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "mail hidden cross snooze",
+      "expected": "Adding and clearing another hiding reason preserves membership and restore controls in the current hidden view; clearing the final reason returns the message to Inbox.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],
