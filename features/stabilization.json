@@ -1464,8 +1464,8 @@
       "id": "home.reminder-local-time",
       "feature": "home.capture-and-navigation",
       "app": "home",
-      "workflow": "show reminders on the viewer\u2019s local day and clock",
-      "expected": "Use the viewer\u2019s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "workflow": "show reminders on the viewer’s local day and clock",
+      "expected": "Use the viewer’s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -5277,6 +5277,370 @@
       "app": "inbox",
       "workflow": "mail editor delete old read new compose",
       "expected": "Deleting an obsolete pending draft read does not cancel a newer composer loading its signature, and the older response cannot replace the new text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.create-keyboard-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft create keyboard reload",
+      "expected": "Save a new draft by keyboard, reopen after reload, edit it and verify one exact persisted record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.failed-create-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft failed create reload",
+      "expected": "A rejected save retains its exact identity and payload across reload, then explicit retry creates one draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.lost-reply-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft lost reply reload",
+      "expected": "A committed save with a lost reply is confirmed by a current read after reload without another write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.late-save-new-input",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft late save new input",
+      "expected": "Text entered during a save remains dirty and available for a separate save to the same draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.stale-update-copy",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft stale update copy",
+      "expected": "A conflicting update keeps both versions; opening the current draft and explicitly copying the pending version preserves each.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.stale-delete",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft stale delete",
+      "expected": "Deleting a stale version is rejected without removing the current saved draft or its open editor.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.deleted-pending-create",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft deleted pending create",
+      "expected": "Retry cannot resurrect a deleted draft; an explicit separate copy receives a new identity.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.changed-store",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft changed store",
+      "expected": "Recovery and the open editor remain bound to their mail store; another store cannot receive their pending save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.storage-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft storage failure",
+      "expected": "Unavailable tab storage prevents sending a save; recovery retry restores an explicit save without losing text.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.cleanup-failure",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft cleanup failure",
+      "expected": "A confirmed save with failed recovery cleanup offers cleanup retry without another write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.offline-save",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft offline save",
+      "expected": "Offline draft saves remain pending without generic queue entries; explicit retry after reconnect saves one record.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.empty-draft-signature",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft empty draft signature",
+      "expected": "Reopening an empty saved draft does not insert the default signature or create false unsaved changes.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.confirmed-late-ack",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft confirmed late ack",
+      "expected": "A delayed acknowledgement cannot restore a draft deleted after a current read confirmed its save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.confirmed-new-save-old-ack",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft confirmed new save old ack",
+      "expected": "After current-read confirmation, another save can finish before an older reply and remain the current clean version.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.recovery-without-account",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft recovery without account",
+      "expected": "Pending text remains accessible after account removal, retains its original account on retry and permits explicit reassignment.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.metadata-recovery-focus",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft metadata recovery focus",
+      "expected": "Failed recovery reads prevent unsafe saves, preserve keyboard retry focus and move focus to Save when recovery succeeds.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.unreadable-recovery",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft unreadable recovery",
+      "expected": "Unreadable tab recovery data is visible, stays through canceled clearing and supports reviewed clearing followed by a new save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.reply-fields-reload",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft reply fields reload",
+      "expected": "Frozen rich reply content, all recipients, account and threading headers survive reload and exact retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.confirmed-new-save-old-error",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft confirmed new save old error",
+      "expected": "An old deletion error cannot replace a newer confirmed save or mark its editor dirty after delayed processing.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.legacy-outbox-quarantine",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft legacy outbox quarantine",
+      "expected": "Older generic queued draft creates and deletes are quarantined; automatic and manual replay leave records unchanged.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.changed-store-pending-ack",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft changed store pending ack",
+      "expected": "A pending acknowledgement from another mail store cannot block a new editor or apply its old content; original recovery data stays retained.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.pre-save-read-cannot-confirm",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft pre save read cannot confirm",
+      "expected": "A read begun before saving cannot confirm the new save intent or clear its pending recovery after another client changes the draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.partial-storage-keeps-editor",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft partial storage keeps editor",
+      "expected": "A retained save whose storage readback fails keeps its originating editor association; retry and later edits update one draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.changed-pending-ack",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft changed pending ack",
+      "expected": "A checked conflict releases the stalled request, permits an explicit separate copy and ignores its later acknowledgement.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.deleted-pending-ack",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft deleted pending ack",
+      "expected": "A checked deletion releases the stalled request, preserves pending text for an explicit new draft and ignores its later acknowledgement.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.failed-create-stalled-read",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft failed create stalled read",
+      "expected": "A failed create releases write ownership even when automatic reconciliation stalls; a newer refresh permits exact retry without duplicates.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.failed-update-stalled-read",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft failed update stalled read",
+      "expected": "A failed update releases write ownership despite a stalled recovery read; a newer refresh and exact retry update the original draft.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.draft-save.successful-save-stalled-read",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "draft successful save stalled read",
+      "expected": "A finished successful POST leaves its unconfirmed intent retryable while reconciliation stalls; retry confirms one record and ignores the older read.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
