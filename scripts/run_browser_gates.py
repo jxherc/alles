@@ -55,6 +55,7 @@ COMMANDS = {
     "mail-calendar-capture": ("tests/pw_mail_calendar_capture.py",),
     "reviewed-capture": ("tests/pw_reviewed_capture.py",),
     "home-reviewed-capture": ("tests/pw_home_reviewed_capture.py",),
+    "home-note-recovery": ("tests/pw_home_note_recovery.py",),
     "calendar-metadata-picker": ("tests/pw_calendar_metadata_picker.py",),
     "pwa-offline": ("tests/pw_offline_11b.py",),
     "pwa-storage": ("tests/pw_offline_storage.py",),

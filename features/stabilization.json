@@ -1464,8 +1464,8 @@
       "id": "home.reminder-local-time",
       "feature": "home.capture-and-navigation",
       "app": "home",
-      "workflow": "show reminders on the viewer’s local day and clock",
-      "expected": "Use the viewer’s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
+      "workflow": "show reminders on the viewer\u2019s local day and clock",
+      "expected": "Use the viewer\u2019s IANA timezone to include due reminders and exclude tomorrow, including UTC date boundaries and reload; convert stored UTC instants with daylight-saving rules.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -3679,6 +3679,261 @@
       "required_profiles": [
         "1440",
         "390"
+      ]
+    },
+    {
+      "id": "home.note.lost-response-retry-same-note",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "retry the same note after a lost save reply without a duplicate",
+      "expected": "retry the same note after a lost save reply without a duplicate",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.open-exact-note-edit-and-reload",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "open the saved note, edit it in docs and reload exact saved content",
+      "expected": "open the saved note, edit it in docs and reload exact saved content",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.reload-retry-keeps-new-task-input-and-focus",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "resume after reload while preserving new task text and keyboard focus",
+      "expected": "resume after reload while preserving new task text and keyboard focus",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.unknown-result-keeps-identity-and-new-note-input",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "retain identity after an unknown reply and preserve new note input",
+      "expected": "retain identity after an unknown reply and preserve new note input",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.storage-failure-stops-write-and-retries",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "stop writes when retry storage fails, then save after recovery",
+      "expected": "stop writes when retry storage fails, then save after recovery",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.changed-note-is-preserved-and-opened",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "preserve an externally changed note and open its current content",
+      "expected": "preserve an externally changed note and open its current content",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.deleted-note-is-not-recreated-explicit-discard",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "do not recreate deleted notes and require explicit pending-save discard",
+      "expected": "do not recreate deleted notes and require explicit pending-save discard",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.console",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "check browser errors at desktop and phone widths",
+      "expected": "check browser errors at desktop and phone widths",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.confirmed-save-survives-recovery-cleanup-failure",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "confirmed note save survives browser recovery cleanup failure",
+      "expected": "clear matching input and expose the verified note after server confirmation even when browser cleanup throws",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.persistent-cleanup-failure-keeps-verified-note-link",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "keep the verified saved note accessible during persistent browser cleanup failure",
+      "expected": "retain the exact open note action while offering cleanup of the saved retry; restore focus and allow subsequent notes after cleanup",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.unicode-title-preserves-complete-characters",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "save and reopen notes with complete unicode titles at the filename boundary",
+      "expected": "save and reopen notes with complete unicode titles at the filename boundary",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.confirmed-link-survives-scope-error",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "keep the exact saved note accessible when a follow-up recovery scope check fails",
+      "expected": "keep the exact saved note accessible when a follow-up recovery scope check fails",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.confirmed-link-survives-storage-read-error",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "keep the exact saved note accessible when a follow-up browser storage read fails",
+      "expected": "keep the exact saved note accessible when a follow-up browser storage read fails",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.scope-retry-focus-repeated",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "retain focus on the replacement retry after another recovery read failure",
+      "expected": "retain focus on the replacement retry after another recovery read failure",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.scope-retry-focus-pending",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "focus the pending note retry after recovery loads successfully",
+      "expected": "focus the pending note retry after recovery loads successfully",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.scope-retry-focus-empty",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "return focus to capture when recovery confirms no pending note",
+      "expected": "return focus to capture when recovery confirms no pending note",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
+      ]
+    },
+    {
+      "id": "home.note.scope-retry-focus-moved",
+      "feature": "home.capture-and-navigation",
+      "app": "home",
+      "workflow": "preserve focus moved elsewhere while recovery finishes",
+      "expected": "preserve focus moved elsewhere while recovery finishes",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390",
+        "localhost-1440",
+        "localhost-390"
       ]
     }
   ],

@@ -118,9 +118,7 @@ def run() -> None:
             ):
                 submit.click()
             expect(page.locator("#today-capture")).not_to_have_attribute("aria-busy", "true")
-            expect(page.locator("#today-status")).to_contain_text(
-                "could not confirm note; check Docs before retrying"
-            )
+            expect(page.locator("#today-status")).to_contain_text("could not confirm note:")
             expect(capture).to_have_value(f"failed capture {width}")
             expect(capture).to_be_focused()
             expected_failure[0] = False

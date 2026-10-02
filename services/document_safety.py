@@ -23,6 +23,7 @@ _LINK = re.compile(r"\[\[([^\[\]|#]+)((?:[#|][^\[\]]*)?)\]\]")
 _TRANSACTION_ID = re.compile(r"^[0-9a-f]{32}$")
 MAX_REVISIONS = 50
 _DRAFT_LOCK = threading.RLock()
+_CREATE_LOCK = threading.RLock()
 
 
 class DocumentSaveConflict(vault_md.DocumentConflictError):
@@ -35,6 +36,13 @@ class DocumentSaveConflict(vault_md.DocumentConflictError):
 
 class RecoveryConflict(vault_md.DocumentConflictError):
     """Recovery stopped because bytes no longer match either verified transaction state."""
+
+
+class DocumentCreateConflict(RecoveryConflict):
+    def __init__(self, message: str, path: str = "", *, missing: bool = False):
+        super().__init__(message)
+        self.path = path
+        self.missing = missing
 
 
 class RenameRecoveryRequired(RecoveryConflict):
@@ -347,6 +355,130 @@ def _fsync_directory(path: Path) -> None:
 def _remove_tree(path: Path) -> None:
     if path.exists():
         shutil.rmtree(path)
+
+
+def create_document(path: str, content: str, request_id: str) -> dict:
+    """Retry one unique create without publishing a second note after an uncertain reply."""
+    from services.recovery_consistency import recovery_consistency_lock
+
+    try:
+        identity = str(uuid.UUID(request_id))
+    except (ValueError, AttributeError) as exc:
+        raise ValueError("invalid note request identity") from exc
+
+    # InstanceLock owns this data directory across processes. Serialize request
+    # threads and keep each receipt/publication together in backup snapshots.
+    with recovery_consistency_lock, _CREATE_LOCK:
+        requested_rel, requested = _normalise_rel(path)
+        root = vault_md.root_dir()
+        payload = (content or f"# {requested.stem}\n\n").encode("utf-8")
+        intent_hash = _hash(
+            json.dumps([str(root), requested_rel, content], ensure_ascii=False).encode("utf-8")
+        )
+        receipt = _state_dir("create-receipts") / f"{identity}.json"
+        if receipt.exists():
+            manifest = _read_json(receipt)
+            if manifest.get("intent_hash") != intent_hash:
+                raise DocumentCreateConflict("this note request has different text or destination")
+            if manifest.get("state") == "publishing":
+                # A portable link/unlink publication can leave staging behind even
+                # after the note was saved and subsequently edited or deleted.
+                # A restarted request cannot distinguish that from no publication.
+                target = vault_md._safe(manifest["path"])
+                raise DocumentCreateConflict(
+                    "note save was interrupted; inspect its destination before discarding the pending save",
+                    manifest["path"],
+                    missing=not target.exists(),
+                )
+            if manifest.get("state") not in {"prepared", "published"}:
+                raise DocumentCreateConflict("note recovery metadata is invalid")
+        else:
+            requested.parent.mkdir(parents=True, exist_ok=True)
+            staging = requested.parent / f".alles-{identity}.create"
+            if staging.exists() or staging.is_symlink():
+                if staging.is_symlink() or not staging.is_file() or staging.read_bytes() != payload:
+                    raise DocumentCreateConflict(
+                        "the pending note copy changed; nothing was replaced"
+                    )
+            else:
+                _atomic_write(staging, payload)
+            manifest = {
+                "request_id": identity,
+                "intent_hash": intent_hash,
+                "content_hash": _hash(payload),
+                "path": requested_rel,
+                "staging_path": str(staging.relative_to(root)).replace("\\", "/"),
+                "index": 1,
+                "state": "prepared",
+            }
+            _write_json(receipt, manifest)
+
+        target = root / manifest["path"]
+        staging = root / manifest["staging_path"]
+        if (
+            vault_md._safe(manifest["path"]) != target
+            or vault_md._safe(manifest["staging_path"]) != staging
+        ):
+            raise DocumentCreateConflict(
+                "the pending note destination changed; nothing was replaced"
+            )
+        if manifest["state"] == "prepared":
+            if not staging.exists():
+                raise DocumentCreateConflict(
+                    "the pending note copy is missing; its save cannot be confirmed",
+                    manifest["path"],
+                )
+            if not staging.is_file() or _hash(staging.read_bytes()) != manifest["content_hash"]:
+                raise DocumentCreateConflict(
+                    "the pending note copy changed; nothing was replaced", manifest["path"]
+                )
+            while True:
+                manifest["state"] = "publishing"
+                _write_json(receipt, manifest)
+                try:
+                    _publish_exclusive(staging, target)
+                    break
+                except RecoveryConflict:
+                    if not staging.exists() or not (target.exists() or target.is_symlink()):
+                        raise
+                    index = manifest["index"] + 1
+                    if index > 10_000:
+                        raise DocumentCreateConflict(
+                            "could not allocate a unique note filename"
+                        ) from None
+                    target = requested.with_name(f"{requested.stem} {index}{requested.suffix}")
+                    manifest.update(
+                        state="prepared",
+                        index=index,
+                        path=str(target.relative_to(root)).replace("\\", "/"),
+                    )
+                    _write_json(receipt, manifest)
+            _fsync_directory(target.parent)
+
+        # Only this live request can confirm an unfinished publication. Restarted
+        # requests require the durable published receipt instead of guessing by bytes.
+        if not target.is_file():
+            raise DocumentCreateConflict(
+                "the saved note was moved or deleted", manifest["path"], missing=True
+            )
+        if _hash(target.read_bytes()) != manifest["content_hash"]:
+            raise DocumentCreateConflict(
+                "the saved note has changed; open it before retrying", manifest["path"]
+            )
+        if manifest["state"] != "published":
+            manifest["state"] = "published"
+            _write_json(receipt, manifest)
+        return {"path": manifest["path"], "ok": True, "created": True, "request_id": identity}
+
+
+def create_scopes() -> list[str]:
+    from services.recovery_consistency import recovery_consistency_lock
+    from services.secretstore import active_key_id, key_ids
+
+    with recovery_consistency_lock:
+        active = active_key_id()
+        keys = [active, *sorted(key_ids() - {active})]
+        return [_hash(f"alles-note-create:{data_dir().resolve()}:{key}".encode()) for key in keys]
 
 
 # Drafts ---------------------------------------------------------------------

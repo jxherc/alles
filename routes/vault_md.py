@@ -258,6 +258,7 @@ class PathBody(BaseModel):
     path: str
     content: str = ""
     unique: bool = False
+    request_id: str = ""
 
 
 class SafeDocumentBody(BaseModel):
@@ -382,14 +383,31 @@ def restore_document_revision(body: RevisionRestoreBody, background_tasks: Backg
     return result
 
 
+@router.get("/create-scope")
+def note_create_scope(response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return {"scopes": document_safety.create_scopes()}
+
+
 @router.post("/file")
 def create_file(body: PathBody, background_tasks: BackgroundTasks):
     try:
-        out = (
-            vault_md.create_unique(body.path, body.content)
-            if body.unique
-            else vault_md.create(body.path, body.content)
-        )
+        if body.request_id:
+            if not body.unique:
+                raise ValueError("a note request identity requires unique creation")
+            out = document_safety.create_document(body.path, body.content, body.request_id)
+        else:
+            out = (
+                vault_md.create_unique(body.path, body.content)
+                if body.unique
+                else vault_md.create(body.path, body.content)
+            )
+    except document_safety.DocumentCreateConflict as exc:
+        raise HTTPException(
+            410 if exc.missing else 409, {"message": str(exc), "path": exc.path}
+        ) from exc
+    except document_safety.RecoveryConflict as exc:
+        raise HTTPException(409, {"message": str(exc), "path": ""}) from exc
     except ValueError as e:
         raise HTTPException(400, str(e))
     path = out.get("path", _norm_path(body.path))
