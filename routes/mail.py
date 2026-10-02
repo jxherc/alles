@@ -376,13 +376,18 @@ def inbox(
     a = _get(db, aid)
     try:
         msgs = mailsvc.fetch_inbox(_acct_dict(a), folder, limit, quick=quick)
-        try:
-            mail_cache.save(db, aid, folder, msgs)  # warm the cache for instant/offline reads
-        except Exception:
-            pass
-        return {"messages": msgs}
+        mail_cache.save(db, aid, folder, msgs)
+        visible = {m["uid"]: m for m in mail_cache.get(db, aid, folder, limit)}
+        return {
+            "messages": [
+                {**m, **visible[str(m.get("uid", ""))], "cached": False}
+                for m in msgs
+                if str(m.get("uid", "")) in visible
+            ]
+        }
     except Exception as e:
-        # network slow/down → serve the last cached copy so the inbox isn't just blank
+        # Failed refreshes retain the previously saved, locally filtered mailbox.
+        db.rollback()
         cached = mail_cache.get(db, aid, folder, limit)
         return {"error": str(e)[:200], "messages": cached, "cached": bool(cached)}
 
@@ -421,7 +426,13 @@ def read(
     from services import mail_cache
 
     a = _get(db, aid)
-    mail_cache.set_seen(db, aid, folder, uid, seen)
+    matched = mail_cache.set_seen(db, aid, folder, uid, seen)
+    if not matched:
+        return {
+            "ok": False,
+            "seen": seen,
+            "error": "message is no longer in saved mail; refresh the mailbox",
+        }
     try:
         mailsvc.set_seen(_acct_dict(a), uid, seen, folder)
     except Exception:
@@ -467,7 +478,13 @@ def flag(
     from services import mail_cache
 
     a = _get(db, aid)
-    mail_cache.set_flag(db, aid, folder, uid, flagged)
+    matched = mail_cache.set_flag(db, aid, folder, uid, flagged)
+    if not matched:
+        return {
+            "ok": False,
+            "flagged": flagged,
+            "error": "message is no longer in saved mail; refresh the mailbox",
+        }
     try:
         mailsvc.set_flag(_acct_dict(a), uid, flagged, folder)
     except Exception:
@@ -534,6 +551,7 @@ def mute_thread(aid: str, body: MuteBody, db: DbSession = Depends(get_db)):
 class ArchiveBody(BaseModel):
     uid: str
     folder: str = "INBOX"
+    require_server: bool = False
 
 
 @router.post("/archive/{aid}")
@@ -541,12 +559,21 @@ def archive_message(aid: str, body: ArchiveBody, db: DbSession = Depends(get_db)
     from services import mail_cache
 
     acct = _get(db, aid)
-    # best-effort IMAP move to an Archive folder; never blocks the local archive
+    moved = False
     try:
-        mailsvc.move_message(_acct_dict(acct), body.uid, "Archive", body.folder)
+        result = mailsvc.move_message(_acct_dict(acct), body.uid, "Archive", body.folder)
+        moved = isinstance(result, dict) and result.get("ok") is True
     except Exception:
         pass
-    return {"archived": mail_cache.archive(db, aid, body.folder, body.uid)}
+    if body.require_server and not moved:
+        raise HTTPException(
+            502,
+            "could not confirm archive on the mail server; refresh the mailbox before trying again",
+        )
+    return {
+        "archived": mail_cache.archive(db, aid, body.folder, body.uid),
+        "moved_on_server": moved,
+    }
 
 
 class MoveBody(BaseModel):
