@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import FinanceLedgerState, SessionLocal, Subscription, get_db
-from services import actual_finance, finance_currency
+from services import actual_finance, finance_currency, finance_requests
 
 
 def _subscription_write_authority(endpoint):
@@ -553,6 +553,7 @@ def analytics(db: DbSession = Depends(get_db)):
 
 
 class SubBody(BaseModel):
+    request_id: str = ""
     name: str
     price: float = 0.0
     currency: str = ""
@@ -789,6 +790,11 @@ def forecast(months: int = 6, db: DbSession = Depends(get_db)):
 @_subscription_write_authority
 def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
     _validate(body)
+    receipt, replay = finance_requests.begin(
+        db, "subscription", body.request_id, body.model_dump(exclude={"request_id"})
+    )
+    if replay is not None:
+        return replay
     state = db.get(FinanceLedgerState, "primary")
     default_currency = finance_currency.currency_code(state.base_currency_code if state else "CAD")
     resolved_currency = (body.currency or "").strip() or default_currency
@@ -811,9 +817,10 @@ def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
     )
     finance_currency.prepare_subscription(sub)
     db.add(sub)
+    db.flush()
+    response = finance_requests.finish(receipt, _fmt(sub, date.today()))
     db.commit()
-    db.refresh(sub)
-    return _fmt(sub, date.today())
+    return response
 
 
 class SubPatch(BaseModel):
@@ -932,20 +939,53 @@ def update_subscription(sid: str, body: SubPatch, db: DbSession = Depends(get_db
     return _fmt(sub, date.today())
 
 
+class PaidBody(BaseModel):
+    request_id: str = ""
+    next_due: str = ""
+
+
+class UndoBody(BaseModel):
+    payment_id: str
+
+
+def _payment_subscription(db: DbSession, sid: str) -> Subscription:
+    # Reserve the SQLite write before reading the current cycle or latest payment.
+    # Other workers must finish their payment/undo before this selection can proceed.
+    found = (
+        db.query(Subscription)
+        .filter(Subscription.id == sid)
+        .update({Subscription.next_due: Subscription.next_due}, synchronize_session=False)
+    )
+    if not found:
+        raise HTTPException(404, "subscription not found")
+    return db.get(Subscription, sid, populate_existing=True)
+
+
 @router.post(
     "/subscriptions/{sid}/paid",
     dependencies=[Depends(_subscription_write_preflight)],
 )
 @_subscription_write_authority
-def mark_paid(sid: str, db: DbSession = Depends(get_db)):
+def mark_paid(sid: str, db: DbSession = Depends(get_db), body: PaidBody | None = None):
     """mark a DUE renewal paid: log the payment, optionally post the money txn, and
     advance to the next upcoming due. refuses if the sub isn't due yet — that's the
     fix for 'click paid forever and push the date into the future'."""
     from core.database import SubPayment
 
-    sub = db.get(Subscription, sid)
-    if not sub:
-        raise HTTPException(404)
+    body = body or PaidBody()
+    receipt, replay = finance_requests.begin(
+        db,
+        "subscription-paid",
+        body.request_id,
+        {"subscription_id": sid, "next_due": body.next_due},
+    )
+    if replay is not None:
+        return replay
+    sub = _payment_subscription(db, sid)
+    if body.next_due and body.next_due != sub.next_due:
+        raise HTTPException(409, "this renewal changed; refresh and review the current due date")
+    if not sub.active:
+        raise HTTPException(409, "this subscription is paused; resume it before marking paid")
     today = date.today()
     paid_for = _parse(sub.next_due)
     if (paid_for - today).days > 0:
@@ -977,8 +1017,12 @@ def mark_paid(sid: str, db: DbSession = Depends(get_db)):
         nxt = _advance(nxt, sub.cycle, sub.cycle_days)
         guard += 1
     sub.next_due = nxt.isoformat()
+    db.flush()
+    response = finance_requests.finish(receipt, {**_fmt(sub, today), "payment_id": payment.id})
+    if receipt is not None:
+        receipt.resource_id = payment.id
     db.commit()
-    return _fmt(sub, today)
+    return response
 
 
 @router.get("/subscriptions/{sid}/payments")
@@ -990,9 +1034,10 @@ def list_payments(sid: str, db: DbSession = Depends(get_db)):
     rows = (
         db.query(SubPayment)
         .filter(SubPayment.sub_id == sid)
-        .order_by(SubPayment.created_at.desc())
+        .order_by(SubPayment.created_at.desc(), SubPayment.id.desc())
         .all()
     )
+    undo_id = rows[0].id if rows else ""
     payments = [
         {
             "id": p.id,
@@ -1005,6 +1050,7 @@ def list_payments(sid: str, db: DbSession = Depends(get_db)):
     ]
     with actual_finance.AUTHORITY_LOCK:
         if actual_finance.is_canonical(db):
+            undo_id = ""
             state = db.get(FinanceLedgerState, "primary")
             base_currency = finance_currency.currency_code(
                 state.base_currency_code if state else ""
@@ -1041,7 +1087,10 @@ def list_payments(sid: str, db: DbSession = Depends(get_db)):
                 [{**item, "currency": base_currency} for item in canonical],
             )
     public = [
-        {key: value for key, value in payment.items() if key != "source_payment_id"}
+        {
+            **{key: value for key, value in payment.items() if key != "source_payment_id"},
+            **({"can_undo": payment["id"] == undo_id} if undo_id else {}),
+        }
         for payment in payments
     ]
     return sorted(public, key=lambda item: (item["date"], item["id"]), reverse=True)
@@ -1052,22 +1101,27 @@ def list_payments(sid: str, db: DbSession = Depends(get_db)):
     dependencies=[Depends(_subscription_write_preflight)],
 )
 @_subscription_write_authority
-def undo_payment(sid: str, db: DbSession = Depends(get_db)):
+def undo_payment(sid: str, db: DbSession = Depends(get_db), body: UndoBody | None = None):
     """undo the most recent payment: drop its money txn (if any) and step next_due
     back to the date that was paid."""
     from core.database import SubPayment, Transaction
 
-    sub = db.get(Subscription, sid)
-    if not sub:
-        raise HTTPException(404)
+    sub = _payment_subscription(db, sid)
+    if body is not None:
+        target = db.get(SubPayment, body.payment_id)
+        if target is None or target.sub_id != sid:
+            raise HTTPException(404, "this payment is no longer in the history; refresh to review")
     last = (
         db.query(SubPayment)
         .filter(SubPayment.sub_id == sid)
-        .order_by(SubPayment.created_at.desc())
+        .order_by(SubPayment.created_at.desc(), SubPayment.id.desc())
         .first()
     )
     if not last:
         raise HTTPException(400, "no payment to undo")
+    if body is not None and last.id != body.payment_id:
+        raise HTTPException(409, "a newer payment exists; refresh and review before undoing")
+    finance_requests.forget(db, [last.id, last.txn_id])
     if last.txn_id:
         t = db.get(Transaction, last.txn_id)
         if t:
@@ -1082,7 +1136,7 @@ def undo_payment(sid: str, db: DbSession = Depends(get_db)):
     prev = (
         db.query(SubPayment)
         .filter(SubPayment.sub_id == sid)
-        .order_by(SubPayment.created_at.desc())
+        .order_by(SubPayment.created_at.desc(), SubPayment.id.desc())
         .first()
     )
     if prev:
@@ -1113,9 +1167,11 @@ def price_history(sid: str, db: DbSession = Depends(get_db)):
 @router.delete("/subscriptions/{sid}", dependencies=[Depends(_subscription_write_preflight)])
 @_subscription_write_authority
 def delete_subscription(sid: str, db: DbSession = Depends(get_db)):
-    sub = db.get(Subscription, sid)
-    if not sub:
-        raise HTTPException(404)
+    sub = _payment_subscription(db, sid)
+    from core.database import SubPayment
+
+    payment_ids = [row[0] for row in db.query(SubPayment.id).filter(SubPayment.sub_id == sid)]
+    finance_requests.forget(db, [sid, *payment_ids])
     db.delete(sub)
     db.commit()
     return {"ok": True}

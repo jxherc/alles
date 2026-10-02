@@ -9773,3 +9773,6 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .jrnl-migration-card button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; color: var(--text); }
 .jrnl-migration-card button:disabled,
 .jrnl-migration-confirm input:disabled { opacity: 0.42; cursor: default; }
+
+#sub-create-status { flex-basis: 100%; }
+.sub-hist-pop { max-width: min(24rem, calc(100vw - 2rem)); max-height: 22rem; overflow-y: auto; overflow-wrap: anywhere; }
