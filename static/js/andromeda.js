@@ -15,6 +15,18 @@ let _settingsState = {};
 let _searchConfigurationWrite = Promise.resolve();
 let _searchConfigurationGeneration = 0;
 let _state = freshState();
+let _saveScopes = [];
+let _pendingSave = null;
+let _unreadableSave = '';
+let _saveReady = false;
+let _saveBusy = false;
+let _saveMessage = '';
+let _savedResult = null;
+let _savedPayload = '';
+let _savedListGeneration = 0;
+let _savedOpenGeneration = 0;
+
+const SAVE_PREFIX = 'alles.andromeda.pending.v1:';
 
 const PROJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CATEGORIES = new Set(['all', 'images', 'news', 'videos']);
@@ -478,7 +490,8 @@ export function renderAndromedaResults(results, state = 'ready', currentCategory
     list.appendChild(empty);
   }
   const actions = el('andromeda-actions');
-  if (actions) actions.hidden = !_state.rawQuery || currentCategory !== 'all';
+  if (actions) actions.hidden = !_state.rawQuery;
+  if (el('andromeda-explain')) el('andromeda-explain').hidden = currentCategory !== 'all';
   const tail = el('andromeda-results-tail');
   if (tail) tail.hidden = true;
 }
@@ -1107,21 +1120,133 @@ async function loadMoreResults() {
 }
 
 async function saveCurrent() {
-  if (!_state.rawQuery) return;
+  if (_saveBusy || !_saveReady || _pendingSave || _unreadableSave) return;
+  if (!_state.rawQuery || _state.resultStatus === 'loading') return;
+  const payload = {
+    query: _state.rawQuery,
+    request: { ..._state.request, query: _state.rawQuery, has_more: _state.hasMore },
+    results: _state.results,
+    overview: _state.overview, evidence: _state.evidence, model: _state.model,
+    verification: _state.verification, verifier_model: _state.verifierModel,
+  };
+  if (_savedResult && JSON.stringify(payload) === _savedPayload) {
+    _saveMessage = 'this search is already saved'; renderSaveRecovery(); return;
+  }
   try {
-    await jsonRequest('/api/andromeda/saved', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        query: _state.rawQuery,
-        request: { ..._state.request, query: _state.rawQuery, has_more: _state.hasMore },
-        results: _state.results,
-        overview: _state.overview, evidence: _state.evidence, model: _state.model,
-        verification: _state.verification, verifier_model: _state.verifierModel,
-      }),
-    });
-    status(tr('andromeda.search_saved'));
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+    const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+    const request_id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    const pending = JSON.parse(JSON.stringify({ request_id, recovery_scope: _saveScopes[0], payload }));
+    const raw = JSON.stringify(pending), key = SAVE_PREFIX + pending.recovery_scope;
+    sessionStorage.setItem(key, raw);
+    if (sessionStorage.getItem(key) !== raw) throw new Error('save recovery unavailable');
+    _pendingSave = pending;
+  } catch {
+    _saveMessage = 'could not keep this search for retry; allow browser storage or save fewer results';
+    renderSaveRecovery(); return;
+  }
+  await sendPendingSave(false);
+}
+
+function renderSaveRecovery() {
+  const panel = el('andromeda-save-recovery');
+  if (!panel) return;
+  panel.hidden = !(_pendingSave || _unreadableSave || _saveMessage || _savedResult);
+  text('andromeda-save-message', _saveMessage || (_pendingSave ? 'this search save still needs confirmation' : ''));
+  text('andromeda-save-query', _pendingSave?.payload.query || _savedResult?.query || '');
+  for (const [id, visible] of [
+    ['andromeda-save-retry', !!_pendingSave],
+    ['andromeda-save-check', !!_pendingSave],
+    ['andromeda-save-discard', !!(_pendingSave || _unreadableSave)],
+    ['andromeda-save-open', !!_savedResult],
+    ['andromeda-save-reload', !_saveReady],
+  ]) {
+    const button = el(id);
+    if (button) { button.hidden = !visible; button.setAttribute('aria-disabled', String(_saveBusy)); }
+  }
+  el('andromeda-save')?.setAttribute('aria-disabled', String(_saveBusy || !_saveReady || !!_pendingSave || !!_unreadableSave));
+}
+
+function readSaveRecovery(scopes) {
+  if (!Array.isArray(scopes) || !scopes.length || scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) {
+    _saveReady = false;
+    throw new Error('save recovery could not load; retry before saving');
+  }
+  if (_saveScopes.length && !scopes.some(scope => _saveScopes.includes(scope))) {
+    _savedResult = null; _savedPayload = '';
+    _savedOpenGeneration += 1;
+  }
+  const preferred = scopes.includes(_pendingSave?.recovery_scope) ? _pendingSave.recovery_scope : '';
+  _saveScopes = scopes; _saveReady = false; _pendingSave = null; _unreadableSave = '';
+  for (const scope of preferred ? [preferred, ...scopes.filter(value => value !== preferred)] : scopes) {
+    try {
+      const raw = sessionStorage.getItem(SAVE_PREFIX + scope);
+      if (!raw) continue;
+      const value = JSON.parse(raw), payload = value?.payload;
+      if (!PROJECT_ID.test(value?.request_id || '') || value.recovery_scope !== scope
+        || typeof payload?.query !== 'string' || !payload.query.trim()
+        || !Array.isArray(payload.results) || !Array.isArray(payload.evidence)
+        || ['request', 'overview', 'model', 'verification', 'verifier_model'].some(key => !payload[key] || typeof payload[key] !== 'object' || Array.isArray(payload[key]))) throw new Error('invalid pending search');
+      _pendingSave = value;
+      break;
+    } catch {
+      _unreadableSave = scope;
+      throw new Error('could not read the pending save; retry recovery or discard it');
+    }
+  }
+  _saveReady = true;
+}
+
+async function sendPendingSave(checkOnly) {
+  if (_saveBusy || !_pendingSave || !_saveReady) return;
+  const pending = _pendingSave;
+  const focused = document.activeElement;
+  _saveBusy = true; _savedResult = null;
+  _saveMessage = checkOnly ? 'checking saved search…' : 'saving search…'; renderSaveRecovery();
+  try {
+    const result = await jsonRequest(checkOnly
+      ? `/api/andromeda/saved/requests/${encodeURIComponent(pending.request_id)}?recovery_scope=${encodeURIComponent(pending.recovery_scope)}`
+      : '/api/andromeda/saved', checkOnly ? { cache: 'no-store' } : {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...pending.payload, request_id: pending.request_id, recovery_scope: pending.recovery_scope }),
+      });
+    if (result?.request_id !== pending.request_id || typeof result.id !== 'string' || !result.id
+      || result.query !== pending.payload.query.trim() || !Array.isArray(result.results)) throw new Error('save reply was incomplete; check the saved search');
+    if (!_saveScopes.includes(pending.recovery_scope)) throw new Error('search storage changed; reload andromeda');
+    const key = SAVE_PREFIX + pending.recovery_scope;
+    if (sessionStorage.getItem(key) === JSON.stringify(pending)) {
+      sessionStorage.removeItem(key);
+      if (sessionStorage.getItem(key) !== null) throw new Error('search saved; browser recovery could not be cleared. check again.');
+    }
+    _savedResult = result; _savedPayload = JSON.stringify(pending.payload);
+    if (_pendingSave?.request_id === pending.request_id) _pendingSave = null;
+    _saveMessage = 'search saved';
+    readSaveRecovery(_saveScopes);
     await loadSaved();
-  } catch (error) { status(error.message); }
+  } catch (error) {
+    _saveMessage = error.message || 'could not confirm this save; check or retry';
+  } finally {
+    _saveBusy = false; renderSaveRecovery();
+    if (_savedResult && focused?.hidden && document.activeElement === document.body
+      && el('andromeda-view')?.getClientRects().length) el('andromeda-save-open')?.focus();
+  }
+}
+
+async function discardPendingSave() {
+  const pending = _pendingSave, scope = pending?.recovery_scope || _unreadableSave;
+  if (_saveBusy || !scope || !await confirmDialog('discard this pending search save? it may already be saved; check saved searches before saving it again.')) return;
+  if (_saveBusy || pending !== _pendingSave || scope !== (_pendingSave?.recovery_scope || _unreadableSave)) return;
+  try {
+    const key = SAVE_PREFIX + scope;
+    if (pending && sessionStorage.getItem(key) !== JSON.stringify(pending)) throw new Error('pending save changed; reload recovery');
+    sessionStorage.removeItem(key);
+    if (sessionStorage.getItem(key) !== null) throw new Error('could not discard browser recovery; allow browser storage and retry');
+    _pendingSave = null; _unreadableSave = ''; _saveMessage = 'pending save discarded';
+    readSaveRecovery(_saveScopes);
+  } catch (error) { _saveMessage = error.message; }
+  renderSaveRecovery();
+  if (document.activeElement === document.body && el('andromeda-view')?.getClientRects().length) el('andromeda-query')?.focus();
 }
 
 function reopen(saved) {
@@ -1173,14 +1298,40 @@ function reopen(saved) {
   text('andromeda-result-meta', tr('andromeda.saved_checked', { date: saved.checked_at || '' }));
   status(tr('andromeda.saved_reopened'));
   closeSettings();
+  el('andromeda-query')?.focus();
+}
+
+async function openSavedSearch(id) {
+  const generation = ++_savedOpenGeneration, search = _searchGeneration;
+  try {
+    const saved = await jsonRequest(`/api/andromeda/saved/${encodeURIComponent(id)}`);
+    if (generation !== _savedOpenGeneration || search !== _searchGeneration || !el('andromeda-view')?.getClientRects().length) return;
+    if (saved?.id !== id || typeof saved.query !== 'string' || !Array.isArray(saved.results)) throw new Error('saved search reply was incomplete; retry');
+    reopen(saved);
+  } catch (error) {
+    if (generation !== _savedOpenGeneration || search !== _searchGeneration) return;
+    const focused = document.activeElement;
+    if (error.status === 404 && _savedResult?.id === id) {
+      _savedResult = null; _savedPayload = '';
+    }
+    _saveMessage = error.message; renderSaveRecovery();
+    if (focused?.hidden && document.activeElement === document.body && el('andromeda-view')?.getClientRects().length) {
+      const save = el('andromeda-save');
+      (save?.getClientRects().length ? save : el('andromeda-query'))?.focus();
+    }
+  }
 }
 
 async function loadSaved() {
   const list = el('andromeda-saved-list');
   if (!list) return;
-  list.replaceChildren();
+  const generation = ++_savedListGeneration;
   try {
-    const { searches } = await jsonRequest('/api/andromeda/saved');
+    const { searches, recovery_scopes } = await jsonRequest('/api/andromeda/saved', { cache: 'no-store' });
+    if (generation !== _savedListGeneration) return;
+    if (!Array.isArray(searches)) throw new Error('saved searches could not load');
+    readSaveRecovery(recovery_scopes);
+    list.replaceChildren();
     if (!searches.length) { list.textContent = tr('andromeda.nothing_saved'); return; }
     for (const item of searches) {
       const button = document.createElement('button');
@@ -1188,13 +1339,16 @@ async function loadSaved() {
       button.className = 'andromeda-saved-row';
       button.textContent = item.query;
       button.title = tr('andromeda.checked_on', { date: item.checked_at });
-      button.addEventListener('click', async () => {
-        try { reopen(await jsonRequest(`/api/andromeda/saved/${item.id}`)); }
-        catch (error) { status(error.message); }
-      });
+      button.addEventListener('click', () => openSavedSearch(item.id));
       list.appendChild(button);
     }
-  } catch { list.textContent = tr('andromeda.saved_unavailable'); }
+  } catch (error) {
+    if (generation !== _savedListGeneration) return;
+    _saveReady = false; _saveMessage = error.message;
+    list.textContent = tr('andromeda.saved_unavailable');
+  } finally {
+    if (generation === _savedListGeneration) renderSaveRecovery();
+  }
 }
 
 async function loadModelChoices() {
@@ -1723,6 +1877,27 @@ function bindOnce() {
     event.currentTarget.textContent = details.hidden ? 'what changed' : 'hide changes';
   });
   el('andromeda-save')?.addEventListener('click', saveCurrent);
+  el('andromeda-save-retry')?.addEventListener('click', () => sendPendingSave(false));
+  el('andromeda-save-check')?.addEventListener('click', () => sendPendingSave(true));
+  el('andromeda-save-discard')?.addEventListener('click', discardPendingSave);
+  el('andromeda-save-reload')?.addEventListener('click', async event => {
+    if (_saveBusy) return;
+    const button = event.currentTarget;
+    _saveBusy = true; _saveMessage = 'checking saved searches…'; renderSaveRecovery();
+    try {
+      await loadSaved();
+      if (_saveReady) _saveMessage = _pendingSave ? '' : _savedResult ? 'search saved' : '';
+    } finally {
+      _saveBusy = false; renderSaveRecovery();
+      if (button.hidden && document.activeElement === document.body && el('andromeda-view')?.getClientRects().length) {
+        (el(_pendingSave ? 'andromeda-save-check' : _savedResult ? 'andromeda-save-open' : 'andromeda-query'))?.focus();
+      }
+    }
+  });
+  el('andromeda-save-open')?.addEventListener('click', () => {
+    if (_saveBusy || !_savedResult) return;
+    void openSavedSearch(_savedResult.id);
+  });
   el('andromeda-explain')?.addEventListener('click', explainResults);
   el('andromeda-more-results')?.addEventListener('click', loadMoreResults);
   el('andromeda-home')?.addEventListener('click', resetToLanding);
@@ -1775,7 +1950,9 @@ export async function initAndromeda() {
   await loadSaved();
   const query = new URLSearchParams(location.search).get('q');
   if (query && !_state.rawQuery) runAndromedaSearch(query);
-  else if (!_state.rawQuery) {
+  else if (!_state.rawQuery && (_pendingSave || _unreadableSave || _saveMessage)) {
+    setPageState('results'); renderSaveRecovery();
+  } else if (!_state.rawQuery) {
     setPageState('idle');
     requestAnimationFrame(() => el('andromeda-query')?.focus());
   }

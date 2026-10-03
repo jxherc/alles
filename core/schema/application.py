@@ -148,6 +148,16 @@ class AndromedaSavedSearch(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class AndromedaSaveReceipt(Base):
+    """Retain a save identity after its search snapshot is deleted."""
+
+    __tablename__ = "andromeda_save_receipts"
+    id = Column(String, primary_key=True)
+    payload_hash = Column(String, nullable=False)
+    search_id = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class AndromedaVerificationJob(Base):
     """Durable background fact-check state for one fast Andromeda answer."""
 
