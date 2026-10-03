@@ -81,6 +81,8 @@ COMMANDS = {
     "finance-recurring-edit": ("tests/pw_finance_recurring_edit.py",),
     "finance-recurring-repair": ("tests/pw_finance_recurring_repair.py",),
     "library-workflows": ("tests/pw_library_workflows.py",),
+    "book-create": ("tests/pw_book_create.py",),
+    "book-scope-recovery": ("tests/pw_book_scope_recovery.py",),
     "book-write-outcomes": ("tests/pw_book_write_outcomes.py",),
     "book-write-recovery": ("tests/pw_book_write_recovery.py",),
     "book-write-lifecycle": ("tests/pw_book_write_lifecycle.py",),

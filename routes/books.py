@@ -3,16 +3,36 @@ books — a reading list. shelves (want / reading / done), ratings, notes, and a
 optional keyless OpenLibrary lookup to autofill cover + author from a title or ISBN.
 """
 
+import hashlib
 from datetime import date
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Book, get_db
-from services.book_items import STATUSES, BookInputError, clamp_rating, save_book
+from core.database import DB_PATH, Book, get_db
+from services.book_items import STATUSES, BookInputError, clamp_rating, recover_book, save_book
 
 router = APIRouter(prefix="/api")
+
+
+def _recovery_scopes() -> list[str]:
+    from services.recovery_consistency import recovery_consistency_lock
+    from services.secretstore import active_key_id, key_ids
+
+    with recovery_consistency_lock:
+        active = active_key_id()
+        keys = [active, *sorted(key_ids() - {active})]
+    return [
+        hashlib.sha256(f"alles-book-save:{Path(DB_PATH).resolve()}:{key}".encode()).hexdigest()
+        for key in keys
+    ]
+
+
+def _check_scope(scope: str):
+    if scope and scope not in _recovery_scopes():
+        raise HTTPException(409, "book storage changed; reopen books")
 
 
 # ── pure helpers ──────────────────────────────────────────────────────────────
@@ -63,6 +83,7 @@ def overview(db: DbSession = Depends(get_db)):
         shelves.get(b.status, shelves["want"]).append(_fmt(b))
     return {
         "shelves": shelves,
+        "recovery_scopes": _recovery_scopes(),
         "this_year": year_count(books, date.today().year),
         "total": len(books),
         "goal": int(load_settings().get("reading_goal", 0) or 0),
@@ -92,10 +113,15 @@ def lookup(q: str = "", db: DbSession = Depends(get_db)):
         r = httpx.get(
             "https://openlibrary.org/search.json", params={"q": q, "limit": 6}, timeout=10
         )
-        docs = r.json().get("docs", [])
+        r.raise_for_status()
+        docs = r.json().get("docs")
+        if not isinstance(docs, list) or any(not isinstance(doc, dict) for doc in docs):
+            raise ValueError("invalid lookup response")
         return {"results": [parse_ol_doc(d) for d in docs]}
-    except Exception:
-        return {"results": []}
+    except Exception as error:
+        raise HTTPException(
+            503, "could not look up books; retry or enter the details yourself"
+        ) from error
 
 
 class BookBody(BaseModel):
@@ -107,10 +133,19 @@ class BookBody(BaseModel):
     isbn: str = ""
     notes: str = ""
     year: int = 0
+    request_id: str = ""
+    recovery_scope: str = ""
+
+
+@router.get("/books/requests/{request_id}")
+def recover_save(request_id: str, recovery_scope: str = "", db: DbSession = Depends(get_db)):
+    _check_scope(recovery_scope)
+    return _fmt(recover_book(db, request_id)) | {"request_id": request_id}
 
 
 @router.post("/books")
 def create_book(body: BookBody, db: DbSession = Depends(get_db)):
+    _check_scope(body.recovery_scope)
     try:
         b = save_book(
             db,
@@ -122,6 +157,7 @@ def create_book(body: BookBody, db: DbSession = Depends(get_db)):
             isbn=body.isbn,
             notes=body.notes,
             year=body.year,
+            request_id=body.request_id,
         )
     except BookInputError as exc:
         detail = (
@@ -130,7 +166,7 @@ def create_book(body: BookBody, db: DbSession = Depends(get_db)):
             else f"status must be one of {', '.join(STATUSES)}"
         )
         raise HTTPException(400, detail) from exc
-    return _fmt(b)
+    return _fmt(b) | ({"request_id": body.request_id} if body.request_id else {})
 
 
 class BookPatch(BaseModel):
