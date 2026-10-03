@@ -4,11 +4,12 @@ the research extractor), and search it offline. links don't rot: the text is kep
 if the page later disappears.
 """
 
+import hashlib
 from datetime import UTC, datetime
 from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session as DbSession
@@ -36,6 +37,7 @@ def _fmt(it: ReadItem, full: bool = False) -> dict:
         "added_at": it.added_at.isoformat() if it.added_at else "",
         "read_at": it.read_at,
         "read": bool(it.read_at),
+        "position": it.read_position,
         "fav": it.fav,
         "archived": it.archived,
         "tags": it.tags,
@@ -43,6 +45,7 @@ def _fmt(it: ReadItem, full: bool = False) -> dict:
     }
     if full:
         d["text"] = it.text
+        d["content_hash"] = hashlib.sha256((it.text or "").encode("utf-8")).hexdigest()
     return d
 
 
@@ -249,6 +252,9 @@ def save_news(body: NewsSaveBody, db: DbSession = Depends(get_db)):
 
 
 class ReadPatch(BaseModel):
+    position: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    content_hash: str | None = None
+    read: bool | None = None
     tags: str | None = None
     fav: bool | None = None
     archived: bool | None = None
@@ -256,23 +262,39 @@ class ReadPatch(BaseModel):
 
 @router.patch("/read/{rid}")
 def patch_item(rid: str, body: ReadPatch, db: DbSession = Depends(get_db)):
+    if body.position is not None:
+        db.execute(sql_text("BEGIN IMMEDIATE"))
     it = db.get(ReadItem, rid)
     if not it:
         raise HTTPException(404)
+    if body.position is not None:
+        current_hash = hashlib.sha256((it.text or "").encode("utf-8")).hexdigest()
+        if body.content_hash != current_hash:
+            raise HTTPException(409, "saved text changed; reload before saving your reading place")
+        it.read_position = body.position
+    if body.read is not None:
+        it.read_at = (
+            (it.read_at or datetime.now(UTC).replace(tzinfo=None).isoformat()) if body.read else ""
+        )
     if body.tags is not None:
         it.tags = _norm_tags(body.tags)
     if body.fav is not None:
         it.fav = body.fav
     if body.archived is not None:
         it.archived = body.archived
+    result = _fmt(it)
+    if body.position is not None:
+        result["content_hash"] = current_hash
     db.commit()
+    if body.position is not None and body.model_fields_set <= {"position", "content_hash"}:
+        return result
     try:
         from services import personal_index
 
         personal_index.index_record(db, "read", it)
     except Exception:
         pass
-    return _fmt(it)
+    return result
 
 
 @router.post("/read/{rid}/read")
