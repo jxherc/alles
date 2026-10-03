@@ -8424,7 +8424,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 }
 #read-position-status { margin: 0; min-width: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 #read-position-bar .read-reader-bar { margin-bottom: var(--k-space-2); gap: var(--k-space-2); flex-wrap: wrap; }
-#read-position-bar .read-toolbar { margin: 0; gap: var(--k-space-2); }
+#read-position-bar .read-toolbar { min-height: 44px; margin: 0; gap: var(--k-space-2); }
 #read-position-bar .read-source-notice { margin: var(--k-space-2) 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 #read-position-status.read-save-error { color: var(--error); }
 #read-position-retry[hidden] { display: none; }
