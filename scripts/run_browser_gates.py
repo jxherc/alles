@@ -51,6 +51,7 @@ COMMANDS = {
     "plan-workflows": ("tests/pw_plan_workflows.py",),
     "plan-recovery": ("tests/pw_plan_recovery.py",),
     "plan-continuity": ("tests/pw_plan_continuity.py",),
+    "plan-recurring-continuity": ("tests/pw_plan_recurring_continuity.py",),
     "calendar-workflows": ("tests/pw_calendar_workflows.py",),
     "mail-calendar-capture": ("tests/pw_mail_calendar_capture.py",),
     "reviewed-capture": ("tests/pw_reviewed_capture.py",),
