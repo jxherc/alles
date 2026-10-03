@@ -1086,6 +1086,7 @@ class SignatureBody(BaseModel):
     name: str = ""
     body: str = ""
     revision: int | None = Field(default=None, ge=1, strict=True)
+    expected_revision: int | None = Field(default=None, ge=0, strict=True)
 
 
 @router.get("/signatures")
@@ -1105,6 +1106,8 @@ def save_signature(body: SignatureBody):
     with recovery_consistency_lock:
         settings = load_settings()
         sigs = [s for s in settings.get("mail_signatures", []) if s.get("id")]
+        if body.expected_revision is not None and (not body.id or body.revision is None):
+            raise HTTPException(422, "a conditional signature save requires an id and revision")
         if body.revision is not None and not body.id:
             raise HTTPException(422, "a versioned signature save requires an id")
         sid = body.id or uuid.uuid4().hex
@@ -1113,6 +1116,14 @@ def save_signature(body: SignatureBody):
         row = {"id": sid, "name": (body.name or "signature").strip(), "body": body.body or ""}
         previous = next((s for s in sigs if s["id"] == sid), None)
         revision = previous.get("revision", 0) if previous else 0
+        if body.expected_revision is not None and body.expected_revision != revision:
+            if (
+                previous
+                and body.revision <= revision
+                and all(previous[key] == row[key] for key in row)
+            ):
+                return previous
+            raise HTTPException(409, "the signature changed; review it before saving your edits")
         if body.revision is not None:
             if previous and body.revision <= revision:
                 if all(previous[key] == row[key] for key in row):

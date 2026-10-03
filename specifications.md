@@ -423,8 +423,13 @@ a real email client (read + send), with one-click setup for the big providers an
   retain the entered text. a checked saved record recovers a lost reply without a duplicate, and
   inserted signatures preserve line breaks and treat markup as text. older timed-out saves cannot
   overwrite a newer confirmed retry from the same form
+- manage signatures from the compose toolbar to edit or remove saved entries. these changes leave
+  already-inserted message text untouched. edits check the current saved revision; a changed or
+  removed signature retains the entered text for review rather than overwriting newer work.
+  unconfirmed removals keep a retry for the captured version and can be checked by reloading the list.
+  another removal waits until the unresolved one is checked
 - signature deletion keeps only the removed id so a delayed save cannot restore its text. the API
-  accepts an optional `expected_revision` to reject deletion after an edit; a legacy unversioned
+  accepts an optional `expected_revision` on saves and deletions to reject conflicting edits; a legacy unversioned
   signature has revision zero. repeating a deletion confirms absence, and a new signature uses a new id
 - saving a draft keeps that exact attempt in this tab before sending it, including recipients and
   reply headers. retry and reload check the same save without creating another draft. later typing
