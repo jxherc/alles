@@ -49,7 +49,13 @@ def _fmt(it: ReadItem, full: bool = False) -> dict:
         "fav": it.fav,
         "archived": it.archived,
         "tags": it.tags,
-        "source_kind": "saved_news" if "source:news" in tags else "read_later",
+        "source_kind": (
+            "saved_news"
+            if "source:news" in tags
+            else "saved_search"
+            if "source:search" in tags
+            else "read_later"
+        ),
         "text_state": it.text_state,
     }
     if full:
@@ -223,7 +229,7 @@ def save_item(body: SaveBody, db: DbSession = Depends(get_db)):
 
 
 def canonical_news_url(value: str) -> str:
-    """Canonical identity for an explicitly saved Andromeda news result.
+    """Canonical identity for an explicitly saved Andromeda result.
 
     Saving a result must never fetch it. Normalizing only transport-level URL
     details keeps repeat clicks idempotent without guessing that distinct query
@@ -236,9 +242,9 @@ def canonical_news_url(value: str) -> str:
         host = (parsed.hostname or "").lower().rstrip(".")
         port = parsed.port
     except ValueError as error:
-        raise HTTPException(400, "invalid news url") from error
+        raise HTTPException(400, "invalid result url") from error
     if scheme not in {"http", "https"} or not host or parsed.username or parsed.password:
-        raise HTTPException(400, "news url must be http or https")
+        raise HTTPException(400, "result url must be http or https")
     rendered_host = f"[{host}]" if ":" in host else host
     if port and not ((scheme == "http" and port == 80) or (scheme == "https" and port == 443)):
         rendered_host = f"{rendered_host}:{port}"
@@ -255,18 +261,23 @@ class NewsSaveBody(BaseModel):
 
 @router.post("/read/save-news")
 def save_news(body: NewsSaveBody, db: DbSession = Depends(get_db)):
-    """Save one Andromeda news result after an explicit owner click.
+    return _save_result(body, db, "source:news")
 
-    This intentionally stores the already-returned result metadata and does not
-    make a second network request to the publisher.
-    """
+
+@router.post("/read/save-result")
+def save_result(body: NewsSaveBody, db: DbSession = Depends(get_db)):
+    return _save_result(body, db, "source:search")
+
+
+def _save_result(body: NewsSaveBody, db: DbSession, source_tag: str):
+    """Keep returned metadata after an explicit save; never fetch the publisher."""
     url = canonical_news_url(body.url)
     db.execute(sql_text("BEGIN IMMEDIATE"))
     existing = db.query(ReadItem).filter(ReadItem.url == url).first()
     if existing:
         tags = [tag.strip() for tag in (existing.tags or "").split(",") if tag.strip()]
-        if not any(tag.lower() == "source:news" for tag in tags):
-            tags.append("source:news")
+        if not any(tag.lower() == source_tag for tag in tags):
+            tags.append(source_tag)
             existing.tags = _norm_tags(",".join(tags))
             db.commit()
             db.refresh(existing)
@@ -290,7 +301,7 @@ def save_news(body: NewsSaveBody, db: DbSession = Depends(get_db)):
         site=(body.publisher or site_of(url)).strip()[:200],
         image=(body.image_url or "").strip()[:2000],
         read_minutes=read_minutes(excerpt),
-        tags="source:news",
+        tags=source_tag,
     )
     db.add(item)
     db.commit()

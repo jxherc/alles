@@ -67,6 +67,7 @@ COMMANDS = {
     "pwa-storage": ("tests/pw_offline_storage.py",),
     "pwa-rejection": ("tests/pw_offline_rejection.py",),
     "andromeda-saved": ("tests/pw_andromeda_saved.py",),
+    "andromeda-handoff": ("tests/pw_andromeda_handoff.py",),
     "andromeda-cancellation": ("tests/pw_andromeda_cancellation.py",),
     "health-workflows": ("tests/pw_health_workflows.py",),
     "health-create-recovery": ("tests/pw_health_create_recovery.py",),

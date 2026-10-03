@@ -609,7 +609,7 @@ async function _renderLibrary(target, request) {
     })),
   ];
   target.replaceChildren();
-  const note = _el('p', 'specialist-group-note', 'news enters Library only when you choose save. feeds and existing read-later items keep their current behavior.');
+  const note = _el('p', 'specialist-group-note', 'search results enter Library only when you choose save. feeds and existing read-later items keep their current behavior.');
   const workbench = _el('div', 'specialist-workbench specialist-workbench-library');
   const rail = _el('aside', 'specialist-workbench-rail');
   rail.append(_el('h2', '', 'material'));
@@ -669,7 +669,7 @@ async function _renderLibrary(target, request) {
   const detail = _el('aside', 'specialist-workbench-detail');
   detail.append(
     _el('h2', '', 'save boundary'),
-    _el('p', 'specialist-detail-body', 'A News item appears here only after you choose Save to Library. Browsing a feed never creates a record.'),
+    _el('p', 'specialist-detail-body', 'An Andromeda result appears here only after you choose save to Library. Its excerpt stays local; fetching article text is a separate action.'),
     _sectionJump('library', 'read', 'open saved reading', 'specialist-inline-action'),
   );
   workbench.append(rail, main, detail);
