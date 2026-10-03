@@ -6,6 +6,7 @@ if the page later disappears.
 
 import hashlib
 from datetime import UTC, datetime
+from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,8 +15,8 @@ from sqlalchemy import or_
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import ReadFeed, ReadItem, get_db
-from services.read_items import make_excerpt, read_minutes, save_url, site_of
+from core.database import DB_PATH, ReadFeed, ReadItem, get_db
+from services.read_items import make_excerpt, read_minutes, recover_url, save_url, site_of
 
 router = APIRouter(prefix="/api")
 
@@ -49,6 +50,24 @@ def _fmt(it: ReadItem, full: bool = False) -> dict:
     return d
 
 
+def _recovery_scopes() -> list[str]:
+    from services.recovery_consistency import recovery_consistency_lock
+    from services.secretstore import active_key_id, key_ids
+
+    with recovery_consistency_lock:
+        active = active_key_id()
+        keys = [active, *sorted(key_ids() - {active})]
+    return [
+        hashlib.sha256(f"alles-read-save:{Path(DB_PATH).resolve()}:{key}".encode()).hexdigest()
+        for key in keys
+    ]
+
+
+def _check_scope(scope: str):
+    if scope and scope not in _recovery_scopes():
+        raise HTTPException(409, "reading storage changed; reopen saved reading")
+
+
 # ── endpoints ──────────────────────────────────────────────────────────────────
 @router.get("/read")
 def list_items(filter: str = "", q: str = "", tag: str = "", db: DbSession = Depends(get_db)):
@@ -67,7 +86,7 @@ def list_items(filter: str = "", q: str = "", tag: str = "", db: DbSession = Dep
     if tag:
         query = query.filter(ReadItem.tags.ilike(f"%{tag}%"))
     rows = query.order_by(ReadItem.added_at.desc()).all()
-    return {"items": [_fmt(r) for r in rows]}
+    return {"items": [_fmt(r) for r in rows], "recovery_scopes": _recovery_scopes()}
 
 
 @router.get("/read/stats")
@@ -153,6 +172,12 @@ async def refresh_now():
     return {"ok": True}
 
 
+@router.get("/read/requests/{request_id}")
+def recover_save(request_id: str, recovery_scope: str = "", db: DbSession = Depends(get_db)):
+    _check_scope(recovery_scope)
+    return {**_fmt(recover_url(db, request_id)), "request_id": request_id}
+
+
 @router.get("/read/{rid}")
 def get_item(rid: str, db: DbSession = Depends(get_db)):
     it = db.get(ReadItem, rid)
@@ -163,11 +188,17 @@ def get_item(rid: str, db: DbSession = Depends(get_db)):
 
 class SaveBody(BaseModel):
     url: str
+    request_id: str = ""
+    recovery_scope: str = ""
 
 
 @router.post("/read")
 def save_item(body: SaveBody, db: DbSession = Depends(get_db)):
-    return _fmt(save_url(db, body.url))
+    _check_scope(body.recovery_scope)
+    result = _fmt(save_url(db, body.url, body.request_id))
+    if body.request_id:
+        result["request_id"] = body.request_id
+    return result
 
 
 def canonical_news_url(value: str) -> str:
