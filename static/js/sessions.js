@@ -11,7 +11,8 @@ import {
   selectAideDefault,
 } from './models.js?v=212';
 import { t } from './i18n.js';
-import { contextProvenanceElement } from './memoryactions.js';
+import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
+import { loadAnswerNoteRecovery } from './answer_note.js';
 import { createMenuController } from './kokuen.js';
 import { replaceRouteUrl } from './route_history.js';
 
@@ -48,6 +49,7 @@ window._reloadAideSessions = loadSessions;
 // a bare localhost:6769 always opens a fresh chat (like claude.ai/new).
 export async function initSessions({ hashOwner = 'session' } = {}) {
   await loadSessions();
+  void loadAnswerNoteRecovery();
   const hash = location.hash.slice(1);
   if (hashOwner === 'session' && hash && _allSessions.find(s => s.id === hash)) {
     await selectSession(hash);
@@ -343,6 +345,7 @@ function renderMessages(msgs) {
         m.meta?.tool_steps,
         m.meta?.context_provenance,
         m.meta?.agent_run_id,
+        m.meta?.source_citations,
       );
       row.dataset.msgId = m.id;
       if (m.meta?.interrupted) appendInterruptionNotice(body);
@@ -380,6 +383,7 @@ export function appendUserMsg(text, documentScope = null) {
   const { row } = _makeRow('user');
   row.innerHTML = `<div class="user-wrap">
     ${documentScope?.path ? `<div class="user-context-scope">using note · ${escHtml(documentScope.path)}</div>` : ''}
+    ${documentScope?.documents ? `<details class="user-context-scope"><summary>selected notes only · ${documentScope.documents.length} notes</summary><ul tabindex="0" aria-label="selected source notes">${documentScope.documents.map(item => `<li>${escHtml(item.path)}</li>`).join('')}</ul></details>` : ''}
     <div class="user-bubble">${escHtml(text)}</div>
     <button class="msg-memory-btn" type="button" onclick="rememberUserMessage(this)">remember this</button>
     <button class="msg-edit-btn" title="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
@@ -399,10 +403,13 @@ export function appendInterruptionNotice(target) {
 }
 
 
-export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentRunId = '') {
+export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentRunId = '', sourceCitations = null) {
   const { row, wrap, body } = _makeAiRow();
   // strip artifact tags from display
   const displayText = text ? text.replace(/<aide-artifact[^>]*>[\s\S]*?<\/aide-artifact>/g, '').trim() : '';
+  wrap.answerText = displayText;
+  wrap.dataset.sessionId = _activeId || '';
+  wrap.dataset.private = String(window._currentSession?.incognito || isIncognitoMode());
   const content = document.createElement('div');
   content.className = 'ai-content';
   content.innerHTML = displayText ? _md(stripEmojis(displayText)) : '';
@@ -423,11 +430,14 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
   }
   const provenance = contextProvenanceElement(contextProvenance);
   if (provenance) body.appendChild(provenance);
+  const citationStatus = sourceCitationStatus(sourceCitations);
+  if (citationStatus) body.appendChild(citationStatus);
   body.classList.add('done');
 
   const actions = document.createElement('div');
   actions.className = 'msg-actions';
   actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>
+    <button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>
     <button class="msg-regen-btn act-btn" title="regenerate">regen</button>
     <button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>
     <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;

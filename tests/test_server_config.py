@@ -31,10 +31,10 @@ class ServerBindConfigTest(unittest.TestCase):
             "README.md": "http://localhost:6769",
             "extension/popup.js": "http://localhost:6769",
             "mobile/capacitor.config.json": "http://192.168.1.10:6769",
-            "static/js/mail.js": "http://localhost:6769",
             "static/js/settings.js": "location.port || '6769'",
             "static/plugins/obsidian-alles/main.js": "http://localhost:6769",
         }
+        # Mail gets its OAuth redirect from the checked server status, not a browser default.
         for relative, fragment in expected.items():
             with self.subTest(relative=relative):
                 self.assertIn(fragment, (ROOT / relative).read_text("utf-8"))

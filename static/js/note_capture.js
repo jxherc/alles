@@ -70,7 +70,7 @@ export async function saveNote(text, path) {
   } finally { busy = false; }
 }
 
-export async function showNoteRecovery(host, onSaved, onOpen) {
+export async function showNoteRecovery(host, onSaved, onOpen, focusTarget = () => document.getElementById('today-capture-input')) {
   if (busy) return;
   const run = ++generation;
   let store;
@@ -84,7 +84,7 @@ export async function showNoteRecovery(host, onSaved, onOpen) {
     const status = document.createElement('p'); status.textContent = error.message;
     status.setAttribute('role', 'status');
     const retry = document.createElement('button'); retry.className = 'btn'; retry.type = 'button'; retry.textContent = 'retry note recovery';
-    retry.onclick = () => showNoteRecovery(host, onSaved, onOpen);
+    retry.onclick = () => showNoteRecovery(host, onSaved, onOpen, focusTarget);
     notice.append(status, retry); host.append(notice);
     if (restoreFocus && host.getClientRects().length) retry.focus();
     return;
@@ -113,7 +113,7 @@ export async function showNoteRecovery(host, onSaved, onOpen) {
   host.querySelector('.note-resume')?.remove();
   if (!store.pending) {
     if (!host.querySelector('.note-saved-open')) host.replaceChildren();
-    if (restoreFocus && host.getClientRects().length) (host.querySelector('.note-saved-open') || document.getElementById('today-capture-input'))?.focus();
+    if (restoreFocus && host.getClientRects().length) (host.querySelector('.note-saved-open') || focusTarget())?.focus();
     return;
   }
   const pending = store.pending;
@@ -153,7 +153,7 @@ export async function showNoteRecovery(host, onSaved, onOpen) {
     if (busy || !notice.isConnected) return;
     try {
       store.clear(); ++generation; notice.remove();
-      document.getElementById('today-capture-input')?.focus();
+      focusTarget()?.focus();
     } catch (error) { status.textContent = `could not discard the pending save: ${error.message}`; }
   };
   host.replaceChildren(notice);

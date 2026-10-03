@@ -946,8 +946,9 @@ def search(q: str, limit: int = 20) -> list[dict]:
     base = root_dir()
     out = []
     for p in _all_md():
-        if not ql or ql in p.stem.lower():
-            out.append({"name": p.stem, "path": str(p.relative_to(base)).replace("\\", "/")})
+        path = str(p.relative_to(base)).replace("\\", "/")
+        if not ql or ql in p.stem.lower() or ql in path.lower():
+            out.append({"name": p.stem, "path": path})
     out.sort(key=lambda r: (not r["name"].lower().startswith(ql), len(r["name"])))
     return out[:limit]
 

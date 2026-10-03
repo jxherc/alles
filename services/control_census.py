@@ -651,7 +651,12 @@ def _dynamic_templates(overrides: dict[str, Any]) -> list[dict[str, Any]]:
             label, label_source = (
                 (factory_label, "literal-factory-argument")
                 if factory_label is not None
-                else _label(attrs, _template_text(text, offset, tag))
+                else _label(
+                    attrs,
+                    _created_text(text, offset)
+                    if construction == "create-element"
+                    else _template_text(text, offset, tag),
+                )
             )
             # Dynamic renderers can legitimately repeat one DOM id in mutually
             # exclusive dialog templates. The census identity is the source
@@ -779,6 +784,28 @@ def _instance_key(attrs: dict[str, str]) -> str:
         if key.startswith("data-") and key not in {"data-action"}:
             return f"runtime record value from {key}"
     return "source-template may render zero to many instances"
+
+
+def _created_text(source: str, offset: int) -> str:
+    """Read literal text from contiguous assignments to the newly created node."""
+    declaration = re.search(
+        r"\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*document\.$",
+        source[max(0, offset - 120) : offset],
+    )
+    created = CREATE_RE.match(source, offset)
+    if not declaration or not created:
+        return ""
+    name = re.escape(declaration.group(1))
+    assignment = re.compile(
+        rf"\s*;\s*{name}\.([A-Za-z_$][\w$]*)\s*=\s*"
+        r"(?P<quote>['\"])(?P<value>[^'\"\\\r\n]*)(?P=quote)(?=\s*;)"
+    )
+    cursor = created.end()
+    while match := assignment.match(source, cursor):
+        if match.group(1) == "textContent":
+            return match.group("value")
+        cursor = match.end()
+    return ""
 
 
 def _template_text(source: str, offset: int, tag: str) -> str:

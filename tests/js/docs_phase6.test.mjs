@@ -36,7 +36,7 @@ test('Docs preserves and restores legacy document deep links without reviving UR
   assert.doesNotMatch(app, /_consumeParams\([^\n]*(?:'doc'|'doc_hash')/);
   assert.match(docs, /new URLSearchParams\(location\.search\)\.get\('doc'\)/);
   const legacyOpen = docs.match(/async function openLegacyDocumentDeepLink\(path\) \{[\s\S]*?\n\}/)?.[0] || '';
-  assert.match(legacyOpen, /await openNote\(path\)/);
+  assert.match(legacyOpen, /await openNote\(path, \{ expectedHash \}\)/);
   assert.match(legacyOpen, /searchParams\.delete\('doc'\)/);
   assert.match(legacyOpen, /searchParams\.delete\('doc_hash'\)/);
 });
@@ -275,17 +275,17 @@ test('conflict replacement waits for pending draft writes and stops the draft ti
   assert.match(replace, /queueDocumentWrite\(\(\)\s*=>\s*api\([\s\S]*?\/api\/vault-md\/safety\/save/);
 });
 
-test('Aide receives one visible exact note scope', () => {
-  assert.match(docs, /kind: 'vault_document'/);
+test('Aide receives a visible selection of exact note versions', () => {
+  assert.match(docs, /kind: 'vault_documents', documents: sources/);
   assert.match(chat, /context_scope: documentScope/);
   assert.match(html, /id="aide-document-scope"/);
 });
 
 test('Docs saves the visible draft before handing its exact revision to Aide', () => {
   const handoff = docs.match(/async function askAideAboutCurrent\(\)[\s\S]*?\n}/)?.[0] || '';
-  assert.match(handoff, /if \(_dirty && !\(await saveCurrent\(\)\)\) return/);
+  assert.match(handoff, /if \(current && _dirty\) \{\s*if \(!\(await saveCurrent\(\)\)\) return/);
   assert.ok(handoff.indexOf('await saveCurrent()') < handoff.indexOf('window._askInChat'));
-  assert.match(handoff, /expected_hash:\s*_doc\.hash/);
+  assert.match(handoff, /current\.expected_hash = _doc\.hash/);
   const inline = app.match(/window\._askInChat = async[\s\S]*?\n};/)?.[0] || '';
   assert.match(inline, /if \(!\(await navigateTo\('chat'\)\)\) return/);
   assert.doesNotMatch(inline, /canOpenAideInline[^]*?showChatView\(\)/);

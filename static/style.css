@@ -9373,9 +9373,34 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   gap: 0.4rem;
   padding: 0.45rem 1rem;
   border-bottom: 1px solid var(--faint);
+  max-height: 55vh;
+  overflow-y: auto;
 }
-.docs-ask-panel input { height: 30px; font-size: 0.75rem; }
-.docs-ask-panel button { padding: 0 0.55rem; }
+.docs-ask-panel input { min-height: 44px; font-size: 0.875rem; }
+.docs-ask-panel button { min-height: 44px; padding: 0 0.55rem; }
+.docs-ask-panel label,
+.docs-ask-sources,
+#wiki-ask-search,
+.docs-ask-matches,
+.docs-ask-panel .wiki-ask-results { grid-column: 1 / -1; min-width: 0; }
+.docs-ask-panel label { color: var(--muted); font-size: 0.75rem; }
+.docs-ask-sources > div { display: flex; align-items: center; gap: 0.5rem; }
+.docs-ask-sources span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.docs-ask-matches { display: grid; gap: 0.25rem; }
+.docs-ask-matches button { text-align: left; overflow-wrap: anywhere; }
+.source-snapshot { margin-block: 0.75rem; }
+.source-snapshot summary { min-height: 44px; align-content: center; overflow-wrap: anywhere; cursor: pointer; }
+.source-snapshot pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 20rem; overflow: auto; }
+.source-snapshot a { display: inline-flex; min-height: 44px; align-items: center; }
+.source-citation-status { color: var(--muted); font-size: 0.8rem; }
+.aide-note-recovery:empty { display: none; }
+.aide-note-recovery { max-height: 35vh; overflow: auto; overflow-wrap: anywhere; padding: 0.5rem; }
+.aide-note-recovery pre { white-space: pre-wrap; }
+.aide-document-scope strong { overflow-wrap: anywhere; min-width: 0; max-height: min(8rem, 20vh); overflow: auto; overscroll-behavior: contain; }
+@media (max-width: 600px) {
+  .docs-ask-panel { grid-template-columns: minmax(0, 1fr) auto; }
+  #wiki-ask-input { grid-column: 1 / -1; }
+}
 
 .wiki-empty-state {
   flex: 1;
@@ -9660,7 +9685,9 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .aide-document-scope strong { color: var(--text); font-weight: 560; }
 .aide-document-scope button { margin-inline-start: auto; border: 0; background: none; color: var(--muted); font: inherit; font-size: 0.75rem; cursor: pointer; }
 .aide-document-scope button:hover { color: var(--text); }
-.user-context-scope { margin: 0 0 0.3rem; color: var(--muted); font-size: 0.75rem; }
+.user-context-scope { overflow-wrap: anywhere; margin: 0 0 0.3rem; color: var(--muted); font-size: 0.75rem; }
+.user-context-scope summary { min-height: 44px; align-content: center; cursor: pointer; }
+.user-context-scope ul { max-height: 12rem; overflow: auto; margin: 0; padding-inline-start: 1.2rem; }
 
 .docs-product-view button:focus-visible,
 .docs-product-view input:focus-visible,
@@ -9702,8 +9729,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   #wiki-view.no-note.docs-nav-open .docs-nav-panel { display: flex; }
   .docs-reader-head { padding: 0 0.55rem; }
   .docs-current-path,
-  .docs-save-state,
-  #wiki-ask-btn { display: none; }
+  .docs-save-state { display: none; }
   .docs-reader-head .docs-save-state.error {
     display: block;
     order: 1;

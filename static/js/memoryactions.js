@@ -11,6 +11,7 @@ export function provenanceLabels(provenance = {}) {
   const count = Array.isArray(provenance.memories) ? provenance.memories.length : 0;
   if (count) labels.push(`${count} memor${count === 1 ? 'y' : 'ies'}`);
   if (provenance.document?.path) labels.push(`note: ${provenance.document.path}`);
+  if (Array.isArray(provenance.document?.documents)) labels.push(`${provenance.document.documents.length} selected notes only`);
   if (provenance.model) labels.push(`${provenance.endpoint || 'model'} / ${provenance.model}`);
   return labels;
 }
@@ -43,7 +44,28 @@ export function contextProvenanceElement(provenance = {}) {
   details.querySelectorAll('[data-forget-memory]').forEach(button => {
     button.addEventListener('click', () => forgetResponseMemory(button, button.dataset.forgetMemory));
   });
+  for (const source of provenance.document?.documents || []) {
+    const snapshot = document.createElement('details');
+    snapshot.className = 'source-snapshot';
+    const label = document.createElement('summary'); label.textContent = source.path;
+    const note = document.createElement('p'); note.textContent = 'version used for this answer';
+    const open = document.createElement('a'); open.textContent = 'open source';
+    open.href = `/?app=docs&doc=${encodeURIComponent(source.path)}&doc_hash=${encodeURIComponent(source.hash)}`;
+    const content = document.createElement('pre'); content.textContent = source.content;
+    content.tabIndex = 0; content.setAttribute('aria-label', `source text: ${source.path}`);
+    snapshot.append(label, note, open, content);
+    details.querySelector('.context-provenance-body').append(snapshot);
+  }
   return details;
+}
+
+export function sourceCitationStatus(report) {
+  if (!report) return null;
+  const status = document.createElement('p'); status.className = 'source-citation-status';
+  status.textContent = report.status === 'cited' ? 'source passages included; check that they support the answer'
+    : report.status === 'needs_review' ? 'some source references are unavailable; review this answer'
+      : 'no source passages cited; review this answer';
+  return status;
 }
 
 export async function forgetResponseMemory(button, memoryId) {
