@@ -2597,6 +2597,14 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 
 [source](routes/read.py)
 
+Feed refresh returns `ok`, `checked`, `failed`, `added`, `skipped` and per-feed outcomes.
+HTTP, parsing and save failures keep that feed's last successful check unchanged; successful
+feeds commit their new links independently. Repeated or overlapping refreshes skip saved URLs,
+with at most 25 new links per feed per refresh. Removing a subscription keeps its saved articles.
+The feed panel retains an unfinished URL and the last loaded list during failures, reports partial
+refresh results, and supports retry. Refresh uses the existing guarded HTTP client; it does not
+retrieve full article text from each entry's publisher.
+
 | method | path | handler |
 | --- | --- | --- |
 | `GET` | `/api/read` | `list_items` |

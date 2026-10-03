@@ -239,7 +239,7 @@ test('Read keeps its scoped fetcher for feeds and later actions', () => {
   const read = specialistSources.read;
   assert.match(read, /let _fetcher = fetch/);
   assert.match(read, /initRead\(fetcher = fetch\)[^]*_fetcher = fetcher/);
-  assert.match(read, /loadFeeds\(\)[^]*?_fetcher\('\/api\/read\/feeds'/);
+  assert.match(read, /loadFeeds\(\)[^]*?_json\(_fetcher, '\/api\/read\/feeds'/);
   assert.doesNotMatch(read, /\bfetch\(`?\/api\/read/);
 });
 

@@ -30,6 +30,14 @@ let _returnItem = null;
 let _open = null;   // full item being read
 let _feeds = [];
 let _showFeeds = false;
+let _feedDraft = '';
+let _feedBusy = false;
+let _feedListLoading = false;
+let _feedListError = '';
+let _feedLoadGeneration = 0;
+let _feedMessage = '';
+let _feedFailed = false;
+const _feedErrors = new Map();
 let _fetcher = fetch;
 let _hasItems = false;
 let _hasStats = false;
@@ -46,8 +54,42 @@ export function initRead(fetcher = fetch) {
 }
 
 async function loadFeeds() {
-  try { _feeds = (await _fetcher('/api/read/feeds').then(r => r.json())).feeds || []; }
-  catch { _feeds = []; }
+  const generation = ++_feedLoadGeneration;
+  _feedListLoading = true;
+  try {
+    const result = await _json(_fetcher, '/api/read/feeds');
+    if (!Array.isArray(result?.feeds) || result.feeds.some(feed => typeof feed.id !== 'string' || typeof feed.url !== 'string')) throw new Error('invalid feed list');
+    if (generation === _feedLoadGeneration) { _feeds = result.feeds; _feedListError = ''; }
+  } catch {
+    if (generation === _feedLoadGeneration) _feedListError = 'could not load feeds; showing the last loaded list. retry to check current feeds.';
+  } finally {
+    if (generation === _feedLoadGeneration) _feedListLoading = false;
+  }
+}
+
+async function _feedRequest(url, options, valid) {
+  const response = await _fetcher(url, options);
+  const result = await response.json().catch(() => null);
+  if (options.method === 'DELETE' && response.status === 404) return { ok: true };
+  if (!response.ok) throw Object.assign(new Error(typeof result?.detail === 'string' ? result.detail : 'could not confirm the feed change; retry'), { status: response.status });
+  if (!valid(result)) throw new Error('could not confirm the feed result; refresh to check again');
+  return result;
+}
+
+async function _changeFeeds(work, focusId) {
+  if (_feedBusy || _feedListLoading) return;
+  const navigation = _openGeneration;
+  _feedBusy = true; _feedMessage = ''; _feedFailed = false;
+  _render();
+  try { await work(); }
+  catch (error) {
+    _feedFailed = true;
+    _feedMessage = error instanceof TypeError ? 'could not connect; check your connection and retry' : error.message;
+  } finally {
+    _feedBusy = false;
+    _render();
+    if (navigation === _openGeneration && $('read-body')?.getClientRects().length && document.activeElement === document.body) $(focusId)?.focus();
+  }
 }
 
 async function _json(fetcher, url) {
@@ -168,15 +210,19 @@ function _loadNotice() {
 }
 
 function _feedsPanel() {
-  return `<div class="read-feeds">
+  const disabled = _feedBusy || _feedListLoading ? 'disabled' : '';
+  return `<div class="read-feeds" aria-busy="${_feedBusy || _feedListLoading}">
     <div class="read-feeds-add">
-      <input type="text" id="feed-url" class="settings-input" placeholder="rss / atom feed url…" spellcheck="false">
-      <button class="btn" id="feed-add">add feed</button>
-      <button class="btn" id="feed-refresh" title="poll all feeds now">refresh</button>
+      <input type="text" id="feed-url" class="settings-input" aria-label="RSS or Atom feed URL" placeholder="rss / atom feed url…" spellcheck="false" value="${esc(_feedDraft)}" ${disabled}>
+      <button class="btn" id="feed-add" ${disabled}>add feed</button>
+      <button class="btn" id="feed-refresh" title="poll all feeds now" ${disabled}>${_feedBusy ? 'working…' : 'refresh'}</button>
     </div>
+    ${_feedListLoading ? '<p class="read-feed-notice" role="status">loading feeds…</p>' : ''}
+    ${_feedListError ? `<div class="read-feed-notice" role="alert"><span>${esc(_feedListError)}</span><button class="btn" id="feed-retry" ${disabled}>retry feed list</button></div>` : ''}
+    ${_feedMessage ? `<p class="read-feed-notice" role="${_feedFailed ? 'alert' : 'status'}">${esc(_feedMessage)}</p>` : ''}
     ${_feeds.length ? `<div class="read-feeds-list">${_feeds.map(f => `
-      <div class="read-feed-row"><span class="read-feed-title">${esc(f.title || f.url)}</span><span class="read-feed-url">${esc(f.url)}</span><button class="icon-btn danger" data-feed-del="${f.id}" title="remove feed">${_si('trash')}</button></div>`).join('')}</div>`
-      : '<div class="read-feeds-empty">no feeds yet: add an rss/atom url and new posts auto-save into your list.</div>'}
+      <div class="read-feed-row"><div class="read-feed-info"><span class="read-feed-title">${esc(f.title || f.url)}</span>${f.title ? `<span class="read-feed-url">${esc(f.url)}</span>` : ''}${_feedErrors.has(f.id) ? `<span class="read-feed-error">${esc(_feedErrors.get(f.id))}</span>` : ''}</div><button class="icon-btn danger" data-feed-del="${f.id}" title="remove feed" aria-label="remove feed ${esc(f.title || f.url)}" ${disabled}>${_si('trash')}</button></div>`).join('')}</div>`
+      : (!_feedListError && !_feedListLoading ? '<div class="read-feeds-empty">no feeds yet: add an rss/atom url and new posts auto-save into your list.</div>' : '')}
   </div>`;
 }
 
@@ -227,7 +273,7 @@ function _render() {
   body.removeAttribute('aria-label');
   if (_open) { _renderReader(body); return; }
   const active = document.activeElement;
-  const editing = !_saving && body.contains(active) && ['read-url', 'read-q'].includes(active.id)
+  const editing = !_saving && body.contains(active) && ['read-url', 'read-q', 'feed-url'].includes(active.id)
     ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
   if (editing?.id === 'read-url' && !active.disabled) _urlDraft = active.value;
   body.innerHTML = `
@@ -443,29 +489,53 @@ function _wire(body) {
 
   $('read-feeds-btn')?.addEventListener('click', async () => {
     _showFeeds = !_showFeeds;
-    if (_showFeeds) await loadFeeds();
+    if (_showFeeds) { const loading = loadFeeds(); _render(); await loading; }
     _render();
   });
   if (_showFeeds) {
-    const addFeed = async () => {
-      const url = $('feed-url')?.value.trim();
+    $('feed-url')?.addEventListener('input', event => { _feedDraft = event.target.value; });
+    $('feed-retry')?.addEventListener('click', async () => {
+      const loading = loadFeeds(); _render(); await loading; _render();
+      if ($('feed-url')?.getClientRects().length && document.activeElement === document.body) $('feed-url').focus();
+    });
+    const addFeed = () => {
+      const url = _feedDraft.trim();
       if (!url) return;
-      const r = await _fetcher('/api/read/feeds', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
-      if (!r.ok) { toast((await r.json()).detail || 'failed', 'error'); return; }
-      await loadFeeds(); _render();
+      return _changeFeeds(async () => {
+        try {
+          await _feedRequest('/api/read/feeds', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) }, result => typeof result?.id === 'string' && typeof result.url === 'string');
+        } catch (error) {
+          if (error.status !== 400 || error.message !== 'feed already added') throw error;
+          await loadFeeds();
+          const normalized = url.startsWith('http') ? url : 'https://' + url;
+          if (_feedListError || _feedListLoading || !_feeds.some(feed => feed.url === normalized)) throw new Error('feed may already be added; retry the feed list to confirm');
+        }
+        if (_feedDraft.trim() === url) _feedDraft = '';
+        _feedMessage = 'feed added';
+        await loadFeeds();
+      }, 'feed-url');
     };
     $('feed-add')?.addEventListener('click', addFeed);
-    $('feed-url')?.addEventListener('keydown', e => { if (e.key === 'Enter') addFeed(); });
-    $('feed-refresh')?.addEventListener('click', async () => {
-      const btn = $('feed-refresh'); if (btn) btn.textContent = '…';
-      await _fetcher('/api/read/feeds/refresh', { method: 'POST' });
-      toast('feeds refreshed', 'success');
-      await loadFeeds(); await loadRead();   // loadRead re-renders with any new items
-    });
-    body.querySelectorAll('[data-feed-del]').forEach(b => b.addEventListener('click', async () => {
-      await _fetcher(`/api/read/feeds/${b.dataset.feedDel}`, { method: 'DELETE' });
-      await loadFeeds(); _render();
-    }));
+    $('feed-url')?.addEventListener('keydown', e => { if (e.key === 'Enter') void addFeed(); });
+    $('feed-refresh')?.addEventListener('click', () => _changeFeeds(async () => {
+      const result = await _feedRequest('/api/read/feeds/refresh', { method: 'POST' }, value =>
+        typeof value?.ok === 'boolean' && ['checked', 'failed', 'added', 'skipped'].every(key => Number.isInteger(value[key]) && value[key] >= 0) && Array.isArray(value.feeds));
+      _feedErrors.clear();
+      result.feeds.forEach(feed => { if (!feed.ok) _feedErrors.set(feed.id, feed.error || 'could not refresh this feed'); });
+      _feedFailed = !result.ok;
+      _feedMessage = `${result.checked} feed${result.checked === 1 ? '' : 's'} checked; ${result.added} new item${result.added === 1 ? '' : 's'} saved`;
+      if (result.failed) _feedMessage += `; ${result.failed} feed${result.failed === 1 ? '' : 's'} failed. refresh to retry.`;
+      if (result.skipped) _feedMessage += `; ${result.skipped} removed or changed feed${result.skipped === 1 ? '' : 's'} skipped`;
+      if (!result.checked && !result.failed && !result.skipped) _feedMessage = 'no feeds to refresh; add a feed first';
+      await loadFeeds(); await loadRead();
+    }, 'feed-refresh'));
+    body.querySelectorAll('[data-feed-del]').forEach(button => button.addEventListener('click', () => _changeFeeds(async () => {
+      await _feedRequest(`/api/read/feeds/${encodeURIComponent(button.dataset.feedDel)}`, { method: 'DELETE' }, result => result?.ok === true);
+      _feeds = _feeds.filter(feed => feed.id !== button.dataset.feedDel);
+      _feedErrors.delete(button.dataset.feedDel);
+      _feedMessage = 'feed removed; saved articles kept';
+      await loadFeeds();
+    }, 'feed-refresh')));
   }
 
   const qEl = $('read-q');
