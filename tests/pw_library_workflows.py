@@ -531,6 +531,10 @@ def run():
                     page.locator(f'[data-open="{item["id"]}"]').tap()
                     expect(page.locator(".read-article")).to_be_visible()
                     page.locator("#read-back").tap()
+                assert not context.request.get(base + "/api/read/" + item["id"]).json()["read"]
+                page.locator(f'[data-open="{item["id"]}"]').click()
+                page.locator("#read-complete").click()
+                expect(page.locator("#read-completion-status")).to_have_text("marked read")
                 assert context.request.get(base + "/api/read/" + item["id"]).json()["read"]
                 assert not events["page_errors"], events["page_errors"]
                 assert all(e in allowed_http for e in events["http_errors"]), events["http_errors"]
