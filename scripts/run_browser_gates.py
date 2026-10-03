@@ -93,6 +93,7 @@ COMMANDS = {
     "mail-account-recovery-edges": ("tests/pw_mail_account_recovery_edges.py",),
     "mail-oauth-recovery": ("tests/pw_mail_oauth_recovery.py",),
     "mail-signature-recovery": ("tests/pw_mail_signature_recovery.py",),
+    "mail-signature-management": ("tests/pw_mail_signature_management.py",),
     "vault-backup": ("tests/pw_vault_backup.py",),
     "vault-setup-desktop": ("tests/pw_vault_setup.py", "desktop"),
     "vault-setup-phone": ("tests/pw_vault_setup.py", "phone"),
