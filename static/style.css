@@ -9365,6 +9365,29 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-inline-actions { margin-left: auto; display: flex; gap: 0.25rem; }
 .docs-inline-actions button { min-height: 25px; padding: 0 0.45rem; border: 0; }
 
+.docs-import-trigger { flex: 0 0 auto; min-height: 44px; padding-inline: var(--k-space-3); }
+.docs-import-panel {
+  display: grid;
+  grid-auto-rows: max-content;
+  gap: var(--k-space-2);
+  padding: var(--k-space-4);
+  min-height: 0;
+  max-height: 65vh;
+  overflow: auto;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--faint);
+}
+.docs-import-panel p { margin: 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.docs-import-panel input { min-width: 0; width: 100%; }
+.docs-import-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2); }
+.docs-import-panel pre { margin: 0; max-height: 24vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.docs-import-panel pre:empty { display: none; }
+#docs-import-save { justify-self: start; }
+.docs-import-recovery:empty { display: none; }
+.docs-import-recovery { padding: var(--k-space-3) var(--k-space-4); overflow-wrap: anywhere; }
+.docs-import-recovery p { margin: 0; }
+.docs-import-recovery .capture-source pre { max-height: 20vh; }
+
 .docs-ask-panel {
   min-height: 46px;
   display: grid;

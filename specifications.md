@@ -256,6 +256,18 @@ what it supports:
   background aide work. relative file work starts in the selected server folder, and missing folders
   keep their chats until you explicitly relink them
 - **artifacts**: when the model writes html/svg/a webpage/code, you see it rendered live, not as a wall of text
+- **document import**: Docs previews local Markdown, UTF-8 text, DOCX, HTML and supported
+  PDFs before saving. Markdown and text retain their exact content; converted documents show
+  extracted text for review. Invalid encoding, empty extraction and oversized input fail without
+  creating a note. Import uses the existing recovery writer, keeps uncertain saves for retry,
+  saves a numbered copy when a name exists, and provides the exact saved destination. PDF
+  extraction requires an existing PDF reader installation; no OCR or layout fidelity is implied.
+  Imports accept up to 8 MiB of input and 1 MiB of extracted UTF-8 text.
+  Standard stored/deflated DOCX archives are checked against 32 MiB of actual expanded data
+  before parsing; inconsistent sizes, checksums and unsupported compression are rejected.
+  PDF extraction runs one job at a time in a disposable process with a 10-second deadline and a 256 MiB memory
+  watchdog; Linux also applies kernel memory and CPU limits. A failed or limited extraction
+  returns no partial document.
 - **selected-note answers**: Docs can send up to eight exact note versions to Aide. This
   selection excludes other conversation history, memories, attached knowledge, uploads, and
   tool reads. Missing or changed notes require review before dispatch. Answers retain the source
@@ -1311,9 +1323,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 908 http method/path pairs
-- 891 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `0bdf816a2a031bb8621fc7d37f11e4e6a6dc031a708832e2a3341b158f488069`
+- 909 http method/path pairs
+- 892 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `892e4e93fc5ebb2dc7ca66d968b2f89114649aabaa2d0261b6148075d0b241c7`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -3017,7 +3029,7 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 </details>
 
 <details>
-<summary>routes/vault_md.py · 29 operations</summary>
+<summary>routes/vault_md.py · 31 operations</summary>
 
 [source](routes/vault_md.py)
 
@@ -3025,6 +3037,8 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 | --- | --- | --- |
 | `GET` | `/api/vault-md/ask` | `ask_vault` |
 | `GET` | `/api/vault-md/backlinks` | `backlinks` |
+| `GET` | `/api/vault-md/create-scope` | `note_create_scope` |
+| `POST` | `/api/vault-md/import-preview` | `preview_import` |
 | `DELETE` | `/api/vault-md/file` | `delete_file` |
 | `GET` | `/api/vault-md/file` | `read_file` |
 | `POST` | `/api/vault-md/file` | `create_file` |
