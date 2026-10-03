@@ -109,15 +109,6 @@ with sync_playwright() as pw:
                 page.route(
                     base + "/api/mail/test/*", lambda route: route.fulfill(json={"ok": True})
                 )
-                page.route(
-                    base + "/api/mail/oauth/status",
-                    lambda route: route.fulfill(
-                        json={
-                            "configured": not case.startswith("oauth-"),
-                            "redirect_uri": base + "/api/mail/oauth/google/callback",
-                        }
-                    ),
-                )
                 page.goto(base + "/?view=inbox", wait_until="networkidle")
                 page.get_by_role("tab", name="mail", exact=True).click()
                 page.get_by_role("button", name="mail settings", exact=True).click()

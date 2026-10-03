@@ -162,6 +162,7 @@ _defaults = {
     "extra_eventkit": False,
     "extra_keychain": False,
     # mail oauth ("sign in with google") - the user's own google cloud oauth client
+    "mail_oauth_revision": 0,
     "mail_oauth_client_id": "",
     "mail_oauth_client_secret": "",
     "mail_oauth_redirect_base": "",  # blank follows the local Alles port; override for another URL
@@ -305,6 +306,17 @@ def _save_settings_locked(patch: dict):
             "automatic_tools" if patch["agent_auto_intents"] else "answer_only"
         )
     s = load_settings()
+    # Every configuration writer invalidates older conditional OAuth saves.
+    patch.pop("mail_oauth_revision", None)
+    if {
+        "mail_oauth_client_id",
+        "mail_oauth_client_secret",
+        "mail_oauth_redirect_base",
+    } & patch.keys():
+        revision = s.get("mail_oauth_revision", 0)
+        if type(revision) is not int or revision < 0:
+            raise ValueError("could not read the Google configuration revision")
+        patch["mail_oauth_revision"] = revision + 1
     s.update(patch)
     # never persist the vault password — strip it if it snuck in
     s.pop("vault_pw_b64", None)

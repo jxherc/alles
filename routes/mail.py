@@ -412,7 +412,41 @@ def test(aid: str, db: DbSession = Depends(get_db)):
 # ── google oauth ("sign in with google") ──────────────────────────────────────
 @router.get("/oauth/status")
 def oauth_status():
-    return {"configured": mail_oauth.configured(), "redirect_uri": mail_oauth.redirect_uri()}
+    from services.recovery_consistency import recovery_consistency_lock
+
+    with recovery_consistency_lock:
+        return {
+            **mail_oauth.configuration(),
+            "recovery_scopes": _mail_recovery_scopes("alles-mail-oauth"),
+        }
+
+
+class OAuthConfigBody(BaseModel):
+    client_id: str
+    client_secret: str | None = None
+    redirect_base: str = ""
+    expected_revision: int = Field(strict=True, ge=0)
+    recovery_scope: str = ""
+
+
+@router.post("/oauth/config")
+def oauth_config(body: OAuthConfigBody):
+    from services.recovery_consistency import recovery_consistency_lock
+
+    try:
+        with recovery_consistency_lock:
+            if body.recovery_scope and body.recovery_scope not in _mail_recovery_scopes(
+                "alles-mail-oauth"
+            ):
+                raise HTTPException(
+                    409, "Google configuration storage changed; reopen account settings"
+                )
+            result = mail_oauth.save_configuration(**body.model_dump(exclude={"recovery_scope"}))
+            return {**result, "recovery_scopes": _mail_recovery_scopes("alles-mail-oauth")}
+    except mail_oauth.ConfigurationConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @router.get("/oauth/google/start")
