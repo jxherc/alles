@@ -90,13 +90,50 @@ async function toggleDetail(row, id) {
 }
 
 export function sourcesHtml(src) {
-  if (!src) return '';
-  const section = (label, items, cls = '') => items?.length
-    ? `<div class="run-src-group"><span class="run-src-label">${label}</span>${items.map(x => `<span class="run-src-item ${cls}">${esc(x)}</span>`).join('')}</div>`
-    : '';
-  const out = section('files', src.files) + section('urls', src.urls, 'mono')
-    + section('searches', src.searches) + section('commands', src.commands, 'mono');
-  return out || '<div class="run-src-none">nothing external touched</div>';
+  if (!src || !Array.isArray(src.sources) || !src.outcomes) {
+    return '<p class="run-src-none">source history unavailable</p>';
+  }
+  const toolName = name => String(name || 'tool').replaceAll('_', ' ');
+  const reference = item => {
+    const path = item.path || (item.kind === 'doc' ? item.ref : '');
+    const label = item.label || path || item.url || item.ref || toolName(item.tool);
+    let href = '', external = false;
+    if (path && ['document', 'doc'].includes(item.kind)) {
+      href = `/?app=docs&doc=${encodeURIComponent(path)}`;
+      if (/^[a-f0-9]{64}$/.test(item.hash || '')) href += `&doc_hash=${encodeURIComponent(item.hash)}`;
+    } else if (item.kind === 'read' && /^[a-zA-Z0-9_-]{1,160}$/.test(item.ref || '')) {
+      href = `/?app=read&record_view=read&record=${encodeURIComponent(item.ref)}`;
+    } else if (item.kind === 'url') {
+      try {
+        const url = new URL(item.url);
+        if (['https:', 'http:'].includes(url.protocol)) { href = url.href; external = true; }
+      } catch { /* an unavailable or invalid destination stays readable */ }
+    }
+    const version = /^[a-f0-9]{64}$/.test(item.hash || '') ? ' · read version' : '';
+    const text = `${esc(label)}${version}`;
+    return href ? `<a class="run-src-item" href="${esc(href)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${text}</a>`
+      : `<span class="run-src-item">${text}</span>`;
+  };
+  const section = (label, items) => items.length
+    ? `<div class="run-src-group"><span class="run-src-label">${label}</span>${items.join('')}</div>` : '';
+  const reads = src.sources.filter(item => item.kind !== 'search');
+  const searches = src.sources.filter(item => item.kind === 'search');
+  let out = section('confirmed reads', reads.map(reference));
+  for (const search of searches) {
+    const results = Array.isArray(search.results) ? search.results : [];
+    out += section('search results', [
+      `<span class="run-src-item">${esc(toolName(search.tool))}: ${esc(search.query)} · ${results.length} saved reference${results.length === 1 ? '' : 's'}</span>`,
+      ...results.map(reference),
+    ]);
+  }
+  out += section('other completed tools', (src.actions || []).map(action =>
+    `<span class="run-src-item">${esc(toolName(action.tool))}${action.path || action.command ? `: ${esc(action.path || action.command)}` : ''}</span>`));
+  const { failed = 0, unfinished = 0, unknown = 0 } = src.outcomes;
+  const pending = [failed && `${failed} failed or denied`, unfinished && `${unfinished} without a final result`, unknown && `${unknown} with an unknown outcome`].filter(Boolean);
+  if (!out) out = '<p class="run-src-none">no confirmed tool sources</p>';
+  if (pending.length) out += `<p class="run-src-none">${esc(pending.join(' · '))}</p>`;
+  if (!src.history_complete) out += '<p class="run-src-none">older or incomplete history; some tool results may be unavailable</p>';
+  return out + '<p class="run-src-none">tool history records what returned successfully. search results may be excerpts; they do not verify every claim in the answer.</p>';
 }
 
 function detailHtml(run, src, id) {
