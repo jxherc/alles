@@ -5,6 +5,8 @@ import { toast, _safeUrl } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
 import { wireChoiceGroup } from './kokuen.js';
 import { readingPlace } from './reading_place.js';
+import { loadReadingNoteRecovery, takeReadingNote } from './reading_note.js';
+import { clearLinkedRecord } from './recordlinks.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -29,7 +31,9 @@ let _detachPlace = () => {};
 const _places = new Map();
 
 export function initRead(fetcher = fetch) {
+  ++_openGeneration;
   _fetcher = fetcher;
+  void loadReadingNoteRecovery();
   return loadRead(fetcher);
 }
 
@@ -204,9 +208,11 @@ function _renderReader(body) {
     <div class="read-reader">
       <div class="read-reader-bar">
         <button class="btn" id="read-back">${_si('chevron-left') || '←'} back</button>
+        <button class="btn" type="button" id="read-note">take note</button>
         <a class="btn" href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open original ${_si('link')}</a>
       </div>
       <article class="read-article">
+        ${it.sourceChanged ? '<p class="read-source-notice" role="status">this article changed since the note was saved. the current text is shown below.</p>' : ''}
         <div class="read-toolbar">
           <button type="button" class="btn" id="read-complete" aria-pressed="${!!it.read}">${it.read ? 'mark unread' : 'mark read'}</button>
           <p id="read-completion-status" role="status"></p>
@@ -217,6 +223,7 @@ function _renderReader(body) {
       </article>
     </div>`;
   const place = _attachReadingPlace(body, it);
+  $('read-note').addEventListener('click', () => takeReadingNote(it));
   const complete = $('read-complete');
   const back = $('read-back');
   back.addEventListener('click', async () => {
@@ -224,6 +231,7 @@ function _renderReader(body) {
     back.disabled = complete.disabled = true;
     try {
       if ((!(await place.drain()) && !place.blocked) || _open !== it) return;
+      clearLinkedRecord('read');
       _open = null;
       await loadRead();
       (body.querySelector(`[data-open="${_returnItem}"]`) || $('read-q'))?.focus();
@@ -257,6 +265,8 @@ function _attachReadingPlace(body, item) {
   bar.id = 'read-position-bar';
   bar.innerHTML = '<div class="read-toolbar"><p id="read-position-status" role="status" tabindex="-1"></p><button type="button" class="btn" id="read-position-retry" hidden>retry</button></div>';
   bar.prepend(body.querySelector('.read-reader-bar'));
+  const sourceNotice = body.querySelector('.read-source-notice');
+  if (sourceNotice) bar.append(sourceNotice);
   body.before(bar);
   const notice = bar.querySelector('#read-position-status');
   const retry = bar.querySelector('#read-position-retry');
@@ -431,15 +441,21 @@ async function _save() {
   }
 }
 
-export async function openReadItem(id) {
+let _openGeneration = 0;
+export async function openReadItem(id, isCurrent = () => Boolean($('read-body')?.getClientRects().length), expectedHash = '') {
+  const run = ++_openGeneration;
   try {
-    _open = await _json(_fetcher, `/api/read/${encodeURIComponent(id)}`);
+    const item = await _json(_fetcher, `/api/read/${encodeURIComponent(id)}`);
+    if (run !== _openGeneration || !isCurrent()) return false;
+    _open = item;
+    _open.sourceChanged = !!expectedHash && expectedHash !== item.content_hash;
     const previous = _places.get(id)?.place;
     if (previous && !previous.unsaved && !previous.pending) _places.delete(id);
     _returnItem = id;
     _render();
     $('read-back')?.focus();
   } catch {
+    if (run !== _openGeneration || !isCurrent()) return false;
     _open = null;
     _render();
     $('read-q')?.focus();
