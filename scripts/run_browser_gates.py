@@ -82,6 +82,7 @@ COMMANDS = {
     "finance-recurring-repair": ("tests/pw_finance_recurring_repair.py",),
     "library-workflows": ("tests/pw_library_workflows.py",),
     "book-create": ("tests/pw_book_create.py",),
+    "read-text": ("tests/pw_read_text.py",),
     "book-scope-recovery": ("tests/pw_book_scope_recovery.py",),
     "book-write-outcomes": ("tests/pw_book_write_outcomes.py",),
     "book-write-recovery": ("tests/pw_book_write_recovery.py",),
@@ -268,9 +269,9 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
         "acceptance_fingerprint": contract_before,
         "integration_mode": "local services; model downloads disabled; no provider credentials",
     }
-    if name == "feed-workflows":
+    if name in {"feed-workflows", "read-text"}:
         result["integration_mode"] = (
-            "real local app and database; synthetic feed HTTP responses; no external feed requests"
+            "real local app and database; synthetic HTTP responses; no external requests"
         )
     with owned_data() as (data, run_id):
         port = free_port()
@@ -287,7 +288,10 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
                 server = subprocess.Popen(
                     [
                         sys.executable,
-                        "tests/feed_browser_server.py" if name == "feed-workflows" else "app.py",
+                        {
+                            "feed-workflows": "tests/feed_browser_server.py",
+                            "read-text": "tests/read_text_browser_server.py",
+                        }.get(name, "app.py"),
                     ],
                     cwd=ROOT,
                     env=env,

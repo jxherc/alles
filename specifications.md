@@ -339,6 +339,13 @@ related apps now open together without merging their records.
   URL saves retain their request identity for retry or confirmation after reload. Repeating a pending
   save returns the original article without fetching it again; deleting it prevents that same request
   from recreating it. Failed URL extraction still preserves the link.
+  The reader distinguishes saved news excerpts, extracted text, empty records and older text whose
+  origin is unknown. Fetch article text explicitly retrieves readable text through the guarded URL
+  extractor; non-success HTTP responses and empty extraction retain existing text. Legacy text
+  requires confirmation before replacement. Retrieval preserves title, source tags and completion;
+  only a changed text version restarts the reading place. After a lost reply, check saved text or
+  retry confirms the current extracted version without fetching again. Saving news still makes no
+  publisher request. Extraction does not guarantee every paragraph or bypass paid access.
 - **health** places today's habit rhythm beside the latest measurements without changing the local,
   sensitive health-context boundary
 - **finance** combines money, subscriptions, reviewed imports, and visible managed-actual state
@@ -1342,9 +1349,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 911 http method/path pairs
-- 894 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `bd97565b102f02a2d10353fb71458f981eecc6b9418cede5a80a655febd31716`
+- 912 http method/path pairs
+- 895 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `9eba492fafb69fd51b6dc3a203e25ef0026a61724f00b5d0a35583d7437eaed4`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -2603,7 +2610,7 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 </details>
 
 <details>
-<summary>routes/read.py · 12 operations</summary>
+<summary>routes/read.py · 13 operations</summary>
 
 [source](routes/read.py)
 
@@ -2628,6 +2635,7 @@ retrieve full article text from each entry's publisher.
 | `GET` | `/api/read/stats` | `read_stats` |
 | `DELETE` | `/api/read/{rid}` | `delete_item` |
 | `GET` | `/api/read/{rid}` | `get_item` |
+| `POST` | `/api/read/{rid}/fetch-text` | `fetch_text` |
 | `PATCH` | `/api/read/{rid}` | `patch_item` |
 | `POST` | `/api/read/{rid}/read` | `toggle_read` |
 
@@ -3270,7 +3278,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `push_subscriptions` | `id: VARCHAR pk`, `endpoint: TEXT`, `p256dh: VARCHAR ?`, `auth: TEXT ? sealed`, `created_at: DATETIME ?` | — |
 | `read_feeds` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `last_checked: DATETIME ?`, `created_at: DATETIME ?` | — |
 | `read_create_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR`, `item_id: VARCHAR`, `created_at: DATETIME ?` | — |
-| `read_items` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `text: TEXT ?`, `excerpt: VARCHAR ?`, `site: VARCHAR ?`, `image: VARCHAR ?`, `read_minutes: INTEGER ?`, `added_at: DATETIME ?`, `read_at: VARCHAR ?`, `read_position: FLOAT` (default 0), `fav: BOOLEAN ?`, `archived: BOOLEAN ?`, `tags: VARCHAR ?` | — |
+| `read_items` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `text: TEXT ?`, `text_state: VARCHAR` (default unknown), `excerpt: VARCHAR ?`, `site: VARCHAR ?`, `image: VARCHAR ?`, `read_minutes: INTEGER ?`, `added_at: DATETIME ?`, `read_at: VARCHAR ?`, `read_position: FLOAT` (default 0), `fav: BOOLEAN ?`, `archived: BOOLEAN ?`, `tags: VARCHAR ?` | — |
 | `reminder_create_receipts` | `id: VARCHAR pk`, `reminder_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `reminders` | `id: VARCHAR pk`, `text: TEXT`, `trigger_at: DATETIME`, `type: VARCHAR ?`, `session_id: VARCHAR ?`, `fired: BOOLEAN ?`, `notified: BOOLEAN ?`, `created_at: DATETIME ?` | — |
 | `research_findings` | `id: VARCHAR pk`, `url: VARCHAR ?`, `question: TEXT ?`, `title: VARCHAR ?`, `summary: TEXT ?`, `ts: DATETIME ?` | — |
@@ -3371,6 +3379,7 @@ known versions run in ascending order.
 | 62 | `reading_position` | [m0062_reading_position.py](core/migrations/m0062_reading_position.py) |
 | 63 | `read_create_receipts` | [m0063_read_create_receipts.py](core/migrations/m0063_read_create_receipts.py) |
 | 64 | `book_create_receipts` | [m0064_book_create_receipts.py](core/migrations/m0064_book_create_receipts.py) |
+| 65 | `reading_text_state` | [m0065_reading_text_state.py](core/migrations/m0065_reading_text_state.py) |
 
 </details>
 
