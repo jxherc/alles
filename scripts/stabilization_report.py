@@ -30,6 +30,7 @@ BROWSER_SUITES = {
     "surfaces": SURFACE_GATES,
     "daily": (
         "book-create",
+        "read-text",
         "book-scope-recovery",
         "inbox-read-recovery",
         "inbox-saved-searches",
@@ -149,6 +150,7 @@ BROWSER_SUITES = {
         "finance-recurring-repair",
         "library-workflows",
         "book-create",
+        "read-text",
         "book-scope-recovery",
         "book-write-outcomes",
         "book-write-recovery",
@@ -254,6 +256,7 @@ BROWSER_SUITES = {
         "finance-recurring-repair",
         "library-workflows",
         "book-create",
+        "read-text",
         "book-scope-recovery",
         "book-write-outcomes",
         "book-write-recovery",

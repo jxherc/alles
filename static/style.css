@@ -8443,6 +8443,10 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .read-reader-bar .btn svg { width: 13px; height: 13px; vertical-align: -2px; }
 .read-article h1 { font-size: 1.5rem; font-weight: 600; line-height: 1.25; margin-bottom: 0.4rem; }
 .read-article-meta { font-size: 0.75rem; color: var(--muted); margin-bottom: 1.4rem; }
+.read-text-tools { margin-bottom: var(--k-space-5); }
+.read-text-tools p { margin: 0 0 var(--k-space-2); font-size: 13px; line-height: 1.45; color: var(--muted); }
+.read-text-tools .read-save-error { color: var(--error); }
+.read-text-tools [hidden] { display: none; }
 .read-article p { font-size: 0.92rem; line-height: 1.7; color: var(--text); margin-bottom: 1rem; max-width: 68ch; }
 @media (max-width: 560px) { .read-search .settings-input { width: 100%; } .read-toolbar { gap: 0.5rem; } }
 

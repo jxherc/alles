@@ -16,7 +16,14 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import DB_PATH, ReadFeed, ReadItem, get_db
-from services.read_items import make_excerpt, read_minutes, recover_url, save_url, site_of
+from services.read_items import (
+    fetch_saved_text,
+    make_excerpt,
+    read_minutes,
+    recover_url,
+    save_url,
+    site_of,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -43,6 +50,7 @@ def _fmt(it: ReadItem, full: bool = False) -> dict:
         "archived": it.archived,
         "tags": it.tags,
         "source_kind": "saved_news" if "source:news" in tags else "read_later",
+        "text_state": it.text_state,
     }
     if full:
         d["text"] = it.text
@@ -186,6 +194,19 @@ def get_item(rid: str, db: DbSession = Depends(get_db)):
     return _fmt(it, full=True)
 
 
+class FetchTextBody(BaseModel):
+    content_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    replace_saved_text: bool = False
+
+
+@router.post("/read/{rid}/fetch-text")
+def fetch_text(rid: str, body: FetchTextBody, db: DbSession = Depends(get_db)):
+    return _fmt(
+        fetch_saved_text(db, rid, body.content_hash, replace_saved_text=body.replace_saved_text),
+        full=True,
+    )
+
+
 class SaveBody(BaseModel):
     url: str
     request_id: str = ""
@@ -264,6 +285,7 @@ def save_news(body: NewsSaveBody, db: DbSession = Depends(get_db)):
         url=url,
         title=(body.title or body.publisher or site_of(url) or url).strip()[:300],
         text=excerpt,
+        text_state="excerpt" if excerpt else "empty",
         excerpt=excerpt,
         site=(body.publisher or site_of(url)).strip()[:200],
         image=(body.image_url or "").strip()[:2000],

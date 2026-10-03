@@ -315,7 +315,7 @@ class AgentAppToolsTests(ApiTest):
 
     # ── read-later ─────────────────────────────────────────────────────────
     def test_read_save_persists(self):
-        fake = {"content": "hello world body", "title": "Example", "og_image": ""}
+        fake = {"success": True, "content": "hello world body", "title": "Example", "og_image": ""}
         with mock.patch("services.read_items.fetch_webpage_content", return_value=fake):
             r = self.ex("read_save", {"url": "example.com"})
         self.assertFalse(r.get("error"), r)
@@ -324,7 +324,12 @@ class AgentAppToolsTests(ApiTest):
         self.assertEqual(items[0]["title"], "Example")
 
     def test_read_save_uses_read_preview_rules(self):
-        fake = {"content": "quartzweasel\n\n  field notes", "title": "Example", "og_image": ""}
+        fake = {
+            "success": True,
+            "content": "quartzweasel\n\n  field notes",
+            "title": "Example",
+            "og_image": "",
+        }
         with mock.patch("services.read_items.fetch_webpage_content", return_value=fake):
             result = self.ex("read_save", {"url": "www.example.com/story"})
         self.assertFalse(result.get("error"), result)
@@ -334,7 +339,12 @@ class AgentAppToolsTests(ApiTest):
         self.assertEqual(item["excerpt"], "quartzweasel field notes")
 
     def test_read_save_is_available_to_aide_recall(self):
-        fake = {"content": "quartzweasel field notes", "title": "Example", "og_image": ""}
+        fake = {
+            "success": True,
+            "content": "quartzweasel field notes",
+            "title": "Example",
+            "og_image": "",
+        }
         with (
             mock.patch("services.read_items.fetch_webpage_content", return_value=fake),
             mock.patch("services.textindex._embed", return_value=None),

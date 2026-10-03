@@ -109,6 +109,7 @@ def fetch_webpage_content(url: str, timeout: int = 10) -> dict:
     try:
         # SSRF guard re-checked on every redirect hop (a public url can 302 to internal/metadata)
         r = safe_get(url, timeout=timeout, headers={"user-agent": _UA})
+        r.raise_for_status()
         ct = r.headers.get("content-type", "")
         if ct and "html" not in ct and "text" not in ct:
             return blank

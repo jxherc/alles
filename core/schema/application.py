@@ -1399,6 +1399,7 @@ class ReadItem(Base):
     url = Column(String, nullable=False)
     title = Column(String, default="")
     text = Column(Text, default="")
+    text_state = Column(String, default="unknown", server_default="unknown", nullable=False)
     excerpt = Column(String, default="")
     site = Column(String, default="")
     image = Column(String, default="")
