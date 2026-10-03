@@ -12,6 +12,9 @@ let _editingNotes = null;
 const _noteDrafts = new Map();
 const _noteErrors = new Map();
 const _savingNotes = new Set();
+const _writingBooks = new Set();
+const _bookErrors = new Map();
+let _goalDraft = null;
 let _lookup = [];
 let _fetcher = fetch;
 let _hasOverview = false;
@@ -82,6 +85,7 @@ function _card(b) {
         <div class="book-title">${esc(b.title)}</div>
         <div class="book-author">${esc(b.author || '')}${b.year ? ` · ${b.year}` : ''}</div>
         ${_stars(b)}
+        ${_bookErrors.has(b.id) ? `<p class="book-notes-error book-write-error" role="alert">${esc(_bookErrors.get(b.id))}</p>` : ''}
         <div class="book-move">${others.map(k => `<button class="book-move-btn" data-move="${k}">${k === 'done' ? 'read' : k === 'reading' ? 'reading' : 'want'}</button>`).join('')}</div>
         ${b.id === _editingNotes
           ? `<div class="book-notes-edit"><textarea class="settings-input" data-f="notes" rows="3" placeholder="your notes…">${esc(_noteDrafts.get(b.id) ?? b.notes)}</textarea>${_noteErrors.has(b.id) ? `<p class="book-notes-error" role="alert">${esc(_noteErrors.get(b.id))}</p>` : ''}<div class="book-notes-actions"><button class="btn primary" data-act="save-notes">save</button><button class="btn" data-act="cancel-notes">cancel</button></div></div>`
@@ -146,6 +150,56 @@ function _addForm() {
     </div>`;
 }
 
+async function _bookRequest(url, options, valid) {
+  const response = await _fetcher(url, options);
+  const result = await response.json().catch(() => null);
+  if (options.method === 'DELETE' && response.status === 404) return { ok: true };
+  if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : 'could not confirm this change; try again');
+  if (!valid(result)) throw new Error('could not confirm this change; check saved books before retrying');
+  return result;
+}
+
+async function _changeBook(card, options, valid, message) {
+  const id = card.dataset.id;
+  if (_writingBooks.has(id) || _savingNotes.has(id)) return;
+  _writingBooks.add(id); _bookErrors.delete(id);
+  card = [...document.querySelectorAll('#books-body .book-card')].find(item => item.dataset.id === id) || card;
+  card.querySelector('.book-write-error')?.remove();
+  const trigger = document.activeElement;
+  const controls = [...card.querySelectorAll('button, textarea')].map(control => [control, control.disabled]);
+  controls.forEach(([control]) => { control.disabled = true; });
+  card.setAttribute('aria-busy', 'true');
+  try {
+    await _bookRequest(`/api/books/${id}`, options, valid);
+    toast(message, 'success');
+    await loadBooks();
+  } catch (failure) {
+    const message = failure instanceof TypeError ? 'could not connect; check your connection and try again' : failure.message;
+    _bookErrors.set(id, message);
+    const current = [...document.querySelectorAll('#books-body .book-card')].find(item => item.dataset.id === id);
+    if (current) {
+      let notice = current.querySelector('.book-write-error');
+      if (!notice) { notice = document.createElement('p'); notice.className = 'book-notes-error book-write-error'; notice.setAttribute('role', 'alert'); current.querySelector('.book-info').append(notice); }
+      notice.textContent = message;
+      const book = Object.values(_data.shelves).flat().find(item => item.id === id);
+      current.querySelectorAll('[data-rate]').forEach(radio => { radio.setAttribute('aria-checked', String(+radio.dataset.rate === book?.rating)); });
+    }
+    toast(message, 'error');
+  } finally {
+    _writingBooks.delete(id);
+    card.removeAttribute('aria-busy');
+    controls.forEach(([control, disabled]) => { control.disabled = disabled; });
+    const current = [...document.querySelectorAll('#books-body .book-card')].find(item => item.dataset.id === id);
+    if (current && current !== card && !_savingNotes.has(id)) {
+      current.removeAttribute('aria-busy');
+      current.querySelectorAll('button, textarea').forEach(control => { control.disabled = false; });
+    }
+    if ($('books-body')?.getClientRects().length && document.activeElement === document.body) {
+      (trigger?.isConnected ? trigger : current || $('books-add-toggle'))?.focus();
+    }
+  }
+}
+
 function _wire(body) {
   body.querySelectorAll('.book-stars, #book-status').forEach(group => wireChoiceGroup(group));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadBooks());
@@ -155,18 +209,22 @@ function _wire(body) {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,text/csv';
     inp.onchange = async () => {
       const f = inp.files[0]; if (!f) return;
-      const r = await fetch('/api/books/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: await f.text() }) });
-      const d = await r.json().catch(() => ({}));
-      toast(`imported ${d.imported || 0} book${d.imported === 1 ? '' : 's'}`, 'success'); loadBooks();
+      try {
+        const d = await _bookRequest('/api/books/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: await f.text() }) }, result => Number.isInteger(result?.imported) && result.imported >= 0);
+        toast(`imported ${d.imported} book${d.imported === 1 ? '' : 's'}`, 'success'); await loadBooks();
+      } catch (error) { toast(error instanceof TypeError ? 'could not connect; select the file again to retry' : error.message, 'error'); }
     };
     inp.click();
   });
   body.querySelector('[data-act="set-goal"]')?.addEventListener('click', async () => {
-    const v = await dlgPrompt('books to read this year? (0 to turn off)', String(_data.goal || 0));
+    const v = await dlgPrompt('books to read this year? (0 to turn off)', _goalDraft?.value ?? String(_data.goal || 0), { validate: value => /^\d+$/.test(value.trim()) && Number.isSafeInteger(Number(value)) ? '' : 'enter a whole number, 0 or more' });
     if (v == null) return;
-    const n = Math.max(0, parseInt(v, 10) || 0);
-    await fetch('/api/books/goal', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ goal: n }) });
-    loadBooks();
+    const n = Number(v), draft = { value: v }; _goalDraft = draft;
+    try {
+      await _bookRequest('/api/books/goal', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ goal: n }) }, result => result?.goal === n);
+      if (_goalDraft === draft) _goalDraft = null;
+      await loadBooks();
+    } catch (error) { toast(error instanceof TypeError ? 'could not connect; open the reading goal to retry' : error.message, 'error'); }
   });
 
   if (_adding) {
@@ -203,15 +261,15 @@ function _wire(body) {
     card.querySelector('[data-f="notes"]')?.addEventListener('input', e => {
       _noteDrafts.set(id, e.target.value);
     });
-    if (_savingNotes.has(id)) {
+    if (_savingNotes.has(id) || _writingBooks.has(id)) {
       card.setAttribute('aria-busy', 'true');
       card.querySelectorAll('button, textarea').forEach(control => { control.disabled = true; });
     }
     card.querySelectorAll('.book-star').forEach(s => s.addEventListener('click', async () => {
-      await fetch(`/api/books/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rating: +s.dataset.rate }) }); loadBooks();
+      await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rating: +s.dataset.rate }) }, result => result?.id === id && result.rating === +s.dataset.rate, 'rating saved');
     }));
     card.querySelectorAll('[data-move]').forEach(btn => btn.addEventListener('click', async () => {
-      await fetch(`/api/books/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: btn.dataset.move }) }); toast(`moved to ${btn.dataset.move}`, 'success'); loadBooks();
+      await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: btn.dataset.move }) }, result => result?.id === id && result.status === btn.dataset.move, `moved to ${btn.dataset.move}`);
     }));
     card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
       const act = btn.dataset.act;
@@ -245,7 +303,7 @@ function _wire(body) {
       }
       if (act === 'del') {
         if (!await dlgConfirm('remove this book?')) return;
-        await fetch(`/api/books/${id}`, { method: 'DELETE' }); toast('removed', 'success'); loadBooks(); return;
+        await _changeBook(card, { method: 'DELETE' }, result => result?.ok === true, 'removed'); return;
       }
     }));
   });
