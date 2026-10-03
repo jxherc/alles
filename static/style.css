@@ -3871,7 +3871,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .mail-google-btn { align-self: stretch; text-align: center; text-decoration: none; }
 .mail-or { font-size: 0.75rem; color: var(--muted); text-align: center; text-transform: uppercase; letter-spacing: 0.06em; }
 .mail-oauth-setup { border: 1px solid var(--faint); border-radius: 3px; padding: 0.5rem 0.7rem; background: var(--panel); font-size: 0.75rem; }
-.mail-oauth-setup summary { cursor: pointer; color: var(--text); }
+.mail-oauth-setup summary { min-height: var(--ui-control-height, 44px); align-content: center; cursor: pointer; color: var(--text); }
 .mail-oauth-steps { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.5rem; color: var(--muted); line-height: 1.5; }
 .mail-oauth-steps a { color: var(--text); border-bottom: 1px solid var(--faint); text-decoration: none; }
 .mail-oauth-steps .settings-input { width: 100%; }

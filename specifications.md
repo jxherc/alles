@@ -2074,7 +2074,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/mail.py · 63 operations</summary>
+<summary>routes/mail.py · 64 operations</summary>
 
 inbox task and event capture opens an editable review before acceptance into plan. a cancelled review writes nothing. acceptance uses a durable request identity; an uncertain response can be retried after reload without creating another item. task/event edits and recurrence keep the original message reference. opening that source checks a fresh message against its saved fingerprint; missing or changed sources show the retained excerpt and a retry action. legacy mail API callers without `preview: true` retain their direct-create behavior. pending acceptance details stay in owner-scoped browser session storage until confirmed or explicitly discarded. a confirmed save remains usable if browser cleanup fails: its exact plan link stays available, and any retained retry resolves the same item.
 
@@ -2114,6 +2114,7 @@ home reuses this review and acceptance flow. `POST /api/tasks/quick` with `previ
 | `GET` | `/api/mail/oauth/google/callback` | `oauth_callback` |
 | `GET` | `/api/mail/oauth/google/start` | `oauth_start` |
 | `GET` | `/api/mail/oauth/status` | `oauth_status` |
+| `POST` | `/api/mail/oauth/config` | `oauth_config` |
 | `POST` | `/api/mail/read/{aid}` | `read` |
 | `GET` | `/api/mail/recipients` | `recipients` |
 | `GET` | `/api/mail/rules` | `list_rules` |
@@ -2169,6 +2170,23 @@ incoming IMAP connection have separate feedback; the test does not verify outgoi
 failed reads, invalid ports, conflicts and rejected removals offer explicit recovery. incoming TLS
 is an accessible button choice and existing values are preserved. real provider connectivity and
 Google authorization require the configured provider.
+
+Google client setup uses a checked, secret-free status snapshot and conditional configuration saves.
+`POST /api/mail/oauth/config` takes `expected_revision`, `client_id`, `redirect_base` and an optional
+`client_secret` (omitting it retains the saved secret). matching revisions advance even for an
+unchanged claim; an exact replay with an explicit secret returns the saved configuration, while a
+conflicting stale save returns 409. retaining an unknown saved secret requires the current revision;
+a stale claim must review the saved settings again. legacy settings writes also advance this revision. optional recovery scopes bind a
+request to its mail store. empty redirect bases clear the override; nonempty values require a valid
+HTTP(S) URL without credentials, queries or fragments. an unchanged keep-current claim can retain
+legacy partial or invalid settings while advancing the revision; later edits require validation.
+secrets remain encrypted server-side.
+
+the Google setup form checks reads and saves, keeps newer edits and offers explicit retry or
+review of saved settings after an uncertain write. browser recovery stores only the scope and
+revision, never client keys. keeping the reviewed configuration excludes delayed older writes,
+including when setup is still empty. saving client keys does not authorize a mailbox; sign-in is a
+separate action. rejected status reads and storage failures stay visible with retry controls.
 
 mail rule creation accepts an optional canonical UUID `request_id` and a `recovery_scope` from
 `GET /api/mail/rules`. retrying the same normalized fields returns the original rule; different
@@ -3568,6 +3586,7 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `mail_oauth_client_id` | `""` |
 | `mail_oauth_client_secret` | `""` |
 | `mail_oauth_redirect_base` | `""` |
+| `mail_oauth_revision` | `0` |
 
 </details>
 

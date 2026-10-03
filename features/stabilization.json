@@ -7948,6 +7948,422 @@
         "1440",
         "390"
       ]
+    },
+    {
+      "id": "inbox.oauth.success",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup success",
+      "expected": "Save exact client keys, confirm stored configuration and expose a separate sign-in action.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.save-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup save reject",
+      "expected": "Keep entered keys after a rejected save and retry the same captured request.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.save-lost",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup save lost",
+      "expected": "Retry a lost reply without changing the confirmed configuration or sending a new intent.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.newer-input",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup newer input",
+      "expected": "Preserve newer input while an earlier save completes, then save it with the current revision.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.double-save",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup double save",
+      "expected": "Repeated activation while saving sends one request.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.status-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup status reject",
+      "expected": "A failed status read shows a retry action without pretending setup is empty.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.status-invalid",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup status invalid",
+      "expected": "Malformed status cannot expose an editable configuration until a valid read succeeds.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.blank-redirect",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup blank redirect",
+      "expected": "Saving an empty redirect base removes the previous override.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.reload-reject",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup reload reject",
+      "expected": "After reload, explicitly retaining the empty configuration excludes the old uncertain save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.reload-lost",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup reload lost",
+      "expected": "After reload, review and retain the saved configuration without browser-persisted keys.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.keep-late",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup keep late",
+      "expected": "A keep-current claim rejects delayed execution of the older setup request.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.keep-conflict",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup keep conflict",
+      "expected": "A conflicting current-settings claim keeps recovery visible and preserves the newer configuration.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.keep-newer",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup keep newer",
+      "expected": "Input typed during a keep-current claim survives the acknowledgement.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.storage-write",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup storage write",
+      "expected": "Failed recovery persistence sends no request and supports explicit retry.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.storage-read",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup storage read",
+      "expected": "Failed recovery reads block setup writes until recovery is readable.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.storage-cleanup",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup storage cleanup",
+      "expected": "A confirmed save with failed cleanup offers cleanup without repeating the write.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.cancel-navigation",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup cancel navigation",
+      "expected": "Cancelling navigation preserves entered client keys.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.late-close",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup late close",
+      "expected": "A late save acknowledgement cannot replace the account list; reopening reads saved setup.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.keep-secret",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup keep secret",
+      "expected": "A blank secret preserves the encrypted saved secret while other configuration changes.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.keyboard",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup keyboard",
+      "expected": "Labelled fields and keyboard save work at desktop and phone sizes with 44px controls.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.partial-id",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup partial id",
+      "expected": "Retain a legacy client-id-only configuration after an uncertain write, then finish setup.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.partial-secret",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup partial secret",
+      "expected": "Retain a legacy secret-only configuration after an uncertain write, then finish setup.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.legacy-redirect",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup legacy redirect",
+      "expected": "Retain an unchanged malformed legacy redirect to resolve uncertainty, then explicitly correct it.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.legacy-text",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup legacy text",
+      "expected": "Retain exact legacy client text and trailing redirect slash, then explicitly correct the setup.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.retained-secret-race",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup retained secret race",
+      "expected": "A secret-only save racing keep-current confirmation produces a conflict; a fresh explicit review resolves recovery.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.normalization",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup normalization",
+      "expected": "A saved normalized client ID and redirect update unchanged inputs and allow clean navigation without dropping newer input.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.reopen-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup reopen retry",
+      "expected": "After a rejected save and closing the editor, retry from a newly opened form updates untouched inputs and allows clean navigation.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.reopen-before-edit",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup reopen before edit",
+      "expected": "Retrying after reopening preserves edits made before retry while refreshing unchanged fields from the confirmed save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.reopen-during-edit",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup reopen during edit",
+      "expected": "Retrying after reopening preserves edits made during the request while refreshing unchanged fields from the confirmed save.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.keep-retry",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup keep retry",
+      "expected": "A rejected keep-current claim retries the same request and replaces unchanged cancelled fields with retained settings; clean navigation succeeds.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.keep-before-edit",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup keep before edit",
+      "expected": "Retrying a keep-current claim preserves edits made after the first claim while refreshing unchanged fields.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
+    },
+    {
+      "id": "inbox.oauth.keep-during-edit",
+      "feature": "inbox.mail-and-contacts",
+      "app": "inbox",
+      "workflow": "Google setup keep during edit",
+      "expected": "Retrying a keep-current claim preserves edits made during the retry while refreshing unchanged fields.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],
