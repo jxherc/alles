@@ -8,7 +8,7 @@ revisions. The service layer remains shared by Docs, Aide retrieval, search, and
 import logging
 import threading
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
@@ -251,6 +251,37 @@ def ask_vault(q: str = "", db: DbSession = Depends(get_db)):
         textindex.reindex_kind(db, "doc", items)
     hits = textindex.search(db, q, kind="doc", k=6) if q else []
     return {"q": q, "sources": hits}
+
+
+@router.post("/import-preview")
+def preview_import(file: UploadFile):
+    """Convert one local document without writing it to the vault."""
+    from services import doc_import
+
+    data = file.file.read(8 * 1024 * 1024 + 1)
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(413, "choose a file smaller than 8 MiB")
+    try:
+        result = doc_import.import_document(file.filename or "imported.txt", data)
+    except doc_import.DocumentTooLarge as exc:
+        raise HTTPException(413, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            400, "could not read this document; check the file and try again"
+        ) from exc
+    if not result["content"].strip():
+        raise HTTPException(400, "no readable text found; nothing was saved")
+    if len(result["content"].encode("utf-8")) > 1024 * 1024:
+        raise HTTPException(413, "extracted text exceeds 1 MiB; split the document and try again")
+    extension = (file.filename or "").rsplit(".", 1)[-1].lower()
+    result["warning"] = (
+        "review the extracted text; images and complex formatting are not imported. nothing has been saved yet."
+        if extension in ("docx", "html", "htm", "pdf")
+        else "review the text and name, then import. nothing has been saved yet."
+    )
+    return result
 
 
 # ── basic file management (content editing happens in Obsidian) ───────────────

@@ -1,3 +1,4 @@
+import { initDocumentImport } from './docs_import.js';
 // Docs is a viewer first. Obsidian is the primary editor; Alles exposes the same
 // Markdown file through a local CodeMirror 6 editor only after the owner chooses Edit.
 import { mdToHtml, enhanceMarkdown, toast } from './util.js';
@@ -9,6 +10,9 @@ let _cur = null;
 let _doc = null;
 let _draft = null;
 let _tree = null;
+let _treeView = 'all';
+let _treeViewGeneration = 0;
+let _treeLoadGeneration = 0;
 let _editor = null;
 let _editorFactory = null;
 let _editEntry = 0;
@@ -154,6 +158,7 @@ export function initDocs(initialSection = 'docs', fetcher = fetch) {
   _fetcher = fetcher;
   window._prepareDocsNavigation = prepareDocsNavigation;
   _wire();
+  initDocumentImport({ prepare: flushDraft, open: openNote, refresh: loadTree, show: () => showSection('docs') });
   window._reloadDocs = async () => {
     await loadTree();
     if (_cur && !_dirty) await openNote(_cur, { quiet: true });
@@ -189,14 +194,22 @@ function _wire() {
 
   document.querySelectorAll('#docs-sections [data-section]').forEach(button => {
     button.addEventListener('click', async () => {
-      if (button.dataset.section === 'docs') openDocsHome();
+      if (button.dataset.section === 'docs') {
+        const run = ++_treeViewGeneration;
+        if (await openDocsHome() && run === _treeViewGeneration) {
+          $('wiki-search').value = '';
+          renderTree(_tree?.items || []);
+        }
+      }
       else await switchDocsSection(button.dataset.section);
     });
   });
   let searchTimer = 0;
   $('wiki-search')?.addEventListener('input', event => {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => doSearch(event.target.value.trim()), 160);
+    _treeView = 'search';
+    const run = ++_treeViewGeneration;
+    searchTimer = setTimeout(() => { if (run === _treeViewGeneration) doSearch(event.target.value.trim()); }, 160);
   });
 
   $('wiki-new-btn')?.addEventListener('click', newDoc);
@@ -477,17 +490,22 @@ function _watch() {
 }
 
 export async function loadTree() {
+  const run = ++_treeLoadGeneration;
+  const viewGeneration = _treeViewGeneration;
   try {
-    _tree = await api('/api/vault-md/tree');
-    renderTree(_tree.items || []);
+    const tree = await api('/api/vault-md/tree');
+    if (run !== _treeLoadGeneration) return;
+    _tree = tree;
+    if (_treeView === 'all') renderTree(_tree.items || [], false);
     paintRecent(_tree.items || []);
   } catch (error) {
     const tree = $('wiki-tree');
-    if (tree) tree.innerHTML = `<div class="docs-nav-empty">${esc(error.message)}</div>`;
+    if (tree && run === _treeLoadGeneration && viewGeneration === _treeViewGeneration && _treeView === 'all') tree.innerHTML = `<div class="docs-nav-empty">${esc(error.message)}</div>`;
   }
 }
 
-function renderTree(items) {
+function renderTree(items, select = true) {
+  if (select) { _treeView = 'all'; ++_treeViewGeneration; }
   const box = $('wiki-tree');
   if (!box) return;
   const renderKey = JSON.stringify([items, _cur]);
@@ -1296,10 +1314,13 @@ function hideInlineState() { setHidden($('wiki-inline-state'), true); }
 
 async function doSearch(query) {
   if (!query) { renderTree(_tree?.items || []); return; }
+  _treeView = 'search';
+  const run = ++_treeViewGeneration;
   const box = $('wiki-tree');
   invalidateTreeRender(box);
   try {
     const result = await api('/api/vault-md/grep?q=' + encodeURIComponent(query));
+    if (run !== _treeViewGeneration) return;
     const hits = result.results || [];
     box.innerHTML = hits.length
       ? hits.map(hit => `<button class="wiki-file docs-search-hit" type="button" data-file="${esc(hit.path)}">
@@ -1307,7 +1328,7 @@ async function doSearch(query) {
         </button>`).join('')
       : '<div class="docs-nav-empty">no matches</div>';
     wireTree(box);
-  } catch (error) { box.innerHTML = `<div class="docs-nav-empty">${esc(error.message)}</div>`; }
+  } catch (error) { if (run === _treeViewGeneration) box.innerHTML = `<div class="docs-nav-empty">${esc(error.message)}</div>`; }
 }
 
 async function loadTags() {
@@ -1322,10 +1343,14 @@ async function loadTags() {
 }
 
 async function filterByTag(tag) {
+  $('wiki-search').value = '';
+  _treeView = 'tag';
+  const run = ++_treeViewGeneration;
   const box = $('wiki-tree');
   invalidateTreeRender(box);
   try {
     const result = await api('/api/vault-md/tag?tag=' + encodeURIComponent(tag));
+    if (run !== _treeViewGeneration) return;
     box.innerHTML = `<button class="docs-tag-clear" type="button">#${esc(tag)} · clear</button>` +
       (result.notes || []).map(note => `<button class="wiki-file" type="button" data-file="${esc(note.path)}">${navIcon('document')}<span>${esc(note.name)}</span></button>`).join('');
     box.querySelector('.docs-tag-clear')?.addEventListener('click', () => renderTree(_tree?.items || []));
@@ -1506,16 +1531,22 @@ async function deleteCurrent() {
       return;
     }
     if (_dirty && !(await saveCurrent())) return;
+    const selectedView = _treeViewGeneration;
     await api('/api/vault-md/file?path=' + encodeURIComponent(_cur), { method: 'DELETE' });
     await openDocsHome();
+    if (selectedView === _treeViewGeneration) { $('wiki-search').value = ''; renderTree(_tree?.items || []); }
     await loadTree();
     toast('moved to trash', 'success');
   } catch (error) { toast(error.message, 'error'); }
 }
 
 async function openTrash() {
+  _treeView = 'trash';
+  const run = ++_treeViewGeneration;
+  $('wiki-search').value = '';
   try {
     const items = await api('/api/vault-md/trash');
+    if (run !== _treeViewGeneration) return;
     const box = $('wiki-tree');
     invalidateTreeRender(box);
     box.innerHTML = items.length
@@ -1526,10 +1557,15 @@ async function openTrash() {
       : '<div class="docs-nav-empty">trash is empty</div>';
     box.querySelectorAll('[data-restore]').forEach(button => button.addEventListener('click', async () => {
       const row = button.closest('[data-trash-id]');
+      const selectedView = _treeViewGeneration;
+      const selectedDocument = _openGeneration;
       try {
         const result = await api('/api/vault-md/trash/restore', jsonOptions('POST', { id: row.dataset.trashId }));
+        if (selectedView !== _treeViewGeneration || selectedDocument !== _openGeneration) { await loadTree(); return; }
+        renderTree(_tree?.items || []);
+        const restoredView = _treeViewGeneration;
         await loadTree();
-        if (result.restored) await openNote(result.restored);
+        if (result.restored && restoredView === _treeViewGeneration && selectedDocument === _openGeneration) await openNote(result.restored);
       } catch (error) { toast(error.message, 'error'); }
     }));
   } catch (error) { toast(error.message, 'error'); }

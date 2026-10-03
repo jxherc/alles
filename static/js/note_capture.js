@@ -58,13 +58,15 @@ async function submit(store, pending) {
   return data;
 }
 
-export async function saveNote(text, path) {
+export async function saveNote(text, path, { preserveContent = false } = {}) {
+  if (preserveContent && !text.trim()) throw new Error('cannot import empty text');
+  const content = preserveContent ? text : `${text.trim()}\n`;
   if (busy) throw new Error('a note is already being saved');
   busy = true; ++generation;
   try {
     const store = await pendingStore();
-    const pending = store.pending || { text, body: { path, content: `${text.trim()}\n`, unique: true, request_id: requestId() } };
-    if (pending.text !== text) throw new Error('finish the pending note below before saving another');
+    const pending = store.pending || { text, body: { path, content, unique: true, request_id: requestId() } };
+    if (pending.text !== text || pending.body.content !== content || pending.body.path !== path) throw new Error('finish the pending note below before saving another');
     store.put(pending);
     return await submit(store, pending);
   } finally { busy = false; }
@@ -135,7 +137,7 @@ export async function showNoteRecovery(host, onSaved, onOpen, focusTarget = () =
       const saved = await submit(store, pending);
       const restore = returnFocus();
       notice.remove();
-      onSaved(saved, pending.text, restore);
+      onSaved(saved, pending.text, restore, pending.body);
     } catch (error) {
       status.textContent = `${error.message}; your original text is kept here`;
       open.hidden = !error.path || error.status === 410;

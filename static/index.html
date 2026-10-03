@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=353">
+<link rel="stylesheet" href="/static/style.css?v=354">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -833,6 +833,7 @@
               <span id="wiki-current" class="wiki-current">your Obsidian vault</span>
               <span id="wiki-path" class="docs-current-path">local Markdown</span>
             </div>
+            <button type="button" id="docs-import-btn" class="btn docs-import-trigger">import</button>
             <span id="wiki-stats" class="wiki-stats"></span>
             <span id="wiki-save-state" class="docs-save-state" role="status" aria-live="polite"></span>
             <div class="docs-reader-actions">
@@ -847,6 +848,21 @@
               </div>
             </div>
           </header>
+
+          <section id="docs-import-panel" class="docs-import-panel" aria-label="import document" hidden>
+            <div class="docs-import-actions">
+              <button type="button" id="docs-import-choose" class="btn">choose file</button>
+              <button type="button" id="docs-import-close" class="btn">cancel import</button>
+              <input type="file" id="docs-import-file" accept=".md,.markdown,.txt,.docx,.html,.htm,.pdf" hidden>
+            </div>
+            <p>Markdown, text, DOCX, HTML or PDF · up to 8 MiB. If the name exists, Alles saves a numbered copy.</p>
+            <label for="docs-import-name">document name or folder/name.md</label>
+            <input id="docs-import-name" class="settings-input" disabled autocomplete="off" placeholder="document.md">
+            <pre id="docs-import-preview" tabindex="0" aria-label="text to import"></pre>
+            <p id="docs-import-status" role="status" aria-live="polite">nothing is saved until you choose import</p>
+            <button type="button" id="docs-import-save" class="btn primary" disabled>import document</button>
+          </section>
+          <div id="docs-import-recovery" class="docs-import-recovery"></div>
 
           <div class="docs-inline-state" id="wiki-inline-state" hidden>
             <span id="wiki-inline-message"></span>
@@ -872,6 +888,7 @@
               <div class="docs-empty-actions">
                 <button class="docs-obsidian-action" type="button" id="wiki-empty-obsidian">open vault in Obsidian</button>
                 <button type="button" id="wiki-empty-new">new document</button>
+                <button type="button" id="docs-empty-import" class="btn">import document</button>
               </div>
             </div>
             <div class="docs-home-recent">
@@ -2803,7 +2820,7 @@
 </div>
 
 <script type="module">
-const _v = '353';
+const _v = '354';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
