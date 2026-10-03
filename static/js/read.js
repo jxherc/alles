@@ -4,6 +4,7 @@
 import { toast, _safeUrl } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
 import { wireChoiceGroup } from './kokuen.js';
+import { readingPlace } from './reading_place.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -24,6 +25,8 @@ let _hasItems = false;
 let _hasStats = false;
 let _itemsCurrent = false;
 let _loadState = { state: 'resting', message: '' };
+let _detachPlace = () => {};
+const _places = new Map();
 
 export function initRead(fetcher = fetch) {
   _fetcher = fetcher;
@@ -115,6 +118,10 @@ const FILTERS = [['all', 'all'], ['unread', 'unread'], ['fav', 'starred'], ['arc
 function _render() {
   const body = $('read-body');
   if (!body) return;
+  _detachPlace();
+  $('read-position-bar')?.remove();
+  body.removeAttribute('tabindex');
+  body.removeAttribute('aria-label');
   if (_open) { _renderReader(body); return; }
   const active = document.activeElement;
   const editing = !_saving && body.contains(active) && ['read-url', 'read-q'].includes(active.id)
@@ -179,6 +186,17 @@ function _card(it) {
     </div>`;
 }
 
+async function _writeReadItem(id, patch, keepalive = false) {
+  const response = await _fetcher(`/api/read/${encodeURIComponent(id)}`, patch ? {
+    method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch), keepalive,
+  } : { method: 'DELETE' });
+  if (!patch && response.status === 404) return null;
+  const result = await response.json();
+  if (!response.ok) throw Object.assign(new Error(typeof result.detail === 'string' ? result.detail : 'could not confirm the change; try again'), { status: response.status });
+  if (patch ? result.id !== id || Object.entries(patch).some(([key, value]) => result[key] !== value) : result.ok !== true) throw new Error('could not confirm the change; try again');
+  return result;
+}
+
 function _renderReader(body) {
   const it = _open;
   const paras = (it.text || '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
@@ -189,12 +207,113 @@ function _renderReader(body) {
         <a class="btn" href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open original ${_si('link')}</a>
       </div>
       <article class="read-article">
+        <div class="read-toolbar">
+          <button type="button" class="btn" id="read-complete" aria-pressed="${!!it.read}">${it.read ? 'mark unread' : 'mark read'}</button>
+          <p id="read-completion-status" role="status"></p>
+        </div>
         <h1>${esc(it.title)}</h1>
         <div class="read-article-meta">${esc(it.site)} · ${it.read_minutes} min read</div>
         ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page. <a href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open the original</a>.</p>`}
       </article>
     </div>`;
-  $('read-back').addEventListener('click', async () => { _open = null; await loadRead(); body.querySelector(`[data-open="${_returnItem}"]`)?.focus(); });
+  const place = _attachReadingPlace(body, it);
+  const complete = $('read-complete');
+  const back = $('read-back');
+  back.addEventListener('click', async () => {
+    if (back.disabled) return;
+    back.disabled = complete.disabled = true;
+    try {
+      if ((!(await place.drain()) && !place.blocked) || _open !== it) return;
+      _open = null;
+      await loadRead();
+      (body.querySelector(`[data-open="${_returnItem}"]`) || $('read-q'))?.focus();
+    } finally { back.disabled = complete.disabled = false; }
+  });
+  const notice = $('read-completion-status');
+  complete.addEventListener('click', async () => {
+    const desired = !it.read;
+    back.disabled = complete.disabled = true;
+    notice.classList.remove('read-save-error');
+    notice.textContent = 'saving reading status…';
+    try {
+      const result = await _writeReadItem(it.id, { read: desired });
+      it.read = result.read; it.read_at = result.read_at;
+      complete.textContent = it.read ? 'mark unread' : 'mark read';
+      complete.setAttribute('aria-pressed', String(it.read));
+      notice.textContent = it.read ? 'marked read' : 'marked unread';
+    } catch { notice.classList.add('read-save-error'); notice.textContent = 'could not confirm reading status; try again'; }
+    finally { back.disabled = complete.disabled = false; }
+  });
+}
+
+function _attachReadingPlace(body, item) {
+  let state = _places.get(item.id);
+  if (!state || state.hash !== item.content_hash) {
+    state = { hash: item.content_hash, place: readingPlace(item, patch => _writeReadItem(item.id, patch, true)) };
+    _places.set(item.id, state);
+  }
+  const place = state.place;
+  const bar = document.createElement('div');
+  bar.id = 'read-position-bar';
+  bar.innerHTML = '<div class="read-toolbar"><p id="read-position-status" role="status" tabindex="-1"></p><button type="button" class="btn" id="read-position-retry" hidden>retry</button></div>';
+  bar.prepend(body.querySelector('.read-reader-bar'));
+  body.before(bar);
+  const notice = bar.querySelector('#read-position-status');
+  const retry = bar.querySelector('#read-position-retry');
+  body.tabIndex = 0; body.setAttribute('aria-label', 'saved article');
+  place.listen(({ pending, error, blocked, unsaved }) => {
+    notice.textContent = error || (pending ? 'saving reading place…' : unsaved ? 'reading place not saved yet' : 'reading place saved');
+    notice.classList.toggle('read-save-error', !!error);
+    const hadFocus = document.activeElement === retry;
+    retry.hidden = !error;
+    retry.disabled = pending;
+    retry.textContent = blocked ? 'reopen article' : 'retry';
+    retry.onclick = () => blocked ? openReadItem(item.id) : place.flush();
+    if (hadFocus && retry.hidden) notice.focus({ preventScroll: true });
+  });
+  let attached = true;
+  let mounting = true;
+  let restoredTop = -1;
+  let restoredRange = -1;
+  let frame = 0;
+  const restore = () => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      if (!attached || !body.getClientRects().length) return;
+      restoredRange = Math.max(0, body.scrollHeight - body.clientHeight);
+      body.scrollTop = place.value * restoredRange;
+      restoredTop = body.scrollTop;
+      mounting = false;
+    });
+  };
+  const scroll = () => {
+    const range = body.scrollHeight - body.clientHeight;
+    if (!mounting && range !== restoredRange) { restore(); return; }
+    if (!mounting && body.getClientRects().length && range > 0 && (restoredTop < 0 || Math.abs(body.scrollTop - restoredTop) > 1)) {
+      restoredTop = -1;
+      place.set(body.scrollTop / range);
+    }
+  };
+  const observer = new ResizeObserver(restore);
+  observer.observe(body); observer.observe(body.querySelector('.read-article'));
+  body.addEventListener('scroll', scroll, { passive: true });
+  const leaving = () => { if (document.visibilityState === 'hidden') void place.flush(); };
+  document.addEventListener('visibilitychange', leaving);
+  const unload = () => void place.flush();
+  window.addEventListener('pagehide', unload);
+  restore();
+  _detachPlace = () => {
+    attached = false;
+    cancelAnimationFrame(frame);
+    observer.disconnect();
+    body.removeEventListener('scroll', scroll);
+    document.removeEventListener('visibilitychange', leaving);
+    window.removeEventListener('pagehide', unload);
+    place.listen(() => {});
+    void place.flush();
+    _detachPlace = () => {};
+  };
+  return place;
 }
 
 function _wire(body) {
@@ -256,13 +375,28 @@ function _wire(body) {
       e.stopPropagation();
       const act = btn.dataset.act;
       const it = _items.find(x => x.id === id);
-      if (act === 'del') {
-        if (!await dlgConfirm('delete this saved item?')) return;
-        await _fetcher(`/api/read/${id}`, { method: 'DELETE' }); toast('deleted', 'success'); loadRead(); return;
+      if (!it || card.dataset.saving === 'true') return;
+      if (act === 'del' && !await dlgConfirm('delete this saved item?')) return;
+      if (!card.isConnected || card.dataset.saving === 'true') return;
+      const patch = act === 'fav' ? { fav: !it.fav } : act === 'archive' ? { archived: !it.archived } : act === 'read' ? { read: !it.read } : null;
+      card.dataset.saving = 'true';
+      const buttons = [...card.querySelectorAll('button')];
+      buttons.forEach(button => { button.disabled = true; });
+      try {
+        const result = await _writeReadItem(id, patch);
+        if (_open?.id === id) _open = result ? { ..._open, ...result } : null;
+        if (act === 'del') toast('deleted', 'success');
+        if (act === 'archive') toast(it.archived ? 'unarchived' : 'archived', 'success');
+        const restoreFocus = document.activeElement === btn || document.activeElement === document.body;
+        await loadRead();
+        if (restoreFocus && document.activeElement === document.body) {
+          (body.querySelector(`.read-card[data-id="${id}"] [data-act="${act}"]`) || $('read-q'))?.focus();
+        }
+      } catch (error) { toast(error.message || 'could not confirm the change; try again', 'error'); }
+      finally {
+        delete card.dataset.saving;
+        buttons.forEach(button => { button.disabled = false; });
       }
-      if (act === 'fav') { await _fetcher(`/api/read/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fav: !it.fav }) }); loadRead(); return; }
-      if (act === 'archive') { await _fetcher(`/api/read/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ archived: !it.archived }) }); toast(it.archived ? 'unarchived' : 'archived', 'success'); loadRead(); return; }
-      if (act === 'read') { await _fetcher(`/api/read/${id}/read`, { method: 'POST' }); loadRead(); return; }
     }));
   });
 }
@@ -300,6 +434,8 @@ async function _save() {
 export async function openReadItem(id) {
   try {
     _open = await _json(_fetcher, `/api/read/${encodeURIComponent(id)}`);
+    const previous = _places.get(id)?.place;
+    if (previous && !previous.unsaved && !previous.pending) _places.delete(id);
     _returnItem = id;
     _render();
     $('read-back')?.focus();
@@ -310,7 +446,5 @@ export async function openReadItem(id) {
     toast('could not open', 'error');
     return false;
   }
-  const listed = _items.find(item => item.id === id);
-  if (listed && !listed.read) _fetcher(`/api/read/${encodeURIComponent(id)}/read`, { method: 'POST' });
   return true;
 }
