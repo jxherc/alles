@@ -70,6 +70,7 @@ COMMANDS = {
     "andromeda-handoff": ("tests/pw_andromeda_handoff.py",),
     "journal-recovery": ("tests/pw_journal_recovery.py",),
     "journal-search-export": ("tests/pw_journal_search_export.py",),
+    "journal-reflect": ("tests/pw_journal_reflect.py",),
     "andromeda-cancellation": ("tests/pw_andromeda_cancellation.py",),
     "health-workflows": ("tests/pw_health_workflows.py",),
     "health-create-recovery": ("tests/pw_health_create_recovery.py",),

@@ -563,7 +563,7 @@ a daily diary: one entry a day, with mood, prompts, a streak, and a year-at-a-gl
   disabled until the selected entry loads. failed autosaves retain the draft when returning to
   Journal and show a retry message. closing or reloading warns while edits remain unsaved; drafts
   are kept only in the current page, not copied into browser storage.
-- an optional **"reflect"** button: a short, warm ai reflection on what you wrote
+- an optional **"reflect"** button: a short, warm ai reflection on what you wrote. it waits for the current entry to save, offers retry after failure, and discards responses after editing, changing days or locking Journal.
 - an optional **passcode lock** that gates the journal behind its own code (an access gate, not extra encryption; once you're in it's still fully searchable)
 
 <p align="center"><img src="docs/screenshots/journal.png" width="680" alt="journal: a day entry with the full-year activity heatmap on top"></p>
