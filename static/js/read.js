@@ -45,6 +45,7 @@ let _itemsCurrent = false;
 let _loadState = { state: 'resting', message: '' };
 let _detachPlace = () => {};
 const _places = new Map();
+const _textFetches = new Map();
 
 export function initRead(fetcher = fetch) {
   ++_openGeneration;
@@ -350,6 +351,83 @@ async function _writeReadItem(id, patch, keepalive = false) {
   return result;
 }
 
+function _textState(item) {
+  let state = _textFetches.get(item.id);
+  if (!state) { state = { busy: false, error: '', message: '' }; _textFetches.set(item.id, state); }
+  return state;
+}
+
+function _updateTextControls(item) {
+  if (_open !== item) return;
+  const state = _textState(item);
+  const label = item.text_state === 'extracted' ? 'article text saved for offline reading'
+    : item.text_state === 'excerpt' ? 'saved excerpt; article text has not been fetched'
+    : !(item.text || '').trim() ? 'no article text saved'
+    : 'saved text; extraction status is unknown';
+  const panel = $('read-text-tools');
+  if (!panel) return;
+  panel.setAttribute('aria-busy', String(state.busy));
+  $('read-text-status').textContent = state.busy ? 'checking and saving article text…' : state.message || label;
+  $('read-text-error').textContent = state.error;
+  $('read-text-error').hidden = !state.error;
+  const button = $('read-fetch-text');
+  button.hidden = item.text_state === 'extracted';
+  button.disabled = state.busy || !!state.savingRead;
+  button.textContent = state.error ? 'retry fetch' : 'fetch article text';
+  $('read-check-text').hidden = !state.error;
+  $('read-check-text').disabled = state.busy || !!state.savingRead;
+  $('read-note').disabled = state.busy;
+  $('read-complete').disabled = state.busy || !!state.savingRead;
+  if (state.savingRead) $('read-completion-status').textContent = 'saving reading status…';
+}
+
+async function _fetchArticleText(item, place, checkOnly = false) {
+  const state = _textState(item);
+  if (state.busy || _open !== item) return;
+  const generation = _openGeneration;
+  const current = () => generation === _openGeneration && _open === item && $('read-body')?.getClientRects().length;
+  const focusOwned = () => current() && (document.activeElement === document.body
+    || ['read-fetch-text', 'read-check-text'].includes(document.activeElement?.id));
+  state.busy = true; state.error = ''; state.message = '';
+  // Keep the initiating button enabled until the custom dialog restores its focus.
+  try {
+    const replace = item.text_state === 'unknown' && !!(item.text || '').trim();
+    if (!checkOnly && replace && !await dlgConfirm('replace this saved text with text fetched from the original page? your reading place restarts if the text changes. existing note links will identify the text change.')) return;
+    if (!current()) return;
+    _updateTextControls(item);
+    if (!(await place.drain()) && !checkOnly) throw new Error('save your reading place using retry above, or reopen the article before fetching');
+    if (!current()) return;
+    const response = await _fetcher(`/api/read/${encodeURIComponent(item.id)}${checkOnly ? '' : '/fetch-text'}`, checkOnly
+      ? { cache: 'no-store' }
+      : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content_hash: item.content_hash, replace_saved_text: replace }) });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : 'could not confirm article text; check saved text or retry');
+    if (result?.id !== item.id || typeof result.text !== 'string' || !/^[a-f0-9]{64}$/.test(result.content_hash || '') || (!checkOnly && result.text_state !== 'extracted')) throw new Error('could not confirm article text; check saved text or retry');
+    state.message = result.text_state === 'extracted'
+      ? `article text saved for offline reading${result.content_hash !== item.content_hash ? '; reading place restarted' : ''}`
+      : 'saved text checked; article text has not been fetched';
+    if (_open?.id !== item.id || _open.content_hash !== item.content_hash || !$('read-body')?.getClientRects().length) return;
+    const focus = focusOwned();
+    const active = document.activeElement;
+    const hadReaderFocus = $('read-body').contains(active) || $('read-position-bar')?.contains(active);
+    const focusId = hadReaderFocus ? active.id : '';
+    const sourceHash = _open.sourceHash;
+    // A pending old-version position write cannot update the new text version.
+    _detachPlace(false);
+    if (result.content_hash !== item.content_hash) _places.delete(item.id);
+    _open = { ...result, sourceHash, sourceChanged: !!sourceHash && sourceHash !== result.content_hash };
+    state.busy = false;
+    _render();
+    if (focus) $('read-text-status')?.focus({ preventScroll: true });
+    else if (hadReaderFocus) ($(focusId) || $('read-text-status'))?.focus({ preventScroll: true });
+  } catch (error) {
+    state.error = error instanceof TypeError ? 'could not connect; check saved text or retry' : error.message;
+  } finally {
+    state.busy = false;
+    if (_open?.id === item.id) _updateTextControls(_open);
+  }
+}
+
 function _renderReader(body) {
   const it = _open;
   const paras = (it.text || '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
@@ -368,10 +446,21 @@ function _renderReader(body) {
         </div>
         <h1>${esc(it.title)}</h1>
         <div class="read-article-meta">${esc(it.site)} · ${it.read_minutes} min read</div>
+        <section class="read-text-tools" id="read-text-tools" aria-label="saved article text">
+          <p id="read-text-status" role="status" tabindex="-1"></p>
+          <p id="read-text-error" class="read-save-error" role="alert" hidden></p>
+          <div class="capture-actions">
+            <button type="button" class="btn" id="read-fetch-text">fetch article text</button>
+            <button type="button" class="btn" id="read-check-text" hidden>check saved text</button>
+          </div>
+        </section>
         ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page. <a href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open the original</a>.</p>`}
       </article>
     </div>`;
   const place = _attachReadingPlace(body, it);
+  _updateTextControls(it);
+  $('read-fetch-text').addEventListener('click', () => _fetchArticleText(it, place));
+  $('read-check-text').addEventListener('click', () => _fetchArticleText(it, place, true));
   $('read-note').addEventListener('click', () => takeReadingNote(it));
   const complete = $('read-complete');
   const back = $('read-back');
@@ -384,22 +473,35 @@ function _renderReader(body) {
       _open = null;
       await loadRead();
       (body.querySelector(`[data-open="${_returnItem}"]`) || $('read-q'))?.focus();
-    } finally { back.disabled = complete.disabled = false; }
+    } finally { back.disabled = complete.disabled = false; _updateTextControls(it); }
   });
   const notice = $('read-completion-status');
   complete.addEventListener('click', async () => {
     const desired = !it.read;
+    _textState(it).savingRead = true;
+    _updateTextControls(it);
     back.disabled = complete.disabled = true;
     notice.classList.remove('read-save-error');
     notice.textContent = 'saving reading status…';
     try {
       const result = await _writeReadItem(it.id, { read: desired });
       it.read = result.read; it.read_at = result.read_at;
-      complete.textContent = it.read ? 'mark unread' : 'mark read';
-      complete.setAttribute('aria-pressed', String(it.read));
-      notice.textContent = it.read ? 'marked read' : 'marked unread';
-    } catch { notice.classList.add('read-save-error'); notice.textContent = 'could not confirm reading status; try again'; }
-    finally { back.disabled = complete.disabled = false; }
+      if (_open?.id === it.id) {
+        _open.read = result.read; _open.read_at = result.read_at;
+        $('read-complete').textContent = result.read ? 'mark unread' : 'mark read';
+        $('read-complete').setAttribute('aria-pressed', String(result.read));
+        $('read-completion-status').textContent = result.read ? 'marked read' : 'marked unread';
+      }
+    } catch {
+      if (_open?.id === it.id) {
+        $('read-completion-status').classList.add('read-save-error');
+        $('read-completion-status').textContent = 'could not confirm reading status; try again';
+      }
+    } finally {
+      _textState(it).savingRead = false;
+      back.disabled = complete.disabled = false;
+      if (_open?.id === it.id) _updateTextControls(_open);
+    }
   });
 }
 
@@ -461,7 +563,7 @@ function _attachReadingPlace(body, item) {
   const unload = () => void place.flush();
   window.addEventListener('pagehide', unload);
   restore();
-  _detachPlace = () => {
+  _detachPlace = (flush = true) => {
     attached = false;
     cancelAnimationFrame(frame);
     observer.disconnect();
@@ -469,7 +571,7 @@ function _attachReadingPlace(body, item) {
     document.removeEventListener('visibilitychange', leaving);
     window.removeEventListener('pagehide', unload);
     place.listen(() => {});
-    void place.flush();
+    if (flush) void place.flush();
     _detachPlace = () => {};
   };
   return place;
@@ -629,6 +731,8 @@ export async function openReadItem(id, isCurrent = () => Boolean($('read-body')?
     const item = await _json(_fetcher, `/api/read/${encodeURIComponent(id)}`);
     if (run !== _openGeneration || !isCurrent()) return false;
     _open = item;
+    if (!_textState(item).busy) { _textState(item).error = ''; _textState(item).message = ''; }
+    _open.sourceHash = expectedHash;
     _open.sourceChanged = !!expectedHash && expectedHash !== item.content_hash;
     const previous = _places.get(id)?.place;
     if (previous && !previous.unsaved && !previous.pending) _places.delete(id);

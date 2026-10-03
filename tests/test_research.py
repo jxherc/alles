@@ -3,12 +3,45 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import httpx
+
 from services.research import research_utils as ru
 from services.research import search as rs
 from services.research.deep_research import DeepResearcher, current_date_context
 
 
 class UtilTests(unittest.TestCase):
+    def test_error_responses_are_not_saved_as_article_text(self):
+        request = httpx.Request("GET", "http://127.0.0.1:1/local-synthetic-article")
+        for status in (401, 403, 404, 503):
+            response = httpx.Response(
+                status,
+                request=request,
+                headers={"content-type": "text/html"},
+                text="<html><title>Local outage</title><p>Synthetic service error.</p></html>",
+            )
+            with (
+                self.subTest(status=status),
+                mock.patch("services.net_guard.safe_get", return_value=response) as fetch,
+            ):
+                result = rs.fetch_webpage_content(str(request.url))
+            fetch.assert_called_once()
+            self.assertEqual(result, {"success": False, "content": "", "title": "", "og_image": ""})
+
+    def test_successful_local_response_keeps_readable_article_text(self):
+        request = httpx.Request("GET", "http://127.0.0.1:1/local-synthetic-article")
+        response = httpx.Response(
+            200,
+            request=request,
+            headers={"content-type": "text/html"},
+            text="<html><title>Local article</title><article><p>Local synthetic article text for reading.</p></article></html>",
+        )
+        with mock.patch("services.net_guard.safe_get", return_value=response):
+            result = rs.fetch_webpage_content(str(request.url))
+        self.assertTrue(result["success"], result)
+        self.assertIn("Local synthetic article text", result["content"])
+        self.assertEqual(result["title"], "Local article")
+
     def test_html_to_text_strips_tags_and_chrome(self):
         html = "<nav>menu</nav><p>Hello <b>world</b></p><script>bad()</script>"
         out = rs._html_to_text(html)

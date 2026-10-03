@@ -144,6 +144,7 @@ async def refresh_feeds():
                         ReadItem(
                             url=it["link"],
                             title=(it["title"] or it["link"])[:300],
+                            text_state="empty",
                             site=host[4:] if host.startswith("www.") else host,
                             tags="feed",
                         )
