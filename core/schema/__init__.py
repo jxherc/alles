@@ -14,6 +14,7 @@ from core.schema.application import AutomationAttempt as AutomationAttempt
 from core.schema.application import AutomationRule as AutomationRule
 from core.schema.application import Blob as Blob
 from core.schema.application import Book as Book
+from core.schema.application import BookCreateReceipt as BookCreateReceipt
 from core.schema.application import BookingPage as BookingPage
 from core.schema.application import BrowserConnection as BrowserConnection
 from core.schema.application import CachedMessage as CachedMessage
