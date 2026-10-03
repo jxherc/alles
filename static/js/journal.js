@@ -17,6 +17,9 @@ let _token = sessionStorage.getItem('journal_token') || '';
 let _productNavWired = false;
 let _lastHydratedAt = 0;
 let _loadGeneration = 0;
+let _loadedDay = '';
+let _loading = false;
+let _failedDay = '';
 let _lockedDraft = null;
 let _copyDialogOpen = false;
 
@@ -64,7 +67,7 @@ export async function initJournal() {
   try { status = await jget('/api/journal/lock/status'); }
   catch { _setToken(''); showLock('unavailable'); return; }
   if (status.enabled && !status.unlocked) { _setToken(''); showLock('unlock'); return; }
-  if (_built && Date.now() - _lastHydratedAt < 30_000) return;
+  if (_built && (_dirty || _saveTimer !== null || _saveInFlight !== null || Date.now() - _lastHydratedAt < 30_000)) return;
   return buildJournal();
 }
 
@@ -72,6 +75,11 @@ function wireProductNavigation() {
   if (_productNavWired) return;
   _productNavWired = true;
   document.getElementById('journal-migrate')?.addEventListener('click', openMarkdownCopy);
+  window.addEventListener('beforeunload', event => {
+    if (!_dirty && _saveTimer === null && _saveInFlight === null) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
 }
 
 async function migrationRequest(url, options = {}) {
@@ -291,6 +299,10 @@ async function buildJournal() {
             <button class="btn" id="jrnl-today">today</button>
             <span class="jrnl-words" id="jrnl-words"></span>
           </div>
+          <div class="jrnl-load-error" id="jrnl-load-error" hidden>
+            <span id="jrnl-load-message" role="alert"></span>
+            <button class="btn" id="jrnl-load-retry" type="button">retry loading day</button>
+          </div>
           <div class="jrnl-prompt" id="jrnl-prompt"></div>
           <div class="jrnl-moods" id="jrnl-moods">${MOODS.map(m => `<button class="jrnl-mood" data-m="${m}">${m}</button>`).join('')}</div>
           <textarea id="jrnl-text" class="jrnl-text" placeholder="how was your day?"></textarea>
@@ -298,7 +310,7 @@ async function buildJournal() {
           <div class="jrnl-actions">
             <button class="btn primary" id="jrnl-save">save</button>
             <button class="btn" id="jrnl-reflect">${_si('sparkles')} reflect</button>
-            <span class="jrnl-saved" id="jrnl-saved"></span>
+            <span class="jrnl-saved" id="jrnl-saved" role="status"></span>
           </div>
           <div class="jrnl-reflection" id="jrnl-reflection" style="display:none"></div>
         </div>
@@ -330,9 +342,15 @@ async function buildJournal() {
     document.getElementById('jrnl-next').onclick = () => navigateDay(shift(_day, 1));
     document.getElementById('jrnl-today').onclick = () => navigateDay(todayISO());
     document.getElementById('jrnl-save').onclick = () => save(true);
+    document.getElementById('jrnl-load-retry').onclick = () => {
+      if (_loading || !_failedDay) return;
+      if (_failedDay === _day) load();
+      else navigateDay(_failedDay);
+    };
     document.getElementById('jrnl-reflect').onclick = reflect;
     const scheduleAutosave = () => {
       _dirty = true;
+      document.getElementById('jrnl-saved').textContent = 'unsaved changes';
       updateWords();
       clearTimeout(_saveTimer);
       _saveTimer = setTimeout(() => { _saveTimer = null; save(false); }, 1200);   // gentle autosave
@@ -377,7 +395,7 @@ async function buildJournal() {
     const result = await Promise.all([
       load(), loadPrompt(), loadOnThisDay(), loadMoodTrend(), loadMoodCorr(), loadTopics(), refreshLockBtn(),
     ]);
-    _lastHydratedAt = Date.now();
+    _lastHydratedAt = result[0] ? Date.now() : 0;
     return result;
   } catch (error) {
     _lastHydratedAt = 0;
@@ -547,6 +565,9 @@ function showLock(mode) {
   clearTimeout(_saveTimer);
   _saveTimer = null;
   _loadGeneration += 1;
+  _loadedDay = '';
+  _loading = false;
+  _failedDay = '';
   _built = false;
   if (mode === 'unavailable') {
     body.innerHTML = `
@@ -630,17 +651,38 @@ async function navigateDay(nextDay) {
   await load();
 }
 
+function updateEditorAvailability() {
+  const blocked = _loading || _loadedDay !== _day;
+  for (const control of document.querySelectorAll('#jrnl-text, #jrnl-tags, #jrnl-moods button, #jrnl-save, #jrnl-reflect')) {
+    control.disabled = blocked;
+  }
+  document.getElementById('jrnl-load-retry')?.setAttribute('aria-disabled', String(_loading));
+}
+
+function renderDay() {
+  _setDayUrl();
+  document.getElementById('jrnl-date').textContent = formatJournalDay(_day);
+  document.getElementById('jrnl-next').disabled = _day >= todayISO();
+}
+
 async function load() {
+  if (_dirty && _loadedDay === _day && snapshotEditor()) return true;
   const generation = ++_loadGeneration;
   const requestedDay = _day;
+  const trigger = document.activeElement;
+  _loading = true;
+  updateEditorAvailability();
   clearTimeout(_saveTimer);
   _saveTimer = null;
-  _setDayUrl();
-  document.getElementById('jrnl-date').textContent = formatJournalDay(requestedDay);
-  document.getElementById('jrnl-next').disabled = requestedDay >= todayISO();
+  renderDay();
+  document.getElementById('jrnl-saved').textContent = 'loading entry…';
   try {
     const e = await jget('/api/journal/' + requestedDay);
     if (generation !== _loadGeneration || requestedDay !== _day) return;
+    _loadedDay = requestedDay;
+    _failedDay = '';
+    const restoreFocus = trigger?.id === 'jrnl-load-retry' && document.activeElement === trigger;
+    document.getElementById('jrnl-load-error').hidden = true;
     const draft = _lockedDraft?.day === requestedDay ? _lockedDraft : null;
     document.getElementById('jrnl-text').value = draft?.content ?? e.content ?? '';
     document.getElementById('jrnl-tags').value = draft?.tags ?? e.tags ?? '';
@@ -649,14 +691,30 @@ async function load() {
     document.getElementById('jrnl-saved').textContent = draft ? 'unsaved draft restored' : '';
     _dirty = Boolean(draft);
     updateWords();
+    if (restoreFocus && document.getElementById('journal-body')?.getClientRects().length) {
+      _loading = false;
+      updateEditorAvailability();
+      document.getElementById('jrnl-text').focus();
+    }
   } catch {
     if (generation !== _loadGeneration || requestedDay !== _day) return;
-    /* fresh shell is fine */
+    _failedDay = requestedDay;
+    if (_loadedDay) { _day = _loadedDay; renderDay(); }
+    document.getElementById('jrnl-load-message').textContent = `could not load ${formatJournalDay(requestedDay)}. ${_loadedDay ? 'your previous entry is still open.' : 'retry before writing an entry.'}`;
+    document.getElementById('jrnl-load-error').hidden = false;
+    document.getElementById('jrnl-saved').textContent = '';
+    return false;
+  } finally {
+    if (generation === _loadGeneration) {
+      _loading = false;
+      updateEditorAvailability();
+    }
   }
   if (generation !== _loadGeneration || requestedDay !== _day) return;
   loadStats();
   loadRecent();
   loadHeatmap();
+  return true;
 }
 
 function updateWords() {
@@ -665,6 +723,7 @@ function updateWords() {
 }
 
 async function save(explicit) {
+  if (_loading || _loadedDay !== _day) return false;
   if (_saveInFlight !== null) {
     const previousSaved = await _saveInFlight;
     if (!_dirty) return previousSaved;
@@ -673,6 +732,7 @@ async function save(explicit) {
   const draft = snapshotEditor();
   if (!draft) return false;
   const { content, tags, mood } = draft;
+  document.getElementById('jrnl-saved').textContent = 'saving…';
   const request = (async () => {
     try {
       await jput('/api/journal/' + savedDay, { content, mood, tags });
@@ -687,11 +747,13 @@ async function save(explicit) {
         if (locked) _lockedDraft = null;
       }
       const saved = document.getElementById('jrnl-saved');
-      if (saved) saved.textContent = 'saved ' + formatTime(new Date());
-      if (explicit) toast('entry saved', 'success');
+      if (saved) saved.textContent = unchanged ? 'saved ' + formatTime(new Date()) : 'unsaved changes';
+      if (explicit && unchanged) toast('entry saved', 'success');
       loadStats(); loadRecent(); loadMoodTrend(); loadMoodCorr(); loadTopics();
       return true;
     } catch (e) {
+      const status = document.getElementById('jrnl-saved');
+      if (status && savedDay === _day) status.textContent = 'could not save; your draft is kept. choose save to retry.';
       if (explicit) toast(e.message || 'save failed', 'error');
       return false;
     }

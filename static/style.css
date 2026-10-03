@@ -4662,8 +4662,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-text { width: 100%; min-height: 320px; resize: vertical; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: 3px; padding: 0.9rem; font: inherit; line-height: 1.7; }
 .jrnl-text:focus { outline: none; border-color: var(--muted); }
 .jrnl-tags { width: 100%; margin-top: 0.5rem; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: 3px; padding: 0.45rem 0.6rem; font-size: 0.8rem; }
-.jrnl-actions { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.7rem; }
+.jrnl-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.7rem; }
 .jrnl-saved { font-size: 0.75rem; color: var(--muted); margin-left: auto; }
+.jrnl-load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; color: var(--danger); font-size: 13px; }
+.jrnl-load-error[hidden] { display: none; }
 .jrnl-lock-btn { font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.3rem; }
 .jrnl-lock-btn .ic { width: 13px; height: 13px; }
 /* 7c — lock action menu is an anchored dropdown, not buried in the reflection panel */

@@ -559,6 +559,10 @@ a daily diary: one entry a day, with mood, prompts, a streak, and a year-at-a-gl
 - a rotating **daily writing prompt**, a **streak** counter (an unwritten today doesn't break it), and **on-this-day** (the same date in past years)
 - a full-year **activity heatmap**: a github-style contribution grid (7 rows × the weeks of the year) that fills in as you write, with year-to-year navigation
 - **search** across every entry, **export** the whole journal to one markdown file
+- a failed day load keeps the previous date and entry together, with an explicit retry; writing stays
+  disabled until the selected entry loads. failed autosaves retain the draft when returning to
+  Journal and show a retry message. closing or reloading warns while edits remain unsaved; drafts
+  are kept only in the current page, not copied into browser storage.
 - an optional **"reflect"** button: a short, warm ai reflection on what you wrote
 - an optional **passcode lock** that gates the journal behind its own code (an access gate, not extra encryption; once you're in it's still fully searchable)
 
