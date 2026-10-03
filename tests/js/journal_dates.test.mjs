@@ -59,7 +59,7 @@ test('journal flushes pending text before switching calendar days', () => {
   assert.match(source, /async function navigateDay\(nextDay\)/);
   assert.match(source, /while \(_dirty \|\| _saveTimer !== null \|\| _saveInFlight !== null\)[\s\S]*?if \(!await save\(false\)\)[\s\S]*?_day = nextDay/);
   assert.match(source, /jrnl-prev'\)\.onclick = \(\) => navigateDay/);
-  assert.match(source, /jrnl-otd-row'[\s\S]*?navigateDay\(x\.dataset\.d\)/);
+  assert.match(source, /box\.querySelectorAll\('\[data-d\]'\)[\s\S]*?await navigateDay\(button\.dataset\.d\)/);
   assert.doesNotMatch(source, /_day\s*=.*;\s*load\(\)/);
 });
 

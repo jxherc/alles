@@ -282,6 +282,7 @@ async function buildJournal() {
             <button class="btn" id="jrnl-export">export</button>
             <button class="btn jrnl-lock-btn" id="jrnl-lock" title="lock"></button>
           </div>
+          <div id="jrnl-export-status" class="jrnl-empty" role="status" hidden></div>
           <div id="jrnl-results" class="jrnl-results"></div>
           <div class="jrnl-side-title jrnl-heat-head">
             <span class="jrnl-heat-label">activity</span>
@@ -365,26 +366,73 @@ async function buildJournal() {
       _dirty = true;
       save(false);
     });
-    let _js;
-    document.getElementById('jrnl-search').addEventListener('input', e => {
-      clearTimeout(_js);
-      const q = e.target.value.trim();
-      const box = document.getElementById('jrnl-results');
-      if (!q) { box.innerHTML = ''; return; }
-      _js = setTimeout(async () => {
+    let searchTimer, searchGeneration = 0;
+    const search = document.getElementById('jrnl-search');
+    const box = document.getElementById('jrnl-results');
+    const runSearch = async (q, generation, retry = null) => {
+      if (generation !== searchGeneration || !box.isConnected) return;
+      try {
         const d = await jget('/api/journal/search?q=' + encodeURIComponent(q));
+        if (generation !== searchGeneration || !box.isConnected) return;
+        const restoreFocus = retry && document.activeElement === retry;
         box.innerHTML = d.results.map(r =>
-          `<div class="jrnl-otd-row" data-d="${r.date}"><b>${r.date}</b> ${r.mood || ''} ${esc(r.snippet)}</div>`).join('')
-          || '<div class="jrnl-empty">no matches</div>';
-        box.querySelectorAll('.jrnl-otd-row').forEach(x => x.onclick = () => navigateDay(x.dataset.d));
-      }, 250);
+          `<button type="button" class="jrnl-otd-row jrnl-search-result" data-d="${esc(r.date)}"><b>${esc(r.date)}</b> ${esc(r.mood || '')} ${esc(r.snippet)}</button>`).join('')
+          || '<div class="jrnl-empty" role="status">no matches</div>';
+        box.querySelectorAll('[data-d]').forEach(button => button.onclick = async () => {
+          await navigateDay(button.dataset.d);
+          if (_loadedDay === button.dataset.d && !_loading && document.activeElement === button) {
+            document.getElementById('jrnl-text')?.focus();
+          }
+        });
+        if (restoreFocus) (box.querySelector('button') || search).focus();
+      } catch {
+        if (generation !== searchGeneration || !box.isConnected) return;
+        const restoreFocus = retry && document.activeElement === retry;
+        box.innerHTML = '<div class="jrnl-empty" role="alert">could not search journal. try again.</div><button type="button" class="btn" data-search-retry>retry search</button>';
+        const retryButton = box.querySelector('[data-search-retry]');
+        retryButton.onclick = () => {
+          if (retryButton.getAttribute('aria-disabled') === 'true') return;
+          retryButton.setAttribute('aria-disabled', 'true');
+          box.querySelector('[role="alert"]').textContent = 'searching…';
+          runSearch(q, generation, retryButton);
+        };
+        if (restoreFocus) retryButton.focus();
+      }
+    };
+    search.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const generation = ++searchGeneration;
+      const q = search.value.trim();
+      box.innerHTML = q ? '<div class="jrnl-empty" role="status">searching…</div>' : '';
+      if (q) searchTimer = setTimeout(() => runSearch(q, generation), 250);
     });
-    document.getElementById('jrnl-export').addEventListener('click', async () => {
-      const d = await jget('/api/journal/export');
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([d.markdown], { type: 'text/markdown' }));
-      a.download = 'journal.md'; a.click();
-      URL.revokeObjectURL(a.href);
+    const exportButton = document.getElementById('jrnl-export');
+    const exportStatus = document.getElementById('jrnl-export-status');
+    exportButton.addEventListener('click', async () => {
+      if (exportButton.getAttribute('aria-disabled') === 'true') return;
+      exportButton.setAttribute('aria-disabled', 'true');
+      exportStatus.hidden = false;
+      exportStatus.textContent = 'preparing export…';
+      try {
+        while (_dirty || _saveTimer !== null || _saveInFlight !== null) {
+          clearTimeout(_saveTimer);
+          _saveTimer = null;
+          if (!await save(false)) throw new Error('save failed');
+          if (!exportButton.isConnected) return;
+        }
+        const d = await jget('/api/journal/export');
+        if (!exportButton.isConnected) return;
+        if (typeof d.markdown !== 'string') throw new Error('invalid export');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([d.markdown], { type: 'text/markdown' }));
+        try { a.download = 'journal.md'; a.click(); }
+        finally { URL.revokeObjectURL(a.href); }
+        exportStatus.textContent = 'journal export downloaded';
+      } catch {
+        if (exportButton.isConnected) exportStatus.textContent = 'could not export. your draft is kept. choose export to retry.';
+      } finally {
+        exportButton.removeAttribute('aria-disabled');
+      }
     });
     document.getElementById('jrnl-lock').onclick = openLockMenu;
     document.getElementById('jrnl-heat-prev').onclick = () => { if (_heatYear) { _heatYear--; loadHeatmap(); } };
