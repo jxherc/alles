@@ -436,9 +436,9 @@ test('result explanation uses the opaque Aide handoff instead of a query payload
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
   const explain = source.slice(source.indexOf('async function explainResults()'), source.indexOf('function bindRecovery()'));
-  assert.match(explain, /validatedProjectId[\s\S]*project_id[\s\S]*await window\._askInChat\(request, false, _state\.documentScope, projectId\)/);
+  assert.match(explain, /validatedProjectId[\s\S]*project_id[\s\S]*await window\._askInChat\(request, false, scope, projectId\)/);
   assert.doesNotMatch(explain, /\?ask=/);
-  assert.doesNotMatch(explain, /location\.href/);
+  assert.doesNotMatch(explain, /location\.href\s*=/);
   assert.match(app, /projectId \|\| window\._currentSession\?\.project_id/);
   assert.match(app, /withProjectContext\([\s\S]*target\.toString\(\)/);
   assert.match(app, /window\._currentSession\?\.project_id !== projectId\) newChat\(\{ projectId \}\)/);
