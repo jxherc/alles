@@ -7,6 +7,7 @@ outside the live SSE stream.
 
 import json
 import uuid
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -84,6 +85,7 @@ def start_run(
         "todos": [],
         "events": [],
         "tool_steps": [],
+        "source_tracking": 1,
         "checkpoints": [],
         "started_at": _now(),
         "updated_at": _now(),
@@ -102,7 +104,19 @@ def record_event(run_id: str, event_type: str, data: dict | None = None, **patch
     state = get_run(run_id)
     if not state:
         return
-    event = {"time": _now(), "type": event_type, "data": data or {}}
+    payload = deepcopy(data or {})
+    if event_type in ("tool_start", "tool_result"):
+        payload.setdefault("completed", event_type == "tool_result")
+        steps = patch.get("tool_steps", state.setdefault("tool_steps", []))
+        if payload.get("call_id"):
+            step = next(
+                (s for s in reversed(steps) if s.get("call_id") == payload["call_id"]), None
+            )
+            if step is None:
+                steps.append(deepcopy(payload))
+            else:
+                step.update(payload)
+    event = {"time": _now(), "type": event_type, "data": payload}
     state.setdefault("events", []).append(event)
     state["events"] = state["events"][-300:]
     if patch:
@@ -233,35 +247,106 @@ def list_incomplete(limit: int = 20) -> list[dict]:
 
 
 def run_sources(run_id: str) -> dict:
-    """what a run actually drew on — the files it touched, urls it fetched, searches
-    it ran, commands it executed. claude-code-style provenance so you can see where
-    an answer came from instead of trusting it blind."""
+    """Project confirmed tool outcomes; attempted reads are never source evidence."""
     run = get_run(run_id)
     if not run:
         return {}
-    files, urls, searches, commands = set(), set(), [], []
-    for e in run.get("events", []):
-        if e.get("type") != "tool_start":
+    from services.agent_tools import TOOL_PERMISSION
+
+    steps = deepcopy(run.get("tool_steps", []))
+    by_id = {step.get("call_id"): step for step in steps if step.get("call_id")}
+    for event in run.get("events", []):
+        if event.get("type") not in ("tool_start", "tool_result"):
             continue
-        d = e.get("data", {})
-        name, args = d.get("name", ""), d.get("args", {}) or {}
-        if name in (
-            "read_file",
-            "write_file",
-            "edit_file",
-            "apply_patch",
-            "revert_file",
-        ) and args.get("path"):
+        data = deepcopy(event.get("data") or {})
+        existing = by_id.get(data.get("call_id"))
+        if existing is not None and "completed" in existing:
+            continue
+        if event["type"] == "tool_result":
+            # Older stopped streams could emit a success-shaped partial result.
+            if (
+                run.get("source_tracking")
+                or run.get("status") in ("done", "turn_limit")
+                or data.get("error") is True
+            ):
+                data.setdefault("completed", True)
+        if existing is not None:
+            existing.update(data)
+        else:
+            steps.append(data)
+            if data.get("call_id"):
+                by_id[data["call_id"]] = data
+
+    files, urls, searches, commands = set(), set(), [], []
+    sources, actions = [], []
+    outcomes = dict(succeeded=0, failed=0, unfinished=0, unknown=0)
+    for step in steps:
+        completed = step.get("completed")
+        if completed is not True:
+            outcomes["unfinished" if completed is False else "unknown"] += 1
+            continue
+        if step.get("error") is not False:
+            outcomes["failed" if step.get("error") is True else "unknown"] += 1
+            continue
+        outcomes["succeeded"] += 1
+        name, args = step.get("name", ""), step.get("args") or {}
+        source = step.get("source")
+        source = dict(source) if isinstance(source, dict) else None
+        if not source and name in ("docs_read", "note_read"):
+            try:
+                snapshot = json.loads(step.get("output", ""))
+                if isinstance(snapshot, dict) and snapshot.get("path") and snapshot.get("hash"):
+                    source = {
+                        "kind": "document",
+                        "path": snapshot["path"],
+                        "hash": snapshot["hash"],
+                    }
+            except (ValueError, TypeError):
+                pass
+        if not source and name == "read_file" and args.get("path"):
+            source = {"kind": "file", "path": args["path"]}
+        if not source and name == "web_fetch" and args.get("url"):
+            source = {"kind": "url", "url": args["url"]}
+        if not source and name in (
+            "web_search",
+            "memory_search",
+            "note_search",
+            "docs_search",
+            "recall",
+        ):
+            source = {"kind": "search", "query": args.get("query", ""), "results": []}
+        permission = TOOL_PERMISSION.get(name, "")
+        if not source and (permission == "read" or permission.endswith("_read")):
+            source = {"kind": "tool"}
+        if source:
+            source["tool"] = name
+            if source not in sources:
+                sources.append(source)
+            if source.get("kind") in ("file", "document") and source.get("path"):
+                files.add(source["path"])
+            if source.get("kind") == "url" and source.get("url"):
+                urls.add(source["url"])
+        else:
+            action = {"tool": name}
+            for key in ("path", "command"):
+                if isinstance(args.get(key), str):
+                    action[key] = args[key]
+            actions.append(action)
+        if name in ("write_file", "edit_file", "apply_patch", "revert_file") and args.get("path"):
             files.add(args["path"])
-        elif name in ("web_fetch", "github_get_file") and (args.get("url") or args.get("path")):
-            urls.add(args.get("url") or args.get("path"))
-        elif name == "web_search" and args.get("query"):
+        if name == "github_get_file" and (args.get("url") or args.get("path")):
+            urls.add(args.get("url") or args["path"])
+        if name == "web_search" and args.get("query"):
             searches.append(args["query"])
-        elif name == "shell" and args.get("command"):
+        if name in ("shell", "bash") and args.get("command"):
             commands.append(args["command"])
     return {
         "files": sorted(files),
         "urls": sorted(urls),
         "searches": searches,
         "commands": commands,
+        "sources": sources,
+        "actions": actions,
+        "outcomes": outcomes,
+        "history_complete": run.get("source_tracking") == 1 and not outcomes["unknown"],
     }

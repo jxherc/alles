@@ -607,7 +607,7 @@ export async function sendMessage(text) {
             step.classList.remove('running');
             step.classList.toggle('error', !!t.error);
             const status = step.querySelector('.agent-step-status');
-            if (status) status.textContent = t.error ? 'error' : 'done';
+            if (status) status.textContent = t.completed === false ? 'no final result' : t.error ? 'error' : 'done';
             const out = step.querySelector('.agent-step-output');
             if (out && !out.textContent) out.textContent = t.output || '(no output)';
           }

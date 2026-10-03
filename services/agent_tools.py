@@ -505,7 +505,11 @@ async def _read_file(path: str, start_line: int = 1, end_line: int = 0) -> dict:
         # lines and copy precise old_strings for edit_file
         numbered = "\n".join(f"{base + i}\t{ln}" for i, ln in enumerate(selected))
         get_agent_ctx().setdefault("_reads", set()).add(str(p))  # for the read-before-edit hint
-        return {"output": _safe_text(prefix + numbered), "error": False}
+        return {
+            "output": _safe_text(prefix + numbered),
+            "error": False,
+            "source": {"kind": "file", "path": str(p)},
+        }
     except Exception as e:
         return {"output": str(e), "error": True}
 
@@ -775,7 +779,18 @@ async def _web_search(query: str, max_results: int = 5) -> dict:
         from services.research.search import web_search
 
         results = await web_search(query, max_results=max_results)
-        return {"output": json.dumps(results, indent=2), "error": False}
+        return {
+            "output": json.dumps(results, indent=2),
+            "error": False,
+            "source": {
+                "kind": "search",
+                "query": query,
+                "results": [
+                    {"kind": "url", "url": r.get("url", ""), "label": r.get("title", "")}
+                    for r in results
+                ],
+            },
+        }
     except Exception as e:
         return {"output": str(e), "error": True}
 
@@ -807,7 +822,11 @@ async def _web_fetch(url: str, max_chars: int = 12000) -> dict:
             text = re.sub(r"(?is)<(script|style).*?</\1>", "", text)
             text = re.sub(r"(?s)<[^>]+>", " ", text)
             text = re.sub(r"\s+", " ", text).strip()
-        return {"output": _safe_text(text, max_chars), "error": False}
+        return {
+            "output": _safe_text(text, max_chars),
+            "error": False,
+            "source": {"kind": "url", "url": cur},
+        }
     except Exception as e:
         return {"output": str(e), "error": True}
 
@@ -1365,6 +1384,12 @@ async def _gh_get_file(owner: str, repo: str, path: str, ref: str = "") -> dict:
                     f"{owner}/{repo}/{path} @ {d.get('sha', '')[:7]}\n\n{content}"
                 ),
                 "error": False,
+                "source": {
+                    "kind": "url",
+                    "url": d.get("html_url", ""),
+                    "label": f"{owner}/{repo}/{path}",
+                    "version": d.get("sha", ""),
+                },
             }
     except Exception:
         pass
@@ -2154,7 +2179,12 @@ async def _note_read(name, *, exact_path=False):
     if d.get("editable") is False:
         return {"output": d.get("error", "document cannot be read as UTF-8"), "error": True}
     snapshot = {"path": rel, "hash": d["hash"], "content": d.get("content", "")}
-    return {"output": json.dumps(snapshot, ensure_ascii=False), "path": rel, "hash": d["hash"]}
+    return {
+        "output": json.dumps(snapshot, ensure_ascii=False),
+        "path": rel,
+        "hash": d["hash"],
+        "source": {"kind": "document", "path": rel, "hash": d["hash"]},
+    }
 
 
 async def _note_write(path, content, expected_hash=None):
@@ -2214,7 +2244,14 @@ async def _note_search(q):
 
     res = vault_md.full_text_search(q, limit=12)
     out = [f"- {r['name']} ({r['path']}): {(r.get('context') or '')[:80]}" for r in res]
-    return {"output": "\n".join(out) if out else "no matches"}
+    return {
+        "output": "\n".join(out) if out else "no matches",
+        "source": {
+            "kind": "search",
+            "query": q,
+            "results": [{"kind": "document", "path": r["path"], "label": r["name"]} for r in res],
+        },
+    }
 
 
 async def _note_backlinks(name):
@@ -2337,13 +2374,21 @@ async def _recall(query, top_k):
     db = SessionLocal()
     try:
         hits = personal_index.search(db, query, k=int(top_k or 8))
-        if not hits:
-            return {"output": "no matches in your indexed data", "error": False}
         lines = []
         for h in hits:
             snip = (h.get("chunk") or "")[:200].replace("\n", " ")
             lines.append(f"[{h['score']}] {h['label']} ({h['link']}): {snip}")
-        return {"output": "\n".join(lines), "error": False}
+        return {
+            "output": "\n".join(lines) if lines else "no matches in your indexed data",
+            "error": False,
+            "source": {
+                "kind": "search",
+                "query": query,
+                "results": [
+                    {"kind": h["kind"], "ref": h["ref"], "label": h["label"]} for h in hits
+                ],
+            },
+        }
     finally:
         db.close()
 

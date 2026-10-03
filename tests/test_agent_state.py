@@ -101,13 +101,19 @@ class AgentStateTest(unittest.TestCase):
     def test_run_sources_extracts_files_and_searches(self):
         r = ast.start_run("s", "m", 10)
         ast.record_event(
-            r["id"], "tool_start", {"name": "read_file", "args": {"path": "/tmp/a.py"}}
+            r["id"],
+            "tool_result",
+            {"error": False, "name": "read_file", "args": {"path": "/tmp/a.py"}},
         )
         ast.record_event(
-            r["id"], "tool_start", {"name": "web_search", "args": {"query": "python asyncio"}}
+            r["id"],
+            "tool_result",
+            {"error": False, "name": "web_search", "args": {"query": "python asyncio"}},
         )
         ast.record_event(
-            r["id"], "tool_start", {"name": "write_file", "args": {"path": "/tmp/b.py"}}
+            r["id"],
+            "tool_result",
+            {"error": False, "name": "write_file", "args": {"path": "/tmp/b.py"}},
         )
         src = ast.run_sources(r["id"])
         self.assertIn("/tmp/a.py", src["files"])
