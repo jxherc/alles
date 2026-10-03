@@ -208,7 +208,7 @@ export function initMail() {
   window.addEventListener('beforeunload', event => {
     const editor = mailEditor();
     const account = _accountEditor?.root.isConnected ? _accountEditor : null;
-    if ((editor && editor.snapshot() !== editor.initial) || (account && (account.snapshot() !== account.initial || account.extraSnapshot() !== account.extraInitial)) || _accountRecovery.pending) {
+    if ((editor && editor.snapshot() !== editor.initial) || (account && (account.snapshot() !== account.initial || account.extraSnapshot() !== account.extraInitial)) || _accountRecovery.pending || _oauthRecovery.pending) {
       event.preventDefault();
       event.returnValue = '';
     }
@@ -2712,50 +2712,202 @@ function acctForm(acct) {
   });
   paintForm(); paintRecovery();
 
-  renderOauthBox(acct);
+  renderOauthBox(acct, editor);
 }
 
-// the "sign in with google" box (or its one-time setup) at the top of the form
-async function renderOauthBox(acct) {
-  const box = $('ma-oauth');
-  if (!box) return;
-  let st = {};
-  try { st = await fetch('/api/mail/oauth/status').then(r => r.json()); } catch (e) { console.error(e); }
-  if (!box.isConnected) return;
-  const editingOauth = acct && acct.auth_type === 'oauth';
-  if (st.configured) {
-    box.innerHTML = `
-      <a class="btn primary mail-google-btn" href="/api/mail/oauth/google/start">${editingOauth ? 'reconnect with google' : 'sign in with google'}</a>
-      <div class="mail-or">or set it up by hand</div>`;
+const oauthKey = scope => 'alles-mail-oauth-pending:' + scope;
+const _oauthRecovery = { scopes: [], pending: null, attempt: null, confirmed: false, error: '', notice: '', write: null };
+function validOauthStatus(value) {
+  return value && typeof value.configured === 'boolean' && typeof value.client_secret_configured === 'boolean' &&
+    ['client_id', 'redirect_base', 'redirect_uri'].every(key => typeof value[key] === 'string') &&
+    Number.isSafeInteger(value.revision) && value.revision >= 0 &&
+    value.configured === Boolean(value.client_id && value.client_secret_configured) &&
+    Array.isArray(value.recovery_scopes) && value.recovery_scopes.length > 0 &&
+    value.recovery_scopes.every(scope => /^[a-f0-9]{64}$/.test(scope));
+}
+async function readOauthStatus() {
+  const value = await accountRequest('/api/mail/oauth/status');
+  if (!validOauthStatus(value)) throw new Error('could not confirm Google setup');
+  return value;
+}
+function readOauthRecovery(scopes) {
+  const state = _oauthRecovery;
+  state.scopes = scopes; state.error = '';
+  try {
+    let pending = null;
+    for (const scope of scopes) {
+      const raw = sessionStorage.getItem(oauthKey(scope));
+      if (!raw) continue;
+      const value = JSON.parse(raw);
+      if (value?.recovery_scope !== scope || !Number.isSafeInteger(value.expected_revision) || value.expected_revision < 0 || pending) throw new Error('invalid Google setup recovery');
+      pending = value;
+    }
+    if (JSON.stringify(pending) !== JSON.stringify(state.pending)) {
+      state.attempt = null; state.confirmed = false; state.notice = '';
+    }
+    state.pending = pending;
+  } catch { state.error = 'could not read Google setup recovery. retry reading it before saving.'; }
+}
+function keepOauthAttempt(pending, body, inputs = null) {
+  const state = _oauthRecovery;
+  state.pending = pending; state.attempt = { body, inputs, editor: _accountEditor }; state.confirmed = false; state.error = ''; state.notice = '';
+  const raw = JSON.stringify(pending), key = oauthKey(pending.recovery_scope);
+  try {
+    sessionStorage.setItem(key, raw);
+    if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain Google setup recovery');
+    return true;
+  } catch { state.error = 'could not retain Google setup recovery. no request was sent; retry reading recovery data.'; return false; }
+}
+function clearOauthAttempt() {
+  const state = _oauthRecovery, pending = state.pending;
+  if (!pending) return;
+  const key = oauthKey(pending.recovery_scope), raw = sessionStorage.getItem(key);
+  if (raw && JSON.stringify(JSON.parse(raw)) !== JSON.stringify(pending)) throw new Error('Google setup recovery changed');
+  sessionStorage.removeItem(key);
+  if (sessionStorage.getItem(key) !== null) throw new Error('could not clear Google setup recovery');
+  state.pending = null; state.attempt = null; state.confirmed = false;
+}
+async function writeOauthAttempt() {
+  const state = _oauthRecovery;
+  if (state.write || state.error || !state.pending || !state.attempt || state.confirmed) return null;
+  const pending = state.pending, { body, inputs } = state.attempt;
+  state.notice = 'saving Google setup…';
+  const writing = (async () => {
+    try {
+      const saved = await accountRequest('/api/mail/oauth/config', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...body, ...pending }),
+      });
+      if (!validOauthStatus(saved) || !saved.recovery_scopes.includes(pending.recovery_scope) ||
+          saved.revision <= pending.expected_revision || saved.client_id !== body.client_id ||
+          (saved.redirect_base !== body.redirect_base && saved.redirect_base !== body.redirect_base.replace(/\/+$/, ''))) throw new Error('could not confirm the saved Google setup');
+      state.confirmed = true; state.attempt = null; state.notice = 'Google setup saved';
+      try { clearOauthAttempt(); } catch { state.notice += '. recovery data could not be cleared; retry cleanup.'; }
+      return { saved, fields: body, inputs };
+    } catch (error) { state.notice = `Google save unconfirmed. ${error.message || 'check your connection and retry.'}`; return null; }
+  })();
+  state.write = writing;
+  try { return await writing; } finally { if (state.write === writing) state.write = null; }
+}
+
+// Saving client keys and authorizing a mailbox are separate actions.
+async function renderOauthBox(acct, editor) {
+  const box = editor.root.querySelector('#ma-oauth'), state = _oauthRecovery;
+  const current = () => box.isConnected && _accountEditor === editor;
+  const el = id => box.querySelector('#' + id);
+  box.innerHTML = '<p role="status">loading Google setup…</p>';
+  if (state.write) await state.write.catch(() => {});
+  if (!current()) return;
+  let saved;
+  try {
+    saved = await readOauthStatus();
+    if (!current()) return;
+    readOauthRecovery(saved.recovery_scopes);
+  } catch (error) {
+    if (!current()) return;
+    box.innerHTML = `<p role="alert">could not load Google setup. ${esc(error.message || 'check your connection.')}</p><button type="button" class="btn">retry Google setup</button>`;
+    box.querySelector('button').addEventListener('click', () => renderOauthBox(acct, editor));
     return;
   }
-  box.innerHTML = `<details class="mail-oauth-setup"${editingOauth ? '' : ' open'}>
-    <summary>set up "sign in with google" (one-time)</summary>
-    <div class="mail-oauth-steps">
-      <p>create an OAuth client in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">google cloud console</a> (type: web application), then paste the keys here.</p>
-      <p>register this exact redirect url on that client:</p>
-      <code class="mail-redirect">${esc(st.redirect_uri || '')}</code>
-      <input class="settings-input" id="ma-cid" placeholder="client id">
-      <input class="settings-input" type="password" id="ma-csec" placeholder="client secret">
-      <input class="settings-input" id="ma-rbase" placeholder="redirect base (blank = http://localhost:6769)">
-      <button class="btn primary" id="ma-oauth-save">save google keys</button>
-    </div>
-  </details>
-  <div class="mail-or">or add manually</div>`;
-  $('ma-oauth-save')?.addEventListener('click', async () => {
-    const patch = {
-      mail_oauth_client_id: $('ma-cid').value.trim(),
-      mail_oauth_client_secret: $('ma-csec').value.trim(),
-    };
-    const rb = $('ma-rbase').value.trim();
-    if (rb) patch.mail_oauth_redirect_base = rb;
-    if (!patch.mail_oauth_client_id || !patch.mail_oauth_client_secret) {
-      toast('paste both client id and secret', 'error'); return;
+  box.innerHTML = `
+    <p id="ma-oauth-saved"></p>
+    <a class="btn primary mail-google-btn" id="ma-google-start" href="/api/mail/oauth/google/start">${acct?.auth_type === 'oauth' ? 'reconnect with google' : 'sign in with google'}</a>
+    <details class="mail-oauth-setup"${saved.configured ? '' : ' open'}>
+      <summary>${saved.configured ? 'edit Google setup' : 'set up sign in with Google'}</summary>
+      <div class="mail-oauth-steps">
+        <p>create an OAuth client in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">google cloud console</a> (type: web application), then paste the keys here.</p>
+        <p>register this exact redirect url on that client:</p>
+        <code class="mail-redirect" id="ma-oauth-redirect">${esc(saved.redirect_uri)}</code>
+        <label class="mail-account-field"><span>Google client id</span><input class="settings-input" id="ma-cid" value="${esc(saved.client_id)}" autocomplete="off"></label>
+        <label class="mail-account-field"><span>Google client secret</span><input class="settings-input" type="password" id="ma-csec" autocomplete="new-password" placeholder="${saved.client_secret_configured ? 'leave blank to keep the saved secret' : 'paste the client secret'}"></label>
+        <label class="mail-account-field"><span>redirect base (optional)</span><input class="settings-input" id="ma-rbase" value="${esc(saved.redirect_base)}" placeholder="blank uses this server’s localhost address"></label>
+        <button type="button" class="btn primary" id="ma-oauth-save">save google keys</button>
+      </div>
+    </details>
+    <div class="mail-saved-status"><p id="ma-oauth-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="ma-oauth-actions"></div></div>
+    <div class="mail-or">or set it up by hand</div>`;
+  const collect = () => ({ client_id: el('ma-cid').value, client_secret: el('ma-csec').value, redirect_base: el('ma-rbase').value });
+  editor.extraInitial = editor.extraSnapshot();
+  if (state.attempt && state.attempt.editor !== editor) {
+    state.attempt.inputs = collect(); state.attempt.editor = editor;
+  }
+  const dirty = () => editor.extraSnapshot() !== editor.extraInitial;
+  function accept(result) {
+    if (!current() || !result) return;
+    saved = result.saved;
+    if (result.inputs) {
+      for (const [key, id] of [['client_id', 'ma-cid'], ['client_secret', 'ma-csec'], ['redirect_base', 'ma-rbase']]) {
+        if (el(id).value === result.inputs[key]) el(id).value = key === 'client_secret' ? '' : saved[key];
+      }
     }
-    await fetch('/api/settings', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) });
-    toast('google keys saved', 'success');
-    renderOauthBox(acct);   // re-render -> now shows the sign-in button
+    editor.extraInitial = JSON.stringify([saved.client_id, '', saved.redirect_base]);
+    el('ma-csec').placeholder = saved.client_secret_configured ? 'leave blank to keep the saved secret' : 'paste the client secret';
+    el('ma-oauth-redirect').textContent = saved.redirect_uri;
+  }
+  function paint() {
+    if (!current()) return;
+    const blocked = Boolean(state.write || state.pending || state.error);
+    el('ma-oauth-save').setAttribute('aria-disabled', String(blocked));
+    el('ma-google-start').hidden = !saved.configured;
+    el('ma-google-start').setAttribute('aria-disabled', String(blocked));
+    el('ma-oauth-saved').textContent = saved.configured ? 'Google client keys are saved. sign in to authorize a mailbox.' : 'Google sign-in is not configured.';
+    const status = el('ma-oauth-status'), actions = el('ma-oauth-actions'), focused = actions.contains(document.activeElement);
+    status.textContent = state.error || state.notice || (state.pending ? 'the last Google save is unconfirmed. review the currently saved setup before continuing.' : dirty() ? 'Google setup changes are unsaved' : '');
+    if (dirty() && state.notice) status.textContent += ' newer changes are unsaved.';
+    actions.replaceChildren();
+    const button = (label, fn) => {
+      const node = document.createElement('button'); node.type = 'button'; node.className = 'btn'; node.textContent = label;
+      node.setAttribute('aria-disabled', String(Boolean(state.write)));
+      node.addEventListener('click', async () => { if (!state.write && current()) await fn(); }); actions.appendChild(node);
+    };
+    if (state.error) button('retry reading Google recovery', () => { readOauthRecovery(state.scopes); paint(); });
+    else if (state.pending && state.confirmed) button('retry Google recovery cleanup', () => {
+      try { clearOauthAttempt(); state.notice = 'Google setup recovery cleared'; } catch { state.notice = 'recovery data could not be cleared; retry cleanup.'; }
+      paint();
+    });
+    else if (state.pending) {
+      if (state.attempt) button('retry Google save', async () => { const writing = writeOauthAttempt(); paint(); accept(await writing); paint(); });
+      button('review saved Google setup', async () => {
+        const pending = state.pending, inputs = collect();
+        const reading = readOauthStatus(); state.write = reading; state.notice = 'loading saved Google setup…'; paint();
+        let value;
+        try {
+          value = await reading;
+          if (!value.recovery_scopes.includes(pending.recovery_scope)) throw new Error('mail storage changed; reopen accounts');
+        } catch (error) { value = null; state.notice = error.message || 'could not load saved Google setup'; }
+        finally { if (state.write === reading) state.write = null; }
+        if (!value || !current()) { paint(); return; }
+        paint();
+        const description = value.client_id || value.client_secret_configured
+          ? `keep the saved Google setup: client id “${value.client_id || 'not set'}”, secret ${value.client_secret_configured ? 'saved' : 'not set'}, redirect “${value.redirect_uri}”?`
+          : 'keep Google sign-in unconfigured?';
+        if (!await dlgConfirm(description + ' this cancels the unconfirmed change.')) return;
+        if (!current() || state.write || state.pending !== pending) return;
+        const body = { client_id: value.client_id, client_secret: null, redirect_base: value.redirect_base };
+        if (!keepOauthAttempt({ expected_revision: value.revision, recovery_scope: pending.recovery_scope }, body, inputs)) { paint(); return; }
+        const writing = writeOauthAttempt(); paint();
+        accept(await writing); paint();
+      });
+    }
+    if (focused && document.activeElement === document.body) (actions.querySelector('button') || status).focus();
+  }
+  el('ma-google-start').addEventListener('click', async event => {
+    event.preventDefault();
+    if (state.write || state.pending || state.error || !saved.configured) return;
+    if (await prepareMailNavigation()) window.location.assign('/api/mail/oauth/google/start');
   });
+  for (const id of ['ma-cid', 'ma-csec', 'ma-rbase']) el(id).addEventListener('input', () => { if (!state.pending) state.notice = ''; paint(); });
+  el('ma-oauth-save').addEventListener('click', async () => {
+    if (state.write || state.pending || state.error || !current()) return;
+    const inputs = collect(), fields = { ...inputs, client_id: inputs.client_id.trim(), redirect_base: inputs.redirect_base.trim() };
+    if (!fields.client_id || (!fields.client_secret && !saved.client_secret_configured)) {
+      state.notice = !fields.client_id ? 'enter a Google client id' : 'enter a Google client secret'; paint();
+      el(!fields.client_id ? 'ma-cid' : 'ma-csec').focus(); return;
+    }
+    const body = { ...fields, client_secret: fields.client_secret || null };
+    if (!keepOauthAttempt({ expected_revision: saved.revision, recovery_scope: saved.recovery_scopes[0] }, body, inputs)) { paint(); return; }
+    const writing = writeOauthAttempt(); paint(); accept(await writing); paint();
+  });
+  paint();
 }
 
 // turn a raw IMAP/SMTP error into something a human can act on

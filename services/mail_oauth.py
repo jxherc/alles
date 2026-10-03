@@ -5,16 +5,19 @@ be called straight from the threadpooled mail routes + the connect path."""
 
 import secrets as _secrets
 import time
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
+from pydantic import AnyHttpUrl, TypeAdapter
 
-from core.settings import get_port, load_settings
+from core.settings import get_port, load_settings, save_settings
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 SCOPES = "https://mail.google.com/ openid email"
+
+_REDIRECT_BASE = TypeAdapter(AnyHttpUrl)
 
 GMAIL_IMAP = ("imap.gmail.com", 993)
 GMAIL_SMTP = ("smtp.gmail.com", 587)
@@ -30,11 +33,117 @@ def configured() -> bool:
     return bool(cid and sec)
 
 
-def redirect_uri() -> str:
+def _redirect_uri(settings) -> str:
     base = (
-        load_settings().get("mail_oauth_redirect_base", "") or f"http://localhost:{get_port()}"
+        settings.get("mail_oauth_redirect_base", "") or f"http://localhost:{get_port()}"
     ).rstrip("/")
     return base + "/api/mail/oauth/google/callback"
+
+
+def redirect_uri() -> str:
+    return _redirect_uri(load_settings())
+
+
+def _configuration(settings):
+    revision = settings.get("mail_oauth_revision", 0)
+    if type(revision) is not int or revision < 0:
+        raise ValueError("could not read the Google configuration revision")
+    return {
+        "configured": bool(
+            settings.get("mail_oauth_client_id") and settings.get("mail_oauth_client_secret")
+        ),
+        "client_id": settings.get("mail_oauth_client_id", ""),
+        "client_secret_configured": bool(settings.get("mail_oauth_client_secret")),
+        "redirect_base": settings.get("mail_oauth_redirect_base", ""),
+        "redirect_uri": _redirect_uri(settings),
+        "revision": revision,
+    }
+
+
+def configuration():
+    from services.recovery_consistency import recovery_consistency_lock
+
+    with recovery_consistency_lock:
+        return _configuration(load_settings())
+
+
+class ConfigurationConflict(ValueError):
+    pass
+
+
+def save_configuration(*, client_id, client_secret, redirect_base, expected_revision):
+    from services.recovery_consistency import recovery_consistency_lock
+
+    with recovery_consistency_lock:
+        saved = load_settings()
+        current = _configuration(saved)
+        # Retention must also work for partial or invalid values saved by legacy
+        # clients. It changes no configuration; only the revision fences old writes.
+        if (
+            client_secret is None
+            and client_id == saved.get("mail_oauth_client_id", "")
+            and redirect_base == saved.get("mail_oauth_redirect_base", "")
+        ):
+            if expected_revision != current["revision"]:
+                raise ConfigurationConflict(
+                    "Google configuration changed; review the saved settings before retrying"
+                )
+            return _configuration(
+                save_settings(
+                    {
+                        "mail_oauth_client_id": client_id,
+                        "mail_oauth_client_secret": saved.get("mail_oauth_client_secret", ""),
+                        "mail_oauth_redirect_base": redirect_base,
+                    }
+                )
+            )
+        client_id = client_id.strip()
+        redirect_base = redirect_base.strip()
+        if redirect_base:
+            try:
+                if (
+                    "?" in redirect_base
+                    or "#" in redirect_base
+                    or "\\" in redirect_base
+                    or any(
+                        char.isspace() or ord(char) < 32 or ord(char) == 127
+                        for char in redirect_base
+                    )
+                ):
+                    raise ValueError
+                parsed = _REDIRECT_BASE.validate_python(redirect_base, strict=True)
+                if (
+                    parsed.username is not None
+                    or parsed.password is not None
+                    or "@" in urlsplit(redirect_base).netloc
+                ):
+                    raise ValueError
+            except ValueError as exc:
+                raise ValueError(
+                    "redirect base must be an HTTP or HTTPS URL without credentials, query or fragment"
+                ) from exc
+        redirect_base = redirect_base.rstrip("/")
+        desired = {
+            "mail_oauth_client_id": client_id,
+            "mail_oauth_client_secret": saved.get("mail_oauth_client_secret", "")
+            if client_secret is None
+            else client_secret,
+            "mail_oauth_redirect_base": redirect_base,
+        }
+        if expected_revision != current["revision"]:
+            if client_secret is not None and all(
+                saved.get(key, "") == value for key, value in desired.items()
+            ):
+                return current
+            raise ConfigurationConflict(
+                "Google configuration changed; review the saved settings before retrying"
+            )
+        if bool(client_id) != bool(desired["mail_oauth_client_secret"]):
+            raise ValueError(
+                "enter a Google client secret" if client_id else "enter a Google client id"
+            )
+        # Even an unchanged claim advances the version, fencing older pending writes.
+        return _configuration(save_settings(desired))
 
 
 # short-lived CSRF states (the flow takes seconds; in-memory is fine)
