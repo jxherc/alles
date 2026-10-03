@@ -304,7 +304,7 @@ test('Andromeda results stay clean and end with a useful continuation', () => {
 test('news results require an explicit save action before entering Library', () => {
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   assert.match(source, /andromeda-news-save/);
-  assert.match(source, /jsonRequest\('\/api\/read\/save-news'/);
+  assert.match(source, /jsonRequest\(news \? '\/api\/read\/save-news' : '\/api\/read\/save-result'/);
   assert.match(source, /button\.addEventListener\('click'/);
   assert.doesNotMatch(source, /renderAndromedaResults[\s\S]{0,500}\/api\/read\/save-news/);
 });

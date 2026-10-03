@@ -8823,11 +8823,14 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-news-title:hover { text-decoration: underline; text-underline-offset: 3px; }
 .andromeda-news-card p { margin: 7px 0 0; color: color-mix(in srgb, var(--text) 62%, var(--muted)); font-size: 0.92rem; line-height: 1.58; }
 .andromeda-news-date { display: block; margin-top: 7px; color: var(--muted); font-size: 0.75rem; }
-.andromeda-news-meta { display: flex; align-items: center; gap: 12px; min-height: 36px; margin-top: 5px; }
+.andromeda-news-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 44px; margin-top: 8px; }
 .andromeda-news-meta .andromeda-news-date { margin-top: 0; }
-.andromeda-news-save { min-height: 36px; margin-inline-start: auto; padding: 0 10px; border: 0; border-radius: 3px; color: var(--muted); background: var(--panel); font: inherit; font-size: 0.75rem; cursor: pointer; }
+.andromeda-news-save { min-height: 44px; padding: 0 12px; border: 0; border-radius: 3px; color: var(--muted); background: var(--panel); font: inherit; font-size: 13px; cursor: pointer; }
 .andromeda-news-save:hover { color: var(--text); background: color-mix(in srgb, var(--panel) 90%, var(--text)); }
-.andromeda-news-save[data-saved="true"] { color: var(--text); cursor: default; }
+.andromeda-news-save[aria-disabled="true"] { cursor: progress; }
+.andromeda-library-action { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.andromeda-news-meta .andromeda-library-action { margin-top: 0; }
+.andromeda-library-status { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 .andromeda-news-card .andromeda-media-frame { height: auto; aspect-ratio: 16 / 10; }
 .andromeda-video-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 18px; }
 .andromeda-video-card { min-width: 0; color: var(--text); text-decoration: none; }

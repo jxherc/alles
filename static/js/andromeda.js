@@ -367,8 +367,76 @@ function resultNode(result) {
   const snippet = document.createElement('p');
   renderResultSnippet(snippet, result.snippet, _state.query);
   body.append(source, link, snippet);
+  const action = libraryAction(result);
+  if (action) body.append(action);
   row.append(body);
   return row;
+}
+
+function resultSaveUrl(value) {
+  const url = safeUrl(value);
+  if (!url || url.username || url.password) return '';
+  url.hash = '';
+  url.hostname = url.hostname.replace(/\.$/, '');
+  return url.href;
+}
+
+function libraryAction(result, news = false) {
+  const url = resultSaveUrl(result.url);
+  if (!url) return null;
+  const action = document.createElement('div');
+  action.className = 'andromeda-library-action';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'andromeda-news-save';
+  const message = document.createElement('span');
+  message.className = 'andromeda-library-status';
+  message.setAttribute('role', 'status');
+  let savedItem = null;
+  let busy = false;
+  const label = () => {
+    button.textContent = savedItem ? 'open in Library' : tr('andromeda.save_library');
+    button.setAttribute('aria-label', `${button.textContent}: ${result.title || url}`);
+  };
+  label();
+  button.addEventListener('click', async () => {
+    if (busy) return;
+    busy = true;
+    button.setAttribute('aria-disabled', 'true');
+    try {
+      if (savedItem) {
+        if (!await window._openRecord?.('read', savedItem.id)) {
+          message.textContent = 'could not open this item; try again';
+        }
+        return;
+      }
+      message.textContent = 'saving excerpt…';
+      const saved = await jsonRequest(news ? '/api/read/save-news' : '/api/read/save-result', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          url, title: result.title || '', excerpt: result.snippet || '',
+          publisher: result.publisher || safeUrl(url).hostname,
+          image_url: result.thumbnail_url || result.image_url || '',
+        }),
+      });
+      if (!saved?.item || typeof saved.item.id !== 'string'
+          || !/^[a-zA-Z0-9_-]{1,160}$/.test(saved.item.id)
+          || resultSaveUrl(saved.item.url) !== url || typeof saved.duplicate !== 'boolean') {
+        throw new Error('could not confirm the saved item');
+      }
+      savedItem = saved.item;
+      label();
+      message.textContent = saved.duplicate ? 'already in Library' : 'excerpt saved';
+    } catch (error) {
+      message.textContent = `${error.message || 'could not confirm the save'}; retry safely`;
+    } finally {
+      busy = false;
+      button.setAttribute('aria-disabled', 'false');
+    }
+  });
+  action.append(button, message);
+  return action;
 }
 
 function imageNode(result) {
@@ -401,38 +469,8 @@ function newsNode(result) {
   const meta = document.createElement('div');
   meta.className = 'andromeda-news-meta';
   if (date.textContent) meta.appendChild(date);
-  const href = safeUrl(result.url);
-  if (href) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'andromeda-news-save';
-    button.textContent = tr('andromeda.save_library');
-    button.setAttribute('aria-label', tr('andromeda.save_story', { title: result.title || tr('andromeda.this_story') }));
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      button.textContent = tr('common.saving');
-      try {
-        const saved = await jsonRequest('/api/read/save-news', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            url: href.href,
-            title: result.title || '',
-            excerpt: result.snippet || '',
-            publisher: result.publisher || href.hostname,
-            image_url: result.thumbnail_url || result.image_url || '',
-          }),
-        });
-        button.textContent = saved.duplicate ? tr('andromeda.already_library') : tr('andromeda.saved_library');
-        button.dataset.saved = 'true';
-      } catch (error) {
-        button.disabled = false;
-        button.textContent = tr('andromeda.retry_save');
-        status(error.message || tr('andromeda.save_failed'));
-      }
-    });
-    meta.appendChild(button);
-  }
+  const action = libraryAction(result, true);
+  if (action) meta.appendChild(action);
   copy.append(source, link);
   if (result.snippet) copy.appendChild(snippet);
   if (meta.childElementCount) copy.appendChild(meta);

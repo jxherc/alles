@@ -344,6 +344,11 @@ related apps now open together without merging their records.
   URL saves retain their request identity for retry or confirmation after reload. Repeating a pending
   save returns the original article without fetching it again; deleting it prevents that same request
   from recreating it. Failed URL extraction still preserves the link.
+  Andromeda web and news results can save an excerpt to Library without fetching the publisher.
+  Repeating a save, including after a lost reply or reload, opens the same canonical URL record;
+  existing text, metadata, reading place and completion stay intact. Each saved result offers
+  an exact Library destination, where Take note continues into Docs with a source link.
+  Ordinary web results carry `source:search`; news keeps `source:news`.
   The reader distinguishes saved news excerpts, extracted text, empty records and older text whose
   origin is unknown. Fetch article text explicitly retrieves readable text through the guarded URL
   extractor; non-success HTTP responses and empty extraction retain existing text. Legacy text
@@ -1354,9 +1359,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 913 http method/path pairs
-- 896 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `9269e264ffab213661c86cf55a687f53313ef3755e20973c02d248da1e37218f`
+- 914 http method/path pairs
+- 897 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `d2f1e721abc8247f7833cf9af239ae747b0b4d4c015fee4100172582facec6cd`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -2638,6 +2643,7 @@ retrieve full article text from each entry's publisher.
 | `POST` | `/api/read/feeds/refresh` | `refresh_now` |
 | `DELETE` | `/api/read/feeds/{fid}` | `delete_feed` |
 | `POST` | `/api/read/save-news` | `save_news` |
+| `POST` | `/api/read/save-result` | `save_result` |
 | `GET` | `/api/read/stats` | `read_stats` |
 | `DELETE` | `/api/read/{rid}` | `delete_item` |
 | `GET` | `/api/read/{rid}` | `get_item` |
