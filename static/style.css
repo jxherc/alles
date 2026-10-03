@@ -895,11 +895,12 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
 .agent-sources { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed var(--faint); }
 
 /* runs drawer + provenance */
-.run-src-group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem; margin: 0.2rem 0; }
-.run-src-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; min-width: 56px; }
-.run-src-item { font-size: 0.75rem; color: var(--text); border: 1px solid var(--faint); border-radius: 3px; padding: 0.02rem 0.35rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-src-group { display: flex; flex-direction: column; gap: var(--k-space-1); margin: var(--k-space-3) 0; }
+.run-src-label { font-size: 0.8125rem; color: var(--muted); }
+.run-src-item { font-size: 0.8125rem; color: var(--text); max-width: 100%; overflow-wrap: anywhere; }
+a.run-src-item { display: flex; align-items: center; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
 .run-src-item.mono { font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace; font-size: 0.75rem; }
-.run-src-none { font-size: 0.75rem; color: var(--muted); font-style: italic; }
+.run-src-none { font-size: 0.8125rem; color: var(--muted); margin: var(--k-space-2) 0; }
 
 .runs-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 60; }
 .runs-drawer {

@@ -751,9 +751,10 @@ async def run_agent(
                     "args": args,
                     "output": "",
                     "error": False,
+                    "completed": False,
                 }
                 tool_steps.append(step)
-                record_event(run_id, "tool_start", step)
+                record_event(run_id, "tool_start", step, tool_steps=tool_steps)
                 yield {"tool_start": {"call_id": call_id, "name": name, "args": args}}
 
                 # ── permission gate: mode + per-tool/path rules (allow|ask|deny) ──
@@ -963,9 +964,10 @@ async def run_agent(
                     # snapshot files before edits so the run can be reverted
                     if name in ("write_file", "edit_file", "apply_patch"):
                         capture_checkpoint(run_id, name, args)
-                    result = {"output": "", "error": False}
+                    result = {"output": "", "error": True, "incomplete": True}
                     async for event in stream_execute(name, args):
-                        if stop_event.is_set():
+                        # A final outcome may arrive while cancellation is pending.
+                        if stop_event.is_set() and event["type"] != "result":
                             break
                         if event["type"] == "output":
                             text = event.get("text", "")
@@ -988,7 +990,7 @@ async def run_agent(
                                 _ddb,
                                 saved_action,
                                 success=not step["error"],
-                                outcome_known=True,
+                                outcome_known=not result.get("incomplete", False),
                             )
                             _ddb.commit()
                         finally:
@@ -997,7 +999,7 @@ async def run_agent(
 
                 # pull any screenshot image out — feed it back as vision, not as text
                 img = result.get("image")
-                tool_content = {k: v for k, v in result.items() if k != "image"}
+                tool_content = {k: v for k, v in result.items() if k not in ("image", "source")}
                 # wrap untrusted external content (web/file/mail/repo) so it can't act
                 # as instructions, and flag anything that looks like an injection
                 if (
@@ -1048,6 +1050,13 @@ async def run_agent(
                             tool_content["output"] += v
 
                 # one write, not two: log the result + sync tool_steps in the same save
+                step["completed"] = not result.get("incomplete", False)
+                if (
+                    step["completed"]
+                    and not step["error"]
+                    and isinstance(result.get("source"), dict)
+                ):
+                    step["source"] = result["source"]
                 record_event(run_id, "tool_result", step, tool_steps=tool_steps)
                 # 10a — fire any user "agent_tool" automation rules for this tool
                 try:
@@ -1069,6 +1078,7 @@ async def run_agent(
                         "name": name,
                         "output": step["output"],
                         "error": step["error"],
+                        "completed": step["completed"],
                     }
                 }
                 # cap per-tool history so long runs don't blow context. truncate the

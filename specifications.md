@@ -248,6 +248,11 @@ what it supports:
 - **one automatic aide mode**: aide chats, uses approved tools when useful, and can keep longer work running in the same conversation without a mode switch
 - **app actions from plain chat**: just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm"). reads can run directly; changes and sends follow the configured permission rules
 - **conclusion-first work**: successful answers lead with the result. exact steps, sources, diffs, and revert controls stay available under one accessible control after reload
+- **confirmed tool sources**: source history separates successful reads, search references and other
+  completed tools. Failed, denied and unfinished calls stay unconfirmed; older incomplete histories
+  say so. Document reads link to the path and version actually returned, with a changed-version
+  check before opening newer text. History survives the short event log and remains in memory for
+  private chats. These records show tool outcomes, not proof of every answer claim.
 - **compare**: an action that runs one prompt against several models side by side, rather than a permanent aide destination
 - **long-term memory**: it remembers reviewed facts and preferences across chats, with off, ask,
   and auto policies

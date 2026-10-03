@@ -18,21 +18,20 @@ class AgentSourcesTest(unittest.TestCase):
         self._p.stop()
         self.tmp.cleanup()
 
+    def complete(self, rid, data):
+        step = {"call_id": str(len(ast.get_run(rid)["tool_steps"])), **data}
+        ast.record_event(rid, "tool_start", step)
+        ast.record_event(rid, "tool_result", {**step, "error": False, "output": "synthetic"})
+
     def test_extracts_provenance(self):
         r = ast.start_run("s", "m", 10)
         rid = r["id"]
-        ast.record_event(rid, "tool_start", {"name": "read_file", "args": {"path": "app.py"}})
-        ast.record_event(rid, "tool_start", {"name": "write_file", "args": {"path": "out.txt"}})
-        ast.record_event(
-            rid, "tool_start", {"name": "web_fetch", "args": {"url": "https://example.com"}}
-        )
-        ast.record_event(rid, "tool_start", {"name": "web_search", "args": {"query": "fizzbuzz"}})
-        ast.record_event(
-            rid, "tool_start", {"name": "shell", "args": {"command": "python out.txt"}}
-        )
-        ast.record_event(
-            rid, "tool_start", {"name": "memory_search", "args": {"query": "x"}}
-        )  # ignored
+        self.complete(rid, {"name": "read_file", "args": {"path": "app.py"}})
+        self.complete(rid, {"name": "write_file", "args": {"path": "out.txt"}})
+        self.complete(rid, {"name": "web_fetch", "args": {"url": "https://example.com"}})
+        self.complete(rid, {"name": "web_search", "args": {"query": "fizzbuzz"}})
+        self.complete(rid, {"name": "shell", "args": {"command": "python out.txt"}})
+        self.complete(rid, {"name": "memory_search", "args": {"query": "x"}})  # ignored
         src = ast.run_sources(rid)
         self.assertEqual(src["files"], ["app.py", "out.txt"])
         self.assertEqual(src["urls"], ["https://example.com"])
@@ -45,23 +44,22 @@ class AgentSourcesTest(unittest.TestCase):
     def test_edit_file_tracked_as_file(self):
         r = ast.start_run("s2", "m", 5)
         rid = r["id"]
-        ast.record_event(rid, "tool_start", {"name": "edit_file", "args": {"path": "routes/x.py"}})
+        self.complete(rid, {"name": "edit_file", "args": {"path": "routes/x.py"}})
         src = ast.run_sources(rid)
         self.assertIn("routes/x.py", src["files"])
 
     def test_apply_patch_tracked_as_file(self):
         r = ast.start_run("s3", "m", 5)
         rid = r["id"]
-        ast.record_event(rid, "tool_start", {"name": "apply_patch", "args": {"path": "main.py"}})
+        self.complete(rid, {"name": "apply_patch", "args": {"path": "main.py"}})
         src = ast.run_sources(rid)
         self.assertIn("main.py", src["files"])
 
     def test_github_get_file_tracked_as_url(self):
         r = ast.start_run("s4", "m", 5)
         rid = r["id"]
-        ast.record_event(
+        self.complete(
             rid,
-            "tool_start",
             {"name": "github_get_file", "args": {"path": "https://github.com/org/repo/file.py"}},
         )
         src = ast.run_sources(rid)
@@ -78,17 +76,17 @@ class AgentSourcesTest(unittest.TestCase):
     def test_duplicate_files_deduplicated(self):
         r = ast.start_run("s6", "m", 5)
         rid = r["id"]
-        ast.record_event(rid, "tool_start", {"name": "read_file", "args": {"path": "app.py"}})
-        ast.record_event(rid, "tool_start", {"name": "read_file", "args": {"path": "app.py"}})
+        self.complete(rid, {"name": "read_file", "args": {"path": "app.py"}})
+        self.complete(rid, {"name": "read_file", "args": {"path": "app.py"}})
         src = ast.run_sources(rid)
         self.assertEqual(src["files"].count("app.py"), 1)
 
     def test_searches_preserve_order(self):
         r = ast.start_run("s7", "m", 5)
         rid = r["id"]
-        ast.record_event(rid, "tool_start", {"name": "web_search", "args": {"query": "alpha"}})
-        ast.record_event(rid, "tool_start", {"name": "web_search", "args": {"query": "beta"}})
-        ast.record_event(rid, "tool_start", {"name": "web_search", "args": {"query": "gamma"}})
+        self.complete(rid, {"name": "web_search", "args": {"query": "alpha"}})
+        self.complete(rid, {"name": "web_search", "args": {"query": "beta"}})
+        self.complete(rid, {"name": "web_search", "args": {"query": "gamma"}})
         src = ast.run_sources(rid)
         self.assertEqual(src["searches"], ["alpha", "beta", "gamma"])
 

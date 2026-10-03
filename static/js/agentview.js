@@ -54,7 +54,7 @@ export function renderDiff(diff = '') {
 
 export function renderAgentSteps(steps, open = false, agentRunId = '') {
   if (!Array.isArray(steps) || !steps.length) return '';
-  open = open || steps.some(step => step?.error);
+  open = open || steps.some(step => step?.error || step?.completed === false);
   let edits = 0;
   const rows = steps.map(s => {
     const name = s.name || s.tool || 'tool';
@@ -75,6 +75,7 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
         <span class="agent-step-dot"></span>
         <span class="agent-step-name">${esc(name)}</span>
         <span class="agent-step-summary">${esc(summary(name, s.args))}</span>
+        ${s.completed === false ? '<span class="agent-step-summary">no final result</span>' : ''}
         ${badge}
       </div>${argsBlock}${out}${diff}
     </div>`;
@@ -83,7 +84,7 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
   const runId = String(agentRunId || '').trim();
   const reversible = steps.some(step => step.diff && canRevertTool(step.name || step.tool));
   const controls = runId ? `<span class="agent-run-controls">
-    <button type="button" class="agent-sources-btn" data-agent-sources="${esc(runId)}" title="files, urls, searches and commands this run touched">sources</button>
+    <button type="button" class="agent-sources-btn" data-agent-sources="${esc(runId)}" aria-expanded="false" title="confirmed reads, search results and tool outcomes">sources</button>
     ${reversible ? `<button type="button" class="agent-revert-btn" data-agent-revert="${esc(runId)}" title="restore every file this run changed">revert edits</button>` : ''}
   </span>` : '';
   return `<details class="agent-steps"${open ? ' open' : ''}><summary>run details · ${detail}${controls}</summary><div class="agent-step-list">${rows}</div></details>`;
@@ -97,24 +98,33 @@ export function wireAgentRunControls(root) {
     button.addEventListener('click', async event => {
       event.preventDefault();
       event.stopPropagation();
-      if (panel) { panel.hidden = !panel.hidden; return; }
-      button.disabled = true;
+      if (button.getAttribute('aria-disabled') === 'true') return;
+      if (panel && !panel.hidden) { panel.hidden = true; button.setAttribute('aria-expanded', 'false'); return; }
+      button.setAttribute('aria-disabled', 'true');
+      button.textContent = 'loading sources…';
       try {
         const response = await fetch(`/api/agent/runs/${encodeURIComponent(button.dataset.agentSources)}/sources`);
         if (!response.ok) throw new Error('sources unavailable');
         const { sourcesHtml } = await import('./runs.js');
-        panel = document.createElement('div');
+        const sources = await response.json();
+        if (!Array.isArray(sources?.sources) || !sources.outcomes) throw new Error('sources unavailable');
+        if (!button.isConnected) return;
+        panel ||= document.createElement('div');
         panel.className = 'agent-sources';
-        panel.innerHTML = sourcesHtml(await response.json());
+        panel.innerHTML = sourcesHtml(sources);
+        panel.hidden = false;
         const details = button.closest('.agent-steps');
         if (details) {
           details.open = true;
           details.appendChild(panel);
         }
+        button.textContent = 'sources';
+        button.setAttribute('aria-expanded', 'true');
       } catch {
-        button.textContent = 'sources unavailable';
+        button.textContent = 'retry sources';
+        button.setAttribute('aria-expanded', 'false');
       } finally {
-        button.disabled = false;
+        button.removeAttribute('aria-disabled');
       }
     });
   });

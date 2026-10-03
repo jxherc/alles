@@ -50,6 +50,21 @@ class AgentVaultToolsTests(VaultApiTest):
         self.assertEqual(read.get("hash"), saved["hash"])
         self.assertEqual(read.get("path"), "versioned.md")
         self.assertIn(saved["hash"], read["output"])
+        self.assertEqual(
+            read["source"], {"kind": "document", "path": "versioned.md", "hash": saved["hash"]}
+        )
+
+    def test_search_returns_actual_paths_without_claiming_full_document_reads(self):
+        vault_md.write("Research/one.md", "synthetic search phrase")
+        found = self.ex("docs_search", {"query": "synthetic search phrase"})
+        self.assertEqual(
+            found["source"],
+            {
+                "kind": "search",
+                "query": "synthetic search phrase",
+                "results": [{"kind": "document", "path": "Research/one.md", "label": "one"}],
+            },
+        )
 
     def test_existing_document_requires_the_reviewed_version_for_both_write_tools(self):
         for tool in ("docs_write", "note_write"):
