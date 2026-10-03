@@ -132,8 +132,12 @@ def run():
                         else route.continue_()
                     ),
                 )
+                before_height = body.evaluate("element => element.clientHeight")
                 scroll_to(0.6)
                 expect(status).to_contain_text("could not confirm")
+                assert body.evaluate("element => element.clientHeight") == before_height, (
+                    "reading status changed the article viewport height"
+                )
                 assert api.get(url).json()["position"] == saved
                 at_position(0.6)
                 page.unroute(url)
@@ -141,6 +145,7 @@ def run():
                 page.keyboard.press("Enter")
                 expect(status).to_have_text("reading place saved")
                 assert abs(api.get(url).json()["position"] - 0.6) < 0.015
+                assert body.evaluate("element => element.clientHeight") == before_height
                 record("failed-write-retains-place-and-keyboard-retry")
                 held = []
 
