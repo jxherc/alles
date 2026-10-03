@@ -558,7 +558,7 @@ a daily diary: one entry a day, with mood, prompts, a streak, and a year-at-a-gl
 - one entry per day with a **mood** picker, tags, live word count, and gentle autosave
 - a rotating **daily writing prompt**, a **streak** counter (an unwritten today doesn't break it), and **on-this-day** (the same date in past years)
 - a full-year **activity heatmap**: a github-style contribution grid (7 rows × the weeks of the year) that fills in as you write, with year-to-year navigation
-- **search** across every entry, **export** the whole journal to one markdown file
+- **search** across every entry, **export** the whole journal to one markdown file. search results open by keyboard, ignore late replies and offer retry after failure. export saves current edits first and remains retryable after a failed save or download request.
 - a failed day load keeps the previous date and entry together, with an explicit retry; writing stays
   disabled until the selected entry loads. failed autosaves retain the draft when returning to
   Journal and show a retry message. closing or reloading warns while edits remain unsaved; drafts
