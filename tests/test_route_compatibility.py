@@ -30,8 +30,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 913)
-        self.assertEqual(digest, "9269e264ffab213661c86cf55a687f53313ef3755e20973c02d248da1e37218f")
+        self.assertEqual(len(rows), 914)
+        self.assertEqual(digest, "d2f1e721abc8247f7833cf9af239ae747b0b4d4c015fee4100172582facec6cd")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -40,13 +40,24 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 896, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 897, "v1": 2, "public": 15})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 
+    def test_result_save_is_additive_to_previous_surface(self):
+        rows = [row for row in _route_rows() if row != "POST /api/read/save-result"]
+        self.assertEqual(len(rows), 913)
+        self.assertEqual(
+            hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest(),
+            "9269e264ffab213661c86cf55a687f53313ef3755e20973c02d248da1e37218f",
+        )
+
     def test_saved_search_recovery_is_additive_to_previous_surface(self):
         rows = [
-            row for row in _route_rows() if row != "GET /api/andromeda/saved/requests/{request_id}"
+            row
+            for row in _route_rows()
+            if row
+            not in {"GET /api/andromeda/saved/requests/{request_id}", "POST /api/read/save-result"}
         ]
         self.assertEqual(len(rows), 912)
         self.assertEqual(
@@ -60,6 +71,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             for row in _route_rows()
             if row
             not in {
+                "POST /api/read/save-result",
                 "POST /api/read/{rid}/fetch-text",
                 "GET /api/andromeda/saved/requests/{request_id}",
             }
@@ -76,6 +88,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             for row in _route_rows()
             if row
             not in {
+                "POST /api/read/save-result",
                 "GET /api/books/requests/{request_id}",
                 "POST /api/read/{rid}/fetch-text",
                 "GET /api/andromeda/saved/requests/{request_id}",
