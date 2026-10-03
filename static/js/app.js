@@ -950,6 +950,7 @@ window._askInChat = async (
   const ta = document.getElementById('composer-ta');
   const canOpenAideInline = singleHost() || appForSub(currentSub()).app === 'aide';
   if (ta && canOpenAideInline) {   // on aide (or one-host installs) — run it inline
+    if (!canSendMessage()) { toast('wait for the current answer or stop it first', 'error'); return false; }
     if (!(await navigateTo('chat'))) return false;
     if (projectId && window._currentSession?.project_id !== projectId) newChat({ projectId });
     window._setAideDocumentScope?.(documentScope);

@@ -256,6 +256,15 @@ what it supports:
   background aide work. relative file work starts in the selected server folder, and missing folders
   keep their chats until you explicitly relink them
 - **artifacts**: when the model writes html/svg/a webpage/code, you see it rendered live, not as a wall of text
+- **selected-note answers**: Docs can send up to eight exact note versions to Aide. This
+  selection excludes other conversation history, memories, attached knowledge, uploads, and
+  tool reads. Missing or changed notes require review before dispatch. Answers retain the source
+  snapshots and any valid line references after reload; citations identify passages but do not
+  prove a model's claim. Opening a changed source offers its current version explicitly.
+- **save an answer**: +note preserves Markdown, source passages, and the conversation link.
+  A pending save keeps the original text for retry after a lost response or reload, confirms
+  the same saved file, and provides an open-note action. Private replies can be saved explicitly
+  but carry no permanent conversation link.
 - **safe markdown saves**: vault writes replace files atomically, notes refuses to overwrite a file changed after you opened it and preserves unrelated frontmatter/body bytes during partial edits, and deleted docs/notes can be restored from 30-day trash
 - **voice**: talk to it and have it talk back (speech-to-text in, text-to-speech out)
 - **vision**: drop in an image and capable models can see it
@@ -1299,14 +1308,12 @@ python checks cover domain operations, math, migrations, api handlers, permissio
 
 the registered http operations are grouped by handler source. use `/openapi.json` for payload models and [the api section](#the-api-for-other-tools) for authentication/streaming semantics. paths keep fastapi converter syntax: `{subpath:path}` accepts multiple path segments, while openapi shows the parameter as `{subpath}`.
 
-900 http operations across 83 source files, plus one websocket endpoint.
-
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 907 http method/path pairs
-- 890 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `7afc73dd69ef226c7097d1c2ec80f5c3c5475b05e386399150f89a389ba6de15`
+- 908 http method/path pairs
+- 891 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `0bdf816a2a031bb8621fc7d37f11e4e6a6dc031a708832e2a3341b158f488069`
 
 <details>
 <summary>app.py · 6 operations</summary>

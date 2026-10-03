@@ -23,6 +23,7 @@ from core.auth import (
     verify_session,
 )
 from core.settings import auth_enabled, base_domain, load_settings, save_settings
+from services.document_context import VaultDocumentsScope
 
 router = APIRouter(prefix="/api/auth")
 
@@ -61,7 +62,7 @@ class ContextDocumentScope(BaseModel):
 class ContextHandoffBody(BaseModel):
     ask: str = Field(min_length=1, max_length=20_000)
     web: bool = False
-    document_scope: ContextDocumentScope | None = None
+    document_scope: ContextDocumentScope | VaultDocumentsScope | None = None
     delivery: Literal["send", "private_draft"] = "send"
 
 

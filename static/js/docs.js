@@ -35,6 +35,12 @@ let _dialogResolve = null;
 let _dialogFocus = null;
 let _visualFrontmatter = '';
 let _fetcher = fetch;
+let _askSources = [];
+let _askPath = '';
+let _askGeneration = 0;
+let _askSearchGeneration = 0;
+const _askReads = new Set();
+let _askBusy = false;
 const DOCS_NAV_STATE_KEY = 'alles.docs.nav.collapsed.v1';
 const DRAFT_RECOVERY_KEY = 'alles.docs.draft.recovery.v1';
 const DRAFT_KEEPALIVE_BYTES = 48 * 1024;
@@ -158,7 +164,7 @@ export function initDocs(initialSection = 'docs', fetcher = fetch) {
   const legacyDocumentPath = new URLSearchParams(location.search).get('doc');
   if (!_deepLinked && legacyDocumentPath) {
     _deepLinked = true;
-    openLegacyDocumentDeepLink(legacyDocumentPath);
+    return loads.then(() => openLegacyDocumentDeepLink(legacyDocumentPath));
   } else if (!_deepLinked && location.hash.length > 1) {
     _deepLinked = true;
     openByName(decodeURIComponent(location.hash.slice(1)));
@@ -167,7 +173,8 @@ export function initDocs(initialSection = 'docs', fetcher = fetch) {
 }
 
 async function openLegacyDocumentDeepLink(path) {
-  if (!(await openNote(path))) return;
+  const expectedHash = new URLSearchParams(location.search).get('doc_hash') || '';
+  if (!(await openNote(path, { expectedHash }))) return;
   const url = new URL(location.href);
   url.searchParams.delete('doc');
   url.searchParams.delete('doc_hash');
@@ -214,9 +221,25 @@ function _wire() {
   $('wiki-ask-btn')?.addEventListener('click', () => {
     const panel = $('wiki-ask');
     setHidden(panel, !panel.hidden);
-    if (!panel.hidden) $('wiki-ask-input')?.focus();
+    ++_askGeneration;
+    _askReads.clear();
+    if (!panel.hidden) {
+      if (_askPath !== _cur) {
+        _askPath = _cur;
+        _askSources = _doc ? [{ path: _cur, expected_hash: _doc.hash }] : [];
+      }
+      renderAskSources();
+      void searchAskSources();
+      $('wiki-ask-input')?.focus();
+    }
   });
-  $('wiki-ask-close')?.addEventListener('click', () => setHidden($('wiki-ask'), true));
+  $('wiki-ask-close')?.addEventListener('click', () => {
+    ++_askGeneration;
+    _askReads.clear();
+    setHidden($('wiki-ask'), true);
+    $('wiki-ask-btn')?.focus();
+  });
+  $('wiki-ask-search')?.addEventListener('input', searchAskSources);
   $('wiki-ask-go')?.addEventListener('click', askAideAboutCurrent);
   $('wiki-ask-input')?.addEventListener('keydown', event => {
     if (event.key === 'Enter') askAideAboutCurrent();
@@ -577,7 +600,7 @@ function renderPreview(markdown = currentContent()) {
   enhanceMarkdown(preview);
 }
 
-export async function openNote(path, { quiet = false, draftFlushed = false, canRefresh = null } = {}) {
+export async function openNote(path, { quiet = false, draftFlushed = false, canRefresh = null, expectedHash = '' } = {}) {
   if (!path || (canRefresh && !canRefresh())) return false;
   const requestGeneration = ++_openGeneration;
   const departureFocus = document.activeElement;
@@ -587,7 +610,14 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
   try {
     const requestedPath = String(path);
     const openedDoc = await api('/api/vault-md/file?path=' + encodeURIComponent(requestedPath));
+    if (requestGeneration !== _openGeneration || (canRefresh && !canRefresh())) return false;
     if (!openedDoc.exists) throw new Error('That document no longer exists');
+    if (expectedHash && openedDoc.hash !== expectedHash) {
+      showInlineState(`${requestedPath} changed after this answer. The quoted version is kept with the answer.`, [
+        { label: 'open current version', action: () => openNote(requestedPath) },
+      ]);
+      return false;
+    }
     const openedPath = openedDoc.path || requestedPath;
     const serverDraft = (
       await api('/api/vault-md/safety/draft?path=' + encodeURIComponent(openedPath))
@@ -639,6 +669,7 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     if (_dirty && _editRevision !== departureRevision && !(await flushDraft())) return false;
     if (requestGeneration !== _openGeneration) return false;
     _section = 'docs';
+    if (_cur !== openedPath) { ++_askGeneration; _askReads.clear(); setHidden($('wiki-ask'), true); }
     _cur = openedPath;
     _doc = openedDoc;
     _draft = openedDraft;
@@ -1302,16 +1333,104 @@ async function filterByTag(tag) {
   } catch (error) { toast(error.message, 'error'); }
 }
 
+function renderAskSources() {
+  const host = $('wiki-ask-sources');
+  host.replaceChildren();
+  for (const source of _askSources) {
+    const row = document.createElement('div');
+    const name = document.createElement('span'); name.textContent = source.path;
+    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'remove';
+    remove.disabled = _askBusy;
+    remove.setAttribute('aria-label', `remove source ${source.path}`);
+    remove.onclick = () => {
+      _askSources = _askSources.filter(item => item !== source);
+      renderAskSources(); $('wiki-ask-search')?.focus();
+    };
+    row.append(name, remove); host.append(row);
+  }
+  for (const pending of _askReads) {
+    const row = document.createElement('p'); row.textContent = `reading ${pending.path}…`;
+    row.setAttribute('role', 'status'); host.append(row);
+  }
+  $('wiki-ask-go').disabled = _askBusy || _askReads.size > 0 || !_askSources.length;
+  $('wiki-ask-search').disabled = _askBusy;
+}
+
+async function searchAskSources() {
+  const run = ++_askSearchGeneration;
+  const panel = _askGeneration;
+  const query = $('wiki-ask-search').value.trim();
+  const host = $('wiki-ask-matches');
+  host.replaceChildren();
+  if (!query) return;
+  const panelCurrent = () => panel === _askGeneration && !$('wiki-ask').hidden && _askPath === _cur;
+  const current = () => run === _askSearchGeneration && panelCurrent();
+  try {
+    const data = await api('/api/vault-md/search?q=' + encodeURIComponent(query), { signal: AbortSignal.timeout(15000) });
+    if (!current()) return;
+    const matches = (Array.isArray(data) ? data : data.results || []).filter(item => !_askSources.some(source => source.path === item.path));
+    for (const item of matches) {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = item.path;
+      button.onclick = async () => {
+        if (!current() || _askBusy || [..._askReads].some(read => read.path === item.path)) return;
+        if (_askSources.length + _askReads.size >= 8) { $('wiki-ask-results').textContent = 'choose up to 8 notes'; return; }
+        const pending = { path: item.path };
+        _askReads.add(pending); button.disabled = true; renderAskSources();
+        try {
+          const note = await api('/api/vault-md/file?path=' + encodeURIComponent(item.path), { signal: AbortSignal.timeout(15000) });
+          if (!panelCurrent()) return;
+          if (!note.exists || !note.editable || !note.hash) throw new Error('this note is unavailable');
+          if (!_askSources.some(source => source.path === note.path)) _askSources.push({ path: note.path, expected_hash: note.hash });
+          if (current()) {
+            const returnFocus = document.activeElement === button || document.activeElement === document.body;
+            $('wiki-ask-search').value = ''; host.replaceChildren();
+            ++_askSearchGeneration;
+            if (returnFocus) $('wiki-ask-search').focus();
+          }
+        } catch (error) {
+          if (panelCurrent()) $('wiki-ask-results').textContent = error.message;
+          if (current()) button.disabled = false;
+        } finally {
+          _askReads.delete(pending);
+          if (panelCurrent()) renderAskSources();
+        }
+      };
+      host.append(button);
+    }
+    if (!matches.length) host.textContent = 'no other matching notes';
+  } catch (error) { if (current()) $('wiki-ask-results').textContent = error.message; }
+}
+
 async function askAideAboutCurrent() {
   const question = $('wiki-ask-input')?.value.trim();
-  if (!question || !_doc || !_cur) return;
-  if (_dirty && !(await saveCurrent())) return;
-  setHidden($('wiki-ask'), true);
-  window._askInChat?.(question, false, {
-    kind: 'vault_document',
-    path: _cur,
-    expected_hash: _doc.hash,
-  });
+  if (!question || !_doc || !_cur || !_askSources.length || _askBusy || _askReads.size) return;
+  const path = _cur;
+  const run = ++_askGeneration;
+  _askBusy = true; renderAskSources();
+  $('wiki-ask-results').textContent = 'checking selected notes…';
+  try {
+    const current = _askSources.find(source => source.path === path);
+    if (current && _dirty) {
+      if (!(await saveCurrent())) return;
+      if (_cur === path) current.expected_hash = _doc.hash;
+    }
+    const editorRevision = _editRevision;
+    if (_cur !== path || run !== _askGeneration || $('wiki-ask').hidden) return;
+    const sources = _askSources.map(source => ({ ...source }));
+    for (const source of sources) {
+      const note = await api('/api/vault-md/file?path=' + encodeURIComponent(source.path), { signal: AbortSignal.timeout(15000) });
+      if (!note.exists || note.hash !== source.expected_hash) throw new Error(`${source.path} changed or is missing. Remove it and add it again to use its current version.`);
+    }
+    if (_cur !== path || run !== _askGeneration || $('wiki-ask').hidden) return;
+    if (current && (_dirty || _editRevision !== editorRevision || _doc.hash !== current.expected_hash)) throw new Error('the note changed while checking sources; ask again to save and use your latest edits');
+    if (!(await window._askInChat?.(question, false, { kind: 'vault_documents', documents: sources }))) throw new Error('could not open Aide; your question and selection are kept');
+    setHidden($('wiki-ask'), true);
+  } catch (error) {
+    if (_cur === path && run === _askGeneration) $('wiki-ask-results').textContent = error.message;
+  } finally {
+    _askBusy = false; renderAskSources();
+    if (_cur === path && run === _askGeneration && !$('wiki-ask').hidden) searchAskSources();
+  }
 }
 
 async function openInObsidian(path) {

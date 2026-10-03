@@ -31,7 +31,7 @@ function harness() {
     window: { addEventListener() {}, _mdToHtml: text => text },
     document: { getElementById: () => messages, createElement: element },
     stripEmojis: text => text, applyResponsePrivacy() {}, scrollToLatest() {},
-    contextProvenanceElement: () => null,
+    contextProvenanceElement: () => null, sourceCitationStatus: () => null, isIncognitoMode: () => false,
   });
   vm.runInContext(source + `
     globalThis.subject = { render: renderMessages, notice: appendInterruptionNotice };

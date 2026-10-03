@@ -11,7 +11,8 @@ import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEff
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { shouldRunInBackground } from './aidebackgroundpolicy.js';
 import { formatNumber } from './i18n.js';
-import { contextProvenanceElement } from './memoryactions.js';
+import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
+import { saveAnswerNote } from './answer_note.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=1';
 
 // tools that change state / reach out — flagged in the agent panel + permission cards
@@ -64,17 +65,12 @@ window.copyMsg = function(btn) {
 
 // save an assistant message as a note or task
 window.saveMsgAs = async function(btn, kind) {
+  if (kind === 'note') return saveAnswerNote(btn);
   const text = btn.closest('.ai-wrap')?.querySelector('.ai-content')?.innerText?.trim();
   if (!text) return;
   let ok = false;
   try {
-    if (kind === 'note') {
-      const r = await fetch('/api/notes', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title: text.split('\n')[0].slice(0, 80), content: text }),
-      });
-      ok = r.ok;
-    } else if (kind === 'task') {
+    if (kind === 'task') {
       const r = await fetch('/api/tasks', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ title: text.split('\n')[0].slice(0, 200) }),
@@ -106,7 +102,14 @@ export function canSendMessage() {
 }
 
 function normalizeDocumentScope(value) {
-  if (!value || value.kind !== 'vault_document') return null;
+  if (!value) return null;
+  if (value.kind === 'vault_documents') {
+    if (!Array.isArray(value.documents) || !value.documents.length || value.documents.length > 8) return null;
+    const documents = value.documents.map(item => ({ path: String(item.path || ''), expected_hash: String(item.expected_hash || '') }));
+    if (documents.some(item => !item.path || !item.expected_hash)) return null;
+    return { kind: 'vault_documents', documents };
+  }
+  if (value.kind !== 'vault_document') return null;
   const path = String(value.path || '').trim();
   const expectedHash = String(value.expected_hash || '').trim();
   return path && expectedHash ? { kind: 'vault_document', path, expected_hash: expectedHash } : null;
@@ -117,7 +120,8 @@ function renderDocumentScope(scope) {
   if (!chip) return;
   chip.hidden = !scope;
   const name = document.getElementById('aide-document-scope-name');
-  if (name) name.textContent = scope ? scope.path.split('/').pop().replace(/\.(md|markdown)$/i, '') : '';
+  if (name) name.tabIndex = scope ? 0 : -1;
+  if (name) name.textContent = scope?.kind === 'vault_documents' ? `${scope.documents.length} notes only · ${scope.documents.map(item => item.path).join(', ')}` : scope ? scope.path.split('/').pop().replace(/\.(md|markdown)$/i, '') : '';
 }
 
 window._setAideDocumentScope = scope => {
@@ -133,7 +137,7 @@ function restoreComposerInput(text) {
   const composer = document.getElementById('composer-ta');
   if (!composer) return;
   const current = composer.value.trim();
-  composer.value = current ? `${text}\n\n${composer.value}` : text;
+  composer.value = current && current !== text.trim() ? `${text}\n\n${composer.value}` : text;
   composer.style.height = 'auto';
   composer.dispatchEvent(new Event('input', { bubbles: true }));
   composer.focus();
@@ -188,6 +192,11 @@ export async function sendMessage(text) {
   if (!sel) { toast('select a model first', 'error'); return; }
   const attachmentIds = getAttachments();
   const documentScope = normalizeDocumentScope(window._pendingDocumentScope);
+  const privateReply = isIncognitoMode();
+  if (documentScope?.kind === 'vault_documents' && attachmentIds.length) {
+    toast('remove attachments to answer from selected notes only', 'error');
+    return;
+  }
 
   // image model picked as the primary → generate (legacy single-pick path)
   if (!documentScope && isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
@@ -249,6 +258,8 @@ export async function sendMessage(text) {
   contentEl.className = 'ai-content';
   body.appendChild(contentEl);
   let provenanceEl = null;
+  let sourceCitations = null;
+  let sourceReplyId = "";
   let agentEl = null;
   let todoEl = null;
   const toolEls = new Map();
@@ -357,10 +368,20 @@ export async function sendMessage(text) {
     });
 
     if (!r.ok) {
-      const err = await r.text();
-      body.innerHTML = `<div class="error-msg">${escHtml(err)}</div>`;
+      const error = await r.json().catch(() => ({}));
+      const message = typeof error.detail === 'string' ? error.detail : error.detail?.message || 'could not start this answer';
+      const chat = document.getElementById('chat');
+      const followedReply = chat && chat.scrollHeight - chat.scrollTop - chat.clientHeight < 96;
+      body.innerHTML = `<div class="error-msg">${escHtml(message)}</div>`;
       body.classList.add('done');
-      restoreDocumentScope(documentScope);
+      if (getActiveId() === sessionId && _streamToken === streamToken) {
+        restoreDocumentScope(documentScope);
+        if (documentScope) {
+          restoreComposerInput(text);
+          // Restoring the source list shrinks the message viewport.
+          if (followedReply) scrollDown({ force: true });
+        }
+      }
       setStreaming(false);
       return;
     }
@@ -426,7 +447,14 @@ export async function sendMessage(text) {
           runId = chunk.agent_run.id || runId;
         }
 
+        if (chunk.saved_message) {
+          row.dataset.msgId = chunk.saved_message.id;
+          if (typeof chunk.saved_message.content === 'string') accText = chunk.saved_message.content;
+          sourceCitations = chunk.saved_message.source_citations;
+        }
+
         if (chunk.context_provenance) {
+          sourceReplyId = chunk.context_provenance.reply_id || "";
           provenanceEl?.remove();
           provenanceEl = contextProvenanceElement(chunk.context_provenance);
           if (provenanceEl) body.appendChild(provenanceEl);
@@ -632,7 +660,10 @@ export async function sendMessage(text) {
     }
 
   } catch (e) {
-    restoreDocumentScope(documentScope);
+    if (getActiveId() === sessionId && _streamToken === streamToken) {
+      restoreDocumentScope(documentScope);
+      if (documentScope && !accText) restoreComposerInput(text);
+    }
     if (e.name !== 'AbortError') {
       appendError(body, `stream error: ${e.message}`);
       if (isConnError(e.message)) showConnBanner(e.message);
@@ -730,6 +761,17 @@ export async function sendMessage(text) {
 
     // action buttons
     const wrap = body.parentElement;
+    if (wrap) {
+      wrap.answerText = cleanText;
+      wrap.sourceReplyId = sourceReplyId;
+      wrap.pendingSourceReply = documentScope?.kind === 'vault_documents' && !sourceCitations;
+      wrap.dataset.sessionId = sessionId;
+      wrap.dataset.private = String(privateReply);
+    }
+    if (documentScope?.kind === 'vault_documents' && cleanText) {
+      const status = sourceCitationStatus(sourceCitations || { status: 'needs_review' });
+      if (status) body.appendChild(status);
+    }
     if (wrap && (cleanText || artifacts.length)) {
       const actions = document.createElement('div');
       actions.className = 'msg-actions';
@@ -759,7 +801,7 @@ export async function sendMessage(text) {
     scrollDown();
 
     // name the chat from its first message (async; updates the sidebar when ready)
-    if (freshSession && !isIncognitoMode() && cleanText) {
+    if (freshSession && !privateReply && cleanText && row.dataset.msgId) {
       fetch(`/api/sessions/${sessionId}/auto-name`, { method: 'POST' })
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d?.name) updateSessionName(sessionId, d.name); })
