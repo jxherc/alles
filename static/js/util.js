@@ -37,12 +37,50 @@ export function mdToHtml(text) {
 
   // math: $$block$$ and $inline$ → placeholders, rendered later by KaTeX
   const maths = [];
-  out = out.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => { maths.push({ display: true, tex }); return `\x00MATH${maths.length - 1}\x00`; });
-  out = out.replace(/(?<![\\$\d])\$(?!\s)([^\n$]+?)(?<!\s)\$(?!\d)/g, (_, tex) => { maths.push({ display: false, tex }); return `\x00MATH${maths.length - 1}\x00`; });
+  out = out.replace(/\$\$([\s\S]+?)\$\$/g, (source, tex) => { maths.push({ display: true, tex, source }); return `\x00MATH${maths.length - 1}\x00`; });
+  out = out.replace(/(?<![\\$\d])\$(?!\s)([^\n$]+?)(?<!\s)\$(?!\d)/g, (source, tex) => { maths.push({ display: false, tex, source }); return `\x00MATH${maths.length - 1}\x00`; });
+
+  // Preserve Markdown escapes until formatting has finished. Decode URL escapes
+  // before scheme validation so an escaped colon cannot turn into a live script.
+  let escapePrefix = '\x00ESCAPED';
+  while (text.includes(escapePrefix)) escapePrefix += '_';
+  const escapes = [];
+  out = out.replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\]\\^_`{|}~])/g, (_, value) => {
+    escapes.push(value);
+    return `${escapePrefix}${escapes.length - 1}\x00`;
+  });
+  const restoreEscapes = (value, html = false) => value.replace(
+    new RegExp(escapePrefix + '(\\d+)\\x00', 'g'),
+    (_, index) => html ? escapeHtml(escapes[index]) : escapes[index],
+  );
+
+  const attributeText = value => {
+    const entities = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
+    const original = value.replace(/&(amp|lt|gt|quot|#39);/g, (_, name) => entities[name]);
+    // Math was extracted before links. Attributes need its literal source, never
+    // rendered math markup or an internal placeholder in the destination.
+    return restoreEscapes(original).replace(/\x00MATH(\d+)\x00/g, (_, index) =>
+      maths[index].source.replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\]\\^_`{|}~])/g, '$1'));
+  };
+  const urlAttribute = value => escapeHtml(_safeUrl(attributeText(value)));
 
   // Escape all raw HTML before adding the small Markdown subset below. Code and
   // thinking blocks are restored later from placeholders.
   out = escapeHtml(out);
+  // Generated attributes must not pass through Markdown again: a URL can itself
+  // contain link delimiters or formatting syntax. Keep markup opaque until the end.
+  let markupPrefix = '\x00MARKUP';
+  while (text.includes(markupPrefix)) markupPrefix += '_';
+  const markup = [];
+  const keepMarkup = html => {
+    markup.push(html);
+    return `${markupPrefix}${markup.length - 1}\x00`;
+  };
+  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, u) =>
+    keepMarkup(`<img class="md-img" src="${urlAttribute(u)}" alt="${escapeHtml(attributeText(alt))}">`));
+  out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, txt, u) =>
+    keepMarkup(`<a href="${urlAttribute(u)}" target="_blank" rel="noreferrer">`) + txt + keepMarkup('</a>'));
+
   // re-allow the safe attribute-less inline tags the docs editor emits
   out = out.replace(/&lt;(\/?)(u|mark|sub|sup)&gt;/g, '<$1$2>');
 
@@ -58,10 +96,6 @@ export function mdToHtml(text) {
   out = out.replace(/^(#{1,6})\s+(.+)$/gm, (_, h, t) => `<h${h.length}>${t}</h${h.length}>`);
   // horizontal rule (before inline * so *** isn't eaten by italic)
   out = out.replace(/^\s*(?:---|\*\*\*|___)\s*$/gm, '<hr>');
-  // images then links ( ! [ ] ( ) survived escapeHtml ). filter the url scheme so
-  // [x](javascript:alert(1)) / data: can't render a clickable script link (click-XSS on untrusted md).
-  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, u) => `<img class="md-img" src="${_safeUrl(u)}" alt="${alt}">`);
-  out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, txt, u) => `<a href="${_safeUrl(u)}" target="_blank" rel="noreferrer">${txt}</a>`);
   // bold, italic, strikethrough, ==highlight==
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
@@ -130,7 +164,7 @@ export function mdToHtml(text) {
   out = out.replace(/\n{2,}/g, '\n\n');
   const paras = out.split('\n\n').map(p => p.trim()).filter(Boolean);
   out = paras.map(p => {
-    if (p.startsWith('<') ) return p;   // already html
+    if (p.startsWith('<') || p.startsWith(markupPrefix)) return p;   // already html
     return `<p>${p.replace(/\n/g, '<br>')}</p>`;
   }).join('\n');
 
@@ -169,7 +203,10 @@ export function mdToHtml(text) {
     out += `<div class="md-footnotes">` + fns.map((f, i) =>
       `<div class="md-fn"><span class="md-fn-n">${i + 1}.</span> ${f.txt}</div>`).join('') + `</div>`;
 
-  return out;
+  return restoreEscapes(out, true).replace(
+    new RegExp(markupPrefix + '(\\d+)\\x00', 'g'),
+    (_, index) => markup[index],
+  );
 }
 
 // Markdown stays complete and readable without a network connection. Mermaid and
