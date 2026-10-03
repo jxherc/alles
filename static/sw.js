@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
 const VERSION = 'v291';   // Refresh the shell cache for independently owned settings panes.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '359';   // keep in sync with index.html ?v= / const _v
+const STAMP = '360';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

@@ -95,6 +95,9 @@ class FeedApiTests(ApiTest):
             is_redirect = False
             headers: dict = {}
 
+            def raise_for_status(self):
+                pass
+
         class FakeClient:
             def __init__(self, *a, **k):
                 pass

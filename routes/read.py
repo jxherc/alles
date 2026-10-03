@@ -145,6 +145,7 @@ def add_feed(body: FeedBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "url required")
     if not url.startswith("http"):
         url = "https://" + url
+    db.execute(sql_text("BEGIN IMMEDIATE"))
     if db.query(ReadFeed).filter_by(url=url).first():
         raise HTTPException(400, "feed already added")
     f = ReadFeed(url=url)
@@ -168,8 +169,7 @@ def delete_feed(fid: str, db: DbSession = Depends(get_db)):
 async def refresh_now():
     from services.read_feeds import refresh_feeds
 
-    await refresh_feeds()
-    return {"ok": True}
+    return await refresh_feeds()
 
 
 @router.get("/read/requests/{request_id}")

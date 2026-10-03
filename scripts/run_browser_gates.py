@@ -84,6 +84,8 @@ COMMANDS = {
     "book-write-outcomes": ("tests/pw_book_write_outcomes.py",),
     "book-write-recovery": ("tests/pw_book_write_recovery.py",),
     "book-write-lifecycle": ("tests/pw_book_write_lifecycle.py",),
+    "feed-outcomes": ("tests/pw_feed_outcomes.py",),
+    "feed-workflows": ("tests/pw_feed_workflows.py",),
     "read-completion": ("tests/pw_read_completion.py",),
     "read-position": ("tests/pw_read_position.py",),
     "read-recovery": ("tests/pw_read_recovery.py",),
@@ -264,6 +266,10 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
         "acceptance_fingerprint": contract_before,
         "integration_mode": "local services; model downloads disabled; no provider credentials",
     }
+    if name == "feed-workflows":
+        result["integration_mode"] = (
+            "real local app and database; synthetic feed HTTP responses; no external feed requests"
+        )
     with owned_data() as (data, run_id):
         port = free_port()
         env = isolated_environment(data, run_id, port, directory)
@@ -277,7 +283,10 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
                 (directory / "gate.log").open("w") as gate_log,
             ):
                 server = subprocess.Popen(
-                    [sys.executable, "app.py"],
+                    [
+                        sys.executable,
+                        "tests/feed_browser_server.py" if name == "feed-workflows" else "app.py",
+                    ],
                     cwd=ROOT,
                     env=env,
                     stdout=server_log,
