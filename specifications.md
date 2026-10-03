@@ -824,7 +824,7 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   output, and cancellation keep links when available and show the safe failure type, attempted
   providers, and retry/broaden/edit/return actions.
 - **save or continue.** saved searches keep the request settings, result metadata, overview, citations,
-  evidence, model provenance, and checked time. selected links can open in aide, while deep research can
+  evidence, model provenance, and checked time. saving supports up to 600 results within a 20 MB result-data limit; oversized snapshots are rejected intact. pending saves stay in this browser tab for checking or retry after a lost reply or reload. retrying the same request returns the same snapshot, and cannot recreate a deleted snapshot. browser storage must be available before sending a recoverable save. selected links can open in aide, while deep research can
   continue in aide with the selected project id.
 
 search can use duckduckgo, tavily, brave, google pse, serper, or an external https searxng instance.
@@ -1184,7 +1184,7 @@ erDiagram
     money_accounts |o--o{ money_transactions : records
     albums |o--o{ photos : groups
 ```
-the declared schema has **131 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+the declared schema has **132 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`**: your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`**: agent skills as `SKILL.md` files (frontmatter + steps).
 - **`data/`** (other): uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
@@ -1354,9 +1354,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 912 http method/path pairs
-- 895 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `9eba492fafb69fd51b6dc3a203e25ef0026a61724f00b5d0a35583d7437eaed4`
+- 913 http method/path pairs
+- 896 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `9269e264ffab213661c86cf55a687f53313ef3755e20973c02d248da1e37218f`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -1398,7 +1398,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/andromeda.py · 16 operations</summary>
+<summary>routes/andromeda.py · 17 operations</summary>
 
 [source](routes/andromeda.py)
 
@@ -1412,6 +1412,7 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/api/andromeda/overview/preview` | `overview_preview` |
 | `GET` | `/api/andromeda/providers` | `providers` |
 | `GET` | `/api/andromeda/saved` | `list_saved` |
+| `GET` | `/api/andromeda/saved/requests/{request_id}` | `recover_saved` |
 | `POST` | `/api/andromeda/saved` | `save_search` |
 | `DELETE` | `/api/andromeda/saved/{search_id}` | `delete_saved` |
 | `GET` | `/api/andromeda/saved/{search_id}` | `get_saved` |
@@ -3166,7 +3167,7 @@ retrieve full article text from each entry's publisher.
 
 ## database table inventory
 
-this lists **131 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **132 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -3178,6 +3179,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `actual_entity_links` | `id: VARCHAR pk`, `run_id: VARCHAR`, `entity_kind: VARCHAR`, `source_id: VARCHAR`, `actual_id: VARCHAR`, `metadata_json: TEXT ?`, `created_at: DATETIME ?` | — |
 | `actual_migration_runs` | `id: VARCHAR pk`, `status: VARCHAR`, `base_currency_code: VARCHAR`, `snapshot_sha256: VARCHAR`, `snapshot_path: TEXT`, `actual_budget_id: VARCHAR ?`, `actual_sync_id: VARCHAR ?`, `report_json: TEXT ?`, `error: TEXT ?`, `created_at: DATETIME ?`, `verified_at: DATETIME ?`, `cutover_at: DATETIME ?`, `rolled_back_at: DATETIME ?` | — |
 | `albums` | `id: VARCHAR pk`, `name: VARCHAR`, `cover_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
+| `andromeda_save_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR`, `search_id: VARCHAR`, `created_at: DATETIME ?` | — |
 | `andromeda_saved_searches` | `id: VARCHAR pk`, `query: TEXT`, `request_json: TEXT ?`, `results_json: TEXT ?`, `overview_json: TEXT ?`, `evidence_json: TEXT ?`, `model_json: TEXT ?`, `verification_json: TEXT ?`, `verifier_model_json: TEXT ?`, `checked_at: DATETIME ?`, `created_at: DATETIME ?` | — |
 | `andromeda_verification_jobs` | `id: VARCHAR pk`, `query: TEXT`, `answer_json: TEXT`, `results_json: TEXT`, `evidence_json: TEXT`, `model_json: TEXT`, `result_json: TEXT`, `status: VARCHAR`, `error_code: VARCHAR`, `checked_at: DATETIME ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `api_tokens` | `id: VARCHAR pk`, `name: VARCHAR`, `token_hash: VARCHAR`, `prefix: VARCHAR`, `scopes: TEXT`, `created_at: DATETIME ?`, `last_used_at: DATETIME ?` | — |
@@ -3385,6 +3387,7 @@ known versions run in ascending order.
 | 63 | `read_create_receipts` | [m0063_read_create_receipts.py](core/migrations/m0063_read_create_receipts.py) |
 | 64 | `book_create_receipts` | [m0064_book_create_receipts.py](core/migrations/m0064_book_create_receipts.py) |
 | 65 | `reading_text_state` | [m0065_reading_text_state.py](core/migrations/m0065_reading_text_state.py) |
+| 66 | `andromeda_save_receipts` | [m0066_andromeda_save_receipts.py](core/migrations/m0066_andromeda_save_receipts.py) |
 
 </details>
 

@@ -6,6 +6,7 @@ The remaining records keep their existing relationships together.
 
 from core.schema.application import Album as Album
 from core.schema.application import AndromedaSavedSearch as AndromedaSavedSearch
+from core.schema.application import AndromedaSaveReceipt as AndromedaSaveReceipt
 from core.schema.application import AndromedaVerificationJob as AndromedaVerificationJob
 from core.schema.application import ApiToken as ApiToken
 from core.schema.application import Attachment as Attachment

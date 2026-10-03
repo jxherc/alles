@@ -3,19 +3,25 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session as DbSession
 
 from core.api_errors import ApiError
 from core.build_info import afterlife_feature_flags
 from core.database import (
+    DB_PATH,
     AndromedaSavedSearch,
+    AndromedaSaveReceipt,
     AndromedaVerificationJob,
     Project,
     Session,
@@ -579,39 +585,106 @@ def _saved(row: AndromedaSavedSearch, *, detail: bool = False) -> dict:
 class SaveBody(BaseModel):
     query: str = Field(min_length=1, max_length=2_000)
     request: dict = Field(default_factory=dict)
-    results: list[dict] = Field(default_factory=list, max_length=12)
+    results: list[dict] = Field(default_factory=list, max_length=andromeda.MAX_CATEGORY_RESULTS)
     overview: dict = Field(default_factory=dict)
     evidence: list[dict] = Field(default_factory=list, max_length=6)
     model: dict = Field(default_factory=dict)
     verification: dict = Field(default_factory=dict)
     verifier_model: dict = Field(default_factory=dict)
+    request_id: str = Field(default="", max_length=36)
+    recovery_scope: str = Field(default="", max_length=64)
+
+
+def _save_scopes() -> list[str]:
+    from services.recovery_consistency import recovery_consistency_lock
+    from services.secretstore import active_key_id, key_ids
+
+    with recovery_consistency_lock:
+        active = active_key_id()
+        keys = [active, *sorted(key_ids() - {active})]
+    return [
+        hashlib.sha256(f"alles-search-save:{Path(DB_PATH).resolve()}:{key}".encode()).hexdigest()
+        for key in keys
+    ]
+
+
+def _check_save_scope(scope: str):
+    if scope and scope not in _save_scopes():
+        raise HTTPException(409, "search storage changed; reload andromeda")
+
+
+def _save_identity(value: str) -> str:
+    try:
+        if str(UUID(value)) == value:
+            return value
+    except ValueError:
+        pass
+    raise HTTPException(400, "request_id must be a canonical UUID")
+
+
+def _saved_request(db: DbSession, identity: str, payload_hash: str = ""):
+    receipt = db.get(AndromedaSaveReceipt, identity, populate_existing=True)
+    if receipt is None:
+        raise HTTPException(404, "search save request not found; retry the pending save")
+    if payload_hash and receipt.payload_hash != payload_hash:
+        raise HTTPException(409, "this request already saved a different search")
+    row = db.get(AndromedaSavedSearch, receipt.search_id, populate_existing=True)
+    if row is None:
+        raise HTTPException(410, "the saved search was deleted; discard this pending save")
+    return _saved(row, detail=True) | {"request_id": identity}
 
 
 @router.get("/saved")
 def list_saved(db: DbSession = Depends(get_db)):
     _require_flag()
     rows = db.query(AndromedaSavedSearch).order_by(AndromedaSavedSearch.created_at.desc()).all()
-    return {"searches": [_saved(row) for row in rows[:100]]}
+    return {"searches": [_saved(row) for row in rows[:100]], "recovery_scopes": _save_scopes()}
 
 
 @router.post("/saved")
 def save_search(body: SaveBody, db: DbSession = Depends(get_db)):
     _require_flag()
-    row = AndromedaSavedSearch(
-        query=body.query.strip(),
-        request_json=_bounded_json(body.request, dict, 20_000),
-        results_json=_bounded_json(body.results, list, 100_000),
-        overview_json=_bounded_json(body.overview, dict, 100_000),
-        evidence_json=_bounded_json(body.evidence, list, 150_000),
-        model_json=_bounded_json(body.model, dict, 10_000),
-        verification_json=_bounded_json(body.verification, dict, 150_000),
-        verifier_model_json=_bounded_json(body.verifier_model, dict, 10_000),
-        checked_at=datetime.now(UTC).replace(tzinfo=None),
-    )
+    _check_save_scope(body.recovery_scope)
+    query = body.query.strip()
+    if not query:
+        raise HTTPException(400, "search query is required")
+    identity = _save_identity(body.request_id) if body.request_id else ""
+    payload = body.model_dump(exclude={"request_id", "recovery_scope"}) | {"query": query}
+    values = {"query": query}
+    for name, expected, limit in (
+        ("request", dict, 20_000),
+        ("results", list, 20_000_000),
+        ("overview", dict, 100_000),
+        ("evidence", list, 150_000),
+        ("model", dict, 10_000),
+        ("verification", dict, 150_000),
+        ("verifier_model", dict, 10_000),
+    ):
+        values[name + "_json"] = _bounded_json(payload[name], expected, limit)
+    if identity:
+        payload_hash = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        db.execute(sql_text("BEGIN IMMEDIATE"))
+        if db.get(AndromedaSaveReceipt, identity) is not None:
+            result = _saved_request(db, identity, payload_hash)
+            db.commit()
+            return result
+    row = AndromedaSavedSearch(**values, checked_at=datetime.now(UTC).replace(tzinfo=None))
     db.add(row)
+    if identity:
+        db.flush()
+        db.add(AndromedaSaveReceipt(id=identity, payload_hash=payload_hash, search_id=row.id))
     db.commit()
     db.refresh(row)
-    return _saved(row, detail=True)
+    return _saved(row, detail=True) | ({"request_id": identity} if identity else {})
+
+
+@router.get("/saved/requests/{request_id}")
+def recover_saved(request_id: str, recovery_scope: str = "", db: DbSession = Depends(get_db)):
+    _require_flag()
+    _check_save_scope(recovery_scope)
+    return _saved_request(db, _save_identity(request_id))
 
 
 @router.get("/saved/{search_id}")

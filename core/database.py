@@ -19,6 +19,7 @@ from core.schema import ActualEntityLink as ActualEntityLink
 from core.schema import ActualMigrationRun as ActualMigrationRun
 from core.schema import Album as Album
 from core.schema import AndromedaSavedSearch as AndromedaSavedSearch
+from core.schema import AndromedaSaveReceipt as AndromedaSaveReceipt
 from core.schema import AndromedaVerificationJob as AndromedaVerificationJob
 from core.schema import ApiToken as ApiToken
 from core.schema import Attachment as Attachment

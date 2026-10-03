@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=363">
+<link rel="stylesheet" href="/static/style.css?v=364">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -232,6 +232,17 @@
             <span id="andromeda-result-meta" class="andromeda-result-meta"></span>
           </div>
           <div id="andromeda-status" class="andromeda-status" role="status" aria-live="polite"></div>
+          <section id="andromeda-save-recovery" class="andromeda-save-recovery" aria-label="search save" hidden>
+            <p id="andromeda-save-message" role="status"></p>
+            <p id="andromeda-save-query"></p>
+            <div class="andromeda-actions">
+              <button id="andromeda-save-check" type="button" hidden>check saved search</button>
+              <button id="andromeda-save-retry" type="button" hidden>retry save</button>
+              <button id="andromeda-save-discard" type="button" hidden>discard pending save</button>
+              <button id="andromeda-save-open" type="button" hidden>open saved search</button>
+              <button id="andromeda-save-reload" type="button" hidden>retry save recovery</button>
+            </div>
+          </section>
 
           <section class="andromeda-overview" id="andromeda-overview" aria-labelledby="andromeda-overview-title" hidden>
             <div class="andromeda-section-head">
@@ -2821,7 +2832,7 @@
 </div>
 
 <script type="module">
-const _v = '363';
+const _v = '364';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
