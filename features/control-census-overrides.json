@@ -26,6 +26,7 @@
     "static/js/days.js": "plan.tasks-calendar",
     "static/js/dialog.js": "accessibility.interface-contract",
     "static/js/docs.js": "docs.documents-and-journal",
+    "static/js/docs_import.js": "docs.documents-and-journal",
     "static/js/dropdown.js": "accessibility.interface-contract",
     "static/js/filesphase7.js": "files-photos.locations-and-media",
     "static/js/gallery.js": "files-photos.locations-and-media",
