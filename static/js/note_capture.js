@@ -115,7 +115,8 @@ export async function showNoteRecovery(host, onSaved, onOpen, focusTarget = () =
   host.querySelector('.note-resume')?.remove();
   if (!store.pending) {
     if (!host.querySelector('.note-saved-open')) host.replaceChildren();
-    if (restoreFocus && host.getClientRects().length) (host.querySelector('.note-saved-open') || focusTarget())?.focus();
+    const target = host.querySelector('.note-saved-open') || focusTarget();
+    if (restoreFocus && target?.getClientRects().length) target.focus();
     return;
   }
   const pending = store.pending;

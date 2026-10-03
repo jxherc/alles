@@ -1064,7 +1064,7 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
     const nextOwner = route.host ?? viewToSub(groupRouteFor(identifier)?.group || identifier);
     if (previousOwner !== nextOwner) url.hash = '';
     if (!replace) {
-      for (const param of ['record', 'record_view', 'occurrence']) url.searchParams.delete(param);
+      for (const param of ['record', 'record_view', 'occurrence', 'record_hash']) url.searchParams.delete(param);
     }
     url.searchParams.delete('app');
     if (route.section || singleHost() || !groupRouteFor(identifier)) url.searchParams.set('view', identifier);

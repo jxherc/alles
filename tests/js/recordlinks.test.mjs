@@ -27,6 +27,15 @@ test('task links discard unrelated event occurrences', () => {
   assert.deepEqual(readRecordTarget(url), { view: 'tasks', id: 'task-1', occurrence: '' });
 });
 
+test('reading source links preserve exact item and text version without leaking it to other records', () => {
+  const hash = 'a'.repeat(64);
+  const target = recordTarget('read', 'article-1', '', hash);
+  const url = withRecordTarget('https://library.example.test/?view=read', target);
+  assert.deepEqual(readRecordTarget(url), { view: 'read', id: 'article-1', occurrence: '', hash });
+  assert.equal(withRecordTarget(url, recordTarget('tasks', 'task-1')).searchParams.has('record_hash'), false);
+  assert.equal(recordTarget('read', 'article-1', '', 'invalid').hash, undefined);
+});
+
 test('mail source links keep only the Plan record identity across hosts', () => {
   for (const kind of ['task', 'event']) {
     const target = recordTarget('mail', `${kind}-abc-123`);
