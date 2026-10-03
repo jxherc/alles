@@ -76,6 +76,7 @@ from core.schema.application import ProactiveOutcome as ProactiveOutcome
 from core.schema.application import ProactiveState as ProactiveState
 from core.schema.application import Project as Project
 from core.schema.application import PushSubscription as PushSubscription
+from core.schema.application import ReadCreateReceipt as ReadCreateReceipt
 from core.schema.application import ReadFeed as ReadFeed
 from core.schema.application import ReadItem as ReadItem
 from core.schema.application import Reminder as Reminder

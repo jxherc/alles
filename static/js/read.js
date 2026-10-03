@@ -18,6 +18,14 @@ let _tag = '';
 let _urlDraft = '';
 let _saveError = '';
 let _saving = false;
+let _saveScopes = [];
+let _saveReady = false;
+let _saveRecoveryError = '';
+let _pendingSave = null;
+let _unreadableSave = '';
+let _savedURL = null;
+const SAVE_PREFIX = 'alles.read.pending.v1:';
+const requestPattern = /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 let _returnItem = null;
 let _open = null;   // full item being read
 let _feeds = [];
@@ -46,6 +54,93 @@ async function _json(fetcher, url) {
   const response = await fetcher(url);
   if (!response.ok) throw new Error(`request failed (${response.status || 'unknown'})`);
   return response.json();
+}
+
+function _readSaveRecovery(scopes) {
+  if (!Array.isArray(scopes) || !scopes.length || scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) {
+    _saveReady = false;
+    throw new Error('URL save recovery could not load; retry recovery before saving');
+  }
+  if (_saveScopes.length && !scopes.some(scope => _saveScopes.includes(scope))) {
+    _pendingSave = null; _savedURL = null; _urlDraft = '';
+  }
+  if (_pendingSave && !scopes.includes(_pendingSave.recovery_scope)) {
+    _pendingSave = null; _savedURL = null;
+  }
+  const preferred = _pendingSave?.recovery_scope;
+  _saveScopes = scopes;
+  _saveReady = false;
+  _pendingSave = null;
+  for (const scope of preferred ? [preferred, ...scopes.filter(scope => scope !== preferred)] : scopes) {
+    try {
+      const raw = sessionStorage.getItem(SAVE_PREFIX + scope);
+      if (!raw) continue;
+      const value = JSON.parse(raw);
+      if (!requestPattern.test(value?.request_id || '') || typeof value.url !== 'string' || !value.url.trim() || value.recovery_scope !== scope) throw new Error('invalid pending URL');
+      _pendingSave = value;
+      break;
+    } catch {
+      _unreadableSave = scope;
+      throw new Error('could not read URL save recovery; retry recovery or discard the pending save');
+    }
+  }
+  _saveReady = true; _unreadableSave = ''; _saveRecoveryError = '';
+}
+
+function _urlRequestId() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function _keepUrlSave(pending) {
+  const key = SAVE_PREFIX + pending.recovery_scope, raw = JSON.stringify(pending);
+  sessionStorage.setItem(key, raw);
+  if (sessionStorage.getItem(key) !== raw) throw new Error('could not keep this URL for retry');
+  if (!_pendingSave && _urlDraft.trim() === pending.url) _urlDraft = '';
+  _pendingSave = pending;
+}
+
+function _confirmUrlSave(result, pending) {
+  if (!result || result.request_id !== pending.request_id || typeof result.id !== 'string' || !result.id.trim()
+    || typeof result.url !== 'string' || !result.url.trim() || !Number.isInteger(result.read_minutes) || result.read_minutes < 1) {
+    throw new Error('Save was not confirmed. Retry safely or check the saved item.');
+  }
+  if (!_saveScopes.includes(pending.recovery_scope)) throw new Error('reading storage changed; reopen saved reading');
+  _savedURL = result;
+  const key = SAVE_PREFIX + pending.recovery_scope;
+  try {
+    if (sessionStorage.getItem(key) === JSON.stringify(pending)) {
+      sessionStorage.removeItem(key);
+      if (sessionStorage.getItem(key) !== null) throw new Error('cleanup failed');
+    }
+  } catch {
+    _saveError = 'URL saved; its browser recovery copy could not be cleared. retry safely to confirm it again.';
+    return;
+  }
+  if (_pendingSave?.request_id === pending.request_id) _pendingSave = null;
+  try { _readSaveRecovery(_saveScopes); }
+  catch (error) { _saveRecoveryError = error.message; }
+}
+
+async function _discardUrlSave() {
+  const pending = _pendingSave, scope = pending?.recovery_scope || _unreadableSave;
+  const navigation = _openGeneration;
+  if (_saving || !scope || !await dlgConfirm('discard this pending URL save? it may already be saved; check saved items before saving it again.')) return;
+  try {
+    const key = SAVE_PREFIX + scope;
+    if (pending && sessionStorage.getItem(key) !== JSON.stringify(pending)) throw new Error('recovery changed');
+    sessionStorage.removeItem(key);
+    if (sessionStorage.getItem(key) !== null) throw new Error('cleanup failed');
+    _pendingSave = null; _unreadableSave = ''; _saveError = ''; _saveRecoveryError = '';
+    _readSaveRecovery(_saveScopes);
+  } catch { _saveRecoveryError = 'could not discard browser recovery; allow browser storage and retry'; }
+  _render();
+  if (navigation === _openGeneration && $('read-body')?.getClientRects().length) {
+    (_pendingSave ? $('read-save-check') : $('read-url'))?.focus();
+  }
 }
 
 function _loadFailure(failures, successes) {
@@ -101,6 +196,10 @@ export async function loadRead(fetcher = _fetcher) {
   const failures = [];
   const successes = [];
   if (itemsResult.status === 'fulfilled') {
+    if (!_saving) {
+      try { _readSaveRecovery(itemsResult.value.recovery_scopes); }
+      catch (error) { _saveRecoveryError = error.message; }
+    }
     _items = itemsResult.value.items || [];
     _hasItems = true;
     _itemsCurrent = true;
@@ -130,13 +229,16 @@ function _render() {
   const active = document.activeElement;
   const editing = !_saving && body.contains(active) && ['read-url', 'read-q'].includes(active.id)
     ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
-  if (editing?.id === 'read-url') _urlDraft = active.value;
+  if (editing?.id === 'read-url' && !active.disabled) _urlDraft = active.value;
   body.innerHTML = `
     <div class="read-add">
-      <input type="text" id="read-url" class="settings-input" aria-label="URL to save for later" aria-describedby="read-save-error" placeholder="paste a URL to save for later…" spellcheck="false" value="${esc(_urlDraft)}" ${_saving ? 'disabled' : ''}>
-      <button class="btn primary" id="read-save" ${_saving ? 'disabled aria-busy="true"' : ''}>${_saving ? 'saving…' : `${_si('plus')} save`}</button>
+      <input type="text" id="read-url" class="settings-input" aria-label="URL to save for later" aria-describedby="read-save-error" placeholder="paste a URL to save for later…" spellcheck="false" value="${esc(_pendingSave?.url ?? _urlDraft)}" ${_saving || _pendingSave ? 'disabled' : ''}>
+      <button class="btn primary" id="read-save" ${_saving || !_saveReady ? 'disabled' : ''} ${_saving ? 'aria-busy="true"' : ''}>${_saving ? 'saving…' : _pendingSave ? 'retry save' : `${_si('plus')} save`}</button>
     </div>
-    <p id="read-save-error" class="read-save-error" role="alert" ${_saveError ? '' : 'hidden'}>${esc(_saveError)}</p>
+    <p id="read-save-error" class="read-save-error" role="alert" ${_saveError || _saveRecoveryError ? '' : 'hidden'}>${esc(_saveRecoveryError || _saveError)}</p>
+    ${_saveRecoveryError ? '<button type="button" class="btn" id="read-save-recovery">retry save recovery</button>' : ''}
+    ${_pendingSave || _unreadableSave ? `<div class="read-save-recovery"><p role="status">a URL save still needs confirmation</p><div class="capture-actions">${_pendingSave ? `<button type="button" class="btn" id="read-save-check" ${_saving ? 'disabled' : ''}>check saved item</button>` : ''}<button type="button" class="btn" id="read-save-discard" ${_saving ? 'disabled' : ''}>discard pending save</button></div></div>` : ''}
+    ${_savedURL ? `<div class="read-save-result"><p role="status">saved ${esc(_savedURL.title || _savedURL.url)}</p><button type="button" class="btn" id="read-save-open">open saved item</button></div>` : ''}
     <div class="read-toolbar">
       <div class="read-filters"><span class="read-filter-choices" role="radiogroup" aria-label="saved reading filter">${FILTERS.map(([k, l]) => `<button type="button" role="radio" aria-checked="${_filter === k}" class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${l}</button>`).join('')}</span><button type="button" class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" aria-pressed="${_showFeeds}" title="rss feeds">feeds</button></div>
       <div class="read-search"><input type="text" id="read-q" class="settings-input" placeholder="search saved…" value="${esc(_q)}" spellcheck="false"></div>
@@ -149,6 +251,7 @@ function _render() {
       : (_itemsCurrent ? `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet: paste a link above and alles will keep the article text here, searchable, forever.'}</div>` : '')}`;
   _wire(body);
   if (editing) {
+    if (editing.id === 'read-url' && _pendingSave) { $('read-save-check')?.focus(); return; }
     const field = $(editing.id);
     field?.focus();
     if (editing.start != null) field?.setSelectionRange(editing.start, editing.end);
@@ -327,6 +430,10 @@ function _attachReadingPlace(body, item) {
 }
 
 function _wire(body) {
+  $('read-save-recovery')?.addEventListener('click', () => loadRead());
+  $('read-save-discard')?.addEventListener('click', _discardUrlSave);
+  $('read-save-check')?.addEventListener('click', () => _save(true));
+  $('read-save-open')?.addEventListener('click', () => openReadItem(_savedURL.id));
   wireChoiceGroup(body.querySelector('.read-filter-choices'));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadRead());
   const save = () => _save();
@@ -411,33 +518,37 @@ function _wire(body) {
   });
 }
 
-async function _save() {
-  if (_saving) return;
-  _urlDraft = $('read-url')?.value || _urlDraft;
-  const url = _urlDraft.trim();
+async function _save(checkOnly = false) {
+  if (_saving || !_saveReady) return;
+  if (!_pendingSave) _urlDraft = $('read-url')?.value ?? _urlDraft;
+  const url = (_pendingSave?.url ?? _urlDraft).trim();
   if (!url) { _saveError = 'Paste a URL first.'; _render(); $('read-url')?.focus(); return; }
-  _saving = true;
-  _saveError = '';
+  const navigation = _openGeneration;
+  const mayFocus = () => navigation === _openGeneration && $('read-body')?.getClientRects().length
+    && (document.activeElement === document.body || ['read-save', 'read-save-check'].includes(document.activeElement?.id));
+  _saving = true; _saveError = ''; _savedURL = null;
   _render();
+  let restoreFocus = false;
   try {
-    const response = await _fetcher('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
-    const result = await response.json().catch(() => { throw new Error('Could not read the save response. Check saved items before retrying.'); });
-    if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : 'Could not save this URL. Try again.');
-    if (!result || typeof result !== 'object' || Array.isArray(result)
-      || typeof result.id !== 'string' || !result.id.trim()
-      || typeof result.url !== 'string' || !result.url.trim()
-      || !Number.isInteger(result.read_minutes) || result.read_minutes < 1) {
-      throw new Error('Save was not confirmed. Check saved items before retrying.');
-    }
-    _urlDraft = '';
-    toast(`saved · ${result.read_minutes} min read`, 'success');
+    const pending = _pendingSave || { url, request_id: _urlRequestId(), recovery_scope: _saveScopes[0] };
+    _keepUrlSave(pending);
+    const response = checkOnly
+      ? await _fetcher(`/api/read/requests/${encodeURIComponent(pending.request_id)}?recovery_scope=${encodeURIComponent(pending.recovery_scope)}`, { cache: 'no-store' })
+      : await _fetcher('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending) });
+    const result = await response.json().catch(() => { throw new Error('Could not read the save response. Retry safely or check the saved item.'); });
+    if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : 'Could not confirm the URL save. Retry safely.');
+    _confirmUrlSave(result, pending);
+    toast('URL saved', 'success');
+    restoreFocus = mayFocus();
     await loadRead();
   } catch (error) {
-    _saveError = error instanceof TypeError ? 'Could not connect. Check your connection and try again.' : (error.message || 'Could not save this URL. Try again.');
+    _saveError = error instanceof TypeError ? 'Could not connect. Your URL is kept; retry safely.' : (error.message || 'Could not save this URL. Try again.');
+    restoreFocus = mayFocus();
   } finally {
     _saving = false;
+    const focus = restoreFocus && mayFocus();
     _render();
-    $('read-url')?.focus();
+    if (focus) (_savedURL ? $('read-save-open') : _pendingSave ? $('read-save') : $('read-url'))?.focus();
   }
 }
 

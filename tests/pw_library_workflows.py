@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
@@ -355,7 +354,7 @@ def run():
                         else route.continue_()
                     ),
                 )
-                page.get_by_role("button", name="save", exact=True).click()
+                page.locator("#read-save").click()
                 expect(page.locator("#read-save-error")).to_have_text("simulated save outage")
                 expect(page.locator("#read-url")).to_have_value(save_url)
                 expect(page.locator("#read-save")).to_be_enabled()
@@ -370,8 +369,8 @@ def run():
                         else route.continue_()
                     ),
                 )
-                page.get_by_role("button", name="save", exact=True).click()
-                expect(page.locator("#read-save-error")).to_contain_text("Check your connection")
+                page.locator("#read-save").click()
+                expect(page.locator("#read-save-error")).to_contain_text("Your URL is kept")
                 expect(page.locator("#read-url")).to_have_value(save_url)
                 expect(page.locator("#read-save")).to_be_enabled()
                 page.unroute(url)
@@ -385,16 +384,12 @@ def run():
 
                 for acknowledgment in ("{broken", "null", "{}", "[]", '{"id":"incomplete"}'):
                     page.route(url, acknowledge(acknowledgment))
-                    page.get_by_role("button", name="save", exact=True).click()
-                    expect(page.locator("#read-save-error")).to_contain_text(
-                        "Check saved items before retrying"
-                    )
+                    page.locator("#read-save").click()
+                    expect(page.locator("#read-save-error")).to_contain_text("Retry safely")
                     expect(page.locator("#read-url")).to_have_value(save_url)
                     expect(page.locator("#read-save")).to_be_enabled()
                     expect(
-                        page.locator("#toast-container .toast.success").filter(
-                            has_text=re.compile(r"^saved ·")
-                        )
+                        page.locator("#toast-container .toast.success").filter(has_text="URL saved")
                     ).to_have_count(0)
                     assert not [
                         item
@@ -409,7 +404,8 @@ def run():
                         held.append(route) if route.request.method == "POST" else route.continue_()
                     ),
                 )
-                page.locator("#read-url").press("Enter")
+                page.locator("#read-save").focus()
+                page.keyboard.press("Enter")
                 expect(page.locator("#read-url")).to_be_disabled()
                 page.keyboard.press("Enter")
                 assert len(held) == 1

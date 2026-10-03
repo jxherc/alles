@@ -1401,6 +1401,16 @@ class ReadItem(Base):
     tags = Column(String, default="")  # comma-separated
 
 
+class ReadCreateReceipt(Base):
+    """Keep URL-save identity after deletion without retaining article text."""
+
+    __tablename__ = "read_create_receipts"
+    id = Column(String, primary_key=True)
+    payload_hash = Column(String, nullable=False)
+    item_id = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class ReadFeed(Base):
     # an rss/atom feed polled in the background; new entries auto-save as ReadItems
     __tablename__ = "read_feeds"

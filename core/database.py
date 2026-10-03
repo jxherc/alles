@@ -114,6 +114,7 @@ from core.schema import ProactiveOutcome as ProactiveOutcome
 from core.schema import ProactiveState as ProactiveState
 from core.schema import Project as Project
 from core.schema import PushSubscription as PushSubscription
+from core.schema import ReadCreateReceipt as ReadCreateReceipt
 from core.schema import ReadFeed as ReadFeed
 from core.schema import ReadItem as ReadItem
 from core.schema import RecurringTxn as RecurringTxn

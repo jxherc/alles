@@ -327,6 +327,9 @@ related apps now open together without merging their records.
   Take note saves a named Markdown document through the existing recoverable note writer, with a
   link to that saved article and its text version. A changed source is labelled when reopened;
   uncertain note saves can be confirmed after reload without creating another document.
+  URL saves retain their request identity for retry or confirmation after reload. Repeating a pending
+  save returns the original article without fetching it again; deleting it prevents that same request
+  from recreating it. Failed URL extraction still preserves the link.
 - **health** places today's habit rhythm beside the latest measurements without changing the local,
   sensitive health-context boundary
 - **finance** combines money, subscriptions, reviewed imports, and visible managed-actual state
@@ -1160,7 +1163,7 @@ erDiagram
     money_accounts |o--o{ money_transactions : records
     albums |o--o{ photos : groups
 ```
-the declared schema has **129 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+the declared schema has **130 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`**: your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`**: agent skills as `SKILL.md` files (frontmatter + steps).
 - **`data/`** (other): uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
@@ -1330,9 +1333,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 909 http method/path pairs
-- 892 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `892e4e93fc5ebb2dc7ca66d968b2f89114649aabaa2d0261b6148075d0b241c7`
+- 910 http method/path pairs
+- 893 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `374cd48bb43a4603172d9dc48acc0251f97d8c1cc6b03d7edb61c08e918bb682`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -2598,6 +2601,7 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 | --- | --- | --- |
 | `GET` | `/api/read` | `list_items` |
 | `POST` | `/api/read` | `save_item` |
+| `GET` | `/api/read/requests/{request_id}` | `recover_save` |
 | `GET` | `/api/read/feeds` | `list_feeds` |
 | `POST` | `/api/read/feeds` | `add_feed` |
 | `POST` | `/api/read/feeds/refresh` | `refresh_now` |
@@ -3131,7 +3135,7 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 
 ## database table inventory
 
-this lists **129 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **130 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -3246,6 +3250,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `projects` | `id: VARCHAR pk`, `name: VARCHAR`, `description: TEXT ?`, `system_prompt: TEXT ?`, `working_dir: TEXT ?`, `scratchpad: TEXT ?`, `color: VARCHAR ?`, `created_at: DATETIME ?`, `last_opened_at: DATETIME ?` | — |
 | `push_subscriptions` | `id: VARCHAR pk`, `endpoint: TEXT`, `p256dh: VARCHAR ?`, `auth: TEXT ? sealed`, `created_at: DATETIME ?` | — |
 | `read_feeds` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `last_checked: DATETIME ?`, `created_at: DATETIME ?` | — |
+| `read_create_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR`, `item_id: VARCHAR`, `created_at: DATETIME ?` | — |
 | `read_items` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `text: TEXT ?`, `excerpt: VARCHAR ?`, `site: VARCHAR ?`, `image: VARCHAR ?`, `read_minutes: INTEGER ?`, `added_at: DATETIME ?`, `read_at: VARCHAR ?`, `read_position: FLOAT` (default 0), `fav: BOOLEAN ?`, `archived: BOOLEAN ?`, `tags: VARCHAR ?` | — |
 | `reminder_create_receipts` | `id: VARCHAR pk`, `reminder_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `reminders` | `id: VARCHAR pk`, `text: TEXT`, `trigger_at: DATETIME`, `type: VARCHAR ?`, `session_id: VARCHAR ?`, `fired: BOOLEAN ?`, `notified: BOOLEAN ?`, `created_at: DATETIME ?` | — |
@@ -3344,6 +3349,8 @@ known versions run in ascending order.
 | 59 | `mail_rule_recovery` | [m0059_mail_rule_recovery.py](core/migrations/m0059_mail_rule_recovery.py) |
 | 60 | `mail_account_recovery` | [m0060_mail_account_recovery.py](core/migrations/m0060_mail_account_recovery.py) |
 | 61 | `task_recurrence_history` | [m0061_task_recurrence_history.py](core/migrations/m0061_task_recurrence_history.py) |
+| 62 | `reading_position` | [m0062_reading_position.py](core/migrations/m0062_reading_position.py) |
+| 63 | `read_create_receipts` | [m0063_read_create_receipts.py](core/migrations/m0063_read_create_receipts.py) |
 
 </details>
 
