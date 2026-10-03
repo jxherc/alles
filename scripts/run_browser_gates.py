@@ -84,6 +84,8 @@ COMMANDS = {
     "read-completion": ("tests/pw_read_completion.py",),
     "read-position": ("tests/pw_read_position.py",),
     "read-recovery": ("tests/pw_read_recovery.py",),
+    "read-navigation": ("tests/pw_read_navigation.py",),
+    "read-notes": ("tests/pw_read_notes.py",),
     "inbox-workflows": ("tests/pw_inbox_workflows.py",),
     "inbox-read-recovery": ("tests/pw_inbox_read_recovery.py",),
     "inbox-saved-searches": ("tests/pw_inbox_saved_searches.py",),

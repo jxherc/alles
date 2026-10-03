@@ -324,6 +324,9 @@ related apps now open together without merging their records.
   scrolling an article does not mark it read; mark read/unread is explicit and safe to retry after
   an uncertain reply. Position saves check the version of the stored text and offer retry or reopen
   when saving fails or the text changes. Card changes confirm storage before reporting success.
+  Take note saves a named Markdown document through the existing recoverable note writer, with a
+  link to that saved article and its text version. A changed source is labelled when reopened;
+  uncertain note saves can be confirmed after reload without creating another document.
 - **health** places today's habit rhythm beside the latest measurements without changing the local,
   sensitive health-context boundary
 - **finance** combines money, subscriptions, reviewed imports, and visible managed-actual state

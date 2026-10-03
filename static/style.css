@@ -8425,8 +8425,13 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 #read-position-status { margin: 0; min-width: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 #read-position-bar .read-reader-bar { margin-bottom: var(--k-space-2); gap: var(--k-space-2); flex-wrap: wrap; }
 #read-position-bar .read-toolbar { margin: 0; gap: var(--k-space-2); }
+#read-position-bar .read-source-notice { margin: var(--k-space-2) 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 #read-position-status.read-save-error { color: var(--error); }
 #read-position-retry[hidden] { display: none; }
+#read-note-recovery:empty { display: none; }
+#read-note-recovery { flex: 0 0 auto; max-height: 30vh; overflow: auto; padding: var(--k-space-2) var(--k-space-4); }
+.reading-note-open .dialog-card { box-sizing: border-box; max-height: calc(100dvh - 2 * var(--k-space-4)); overflow: auto; }
+.reading-note-open .dialog-msg { overflow-wrap: anywhere; }
 #read-body[tabindex] { padding: var(--k-space-3) var(--k-space-4) var(--k-space-5); }
 .read-reader-bar { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 1.2rem; }
 .read-reader-bar .btn svg { width: 13px; height: 13px; vertical-align: -2px; }

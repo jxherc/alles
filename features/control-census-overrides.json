@@ -44,6 +44,7 @@
     "static/js/projects.js": "aide.conversation-and-execution",
     "static/js/projectview.js": "aide.conversation-and-execution",
     "static/js/read.js": "library.reading-and-news",
+    "static/js/reading_note.js": "library.reading-and-news",
     "static/js/reminders.js": "plan.tasks-calendar",
     "static/js/runs.js": "aide.conversation-and-execution",
     "static/js/search.js": "andromeda.cited-search",
