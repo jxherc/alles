@@ -17,6 +17,7 @@ let _token = sessionStorage.getItem('journal_token') || '';
 let _productNavWired = false;
 let _lastHydratedAt = 0;
 let _loadGeneration = 0;
+let _reflectionGeneration = 0;
 let _loadedDay = '';
 let _loading = false;
 let _failedDay = '';
@@ -313,7 +314,7 @@ async function buildJournal() {
             <button class="btn" id="jrnl-reflect">${_si('sparkles')} reflect</button>
             <span class="jrnl-saved" id="jrnl-saved" role="status"></span>
           </div>
-          <div class="jrnl-reflection" id="jrnl-reflection" style="display:none"></div>
+          <div class="jrnl-reflection" id="jrnl-reflection" role="status" style="display:none"></div>
         </div>
         <div class="jrnl-extras">
           <div class="jrnl-col">
@@ -350,6 +351,7 @@ async function buildJournal() {
     };
     document.getElementById('jrnl-reflect').onclick = reflect;
     const scheduleAutosave = () => {
+      invalidateReflection('entry changed. choose reflect again.');
       _dirty = true;
       document.getElementById('jrnl-saved').textContent = 'unsaved changes';
       updateWords();
@@ -360,6 +362,7 @@ async function buildJournal() {
     document.getElementById('jrnl-tags').addEventListener('input', scheduleAutosave);
     document.getElementById('jrnl-moods').addEventListener('click', e => {
       const b = e.target.closest('.jrnl-mood'); if (!b) return;
+      invalidateReflection('entry changed. choose reflect again.');
       const on = b.classList.contains('active');
       document.querySelectorAll('.jrnl-mood').forEach(x => x.classList.remove('active'));
       if (!on) b.classList.add('active');
@@ -606,6 +609,7 @@ function pickLockAction() {
 function showLock(mode) {
   const body = document.getElementById('journal-body');
   if (!body) return;
+  invalidateReflection();
   const draft = snapshotEditor();
   if ((_dirty || _saveTimer !== null || _saveInFlight !== null) && draft) {
     _lockedDraft = draft;
@@ -715,6 +719,7 @@ function renderDay() {
 
 async function load() {
   if (_dirty && _loadedDay === _day && snapshotEditor()) return true;
+  invalidateReflection();
   const generation = ++_loadGeneration;
   const requestedDay = _day;
   const trigger = document.activeElement;
@@ -861,21 +866,54 @@ async function loadRecent() {
   } catch {}
 }
 
+function invalidateReflection(message = '') {
+  _reflectionGeneration += 1;
+  const btn = document.getElementById('jrnl-reflect');
+  const box = document.getElementById('jrnl-reflection');
+  if (btn) {
+    btn.removeAttribute('aria-disabled');
+    btn.innerHTML = `${_si('sparkles')} reflect`;
+  }
+  if (box) {
+    const visible = box.style.display !== 'none';
+    box.textContent = visible ? message : '';
+    box.style.display = visible && message ? 'block' : 'none';
+  }
+}
+
 async function reflect() {
   const btn = document.getElementById('jrnl-reflect');
   const box = document.getElementById('jrnl-reflection');
+  if (_loading || _loadedDay !== _day || btn.getAttribute('aria-disabled') === 'true') return;
   if (!document.getElementById('jrnl-text').value.trim()) { toast('write something first', 'error'); return; }
-  await save(false);
-  btn.disabled = true; btn.textContent = 'reflecting…';
+  const generation = ++_reflectionGeneration;
+  const day = _day;
+  const current = () => generation === _reflectionGeneration && day === _day && btn.isConnected;
+  btn.setAttribute('aria-disabled', 'true');
+  btn.textContent = 'reflecting…';
+  box.textContent = 'preparing reflection…';
+  box.style.display = 'block';
   try {
-    const r = await fetch('/api/journal/' + _day + '/reflect', { method: 'POST', headers: _authHeaders() });
+    while (_dirty || _saveTimer !== null || _saveInFlight !== null) {
+      clearTimeout(_saveTimer);
+      _saveTimer = null;
+      if (!await save(false)) throw new Error('save failed');
+      if (!current()) return;
+    }
+    const r = await fetch('/api/journal/' + day + '/reflect', { method: 'POST', headers: _authHeaders() });
+    if (!current()) return;
     if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error('locked'); }
     const d = await r.json();
+    if (!current()) return;
     if (!r.ok) throw new Error(d.detail || 'reflect failed');
-    box.innerHTML = mdToHtml(d.reflection || '');
-    box.style.display = 'block';
+    if (typeof d.reflection !== 'string' || !d.reflection.trim()) throw new Error('no reflection returned');
+    box.innerHTML = mdToHtml(d.reflection);
   } catch (e) {
-    toast(e.message || 'reflect failed', 'error');
+    if (current()) box.textContent = `could not reflect: ${e.message || 'request failed'}. choose reflect to retry.`;
+  } finally {
+    if (current()) {
+      btn.removeAttribute('aria-disabled');
+      btn.innerHTML = `${_si('sparkles')} reflect`;
+    }
   }
-  btn.disabled = false; btn.innerHTML = `${_si('sparkles')} reflect`;
 }
