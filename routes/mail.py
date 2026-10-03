@@ -1103,10 +1103,13 @@ def save_signature(body: SignatureBody):
     from services.recovery_consistency import recovery_consistency_lock
 
     with recovery_consistency_lock:
-        sigs = [s for s in load_settings().get("mail_signatures", []) if s.get("id")]
+        settings = load_settings()
+        sigs = [s for s in settings.get("mail_signatures", []) if s.get("id")]
         if body.revision is not None and not body.id:
             raise HTTPException(422, "a versioned signature save requires an id")
         sid = body.id or uuid.uuid4().hex
+        if sid in settings.get("mail_signature_deleted_ids", []):
+            raise HTTPException(410, "this signature was removed; save a new signature instead")
         row = {"id": sid, "name": (body.name or "signature").strip(), "body": body.body or ""}
         previous = next((s for s in sigs if s["id"] == sid), None)
         revision = previous.get("revision", 0) if previous else 0
@@ -1125,13 +1128,35 @@ def save_signature(body: SignatureBody):
 
 
 @router.delete("/signatures/{sid}")
-def delete_signature(sid: str):
+def delete_signature(sid: str, expected_revision: str | None = None):
     from core.settings import load_settings, save_settings
     from services.recovery_consistency import recovery_consistency_lock
 
+    expected = None
+    if expected_revision is not None:
+        try:
+            if not re.fullmatch(r"0|[1-9][0-9]*", expected_revision):
+                raise ValueError
+            expected = int(expected_revision)
+        except ValueError:
+            raise HTTPException(422, "expected_revision must be a nonnegative integer") from None
     with recovery_consistency_lock:
-        sigs = [s for s in load_settings().get("mail_signatures", []) if s.get("id") != sid]
-        save_settings({"mail_signatures": sigs})
+        settings = load_settings()
+        sigs = settings.get("mail_signatures", [])
+        previous = next((s for s in sigs if s.get("id") == sid), None)
+        if previous and expected_revision is not None:
+            if previous.get("revision", 0) != expected:
+                raise HTTPException(409, "the signature changed; review it before removing it")
+        deleted = set(settings.get("mail_signature_deleted_ids", []))
+        if sid not in deleted or previous:
+            # Keep identity only so delayed creates and edits cannot restore removed text.
+            deleted.add(sid)
+            save_settings(
+                {
+                    "mail_signatures": [s for s in sigs if s.get("id") != sid],
+                    "mail_signature_deleted_ids": sorted(deleted),
+                }
+            )
         return {"ok": True}
 
 
