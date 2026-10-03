@@ -8364,6 +8364,19 @@
         "1440",
         "390"
       ]
+    },
+    {
+      "id": "plan.recurring-task-continuity",
+      "feature": "plan.tasks-calendar",
+      "app": "plan",
+      "workflow": "recurring task completion and correction",
+      "expected": "Capture and edit a monthly task, recover a lost completion reply, undo and redo without duplicating the next occurrence, then reload and preserve the month anchor on the following completion.",
+      "status": "untested",
+      "evidence": [],
+      "required_profiles": [
+        "1440",
+        "390"
+      ]
     }
   ],
   "findings": [],

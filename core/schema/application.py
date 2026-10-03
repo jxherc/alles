@@ -233,6 +233,7 @@ class Task(Base):
     parent_id = Column(String, nullable=True)  # subtasks point at their parent
     tags = Column(String, default="")  # comma-separated
     repeat = Column(String, default="")  # ''|daily|weekly|monthly|yearly
+    recurrence_issued = Column(Boolean, nullable=False, default=False, server_default="0")
     anchor_day = Column(
         Integer, nullable=True
     )  # original day-of-month so monthly/yearly repeats don't drift

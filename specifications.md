@@ -473,7 +473,8 @@ a real to-do list: type tasks in plain english, with recurring ones and smart vi
 
 - **natural-language quick-add**: "pay rent every 1st !" or "call mom tomorrow #home" parses the due date, repeat, `#tags` and `!` priority for you (deterministic, no deps, all local)
 - home task capture previews these fields before saving, using home's displayed day for relative dates. the accepted task keeps the exact original text, available in its editor and completed history; an uncertain acceptance can be resumed from home after reload without creating another task.
-- **recurring tasks**: finish one and it rolls forward to the next occurrence (daily / weekly / monthly / yearly, leap-day safe)
+- **recurring tasks**: finish one and it rolls forward to the next occurrence (daily / weekly / monthly / yearly, leap-day safe). each task issues at most one next occurrence: undo/redo, retries and concurrent Plan/Aide completion keep that history. editing or deleting the next occurrence does not make the original issue it again. the successor retains source, parent, notes, tags, project, priority and the month anchor.
+- migration preserves recurrence history conservatively for already-completed legacy tasks. previously undone legacy tasks have no reliable issuance record; their past successors are not inferred from matching titles or dates.
 - **today / upcoming / someday** views by due date, plus tags, subtasks, projects, and manual drag-reorder
 - compatible task stages include backlog, next, doing, waiting, and done while the existing checked/unchecked behavior still works
 - task edits send only changed fields with their original values; conflicting saves retain both versions for review, download and explicit resolution. legacy api clients without preconditions keep their existing behavior.
@@ -3220,7 +3221,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `sub_payments` | `id: VARCHAR pk`, `sub_id: VARCHAR`, `date: VARCHAR`, `amount: FLOAT ?`, `txn_id: VARCHAR ?`, `created_at: DATETIME ?`, `original_amount_text: VARCHAR ?`, `original_currency_code: VARCHAR ?`, `base_amount_text: VARCHAR ?`, `base_currency_code: VARCHAR ?`, `fx_rate_text: VARCHAR ?`, `fx_rate_date: VARCHAR ?`, `fx_source: VARCHAR ?` | — |
 | `sub_price_changes` | `id: VARCHAR pk`, `sub_id: VARCHAR`, `old_price: FLOAT ?`, `new_price: FLOAT ?`, `date: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `subscriptions` | `id: VARCHAR pk`, `name: VARCHAR`, `price: FLOAT ?`, `currency: VARCHAR ?`, `cycle: VARCHAR ?`, `cycle_days: INTEGER ?`, `next_due: VARCHAR`, `category: VARCHAR ?`, `url: VARCHAR ?`, `notes: TEXT ?`, `active: BOOLEAN ?`, `remind_days: INTEGER ?`, `last_notified_due: VARCHAR ?`, `account_id: VARCHAR ?`, `last_posted_due: VARCHAR ?`, `trial_end: VARCHAR ?`, `cancel_url: VARCHAR ?`, `created_at: DATETIME ?`, `original_price_text: VARCHAR ?`, `original_currency_code: VARCHAR ?`, `base_price_text: VARCHAR ?`, `base_currency_code: VARCHAR ?`, `fx_rate_text: VARCHAR ?`, `fx_rate_date: VARCHAR ?`, `fx_source: VARCHAR ?` | — |
-| `tasks` | `id: VARCHAR pk`, `title: VARCHAR`, `done: BOOLEAN ?`, `stage: VARCHAR ?`, `priority: INTEGER ?`, `due_date: VARCHAR ?`, `parent_id: VARCHAR ?`, `tags: VARCHAR ?`, `repeat: VARCHAR ?`, `anchor_day: INTEGER ?`, `notes: TEXT ?`, `source_json: TEXT ?`, `project: VARCHAR ?`, `sort_order: INTEGER ?`, `completed_at: DATETIME ?`, `created_at: DATETIME ?` | — |
+| `tasks` | `id: VARCHAR pk`, `title: VARCHAR`, `done: BOOLEAN ?`, `stage: VARCHAR ?`, `priority: INTEGER ?`, `due_date: VARCHAR ?`, `parent_id: VARCHAR ?`, `tags: VARCHAR ?`, `repeat: VARCHAR ?`, `recurrence_issued: BOOLEAN`, `anchor_day: INTEGER ?`, `notes: TEXT ?`, `source_json: TEXT ?`, `project: VARCHAR ?`, `sort_order: INTEGER ?`, `completed_at: DATETIME ?`, `created_at: DATETIME ?` | — |
 | `tool_chains` | `id: VARCHAR pk`, `name: VARCHAR`, `steps: TEXT ?`, `created_at: DATETIME ?` | — |
 | `trash_items` | `id: VARCHAR pk`, `kind: VARCHAR`, `ref: VARCHAR`, `location_id: VARCHAR ?`, `normalized_path: VARCHAR ?`, `name: VARCHAR ?`, `payload: TEXT ?`, `trashed_at: DATETIME ?`, `expires_at: DATETIME ?` | — |
 | `uploads` | `id: VARCHAR pk`, `filename: VARCHAR`, `original_name: VARCHAR`, `mime_type: VARCHAR ?`, `size: INTEGER ?`, `session_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
@@ -3306,6 +3307,7 @@ known versions run in ascending order.
 | 58 | `mail_outbox_recovery` | [m0058_mail_outbox_recovery.py](core/migrations/m0058_mail_outbox_recovery.py) |
 | 59 | `mail_rule_recovery` | [m0059_mail_rule_recovery.py](core/migrations/m0059_mail_rule_recovery.py) |
 | 60 | `mail_account_recovery` | [m0060_mail_account_recovery.py](core/migrations/m0060_mail_account_recovery.py) |
+| 61 | `task_recurrence_history` | [m0061_task_recurrence_history.py](core/migrations/m0061_task_recurrence_history.py) |
 
 </details>
 

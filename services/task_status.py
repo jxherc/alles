@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime
 
+from sqlalchemy import text
+
 from core.database import Task
 from services.task_nl import advance
 
@@ -24,6 +26,12 @@ def apply_status(
     if stage is None and done is None:
         raise ValueError("stage or done is required")
 
+    # Reserve this transaction before reloading a possibly stale completion. Both
+    # Plan and Aide use this owner; a status retry must see the saved issuance.
+    db.flush()
+    db.execute(text("UPDATE tasks SET id = id WHERE id = :id"), {"id": task.id})
+    db.refresh(task)
+
     next_done = stage == "done" if stage is not None else bool(done)
     if stage is not None:
         next_stage = stage
@@ -37,10 +45,11 @@ def apply_status(
         task.completed_at = datetime.now(UTC).replace(tzinfo=None) if next_done else None
 
     spawned = None
-    if next_done and not task.done and task.repeat and task.due_date:
+    if next_done and not task.done and not task.recurrence_issued and task.repeat and task.due_date:
         anchor = task.anchor_day or (int(task.due_date[8:10]) if len(task.due_date) >= 10 else None)
         due = advance(task.due_date, task.repeat, anchor)
         if due:
+            task.recurrence_issued = True
             spawned = Task(
                 title=task.title,
                 priority=task.priority,
