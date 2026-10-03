@@ -280,7 +280,7 @@ test('scoped web searches use one-time handoff state and retain scope for Aide f
   );
   assert.ok(handoff.indexOf('context-handoff') < handoff.indexOf('encodeURIComponent(q)'));
   assert.match(andromeda, /documentScope: options\.documentScope \|\| null/);
-  assert.match(andromeda, /_askInChat\(request, false, _state\.documentScope, projectId\)/);
+  assert.match(andromeda, /_askInChat\(request, false, scope, projectId\)/);
 });
 
 test('boot-time Aide handoffs preserve a validated selected project', () => {
