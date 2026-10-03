@@ -1531,9 +1531,11 @@ async function compose(pre = {}, generation = null) {
       <button class="btn" id="mc-suggest" title="AI reply suggestions">✨ suggest</button>
       <span class="mail-sig-wrap" id="mc-sig-list"></span>
       <button class="btn" id="mc-sig-add" title="save a new signature">＋ sig</button>
+      <button class="btn" type="button" id="mc-sig-manage" aria-expanded="false" aria-controls="mc-sig-manager">manage signatures</button>
       <button class="btn" id="mc-sig-retry" style="display:none">retry signatures</button>
       <span id="mc-sig-status" class="mail-status" role="status"></span>
     </div>
+    <section id="mc-sig-manager" aria-label="saved signatures" hidden></section>
     <div class="settings-input mail-compose-body mail-rich-body" id="mc-html" contenteditable="true" role="textbox" aria-label="message" aria-multiline="true" data-ph="write your message…">${pre.body || ''}</div>
     <div id="mc-suggest-box" class="mail-suggest-box"></div>
     <input type="file" id="mc-image-input" accept="image/*" style="display:none">
@@ -1701,14 +1703,19 @@ async function _wireRichCompose(defaultAid, root, current) {
     });
   }
   const list = $('mc-sig-list'), status = $('mc-sig-status'), retry = $('mc-sig-retry');
-  let sigs = [], readGeneration = 0;
+  const manage = $('mc-sig-manage'), panel = $('mc-sig-manager');
+  let sigs = [], readGeneration = 0, managerOpen = false, signatureBusy = false, pendingRemoval = null;
   const validSignature = signature => signature && ['id', 'name', 'body'].every(key => typeof signature[key] === 'string') && signature.id;
+  const revisionOf = signature => signature.revision === undefined ? 0 : signature.revision;
   const readSignatures = async () => {
     const data = await mailJson('/api/mail/signatures', { cache: 'no-store', signal: AbortSignal.timeout(15000) });
     if (!Array.isArray(data?.signatures) || !data.signatures.every(validSignature)) throw new Error('could not confirm the signature list');
     return data.signatures;
   };
   const renderSignatures = () => {
+    if (!current()) return;
+    const active = document.activeElement;
+    const focused = [list, panel].some(node => node.contains(active)) ? { ...active.dataset } : null;
     list.innerHTML = sigs.map(s => `<button class="btn mc-sig-chip" data-sig="${esc(s.id)}" title="insert signature">✎ ${esc(s.name)}</button>`).join('');
     list.querySelectorAll('.mc-sig-chip').forEach(button => button.addEventListener('click', () => {
       if (!current()) return;
@@ -1716,55 +1723,148 @@ async function _wireRichCompose(defaultAid, root, current) {
       if (!signature) return;
       $('mc-html').innerHTML += `<div class="mail-sig" data-sig>--<br>${esc(signature.body).replace(/\n/g, '<br>')}</div>`;
     }));
+    manage.setAttribute('aria-expanded', String(managerOpen)); panel.hidden = !managerOpen;
+    $('mc-sig-add').setAttribute('aria-disabled', String(signatureBusy));
+    panel.innerHTML = sigs.length ? sigs.map(s => `<div class="mail-rule-row"><span>${esc(s.name || 'signature')}</span><div class="mail-rule-actions">
+      <button class="btn" type="button" data-sig-edit="${esc(s.id)}" aria-label="edit ${esc(s.name || 'signature')}" aria-disabled="${signatureBusy}">edit</button>
+      <button class="btn" type="button" data-sig-remove="${esc(s.id)}" aria-label="remove ${esc(s.name || 'signature')}" aria-disabled="${signatureBusy || Boolean(pendingRemoval)}">remove</button>
+    </div></div>`).join('') : '<p class="mail-status">no saved signatures</p>';
+    panel.querySelectorAll('[data-sig-edit]').forEach(button => button.addEventListener('click', () => {
+      const signature = sigs.find(row => row.id === button.dataset.sigEdit);
+      if (signature) editSignature(signature);
+    }));
+    panel.querySelectorAll('[data-sig-remove]').forEach(button => button.addEventListener('click', async () => {
+      if (!current() || signatureBusy || pendingRemoval) return;
+      const signature = sigs.find(row => row.id === button.dataset.sigRemove);
+      if (!signature) return;
+      const revision = revisionOf(signature);
+      if (!Number.isSafeInteger(revision) || revision < 0) { status.textContent = 'could not confirm this signature version; reload signatures.'; retry.style.display = ''; return; }
+      signatureBusy = true; renderSignatures();
+      const confirmed = await dlgConfirm(`remove “${signature.name || 'signature'}” from saved signatures? text already inserted in messages stays unchanged.`);
+      signatureBusy = false;
+      if (!current()) return;
+      if (confirmed) { pendingRemoval = { id: signature.id, revision }; await removeSignature(); }
+      else renderSignatures();
+    }));
+    if (pendingRemoval) {
+      const action = document.createElement('button'); action.className = 'btn'; action.type = 'button'; action.dataset.sigRetry = pendingRemoval.id;
+      action.textContent = 'retry signature removal'; action.setAttribute('aria-disabled', String(signatureBusy));
+      action.addEventListener('click', removeSignature); panel.appendChild(action);
+    }
+    if (focused && document.activeElement === document.body) {
+      const match = [...list.querySelectorAll('button'), ...panel.querySelectorAll('button')].find(button => Object.keys(focused).some(key => key.startsWith('sig') && button.dataset[key] === focused[key]));
+      (match || manage).focus();
+    }
   };
   const loadSignatures = async () => {
     const generation = ++readGeneration;
-    retry.disabled = true;
-    status.textContent = 'loading signatures…';
+    const restoreFocus = document.activeElement === retry;
+    retry.disabled = true; status.textContent = 'loading signatures…';
     try {
       const rows = await readSignatures();
       if (!current() || generation !== readGeneration) return;
-      sigs = rows; renderSignatures();
-      status.textContent = ''; retry.style.display = 'none';
+      sigs = rows;
+      if (pendingRemoval) {
+        const row = rows.find(item => item.id === pendingRemoval.id);
+        if (!row || revisionOf(row) > pendingRemoval.revision) pendingRemoval = null;
+      }
+      renderSignatures(); status.textContent = pendingRemoval ? 'signature removal is still unconfirmed. retry removal or review the saved signature.' : '';
+      retry.style.display = pendingRemoval ? '' : 'none';
     } catch (error) {
       if (!current() || generation !== readGeneration) return;
-      status.textContent = `could not load signatures. ${error.message || 'check your connection.'}`;
-      retry.style.display = '';
-    } finally { if (generation === readGeneration) retry.disabled = false; }
-  };
-  retry.addEventListener('click', loadSignatures);
-  $('mc-sig-add').addEventListener('click', async () => {
-    if (!current()) return;
-    const id = savedRequestId();
-    let confirmed, attempt = null;
-    const values = await dlgFields('signature', [
-      { id: 'name', label: 'name' },
-      { id: 'body', label: 'signature text', multiline: true },
-    ], { submit: async fields => {
-      if (!current()) throw new Error('the original message is no longer open; your signature text is still here');
-      const desired = { id, name: fields.name.trim(), body: fields.body };
-      if (!desired.name) throw new Error('enter a signature name');
-      const unchanged = attempt && ['name', 'body'].every(key => attempt[key] === desired[key]);
-      desired.revision = unchanged ? attempt.revision : (attempt?.revision || 0) + 1;
-      attempt = desired;
-      const matches = row => validSignature(row) && Number.isInteger(row.revision) && row.revision >= desired.revision && ['id', 'name', 'body'].every(key => row[key] === desired[key]);
-      try {
-        const row = await mailJson('/api/mail/signatures', {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(desired), signal: AbortSignal.timeout(15000),
-        });
-        if (!matches(row)) throw new Error('could not confirm the saved signature');
-        confirmed = row;
-      } catch (error) {
-        try { confirmed = (await readSignatures()).find(matches); } catch { /* Keep the original save error and form for retry. */ }
-        if (!confirmed) throw new Error(`save unconfirmed. ${error.message || 'check your connection and retry.'}`);
+      status.textContent = `could not load signatures. ${error.message || 'check your connection.'}`; retry.style.display = '';
+    } finally {
+      if (generation === readGeneration) {
+        retry.disabled = false;
+        if (current() && restoreFocus && document.activeElement === document.body) {
+          (retry.style.display === 'none' ? manage : retry).focus();
+        }
       }
-    } });
-    if (!values || !confirmed || !current()) return;
-    sigs = [...sigs.filter(row => row.id !== confirmed.id), confirmed]; renderSignatures();
-    toast('signature saved', 'success');
-    await loadSignatures();
-  });
+    }
+  };
+  async function removeSignature() {
+    if (!current() || signatureBusy || !pendingRemoval) return;
+    const attempt = pendingRemoval; signatureBusy = true; ++readGeneration;
+    status.textContent = 'removing signature…'; renderSignatures();
+    let confirmed = false, error;
+    try {
+      const result = await mailJson(`/api/mail/signatures/${encodeURIComponent(attempt.id)}?expected_revision=${attempt.revision}`, { method: 'DELETE', signal: AbortSignal.timeout(15000) });
+      if (result?.ok !== true) throw new Error('could not confirm signature removal');
+      confirmed = true;
+    } catch (failure) {
+      error = failure;
+      try { confirmed = !(await readSignatures()).some(row => row.id === attempt.id); } catch { /* Keep the captured removal available for retry. */ }
+    } finally { signatureBusy = false; }
+    if (!current()) return;
+    ++readGeneration;
+    const retryFocused = document.activeElement === retry || document.activeElement === document.body;
+    retry.disabled = false;
+    if (confirmed) {
+      sigs = sigs.filter(row => row.id !== attempt.id); pendingRemoval = null; renderSignatures();
+      status.textContent = 'signature removed'; retry.style.display = 'none';
+      if (retryFocused) manage.focus();
+    } else {
+      status.textContent = `signature removal unconfirmed. ${error?.message || 'check your connection and retry.'}`;
+      retry.style.display = ''; renderSignatures();
+    }
+  }
+  async function editSignature(original = null) {
+    if (!current() || signatureBusy) return;
+    const baseline = original ? revisionOf(original) : 0;
+    if (!Number.isSafeInteger(baseline) || baseline < 0) { status.textContent = 'could not confirm this signature version; reload signatures.'; retry.style.display = ''; return; }
+    signatureBusy = true; ++readGeneration; renderSignatures();
+    const id = original?.id || savedRequestId();
+    let confirmed, attempt = null;
+    try {
+      const values = await dlgFields(original ? 'edit signature' : 'signature', [
+        { id: 'name', label: 'name', value: original?.name || '' },
+        { id: 'body', label: 'signature text', multiline: true, value: original?.body || '' },
+      ], { submit: async fields => {
+        if (!current()) throw new Error('the original message is no longer open; your signature text is still here');
+        const desired = { id, name: fields.name.trim(), body: fields.body };
+        if (!desired.name) throw new Error('enter a signature name');
+        const unchanged = attempt && ['name', 'body'].every(key => attempt[key] === desired[key]);
+        let latestRevision = baseline;
+        if (original) {
+          let rows;
+          try { rows = await readSignatures(); }
+          catch { throw new Error('could not check the saved signature. check your connection and retry.'); }
+          const latest = rows.find(row => row.id === id);
+          if (!current()) throw new Error('the original message is no longer open; your signature text is still here');
+          if (!latest) throw new Error('this signature was removed. copy this text, cancel, then add a new signature.');
+          latestRevision = revisionOf(latest);
+          const same = row => row && ['id', 'name', 'body'].every(key => row[key] === latest[key]);
+          if (!Number.isSafeInteger(latestRevision) || latestRevision < 0 ||
+              !(same(original) && latestRevision === baseline) && !(same(attempt) && latestRevision >= attempt.revision)) {
+            throw new Error('this signature changed. copy your edits, cancel, then reload signatures to review the current version.');
+          }
+          desired.expected_revision = latestRevision;
+        }
+        desired.revision = unchanged ? attempt.revision : Math.max(attempt?.revision ?? baseline, latestRevision) + 1;
+        attempt = desired;
+        const matches = row => validSignature(row) && Number.isInteger(row.revision) && row.revision >= desired.revision && ['id', 'name', 'body'].every(key => row[key] === desired[key]);
+        try {
+          const row = await mailJson('/api/mail/signatures', {
+            method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(desired), signal: AbortSignal.timeout(15000),
+          });
+          if (!matches(row)) throw new Error('could not confirm the saved signature');
+          confirmed = row;
+        } catch (error) {
+          try { confirmed = (await readSignatures()).find(matches); } catch { /* Keep the original save error and form for retry. */ }
+          if (!confirmed) throw new Error(error.status === 410 ? 'this signature was removed. copy this text, cancel, then add a new signature.' : `save unconfirmed. ${error.message || 'check your connection and retry.'}`);
+        }
+      } });
+      if (!values || !confirmed || !current()) return;
+      if (pendingRemoval?.id === confirmed.id && confirmed.revision > pendingRemoval.revision) pendingRemoval = null;
+      sigs = [...sigs.filter(row => row.id !== confirmed.id), confirmed]; renderSignatures(); toast('signature saved', 'success');
+    } finally {
+      signatureBusy = false;
+      if (current()) { renderSignatures(); await loadSignatures(); }
+    }
+  }
+  retry.addEventListener('click', loadSignatures);
+  manage.addEventListener('click', () => { managerOpen = !managerOpen; renderSignatures(); });
+  $('mc-sig-add').addEventListener('click', () => editSignature());
   await loadSignatures();
 }
 
