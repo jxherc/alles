@@ -8663,7 +8663,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-app-head {
   min-height: 78px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 920px) minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
   border-bottom: 0;

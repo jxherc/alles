@@ -833,8 +833,12 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   output, and cancellation keep links when available and show the safe failure type, attempted
   providers, and retry/broaden/edit/return actions.
 - **save or continue.** saved searches keep the request settings, result metadata, overview, citations,
-  evidence, model provenance, and checked time. saving supports up to 600 results within a 20 MB result-data limit; oversized snapshots are rejected intact. pending saves stay in this browser tab for checking or retry after a lost reply or reload. retrying the same request returns the same snapshot, and cannot recreate a deleted snapshot. browser storage must be available before sending a recoverable save. selected links can open in aide, while deep research can
-  continue in aide with the selected project id.
+  evidence, model provenance, and checked time. saving supports up to 600 results within a 20 MB result-data limit; oversized snapshots are rejected intact. pending saves stay in this browser tab for checking or retry after a lost reply or reload. retrying the same request returns the same snapshot, and cannot recreate a deleted snapshot. browser storage must be available before sending a recoverable save. ask aide retains the original query, result excerpts, overview, evidence passages, verification and
+  public model provenance, while preserving selected project and document scope. an unchanged saved
+  snapshot supplies an exact return link; failed links offer an explicit retry. when captured context
+  exceeds the existing 20,000-character handoff, a confirmation names the included result/passage counts
+  and omitted sections before sending whole records. cancel sends nothing, and the full saved snapshot
+  stays unchanged. replies and source links can continue through Aide's existing saved-note workflow.
 
 search can use duckduckgo, tavily, brave, google pse, serper, or an external https searxng instance.
 alles can also own an optional searxng lifecycle when a supported docker runtime is available. its
