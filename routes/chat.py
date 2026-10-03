@@ -20,6 +20,7 @@ from services.chat_turn import (
     _resolve_persona,
     _stream_and_save,
 )
+from services.document_context import VaultDocumentsScope, read_sources
 from services.llm import reasoning_control_supported, simple_complete
 from services.memory_store import apply_memory_tool_policy, inject_memories
 from services.model_resolver import ModelResolutionError, resolve_session_model
@@ -158,7 +159,7 @@ class ChatRequest(BaseModel):
     reasoning_mode: Literal["", "automatic", "on", "off"] = ""
     custom_effort: CustomEffort | None = None
     simple: bool = False  # pure chat — never auto-promote to tools (the home "ask aide")
-    context_scope: VaultDocumentScope | None = None
+    context_scope: VaultDocumentScope | VaultDocumentsScope | None = None
 
 
 def _require_turn_authority(request: Request, settings: dict) -> None:
@@ -234,7 +235,9 @@ def _apply_run_controls(
         settings["agent_workflows"] = False
 
 
-def _vault_document_context(scope: VaultDocumentScope | None) -> tuple[str, dict | None]:
+def _vault_document_context(
+    scope: VaultDocumentScope | VaultDocumentsScope | None,
+) -> tuple[str, dict | None]:
     """Resolve one owner-selected note without changing the saved user message.
 
     The expected hash makes the scope visible and exact: Aide never silently reads a newer
@@ -242,6 +245,8 @@ def _vault_document_context(scope: VaultDocumentScope | None) -> tuple[str, dict
     """
     if scope is None:
         return "", None
+    if isinstance(scope, VaultDocumentsScope):
+        return read_sources(scope)
     from services import vault_md
 
     try:
@@ -303,6 +308,14 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
     settings = load_settings()
     incognito_run = bool(getattr(s, "incognito", False))
     settings["incognito"] = incognito_run
+    selected_documents_only = isinstance(body.context_scope, VaultDocumentsScope)
+    settings["selected_documents_only"] = selected_documents_only
+    if selected_documents_only and body.file_ids:
+        raise ApiError(
+            400,
+            "document_scope_attachments",
+            "remove attachments or clear the selected notes before asking",
+        )
     apply_memory_tool_policy(settings, incognito=incognito_run)
     for upload_id in body.file_ids:
         private_upload = incognito_service.get_upload(upload_id)
@@ -331,7 +344,11 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
     _apply_run_controls(settings, body, ep.base_url, model)
     _require_turn_authority(request, settings)
     # @path mentions → inline file contents for the model (saved msg stays clean)
-    aug_text = _resolve_mentions(body.message, settings["agent_cwd"])
+    aug_text = (
+        body.message
+        if settings.get("selected_documents_only")
+        else _resolve_mentions(body.message, settings["agent_cwd"])
+    )
     document_text, document_provenance = _vault_document_context(body.context_scope)
     settings["untrusted_document_context"] = document_provenance is not None
     # embed memories OFF the event loop — fastembed is CPU-bound and would otherwise freeze
@@ -345,6 +362,7 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
             return_details=True,
         )
         if not incognito_run
+        and not selected_documents_only
         and settings.get("memory_policy", "ask") != "off"
         and settings.get("memory_auto_inject", True)
         else ("", [])
@@ -367,7 +385,7 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
             incognito_service.delete_upload(upload_id)
 
     # context compaction
-    if settings.get("auto_compact", True):
+    if not selected_documents_only and settings.get("auto_compact", True):
         threshold = settings.get("compact_threshold", 30)
         chat_msgs = [m for m in messages if m["role"] != "system"]
         if len(chat_msgs) > threshold * 0.9:
@@ -387,7 +405,7 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
         base_mode,
         pmode,
         body.message,
-        body.simple,
+        body.simple or selected_documents_only,
         getattr(s, "chat_behavior", "") or settings.get("default_chat_behavior", "automatic_tools"),
     )
     if force_approve and not body.permission_mode:
@@ -431,12 +449,16 @@ _bg_tasks: dict[str, asyncio.Task] = {}
 
 @router.post("/agent/background")
 async def chat_background(body: ChatRequest, request: Request, db: DbSession = Depends(get_db)):
+    if isinstance(body.context_scope, VaultDocumentsScope):
+        raise ApiError(
+            400,
+            "document_scope_background",
+            "selected-note answers stay in this tab; remove the selection to start background work",
+        )
     s = incognito_service.get_session(body.session_id) or db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
     if getattr(s, "incognito", False) or body.incognito:
-        from core.api_errors import ApiError
-
         raise ApiError(400, "incognito_background_forbidden", "incognito work stays in this tab")
     settings = load_settings()
     ep, model = _resolve_session_model(s, db, settings)

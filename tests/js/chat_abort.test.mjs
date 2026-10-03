@@ -17,7 +17,7 @@ test('stopping a document-scoped request restores its scope for the next send', 
   const caught = src.match(/} catch \(e\) \{[\s\S]*?\n  } finally \{/)?.[0] || '';
   assert.match(
     caught,
-    /restoreDocumentScope\(documentScope\);\s*if \(e\.name !== 'AbortError'\)/,
+    /if \(getActiveId\(\) === sessionId && _streamToken === streamToken\) \{\s*restoreDocumentScope\(documentScope\);/,
   );
 });
 
@@ -46,6 +46,6 @@ test('saveMsgAs comment matches the supported actions', () => {
   assert.match(src, /save an assistant message as a note or task/);
   assert.doesNotMatch(src, /save an assistant message as a note \/ task \/ reminder/);
   assert.match(src, /if \(kind === 'note'\)/);
-  assert.match(src, /else if \(kind === 'task'\)/);
+  assert.match(src, /if \(kind === 'task'\)/);
   assert.doesNotMatch(src, /kind === 'reminder'/);
 });

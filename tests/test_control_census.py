@@ -21,6 +21,48 @@ ROOT = Path(__file__).parents[1]
 
 
 class ControlCensusTraversalTest(unittest.TestCase):
+    def test_created_control_text_is_limited_to_its_literal_initialization(self):
+        examples = [
+            (
+                "const open = document.createElement('button'); open.type = 'button'; open.className = 'btn'; open.textContent = 'open note';",
+                "open note",
+            ),
+            (
+                "const remove = document.createElement('button');\nremove.textContent = 'remove';",
+                "remove",
+            ),
+            (
+                "const button = document.createElement('button'); button.textContent = item.path;",
+                "",
+            ),
+            ("const button = document.createElement('button'); other.textContent = 'wrong';", ""),
+            (
+                "const button = document.createElement('button'); if (ready) button.textContent = 'conditional';",
+                "",
+            ),
+            (
+                "const button = document.createElement('button'); button.textContent = 'prefix' + name;",
+                "",
+            ),
+            (
+                "const button = document.createElement('button'); handler(); button.textContent = 'later';",
+                "",
+            ),
+            (
+                "const button = document.createElement('button'); button.textContent = `dynamic ${name}`;",
+                "",
+            ),
+            (
+                "const button = document.createElement('button'); return '<button>different node</button>';",
+                "",
+            ),
+        ]
+        for source, expected in examples:
+            with self.subTest(source=source):
+                self.assertEqual(
+                    control_census._created_text(source, source.index("createElement")), expected
+                )
+
     def test_nested_modules_keep_controls_listener_provenance_and_event_counts(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
