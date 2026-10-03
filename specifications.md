@@ -320,6 +320,15 @@ related apps now open together without merging their records.
 - **files** keeps storage and gallery under one identity, with explicit gallery-to-files and browser
   back paths on desktop and phone
 - **library** combines books and saved reading; andromeda news enters only when you explicitly save it
+- **books** retain entered details while changing shelves, rating other books, or closing and reopening
+  the add form. optional title lookup distinguishes no matches from an unavailable service; manual
+  entry remains available. a pending save is kept in this tab before submission and survives reload
+  for explicit confirmation, retry, or discard. retry returns the same current book without replacing
+  later edits; a deleted book cannot be recreated by that request. confirmed saves open the exact book.
+  the API accepts an optional canonical `request_id` and current `recovery_scope`; legacy calls without
+  an identity still permit separate copies. creation receipts retain only identity, details hash and
+  book id, without retaining deleted book text. `GET /api/books/requests/{request_id}` checks a save
+  without creating anything.
 - **saved reading** keeps an approximate reading place across reloads and screen sizes. Opening or
   scrolling an article does not mark it read; mark read/unread is explicit and safe to retry after
   an uncertain reply. Position saves check the version of the stored text and offer retry or reopen
@@ -1163,7 +1172,7 @@ erDiagram
     money_accounts |o--o{ money_transactions : records
     albums |o--o{ photos : groups
 ```
-the declared schema has **130 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+the declared schema has **131 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`**: your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`**: agent skills as `SKILL.md` files (frontmatter + steps).
 - **`data/`** (other): uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
@@ -1333,9 +1342,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 910 http method/path pairs
-- 893 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `374cd48bb43a4603172d9dc48acc0251f97d8c1cc6b03d7edb61c08e918bb682`
+- 911 http method/path pairs
+- 894 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `bd97565b102f02a2d10353fb71458f981eecc6b9418cede5a80a655febd31716`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -1492,7 +1501,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/books.py · 7 operations</summary>
+<summary>routes/books.py · 8 operations</summary>
 
 [source](routes/books.py)
 
@@ -1503,6 +1512,7 @@ the compatibility snapshot locks the registered http surface:
 | `POST` | `/api/books/import` | `import_books` |
 | `GET` | `/api/books/lookup` | `lookup` |
 | `GET` | `/api/books/overview` | `overview` |
+| `GET` | `/api/books/requests/{request_id}` | `recover_save` |
 | `DELETE` | `/api/books/{bid}` | `delete_book` |
 | `PATCH` | `/api/books/{bid}` | `update_book` |
 
@@ -3143,7 +3153,7 @@ retrieve full article text from each entry's publisher.
 
 ## database table inventory
 
-this lists **130 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **131 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -3164,6 +3174,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `automation_rules` | `id: VARCHAR pk`, `name: VARCHAR ?`, `trigger: VARCHAR`, `trigger_arg: VARCHAR ?`, `action: VARCHAR`, `action_arg: TEXT ?`, `enabled: BOOLEAN ?`, `state: TEXT ?`, `migrated_workflow_id: VARCHAR ?`, `enabled_intent: BOOLEAN ?`, `created_at: DATETIME ?` | — |
 | `blobs` | `id: VARCHAR pk`, `sha256: VARCHAR`, `size: INTEGER ?`, `mime: VARCHAR ?`, `refcount: INTEGER ?`, `created_at: DATETIME ?` | — |
 | `booking_pages` | `id: VARCHAR pk`, `token: VARCHAR ?`, `title: VARCHAR ?`, `duration_min: INTEGER ?`, `work_start: INTEGER ?`, `work_end: INTEGER ?`, `days_ahead: INTEGER ?`, `calendar_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
+| `book_create_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR`, `book_id: VARCHAR`, `created_at: DATETIME ?` | — |
 | `books` | `id: VARCHAR pk`, `title: VARCHAR`, `author: VARCHAR ?`, `status: VARCHAR ?`, `rating: INTEGER ?`, `started: VARCHAR ?`, `finished: VARCHAR ?`, `cover: VARCHAR ?`, `notes: TEXT ?`, `isbn: VARCHAR ?`, `year: INTEGER ?`, `created_at: DATETIME ?` | — |
 | `browser_connections` | `id: VARCHAR pk`, `vault_id: VARCHAR`, `name: VARCHAR`, `secret_hash: VARCHAR`, `extension_origin: VARCHAR`, `created_at: DATETIME ?`, `last_seen_at: DATETIME ?`, `revoked_at: DATETIME ?` | — |
 | `cached_messages` | `id: VARCHAR pk`, `account_id: VARCHAR`, `folder: VARCHAR ?`, `uid: VARCHAR`, `sender: TEXT ?`, `recipients: TEXT ?`, `subject: TEXT ?`, `date: VARCHAR ?`, `date_ts: FLOAT ?`, `seen: BOOLEAN ?`, `flagged: BOOLEAN ?`, `has_attachment: BOOLEAN ?`, `list_unsubscribe: TEXT ?`, `muted: BOOLEAN ?`, `snoozed_until: VARCHAR ?`, `labels: TEXT ?`, `autoreplied: BOOLEAN ?`, `message_id: VARCHAR ?`, `in_reply_to: VARCHAR ?`, `references: TEXT ?`, `thread_id: VARCHAR ?`, `body_indexed: BOOLEAN ?`, `cached_at: DATETIME ?` | — |
@@ -3359,6 +3370,7 @@ known versions run in ascending order.
 | 61 | `task_recurrence_history` | [m0061_task_recurrence_history.py](core/migrations/m0061_task_recurrence_history.py) |
 | 62 | `reading_position` | [m0062_reading_position.py](core/migrations/m0062_reading_position.py) |
 | 63 | `read_create_receipts` | [m0063_read_create_receipts.py](core/migrations/m0063_read_create_receipts.py) |
+| 64 | `book_create_receipts` | [m0064_book_create_receipts.py](core/migrations/m0064_book_create_receipts.py) |
 
 </details>
 

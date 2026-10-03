@@ -1382,6 +1382,16 @@ class HabitLog(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class BookCreateReceipt(Base):
+    """Keep a book save's identity even after its book is removed."""
+
+    __tablename__ = "book_create_receipts"
+    id = Column(String, primary_key=True)
+    payload_hash = Column(String, nullable=False)
+    book_id = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
 class ReadItem(Base):
     # read-later archive: a saved URL with its extracted readable text for offline search
     __tablename__ = "read_items"

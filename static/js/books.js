@@ -16,13 +16,32 @@ const _writingBooks = new Set();
 const _bookErrors = new Map();
 let _goalDraft = null;
 let _lookup = [];
+let _lookupBusy = false;
+let _lookupMessage = '';
+let _lookupFailed = false;
+let _lookupGeneration = 0;
+let _createBusy = false;
+let _createError = '';
+let _recoveryError = '';
+let _createReady = false;
+let _createScopes = [];
+let _pendingCreate = null;
+let _unreadableCreate = '';
+let _savedBook = null;
+let _viewGeneration = 0;
+const CREATE_PREFIX = 'alles.books.pending.v1:';
+const requestPattern = /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+const emptyDraft = () => ({ query: '', title: '', author: '', status: 'reading', cover: '', isbn: '', year: 0 });
+let _draft = emptyDraft();
 let _fetcher = fetch;
 let _hasOverview = false;
+let _loadGeneration = 0;
 let _loadState = { state: 'resting', message: '' };
 
 const SHELVES = [['reading', 'reading'], ['want', 'want to read'], ['done', 'read']];
 
 export function initBooks(fetcher = fetch) {
+  ++_viewGeneration;
   _fetcher = fetcher;
   return loadBooks(fetcher);
 }
@@ -45,6 +64,7 @@ function _loadNotice() {
 }
 
 export async function loadBooks(fetcher = _fetcher) {
+  const generation = ++_loadGeneration;
   _fetcher = fetcher;
   _loadState = { state: 'loading', message: 'loading books…' };
   _render();
@@ -52,11 +72,17 @@ export async function loadBooks(fetcher = _fetcher) {
     const r = await fetcher('/api/books/overview');
     if (!r.ok) throw new Error(`request failed (${r.status || 'unknown'})`);
     const data = await r.json();
+    if (generation !== _loadGeneration) return;
     if (!data || !data.shelves) throw new Error('invalid response');
     _data = data;
+    try { _readCreateRecovery(data.recovery_scopes); }
+    catch (error) { _recoveryError = error.message; }
     _hasOverview = true;
     _loadState = { state: 'resting', message: '' };
-  } catch (error) { _loadState = _loadFailure(error); }
+  } catch (error) {
+    if (generation !== _loadGeneration) return;
+    _loadState = _loadFailure(error);
+  }
   _render();
 }
 
@@ -98,6 +124,9 @@ function _card(b) {
 function _render() {
   const body = $('books-body');
   if (!body) return;
+  const active = document.activeElement;
+  const editing = body.contains(active) && ['book-q', 'book-title', 'book-author'].includes(active.id)
+    ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
   const shelves = _data.shelves || {};
   const shelfHtml = SHELVES.map(([k, label]) => {
     const list = shelves[k] || [];
@@ -119,6 +148,10 @@ function _render() {
       <button class="btn primary" id="books-add-toggle">${_si('plus')} book</button>
     </div>
     ${_loadNotice()}
+    <p class="book-notes-error" id="book-create-error" role="alert" ${_createError || _recoveryError ? '' : 'hidden'}>${esc(_recoveryError || _createError)}</p>
+    ${_recoveryError ? '<button class="btn" id="book-recovery-retry">retry save recovery</button>' : ''}
+    ${_pendingCreate || _unreadableCreate ? `<div class="book-create-recovery"><p role="status">a book save still needs confirmation</p><div class="book-notes-actions">${_pendingCreate ? `<button class="btn" id="book-create-check" ${_createBusy ? 'disabled' : ''}>check saved book</button>` : ''}<button class="btn" id="book-create-discard" ${_createBusy ? 'disabled' : ''}>discard pending save</button></div></div>` : ''}
+    ${_savedBook ? `<div class="book-create-result"><p role="status">saved ${esc(_savedBook.title)}</p><button class="btn" id="book-create-open">open saved book</button></div>` : ''}
     ${_adding ? _addForm() : ''}
     ${_data.total ? shelfHtml : (_adding || !_hasOverview || _loadState.state !== 'resting' ? '' : `
       <div class="empty-state">
@@ -128,26 +161,89 @@ function _render() {
         <button class="btn primary" id="books-empty-add">${_si('plus')} add your first book</button>
       </div>`)}`;
   _wire(body);
+  if (editing && body.getClientRects().length) {
+    const field = $(editing.id);
+    field?.focus();
+    if (editing.start != null) field?.setSelectionRange(editing.start, editing.end);
+  }
 }
 
 function _addForm() {
+  const draft = _pendingCreate ? { ..._pendingCreate.payload, query: '' } : _draft;
+  const locked = _createBusy || _pendingCreate ? 'disabled' : '';
   return `
-    <div class="book-add">
+    <div class="book-add" aria-busy="${_createBusy}">
       <div class="book-add-row">
-        <input type="text" id="book-q" class="settings-input" placeholder="search a title to autofill (or type one)…" spellcheck="false">
-        <button class="btn" id="book-search">search</button>
+        <input type="text" id="book-q" class="settings-input" aria-label="search books to autofill" placeholder="search a title to autofill (or type one)…" spellcheck="false" value="${esc(draft.query)}" ${locked}>
+        <button class="btn" id="book-search" ${locked || (_lookupBusy ? 'disabled' : '')}>${_lookupBusy ? 'searching…' : 'search'}</button>
       </div>
-      ${_lookup.length ? `<div class="book-lookup">${_lookup.map((r, i) => `<button class="book-lookup-item" data-pick="${i}">${r.cover ? `<img src="${esc(r.cover)}" alt="" loading="lazy">` : '<span class="book-lk-ph"></span>'}<span><b>${esc(r.title)}</b><i>${esc(r.author)}${r.year ? ` · ${r.year}` : ''}</i></span></button>`).join('')}</div>` : ''}
+      ${_lookupMessage ? `<p class="book-lookup-notice ${_lookupFailed ? 'book-notes-error' : 'specialist-group-note'}" role="${_lookupFailed ? 'alert' : 'status'}">${esc(_lookupMessage)}</p>` : ''}
+      ${_lookup.length ? `<div class="book-lookup">${_lookup.map((r, i) => `<button class="book-lookup-item" data-pick="${i}" ${locked}>${r.cover ? `<img src="${esc(r.cover)}" alt="" loading="lazy">` : '<span class="book-lk-ph"></span>'}<span><b>${esc(r.title)}</b><i>${esc(r.author)}${r.year ? ` · ${r.year}` : ''}</i></span></button>`).join('')}</div>` : ''}
       <div class="book-add-row">
-        <input type="text" id="book-title" class="settings-input" placeholder="title">
-        <input type="text" id="book-author" class="settings-input" placeholder="author">
+        <input type="text" id="book-title" class="settings-input" aria-label="book title" placeholder="title" value="${esc(draft.title)}" ${locked}>
+        <input type="text" id="book-author" class="settings-input" aria-label="book author" placeholder="author" value="${esc(draft.author)}" ${locked}>
       </div>
       <div class="book-add-row">
-        <div class="te-seg" id="book-status" role="radiogroup" aria-label="book shelf">${SHELVES.map(([k], i) => `<button type="button" role="radio" aria-checked="${i === 0}" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${k}">${k === 'done' ? 'read' : k === 'reading' ? 'reading' : 'want'}</button>`).join('')}</div>
-        <button class="btn primary" id="book-create">add</button>
-        <button class="btn" id="book-cancel">cancel</button>
+        <div class="te-seg" id="book-status" role="radiogroup" aria-label="book shelf">${SHELVES.map(([k]) => `<button type="button" role="radio" aria-checked="${draft.status === k}" class="te-seg-opt${draft.status === k ? ' active' : ''}" data-val="${k}" ${locked}>${k === 'done' ? 'read' : k === 'reading' ? 'reading' : 'want'}</button>`).join('')}</div>
+        <button class="btn primary" id="book-create" ${_createBusy || !_createReady ? 'disabled' : ''}>${_createBusy ? 'saving…' : _pendingCreate ? 'retry save' : 'add'}</button>
+        <button class="btn" id="book-cancel">close</button>
       </div>
     </div>`;
+}
+
+function _readCreateRecovery(scopes) {
+  const previous = _pendingCreate;
+  if (!Array.isArray(scopes) || !scopes.length || scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) {
+    _createReady = false;
+    throw new Error('book save recovery could not load; retry recovery before saving');
+  }
+  if (_createScopes.length && !scopes.some(scope => _createScopes.includes(scope))) {
+    _pendingCreate = null; _savedBook = null; _draft = emptyDraft(); _lookup = [];
+  }
+  if (_pendingCreate && !scopes.includes(_pendingCreate.recovery_scope)) _pendingCreate = null;
+  const preferred = _pendingCreate?.recovery_scope;
+  _createScopes = scopes; _createReady = false; _pendingCreate = null;
+  for (const scope of preferred ? [preferred, ...scopes.filter(scope => scope !== preferred)] : scopes) {
+    try {
+      const raw = sessionStorage.getItem(CREATE_PREFIX + scope);
+      if (!raw) continue;
+      const value = JSON.parse(raw), payload = value?.payload;
+      if (!requestPattern.test(value?.request_id || '') || value.recovery_scope !== scope || !payload
+        || ['title', 'author', 'cover', 'isbn'].some(key => typeof payload[key] !== 'string') || !payload.title.trim()
+        || !SHELVES.some(([key]) => key === payload.status) || !Number.isSafeInteger(payload.year)) throw new Error('invalid pending book');
+      _pendingCreate = value;
+      if (value.request_id !== previous?.request_id || scope !== previous?.recovery_scope) _adding = true;
+      break;
+    } catch {
+      _unreadableCreate = scope;
+      throw new Error('could not read book save recovery; retry recovery or discard the pending save');
+    }
+  }
+  _createReady = true; _unreadableCreate = ''; _recoveryError = '';
+}
+
+function _requestId() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+async function _discardCreate() {
+  const pending = _pendingCreate, scope = pending?.recovery_scope || _unreadableCreate;
+  const navigation = _viewGeneration;
+  if (_createBusy || !scope || !await dlgConfirm('discard this pending book save? it may already be saved; check your books before adding it again.')) return;
+  try {
+    const key = CREATE_PREFIX + scope;
+    if (pending && sessionStorage.getItem(key) !== JSON.stringify(pending)) throw new Error('recovery changed');
+    sessionStorage.removeItem(key);
+    if (sessionStorage.getItem(key) !== null) throw new Error('cleanup failed');
+    _pendingCreate = null; _unreadableCreate = ''; _createError = ''; _recoveryError = '';
+    _readCreateRecovery(_createScopes);
+  } catch { _recoveryError = 'could not discard browser recovery; allow browser storage and retry'; }
+  _render();
+  if (navigation === _viewGeneration && $('books-body')?.getClientRects().length) (_pendingCreate ? $('book-create-check') : $('book-title'))?.focus();
 }
 
 async function _bookRequest(url, options, valid) {
@@ -203,8 +299,13 @@ async function _changeBook(card, options, valid, message) {
 function _wire(body) {
   body.querySelectorAll('.book-stars, #book-status').forEach(group => wireChoiceGroup(group));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadBooks());
-  $('books-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _lookup = []; _render(); });
-  $('books-empty-add')?.addEventListener('click', () => { _adding = true; _lookup = []; _render(); });
+  const toggleForm = () => { _adding = !_adding; ++_lookupGeneration; _lookupBusy = false; _lookup = []; _lookupMessage = ''; _render(); if (_adding) $('book-title')?.focus(); };
+  $('books-add-toggle')?.addEventListener('click', toggleForm);
+  $('books-empty-add')?.addEventListener('click', toggleForm);
+  $('book-recovery-retry')?.addEventListener('click', () => loadBooks());
+  $('book-create-check')?.addEventListener('click', () => _create(true));
+  $('book-create-discard')?.addEventListener('click', _discardCreate);
+  $('book-create-open')?.addEventListener('click', () => focusBook(_savedBook.id));
   $('books-import')?.addEventListener('click', () => {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,text/csv';
     inp.onchange = async () => {
@@ -229,31 +330,52 @@ function _wire(body) {
 
   if (_adding) {
     const doSearch = async () => {
-      const q = $('book-q')?.value.trim();
-      if (!q) return;
-      // grab whatever's already typed so the re-render below doesn't blow it away
-      const keep = { title: $('book-title')?.value || '', author: $('book-author')?.value || '' };
-      const btn = $('book-search'); if (btn) btn.textContent = '…';
-      try { _lookup = (await fetch('/api/books/lookup?q=' + encodeURIComponent(q)).then(r => r.json())).results || []; }
-      catch { _lookup = []; }
+      const query = _draft.query.trim();
+      if (!query || _createBusy || _pendingCreate) return;
+      const generation = ++_lookupGeneration;
+      _lookupBusy = true; _lookup = []; _lookupMessage = ''; _lookupFailed = false;
       _render();
-      if ($('book-q')) $('book-q').value = q;
-      if ($('book-title')) $('book-title').value = keep.title;
-      if ($('book-author')) $('book-author').value = keep.author;
+      try {
+        const result = await _bookRequest('/api/books/lookup?q=' + encodeURIComponent(query), {}, value => Array.isArray(value?.results) && value.results.every(row => typeof row?.title === 'string' && typeof row.author === 'string'));
+        if (generation !== _lookupGeneration || !_adding || _pendingCreate) return;
+        _lookup = result.results;
+        _lookupMessage = _lookup.length ? '' : 'no books found; try another search or enter the details yourself';
+      } catch (error) {
+        if (generation !== _lookupGeneration || !_adding || _pendingCreate) return;
+        _lookupFailed = true; _lookupMessage = 'could not look up books; retry or enter the details yourself';
+      } finally {
+        if (generation === _lookupGeneration) {
+          _lookupBusy = false; _render();
+          if ($('books-body')?.getClientRects().length && document.activeElement === document.body) ($('book-search') || $('book-title'))?.focus();
+        }
+      }
     };
     $('book-search')?.addEventListener('click', doSearch);
-    $('book-q')?.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
-    body.querySelectorAll('.book-lookup-item').forEach(el => el.addEventListener('click', () => {
-      const r = _lookup[+el.dataset.pick];
-      $('book-title').value = r.title; $('book-author').value = r.author || '';
-      $('book-title').dataset.cover = r.cover || ''; $('book-title').dataset.isbn = r.isbn || ''; $('book-title').dataset.year = r.year || 0;
-      _lookup = []; _renderKeepForm(r);
+    $('book-q')?.addEventListener('input', event => {
+      _draft.query = event.target.value; ++_lookupGeneration; _lookupBusy = false; _lookup = []; _lookupMessage = '';
+      body.querySelector('.book-lookup')?.remove();
+      body.querySelector('.book-lookup-notice')?.remove();
+      const search = $('book-search');
+      search.disabled = false; search.textContent = 'search';
+    });
+    $('book-q')?.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) void doSearch(); });
+    for (const field of ['title', 'author']) $('book-' + field)?.addEventListener('input', event => {
+      _draft[field] = event.target.value;
+      if (field === 'title') Object.assign(_draft, { cover: '', isbn: '', year: 0 });
+    });
+    body.querySelectorAll('.book-lookup-item').forEach(button => button.addEventListener('click', () => {
+      if (_createBusy || _pendingCreate) return;
+      const result = _lookup[+button.dataset.pick];
+      Object.assign(_draft, { title: result.title, author: result.author || '', cover: result.cover || '', isbn: result.isbn || '', year: Number.isSafeInteger(result.year) ? result.year : 0 });
+      _lookup = []; ++_lookupGeneration; _lookupBusy = false; _lookupMessage = ''; _render(); $('book-title')?.focus();
     }));
-    body.querySelectorAll('#book-status .te-seg-opt').forEach(o => o.addEventListener('click', () => {
-      body.querySelectorAll('#book-status .te-seg-opt').forEach(x => x.classList.toggle('active', x === o));
+    body.querySelectorAll('#book-status .te-seg-opt').forEach(option => option.addEventListener('click', () => {
+      if (_createBusy || _pendingCreate) return;
+      _draft.status = option.dataset.val;
+      body.querySelectorAll('#book-status .te-seg-opt').forEach(other => other.classList.toggle('active', other === option));
     }));
-    $('book-create')?.addEventListener('click', _create);
-    $('book-cancel')?.addEventListener('click', () => { _adding = false; _lookup = []; _render(); });
+    $('book-create')?.addEventListener('click', () => _create());
+    $('book-cancel')?.addEventListener('click', () => { _adding = false; _lookup = []; ++_lookupGeneration; _lookupBusy = false; _lookupMessage = ''; _render(); $('books-add-toggle')?.focus(); });
   }
 
   body.querySelectorAll('.book-card[data-id]').forEach(card => {
@@ -309,25 +431,46 @@ function _wire(body) {
   });
 }
 
-// re-render but keep the typed title/author after picking a lookup result
-function _renderKeepForm(r) {
+async function _create(checkOnly = false) {
+  if (_createBusy || !_createReady) return;
+  if (!_pendingCreate && !_draft.title.trim()) { _createError = 'title needed'; _render(); $('book-title')?.focus(); return; }
+  const navigation = _viewGeneration;
+  const mayFocus = () => navigation === _viewGeneration && $('books-body')?.getClientRects().length && document.activeElement === document.body;
+  _createBusy = true; _createError = ''; _savedBook = null;
+  ++_lookupGeneration; _lookupBusy = false; _lookup = []; _lookupMessage = '';
   _render();
-  if ($('book-title')) $('book-title').value = r.title || '';
-  if ($('book-author')) $('book-author').value = r.author || '';
-  if ($('book-title')) { $('book-title').dataset.cover = r.cover || ''; $('book-title').dataset.isbn = r.isbn || ''; $('book-title').dataset.year = r.year || 0; }
-}
-
-async function _create() {
-  const title = $('book-title')?.value.trim();
-  if (!title) { toast('title needed', 'error'); return; }
-  const status = document.querySelector('#book-status .te-seg-opt.active')?.dataset.val || 'want';
-  const tEl = $('book-title');
-  const r = await fetch('/api/books', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title, author: $('book-author')?.value.trim() || '', status, cover: tEl?.dataset.cover || '', isbn: tEl?.dataset.isbn || '', year: parseInt(tEl?.dataset.year || '0', 10) || 0 }),
-  });
-  if (!r.ok) { toast((await r.json()).detail || 'failed', 'error'); return; }
-  _adding = false; _lookup = []; toast(`added ${title}`, 'success'); loadBooks();
+  try {
+    const { query, ...payload } = _draft;
+    const pending = _pendingCreate || { payload: { ...payload, title: payload.title.trim(), author: payload.author.trim() }, request_id: _requestId(), recovery_scope: _createScopes[0] };
+    const key = CREATE_PREFIX + pending.recovery_scope, raw = JSON.stringify(pending);
+    sessionStorage.setItem(key, raw);
+    if (sessionStorage.getItem(key) !== raw) throw new Error('could not keep this book for retry');
+    if (!_pendingCreate) _draft = emptyDraft();
+    _pendingCreate = pending;
+    _render();
+    const result = await _bookRequest(checkOnly ? `/api/books/requests/${encodeURIComponent(pending.request_id)}?recovery_scope=${encodeURIComponent(pending.recovery_scope)}` : '/api/books',
+      checkOnly ? { cache: 'no-store' } : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...pending.payload, request_id: pending.request_id, recovery_scope: pending.recovery_scope }) },
+      value => value?.request_id === pending.request_id && typeof value.id === 'string' && !!value.id && typeof value.title === 'string');
+    if (!_createScopes.includes(pending.recovery_scope)) throw new Error('book storage changed; reopen books');
+    _savedBook = result;
+    if (sessionStorage.getItem(key) === raw) {
+      sessionStorage.removeItem(key);
+      if (sessionStorage.getItem(key) !== null) throw new Error('book saved; browser recovery could not be cleared. check saved book again.');
+    }
+    if (_pendingCreate?.request_id === pending.request_id) _pendingCreate = null;
+    _adding = false;
+    _readCreateRecovery(_createScopes);
+    toast('book saved', 'success');
+    await loadBooks();
+  } catch (error) {
+    _createError = error instanceof TypeError ? 'could not connect; your book is kept for retry' : error.message || 'could not save this book; retry';
+    toast(_createError, 'error');
+  } finally {
+    _createBusy = false;
+    const focus = mayFocus();
+    _render();
+    if (focus) (_savedBook ? $('book-create-open') : _pendingCreate ? $('book-create') || $('book-create-check') : $('book-title'))?.focus();
+  }
 }
 
 export function focusBook(id) {

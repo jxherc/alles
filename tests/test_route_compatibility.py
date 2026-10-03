@@ -30,8 +30,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 910)
-        self.assertEqual(digest, "374cd48bb43a4603172d9dc48acc0251f97d8c1cc6b03d7edb61c08e918bb682")
+        self.assertEqual(len(rows), 911)
+        self.assertEqual(digest, "bd97565b102f02a2d10353fb71458f981eecc6b9418cede5a80a655febd31716")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -40,9 +40,17 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 893, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 894, "v1": 2, "public": 15})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
+
+    def test_book_recovery_is_additive_to_the_previous_http_surface(self):
+        rows = [row for row in _route_rows() if row != "GET /api/books/requests/{request_id}"]
+        self.assertEqual(len(rows), 910)
+        self.assertEqual(
+            hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest(),
+            "374cd48bb43a4603172d9dc48acc0251f97d8c1cc6b03d7edb61c08e918bb682",
+        )
 
     def test_phase_six_recovery_and_migration_routes_remain_wired(self):
         rows = set(_route_rows())

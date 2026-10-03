@@ -28,6 +28,7 @@ from core.schema import AutomationRule as AutomationRule
 from core.schema import Base as Base
 from core.schema import Blob as Blob
 from core.schema import Book as Book
+from core.schema import BookCreateReceipt as BookCreateReceipt
 from core.schema import BookingPage as BookingPage
 from core.schema import BrowserConnection as BrowserConnection
 from core.schema import Budget as Budget
