@@ -8428,6 +8428,8 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 #read-position-bar .read-source-notice { margin: var(--k-space-2) 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 #read-position-status.read-save-error { color: var(--error); }
 #read-position-retry[hidden] { display: none; }
+.read-save-recovery, .read-save-result { margin: var(--k-space-2) 0; overflow-wrap: anywhere; }
+.read-save-recovery p, .read-save-result p { margin: 0 0 var(--k-space-2); }
 #read-note-recovery:empty { display: none; }
 #read-note-recovery { flex: 0 0 auto; max-height: 30vh; overflow: auto; padding: var(--k-space-2) var(--k-space-4); }
 .reading-note-open .dialog-card { box-sizing: border-box; max-height: calc(100dvh - 2 * var(--k-space-4)); overflow: auto; }
