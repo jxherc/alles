@@ -2679,6 +2679,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
   padding: 0.45rem 0.1rem; font-size: 0.8rem;
 }
 .page-view-footer .custom-select.settings-input { padding-right: 1.2rem; }
+.page-view-footer .date-input { min-height: 44px; }
 .page-view-footer .custom-select.open,
 .page-view-footer .custom-select:focus,
 .page-view-footer .date-input:hover,
