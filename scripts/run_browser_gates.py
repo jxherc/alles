@@ -98,6 +98,7 @@ COMMANDS = {
     "managed-service-workflow": ("tests/pw_managed_service.py",),
     "journal-recovery": ("tests/pw_journal_recovery.py",),
     "journal-document-route": ("tests/pw_journal_document_route.py",),
+    "journal-entry-priority": ("tests/pw_journal_entry_priority.py",),
     "server-policy-validation": ("tests/pw_server_policy_validation.py",),
     "journal-search-export": ("tests/pw_journal_search_export.py",),
     "journal-reflect": ("tests/pw_journal_reflect.py",),
