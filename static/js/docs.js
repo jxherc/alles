@@ -407,7 +407,7 @@ export function showSection(section) {
     setHidden($('wiki-ask'), true);
     $('wiki-view')?.classList.remove('no-note');
     if ($('wiki-current')) $('wiki-current').textContent = 'notes';
-    if ($('wiki-path')) $('wiki-path').textContent = 'quick notes in your local vault';
+    if ($('wiki-path')) $('wiki-path').textContent = 'quick notes stored locally';
     return loadNotes(_fetcher);
   }
   setHidden($('wiki-notes'), true);
@@ -421,7 +421,7 @@ function renderShell() {
   setHidden($('wiki-document'), !hasDoc);
   setHidden($('docs-context-panel'), !hasDoc);
   if (!hasDoc) {
-    if ($('wiki-current')) $('wiki-current').textContent = 'your Obsidian vault';
+    if ($('wiki-current')) $('wiki-current').textContent = 'your documents';
     if ($('wiki-path')) $('wiki-path').textContent = 'local Markdown';
     if ($('wiki-stats')) $('wiki-stats').textContent = '';
     if ($('wiki-save-state')) $('wiki-save-state').textContent = '';
