@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=419">
+<link rel="stylesheet" href="/static/style.css?v=420">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -518,6 +518,12 @@
           <button type="button" class="tasks-tab" data-tab="done" aria-pressed="false" data-i18n="tasks.history">history</button>
         </div>
         <input type="text" id="tasks-search" class="cal-quick tasks-search" aria-label="search tasks" placeholder="search tasks…" data-i18n-aria-label="tasks.search" data-i18n-placeholder="tasks.search">
+      </div>
+      <span id="task-completion-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></span>
+      <div id="task-completion-receipt" hidden>
+        <span id="task-completion-message"></span>
+        <button type="button" class="btn" id="task-completion-undo" aria-describedby="task-completion-message" data-i18n="tasks.undo_completion">undo</button>
+        <button type="button" class="icon-btn" id="task-completion-dismiss" aria-label="dismiss completion message" data-i18n-aria-label="tasks.dismiss_completion">×</button>
       </div>
       <div class="page-view-body" id="tasks-list"></div>
       <div class="page-view-footer">
@@ -2870,7 +2876,7 @@
 </div>
 
 <script type="module">
-const _v = '419';
+const _v = '420';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

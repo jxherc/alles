@@ -15,6 +15,9 @@ let _recoveryChecked = false;
 let _draftScopes = [];
 let _closeEditor = null;
 let _editorGeneration = 0;
+let _completionSequence = 0;
+let _completionAcknowledged = 0;
+let _completionReceipt = null;
 const TASK_DRAFT_PREFIX = 'alles.tasks.draft.v1:';
 
 function taskValues(task) {
@@ -97,6 +100,13 @@ async function recoverTaskDraft(generation) {
 
 function _wireTabs() {
   if (_tabsWired) return; _tabsWired = true;
+  document.getElementById('task-completion-undo')?.addEventListener('click', undoCompletion);
+  document.getElementById('task-completion-dismiss')?.addEventListener('click', () => {
+    const focused = document.activeElement?.id === 'task-completion-dismiss';
+    _completionReceipt = null;
+    renderCompletion();
+    if (focused) document.getElementById('tasks-search')?.focus();
+  });
   document.querySelectorAll('.tasks-tab').forEach(b => b.addEventListener('click', () => {
     ++_loadGeneration;
     _tab = b.dataset.tab;
@@ -115,6 +125,7 @@ function _wireTabs() {
     _t = setTimeout(() => { _search = si.value.trim(); loadTasks(); }, 180);
   });
   window.addEventListener('alles:localization-change', () => {
+    renderCompletion();
     if (_tab === 'active' && !_search) renderTree();
     else renderTasks();
   });
@@ -241,12 +252,35 @@ function _wireRows(list) {
   list.querySelectorAll('.task-check').forEach(btn => btn.addEventListener('click', async () => {
     if (btn.getAttribute('aria-busy') === 'true') return;
     const t = _findTask(btn.dataset.id);
+    if (!t) return;
+    const sequence = ++_completionSequence;
+    const ownedFocus = document.activeElement === btn;
     await _mutateTask(btn, async () => {
-      await _requireOk(fetch(`/api/tasks/${btn.dataset.id}`, {
+      const response = await fetch(`/api/tasks/${t.id}`, {
         method: 'PATCH', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ done: !(t && t.done) }),
-      }));
-      await loadTasks();
+        body: JSON.stringify({ done: !t.done, stage: t.done ? 'backlog' : 'done',
+          expected: { done: t.done, stage: t.stage, completed_at: t.completed_at } }),
+      });
+      // A lost acknowledgement can leave the old row visible. Refresh a
+      // conflict, but never offer an undo for a completion we did not own.
+      if (response.status === 409) {
+        await loadTasks();
+        toast(tr('tasks.status_changed'));
+        return;
+      }
+      await _requireOk(Promise.resolve(response));
+      const saved = await response.json();
+      if (sequence > _completionAcknowledged) {
+        _completionAcknowledged = sequence;
+        if (!t.done && saved.done && saved.completed_at) {
+          _completionReceipt = { id: t.id, title: saved.title, stage: t.stage,
+            completedAt: saved.completed_at, message: 'tasks.completed_named' };
+        } else if (_completionReceipt?.id === t.id) _completionReceipt = null;
+        renderCompletion();
+      }
+      await refreshAfterStatus();
+      if (!t.done && sequence === _completionAcknowledged && ownedFocus
+          && focusStillOwned(btn)) document.getElementById('task-completion-undo')?.focus();
     }, { failureMessage: tr(t?.done ? 'tasks.reopen_failed' : 'tasks.completion_failed') });
   }));
   list.querySelectorAll('.task-del').forEach(btn => btn.addEventListener('click', async () => {
@@ -276,6 +310,70 @@ function _wireRows(list) {
   list.querySelectorAll('.task-title').forEach(el => el.addEventListener('click', () => {
     openTaskEditor(el.closest('.task-item').dataset.id, el);
   }));
+}
+
+function focusStillOwned(button) {
+  return document.getElementById('tasks-view')?.getClientRects().length
+    && (document.activeElement === button || document.activeElement === document.body);
+}
+
+function renderCompletion() {
+  const receipt = _completionReceipt;
+  const container = document.getElementById('task-completion-receipt');
+  if (!container) return;
+  container.hidden = !receipt;
+  const message = receipt ? tr(receipt.message, { task: receipt.title }) : '';
+  const announcer = document.getElementById('task-completion-announcer');
+  if (announcer && announcer.textContent !== message) announcer.textContent = message;
+  if (!receipt) return;
+  document.getElementById('task-completion-message').textContent = message;
+  const undo = document.getElementById('task-completion-undo');
+  undo.hidden = Boolean(receipt.settled);
+  undo.disabled = Boolean(receipt.pending);
+  undo.setAttribute('aria-busy', String(Boolean(receipt.pending)));
+}
+
+async function refreshAfterStatus() {
+  try { await loadTasks(); }
+  catch { toast(tr('tasks.refresh_failed'), 'error'); }
+}
+
+async function undoCompletion() {
+  const receipt = _completionReceipt;
+  if (!receipt || receipt.pending || receipt.settled) return;
+  const button = document.getElementById('task-completion-undo');
+  const ownedFocus = document.activeElement === button;
+  receipt.pending = true;
+  renderCompletion();
+  try {
+    const response = await fetch(`/api/tasks/${receipt.id}`, {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ done: false, stage: receipt.stage,
+        expected: { done: true, stage: 'done', completed_at: receipt.completedAt } }),
+    });
+    if (response.status === 409 || response.status === 404) {
+      receipt.message = 'tasks.undo_changed';
+    } else {
+      await _requireOk(Promise.resolve(response));
+      receipt.message = 'tasks.reopened_named';
+    }
+    receipt.settled = true;
+    await refreshAfterStatus();
+  } catch {
+    receipt.message = 'tasks.undo_failed';
+  } finally {
+    receipt.pending = false;
+    if (_completionReceipt === receipt) {
+      const restore = ownedFocus && focusStillOwned(button);
+      renderCompletion();
+      if (restore) {
+        const row = [...document.querySelectorAll('#tasks-list .task-item')].find(item => item.dataset.id === receipt.id);
+        const target = receipt.settled
+          ? row?.querySelector('.task-check') || document.getElementById('task-completion-dismiss') : button;
+        target?.focus();
+      }
+    }
+  }
 }
 
 async function _requireOk(responsePromise) {
