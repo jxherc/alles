@@ -33,7 +33,7 @@ test('settings is one accessible home reached from the universal shell', () => {
   assert.match(modal, /role="dialog"/);
   assert.match(modal, /aria-modal="true"/);
   assert.doesNotMatch(html, /data-chat-behavior=/);
-  assert.match(html, /aide uses the right tools automatically and can still answer normal questions/);
+  assert.match(html, /data-i18n="settings.chat_context_hint"/);
   assert.match(html, /id="settings-owner-instructions"/);
   assert.match(html, /id="s-ep-refresh-all"/);
 });
