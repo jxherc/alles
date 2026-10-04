@@ -131,8 +131,9 @@ export function saveDraft() {
   if (!ta) return;
   if (isIncognitoMode()) return;
   const text = ta.value.trim() ? ta.value : '';
-  if (!text) return clearDraft(_activeId);
-  return writeDraft(_activeId, text, window._pendingDocumentScope || null);
+  const scope = window._pendingDocumentScope || null;
+  if (!text && !scope) return clearDraft(_activeId);
+  return writeDraft(_activeId, text, scope);
 }
 export function restoreDraft(id) {
   const ta = document.getElementById('composer-ta');

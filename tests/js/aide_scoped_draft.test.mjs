@@ -114,3 +114,37 @@ test('clearing the active composer at quota removes its consumed legacy question
   assert.equal(restored.field.value, '');
   assert.equal(restored.selected(), null);
 });
+
+for (const text of ['', '   ']) {
+  test(`empty-text scope survives reload and task switching: ${JSON.stringify(text)}`, () => {
+    const h = harness(); h.restore('first'); h.field.value = 'original question'; h.select(scope('first.md'));
+    h.field.value = text; h.save();
+    const restored = harness(h.storage); restored.restore('first');
+    assert.equal(restored.field.value, ''); assert.deepEqual(restored.selected(), scope('first.md'));
+    assert.equal(restored.chip.hidden, false);
+    restored.restore('second'); assert.equal(restored.field.value, ''); assert.equal(restored.selected(), null);
+    restored.field.value = 'second question'; restored.select(scope('second.md'));
+    restored.restore('first'); assert.equal(restored.field.value, ''); assert.deepEqual(restored.selected(), scope('first.md'));
+  });
+}
+
+test('removing an empty-text scope stays removed after reload', () => {
+  const h = harness(); h.restore(null); h.select(scope('selected.md')); h.remove();
+  const restored = harness(h.storage); restored.restore(null);
+  assert.equal(restored.field.value, ''); assert.equal(restored.selected(), null); assert.equal(restored.chip.hidden, true);
+});
+
+test('consuming an empty-text scoped draft clears the exact task record', () => {
+  const h = harness(); h.restore('first'); h.select(scope('first.md'));
+  h.restore('second'); h.select(scope('second.md')); h.clear('first');
+  const restored = harness(h.storage); restored.restore('first');
+  assert.equal(restored.selected(), null);
+  restored.restore('second'); assert.deepEqual(restored.selected(), scope('second.md'));
+});
+
+test('an empty-text scope stays private in incognito mode', () => {
+  const h = harness(); h.restore(null); h.select(scope('public.md')); const before = [...h.storage];
+  h.private(true); h.restore(null); h.select(scope('private.md')); h.save(); h.clear(null);
+  assert.deepEqual([...h.storage], before);
+  h.private(false); h.restore(null); assert.deepEqual(h.selected(), scope('public.md'));
+});
