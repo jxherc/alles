@@ -118,14 +118,16 @@ class ManifestTests(ApiTest):
         self.assertIsNotNone(app_stamp)
         self.assertIsNotNone(style_stamp)
         self.assertIsNotNone(worker_stamp)
-        self.assertEqual(
-            {app_stamp.group(1), style_stamp.group(1), worker_stamp.group(1)},
-            {"398"},
-        )
+        self.assertEqual(style_stamp.group(1), app_stamp.group(1))
+        self.assertEqual(worker_stamp.group(1), app_stamp.group(1))
 
     def test_precache_uses_the_shell_stamp_and_every_linked_stylesheet(self):
         urls = self.client.get("/api/pwa/precache").json()["urls"]
-        self.assertIn("/static/style.css?v=398", urls)
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        app_stamp = re.search(r"const _v = '(\d+)'", html)
+        self.assertIsNotNone(app_stamp)
+        self.assertIn(f"/static/style.css?v={app_stamp.group(1)}", urls)
+        self.assertIn(f"/static/js/app.js?v={app_stamp.group(1)}", urls)
         self.assertNotIn("/static/style.css?v=6", urls)
         self.assertIn("/static/vendor/xterm/xterm.css?v=6.0.0", urls)
         self.assertIn("/static/vendor/xterm/xterm.mjs?v=6.0.0", urls)
