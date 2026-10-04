@@ -207,7 +207,7 @@ def navigation(page, api, dest, profile, records):
 
     open_pane(page, "general")
     page.wait_for_load_state("networkidle")
-    expect(page.locator("#s-user-name")).to_have_accessible_name(re.compile(r"^your name"))
+    expect(page.locator("#s-user-name")).to_have_accessible_name(re.compile(r"^greeting name"))
     expect(page.locator("#s-username")).to_have_accessible_name(re.compile(r"^username"))
     expect(page.locator("#s-ui-font-size")).to_have_accessible_name("font size")
     for selector, label in (

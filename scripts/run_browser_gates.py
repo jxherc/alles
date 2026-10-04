@@ -109,6 +109,7 @@ COMMANDS = {
     "finance-imports": ("tests/pw_finance_imports.py",),
     "finance-workflows": ("tests/pw_finance_workflows.py",),
     "action-names": ("tests/pw_action_names.py",),
+    "product-clarity": ("tests/pw_clarity.py",),
     "finance-networth-history": ("tests/pw_finance_networth_history.py",),
     "finance-recurring-create": ("tests/pw_finance_recurring_create.py",),
     "finance-recurring-edit": ("tests/pw_finance_recurring_edit.py",),
