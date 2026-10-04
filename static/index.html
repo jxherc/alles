@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=416">
+<link rel="stylesheet" href="/static/style.css?v=417">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -586,9 +586,10 @@
         <div id="reminder-list" style="margin-bottom:0.75rem"></div>
         <div id="reminder-undo-list" aria-label="reminder cancellation recovery" hidden></div>
         <p id="reminder-status" role="status" aria-live="polite"></p>
+        <p id="reminder-required" class="specialist-group-note">reminder text and a future date and time are required.</p>
         <div class="reminder-add-form">
-          <input type="text" id="reminder-text" aria-label="reminder text" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
-          <div class="date-input" id="reminder-time" data-type="datetime" data-ph="when" style="width:200px"></div>
+          <input type="text" id="reminder-text" aria-label="reminder text" aria-required="true" aria-describedby="reminder-required" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
+          <div class="date-input" id="reminder-time" data-type="datetime" data-ph="date and time" aria-label="reminder date and time (required)" aria-describedby="reminder-required" style="width:200px"></div>
           <div id="reminder-type-select" aria-label="reminder type" class="settings-input custom-select" data-value="reminder" data-options="reminder|reminder;message|send message to AI" style="width:auto;min-width:150px"></div>
           <button type="button" class="btn primary" id="reminder-add-btn">set</button>
           <button type="button" class="btn" id="reminder-discard" hidden>discard retry</button>
@@ -758,11 +759,12 @@
       </div>
       <div class="page-view-body" id="subs-list"></div>
       <div class="page-view-footer" style="flex-wrap:wrap;gap:0.4rem">
-        <input type="text" id="sub-name" class="settings-input" placeholder="name (e.g. netflix)" style="flex:2;min-width:130px">
+        <p id="sub-required" class="specialist-group-note" style="flex-basis:100%;margin:0">name and next billing date are required.</p>
+        <input type="text" id="sub-name" aria-label="subscription name" aria-required="true" aria-describedby="sub-required" class="settings-input" placeholder="name (e.g. netflix)" style="flex:2;min-width:130px">
         <input type="text" id="sub-price" class="settings-input" placeholder="price" style="width:75px" inputmode="decimal">
         <div id="sub-cycle" class="settings-input custom-select" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly;custom|custom days" style="width:auto;min-width:110px"></div>
         <input type="text" id="sub-cycle-days" class="settings-input" placeholder="days" style="width:60px;display:none" inputmode="numeric">
-        <div class="date-input" id="sub-due" data-type="date" data-ph="next due" style="width:135px"></div>
+        <div class="date-input" id="sub-due" data-type="date" data-ph="next billing date" aria-label="next billing date (required)" aria-describedby="sub-required" style="width:170px"></div>
         <input type="text" id="sub-category" class="settings-input" placeholder="category" style="width:105px">
         <button type="button" class="btn primary" id="sub-add-btn">add</button>
         <div id="sub-create-status" class="specialist-group-note" hidden></div>
@@ -2868,7 +2870,7 @@
 </div>
 
 <script type="module">
-const _v = '416';
+const _v = '417';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
