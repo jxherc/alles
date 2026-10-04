@@ -235,7 +235,7 @@ function _wireRows(list) {
         body: JSON.stringify({ done: !(t && t.done) }),
       }));
       await loadTasks();
-    });
+    }, { failureMessage: tr(t?.done ? 'tasks.reopen_failed' : 'tasks.completion_failed') });
   }));
   list.querySelectorAll('.task-del').forEach(btn => btn.addEventListener('click', async () => {
     if (btn.getAttribute('aria-busy') === 'true') return;
@@ -272,7 +272,7 @@ async function _requireOk(responsePromise) {
   return response;
 }
 
-async function _mutateTask(button, action, { alreadyBusy = false } = {}) {
+async function _mutateTask(button, action, { alreadyBusy = false, failureMessage = tr('common.request_failed') } = {}) {
   if (!alreadyBusy) setControlState(button, 'busy', { message: tr('common.saving') });
   button.disabled = true;
   button.setAttribute('aria-disabled', 'true');
@@ -283,8 +283,8 @@ async function _mutateTask(button, action, { alreadyBusy = false } = {}) {
     button.disabled = false;
     button.removeAttribute('aria-disabled');
     button.removeAttribute('aria-busy');
-    setControlState(button, 'error', { message: tr('common.request_failed') });
-    toast(tr('common.request_failed'), 'error');
+    setControlState(button, 'error', { message: failureMessage });
+    toast(failureMessage, 'error');
     return false;
   }
 }

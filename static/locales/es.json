@@ -261,6 +261,8 @@
     "tasks.save_queued": "cambio pendiente sin conexión. este borrador permanece aquí hasta que se guarde.",
     "tasks.saved_refresh_failed": "tarea guardada, pero la lista no se pudo actualizar. recarga para verla.",
     "tasks.edit_named": "editar {task}",
+    "tasks.completion_failed": "no se pudo confirmar que la tarea se completó. inténtalo de nuevo.",
+    "tasks.reopen_failed": "no se pudo confirmar la reapertura de la tarea. inténtalo de nuevo.",
     "tasks.mark_complete": "marcar {task} como completada",
     "tasks.mark_incomplete": "marcar {task} como pendiente",
     "tasks.no_completed": "aún no hay tareas terminadas",
