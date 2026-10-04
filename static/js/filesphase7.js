@@ -26,7 +26,7 @@ const state = {
   transferAction: 'copy',
   detailReturnPath: '',
   previewPath: '',
-  hiddenCompleted: false,
+  hiddenCompleted: true,
   indexStatus: new Map(),
   searchTerm: '',
   vaultReviewSignature: '',
@@ -1161,15 +1161,26 @@ function renderOperations() {
   const dock = $('files-operation-dock');
   const host = $('files-operation-list');
   if (!dock || !host) return;
-  const visible = state.operations.filter(operation => !(state.hiddenCompleted && operation.state === 'completed'));
-  dock.hidden = visible.length === 0;
-  host.innerHTML = visible.map(operation => {
+  const history = state.operations.filter(operation => ['completed', 'undone'].includes(operation.state));
+  const active = state.operations.filter(operation => !history.includes(operation));
+  const toggle = $('files-operations-clear');
+  if (toggle) {
+    toggle.hidden = history.length === 0;
+    toggle.textContent = `${state.hiddenCompleted ? 'show' : 'hide'} history (${history.length})`;
+    toggle.setAttribute('aria-expanded', String(!state.hiddenCompleted));
+  }
+  dock.hidden = state.operations.length === 0;
+  const focused = host.contains(document.activeElement) ? document.activeElement : null;
+  const focusedId = focused?.closest('[data-operation-id]')?.dataset.operationId;
+  const focusedAction = focused?.dataset.operationAction;
+  const renderRow = operation => {
+    const name = operation.action === 'restore' ? (operation.destination_path || 'file') : operation.source_path;
     const progress = operation.bytes_total
       ? `${Math.min(100, Math.round((operation.bytes_done / operation.bytes_total) * 100))}%`
       : operation.state;
     return `
       <div class="files-operation-row" data-operation-id="${esc(operation.id)}">
-        <span class="files-operation-copy"><strong>${esc(operation.action)} ${esc(basename(operation.source_path))}</strong><small>${esc(progress)}${operation.non_atomic ? (operation.state === 'completed' ? ' · verified transfer' : ' · cross-location transfer') : ''}</small>${operation.error_code ? `<span class="files-operation-error" role="status">${esc(operation.error_code)}</span>` : ''}</span>
+        <span class="files-operation-copy"><strong>${esc(operation.action)} ${esc(basename(name))}</strong><small>${esc(progress)}${operation.non_atomic ? (operation.state === 'completed' ? ' · verified transfer' : ' · cross-location transfer') : ''}</small>${operation.error_code ? `<span class="files-operation-error" role="status">${esc(operation.error_code)}</span>` : ''}</span>
         <span class="files-operation-actions">
           ${operation.can_run ? '<button class="files-text-button" type="button" data-operation-action="run">start</button>' : ''}
           ${operation.can_cancel ? '<button class="files-text-button" type="button" data-operation-action="cancel">cancel</button>' : ''}
@@ -1178,7 +1189,14 @@ function renderOperations() {
           ${operation.can_undo ? '<button class="files-text-button" type="button" data-operation-action="undo">undo</button>' : ''}
         </span>
       </div>`;
-  }).join('');
+  };
+  host.innerHTML = active.map(renderRow).join('')
+    + `<div id="files-completed-list"${state.hiddenCompleted ? ' hidden' : ''}>${state.hiddenCompleted ? '' : history.map(renderRow).join('')}</div>`;
+  if (focusedId && focusedAction && document.activeElement === document.body) {
+    const replacement = host.querySelector(`[data-operation-id="${CSS.escape(focusedId)}"] [data-operation-action="${CSS.escape(focusedAction)}"]`);
+    if (replacement) replacement.focus({ preventScroll: true });
+    else if (toggle && !toggle.hidden) toggle.focus({ preventScroll: true });
+  }
   updateOperationClearance();
 }
 
@@ -1812,7 +1830,6 @@ function bindEvents() {
   });
   $('files-operations-clear')?.addEventListener('click', () => {
     state.hiddenCompleted = !state.hiddenCompleted;
-    $('files-operations-clear').textContent = state.hiddenCompleted ? 'show completed' : 'hide completed';
     renderOperations();
   });
   $('files-mkdir-btn')?.addEventListener('click', newFolder);

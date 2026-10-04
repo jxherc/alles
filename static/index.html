@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=393">
+<link rel="stylesheet" href="/static/style.css?v=394">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -1139,7 +1139,7 @@
       <section class="files-phase7-operation-dock" id="files-operation-dock" aria-label="file operations" hidden>
         <div class="files-phase7-operation-head">
           <span>transfers</span>
-          <button class="files-text-button" id="files-operations-clear" type="button">hide completed</button>
+          <button class="files-text-button" id="files-operations-clear" type="button" aria-expanded="false" aria-controls="files-completed-list">show history</button>
         </div>
         <div id="files-operation-list" aria-live="polite"></div>
       </section>
@@ -2853,7 +2853,7 @@
 </div>
 
 <script type="module">
-const _v = '393';
+const _v = '394';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

@@ -73,6 +73,7 @@ COMMANDS = {
     "aide-task-capture": ("tests/pw_aide_task_capture.py",),
     "aide-send-preflight": ("tests/pw_aide_send_preflight.py",),
     "server-companion-controls": ("tests/pw_server_companion_controls.py",),
+    "files-completed-history": ("tests/pw_files_completed_history.py",),
     "server-controls": ("tests/pw_server_controls.py",),
     "aide-scoped-draft": ("tests/pw_aide_scoped_draft.py",),
     "compare-preflight": ("tests/pw_compare_preflight.py",),
