@@ -258,6 +258,7 @@
     "tasks.conflict_message": "cette tâche a changé ailleurs. comparez les deux versions avant de sauvegarder.",
     "tasks.your_change": "votre modification",
     "tasks.saved_value": "valeur enregistrée",
+    "tasks.save_not_confirmed": "enregistrement non confirmé. vos modifications sont toujours ici. réessayez d’enregistrer.",
     "tasks.save_queued": "modification en attente hors ligne. ce brouillon reste ici jusqu’à son enregistrement.",
     "tasks.saved_refresh_failed": "tâche enregistrée, mais la liste ne s’est pas actualisée. rechargez pour la voir.",
     "tasks.edit_named": "modifier {task}",

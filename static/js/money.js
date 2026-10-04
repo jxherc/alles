@@ -351,7 +351,7 @@ function render() {
     summaryCards() +
     `<div id="money-alerts-content" role="status" tabindex="-1">${alertsStrip()}</div>` +
     `<section class="money-card money-txns">
-      <h3>transactions · ${_monthLabel(_month)}</h3>
+      <h2>transactions · ${_monthLabel(_month)}</h2>
       ${addTxnRow()}${transferRow()}
       <div class="txn-search-wrap" role="group" aria-label="filter transactions">
         ${moneyField('search transactions', '<input type="text" id="txn-search" class="settings-input" placeholder="payee, category or notes" autocomplete="off">')}

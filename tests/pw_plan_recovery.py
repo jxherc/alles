@@ -222,6 +222,68 @@ def run():
                     "simulated refresh failure after real saved PATCH reports saved state, avoids unhandled rejection, and reloads correctly"
                 )
 
+                begin("plan.failed-save-guidance")
+                edit(b)
+                b.locator("#te-notes").fill("keep this exact note after a failed save 中文")
+
+                def failed_save(route):
+                    expected_http.append({"url": endpoint, "status": 503})
+                    route.fulfill(status=503, json={"detail": "deliberate save failure"})
+
+                b.route(endpoint, failed_save)
+                save(b, status=503, closes=False)
+                expect(b.locator(".task-recovery-message")).to_have_text(
+                    "save not confirmed. your changes are still here. try saving again."
+                )
+                expect(b.locator(".task-recovery-message")).to_be_focused()
+                expect(b.locator(".toast.error")).to_have_count(0)
+                expect(b.locator("#te-notes")).to_have_value(
+                    "keep this exact note after a failed save 中文"
+                )
+                assert saved()["notes"] == "saved despite a failed list refresh"
+                shot(b, "failed-save-guidance")
+                b.unroute(endpoint, failed_save)
+                b.reload(wait_until="networkidle")
+                expect(b.locator("#te-notes")).to_have_value(
+                    "keep this exact note after a failed save 中文"
+                )
+                save(b)
+                assert saved()["notes"] == "keep this exact note after a failed save 中文"
+                passed("503 explains retained work and retry; recovered draft saves to real SQLite")
+
+                begin("plan.unconfirmed-save-guidance")
+                edit(b)
+                b.locator("#te-notes").fill("saved before response became unreadable")
+
+                def unreadable_save(route):
+                    response = route.fetch()
+                    assert response.ok
+                    route.fulfill(response=response, body="{", content_type="application/json")
+
+                b.route(endpoint, unreadable_save)
+                action(b.locator("#te-save"))
+                expect(b.locator(".task-recovery-message")).to_contain_text("save not confirmed")
+                expect(b.locator(".task-recovery-message")).to_be_focused()
+                expect(b.locator("#te-save")).to_be_enabled()
+                assert saved()["notes"] == "saved before response became unreadable"
+                b.unroute(endpoint, unreadable_save)
+                expected_http.append({"url": endpoint, "status": 409})
+                save(b, status=409, closes=False)
+                expect(b.locator(".task-recovery-message")).to_contain_text(
+                    "this task changed elsewhere"
+                )
+                action(b.locator('[data-task-recovery="saved"]'))
+                b.get_by_role("alertdialog").get_by_role(
+                    "button", name="confirm", exact=True
+                ).click()
+                expect(b.locator("#te-notes")).to_have_value(
+                    "saved before response became unreadable"
+                )
+                action(b.locator("#te-cancel"))
+                passed(
+                    "unreadable committed response stays uncertain; conditional retry requires review"
+                )
+
                 begin("plan.concurrent-conflict-recovery")
                 enter(a)
                 enter(b)

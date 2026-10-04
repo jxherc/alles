@@ -4884,7 +4884,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 
 :where(#money-view) .money-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-bottom: 0.7rem; }
 :where(#money-view) .money-card { background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; padding: 0.85rem 1rem; }
-:where(#money-view) .money-card h3 { font-size: 0.75rem; color: var(--muted); text-transform: lowercase; letter-spacing: 0.04em; margin: 0 0 0.6rem; font-weight: 500; }
+:where(#money-view) .money-card :is(h2, h3) { font-size: 0.75rem; color: var(--muted); text-transform: lowercase; letter-spacing: 0.04em; margin: 0 0 0.6rem; font-weight: 500; }
 :where(#money-view) .money-txns { margin: 0 0 var(--k-space-4, 16px); }
 
 :where(#money-view) .money-accts { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem; }
@@ -5123,7 +5123,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .rule-form > * { height: 32px; box-sizing: border-box; }
 :where(#money-view) .rule-form input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
 :where(#money-view) .rules-apply { font-size: 0.75rem; padding: 0.08rem 0.45rem; margin-left: 0.4rem; vertical-align: middle; }
-:where(#money-view) .money-txns h3 { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+:where(#money-view) .money-txns h2 { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 :where(#money-view) .txn-search-wrap { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; margin-left: auto; align-items: center; max-width: 100%; }
 :where(#money-view) .txn-search-wrap input.settings-input { height: 28px; font-size: 0.75rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; padding: 0.3rem 0.5rem; box-sizing: border-box; }
 :where(#money-view) .txn-search-wrap input.settings-input:focus { border-color: var(--muted); }

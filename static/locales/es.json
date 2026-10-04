@@ -258,6 +258,7 @@
     "tasks.conflict_message": "esta tarea cambió en otro lugar. revisa ambas versiones antes de guardar.",
     "tasks.your_change": "tu cambio",
     "tasks.saved_value": "valor guardado",
+    "tasks.save_not_confirmed": "no se ha confirmado el guardado. tus cambios siguen aquí. vuelve a intentar guardarlos.",
     "tasks.save_queued": "cambio pendiente sin conexión. este borrador permanece aquí hasta que se guarde.",
     "tasks.saved_refresh_failed": "tarea guardada, pero la lista no se pudo actualizar. recarga para verla.",
     "tasks.edit_named": "editar {task}",
