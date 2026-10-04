@@ -61,8 +61,8 @@ with sync_playwright() as pw:
                 )
             else:
                 context = browser.new_context(**options)
-            state = {"models": [], "mode": "fail", "catalog_fail": False}
-            posts, held, errors, console = [], [], [], []
+            state = {"models": [], "mode": "fail", "catalog_fail": False, "catalog_hold": False}
+            posts, held, catalogs, errors, console = [], [], [], [], []
 
             def route(request):
                 url = request.request.url
@@ -70,6 +70,10 @@ with sync_playwright() as pw:
                     return request.abort()
                 path = urlparse(url).path
                 if path == "/api/models":
+                    if state["catalog_hold"]:
+                        state["catalog_hold"] = False
+                        catalogs.append(request)
+                        return None
                     return request.fulfill(
                         status=503 if state["catalog_fail"] else 200,
                         json={"detail": "owned interruption"}
@@ -185,6 +189,72 @@ with sync_playwright() as pw:
                 assert posts[0]["message"] == draft.strip()
                 assert posts[2]["message"] == "next draft stays here"
                 field.fill("preserved during catalog retry")
+                # Late failures must leave the user's newer keyboard or modal focus alone.
+                state["mode"] = "hold"
+                for newer in ["checkbox", "settings"]:
+                    page.locator("#compare-send-btn").press("Enter")
+                    for _ in range(100):
+                        if held:
+                            break
+                        page.wait_for_timeout(10)
+                    assert len(held) == 1
+                    if newer == "settings":
+                        setup.press("Enter")
+                        page.wait_for_function(
+                            "document.querySelector('#settings-modal').contains(document.activeElement)"
+                        )
+                    else:
+                        alpha.focus()
+                    held.pop().fulfill(status=503, json={"detail": "synthetic unavailable"})
+                    expect(page.locator("#compare-send-btn")).to_be_enabled()
+                    expect(field).to_have_value("preserved during catalog retry")
+                    if newer == "settings":
+                        assert page.evaluate(
+                            "document.querySelector('#settings-modal').contains(document.activeElement)"
+                        )
+                        page.keyboard.press("Escape")
+                        expect(setup).to_be_focused()
+                    else:
+                        expect(alpha).to_be_focused()
+                refresh = page.locator("#compare-model-refresh")
+                for newer in ["checkbox", "prompt", "settings", "removed"]:
+                    state["catalog_hold"] = True
+                    refresh.press("Enter")
+                    for _ in range(100):
+                        if catalogs:
+                            break
+                        page.wait_for_timeout(10)
+                    assert len(catalogs) == 1
+                    if newer == "settings":
+                        setup.press("Enter")
+                        page.wait_for_function(
+                            "document.querySelector('#settings-modal').contains(document.activeElement)"
+                        )
+                    elif newer == "prompt":
+                        field.focus()
+                    else:
+                        alpha.focus()
+                    catalogs.pop().fulfill(json=[] if newer == "removed" else state["models"])
+                    expect(refresh).to_be_enabled()
+                    if newer == "settings":
+                        assert page.evaluate(
+                            "document.querySelector('#settings-modal').contains(document.activeElement)"
+                        )
+                        page.keyboard.press("Escape")
+                        expect(setup).to_be_focused()
+                    elif newer == "prompt":
+                        expect(field).to_be_focused()
+                    elif newer == "removed":
+                        expect(alpha).to_have_count(0)
+                        expect(refresh).to_be_focused()
+                    else:
+                        expect(alpha).to_be_focused()
+                        expect(alpha).to_have_attribute("aria-checked", "true")
+                state["catalog_hold"] = False
+                refresh.press("Enter")
+                expect(alpha).to_be_visible()
+                alpha.press("Space")
+                beta.press("Space")
                 state["catalog_fail"] = True
                 page.locator("#compare-model-refresh").click()
                 expect(page.locator("#compare-model-status")).to_contain_text(
@@ -215,7 +285,7 @@ with sync_playwright() as pw:
                 assert box["y"] < page.evaluate("innerHeight") and box["y"] + box["height"] > 0
                 page.screenshot(path=str(out / f"{label}-results.png"))
                 assert not errors, errors
-                assert len(console) == 2 and all("503" in item for item in console), console
+                assert len(console) == 4 and all("503" in item for item in console), console
                 row.update(status="passed", posts=len(posts), native_zoom=zoom)
             except Exception as error:
                 row.update(error=str(error), traceback=traceback.format_exc())
