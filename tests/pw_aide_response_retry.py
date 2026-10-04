@@ -129,6 +129,11 @@ with sync_playwright() as pw:
                 if url.netloc != urlparse(base).netloc:
                     external.append(request.request.url)
                     return request.abort()
+                if url.path.endswith("/history") and "history" in state:
+                    response = request.fetch()
+                    payload = response.json()
+                    payload["messages"] = state["history"]
+                    return request.fulfill(response=response, json=payload)
                 if url.path == "/api/chat" and request.request.method == "POST":
                     requests.append(request.request.post_data_json)
                     if state["hold"]:
@@ -369,6 +374,62 @@ with sync_playwright() as pw:
                 expect(page.locator(".ai-body").last).to_have_class("ai-body done")
                 expect(page.locator("#send-btn")).to_be_enabled()
                 page.screenshot(path=str(out / f"{label}-busy-recovered.png"))
+                recovery_request = {
+                    key: value
+                    for key, value in original.items()
+                    if key not in {"session_id", "message", "retry_message_id"}
+                }
+                saved = {
+                    "id": "synthetic-restored-user",
+                    "role": "user",
+                    "content": original["message"],
+                    "meta": {
+                        "response_recovery": {"status": "failed", "request": recovery_request}
+                    },
+                }
+                state["history"] = [saved]
+                page.reload(wait_until="networkidle")
+                expect(page.locator(".aide-response-recovery")).to_contain_text(
+                    "the model could not answer this question"
+                )
+                expect(retry).to_be_visible()
+                expect(field).to_have_value("newer busy recovery draft")
+                page.evaluate("scope=>window._setAideDocumentScope(scope)", busy_scope)
+                retry.press("Enter")
+                expect(page.locator(".ai-content").last).to_have_text(
+                    "successful synthetic local answer"
+                )
+                assert requests[-1] == {**original, "retry_message_id": saved["id"]}
+                expect(page.locator(".user-bubble")).to_have_count(1)
+                expect(field).to_have_value("newer busy recovery draft")
+                assert page.evaluate("window._pendingDocumentScope") == busy_scope
+                # Partial, uncertain and pre-metadata histories explain the outcome without replay.
+                for outcome in ("partial", "incomplete", "legacy"):
+                    saved["meta"] = (
+                        {}
+                        if outcome != "incomplete"
+                        else {"response_recovery": {"status": "incomplete"}}
+                    )
+                    state["history"] = [saved]
+                    if outcome == "partial":
+                        state["history"].append(
+                            {
+                                "id": "synthetic-partial",
+                                "role": "assistant",
+                                "content": "partial saved answer",
+                                "meta": {"response_recovery": {"status": "failed"}},
+                            }
+                        )
+                    page.reload(wait_until="networkidle")
+                    expect(page.locator(".aide-response-recovery")).to_contain_text(
+                        "before sending again"
+                    )
+                    expect(retry).to_have_count(0)
+                    if outcome == "partial":
+                        expect(page.locator(".ai-content").last).to_have_text(
+                            "partial saved answer"
+                        )
+                page.screenshot(path=str(out / f"{label}-incomplete-reopened.png"))
                 assert not errors, errors
                 assert not external, external
                 unexpected = [x for x in console if "409" not in x]
@@ -376,7 +437,7 @@ with sync_playwright() as pw:
                 row.update(
                     status="passed",
                     requests=len(requests),
-                    checks="original request snapshot, repeated failure then success, duplicate click guard, newer draft/attachment/scope, partial/tool/uncertain exclusion, retired old button, stale409 preservation",
+                    checks="original request snapshot, repeated failure then success, duplicate click guard, newer draft/attachment/scope, partial/tool/uncertain exclusion, retired old button, stale409 preservation, reopened known failure retry, partial/incomplete/legacy history guidance without replay",
                 )
             except Exception as error:
                 row.update(
