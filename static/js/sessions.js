@@ -486,7 +486,7 @@ function renderMessages(msgs) {
         const bb = document.createElement('button');
         bb.className = 'act-btn msg-branch-btn';
         bb.textContent = 'branch';
-        bb.title = 'fork a new chat from here (keeps this one)';
+        bb.title = 'branch a new task from here (keeps this one)';
         bb.dataset.msgId = m.id;
         actions.appendChild(bb);
       }

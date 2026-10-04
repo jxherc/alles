@@ -157,10 +157,11 @@ test('single-host chat transitions always restore Aide chrome', () => {
 });
 
 test('slash memories reuses the exact Settings module instance loaded by the app', () => {
-  assert.match(app, /from '\.\/slash\.js\?v=283'/);
-  assert.match(app, /from '\.\/settings\.js\?v=289'/);
-  assert.match(slash, /import\('\.\/settings\.js\?v=289'\)/);
-  assert.doesNotMatch(slash, /settings\.js\?v=236/);
+  assert.match(app, /from '\.\/slash\.js\?v=398'/);
+  const owner = app.match(/from '(\.\/settings\.js[^']*)'/)?.[1];
+  const consumers = [...slash.matchAll(/import\('(\.\/settings\.js[^']*)'\)/g)].map(match => match[1]);
+  assert.ok(owner && consumers.length);
+  assert.ok(consumers.every(path => path === owner), 'all shortcut entry points must share the active Settings instance');
 });
 
 test('specialist request accounting treats every non-ok response as a failure', () => {

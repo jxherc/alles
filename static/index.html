@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=397">
+<link rel="stylesheet" href="/static/style.css?v=398">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -1334,6 +1334,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
             </button>
             <button class="perm-btn" id="perm-mode-btn" type="button" title="what aide can do without asking" data-i18n-title="aide.permission_help" aria-haspopup="menu" aria-expanded="false"><span class="perm-label">auto mode</span></button>
+            <button class="perm-btn" id="aide-help" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="aide-help-dialog" title="shortcuts &amp; commands" data-i18n-title="aide.shortcuts_commands" data-i18n="aide.help">help</button>
           </div>
           <div class="c-right">
             <button class="perm-btn aide-model-choice" id="aide-model-choice" type="button" title="choose model" data-i18n-title="aide.choose_model" aria-haspopup="dialog" aria-controls="model-modal" aria-expanded="false"><span class="aide-model-choice-logo" id="aide-model-choice-logo" aria-hidden="true"></span><span id="aide-model-choice-label" data-i18n="aide.no_model">no model</span></button>
@@ -2430,7 +2431,7 @@
               <div class="s-field"><label>search</label><input class="settings-input shortcut-input" data-shortcut="search" style="width:160px"></div>
               <div class="s-field"><label>sidebar</label><input class="settings-input shortcut-input" data-shortcut="sidebar" style="width:160px"></div>
               <div class="s-field"><label>settings</label><input class="settings-input shortcut-input" data-shortcut="settings" style="width:160px"></div>
-              <div class="s-field"><label>new chat</label><input class="settings-input shortcut-input" data-shortcut="new_chat" style="width:160px"></div>
+              <div class="s-field"><label for="shortcut-new-task">new task</label><input id="shortcut-new-task" class="settings-input shortcut-input" data-shortcut="new_chat" style="width:160px"></div>
               <div class="s-field"><label>send</label><input class="settings-input shortcut-input" data-shortcut="send" style="width:160px"></div>
               <div class="s-field"><label>focus input</label><input class="settings-input shortcut-input" data-shortcut="focus_input" style="width:160px"></div>
               <div class="s-field"><label>stop generating</label><input class="settings-input shortcut-input" data-shortcut="stop" style="width:160px"></div>
@@ -2857,7 +2858,7 @@
 </div>
 
 <script type="module">
-const _v = '397';
+const _v = '398';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
