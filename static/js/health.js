@@ -448,7 +448,7 @@ async function _create() {
   const value = Number(raw);
   const date = _draft.date.trim();
   const validDate = (!date && _draft.id == null) || (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date);
-  _formError = !DECIMAL.test(raw) || !Number.isFinite(value) ? 'enter a complete, finite number.' : !validDate ? 'enter a valid date as YYYY-MM-DD.' : '';
+  _formError = !DECIMAL.test(raw) || !Number.isFinite(value) ? 'enter a number, such as 74.25.' : !validDate ? 'enter a valid date as YYYY-MM-DD.' : '';
   if (_formError) {
     _render();
     $(validDate ? 'health-value' : 'health-date')?.focus();
