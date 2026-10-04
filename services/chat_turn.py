@@ -97,6 +97,7 @@ def _build_messages(
     db=None,
     file_ids: list[str] = None,
     mem_ctx: str = None,
+    retry_message_id: str = "",
 ) -> list[dict]:
     contextual_instructions = ""
     selected_documents_only = settings.get("selected_documents_only", False)
@@ -215,6 +216,8 @@ def _build_messages(
     else:
         history = list(session.messages)[-limit:]
     for m in history:
+        if m.id == retry_message_id:
+            continue
         msgs.append({"role": m.role, "content": m.content})
 
     # handle file attachments
@@ -379,7 +382,10 @@ async def _stream_and_save(
             interrupted or stop_event.is_set(),
         )
     if saved_message:
-        yield {"saved_message": saved_message}
+        if "user_id" in saved_message:
+            yield {"saved_user": {"id": saved_message["user_id"]}}
+        else:
+            yield {"saved_message": saved_message}
 
 
 def _save_turn(
@@ -417,7 +423,13 @@ def _save_turn(
             meta["agent_run_id"] = agent_run_id
         if interrupted:
             meta["interrupted"] = True
-        incognito_service.append_turn(session_id, user_text, full_text, json.dumps(meta))
+        incognito_service.append_turn(
+            session_id,
+            user_text,
+            full_text,
+            json.dumps(meta),
+            retry_message_id=(settings or {}).get("retry_message_id", ""),
+        )
         if interrupted and not full_text:
             private = incognito_service.get_session(session_id)
             if private and private.messages:
@@ -432,6 +444,8 @@ def _save_turn(
                     else {}
                 ),
             }
+        if private and private.messages and private.messages[-1].role == "user":
+            return {"user_id": private.messages[-1].id}
         return None  # RAM only; never write an incognito turn to SQLite
 
     db = db_factory()
@@ -452,6 +466,7 @@ def _save_turn(
         )
         added = 0
         am = None
+        um = last
         if not last or last.role != "user" or last.content != user_text:
             um = Message(session_id=session_id, role="user", content=user_text)
             db.add(um)
@@ -510,6 +525,8 @@ def _save_turn(
                     else {}
                 ),
             }
+        if um is not None:
+            return {"user_id": um.id}
     finally:
         db.close()
 
