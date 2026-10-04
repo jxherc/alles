@@ -76,7 +76,16 @@ with sync_playwright() as pw:
                 if state["http"]:
                     return route.fulfill(
                         status=state["http"],
-                        json={"detail": "this question can no longer be retried; reopen the task"},
+                        json=(
+                            {
+                                "detail": "a response is already running in this task; wait or stop it before sending again",
+                                "code": "turn_in_progress",
+                            }
+                            if state.get("busy")
+                            else {
+                                "detail": "this question can no longer be retried; reopen the task"
+                            }
+                        ),
                     )
                 chunks = []
                 if state["tool"]:
@@ -312,6 +321,54 @@ with sync_playwright() as pw:
                 expect(field).to_have_value(newer)
                 assert page.evaluate("window._pendingDocumentScope") == newer_scope
                 expect(retry).to_have_count(0)
+                # A definite refusal before work started can retry the same request.
+                state.update(busy=True, http=409, hold=False)
+                field.fill("question refused while another turn runs")
+                user_count = page.locator(".user-bubble").count()
+                page.locator("#send-btn").click()
+                expect(retry).to_be_visible()
+                busy_notice = page.locator(".error-msg").last
+                expect(busy_notice.get_by_role("status")).to_contain_text(
+                    "a response is already running"
+                )
+                paragraph = busy_notice.get_by_role("status").bounding_box()
+                button = retry.bounding_box()
+                assert button["y"] >= paragraph["y"] + paragraph["height"], (paragraph, button)
+                assert button["height"] >= 44
+                retry.focus()
+                page.keyboard.press("Tab")
+                page.keyboard.press("Shift+Tab")
+                expect(retry).to_be_focused()
+                page.screenshot(path=str(out / f"{label}-busy-refused.png"))
+                busy_request = dict(requests[-1])
+                assert "retry_message_id" not in busy_request
+                field.fill("newer busy recovery draft")
+                busy_scope = {
+                    "kind": "vault_document",
+                    "path": "busy-next.md",
+                    "expected_hash": "next",
+                }
+                page.evaluate("scope=>window._setAideDocumentScope(scope)", busy_scope)
+                bodies = page.locator(".ai-body").count()
+                retry.press("Enter")
+                expect(page.locator(".ai-body.done")).to_have_count(bodies)
+                expect(retry).to_be_visible()
+                assert requests[-1] == busy_request
+                expect(field).to_have_value("newer busy recovery draft")
+                assert page.evaluate("window._pendingDocumentScope") == busy_scope
+                state.update(busy=False, http=0, status=0)
+                retry.press("Enter")
+                expect(page.locator(".ai-content").last).to_have_text(
+                    "successful synthetic local answer"
+                )
+                assert requests[-1] == busy_request
+                expect(page.locator(".user-bubble")).to_have_count(user_count + 1)
+                expect(field).to_have_value("newer busy recovery draft")
+                assert page.evaluate("window._pendingDocumentScope") == busy_scope
+                expect(retry).to_have_count(0)
+                expect(page.locator(".ai-body").last).to_have_class("ai-body done")
+                expect(page.locator("#send-btn")).to_be_enabled()
+                page.screenshot(path=str(out / f"{label}-busy-recovered.png"))
                 assert not errors, errors
                 assert not external, external
                 unexpected = [x for x in console if "409" not in x]

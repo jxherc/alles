@@ -188,6 +188,15 @@ def _validate_retry(body: ChatRequest, session, db) -> None:
         )
 
 
+def _require_idle_session(session_id: str) -> None:
+    if session_id in _streams:
+        raise ApiError(
+            409,
+            "turn_in_progress",
+            "a response is already running in this task; wait or stop it before sending again",
+        )
+
+
 def _require_turn_authority(request: Request, settings: dict) -> None:
     if settings.get("agent_permission_mode") == "full_access":
         require_recent_owner(request)
@@ -326,6 +335,7 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
     if not s:
         raise HTTPException(404, "session not found")
     _validate_retry(body, s, db)
+    _require_idle_session(body.session_id)
     if body.incognito and not private_session and not getattr(s, "incognito", False):
         raise ApiError(
             400,
@@ -415,9 +425,6 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
         mem_ctx=mem_ctx,
         retry_message_id=body.retry_message_id,
     )
-    if incognito_run:
-        for upload_id in body.file_ids:
-            incognito_service.delete_upload(upload_id)
 
     # context compaction
     if not selected_documents_only and settings.get("auto_compact", True):
@@ -431,9 +438,13 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
     # Context assembly can await. Recheck before claiming the stream, without
     # another await between this check and the registry update.
     _validate_retry(body, s, db)
+    _require_idle_session(body.session_id)
     settings["retry_message_id"] = body.retry_message_id
     stop_event = asyncio.Event()
     _streams[body.session_id] = stop_event
+    if incognito_run:
+        for upload_id in body.file_ids:
+            incognito_service.delete_upload(upload_id)
 
     from core.database import SessionLocal as _SF
 
@@ -499,6 +510,7 @@ async def chat_background(body: ChatRequest, request: Request, db: DbSession = D
         raise HTTPException(404, "session not found")
     if getattr(s, "incognito", False) or body.incognito:
         raise ApiError(400, "incognito_background_forbidden", "incognito work stays in this tab")
+    _require_idle_session(body.session_id)
     settings = load_settings()
     ep, model = _resolve_session_model(s, db, settings)
     from services.project_environment import session_environment
@@ -544,6 +556,7 @@ async def chat_background(body: ChatRequest, request: Request, db: DbSession = D
     )
     messages = _build_messages(s, aug_text, settings, db, body.file_ids, mem_ctx=mem_ctx)
 
+    _require_idle_session(body.session_id)
     stop_event = asyncio.Event()
     _streams[body.session_id] = stop_event
     from core.database import SessionLocal as _SF

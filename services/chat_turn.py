@@ -206,18 +206,13 @@ def _build_messages(
     elif db is not None and not getattr(session, "incognito", False):
         # pull just the last `limit` rows in sql — loading the whole relationship dragged the
         # entire session history into memory on every turn
-        history = (
-            db.query(Message)
-            .filter(Message.session_id == session.id)
-            .order_by(Message.timestamp.desc())
-            .limit(limit)
-            .all()
-        )[::-1]
+        query = db.query(Message).filter(Message.session_id == session.id)
+        if retry_message_id:
+            query = query.filter(Message.id != retry_message_id)
+        history = query.order_by(Message.timestamp.desc()).limit(limit).all()[::-1]
     else:
-        history = list(session.messages)[-limit:]
+        history = [m for m in session.messages if m.id != retry_message_id][-limit:]
     for m in history:
-        if m.id == retry_message_id:
-            continue
         msgs.append({"role": m.role, "content": m.content})
 
     # handle file attachments
