@@ -230,7 +230,7 @@ export function renderSidebar(filter = '') {
   }
 
   if (!src.length) {
-    list.innerHTML = `<div class="empty-sessions">${fl ? 'no matching tasks' : 'no chats yet'}</div>`;
+    list.innerHTML = `<div class="empty-sessions">${fl ? 'no matching tasks' : 'no tasks yet'}</div>`;
     if (!fl) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
     return;
   }
@@ -877,6 +877,7 @@ export async function createSession(model = '', endpointId = '', options = {}) {
     method: 'POST',
     headers: {'content-type':'application/json'},
     body: JSON.stringify({
+      name: 'new task',
       model: override.model,
       endpoint_id: override.endpointId,
       incognito: !!options.incognito,
