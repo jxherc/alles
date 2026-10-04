@@ -14,7 +14,14 @@ function el(tag, className = '', text = '') {
 }
 
 function errorMessage(payload, fallback) {
-  return payload?.error?.message || payload?.detail?.message || payload?.detail || payload?.message || fallback;
+  for (const value of [payload?.error?.message, payload?.detail?.message, payload?.detail, payload?.message]) {
+    if (typeof value === 'string' && value.trim()) return value;
+  }
+  if (Array.isArray(payload?.detail)) {
+    const messages = payload.detail.map(item => item?.msg).filter(value => typeof value === 'string' && value.trim());
+    if (messages.length) return messages.join('; ');
+  }
+  return fallback;
 }
 
 async function json(request, url, options) {
