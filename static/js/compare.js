@@ -137,14 +137,20 @@ export function initCompareView() {
       return;
     }
     const revision = draftRevision;
+    let ownsFocus = document.activeElement === btn || document.activeElement === inp;
+    const trackFocus = event => {
+      if (event.target !== btn && event.target !== inp) ownsFocus = false;
+    };
+    document.addEventListener('focusin', trackFocus);
     btn.disabled = true;
     btn.setAttribute('aria-busy', 'true');
     btn.textContent = 'starting…';
     try {
       const accepted = await runCompare(msg, modelList);
       if (accepted && draftRevision === revision && inp.value === draft) inp.value = '';
-      if (!accepted && draftRevision === revision) inp.focus();
+      if (!accepted && ownsFocus && draftRevision === revision && inp.getClientRects().length) inp.focus();
     } finally {
+      document.removeEventListener('focusin', trackFocus);
       btn.disabled = false;
       btn.removeAttribute('aria-busy');
       btn.textContent = 'compare';
@@ -206,6 +212,8 @@ export async function loadCompareModels() {
       </button>`;
     }
   }
+  const focused = container.contains(document.activeElement) && document.activeElement.matches('.compare-model-check')
+    ? JSON.stringify([document.activeElement.dataset.ep, document.activeElement.dataset.model]) : null;
   container.innerHTML = html;
   if (status) status.textContent = container.querySelector('.compare-model-row')
     ? 'select models to answer the same prompt'
@@ -215,4 +223,10 @@ export async function loadCompareModels() {
     row.setAttribute('aria-checked', checked);
     row.querySelector('.chk').setAttribute('aria-checked', checked);
   }));
+  if (focused) {
+    const replacement = [...container.querySelectorAll('.compare-model-check')]
+      .find(row => JSON.stringify([row.dataset.ep, row.dataset.model]) === focused);
+    const target = replacement || refresh;
+    if (target?.getClientRects().length) target.focus();
+  }
 }

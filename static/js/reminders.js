@@ -144,9 +144,11 @@ async function _undoReminder(id, button) {
   try {
     const reminder = entry.reminder;
     const triggerAt = reminder.trigger_at + (/(Z|[+-]\d\d:\d\d)$/.test(reminder.trigger_at) ? '' : 'Z');
+    if (reminder.type === 'message' && new Date(triggerAt) <= new Date() && !entry.immediateDeliveryConfirmed) {
+      if (!await confirm('the scheduled time has passed. restoring this message may send it now. restore it?')) return;
+      entry.immediateDeliveryConfirmed = true;
+    }
     if (!entry.request) {
-      if (reminder.type === 'message' && new Date(triggerAt) <= new Date()
-          && !await confirm('the scheduled time has passed. restoring this message will send it now. restore it?')) return;
       entry.request = Object.freeze({ text: reminder.text, trigger_at: triggerAt, type: reminder.type, session_id: reminder.session_id, request_id: newRequestId() });
     }
     restored = await createReminder(entry.request);

@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import traceback
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -269,7 +270,7 @@ with sync_playwright() as pw:
                     undo.press("Enter")
                     if past:
                         dialog = page.get_by_role("alertdialog")
-                        expect(dialog).to_contain_text("will send it now")
+                        expect(dialog).to_contain_text("may send it now")
                         dialog.get_by_role("button", name="cancel", exact=True).press("Enter")
                         expect(undo).to_be_enabled()
                         expect(undo).to_be_focused()
@@ -291,11 +292,67 @@ with sync_playwright() as pw:
                     assert context.request.delete(
                         base + "/api/reminders/" + restored_message[0]["id"]
                     ).ok
+                # A future restore can fail, then become immediate before its retry.
+                fixed = datetime(2032, 11, 6, 14, 30, tzinfo=UTC)
+                scheduled = context.request.post(
+                    base + "/api/reminders",
+                    data={
+                        "text": "owned deadline retry " + label,
+                        "type": "message",
+                        "session_id": conversation["id"],
+                        "trigger_at": (fixed + timedelta(minutes=1)).isoformat(),
+                    },
+                ).json()
+                page.evaluate("import('/static/js/reminders.js?v=243').then(m=>m.loadReminders())")
+                page.clock.set_fixed_time(fixed)
+                page.locator(f'[data-reminder-cancel="{scheduled["id"]}"]').press("Enter")
+                undo = page.locator(f'[data-reminder-recover="{scheduled["id"]}"]')
+                expect(undo).to_have_text("undo")
+                before = len(requests)
+                page.route(base + "/api/reminders", fail)
+                undo.press("Enter")
+                expect(undo).to_have_text("retry undo")
+                expect(undo).to_be_enabled()
+                assert len(requests) == before + 1
+                page.clock.set_fixed_time(fixed + timedelta(minutes=2))
+                undo.press("Enter")
+                dialog = page.get_by_role("alertdialog")
+                expect(dialog).to_contain_text("may send it now")
+                page.screenshot(path=str(out / f"{label}-deadline-confirmation.png"))
+                dialog.get_by_role("button", name="cancel", exact=True).press("Enter")
+                expect(undo).to_be_enabled()
+                expect(undo).to_be_focused()
+                assert len(requests) == before + 1
+                undo.press("Enter")
+                expect(dialog).to_be_visible()
+                dialog.get_by_role("button", name="confirm", exact=True).press("Enter")
+                expect(undo).to_be_enabled()
+                assert len(requests) == before + 2
+                page.unroute(base + "/api/reminders", fail)
+                undo.press("Enter")
+                expect(undo).to_have_count(0)
+                expect(dialog).to_be_hidden()
+                assert len(requests) == before + 3
+                assert len({r["request_id"] for r in requests[before:]}) == 1
+                restored_message = [
+                    r
+                    for r in context.request.get(base + "/api/reminders").json()
+                    if r["text"] == scheduled["text"]
+                ]
+                assert len(restored_message) == 1
+                assert all(
+                    restored_message[0][k] == scheduled[k]
+                    for k in ["text", "type", "session_id", "trigger_at"]
+                )
+                page.reload(wait_until="networkidle")
+                expect(
+                    page.locator(f'[data-reminder-cancel="{restored_message[0]["id"]}"]')
+                ).to_be_visible()
                 assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
                 assert not errors, errors
-                assert len(console) == 5 and all(
+                assert len(console) == 7 and all(
                     str(status) in message and "Failed to load resource" in message
-                    for message, status in zip(console, [503, 403, 404, 503, 503])
+                    for message, status in zip(console, [503, 403, 404, 503, 503, 503, 503])
                 ), console
                 row["checks"] = [
                     "cancel-lost-refresh-retry",
@@ -310,6 +367,8 @@ with sync_playwright() as pw:
                     "dismiss-cancellation",
                     "scheduled-message-restoration",
                     "past-message-confirmation",
+                    "retry-crosses-scheduled-time",
+                    "immediate-delivery-confirmation-persists-after-failure",
                 ]
                 row["status"] = "passed"
             except Exception as error:
