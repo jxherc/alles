@@ -864,7 +864,30 @@ function escHtml(s = '') {
 function appendError(body, msg) {
   const el = document.createElement('div');
   el.className = 'error-msg';
-  el.textContent = msg;
+  const detail = String(msg || 'the model returned an error');
+  const status = Number(detail.match(/HTTP\s+(\d{3})/i)?.[1]);
+  if (status) {
+    el.classList.add('model-error');
+    const explanation = document.createElement('p');
+    explanation.setAttribute('role', 'status');
+    explanation.textContent = status === 404
+      ? 'the model could not be found. check the selected model and connection in model settings, then send your question again.'
+      : [401, 403].includes(status)
+      ? 'the model did not authorize this request. check its credentials in model settings, then send your question again.'
+      : status === 429
+      ? 'the model is busy or has reached its limit. wait a moment, then send your question again.'
+      : status >= 500
+      ? 'the model service is temporarily unavailable. try again later, or check its connection in model settings.'
+      : 'the model could not answer this request. check the model and connection in model settings, then try again.';
+    const settings = document.createElement('button');
+    settings.type = 'button'; settings.className = 'btn'; settings.textContent = 'model settings';
+    settings.addEventListener('click', () => window._openSettings?.('models'));
+    const details = document.createElement('details');
+    const summary = document.createElement('summary'); summary.textContent = 'error details';
+    const raw = document.createElement('pre'); raw.textContent = detail;
+    details.append(summary, raw);
+    el.append(explanation, settings, details);
+  } else el.textContent = detail;
   body.appendChild(el);
 }
 
