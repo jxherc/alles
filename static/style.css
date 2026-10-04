@@ -4676,9 +4676,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   padding-left: clamp(0.9rem, 3vw, 2.4rem); padding-right: clamp(0.9rem, 3vw, 2.4rem);
 }
 
-/* ── journal — vertical: controls + heatmap on top, editor, then extras ── */
-.jrnl-wrap { display: flex; flex-direction: column; gap: 1.4rem; padding: 0.4rem 0 1.5rem; }
-.jrnl-top { display: flex; flex-direction: column; gap: 0.7rem; }
+/* ── journal ── */
+.jrnl-wrap { display: flex; flex-direction: column; gap: var(--k-space-6); padding: 0 0 var(--k-space-5); }
+.jrnl-top { display: flex; flex-direction: column; gap: var(--k-space-3); }
 .jrnl-toolbar { display: flex; align-items: center; gap: 0.5rem; }
 .jrnl-search { flex: 1; margin: 0; }
 /* search, export, and lock share the KOKUEN target height and baseline. */
@@ -4700,15 +4700,16 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 /* minmax(0,1fr) not 1fr — a plain 1fr track won't shrink below a wide child's min-content
    (the mood-corr matrix), so it overflowed the column on mobile. matches the desktop rule. */
 @media (max-width: 760px) { .jrnl-extras { grid-template-columns: minmax(0, 1fr); } }
-.jrnl-datebar { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
-.jrnl-date { font-size: 1.05rem; font-weight: 500; color: var(--text); }
+.jrnl-datebar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2); margin-bottom: var(--k-space-3); }
+.jrnl-date { flex: 1; min-width: 0; font-size: 1rem; font-weight: 500; color: var(--text); }
 .jrnl-words { margin-left: auto; font-size: 0.75rem; color: var(--muted); }
 .jrnl-prompt { font-size: 0.82rem; color: var(--muted); font-style: italic; margin-bottom: 0.7rem; }
-.jrnl-moods { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.6rem; }
-.jrnl-mood { background: none; border: 1px solid var(--faint); border-radius: 3px; font-size: 1.1rem; line-height: 1; padding: 0.25rem 0.4rem; cursor: pointer; opacity: 0.5; transition: opacity .15s, border-color .15s, background .15s; }
-.jrnl-mood:hover { opacity: 0.85; }
+.jrnl-mood-label { margin: var(--k-space-3) 0 var(--k-space-2); font-size: 0.8125rem; color: var(--muted); }
+.jrnl-moods { display: flex; flex-wrap: wrap; gap: var(--k-space-1); }
+.jrnl-mood { background: none; border: 1px solid var(--faint); border-radius: 3px; font-size: 1.1rem; line-height: 1; padding: var(--k-space-1) var(--k-space-2); cursor: pointer; transition: border-color .15s, background .15s; }
+.jrnl-mood:hover { border-color: var(--muted); }
 .jrnl-mood.active { opacity: 1; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.jrnl-text { width: 100%; min-height: 320px; resize: vertical; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: 3px; padding: 0.9rem; font: inherit; line-height: 1.7; }
+.jrnl-text { width: 100%; min-height: 12rem; resize: vertical; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: 3px; padding: 0.9rem; font: inherit; line-height: 1.7; }
 .jrnl-text:focus { outline: none; border-color: var(--muted); }
 .jrnl-tags { width: 100%; margin-top: 0.5rem; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: 3px; padding: 0.45rem 0.6rem; font-size: 0.8rem; }
 .jrnl-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.7rem; }
