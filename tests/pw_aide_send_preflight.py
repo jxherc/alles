@@ -164,6 +164,11 @@ try:
                                 f'.session-item[data-id="{existing["id"]}"] .session-open'
                             ).click()
                             expect(page).to_have_url(base + "/?view=chat#" + existing["id"])
+                            expect(page.locator("#aide-conversation-name")).to_have_text(
+                                existing["name"]
+                            )
+                            if width < 700:
+                                expect(page.locator("#aide-sidebar")).to_be_hidden()
                         else:
                             page.locator("#new-chat-btn").click()
                         close_sidebar()
@@ -175,7 +180,12 @@ try:
                         expect(page.locator("#composer-send-recovery")).to_be_hidden()
                         expect(field).to_have_value("new context draft")
                         if case == "switched-task":
-                            assert page.evaluate("localStorage.getItem('aide-draft-new')") == text
+                            assert (
+                                page.evaluate(
+                                    "JSON.parse(localStorage.getItem('aide-draft-v2-new') || '{}').text"
+                                )
+                                == text
+                            )
                     elif case == "newer-draft":
                         deadline = time.monotonic() + 4
                         while not held and time.monotonic() < deadline:
@@ -195,7 +205,12 @@ try:
                         expect(field).to_be_focused()
                         if case == "create-failed":
                             expect(page.locator("#composer-choose-model")).to_be_hidden()
-                        assert page.evaluate("localStorage.getItem('aide-draft-new')") == text
+                        assert (
+                            page.evaluate(
+                                "JSON.parse(localStorage.getItem('aide-draft-v2-new') || '{}').text"
+                            )
+                            == text
+                        )
                         page.screenshot(path=str(out / f"{width}-{theme}-{case}-recovery.png"))
                         if case == "no-model":
                             assert not posts, posts
@@ -221,13 +236,15 @@ try:
                     expect(page.locator("#composer-send-recovery")).to_be_hidden()
                     if case == "newer-draft":
                         page.evaluate(
-                            "localStorage.setItem('aide-draft-new', 'separate unsent draft')"
+                            "localStorage.setItem('aide-draft-v2-new', JSON.stringify({text:'separate unsent draft',document_scope:null}))"
                         )
                         page.reload(wait_until="networkidle")
                         close_sidebar()
                         expect(field).to_have_value("a newer draft to keep")
                         assert (
-                            page.evaluate("localStorage.getItem('aide-draft-new')")
+                            page.evaluate(
+                                "JSON.parse(localStorage.getItem('aide-draft-v2-new') || '{}').text"
+                            )
                             == "separate unsent draft"
                         )
                     unexpected_console = [

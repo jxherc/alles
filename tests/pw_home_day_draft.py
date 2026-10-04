@@ -129,6 +129,10 @@ def run() -> None:
                 assert "ctx=" not in page.url, page.url
                 assert not writes, writes
                 assert page.evaluate("localStorage.getItem('aide-draft-new')") is None
+                assert page.evaluate(
+                    "marker => Object.entries(localStorage).filter(([key]) => key.startsWith('aide-draft-')).every(([, value]) => !value.includes(marker))",
+                    MARKER,
+                )
                 sessions = context.request.get(f"{backend}/api/sessions").json()
                 assert not any(sessions.values()), sessions
                 assert page.evaluate(

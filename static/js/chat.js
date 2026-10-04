@@ -2,7 +2,7 @@ import { mdToHtml, toast } from './util.js';
 import { canRevertTool } from './agentview.js';
 import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown,
-  showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive,
+  showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft,
 } from './sessions.js';
 import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=212';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
@@ -115,10 +115,10 @@ function renderDocumentScope(scope) {
 window._setAideDocumentScope = scope => {
   window._pendingDocumentScope = normalizeDocumentScope(scope);
   renderDocumentScope(window._pendingDocumentScope);
+  saveDraft();
 };
 document.getElementById('aide-document-scope-remove')?.addEventListener('click', () => {
-  window._pendingDocumentScope = null;
-  renderDocumentScope(null);
+  window._setAideDocumentScope(null);
 });
 
 function restoreComposerInput(text) {
@@ -133,8 +133,7 @@ function restoreComposerInput(text) {
 
 function restoreDocumentScope(scope) {
   if (!scope) return;
-  window._pendingDocumentScope = scope;
-  renderDocumentScope(scope);
+  window._setAideDocumentScope(scope);
 }
 
 
@@ -248,8 +247,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
 
   showMessages();
   appendUserMsg(text, documentScope);
-  window._pendingDocumentScope = null;
-  renderDocumentScope(null);
+  window._setAideDocumentScope(null);
   clearAttachments();
   scrollDown();
 
