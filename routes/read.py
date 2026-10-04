@@ -8,6 +8,7 @@ import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -46,6 +47,7 @@ def _fmt(it: ReadItem, full: bool = False) -> dict:
         "read_at": it.read_at,
         "read": bool(it.read_at),
         "position": it.read_position,
+        "position_revision": it.position_revision,
         "fav": it.fav,
         "archived": it.archived,
         "tags": it.tags,
@@ -318,6 +320,11 @@ def _save_result(body: NewsSaveBody, db: DbSession, source_tag: str):
 class ReadPatch(BaseModel):
     position: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
     content_hash: str | None = None
+    position_revision: str | None = Field(
+        default=None,
+        pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}:[1-9][0-9]{0,14}$",
+    )
+    position_base: str | None = Field(default=None, max_length=64)
     read: bool | None = None
     tags: str | None = None
     fav: bool | None = None
@@ -326,6 +333,9 @@ class ReadPatch(BaseModel):
 
 @router.patch("/read/{rid}")
 def patch_item(rid: str, body: ReadPatch, db: DbSession = Depends(get_db)):
+    versioned = body.position_revision is not None
+    if versioned != (body.position_base is not None) or (versioned and body.position is None):
+        raise HTTPException(422, "reading position revisions require a position and base")
     if body.position is not None:
         db.execute(sql_text("BEGIN IMMEDIATE"))
     it = db.get(ReadItem, rid)
@@ -335,6 +345,25 @@ def patch_item(rid: str, body: ReadPatch, db: DbSession = Depends(get_db)):
         current_hash = hashlib.sha256((it.text or "").encode("utf-8")).hexdigest()
         if body.content_hash != current_hash:
             raise HTTPException(409, "saved text changed; reload before saving your reading place")
+        if versioned:
+            current = it.position_revision
+            owner, _, sequence = body.position_revision.rpartition(":")
+            current_owner, _, current_sequence = current.rpartition(":")
+            replay = current == body.position_revision
+            if replay:
+                if it.read_position != body.position:
+                    raise HTTPException(
+                        409, "this reading position request already saved another place"
+                    )
+            elif (
+                int(sequence) <= int(current_sequence)
+                if owner == current_owner
+                else current != body.position_base
+            ):
+                raise HTTPException(409, "reading place changed; reopen the article")
+            it.position_revision = body.position_revision
+        else:
+            it.position_revision = f"{uuid4()}:0"
         it.read_position = body.position
     if body.read is not None:
         it.read_at = (
@@ -350,7 +379,12 @@ def patch_item(rid: str, body: ReadPatch, db: DbSession = Depends(get_db)):
     if body.position is not None:
         result["content_hash"] = current_hash
     db.commit()
-    if body.position is not None and body.model_fields_set <= {"position", "content_hash"}:
+    if body.position is not None and body.model_fields_set <= {
+        "position",
+        "content_hash",
+        "position_revision",
+        "position_base",
+    }:
         return result
     try:
         from services import personal_index

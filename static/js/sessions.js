@@ -12,7 +12,7 @@ import {
 } from './models.js?v=212';
 import { t } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
-import { loadAnswerNoteRecovery } from './answer_note.js';
+import { loadAnswerNoteRecovery, reconcileAnswerNote } from './answer_note.js';
 import { loadAnswerTaskRecovery } from './answer_task.js';
 import { createMenuController } from './kokuen.js';
 import { replaceRouteUrl } from './route_history.js';
@@ -378,6 +378,7 @@ function renderMessages(msgs) {
         m.meta?.source_citations,
       );
       row.dataset.msgId = m.id;
+      reconcileAnswerNote(wrap);
       if (m.meta?.interrupted) appendInterruptionNotice(body);
       const actions = wrap.querySelector('.msg-actions');
       // re-open artifact button from history
