@@ -132,7 +132,9 @@ class ManifestTests(ApiTest):
         self.assertIn("/static/vendor/xterm/xterm.css?v=6.0.0", urls)
         self.assertIn("/static/vendor/xterm/xterm.mjs?v=6.0.0", urls)
         self.assertIn("/static/vendor/xterm/addon-fit.mjs?v=0.11.0", urls)
-        self.assertIn("/static/kokuen.css?v=25", urls)
+        kokuen_url = re.search(r'href="(/static/kokuen\.css\?v=\d+)"', html)
+        self.assertIsNotNone(kokuen_url)
+        self.assertIn(kokuen_url.group(1), urls)
         for module in (
             "models.js?v=212",
             "dropdown.js?v=212",
