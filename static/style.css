@@ -1591,7 +1591,13 @@ body.is-aide.is-incognito .incognito-bar {
 .incognito-hero-mark { width: 30px; height: 30px; color: var(--accent); margin-bottom: 0.2rem; }
 .incognito-hero-title { font-size: 1.9rem; font-weight: 300; letter-spacing: -0.025em; color: var(--text); line-height: 1.2; }
 .incognito-hero-note { font-size: 0.75rem; color: var(--muted); max-width: 380px; line-height: 1.55; margin-top: 0.3rem; }
-.more-tools-menu { min-width: 160px; }
+.ctx-menu.more-tools-menu {
+  width: 224px; min-width: 0; max-width: calc(100vw - 24px);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.more-tools-menu .ctx-item {
+  min-height: 44px; font-size: 14px; white-space: normal; overflow-wrap: anywhere;
+}
 
 .c-right { display: flex; align-items: center; gap: 0.35rem; }
 .c-divider { width: 1px; height: 16px; background: var(--faint); margin: 0 0.1rem; flex-shrink: 0; }
