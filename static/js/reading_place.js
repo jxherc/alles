@@ -1,4 +1,6 @@
-// One writer per article keeps delayed acknowledgments behind the latest scroll.
+import { requestId } from './request_id.js';
+
+// Ordinary saves are serialized; page exit can supersede an unconfirmed write.
 export function readingPlace(item, write) {
   let value = item.position || 0;
   let saved = value;
@@ -7,30 +9,46 @@ export function readingPlace(item, write) {
   let error = '';
   let blocked = false;
   let listener = () => {};
+  const owner = requestId();
+  const base = item.position_revision || '';
+  let sequence = 0;
+  let request = null;
   const notify = () => listener({ value, pending: !!pending, error, blocked, unsaved: value !== saved });
   const schedule = () => { clearTimeout(timer); timer = setTimeout(() => void flush(), 600); };
 
-  async function flush() {
+  async function flush(leaving = false) {
     clearTimeout(timer);
-    if (pending) return pending;
+    if (pending && (!leaving || request.position === value)) return pending;
     if (blocked) return false;
-    if (value === saved && !error) return true;
-    const position = value;
+    if (!pending && value === saved && !error) return true;
+    // Keep an uncertain request's identity when retrying exactly the same place.
+    const patch = request?.position === value ? request : {
+      position: value, content_hash: item.content_hash,
+      position_revision: `${owner}:${++sequence}`, position_base: base,
+    };
+    request = patch;
     error = '';
     pending = (async () => {
       try {
-        await write({ position, content_hash: item.content_hash });
-        saved = position;
-        item.position = position;
+        await write(patch);
+        if (request === patch) {
+          saved = patch.position;
+          item.position = saved;
+          item.position_revision = patch.position_revision;
+        }
         return true;
       } catch (failure) {
-        blocked = failure.status === 409 || failure.status === 404;
-        error = blocked ? 'saved text changed or was removed; reopen the article' : 'could not confirm reading place; retry';
+        if (request === patch) {
+          blocked = failure.status === 409 || failure.status === 404;
+          error = blocked ? 'saved text changed, reading place changed or article was removed; reopen the article' : 'could not confirm reading place; retry';
+        }
         return false;
       } finally {
-        pending = null;
-        if (!error && value !== saved) schedule();
-        notify();
+        if (request === patch) {
+          pending = null;
+          if (!error && value !== saved) schedule();
+          notify();
+        }
       }
     })();
     notify();

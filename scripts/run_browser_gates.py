@@ -102,6 +102,7 @@ COMMANDS = {
     "feed-workflows": ("tests/pw_feed_workflows.py",),
     "read-completion": ("tests/pw_read_completion.py",),
     "read-position": ("tests/pw_read_position.py",),
+    "read-position-exit": ("tests/pw_read_position_exit.py",),
     "read-recovery": ("tests/pw_read_recovery.py",),
     "read-navigation": ("tests/pw_read_navigation.py",),
     "read-ownership": ("tests/pw_read_ownership.py",),

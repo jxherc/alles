@@ -345,7 +345,7 @@ async function _writeReadItem(id, patch, keepalive = false) {
   if (!patch && response.status === 404) return null;
   const result = await response.json();
   if (!response.ok) throw Object.assign(new Error(typeof result.detail === 'string' ? result.detail : 'could not confirm the change; try again'), { status: response.status });
-  if (patch ? result.id !== id || Object.entries(patch).some(([key, value]) => result[key] !== value) : result.ok !== true) throw new Error('could not confirm the change; try again');
+  if (patch ? result.id !== id || Object.entries(patch).some(([key, value]) => key !== 'position_base' && result[key] !== value) : result.ok !== true) throw new Error('could not confirm the change; try again');
   return result;
 }
 
@@ -557,9 +557,9 @@ function _attachReadingPlace(body, item) {
   const observer = new ResizeObserver(restore);
   observer.observe(body); observer.observe(body.querySelector('.read-article'));
   body.addEventListener('scroll', scroll, { passive: true });
-  const leaving = () => { if (document.visibilityState === 'hidden') void place.flush(); };
+  const leaving = () => { if (document.visibilityState === 'hidden') void place.flush(true); };
   document.addEventListener('visibilitychange', leaving);
-  const unload = () => void place.flush();
+  const unload = () => { scroll(); void place.flush(true); };
   window.addEventListener('pagehide', unload);
   restore();
   _detachPlace = (flush = true) => {
