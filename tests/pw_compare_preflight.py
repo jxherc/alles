@@ -95,6 +95,7 @@ with sync_playwright() as pw:
                 return request.continue_()
 
             context.route("**/*", route)
+            context.route_web_socket("**/*", lambda socket: socket.close())
             page = context.new_page()
             page.set_default_timeout(5000)
             page.on("pageerror", lambda error: errors.append(str(error)))

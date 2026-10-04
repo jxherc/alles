@@ -78,6 +78,7 @@ COMMANDS = {
     "server-controls": ("tests/pw_server_controls.py",),
     "aide-scoped-draft": ("tests/pw_aide_scoped_draft.py",),
     "compare-preflight": ("tests/pw_compare_preflight.py",),
+    "compare-recovery": ("tests/pw_compare_recovery.py",),
     "skills-keyboard": ("tests/pw_skills_keyboard.py",),
     "skills-start": ("tests/pw_skills_start.py",),
     "shortcut-help": ("tests/pw_shortcut_help.py",),

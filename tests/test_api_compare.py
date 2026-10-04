@@ -143,5 +143,29 @@ class CompareApiTest(ApiTest):
         self.assertEqual(by["gpt"]["win_rate"], round(2 / 3, 3))
         self.assertEqual(stats["models"][0]["model"], "gpt")  # most wins first
 
+    def test_vote_retry_after_lost_acknowledgement_counts_once(self):
+        body = {"winner": "alpha", "loser": "beta", "request_id": str(compare.uuid.uuid4())}
+        self.assertEqual(self.client.post("/api/compare/vote", json=body).json(), {"ok": True})
+        # A second HTTP request represents retrying after the first reply was lost.
+        self.assertEqual(self.client.post("/api/compare/vote", json=body).json(), {"ok": True})
+        stats = self.client.get("/api/compare/stats").json()
+        self.assertEqual(stats["votes"], 1)
+        self.assertEqual(stats["models"][0]["wins"], 1)
+
+    def test_vote_identity_cannot_be_reused_for_another_choice(self):
+        body = {"winner": "alpha", "loser": "beta", "request_id": str(compare.uuid.uuid4())}
+        self.assertEqual(self.client.post("/api/compare/vote", json=body).status_code, 200)
+        for changed in [{**body, "winner": "gamma"}, {**body, "loser": "gamma"}]:
+            self.assertEqual(self.client.post("/api/compare/vote", json=changed).status_code, 409)
+        self.assertEqual(self.client.get("/api/compare/stats").json()["votes"], 1)
+
+    def test_vote_request_id_must_be_canonical(self):
+        for identity in ["not-an-id", str(compare.uuid.uuid4()).upper(), compare.uuid.uuid4().hex]:
+            response = self.client.post(
+                "/api/compare/vote", json={"winner": "alpha", "request_id": identity}
+            )
+            self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.get("/api/compare/stats").json()["votes"], 0)
+
     def test_stats_empty(self):
         self.assertEqual(self.client.get("/api/compare/stats").json(), {"votes": 0, "models": []})
