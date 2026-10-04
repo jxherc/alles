@@ -388,9 +388,12 @@ export function initReminderPanel(fetcher = fetch, reloadPanel = null) {
     try {
       if (!_creation) {
         const text = textEl.value.trim();
-        if (!text) throw new Error('enter reminder text');
-        const triggerAt = reminderTimeFromWall(timeEl.value);
-        if (triggerAt <= new Date()) throw new Error('pick a future time');
+        if (!text) { textEl.focus(); throw new Error('enter reminder text'); }
+        let triggerAt;
+        try {
+          triggerAt = reminderTimeFromWall(timeEl.value);
+          if (triggerAt <= new Date()) throw new Error('pick a future time');
+        } catch (error) { timeEl.focus(); throw error; }
         const type = typeEl.value || 'reminder';
         _creation = { request: reminderRequest(text, triggerAt, type, type === 'message' ? window._currentSession?.id || null : null), uncertain: false };
       }

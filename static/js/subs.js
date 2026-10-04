@@ -177,10 +177,10 @@ async function _add() {
   const name = $('sub-name')?.value.trim();
   const due = $('sub-due')?.value;
   if (!_creation?.uncertain) {
-    if (!name) { toast('give it a name', 'error'); return; }
-    if (!due) { toast('pick the next billing date', 'error'); return; }
+    if (!name) { toast('give it a name', 'error'); $('sub-name')?.focus(); return; }
+    if (!due) { toast('pick the next billing date', 'error'); $('sub-due')?.focus(); return; }
     const price = Number($('sub-price')?.value || 0);
-    if (!Number.isFinite(price) || price < 0) { toast('enter a valid price', 'error'); return; }
+    if (!Number.isFinite(price) || price < 0) { toast('enter a valid price', 'error'); $('sub-price')?.focus(); return; }
     _creation = { body: { name, price, cycle: $('sub-cycle')?.dataset.value || 'monthly',
       cycle_days: Number($('sub-cycle-days')?.value || 30), next_due: due.slice(0, 10),
       category: $('sub-category')?.value.trim() || '', request_id: requestId() } };
