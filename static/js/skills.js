@@ -181,7 +181,9 @@ function _renderRail() {
     html += row('start', 'start here');
     if (counts.pinned) html += row('pinned', 'pinned');
     html += row('all', 'all');
-    for (const k of _CAT_ORDER) if (k !== 'custom') html += row(k, _CAT_LABEL[k]);
+    if (!['start', 'pinned', 'custom'].includes(_state.cat)) {
+      for (const k of _CAT_ORDER) if (k !== 'custom') html += row(k, _CAT_LABEL[k]);
+    }
     html += row('custom', 'custom');
   }
   html += `<div class="skl-rail-foot">

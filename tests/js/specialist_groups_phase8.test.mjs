@@ -321,7 +321,7 @@ test('Finance daily balances precede routine ledger setup and keep grouped cents
   assert.equal(grid.querySelector('.specialist-group-row').children[1].textContent, 'CAD\u00a012,345,678.90');
   assert.equal(ledger.querySelector('.finance-actual-content').hidden, true);
   assert.equal(ledger.querySelector('.finance-actual-head').children[1].textContent, 'ready for review');
-  assert.equal(ledger.querySelector('.finance-actual-content').children[0].textContent, 'staging parity passed');
+  assert.equal(ledger.querySelector('.finance-actual-content').children[0].textContent, 'ledgers match');
   const toggle = ledger.querySelector('.finance-actual-toggle');
   assert.equal(toggle.attributes['aria-expanded'], 'false');
   assert.equal(toggle.attributes['aria-controls'], 'finance-actual-content');
@@ -349,7 +349,7 @@ test('expanding healthy setup never switches authority and confirmation starts o
   const review = panel.querySelectorAll('button').find(button => button.dataset.actualAction === 'cutover');
   review.events.click();
   assert.equal(requests, 0);
-  assert.equal(h.focused().textContent, 'keep current authority');
+  assert.equal(h.focused().textContent, 'keep current ledger');
   assert.equal(toggle.disabled, true);
   h.focused().events.click();
   assert.equal(requests, 0);

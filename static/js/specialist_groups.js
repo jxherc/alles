@@ -682,7 +682,7 @@ async function _renderHealth(target, request) {
   const healthError = _settledError(healthResult, 'measurements could not be loaded');
   const habitsError = _settledError(habitsResult, 'habits could not be loaded');
   target.replaceChildren();
-  const note = _el('p', 'specialist-group-note', 'health records stay local and follow the existing sensitive-context rules.');
+  const note = _el('p', 'specialist-group-note', 'health records stay local. using them in aide requires your permission.');
   const workbench = _el('div', 'specialist-workbench specialist-workbench-health');
   const rail = _el('aside', 'specialist-workbench-rail');
   rail.append(_el('h2', '', 'today'));
@@ -754,10 +754,10 @@ export function financeActualPresentation(value) {
     const healthy = service.available && service.installed && service.running && service.healthy;
     return {
       state: healthy ? 'canonical' : 'canonical-unhealthy',
-      title: healthy ? 'Actual is canonical' : 'Actual canonical ledger needs attention',
+      title: healthy ? 'Actual ledger active' : 'Actual ledger needs attention',
       detail: healthy
-        ? 'Transaction writes go only to Actual. The previous Alles ledger is frozen for the release rollback window.'
-        : 'Actual is still authoritative, but its managed service is unavailable. Recover the service or return to the frozen Alles ledger.',
+        ? 'new transactions are saved only in Actual. the previous Alles ledger is kept read-only so you can return to it.'
+        : 'transactions still use Actual, but its service is unavailable. recover the service or return to the previous Alles ledger.',
       actions: [...recovery, 'rollback-ledger'],
     };
   }
@@ -781,7 +781,7 @@ export function financeActualPresentation(value) {
     return {
       state: service.running ? 'unhealthy' : 'stopped',
       title: service.running ? 'Actual needs attention' : 'Actual stopped',
-      detail: 'The current Finance authority is unchanged. Start the managed service before staging or using the canonical ledger.',
+      detail: 'the active ledger has not changed. start Actual before preparing or using its ledger.',
       actions: [service.running ? 'restart' : 'start'],
     };
   }
@@ -789,25 +789,25 @@ export function financeActualPresentation(value) {
   if (runStatus === 'ready') {
     return {
       state: 'ready',
-      title: 'staging parity passed',
-      detail: 'The staged Actual budget matches the current Alles snapshot. A fresh check and cold backup run again at cutover.',
+      title: 'ledgers match',
+      detail: 'the prepared Actual copy matches the current Alles records. switching ledgers runs another check and creates a backup with the service stopped.',
       actions: ['cutover', 'backup', 'stop'],
     };
   }
   if (runStatus === 'staging') {
     return {
       state: 'staging',
-      title: 'staging in progress',
-      detail: 'Alles remains authoritative while the isolated Actual copy is built and reconciled.',
+      title: 'preparing Actual copy',
+      detail: 'new transactions still go to Alles while its records are copied to Actual and checked.',
       actions: ['backup'],
     };
   }
   return {
     state: runStatus === 'failed' ? 'failed' : 'available',
-    title: runStatus === 'failed' ? 'staging needs a fresh run' : 'Actual ready to stage',
+    title: runStatus === 'failed' ? 'copy needs another try' : 'ready to copy to Actual',
     detail: runStatus === 'failed'
-      ? (ledger.run?.error || 'The last staging run failed. Alles stayed authoritative and can be staged again.')
-      : 'Alles is authoritative. Staging copies the ledger into Actual without switching writes.',
+      ? (ledger.run?.error || 'the last copy failed. new transactions still go to Alles. you can retry the copy.')
+      : 'new transactions still go to Alles. copying and checking them in Actual will not change where transactions are saved.',
     actions: [
       ...(/^[A-Z]{3}$/.test(String(ledger.base_currency_code || '').trim()) ? ['stage'] : []),
       'backup',
@@ -821,26 +821,26 @@ const ACTUAL_ACTION_LABELS = Object.freeze({
   start: 'start Actual',
   restart: 'restart Actual',
   stop: 'stop Actual',
-  backup: 'create cold backup',
-  stage: 'stage and reconcile',
-  cutover: 'review cutover',
-  'rollback-ledger': 'review ledger rollback',
+  backup: 'create backup',
+  stage: 'copy and check records',
+  cutover: 'review ledger switch',
+  'rollback-ledger': 'review return to Alles',
 });
 
 function _actualConfirmation(panel, action, trigger, runAction) {
   panel.querySelector('.finance-actual-confirm')?.remove();
   const confirmation = _el('section', 'finance-actual-confirm');
   confirmation.setAttribute('role', 'region');
-  confirmation.setAttribute('aria-label', action === 'cutover' ? 'confirm Actual cutover' : 'confirm ledger rollback');
+  confirmation.setAttribute('aria-label', action === 'cutover' ? 'confirm ledger switch' : 'confirm return to Alles');
   confirmation.tabIndex = -1;
-  const heading = _el('h3', '', action === 'cutover' ? 'switch transaction authority?' : 'return to the frozen Alles ledger?');
+  const heading = _el('h3', '', action === 'cutover' ? 'save new transactions in Actual?' : 'return to the frozen Alles ledger?');
   const body = _el('p', '', action === 'cutover'
-    ? 'Alles will recheck parity, create a cold backup, then send transaction writes only to Actual. The old rows stay unchanged and read-only.'
-    : 'This restores write authority to the unchanged pre-cutover Alles ledger. Transactions written only to Actual after cutover are not copied back.');
+    ? 'Alles will check that the ledgers match, create a backup with the service stopped, then save new transactions only in Actual. the old Alles records stay unchanged and read-only.'
+    : 'new transactions will go to the previous, unchanged Alles ledger. transactions saved only in Actual after the switch are not copied back.');
   const actions = _el('div', 'finance-actual-confirm-actions');
-  const cancel = _el('button', '', 'keep current authority');
+  const cancel = _el('button', '', 'keep current ledger');
   cancel.type = 'button';
-  const confirm = _el('button', 'finance-actual-confirm-primary', action === 'cutover' ? 'switch writes to Actual' : 'restore Alles authority');
+  const confirm = _el('button', 'finance-actual-confirm-primary', action === 'cutover' ? 'use Actual ledger' : 'use Alles ledger');
   confirm.type = 'button';
   const toggle = panel.querySelector('.finance-actual-toggle');
   if (toggle) toggle.disabled = true;
@@ -900,10 +900,10 @@ function _renderActualStatus(value, request) {
   const fact = (term, description) => {
     facts.append(_el('dt', '', term), _el('dd', '', description));
   };
-  fact('authority', reported ? (ledger.mode === 'actual' ? 'Actual' : 'Alles') : 'not reported');
+  fact('transactions saved in', reported ? (ledger.mode === 'actual' ? 'Actual' : 'Alles') : 'not reported');
   fact('base currency', ledger.base_currency_code || 'not reported');
   fact('managed service', reported ? (service.installed ? `${service.version || '26.7.0'} · ${service.healthy ? 'healthy' : service.running ? 'unhealthy' : 'stopped'}` : 'not installed') : 'status unavailable');
-  if (ledger.run) fact('latest parity run', `${ledger.run.status || 'unknown'} · ${ledger.run.links ?? 0} mapped records`);
+  if (ledger.run) fact('latest ledger check', `${ledger.run.status || 'unknown'} · ${ledger.run.links ?? 0} linked records`);
   const message = _el('p', 'finance-actual-message');
   message.setAttribute('role', 'status');
   message.setAttribute('aria-live', 'polite');
@@ -924,7 +924,7 @@ function _renderActualStatus(value, request) {
     if (action === 'stage') {
       const baseCurrency = String(ledger.base_currency_code || '').trim();
       if (!/^[A-Z]{3}$/.test(baseCurrency)) {
-        message.textContent = 'A reviewed base currency is required before staging';
+        message.textContent = 'confirm a base currency before copying records';
         message.classList.add('finance-actual-error');
         setBusy(false);
         if (returnFocus?.isConnected) returnFocus.focus();
@@ -941,7 +941,7 @@ function _renderActualStatus(value, request) {
     try {
       const result = await _json(request, url, options);
       if (action === 'backup') {
-        message.textContent = `cold backup ${result.backup_id || ''} verified`;
+        message.textContent = `backup ${result.backup_id || ''} verified`;
         setBusy(false);
       } else {
         await _refresh('finance');
@@ -962,7 +962,7 @@ function _renderActualStatus(value, request) {
       if (action === 'cutover' || action === 'rollback-ledger') {
         _actualConfirmation(panel, action, button, runAction);
       } else if (action === 'stop') {
-        if (!await confirmDialog('stop Actual Budget? Finance stays authoritative in its current ledger mode, but the managed service will be unavailable until restarted.')) return;
+        if (!await confirmDialog('stop Actual Budget? transactions will still use the current ledger. the Actual service will be unavailable until restarted.')) return;
         runAction(action, button);
       } else {
         runAction(action, button);
