@@ -551,11 +551,11 @@ export function appendUserMsg(text, documentScope = null) {
 }
 
 
-export function appendInterruptionNotice(target) {
+export function appendInterruptionNotice(target, text = 'response interrupted') {
   const notice = document.createElement('div');
   notice.className = 'aide-interruption';
   notice.setAttribute('role', 'status');
-  notice.textContent = 'response interrupted';
+  notice.textContent = text;
   target.appendChild(notice);
 }
 
