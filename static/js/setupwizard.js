@@ -353,9 +353,9 @@ function _renderFiles(body) {
   const keep = Boolean(_state.keep_vault_inside_alles);
   body.innerHTML = `
     <div class="setup-title" id="setup-title">put your files where you can see them</div>
-    <div class="setup-sub">Alles never moves an existing Vault. The companion for Obsidian is a separate, explicit choice after these paths are saved.</div>
-    ${_switch('sw-keep-vault', 'keep Vault and Files inside Alles', keep, 'recommended: ~/Alles/Vault and ~/Alles/Files')}
-    <label class="setup-field"><span>Vault folder</span><input class="settings-input setup-input" id="sw-vault" value="${esc(_state.vault_preview)}"></label>
+    <div class="setup-sub">The document folder holds Markdown files. Passwords stay in the Vault app. Existing folders are not moved; you can connect Obsidian after saving these locations.</div>
+    ${_switch('sw-keep-vault', 'keep documents and files inside Alles', keep, 'recommended: ~/Alles/Vault and ~/Alles/Files')}
+    <label class="setup-field"><span>document folder</span><input class="settings-input setup-input" id="sw-vault" value="${esc(_state.vault_preview)}"></label>
     <label class="setup-field"><span>Files folder</span><input class="settings-input setup-input" id="sw-files" value="${esc(_state.files_preview)}"></label>
     <div id="sw-obsidian"></div>
     ${_actions(true, _filesSaved ? 'continue' : 'save locations')}`;
@@ -496,7 +496,7 @@ function _renderDone(body) {
     <div class="setup-sub">Your choices are saved on the server. You can change them later in Settings.</div>
     <div class="setup-summary">
       <span>access</span><strong>${esc(_state.access_profile || 'device')}</strong>
-      <span>Vault</span><strong>${esc(_state.vault_preview || 'not connected')}</strong>
+      <span>document folder</span><strong>${esc(_state.vault_preview || 'not connected')}</strong>
       <span>backup</span><strong>${_state.automatic_backup_enabled ? 'daily encrypted' : 'off'}</strong>
     </div>
     <div class="setup-actions"><span></span><button class="btn primary" type="button" id="sw-start">open alles</button></div>`;
