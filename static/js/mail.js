@@ -1548,9 +1548,9 @@ async function compose(pre = {}, generation = null) {
       <button class="btn mc-rt" data-cmd="bold" title="bold"><b>B</b></button>
       <button class="btn mc-rt" data-cmd="italic" title="italic"><i>I</i></button>
       <button class="btn mc-rt" data-cmd="insertUnorderedList" title="bullet list">•</button>
-      <button class="btn mc-rt" data-cmd="createLink" title="link">🔗</button>
-      <button class="btn" id="mc-image" title="inline image">🖼</button>
-      <button class="btn" id="mc-suggest" title="AI reply suggestions">✨ suggest</button>
+      <button class="btn mc-rt" type="button" data-cmd="createLink" title="link" aria-label="insert link">${_si('link')}</button>
+      <button class="btn" type="button" id="mc-image" title="inline image" aria-label="insert image">${_si('image')}</button>
+      <button class="btn" type="button" id="mc-suggest" title="AI reply suggestions" aria-label="suggest replies">${_si('sparkles')} suggest</button>
       <span class="mail-sig-wrap" id="mc-sig-list"></span>
       <button class="btn" id="mc-sig-add" title="save a new signature">＋ sig</button>
       <button class="btn" type="button" id="mc-sig-manage" aria-expanded="false" aria-controls="mc-sig-manager">manage signatures</button>

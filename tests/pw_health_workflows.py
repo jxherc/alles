@@ -12,6 +12,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
@@ -47,6 +48,16 @@ def run():
                 locale="en-US",
                 timezone_id="UTC",
             )
+            context.route(
+                "**/*",
+                lambda route: (
+                    route.continue_()
+                    if (urlsplit(route.request.url).scheme, urlsplit(route.request.url).netloc)
+                    == (urlsplit(base).scheme, urlsplit(base).netloc)
+                    else route.abort()
+                ),
+            )
+            context.route_web_socket("**/*", lambda ws: ws.close())
             context.tracing.start(screenshots=True, snapshots=True, sources=True)
             page = context.new_page()
             page.set_default_timeout(15000)
@@ -123,7 +134,7 @@ def run():
                 page.get_by_label("note (optional)", exact=True).fill(note)
                 page.get_by_role("button", name="add", exact=True).click()
                 expect(page.locator("#health-entry-error")).to_contain_text(
-                    "complete, finite number"
+                    "enter a number, such as 74.25."
                 )
                 assert not saved(note)
                 page.get_by_label("value", exact=True).fill("74.25")

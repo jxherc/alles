@@ -7,6 +7,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
@@ -43,6 +44,7 @@ def run():
                 "section-history-cancel",
                 "delete-late-edit",
                 "image-late-new-editor",
+                "compact-workspace",
                 "link-keyboard",
                 "signature-repeat",
                 "reload-protect",
@@ -60,6 +62,16 @@ def run():
                     service_workers="block",
                     reduced_motion="reduce",
                 )
+                context.route(
+                    "**/*",
+                    lambda route: (
+                        route.continue_()
+                        if (urlsplit(route.request.url).scheme, urlsplit(route.request.url).netloc)
+                        == (urlsplit(base).scheme, urlsplit(base).netloc)
+                        else route.abort()
+                    ),
+                )
+                context.route_web_socket("**/*", lambda ws: ws.close())
                 page = context.new_page()
                 page.set_default_timeout(7000)
                 errors = []
@@ -493,6 +505,28 @@ def run():
                         expect(body).to_have_text("newer editor text")
                         expect(body.locator("img")).to_have_count(0)
                         expect(body).to_be_focused()
+                    elif case == "compact-workspace":
+                        page.set_viewport_size({"width": min(width, 720), "height": 422})
+                        result["viewport"] = page.viewport_size
+                        compose()
+                        for selector in ["#mc-image", "#mc-html", "#mc-save"]:
+                            control = page.locator(selector)
+                            control.scroll_into_view_if_needed()
+                            expect(control).to_be_in_viewport()
+                        page.locator("#mc-subj").fill("owned compact draft")
+                        page.locator("#mc-save").click()
+                        expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
+                        page.locator("#mc-close").click()
+                        page.get_by_role("button", name="drafts", exact=True).click()
+                        page.get_by_role("button", name="owned compact draft", exact=True).click()
+                        body.click()
+                        expect(body).to_be_in_viewport()
+                        expect(body).to_have_text("owned unsaved reply")
+                        page.locator("#mc-close").click()
+                        page.get_by_role("button", name="primary", exact=True).click()
+                        expect(
+                            page.get_by_role("button", name="compose", exact=True)
+                        ).to_be_visible()
                     elif case == "link-keyboard":
                         compose()
                         body.fill("owned link")

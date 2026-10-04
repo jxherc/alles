@@ -783,7 +783,8 @@ async function renderBackups(target, request, completed = null) {
     );
     if (settings.automatic_backup_last_error) local.append(statusLine(settings.automatic_backup_last_error, 'error'));
   }
-  const storage = card('storage locations', 'Files storage registrations remain read-only here; coordinates and credentials keep their existing typed setup boundary.');
+  const storage = card('storage locations', 'add or edit storage locations in Files.');
+  storage.append(action('open Files', () => window._navigateTo('files')));
   if (locationsResult.status === 'rejected') storage.append(statusLine(locationsResult.reason.message, 'error'));
   else {
     const locations = locationsResult.value.locations || [];
