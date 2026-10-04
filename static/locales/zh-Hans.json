@@ -261,6 +261,8 @@
     "tasks.save_queued": "更改已进入离线队列。保存完成前，此草稿会保留在这里。",
     "tasks.saved_refresh_failed": "任务已保存，但列表刷新失败。请重新加载查看。",
     "tasks.edit_named": "编辑 {task}",
+    "tasks.completion_failed": "无法确认任务是否已完成。请重试。",
+    "tasks.reopen_failed": "无法确认任务是否已重新打开。请重试。",
     "tasks.mark_complete": "将 {task} 标记为已完成",
     "tasks.mark_incomplete": "将 {task} 标记为未完成",
     "tasks.no_completed": "还没有已完成任务",

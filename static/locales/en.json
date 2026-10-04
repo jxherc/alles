@@ -261,6 +261,8 @@
     "tasks.save_queued": "change queued offline. this draft stays here until it is saved.",
     "tasks.saved_refresh_failed": "task saved, but the list could not refresh. reload to see it.",
     "tasks.edit_named": "edit {task}",
+    "tasks.completion_failed": "could not confirm task completion. try again.",
+    "tasks.reopen_failed": "could not confirm reopening the task. try again.",
     "tasks.mark_complete": "mark {task} complete",
     "tasks.mark_incomplete": "mark {task} incomplete",
     "tasks.no_completed": "no completed tasks yet",

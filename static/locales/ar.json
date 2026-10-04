@@ -261,6 +261,8 @@
     "tasks.save_queued": "التغيير في قائمة الانتظار دون اتصال. تبقى هذه المسودة هنا حتى يتم حفظها.",
     "tasks.saved_refresh_failed": "تم حفظ المهمة، لكن تعذر تحديث القائمة. أعد التحميل لرؤيتها.",
     "tasks.edit_named": "تعديل {task}",
+    "tasks.completion_failed": "تعذر التأكد من إكمال المهمة. حاول مجددًا.",
+    "tasks.reopen_failed": "تعذر التأكد من إعادة فتح المهمة. حاول مجددًا.",
     "tasks.mark_complete": "وضع علامة مكتمل على {task}",
     "tasks.mark_incomplete": "وضع علامة غير مكتمل على {task}",
     "tasks.no_completed": "لا توجد مهام مكتملة بعد",

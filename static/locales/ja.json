@@ -261,6 +261,8 @@
     "tasks.save_queued": "変更はオフラインの待機列にあります。保存されるまで下書きはここに残ります。",
     "tasks.saved_refresh_failed": "タスクは保存されましたが、一覧を更新できませんでした。再読み込みしてください。",
     "tasks.edit_named": "{task} を編集",
+    "tasks.completion_failed": "タスクの完了を確認できませんでした。もう一度お試しください。",
+    "tasks.reopen_failed": "タスクを再開できたか確認できませんでした。もう一度お試しください。",
     "tasks.mark_complete": "{task} を完了にする",
     "tasks.mark_incomplete": "{task} を未完了にする",
     "tasks.no_completed": "完了したタスクはまだありません",
