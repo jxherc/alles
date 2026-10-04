@@ -23,7 +23,7 @@ function harness() {
     const attrs = new Map();
     return {
       id, value: '', textContent: '', hidden: false, disabled: false, style: {}, dataset: {},
-      classList: { toggle() {}, remove() {}, add() {} },
+      classList: { toggle() {}, remove() {}, add() {}, contains() { return false; } },
       setAttribute: (name, value) => attrs.set(name, value),
       getAttribute: name => attrs.get(name), removeAttribute() {},
       querySelectorAll: () => [], replaceChildren() {}, appendChild() {},

@@ -245,6 +245,7 @@ function _wire() {
   $('wiki-obsidian-btn')?.addEventListener('click', () => openInObsidian(_cur));
   $('wiki-empty-obsidian')?.addEventListener('click', () => openInObsidian(''));
   $('wiki-tree-toggle')?.addEventListener('click', toggleNavigation);
+  matchMedia('(max-width: 760px)').addEventListener?.('change', syncNavigationToggle);
   $('wiki-more-btn')?.addEventListener('click', toggleMoreMenu);
 
   $('wiki-ask-btn')?.addEventListener('click', () => {
@@ -340,6 +341,13 @@ function toggleNavigation() {
   const mobile = matchMedia('(max-width: 760px)').matches;
   if (mobile) view.classList.toggle('docs-nav-open');
   else view.classList.toggle('docs-nav-hidden');
+  syncNavigationToggle();
+}
+
+function syncNavigationToggle() {
+  const view = $('wiki-view');
+  if (!view) return;
+  const mobile = matchMedia('(max-width: 760px)').matches;
   const visible = mobile ? view.classList.contains('docs-nav-open') : !view.classList.contains('docs-nav-hidden');
   $('wiki-tree-toggle')?.setAttribute('aria-expanded', String(visible));
 }
@@ -369,6 +377,7 @@ export function showSection(section) {
   const view = $('wiki-view');
   if (view) view.dataset.docsSection = _section;
   if (matchMedia('(max-width: 760px)').matches) view?.classList.remove('docs-nav-open');
+  syncNavigationToggle();
   document.querySelectorAll('#docs-sections [data-section]').forEach(button => {
     const active = button.dataset.section === _section;
     button.classList.toggle('active', active);
@@ -576,6 +585,8 @@ function flatFiles(items, output = []) {
 }
 
 function paintRecent(items) {
+  const section = $('docs-recent-section');
+  if (section) section.hidden = items.length <= 4 && items.every(item => item.type !== 'dir');
   const recent = flatFiles(items).sort((a, b) => (b.mtime || 0) - (a.mtime || 0)).slice(0, 8);
   const recentKey = JSON.stringify(recent);
   const rail = $('docs-recent');

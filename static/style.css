@@ -343,6 +343,7 @@ body.sidebar-hidden .sidebar { display: none; }
   display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
   border-bottom: 1px solid var(--faint);
 }
+#aide-sidebar-close { display: none; }
 
 .brand {
   font-size: 0.85rem; color: var(--text);
@@ -3643,6 +3644,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm { height: 
 body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport { scrollbar-width: thin; }
 
 @media (max-width: 700px) {
+  body.is-aide #aide-sidebar-close { display: grid; place-items: center; width: 44px; height: 44px; margin-left: auto; flex: 0 0 44px; }
   body.is-aide .sidebar {
     position: fixed;
     z-index: 60;
@@ -9209,6 +9211,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-library,
 .docs-nav-section { display: flex; flex-direction: column; }
 .docs-nav-section { margin-top: 1.15rem; }
+.docs-nav-section[hidden] { display: none; }
 .docs-library-section { margin-top: 0; }
 .docs-folders {
   flex: 1;

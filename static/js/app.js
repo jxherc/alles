@@ -373,6 +373,7 @@ async function _boot({ reachable = true } = {}) {
     if (event.matches && !aideSidebarWasMobile) {
       setAideSidebarHidden(true);
     }
+    if (!event.matches && document.activeElement?.id === 'aide-sidebar-close') document.getElementById('sidebar-toggle-btn')?.focus();
     aideSidebarWasMobile = event.matches;
   };
   aideSidebarMedia.addEventListener?.('change', syncAideSidebarViewport);
@@ -1752,6 +1753,12 @@ function bindEvents() {
   document.getElementById('sidebar-toggle-btn')?.addEventListener('click', () => {
     if (!document.body.classList.contains('is-aide')) return;
     setAideSidebarHidden(!document.body.classList.contains('sidebar-hidden'), { persist: true });
+  });
+  document.getElementById('aide-sidebar-close')?.addEventListener('click', () => {
+    closeCompactAideSidebar({ restoreFocus: true });
+  });
+  document.getElementById('aide-sidebar-close')?.addEventListener('blur', event => {
+    if (!event.relatedTarget && !window.matchMedia('(max-width: 700px)').matches) document.getElementById('sidebar-toggle-btn')?.focus();
   });
 
   // tasks / calendar / gallery

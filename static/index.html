@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=409">
+<link rel="stylesheet" href="/static/style.css?v=410">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -70,6 +70,7 @@
   <aside class="sidebar" id="aide-sidebar">
     <div class="sidebar-head">
       <span class="brand sidebar-brand" id="brand-home">aide</span>
+      <button class="icon-btn aide-sidebar-close" id="aide-sidebar-close" type="button" aria-label="close sidebar">×</button>
     </div>
 
     <div class="search-wrap">
@@ -825,7 +826,7 @@
             </button>
           </nav>
         </section>
-        <section class="docs-nav-section" aria-labelledby="docs-recent-label">
+        <section class="docs-nav-section" id="docs-recent-section" aria-labelledby="docs-recent-label">
           <button class="docs-nav-label docs-nav-section-toggle" id="docs-recent-label" type="button" data-docs-collapse="recent" aria-expanded="true" aria-controls="docs-recent">
             <span>recent</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 6 3 3 3-3"/></svg>
           </button>
@@ -2865,7 +2866,7 @@
 </div>
 
 <script type="module">
-const _v = '409';
+const _v = '410';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
