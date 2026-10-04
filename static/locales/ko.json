@@ -29,6 +29,8 @@
     "common.remove": "삭제",
     "common.request_failed": "요청 실패",
     "common.saving": "저장 중…",
+    "navigation.previous_views": "이전 보기",
+    "navigation.more_views": "다른 보기",
     "common.search": "검색",
     "common.send": "보내기",
     "common.settings": "설정",

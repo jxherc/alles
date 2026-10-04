@@ -29,6 +29,8 @@
     "common.remove": "移除",
     "common.request_failed": "要求失敗",
     "common.saving": "正在儲存…",
+    "navigation.previous_views": "前面的檢視",
+    "navigation.more_views": "更多檢視",
     "common.search": "搜尋",
     "common.send": "傳送",
     "common.settings": "設定",
