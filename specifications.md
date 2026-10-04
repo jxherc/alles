@@ -192,6 +192,8 @@ scheduled news has source health, conditional requests, deduplication, clustered
 
 ### domain helpers and recovery
 
+aide distinguishes a failed task-list load from an empty list and offers retry. refresh failures keep the last loaded tasks; conversation links can still open their exact history when the list is unavailable.
+
 subscription creates and paid renewals keep one request identity through uncertain retries.
 the paid action also names its due date, so a stale action cannot pay another cycle. payment
 history distinguishes a failed read from an empty history and offers refresh. undo names the

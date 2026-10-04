@@ -379,6 +379,11 @@ body.sidebar-hidden .sidebar { display: none; }
 .search-input:focus { border-color: var(--muted); }
 
 .session-list { flex: 1; overflow-y: auto; padding: 0.5rem 0; }
+.session-list-state { flex: 0 0 auto; padding: 8px 20px; color: var(--muted); font-size: 0.8125rem; }
+.session-list-state[hidden] { display: none; }
+.session-list-state p { margin: 0; }
+.session-list-state .btn { min-height: 44px; margin-top: 8px; letter-spacing: 0; }
+.session-list-state .btn[aria-disabled="true"] { cursor: wait; }
 
 .section-label {
   font-size: 0.75rem; color: var(--muted);
@@ -3101,6 +3106,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-sidebar-foot {
   align-items: center;
   padding: 8px 12px;
   border-top: 1px solid var(--faint);
+}
+@media (max-height: 600px) {
+  body.afterlife-aide-projects[data-space="aide"] .sidebar { overflow-y: auto; }
+  body.afterlife-aide-projects[data-space="aide"] .session-list { flex: 0 0 auto; overflow: visible; }
+  body.afterlife-aide-projects[data-space="aide"] :is(.sidebar-head, .search-wrap, .sidebar-nav, .aide-sidebar-foot) { flex-shrink: 0; }
 }
 body.afterlife-aide-projects[data-space="aide"] .aide-tools-link {
   width: 100%;

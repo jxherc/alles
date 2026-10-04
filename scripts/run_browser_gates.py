@@ -158,6 +158,7 @@ COMMANDS = {
     "aide-questions": ("tests/pw_aide_question_recovery.py",),
     "aide-document-safety": ("tests/pw_aide_document_safety.py",),
     "aide-multi-source": ("tests/pw_aide_multi_source.py",),
+    "aide-session-list": ("tests/pw_aide_session_list.py",),
     "aide-source-outcomes": ("tests/pw_aide_source_outcomes.py",),
     **{
         f"surfaces-{device}-{theme}": ("tests/pw_stability_surfaces.py", device, theme)

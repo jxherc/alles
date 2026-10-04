@@ -21,6 +21,9 @@ let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
 let _composerGeneration = 0;
 let _allSessions = [];  // flat list for search
+let _sessionsLoaded = false;
+let _sessionLoadGeneration = 0;
+let _sessionLoadState = 'loading';
 const SESSION_ORDER_KEY = 'aide-session-order';
 let _contextMenuController = null;
 
@@ -34,19 +37,57 @@ function syncSessionRowState(row, active) {
 
 // just fetch + render the sidebar. no navigation — safe to call after any mutation.
 export async function loadSessions() {
+  const generation = ++_sessionLoadGeneration;
+  _sessionLoadState = 'loading';
+  renderSessionLoadState();
   try {
     const r = await fetch('/api/sessions');
-    _sessions = await r.json();
+    if (!r.ok) throw new Error('could not load tasks');
+    const sessions = await r.json();
+    if (!['today', 'yesterday', 'earlier'].every(group => Array.isArray(sessions?.[group])
+      && sessions[group].every(item => item && typeof item.id === 'string' && typeof item.name === 'string'))) {
+      throw new Error('could not read the task list');
+    }
+    if (generation !== _sessionLoadGeneration) return false;
+    _sessions = sessions;
     _allSessions = [..._sessions.today, ..._sessions.yesterday, ..._sessions.earlier];
+    _sessionsLoaded = true;
     _applySessionOrder();
-    renderSidebar(document.getElementById('session-search')?.value || '');
     // active session got deleted/archived elsewhere → drop the stale highlight
     if (_activeId && !_allSessions.find(s => s.id === _activeId)) _activeId = null;
+    _sessionLoadState = 'ready';
+    renderSidebar(document.getElementById('session-search')?.value || '');
+    renderSessionLoadState();
+    return true;
   } catch (e) {
+    if (generation !== _sessionLoadGeneration) return false;
+    _sessionLoadState = 'error';
+    renderSessionLoadState();
     if (globalThis.navigator?.onLine !== false) console.error('loadSessions', e);
+    return false;
   }
 }
 window._reloadAideSessions = loadSessions;
+
+function renderSessionLoadState() {
+  const state = document.getElementById('session-list-state');
+  const message = document.getElementById('session-list-message');
+  const retry = document.getElementById('session-list-retry');
+  if (!state || !message || !retry) return;
+  document.getElementById('session-list')?.setAttribute('aria-busy', String(_sessionLoadState === 'loading'));
+  state.hidden = _sessionLoadState === 'ready';
+  if (_sessionLoadState === 'ready') {
+    if (document.activeElement === retry) document.getElementById('session-search')?.focus();
+    retry.hidden = true;
+    return;
+  }
+  message.textContent = _sessionLoadState === 'loading'
+    ? (_sessionsLoaded ? 'refreshing tasks…' : 'loading tasks…')
+    : (_sessionsLoaded ? 'could not refresh tasks. showing the last loaded list.' : 'could not load tasks. retry to see your saved work.');
+  if (_sessionLoadState === 'error') retry.hidden = false;
+  retry.setAttribute('aria-disabled', String(_sessionLoadState === 'loading'));
+  retry.onclick = () => { if (_sessionLoadState !== 'loading') void loadSessions(); };
+}
 
 // called once on boot. only restore a session from a deep-link hash —
 // a bare localhost:6769 always opens a fresh chat (like claude.ai/new).
@@ -56,7 +97,7 @@ export async function initSessions({ hashOwner = 'session' } = {}) {
   void loadAnswerTaskRecovery();
   const hash = location.hash.slice(1);
   const sourceMessage = new URLSearchParams(location.search).get('message') || '';
-  if (hashOwner === 'session' && hash && _allSessions.find(s => s.id === hash)) {
+  if (hashOwner === 'session' && hash && (!_sessionsLoaded || _allSessions.find(s => s.id === hash))) {
     await selectSession(hash, sourceMessage, { skipDraft: true });
   } else {
     newChat({ skipDraft: true, preserveHash: hashOwner !== 'session' || Boolean(sourceMessage) });
@@ -138,6 +179,7 @@ export function markActive(id) {
 
 export function renderSidebar(filter = '') {
   const list = document.getElementById('session-list');
+  if (!_sessionsLoaded) { list.innerHTML = ''; return; }
   const fl = filter.toLowerCase();
 
   let src = _allSessions;
@@ -146,7 +188,7 @@ export function renderSidebar(filter = '') {
   }
 
   if (!src.length) {
-    list.innerHTML = '<div class="empty-sessions">no chats yet</div>';
+    list.innerHTML = `<div class="empty-sessions">${fl ? 'no matching tasks' : 'no chats yet'}</div>`;
     if (!fl) renderProjectFolders(_allSessions, id => selectSession(id), () => loadSessions());
     return;
   }
