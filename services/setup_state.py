@@ -230,13 +230,13 @@ def _save_access(values: dict) -> None:
 def _safe_folder(raw: str, *, create: bool) -> Path:
     path = Path(raw).expanduser()
     if not path.is_absolute():
-        raise SetupStateError("Vault and Files paths must be absolute")
+        raise SetupStateError("document and Files paths must be absolute")
     if path == Path(path.anchor):
-        raise SetupStateError("the filesystem root cannot be a Vault or Files path")
+        raise SetupStateError("the filesystem root cannot be a document or Files path")
     if path.is_symlink():
-        raise SetupStateError("Vault and Files paths cannot be symlinks")
+        raise SetupStateError("document and Files paths cannot be symlinks")
     if path.exists() and not path.is_dir():
-        raise SetupStateError("Vault and Files paths must be folders")
+        raise SetupStateError("document and Files paths must be folders")
     if not path.exists():
         if not create:
             raise SetupStateError("the selected existing folder does not exist")
@@ -250,19 +250,19 @@ def _safe_folder(raw: str, *, create: bool) -> Path:
 def _save_files(values: dict) -> None:
     keep = values.get("keep_vault_inside_alles")
     if not isinstance(keep, bool):
-        raise SetupStateError("vault placement choice is required")
+        raise SetupStateError("document folder location is required")
     vault_raw = _text(values, "vault_path", maximum=2048)
     files_raw = _text(values, "files_path", maximum=2048)
     if not vault_raw or not files_raw:
-        raise SetupStateError("Vault and Files paths are required")
+        raise SetupStateError("document and Files paths are required")
     vault = _safe_folder(vault_raw, create=keep)
     files = _safe_folder(files_raw, create=keep)
     if vault == files or vault in files.parents or files in vault.parents:
         raise SetupStateError(
-            "Vault and Files need separate folders that do not contain each other"
+            "documents and Files need separate folders that do not contain each other"
         )
     if keep and vault.parent != files.parent:
-        raise SetupStateError("inside-Alles Vault and Files paths need the same Alles folder")
+        raise SetupStateError("inside-Alles document and Files paths need the same Alles folder")
     save_settings(
         {
             "keep_vault_inside_alles": keep,

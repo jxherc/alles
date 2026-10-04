@@ -100,7 +100,7 @@ def install_obsidian(body: ObsidianInstallBody):
     vault = _configured_vault()
     if vault is None:
         raise ApiError(
-            409, "vault_not_connected", "connect a Vault before installing the companion"
+            409, "vault_not_connected", "connect a document folder before installing the companion"
         )
     try:
         return {"vault_connected": True, **obsidian_setup.install_companion(vault)}
