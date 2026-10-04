@@ -539,14 +539,18 @@ def json_search(query: str, *, runner=_runner) -> dict:
         raise ManagedSearxngError("managed SearXNG is not healthy")
     import httpx
 
-    response = httpx.get(
-        f"{managed_url()}/search",
-        params={"q": query, "format": "json"},
-        timeout=15,
-    )
-    response.raise_for_status()
-    value = response.json()
-    return {
-        "ok": isinstance(value.get("results"), list),
-        "results": len(value.get("results") or []),
-    }
+    try:
+        response = httpx.get(
+            f"{managed_url()}/search",
+            params={"q": query, "format": "json"},
+            timeout=15,
+        )
+        response.raise_for_status()
+        value = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise ManagedSearxngError(
+            "SearXNG search test failed; check the service and try again"
+        ) from exc
+    if not isinstance(value, dict) or not isinstance(value.get("results"), list):
+        raise ManagedSearxngError("invalid SearXNG search response; expected a results list")
+    return {"ok": True, "results": len(value["results"])}

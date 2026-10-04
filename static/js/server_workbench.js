@@ -538,7 +538,8 @@ async function renderServices(target, request) {
     const service = searxngResult.value;
     const runtime = service.available ? `docker ${service.docker_version || 'available'}` : 'docker unavailable';
     const state = !service.installed ? 'not installed' : !service.owned ? 'ownership failed' : service.healthy ? 'healthy' : service.running ? 'unhealthy' : 'stopped';
-    search.append(fact('state', state), fact('runtime', runtime), fact('bind', service.bind || 'local only'));
+    const searchMessage = statusLine();
+    search.append(fact('state', state), fact('runtime', runtime), fact('bind', service.bind || 'local only'), searchMessage);
     const actions = el('div', 'server-workbench-actions');
     const verbs = [];
     if (!service.installed && service.support_verified) verbs.push('install');
@@ -547,9 +548,13 @@ async function renderServices(target, request) {
     }
     for (const verb of verbs) {
       const run = async () => {
-        message.textContent = `${verb} in progress…`;
+        searchMessage.classList.remove('is-error');
+        searchMessage.textContent = `${verb} in progress…`;
         const result = await json(request, `/api/system/searxng/${verb}`, { method: 'POST' });
-        if (verb === 'test') message.textContent = `json search passed · ${result.results ?? 0} results`;
+        if (verb === 'test') {
+          if (result?.ok !== true || !Number.isInteger(result.results) || result.results < 0) throw new Error('invalid search test response; try again');
+          searchMessage.textContent = `json search passed · ${result.results} results`;
+        }
         else await rerender();
       };
       actions.append(['stop', 'restart', 'update', 'rollback'].includes(verb)
