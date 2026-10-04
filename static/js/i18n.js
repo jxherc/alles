@@ -214,6 +214,8 @@ const BUILTIN_ENGLISH = {
     "calendar.import": "import",
     "calendar.import_failed": "import failed",
     "calendar.import_help": "import a .ics file",
+    "calendar.tools": "tools",
+    "calendar.tools_label": "calendar tools",
     "calendar.month": "month",
     "calendar.my_calendars": "my calendars",
     "calendar.new_booking_page": "new booking page",
