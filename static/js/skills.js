@@ -244,8 +244,8 @@ function _card(s) {
     s.source ? '<span class="skl-badge git" title="git-backed">git</span>' : '',
   ].join('');
   const acts = `<div class="skl-card-acts">
-         <button class="skl-pin${s.pinned ? ' on' : ''}" data-act="pin" aria-pressed="${!!s.pinned}" aria-disabled="${_pinning.has(s.slug)}"${_pinning.has(s.slug) ? ' aria-busy="true"' : ''} title="${s.pinned ? 'unpin' : 'pin to top'}">${s.pinned ? '★' : '☆'}</button>
-         <button class="skl-del-q" data-act="del" title="delete">🗑</button>
+         <button class="skl-pin${s.pinned ? ' on' : ''}" data-act="pin" aria-label="pin ${esc(s.name)}" aria-pressed="${!!s.pinned}" aria-disabled="${_pinning.has(s.slug)}"${_pinning.has(s.slug) ? ' aria-busy="true"' : ''} title="${s.pinned ? 'unpin' : 'pin to top'}">${s.pinned ? '★' : '☆'}</button>
+         <button class="skl-del-q" data-act="del" aria-label="delete skill ${esc(s.name)}" title="delete">🗑</button>
        </div>`;
   return `
     <div class="skl-card${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
