@@ -58,7 +58,7 @@ export async function takeReadingNote(item) {
       { id: 'note', label: 'note', multiline: true },
     ], { submit: async value => {
       const path = value.name.trim();
-      if (!path || !/\.md$/i.test(path)) throw new Error('enter a note name ending in .md');
+      if (!path) throw new Error('enter a note name');
       saved = await saveNote(readingNoteText(source, value.note), path, { preserveContent: true });
     } });
     if (saved) noteSaved(saved, '', true);
