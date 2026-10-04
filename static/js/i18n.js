@@ -33,6 +33,8 @@ const BUILTIN_ENGLISH = {
     "common.remove": "remove",
     "common.request_failed": "request failed",
     "common.saving": "saving…",
+    "navigation.previous_views": "previous views",
+    "navigation.more_views": "more views",
     "common.search": "search",
     "common.send": "send",
     "common.settings": "settings",

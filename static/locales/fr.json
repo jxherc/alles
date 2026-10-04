@@ -29,6 +29,8 @@
     "common.remove": "retirer",
     "common.request_failed": "la requête a échoué",
     "common.saving": "enregistrement…",
+    "navigation.previous_views": "vues précédentes",
+    "navigation.more_views": "autres vues",
     "common.search": "rechercher",
     "common.send": "envoyer",
     "common.settings": "réglages",

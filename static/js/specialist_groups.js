@@ -2,7 +2,7 @@
 // data; the existing app modules continue to own their full, proven screens.
 
 import { confirm as confirmDialog } from './dialog.js';
-import { calendarDateKey, formatDateParts, formatDateTime, formatNumber } from './i18n.js';
+import { calendarDateKey, formatDateParts, formatDateTime, formatNumber, t } from './i18n.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 
@@ -1495,6 +1495,53 @@ function _setTabs(root, section) {
   activeTab?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 }
 
+function _wireViewScroll(tablist) {
+  if (!tablist) return;
+  const strip = _el('div', 'specialist-view-strip');
+  const previous = _el('button', 'specialist-view-scroll', '‹');
+  const next = _el('button', 'specialist-view-scroll', '›');
+  for (const button of [previous, next]) {
+    button.type = 'button';
+    button.hidden = true;
+    button.setAttribute('aria-controls', tablist.id);
+  }
+  const labels = () => {
+    previous.setAttribute('aria-label', t('navigation.previous_views'));
+    next.setAttribute('aria-label', t('navigation.more_views'));
+  };
+  labels();
+  tablist.before(strip);
+  strip.append(previous, tablist, next);
+  const target = direction => {
+    const bounds = tablist.getBoundingClientRect();
+    const rtl = getComputedStyle(tablist).direction === 'rtl';
+    const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+    if (direction < 0) tabs.reverse();
+    return tabs.find(tab => {
+      const rect = tab.getBoundingClientRect();
+      return (direction > 0) !== rtl ? rect.right > bounds.right + 1 : rect.left < bounds.left - 1;
+    });
+  };
+  const update = () => {
+    const overflow = strip.clientWidth > 0 && tablist.scrollWidth > strip.clientWidth + 1;
+    previous.hidden = next.hidden = !overflow;
+    previous.setAttribute('aria-disabled', String(!target(-1)));
+    next.setAttribute('aria-disabled', String(!target(1)));
+  };
+  for (const [button, direction] of [[previous, -1], [next, 1]]) {
+    button.addEventListener('click', () => {
+      target(direction)?.scrollIntoView({ block: 'nearest', inline: direction > 0 ? 'end' : 'start' });
+      update();
+    });
+  }
+  tablist.addEventListener('scroll', update, { passive: true });
+  const observer = new ResizeObserver(update);
+  observer.observe(strip);
+  tablist.querySelectorAll('[role="tab"]').forEach(tab => observer.observe(tab));
+  window.addEventListener('alles:localization-change', () => { labels(); update(); });
+  update();
+}
+
 function _wire(group, root) {
   if (root.dataset.groupWired) return;
   root.dataset.groupWired = '1';
@@ -1505,6 +1552,7 @@ function _wire(group, root) {
   if (overview) { overview.id = `${group}-overview-panel`; overview.setAttribute('role', 'tabpanel'); }
   if (slot) { slot.id = `${group}-legacy-panel`; slot.setAttribute('role', 'tabpanel'); }
   tablist?.setAttribute('aria-orientation', 'horizontal');
+  _wireViewScroll(tablist);
   root.querySelectorAll('[data-group-section]').forEach(button => {
     const section = button.dataset.groupSection;
     button.id = `${group}-tab-${section}`;

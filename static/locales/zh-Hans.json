@@ -29,6 +29,8 @@
     "common.remove": "移除",
     "common.request_failed": "请求失败",
     "common.saving": "正在保存…",
+    "navigation.previous_views": "前面的视图",
+    "navigation.more_views": "更多视图",
     "common.search": "搜索",
     "common.send": "发送",
     "common.settings": "设置",

@@ -29,6 +29,8 @@
     "common.remove": "削除",
     "common.request_failed": "リクエストに失敗しました",
     "common.saving": "保存中…",
+    "navigation.previous_views": "前のビュー",
+    "navigation.more_views": "ほかのビュー",
     "common.search": "検索",
     "common.send": "送信",
     "common.settings": "設定",
