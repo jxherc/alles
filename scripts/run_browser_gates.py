@@ -109,6 +109,7 @@ COMMANDS = {
     "read-scope-recovery": ("tests/pw_read_scope_recovery.py",),
     "inbox-workflows": ("tests/pw_inbox_workflows.py",),
     "inbox-read-recovery": ("tests/pw_inbox_read_recovery.py",),
+    "mail-review-regressions": ("tests/pw_mail_review_regressions.py",),
     "inbox-saved-searches": ("tests/pw_inbox_saved_searches.py",),
     "mail-editor-recovery": ("tests/pw_mail_editor_recovery.py",),
     "mail-draft-recovery": ("tests/pw_mail_draft_recovery.py",),
