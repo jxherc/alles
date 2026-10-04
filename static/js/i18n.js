@@ -411,8 +411,8 @@ const BUILTIN_ENGLISH = {
       "other": "{count} things need you."
     },
     "home.open_count": {
-      "one": "{count} open",
-      "other": "{count} open"
+      "one": "all open tasks: {count}",
+      "other": "all open tasks: {count}"
     },
     "home.priority_count": {
       "one": "{count} priority is",

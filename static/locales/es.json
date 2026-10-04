@@ -385,7 +385,7 @@
     "andromeda.result_count": {"one": "{count} resultado", "many": "{count} resultados", "other": "{count} resultados"},
     "calendar.imported_count": {"one": "se importó {count} evento", "many": "se importaron {count} eventos", "other": "se importaron {count} eventos"},
     "home.attention_count": {"one": "{count} cosa te necesita.", "many": "{count} cosas te necesitan.", "other": "{count} cosas te necesitan."},
-    "home.open_count": {"one": "{count} abierta", "many": "{count} abiertas", "other": "{count} abiertas"},
+    "home.open_count": {"one": "tareas pendientes (todas): {count}", "many": "tareas pendientes (todas): {count}", "other": "tareas pendientes (todas): {count}"},
     "home.priority_count": {"one": "{count} prioridad está", "many": "{count} prioridades están", "other": "{count} prioridades están"}
   }
 }

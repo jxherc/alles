@@ -215,7 +215,7 @@ function render() {
   const needs = data.needs_you || [];
   const running = data.in_progress || [];
   const briefs = data.briefs || [];
-  const openTasks = day.tasks?.open_count ?? focus.filter(item => item.kind === 'task').length;
+  const openTasks = day.tasks?.open_count;
 
   const dayItems = [...schedule, ...focus.slice(0, 8)];
   const blocks = {
@@ -229,7 +229,7 @@ function render() {
     today: section(
       'today',
       t('home.schedule'),
-      tp('home.open_count', openTasks),
+      '',
       dayItems.map(item => dayRow(item, item.kind === 'event' ? `<small>${esc(t('calendar.title'))}</small>` : '')).join('') || `<p class="today-empty">${esc(t('home.nothing_scheduled'))}</p>`,
       'today-schedule',
     ),
@@ -274,7 +274,9 @@ function render() {
 
   const summary = document.getElementById('today-summary');
   if (summary) {
-    summary.textContent = `${tp('home.attention_count', needs.length)} ${tp('home.priority_count', openTasks)} ${t('home.summary_tail')}`;
+    const taskLabel = Number.isInteger(openTasks) ? tp('home.open_count', openTasks) : t('tasks.title');
+    summary.innerHTML = `${esc(tp('home.attention_count', needs.length))} <button type="button" class="today-summary-tasks">${esc(taskLabel)}</button>`;
+    summary.querySelector('button').addEventListener('click', () => navigate('tasks', { allTasks: true }));
   }
 }
 
