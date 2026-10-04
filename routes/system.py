@@ -312,7 +312,7 @@ def companion_npm_proxy_host(body: NpmProxyHostBody, request: Request):
 
 
 class ServerPolicyBody(BaseModel):
-    policy: str = Field(min_length=2, max_length=32_768)
+    policy: str = Field(max_length=32_768)
     confirmation: str = Field(default="", max_length=80)
 
 

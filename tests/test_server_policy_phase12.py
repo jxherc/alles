@@ -76,6 +76,34 @@ class ServerPolicyServiceTest(ApiTest):
             with self.subTest(value=value), self.assertRaises(server_policy.ServerPolicyError):
                 server_policy.validate(value)
 
+    def test_incomplete_json_has_location_and_never_changes_saved_policy(self):
+        server_policy.save(self._owned_text())
+        before = server_policy.policy_path().read_bytes()
+        for proposal, location in [
+            ("{", "line 1, column 2"),
+            ("", "line 1, column 1"),
+            ('{\n  "control_mode":\n}', "line 3, column 1"),
+        ]:
+            for action in ("validate", "diff", "save"):
+                with self.subTest(proposal=proposal, action=action):
+                    endpoint = "/api/system/policy"
+                    if action == "save":
+                        response = self.client.put(endpoint, json={"policy": proposal})
+                    else:
+                        response = self.client.post(
+                            endpoint + "/" + action, json={"policy": proposal}
+                        )
+                    self.assertEqual(response.status_code, 409)
+                    self.assertEqual(response.json()["code"], "invalid_policy_json")
+                    self.assertIn(location, response.json()["detail"])
+                    self.assertEqual(server_policy.policy_path().read_bytes(), before)
+        corrected = self.client.post(
+            "/api/system/policy/validate", json={"policy": self._owned_text()}
+        )
+        self.assertEqual(corrected.status_code, 200)
+        self.assertTrue(corrected.json()["valid"])
+        self.assertEqual(server_policy.policy_path().read_bytes(), before)
+
     def test_save_is_owner_only_canonical_and_failed_save_keeps_previous_file(self):
         saved = server_policy.save(self._owned_text())
         path = server_policy.policy_path()

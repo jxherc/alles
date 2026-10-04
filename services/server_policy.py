@@ -92,6 +92,11 @@ def validate_text(raw: str) -> dict:
         raise ServerPolicyError("policy_too_large", "policy file is too large")
     try:
         value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ServerPolicyError(
+            "invalid_policy_json",
+            f"policy is not valid JSON at line {exc.lineno}, column {exc.colno}: {exc.msg}",
+        ) from exc
     except (TypeError, ValueError) as exc:
         raise ServerPolicyError("invalid_policy_json", "policy is not valid JSON") from exc
     return validate(value)
