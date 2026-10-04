@@ -5,7 +5,7 @@ import { createFocusBoundary } from './kokuen.js?v=1';
 import { replaceRouteUrl } from './route_history.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
-const MOODS = ['😄', '🙂', '😐', '😕', '😢', '😠', '😴', '🤔', '🥳', '😍'];
+const MOODS = [['😄', 'happy'], ['🙂', 'content'], ['😐', 'neutral'], ['😕', 'uneasy'], ['😢', 'sad'], ['😠', 'angry'], ['😴', 'tired'], ['🤔', 'thoughtful'], ['🥳', 'celebrating'], ['😍', 'in love']];
 function _dayFromUrl() { const d = new URLSearchParams(location.search).get('d'); return (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : ''; }
 let _day = _dayFromUrl() || todayISO();
 let _heatYear = null;
@@ -277,22 +277,6 @@ async function buildJournal() {
   if (!_built) {
     body.innerHTML = `
       <div class="jrnl-wrap">
-        <div class="jrnl-top">
-          <div class="jrnl-toolbar">
-            <input id="jrnl-search" class="jrnl-tags jrnl-search" placeholder="search entries…">
-            <button class="btn" id="jrnl-export">export</button>
-            <button class="btn jrnl-lock-btn" id="jrnl-lock" title="lock"></button>
-          </div>
-          <div id="jrnl-export-status" class="jrnl-empty" role="status" hidden></div>
-          <div id="jrnl-results" class="jrnl-results"></div>
-          <div class="jrnl-side-title jrnl-heat-head">
-            <span class="jrnl-heat-label">activity</span>
-            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="previous year">‹</button>
-            <span id="jrnl-heat-year"></span>
-            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="next year">›</button>
-          </div>
-          <div id="jrnl-heatmap" class="jrnl-heatmap"></div>
-        </div>
         <div class="jrnl-main">
           <div class="jrnl-datebar">
             <button class="btn" id="jrnl-prev" title="previous day">‹</button>
@@ -306,15 +290,32 @@ async function buildJournal() {
             <button class="btn" id="jrnl-load-retry" type="button">retry loading day</button>
           </div>
           <div class="jrnl-prompt" id="jrnl-prompt"></div>
-          <div class="jrnl-moods" id="jrnl-moods">${MOODS.map(m => `<button class="jrnl-mood" data-m="${m}">${m}</button>`).join('')}</div>
-          <textarea id="jrnl-text" class="jrnl-text" placeholder="how was your day?"></textarea>
-          <input id="jrnl-tags" class="jrnl-tags" placeholder="tags (comma separated)">
+          <textarea id="jrnl-text" class="jrnl-text" rows="7" aria-label="journal entry" aria-describedby="jrnl-prompt" placeholder="how was your day?"></textarea>
+          <div class="jrnl-mood-label" id="jrnl-mood-label">mood (optional)</div>
+          <div class="jrnl-moods" id="jrnl-moods" role="group" aria-labelledby="jrnl-mood-label">${MOODS.map(([m, label]) => `<button type="button" class="jrnl-mood" data-m="${m}" aria-label="${label}" aria-pressed="false">${m}</button>`).join('')}</div>
+          <input id="jrnl-tags" class="jrnl-tags" aria-label="tags (optional, comma separated)" placeholder="tags (optional, comma separated)">
           <div class="jrnl-actions">
             <button class="btn primary" id="jrnl-save">save</button>
             <button class="btn" id="jrnl-reflect">${_si('sparkles')} reflect</button>
             <span class="jrnl-saved" id="jrnl-saved" role="status"></span>
           </div>
           <div class="jrnl-reflection" id="jrnl-reflection" role="status" style="display:none"></div>
+        </div>
+        <div class="jrnl-top">
+          <div class="jrnl-toolbar">
+            <input id="jrnl-search" class="jrnl-tags jrnl-search" aria-label="search entries" placeholder="search entries…">
+            <button class="btn" id="jrnl-export">export</button>
+            <button class="btn jrnl-lock-btn" id="jrnl-lock" title="lock"></button>
+          </div>
+          <div id="jrnl-export-status" class="jrnl-empty" role="status" hidden></div>
+          <div id="jrnl-results" class="jrnl-results"></div>
+          <div class="jrnl-side-title jrnl-heat-head">
+            <span class="jrnl-heat-label">activity</span>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="previous year">‹</button>
+            <span id="jrnl-heat-year"></span>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="next year">›</button>
+          </div>
+          <div id="jrnl-heatmap" class="jrnl-heatmap"></div>
         </div>
         <div class="jrnl-extras">
           <div class="jrnl-col">
@@ -364,8 +365,11 @@ async function buildJournal() {
       const b = e.target.closest('.jrnl-mood'); if (!b) return;
       invalidateReflection('entry changed. choose reflect again.');
       const on = b.classList.contains('active');
-      document.querySelectorAll('.jrnl-mood').forEach(x => x.classList.remove('active'));
-      if (!on) b.classList.add('active');
+      document.querySelectorAll('.jrnl-mood').forEach(x => {
+        const selected = x === b && !on;
+        x.classList.toggle('active', selected);
+        x.setAttribute('aria-pressed', String(selected));
+      });
       _dirty = true;
       save(false);
     });
@@ -739,7 +743,11 @@ async function load() {
     const draft = _lockedDraft?.day === requestedDay ? _lockedDraft : null;
     document.getElementById('jrnl-text').value = draft?.content ?? e.content ?? '';
     document.getElementById('jrnl-tags').value = draft?.tags ?? e.tags ?? '';
-    document.querySelectorAll('.jrnl-mood').forEach(x => x.classList.toggle('active', x.dataset.m === (draft?.mood ?? e.mood)));
+    document.querySelectorAll('.jrnl-mood').forEach(x => {
+      const selected = x.dataset.m === (draft?.mood ?? e.mood);
+      x.classList.toggle('active', selected);
+      x.setAttribute('aria-pressed', String(selected));
+    });
     document.getElementById('jrnl-reflection').style.display = 'none';
     document.getElementById('jrnl-saved').textContent = draft ? 'unsaved draft restored' : '';
     _dirty = Boolean(draft);
