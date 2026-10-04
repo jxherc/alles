@@ -276,7 +276,11 @@ def run():
                         else:
                             if case == "retry-cancel-lost":
                                 page.route(base + "/api/reminders/" + rid, lost)
-                            key(page.locator("[data-reminder-cancel]"))
+                            with page.expect_response(base + "/api/reminders/" + rid) as cancelled:
+                                key(page.locator("[data-reminder-cancel]"))
+                            assert cancelled.value.status == (
+                                503 if case == "retry-cancel-lost" else 200
+                            )
                             if case == "retry-cancel-lost":
                                 expect(page.locator(".toast.error").last).to_contain_text(
                                     "synthetic unavailable"
