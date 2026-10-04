@@ -3,7 +3,7 @@ import { homePane } from './settings/home.js';
 import { languagePane } from './settings/language.js';
 import { creditsPane } from './settings/credits.js';
 import { createBackupPane } from './settings/backups.js';
-import { providersPane } from './settings/providers.js';
+import { providersPane, _endpointJson } from './settings/providers.js';
 import { connectionsPane } from './settings/connections.js';
 export { _mergeHomeShortcutOrder } from './settings/home.js';
 export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFromResponse, normalizeS3BackupConfig, s3BackupConfigPayload, s3BackupsFromResponse } from './settings/backups.js';
@@ -432,33 +432,40 @@ async function saveDefaultChatBehavior(value) {
   }
 }
 
+let _ownerInstructionsRead = 0;
 async function loadOwnerInstructions() {
   const textarea = document.getElementById('settings-owner-instructions');
   if (!textarea) return;
+  const read = ++_ownerInstructionsRead;
   try {
     const settings = await _endpointJson(await fetch('/api/settings'));
-    if (textarea.dataset.dirty !== '1') textarea.value = settings.owner_instructions || '';
-  } catch {
-    if (textarea.dataset.dirty !== '1') textarea.value = '';
+    if (typeof settings.owner_instructions !== 'string') throw new Error('could not load owner instructions; reopen this section to retry');
+    if (read === _ownerInstructionsRead && textarea.dataset.dirty !== '1') textarea.value = settings.owner_instructions;
+  } catch (error) {
+    if (read === _ownerInstructionsRead) toast(error.message || 'could not load owner instructions; reopen this section to retry', 'error');
   }
 }
 
 async function saveOwnerInstructions() {
   const button = document.getElementById('s-owner-instructions-save');
   const textarea = document.getElementById('settings-owner-instructions');
-  if (!button || !textarea) return;
+  if (!button || !textarea || button.disabled) return;
+  const value = textarea.value;
+  ++_ownerInstructionsRead;
   button.disabled = true;
   button.textContent = 'saving…';
   try {
-    await _endpointJson(await fetch('/api/settings', {
+    const settings = await _endpointJson(await fetch('/api/settings', {
       method: 'PATCH', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ owner_instructions: textarea.value }),
+      body: JSON.stringify({ owner_instructions: value }),
     }));
-    textarea.dataset.dirty = '0';
-    toast('owner instructions saved', 'success');
+    if (settings.owner_instructions !== value.trim()) throw new Error('save could not be verified; your instructions are still here. try saving again.');
+    if (textarea.value === value) textarea.dataset.dirty = '0';
+    toast(textarea.value === value ? 'owner instructions saved' : 'earlier instructions saved; your latest edits still need saving', 'success');
   } catch (error) {
     toast(error.message || 'owner instructions could not be saved', 'error');
   } finally {
+    ++_ownerInstructionsRead;
     button.disabled = false;
     button.textContent = 'save instructions';
   }
@@ -912,7 +919,9 @@ function _isSettingsPaneOpen(name) {
 }
 
 function _invalidateRetainedReads(name) {
-  if (name === 'personas') {
+  if (name === 'memory') {
+    ++_ownerInstructionsRead;
+  } else if (name === 'personas') {
     ++_personaReadGeneration;
     ++_personaDocsReadGeneration;
     ++_cookbookReadGeneration;

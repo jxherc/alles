@@ -542,7 +542,7 @@ function _catalogLabel(ep) {
   return status;
 }
 
-async function _endpointJson(response) {
+export async function _endpointJson(response) {
   let data = {};
   try { data = await response.json(); } catch {}
   if (!response.ok) throw new Error(data.detail || 'request failed');

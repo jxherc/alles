@@ -111,7 +111,7 @@ with sync_playwright() as pw:
                 field.fill("owned unsent question")
                 help_button = page.locator("#aide-help")
                 help_button.press("Enter")
-                dialog = page.get_by_role("dialog", name="shortcuts & commands", exact=True)
+                dialog = page.get_by_role("dialog", name="aide help", exact=True)
                 close = dialog.get_by_role("button", name="close", exact=True)
                 customize = dialog.get_by_role("button", name="customize shortcuts", exact=True)
                 expect(dialog).to_be_visible()
