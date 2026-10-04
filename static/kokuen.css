@@ -1364,6 +1364,19 @@ body:is(
 
 .specialist-workbench-plan > :where(aside, section) { padding: 0; }
 
+.specialist-workbench-library {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 880px;
+}
+
+.specialist-workbench-library > .specialist-workbench-main { padding: 0; }
+.specialist-workbench-library .specialist-choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-2, 8px);
+  margin-bottom: var(--k-space-4, 16px);
+}
+
 .specialist-workbench :where(h2) {
   margin: 0 0 var(--k-space-3, 12px);
   color: var(--k-ink, var(--text));
@@ -1861,10 +1874,34 @@ body:is(
 }
 
 @media (max-width: 1050px) {
-  .plan-board-layout { grid-template-columns: minmax(0, 1fr) 250px; }
-  .plan-board-columns {
-    grid-template-columns: repeat(4, minmax(155px, 1fr));
-    overflow-x: auto;
+  #plan-view[data-section="board"] .specialist-group-overview {
+    padding: 0;
+    overflow: auto;
+  }
+  .plan-board-root { height: auto; min-height: calc(100dvh - 104px); }
+  .plan-board-toolbar { flex-wrap: wrap; }
+  .plan-board-add { min-width: calc(100% - 92px); max-width: none; }
+  .plan-board-search { width: 100%; min-height: 44px; order: 4; }
+  .plan-board-root .plan-board-add :where(input, button),
+  .plan-board-root .plan-board-tool,
+  .plan-board-root .plan-board-inline-add :where(input, button),
+  .plan-board-root .plan-board-card-main { min-height: 44px; }
+  .plan-board-stage-strip { display: flex; }
+  .plan-board-layout { display: block; overflow: visible; }
+  .plan-board-columns { display: block; overflow: visible; }
+  .plan-board-column { display: none; min-height: 430px; border-right: 0; }
+  .plan-board-root[data-mobile-stage="backlog"] .plan-board-column[data-stage="backlog"],
+  .plan-board-root[data-mobile-stage="next"] .plan-board-column[data-stage="next"],
+  .plan-board-root[data-mobile-stage="doing"] .plan-board-column[data-stage="doing"],
+  .plan-board-root[data-mobile-stage="waiting"] .plan-board-column[data-stage="waiting"] { display: grid; }
+  .plan-board-list { overflow: visible; }
+  .plan-board-card { grid-template-columns: 44px minmax(0, 1fr); }
+  .plan-board-drag { width: 44px; min-height: 44px; }
+  .plan-board-inline-add button { min-width: 44px; }
+  .plan-board-detail {
+    min-height: 300px;
+    border-top: 1px solid var(--k-line, var(--faint));
+    border-left: 0;
   }
 }
 
@@ -1948,35 +1985,6 @@ body:is(
   .server-managed-form { grid-template-columns: minmax(0, 1fr); }
   .server-workbench-service { align-items: flex-start; flex-direction: column; }
   .server-workbench-log { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-1, 4px); padding: var(--k-space-3, 12px) 0; }
-  #plan-view[data-section="board"] .specialist-group-overview {
-    padding: 0;
-    overflow: auto;
-  }
-  .plan-board-root { height: auto; min-height: calc(100dvh - 104px); }
-  .plan-board-toolbar { flex-wrap: wrap; }
-  .plan-board-add { min-width: calc(100% - 92px); max-width: none; }
-  .plan-board-search { width: 100%; min-height: 44px; order: 4; }
-  .plan-board-root .plan-board-add :where(input, button),
-  .plan-board-root .plan-board-tool,
-  .plan-board-root .plan-board-inline-add :where(input, button),
-  .plan-board-root .plan-board-card-main { min-height: 44px; }
-  .plan-board-stage-strip { display: flex; }
-  .plan-board-layout { display: block; overflow: visible; }
-  .plan-board-columns { display: block; overflow: visible; }
-  .plan-board-column { display: none; min-height: 430px; border-right: 0; }
-  .plan-board-root[data-mobile-stage="backlog"] .plan-board-column[data-stage="backlog"],
-  .plan-board-root[data-mobile-stage="next"] .plan-board-column[data-stage="next"],
-  .plan-board-root[data-mobile-stage="doing"] .plan-board-column[data-stage="doing"],
-  .plan-board-root[data-mobile-stage="waiting"] .plan-board-column[data-stage="waiting"] { display: grid; }
-  .plan-board-list { overflow: visible; }
-  .plan-board-card { grid-template-columns: 44px minmax(0, 1fr); }
-  .plan-board-drag { width: 44px; min-height: 44px; }
-  .plan-board-inline-add button { min-width: 44px; }
-  .plan-board-detail {
-    min-height: 300px;
-    border-top: 1px solid var(--k-line, var(--faint));
-    border-left: 0;
-  }
   .specialist-group-grid,
   .specialist-group-grid-two { grid-template-columns: minmax(0, 1fr); }
   .specialist-group-capture :where(input, button) { min-height: 44px; }

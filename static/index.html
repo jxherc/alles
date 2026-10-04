@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=380">
+<link rel="stylesheet" href="/static/style.css?v=381">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -1998,6 +1998,13 @@
         <!-- ── appearance pane ── -->
         <div class="s-pane" id="s-pane-general">
           <div class="s-card">
+            <div class="s-card-head">setup</div>
+            <div class="s-card-body">
+              <p class="s-card-hint">finish setup or review your saved choices.</p>
+              <button class="btn" id="general-setup-btn" type="button">open setup</button>
+            </div>
+          </div>
+          <div class="s-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               profile
@@ -2840,7 +2847,7 @@
 </div>
 
 <script type="module">
-const _v = '380';
+const _v = '381';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

@@ -191,6 +191,10 @@ window._openSettings = openSettings;
 // ── init (runs once) ──────────────────────────────────────────────────────────
 function _initSettings() {
   initCustomDropdowns(document.getElementById('settings-modal') || document);
+  document.getElementById('general-setup-btn')?.addEventListener('click', () => {
+    closeSettings();
+    window._openSetupWizard?.({ resume: true });
+  });
 
   const sectionTrigger = document.getElementById('settings-section-trigger');
   sectionTrigger?.addEventListener('click', () => {
