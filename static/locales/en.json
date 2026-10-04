@@ -385,7 +385,7 @@
     "andromeda.result_count": {"one": "{count} result", "other": "{count} results"},
     "calendar.imported_count": {"one": "imported {count} event", "other": "imported {count} events"},
     "home.attention_count": {"one": "{count} thing needs you.", "other": "{count} things need you."},
-    "home.open_count": {"one": "{count} open", "other": "{count} open"},
+    "home.open_count": {"one": "all open tasks: {count}", "other": "all open tasks: {count}"},
     "home.priority_count": {"one": "{count} priority is", "other": "{count} priorities are"}
   }
 }

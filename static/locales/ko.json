@@ -385,7 +385,7 @@
     "andromeda.result_count": {"other": "결과 {count}개"},
     "calendar.imported_count": {"other": "일정 {count}개를 가져왔습니다"},
     "home.attention_count": {"other": "확인이 필요한 항목이 {count}개 있습니다."},
-    "home.open_count": {"other": "미완료 {count}개"},
+    "home.open_count": {"other": "전체 미완료 할 일: {count}"},
     "home.priority_count": {"other": "우선 항목 {count}개"}
   }
 }

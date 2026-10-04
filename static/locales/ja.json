@@ -385,7 +385,7 @@
     "andromeda.result_count": {"other": "{count} 件の結果"},
     "calendar.imported_count": {"other": "{count} 件の予定を読み込みました"},
     "home.attention_count": {"other": "確認が必要な項目が {count} 件あります。"},
-    "home.open_count": {"other": "未完了 {count} 件"},
+    "home.open_count": {"other": "未完了のタスク（すべて）: {count}"},
     "home.priority_count": {"other": "優先項目 {count} 件"}
   }
 }

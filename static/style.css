@@ -2813,6 +2813,11 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
 }
 :where(#today-view) .today-kicker { display: block; margin: 0 0 13px; color: var(--muted); font-size: 0.8rem; letter-spacing: 0; }
 :where(#today-view) .today-head h1 { font-size: clamp(2rem, 5vw, 2.9rem); font-weight: 500; letter-spacing: -0.032em; line-height: 1.12; }
+:where(#today-view) .today-summary-tasks {
+  min-width: var(--ui-control-height, 44px); min-height: var(--ui-control-height, 44px);
+  padding: 0; border: 0; background: none; color: var(--text); font: inherit;
+  text-align: start; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
 :where(#today-view) .today-summary { max-width: 560px; margin-top: 20px; color: var(--muted); font-size: 0.98rem; line-height: 1.65; }
 :where(#today-view) .today-ask {
   min-height: 38px;
