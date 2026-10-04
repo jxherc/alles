@@ -1,7 +1,7 @@
 // activity timeline — one reverse-chron feed of everything that happened across
 // alles, grouped by day. reads /api/timeline (a read-time aggregator over the
 // apps' own tables), filterable by source. clicking a row jumps to its app.
-import { formatDate, formatTime } from './i18n.js';
+import { calendarDateKey, formatCalendarDate, formatTime } from './i18n.js';
 import { replaceRouteUrl } from './route_history.js';
 import { toast } from './util.js';
 
@@ -147,14 +147,15 @@ function renderProblem(message, fetcher, restoreFocus = false) {
 }
 
 function dayLabel(iso) {
-  const d = new Date(iso);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const that = new Date(d); that.setHours(0, 0, 0, 0);
-  const diff = Math.round((today - that) / 86400000);
+  // The API buckets both summary and rows by their stored calendar date.
+  // Compare calendar days, without shifting date-only values through a timezone.
+  const day = String(iso).slice(0, 10);
+  const today = calendarDateKey();
+  const diff = (Date.parse(today) - Date.parse(day)) / 86400000;
   if (diff === 0) return 'today';
   if (diff === 1) return 'yesterday';
-  if (diff < 7) return formatDate(d, { weekday: 'long' });
-  return formatDate(d, { month: 'short', day: 'numeric', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+  if (diff < 7) return formatCalendarDate(day, { weekday: 'long' });
+  return formatCalendarDate(day, { month: 'short', day: 'numeric', year: day.slice(0, 4) === today.slice(0, 4) ? undefined : 'numeric' });
 }
 const timeOf = iso => { const d = new Date(iso); return iso.includes('T') && !iso.endsWith('T00:00:00') ? formatTime(d, { hour: 'numeric', minute: '2-digit' }) : ''; };
 
