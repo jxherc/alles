@@ -265,6 +265,13 @@ export async function sendMessage(text, onAccepted = () => {}) {
   }, { freshSession });
 }
 
+export function retrySavedResponse(request, previousRow) {
+  if (!canSendMessage() || getActiveId() !== request.session_id || !previousRow?.isConnected) return false;
+  void streamReply(request, { previousRow });
+  document.getElementById('composer-ta')?.focus();
+  return true;
+}
+
 async function streamReply(request, { freshSession = false, previousRow = null } = {}) {
   const { session_id: sessionId, message: text, context_scope: documentScope, incognito: privateReply } = request;
   // Only the latest settled failure may retry. A new turn retires older controls.

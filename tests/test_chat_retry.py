@@ -116,6 +116,72 @@ class ChatRetryTests(ApiTest):
                         self.assertEqual(db.query(Message).filter_by(session_id=sid).count(), 0)
                 self.assertEqual(self.send(sid, retry_message_id=pending).status_code, 409)
 
+    def test_failed_response_keeps_exact_retry_options_until_success(self):
+        for private in (False, True):
+            with self.subTest(private=private):
+                self.failure = True
+                sid = self.session(private)
+                pending = self.failed(sid)
+                saved = self.history(sid)[0]
+                recovery = saved["meta"]["response_recovery"]
+                self.assertEqual(recovery["status"], "failed")
+                self.assertTrue(recovery["request"]["simple"])
+                self.assertNotIn("message", recovery["request"])
+                self.assertNotIn("session_id", recovery["request"])
+                self.assertNotIn("HTTP 503", json.dumps(saved["meta"]))
+                # A persisted retry cannot silently replace the original scope or controls.
+                before = len(self.captured)
+                changed = self.send(sid, retry_message_id=pending, mode="agent")
+                self.assertEqual(changed.status_code, 409)
+                self.assertEqual(len(self.captured), before)
+                self.failure = False
+                response = self.send(sid, retry_message_id=pending)
+                self.assertEqual(response.status_code, 200)
+                history = self.history(sid)
+                self.assertEqual([m["role"] for m in history], ["user", "assistant"])
+                self.assertNotIn("response_recovery", history[0]["meta"])
+
+    def test_partial_empty_and_tool_outcomes_do_not_offer_replay(self):
+        for kind in ("partial", "empty", "tool"):
+            for private in (False, True):
+                with self.subTest(kind=kind, private=private):
+                    sid = self.session(private)
+
+                    async def provider(messages, *args, **kwargs):
+                        if kind == "partial":
+                            yield {"delta": "partial synthetic answer"}
+                        if kind == "tool":
+                            yield {
+                                "tool_start": {
+                                    "call_id": "synthetic",
+                                    "name": "synthetic_tool",
+                                    "args": {},
+                                }
+                            }
+                        if kind == "empty":
+                            yield {"done": True, "usage": {}}
+                        else:
+                            yield {"error": "synthetic provider failure"}
+
+                    target = (
+                        "services.chat_turn.run_agent"
+                        if kind == "tool"
+                        else "services.chat_turn.stream_chat"
+                    )
+                    with mock.patch(target, provider):
+                        response = self.send(
+                            sid, mode="agent" if kind == "tool" else "chat", simple=kind != "tool"
+                        )
+                    self.assertEqual(response.status_code, 200)
+                    history = self.history(sid)
+                    recovery = history[-1]["meta"]["response_recovery"]
+                    self.assertEqual(
+                        recovery["status"], "incomplete" if kind == "empty" else "failed"
+                    )
+                    self.assertNotIn("request", recovery)
+                    pending = history[0]["id"]
+                    self.assertEqual(self.send(sid, retry_message_id=pending).status_code, 409)
+
     def test_stale_foreign_changed_and_running_retries_never_call_provider(self):
         sid = self.session()
         pending = self.failed(sid)
@@ -161,21 +227,75 @@ class ChatRetryTests(ApiTest):
 
     def test_retry_rechecks_document_hash_before_any_provider_call(self):
         sid = self.session()
-        pending = self.failed(sid)
+        scope = {"kind": "vault_document", "path": "note.md", "expected_hash": "old"}
+        with mock.patch.object(chat, "_vault_document_context", return_value=("", None)):
+            self.assertEqual(self.send(sid, context_scope=scope).status_code, 200)
+        pending = self.history(sid)[0]["id"]
         before = len(self.captured)
         with mock.patch.object(
             chat,
             "_vault_document_context",
             side_effect=chat.ApiError(409, "document_changed", "source changed"),
-        ):
+        ) as read_scope:
             response = self.send(
                 sid,
                 retry_message_id=pending,
-                context_scope={"kind": "vault_document", "path": "note.md", "expected_hash": "old"},
+                context_scope=scope,
             )
         self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "document_changed")
+        read_scope.assert_called_once()
         self.assertEqual(len(self.captured), before)
         self.assertEqual(len(self.history(sid)), 1)
+
+    def test_private_consumed_files_and_legacy_unanswered_turns_cannot_replay(self):
+        sid = self.session(True)
+        upload = incognito.put_upload("local.txt", "text/plain", b"synthetic private file")
+        response = self.send(sid, file_ids=[upload.id])
+        self.assertEqual(response.status_code, 200)
+        saved = self.history(sid)[0]
+        self.assertNotIn("request", saved["meta"]["response_recovery"])
+        self.assertIsNone(incognito.get_upload(upload.id))
+        before = len(self.captured)
+        self.assertEqual(
+            self.send(sid, file_ids=[upload.id], retry_message_id=saved["id"]).status_code, 409
+        )
+        sid = self.session()
+        with self.db() as db:
+            pending = Message(session_id=sid, role="user", content="original question")
+            db.add(pending)
+            db.commit()
+            pending_id = pending.id
+        self.assertEqual(self.send(sid, retry_message_id=pending_id).status_code, 409)
+        self.assertEqual(len(self.captured), before)
+
+    def test_closing_after_error_before_finalization_does_not_record_safe_retry(self):
+        for private in (False, True):
+            with self.subTest(private=private):
+                sid = self.session(private)
+                with self.db() as db:
+                    endpoint = db.get(ModelEndpoint, self.endpoint)
+
+                    async def scenario():
+                        stream = chat._stream_and_save(
+                            sid,
+                            "original question",
+                            [],
+                            endpoint,
+                            "fixture",
+                            asyncio.Event(),
+                            self.db,
+                            incognito=private,
+                            mode="chat",
+                            settings={"response_retry_request": {"simple": True}},
+                        )
+                        self.assertIn("error", await anext(stream))
+                        await stream.aclose()
+
+                    asyncio.run(scenario())
+                recovery = self.history(sid)[-1]["meta"]["response_recovery"]
+                self.assertEqual(recovery["status"], "failed")
+                self.assertNotIn("request", recovery)
 
     def test_full_history_window_is_identical_on_retry(self):
         self.settings.update(context_limit=3, session_context_inject=False)
