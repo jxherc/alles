@@ -390,7 +390,7 @@ def _exercise_case(
         "theme => theme === 'light' ? document.documentElement.dataset.theme === 'light' : document.documentElement.dataset.theme !== 'light'",
         arg=theme,
     )
-    assert "staging parity passed" in page.locator(".finance-actual-head").inner_text()
+    assert "ledgers match" in page.locator(".finance-actual-head").inner_text()
     assert page.locator(".finance-actual-facts dd").all_text_contents()[:3] == [
         "Alles",
         "CAD",
@@ -423,25 +423,25 @@ def _exercise_case(
     page.locator('#finance-view [data-group-section="overview"]').click()
     page.locator(".finance-actual-ready").wait_for(state="visible")
 
-    trigger = page.get_by_role("button", name="review cutover")
+    trigger = page.get_by_role("button", name="review ledger switch")
     trigger.focus()
     trigger.click()
     confirmation = page.locator(".finance-actual-confirm")
     assert confirmation.is_visible()
-    assert page.evaluate("document.activeElement?.textContent.trim()") == "keep current authority"
+    assert page.evaluate("document.activeElement?.textContent.trim()") == "keep current ledger"
     page.keyboard.press("Escape")
     assert confirmation.count() == 0
     assert trigger.evaluate("element => document.activeElement === element")
 
     trigger.click()
-    page.get_by_role("button", name="switch writes to Actual").click()
+    page.get_by_role("button", name="use Actual ledger").click()
     page.locator(".finance-actual-canonical").wait_for(state="visible")
     assert calls == ["/api/finance/actual/cutover/run-browser"]
     assert page.get_by_role("button", name="stop Actual").count() == 0
 
-    rollback = page.get_by_role("button", name="review ledger rollback")
+    rollback = page.get_by_role("button", name="review return to Alles")
     rollback.click()
-    page.get_by_role("button", name="restore Alles authority").click()
+    page.get_by_role("button", name="use Alles ledger").click()
     page.locator(".finance-actual-error").wait_for(state="visible")
     assert (
         "Actual-only transactions need review" in page.locator(".finance-actual-error").inner_text()
