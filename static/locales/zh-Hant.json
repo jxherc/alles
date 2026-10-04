@@ -385,7 +385,7 @@
     "andromeda.result_count": {"other": "{count} 個結果"},
     "calendar.imported_count": {"other": "已匯入 {count} 個行程"},
     "home.attention_count": {"other": "有 {count} 件事需要你。"},
-    "home.open_count": {"other": "{count} 項未完成"},
+    "home.open_count": {"other": "全部未完成任務：{count}"},
     "home.priority_count": {"other": "{count} 項優先事項"}
   }
 }

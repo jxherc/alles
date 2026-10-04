@@ -124,6 +124,18 @@ const _URL = { active: '/api/tasks', done: '/api/tasks/done',
                today: '/api/tasks/views/today', upcoming: '/api/tasks/views/upcoming',
                someday: '/api/tasks/views/someday' };
 
+export function resetTaskFilters() {
+  _tab = 'active';
+  _search = '';
+  const search = document.getElementById('tasks-search');
+  if (search) search.value = '';
+  document.querySelectorAll('.tasks-tab').forEach(button => {
+    const selected = button.dataset.tab === _tab;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+}
+
 export async function loadTasks(fetcher = fetch, target = null) {
   _wireTabs();
   const generation = ++_loadGeneration;

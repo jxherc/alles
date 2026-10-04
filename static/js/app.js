@@ -8,7 +8,7 @@ import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
 import { canSendMessage, sendMessage, stopStream, hideConnBanner } from './chat.js';
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
-import { loadTasks, addTask, prepareTaskNavigation } from './tasks.js';
+import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
 import { initSlash, tryExecuteSlashCommand } from './slash.js?v=398';
@@ -1087,7 +1087,7 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
 }
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
-async function navigateTo(v, { record = null, preserveRecord = false } = {}) {
+async function navigateTo(v, { record = null, preserveRecord = false, allTasks = false } = {}) {
   const generation = ++_navigationGeneration;
   if (v === 'home') v = 'today';
   if (v === 'mail' && !record && !preserveRecord && document.getElementById('mail-view')?.getClientRects().length) return true;
@@ -1125,6 +1125,7 @@ async function navigateTo(v, { record = null, preserveRecord = false } = {}) {
     const dest = groupedRoute?.host ?? viewToSub(v);
     if (dest !== currentSub()) { await crossNav(dest, groupedIdentifier, { docsPrepared: true }); return true; }
   }
+  if (v === 'tasks' && allTasks) resetTaskFilters();
   const knownRoute = groupedRoute || resolveCompatibilityRoute({ view: v, flags: _afterlifeFlags });
   if (knownRoute) _syncLocalViewUrl(knownRoute, groupedIdentifier, { replace: false });
   if (record?.view === v) _replaceHistoryUrl(withRecordTarget(location.href, record));
