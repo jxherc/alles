@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=389">
+<link rel="stylesheet" href="/static/style.css?v=390">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -1692,7 +1692,7 @@
 
         <!-- ── models pane ── -->
         <div class="s-pane active" id="s-pane-models">
-          <div class="s-card">
+          <div class="s-card" id="s-model-defaults-card" hidden>
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h10M4 12h16M4 17h7"/><circle cx="17" cy="7" r="3"/><circle cx="14" cy="17" r="3"/></svg>
               model defaults
@@ -1711,14 +1711,14 @@
           <div class="s-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
-              model endpoints
+              model connections
               <button class="btn" id="s-ep-refresh-all" type="button" style="margin-left:auto;font-size:0.75rem;padding:0.15rem 0.5rem">refresh all</button>
             </div>
             <div class="s-card-body">
               <p class="s-card-hint s-provider-warning">Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits.</p>
               <div id="s-ep-list" style="margin-bottom:0.75rem"></div>
               <details id="s-ep-add-details">
-                <summary class="s-add-summary">+ add endpoint</summary>
+                <summary class="s-add-summary">+ add connection</summary>
                 <div class="s-ep-form">
                   <div class="s-ep-presets">
                     <button type="button" class="s-preset-btn" data-url="https://api.openai.com" data-name="OpenAI" data-provider="openai">OpenAI</button>
@@ -1737,11 +1737,11 @@
                     <button type="button" class="s-preset-btn" data-url="http://localhost:11434" data-name="Ollama" data-provider="ollama">Ollama</button>
                   </div>
                   <div class="s-field">
-                    <label>name</label>
+                    <label for="s-ep-name">connection name</label>
                     <input type="text" class="settings-input" id="s-ep-name" placeholder="e.g. DeepSeek">
                   </div>
                   <div class="s-field">
-                    <label>base url</label>
+                    <label for="s-ep-url">base url</label>
                     <input type="text" class="settings-input" id="s-ep-url" placeholder="https://api.example.com">
                   </div>
                   <div class="s-ep-auth-grid">
@@ -1755,7 +1755,7 @@
                     </div>
                   </div>
                   <div class="s-field" id="s-ep-key-row">
-                    <label>api key</label>
+                    <label for="s-ep-key">api key</label>
                     <input type="password" class="settings-input" id="s-ep-key" placeholder="leave blank for local / Ollama">
                   </div>
                   <div class="s-field">
@@ -1763,7 +1763,7 @@
                     <div class="custom-select settings-input" id="s-ep-adapter" data-value="auto" data-options="auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list" aria-label="provider adapter"></div>
                   </div>
                   <div class="s-field" id="s-ep-manual-row" hidden>
-                    <label>manual models <span class="s-field-note">comma-separated</span></label>
+                    <label for="s-ep-manual">manual models <span class="s-field-note">comma-separated</span></label>
                     <input type="text" class="settings-input" id="s-ep-manual" placeholder="model-a, model-b">
                   </div>
                   <button type="button" class="btn primary" id="s-ep-add-btn" style="width:100%;margin-top:0.2rem">add + probe models</button>
@@ -2853,7 +2853,7 @@
 </div>
 
 <script type="module">
-const _v = '389';
+const _v = '390';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
