@@ -337,6 +337,7 @@ async function readRecurring(request) {
 // ── render ────────────────────────────────────────────────────────────────────
 function render() {
   const b = $('money-body'); if (!b) return;
+  const clearedFocus = b.contains(document.activeElement) ? document.activeElement.dataset.clearTxn : null;
   _snapshotRecurringEdit();
   if (!_accounts.length) {
     b.innerHTML = `<div class="money-empty">
@@ -377,6 +378,7 @@ function render() {
       <section class="money-card" data-card="rules"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
     `);
   wire();
+  if (clearedFocus && document.activeElement === document.body) b.querySelector(`[data-clear-txn="${CSS.escape(clearedFocus)}"]`)?.focus();
 }
 
 function summaryCards() {
@@ -498,7 +500,7 @@ function goalsCard() {
     return `<div class="goal-row" data-id="${g.id}">
       <div class="goal-head"><span class="goal-name">${esc(g.name)} <span class="goal-kind">${esc(g.kind)}</span></span>
         <span class="goal-nums">${fmt(g.current)} / ${fmt(g.target)}</span>
-        <button class="tx-del" data-del-goal="${g.id}" title="remove">×</button></div>
+        <button class="tx-del" data-del-goal="${g.id}" aria-label="remove goal ${esc(g.name)}" title="remove">×</button></div>
       <div class="goal-bar-wrap"><div class="goal-bar" style="width:${pct}%"></div></div>
       <div class="goal-eta">${pct}% · ${eta}</div>
     </div>`;
@@ -532,7 +534,7 @@ function holdingsCard() {
       <span class="hold-qty">${h.qty}×${fmt(h.price)}</span>
       <span class="hold-val">${fmt(h.value)}</span>
       <span class="hold-gain ${h.gain >= 0 ? 'pos' : 'neg'}">${signed(h.gain)} (${h.gain_pct}%)</span>
-      <button class="tx-del" data-del-hold="${h.id}" title="remove">×</button>
+      <button class="tx-del" data-del-hold="${h.id}" aria-label="remove holding ${esc(h.symbol)}" title="remove">×</button>
     </div>`).join('');
   const tot = d?.totals || {};
   const totRow = (d?.holdings || []).length
@@ -552,8 +554,8 @@ function accountsList() {
   return `<div class="money-accts">` + _accounts.map(a => `
     <div class="money-acct ${a.archived ? 'arch' : ''}" data-id="${a.id}">
       <div class="ma-top"><span class="ma-name">${esc(a.name)}</span>
-        <button class="ma-rc" data-rc-acct="${a.id}" title="reconcile to a statement">⚖</button>
-        <button class="ma-del" data-del-acct="${a.id}" title="delete">×</button></div>
+        <button class="ma-rc" data-rc-acct="${a.id}" aria-label="reconcile ${esc(a.name)} to a statement" title="reconcile to a statement">⚖</button>
+        <button class="ma-del" data-del-acct="${a.id}" aria-label="delete account ${esc(a.name)}" title="delete">×</button></div>
       <div class="ma-bal ${a.balance < 0 ? 'neg' : ''}">${fmt(a.balance)}</div>
       <div class="ma-kind">${esc(a.kind)}</div>
       <div class="rc-panel" id="rc-panel-${a.id}" style="display:none">
@@ -653,7 +655,7 @@ function budgetsList() {
     return `<div class="budget-row" data-id="${b.id}">
       <div class="bg-head"><span class="bg-cat">${esc(b.category)}</span>
         <span class="bg-nums ${over ? 'over' : ''}">${fmt(spent)} / ${fmt(b.limit_amt)}</span>
-        <button class="bg-del" data-del-budget="${b.id}" title="remove">×</button></div>
+        <button class="bg-del" data-del-budget="${b.id}" aria-label="remove spending cap for ${esc(b.category)}" title="remove">×</button></div>
       <div class="bg-bar-wrap"><div class="bg-bar ${over ? 'over' : ''}" style="width:${pct}%"></div></div>
     </div>`;
   }).join('') + `</div>`;
@@ -666,7 +668,7 @@ function rulesList() {
       <span class="rl-match">${esc(r.match)}</span>
       <span class="rl-arrow">→</span>
       <span class="rl-cat">${esc(r.category) || '<span class="tx-dim">(clear)</span>'}</span>
-      <button class="tx-del" data-del-rule="${r.id}" title="delete">×</button>
+      <button class="tx-del" data-del-rule="${r.id}" aria-label="delete rule for ${esc(r.match)}" title="delete">×</button>
     </div>`).join('') + `</div>`;
 }
 
@@ -728,7 +730,7 @@ function recurringList() {
       ${_canonicalLedger && r.editable ? `<button type="button" class="btn rc-edit" data-edit-rec="${esc(r.id)}" aria-label="edit ${esc(r.payee || 'recurring')} schedule" aria-expanded="${_recurringEdit?.id === r.id}" ${_recurringEdit?.id === r.id && _recurringEdit.options ? 'aria-controls="rce-panel"' : ''} ${_recurringEdit && (_recurringEdit.id !== r.id || _recurringEdit.saving) ? 'disabled' : ''}>edit</button>` : ''}
       ${_canonicalLedger && r.editable && !_recurringEdit ? `<button type="button" class="btn rc-delete" data-del-rec="${esc(r.id)}" aria-label="delete ${esc(r.payee || 'recurring')} schedule">delete</button>` : ''}
       ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
-      <button class="tx-del" data-del-rec="${esc(r.id)}" title="delete">×</button>`}
+      <button class="tx-del" data-del-rec="${esc(r.id)}" aria-label="delete ${esc(r.payee || r.category || 'recurring')} schedule" title="delete">×</button>`}
     </div>${_recurringEditForm(r)}${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? 'creation marker missing in Actual. review the schedule there before trying again.' : 'creation not confirmed. retry the saved schedule; this will not start another one.'}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">retry creation</button>`}</div>` : ''}${_canonicalLedger && r.edit_pending ? `<div class="recur-repair" role="status"><span>${r.edit_needs_review ? "couldn't match this edit in Actual. review the schedule there before retrying." : 'edit not confirmed; Actual may be paused. retry the saved edit.'}</span>${r.edit_needs_review ? '' : `<button type="button" class="btn" data-retry-edit-rec="${esc(r.id)}">retry edit</button>`}</div>` : ''}${_canonicalLedger && r.delete_pending ? `<div class="recur-repair" role="status"><span>${r.delete_needs_review ? "couldn't match this schedule in Actual. review it before retrying deletion." : 'deletion not confirmed. retry the saved deletion; past transactions stay.'}</span>${r.delete_needs_review ? '' : `<button type="button" class="btn" data-retry-delete-rec="${esc(r.id)}">retry deletion</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? 'resume' : 'pause'} not confirmed; Actual may have changed. retry the saved action.</span></div>` : ''}</div>`).join('') + `</div>`;
 }
 
@@ -814,13 +816,14 @@ function _renderTxnMain(t, an) {
   const tags = (t.tags || '').split(',').filter(Boolean)
     .map(tg => `<button type="button" class="tx-tag" data-tag="${esc(tg)}" aria-label="filter by ${esc(tg)}">${esc(tg)}</button>`).join('');
   const canSplit = (t.amount || 0) < 0;  // only an expense divides across categories (matches the api)
+  const label = esc(`${t.payee || 'transaction'}, ${t.date || 'undated'}, ${signed(t.amount)}, ${an[t.account_id] || 'account'}`);
   const actions = xf ? '' : `<span class="tx-actions">
-    <button type="button" class="tx-edit" data-edit-txn="${t.id}" aria-label="edit ${esc(t.payee || 'transaction')}">edit</button>
-    <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" title="${t.cleared ? 'cleared' : 'mark cleared'}">${t.cleared ? '✓' : '○'}</button>
-    ${canSplit ? `<button class="tx-split-btn ${t.split ? 'on' : ''}" data-split-txn="${t.id}" title="split across categories">${t.split ? '⊟' : '⊞'}</button>` : ''}
+    <button type="button" class="tx-edit" data-edit-txn="${t.id}" aria-label="edit ${label}">edit</button>
+    <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" aria-label="cleared: ${label}" aria-pressed="${!!t.cleared}" title="${t.cleared ? 'mark uncleared' : 'mark cleared'}">${t.cleared ? '✓' : '○'}</button>
+    ${canSplit ? `<button class="tx-split-btn ${t.split ? 'on' : ''}" data-split-txn="${t.id}" aria-label="split ${label} across categories" aria-expanded="${_splitTxn === t.id}" title="split across categories">${t.split ? '⊟' : '⊞'}</button>` : ''}
     ${t.receipt_id
-      ? `<a class="tx-receipt" href="/api/uploads/${esc(t.receipt_id)}" target="_blank" rel="noopener" title="view receipt">📎</a>`
-      : `<button class="tx-receipt-btn" data-receipt-txn="${t.id}" title="attach receipt">📎</button>`}
+      ? `<a class="tx-receipt" href="/api/uploads/${esc(t.receipt_id)}" target="_blank" rel="noopener" aria-label="view receipt for ${label}" title="view receipt">📎</a>`
+      : `<button class="tx-receipt-btn" data-receipt-txn="${t.id}" aria-label="attach receipt to ${label}" title="attach receipt">📎</button>`}
   </span>`;
   return `
     <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${t.id}">
@@ -832,8 +835,8 @@ function _renderTxnMain(t, an) {
       <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount)}</span>
       ${actions}
       ${xf
-        ? `<button class="tx-del" data-del-transfer="${t.transfer_id}" title="delete transfer (both legs)">×</button>`
-        : `<button class="tx-del" data-del-txn="${t.id}" title="delete">×</button>`}
+        ? `<button class="tx-del" data-del-transfer="${t.transfer_id}" aria-label="delete transfer (both legs): ${label}" title="delete transfer (both legs)">×</button>`
+        : `<button class="tx-del" data-del-txn="${t.id}" aria-label="delete ${label}" title="delete">×</button>`}
     </div>`;
 }
 
@@ -842,7 +845,7 @@ function splitEditorRow(t) {
     <div class="split-row" data-i="${i}">
       ${moneyField('category', `<input type="text" class="settings-input split-cat" value="${esc(s.category || '')}" placeholder="category" style="flex:1">`)}
       ${moneyField('amount', `<input type="text" class="settings-input split-amt" value="${esc(String(s.amount || ''))}" placeholder="amount" inputmode="decimal" style="width:90px">`)}
-      <button class="btn split-row-del" data-i="${i}" title="remove">×</button>
+      <button class="btn split-row-del" data-i="${i}" aria-label="remove split row ${i + 1}" title="remove">×</button>
     </div>`).join('');
   return `<div class="txn-split-editor" data-id="${t.id}">
     <div class="split-head">split ${fmt(Math.abs(t.amount || 0))} across categories</div>
@@ -866,7 +869,7 @@ function editTxnRow(t) {
     ${moneyField('type', `<div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|expense;+|income" style="width:100px"></div>`)}
     ${moneyField('amount', `<input type="text" class="settings-input" data-f="amount" value="${Math.abs(t.amount || 0)}" inputmode="decimal" style="width:84px">`)}
     <button class="btn primary" data-save-txn="${t.id}">save</button>
-    <button class="btn" data-cancel-txn="${t.id}">×</button>
+    <button class="btn" data-cancel-txn="${t.id}" aria-label="cancel editing ${esc(t.payee || 'transaction')}">×</button>
   </div>`;
 }
 
@@ -1469,6 +1472,7 @@ function _decorateCards() {
     if (h3 && !h3.querySelector('.card-hide')) {
       const x = document.createElement('button');
       x.className = 'card-hide'; x.textContent = '×'; x.title = 'hide this card';
+      x.setAttribute('aria-label', `hide ${h3.firstChild?.textContent.trim() || id} card`);
       x.addEventListener('click', () => { const s = _hiddenCards(); s.add(id); _saveHidden(s); _decorateCards(); });
       h3.appendChild(x);
     }
