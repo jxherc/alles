@@ -462,6 +462,10 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     page.locator('[data-files-bulk="copy"]').click()
     page.locator('#files-transfer-locations [role="radio"]:has-text("work archive")').click()
     page.locator("#files-transfer-form").locator('button[type="submit"]').click()
+    history = page.locator("#files-operations-clear")
+    history.wait_for(state="visible")
+    if history.get_attribute("aria-expanded") != "true":
+        history.click()
     page.wait_for_selector(
         '#files-operation-list [data-operation-action="undo"]',
         timeout=15_000,
@@ -755,12 +759,13 @@ def _mobile(browser: Browser, errors: list[str]) -> None:
     operations = page.request.get(f"{BASE}api/files/operations?limit=40").json()["operations"]
     completed = [row["id"] for row in operations if row["state"] == "completed"]
     assert completed
-    page.locator("#files-operations-clear").click()
-    for operation_id in completed:
-        assert page.locator(f'[data-operation-id="{operation_id}"]').count() == 0
+    assert page.locator("#files-operations-clear").get_attribute("aria-expanded") == "false"
     page.locator("#files-operations-clear").click()
     for operation_id in completed:
         page.wait_for_selector(f'[data-operation-id="{operation_id}"]', state="attached")
+    page.locator("#files-operations-clear").click()
+    for operation_id in completed:
+        assert page.locator(f'[data-operation-id="{operation_id}"]').count() == 0
     _close_context(context)
 
 
