@@ -360,6 +360,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
       </div>
     </div>
     ${savedTask?.source?.kind === 'mail' ? '<button type="button" class="btn" id="te-source">open original message</button>' : ''}
+    ${savedTask?.source?.kind === 'aide' ? `<details class="capture-source"><summary>${savedTask.source.private ? 'private Aide reply' : 'original Aide reply'}</summary><pre>${esc(savedTask.source.excerpt)}</pre></details>${savedTask.source.private ? '' : '<button type="button" class="btn" id="te-source">open original reply</button>'}` : ''}
     ${savedTask?.source?.kind === 'capture' ? `<details class="capture-source"><summary>original capture</summary><pre>${esc(savedTask.source.excerpt)}</pre></details>` : ''}
     <div class="te-actions"><button type="button" class="btn" id="te-cancel">${esc(tr('common.cancel'))}</button><button type="button" class="btn primary" id="te-save">${esc(tr('common.save'))}</button></div>
   </div>`;
@@ -452,7 +453,11 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
   ov.querySelector('#te-cancel').onclick = close;
   ov.querySelector('#te-source')?.addEventListener('click', async () => {
-    if (await close({ restoreFocus: false })) await window._openRecord?.('mail', `task-${id}`);
+    if (!(await close({ restoreFocus: false }))) return;
+    if (savedTask.source.kind === 'mail') await window._openRecord?.('mail', `task-${id}`);
+    else if (!(await window._openSearchResult?.('chat', savedTask.source.session_id, savedTask.source.message_id))) {
+      toast('could not open the original reply', 'error');
+    }
   });
   ov.querySelectorAll('.te-rs').forEach(b => b.addEventListener('click', () => {
     ov.querySelector('#te-due').value = _reschedDate(b.dataset.w);

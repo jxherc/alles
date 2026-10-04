@@ -13,6 +13,7 @@ import { shouldRunInBackground } from './aidebackgroundpolicy.js';
 import { formatNumber } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { saveAnswerNote } from './answer_note.js';
+import { saveAnswerTask } from './answer_task.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=1';
 
 // tools that change state / reach out — flagged in the agent panel + permission cards
@@ -66,20 +67,7 @@ window.copyMsg = function(btn) {
 // save an assistant message as a note or task
 window.saveMsgAs = async function(btn, kind) {
   if (kind === 'note') return saveAnswerNote(btn);
-  const text = btn.closest('.ai-wrap')?.querySelector('.ai-content')?.innerText?.trim();
-  if (!text) return;
-  let ok = false;
-  try {
-    if (kind === 'task') {
-      const r = await fetch('/api/tasks', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title: text.split('\n')[0].slice(0, 200) }),
-      });
-      ok = r.ok;
-    }
-  } catch {}
-  btn.textContent = ok ? 'saved' : 'failed';
-  setTimeout(() => { btn.textContent = kind === 'note' ? '+note' : '+task'; }, 1500);
+  if (kind === 'task') return saveAnswerTask(btn);
 };
 
 // open artifact from msg actions row
@@ -779,7 +767,7 @@ export async function sendMessage(text) {
       if (cleanText) {
         html += `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
         html += `<button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>`;
-        html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="first line becomes a task">+task</button>`;
+        html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="review this reply as a task">+task</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
       }

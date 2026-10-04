@@ -13,6 +13,7 @@ import {
 import { t } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { loadAnswerNoteRecovery } from './answer_note.js';
+import { loadAnswerTaskRecovery } from './answer_task.js';
 import { createMenuController } from './kokuen.js';
 import { replaceRouteUrl } from './route_history.js';
 
@@ -50,11 +51,13 @@ window._reloadAideSessions = loadSessions;
 export async function initSessions({ hashOwner = 'session' } = {}) {
   await loadSessions();
   void loadAnswerNoteRecovery();
+  void loadAnswerTaskRecovery();
   const hash = location.hash.slice(1);
+  const sourceMessage = new URLSearchParams(location.search).get('message') || '';
   if (hashOwner === 'session' && hash && _allSessions.find(s => s.id === hash)) {
-    await selectSession(hash);
+    await selectSession(hash, sourceMessage);
   } else {
-    newChat({ preserveHash: hashOwner !== 'session' });
+    newChat({ preserveHash: hashOwner !== 'session' || Boolean(sourceMessage) });
   }
 }
 
@@ -101,8 +104,11 @@ export function newChat(options = {}) {
   window._pendingChatBehavior = '';
   window._refreshPersonaBtn?.();        // keep the persona button visible + pickable pre-send
   selectAideDefault();                  // new chats follow the effective Aide Chat role
-  if (!options.preserveHash && location.hash) {
-    replaceRouteUrl(location.pathname + location.search);
+  if (!options.preserveHash) {
+    const target = new URL(location.href);
+    target.hash = '';
+    target.searchParams.delete('message');
+    replaceRouteUrl(target);
   }
   document.getElementById('messages').innerHTML = '';
   document.querySelectorAll('.session-item').forEach(el => syncSessionRowState(el, false));
@@ -281,10 +287,25 @@ async function toggleSessionStar(id) {
 }
 
 
-export async function selectSession(id) {
+export function focusSessionMessage(messageId) {
+  const row = [...document.querySelectorAll('#messages .msg-row')]
+    .find(item => item.dataset.msgId === messageId);
+  if (!row) return false;
+  if (window.matchMedia('(max-width: 700px)').matches) document.body.classList.add('sidebar-hidden');
+  row.classList.add('record-target'); row.tabIndex = -1;
+  row.scrollIntoView({ block: 'center', behavior: 'instant' }); row.focus({ preventScroll: true });
+  return true;
+}
+
+export async function selectSession(id, messageId = '') {
+  if (messageId && !/^[a-zA-Z0-9_-]{1,160}$/.test(messageId)) return false;
   if (id !== _activeId) saveDraft();   // stash the outgoing convo's unsent text
   _activeId = id;
   location.hash = id;
+  const sourceUrl = new URL(location.href);
+  if (messageId) sourceUrl.searchParams.set('message', messageId);
+  else sourceUrl.searchParams.delete('message');
+  replaceRouteUrl(sourceUrl);
   restoreDraft(id);                    // and bring up this convo's draft
 
   // if we're sitting on a tools page (models/memory/etc), get back to chat first
@@ -313,6 +334,9 @@ export async function selectSession(id) {
     } catch (e) {}
     // Reattach durable Aide work to this same task after a reload or tab switch.
     import('./aidebackground.js?v=245').then(m => m.reattachBackgroundWork(id)).catch(() => {});
+    if (messageId && !focusSessionMessage(messageId)) {
+      toast('the original reply is no longer available', 'error'); return false;
+    }
     return true;
   } catch (e) {
     console.error('selectSession', e);
@@ -438,6 +462,7 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
   actions.className = 'msg-actions';
   actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>
     <button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>
+    <button class="act-btn" onclick="saveMsgAs(this,'task')" title="review this reply as a task">+task</button>
     <button class="msg-regen-btn act-btn" title="regenerate">regen</button>
     <button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>
     <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
