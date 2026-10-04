@@ -47,7 +47,7 @@ import {
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
 import { initAideWorkspace } from './aideworkspace.js?v=278';
-import { beginBusy, createFocusBoundary, initKokuenPrimitives, setControlState } from './kokuen.js?v=1';
+import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=1';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=248';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=243';
@@ -1957,22 +1957,49 @@ function setAideToolsMenu(open, { restoreFocus = false } = {}) {
   else if (restoreFocus) button.focus();
 }
 
-function toggleMoreTools() {
-  const existing = document.getElementById('_more_tools_menu');
-  if (existing) { closeMoreTools(); return; }
-  const btn = document.getElementById('more-tools-btn');
-  const rect = btn.getBoundingClientRect();
-  const menu = document.createElement('div');
-  menu.id = '_more_tools_menu';
-  menu.className = 'ctx-menu more-tools-menu';
-  menu.style.display = 'block';
-  menu.style.left = Math.max(12, rect.right - 170) + 'px';
-  menu.style.top = Math.max(12, rect.top - 136) + 'px';
-  menu.setAttribute('role', 'menu');
+let _moreToolsController = null;
+
+function positionMoreTools() {
+  const menu = document.getElementById('_more_tools_menu');
+  const trigger = document.getElementById('more-tools-btn');
+  if (!menu || !trigger) return;
+  const viewport = window.visualViewport;
+  const margin = 12;
+  const left = (viewport?.offsetLeft || 0) + margin;
+  const top = (viewport?.offsetTop || 0) + margin;
+  const right = left + (viewport?.width || innerWidth) - margin * 2;
+  const bottom = top + (viewport?.height || innerHeight) - margin * 2;
+  const anchor = trigger.getBoundingClientRect();
+  const above = Math.max(0, anchor.top - top - 8);
+  const below = Math.max(0, bottom - anchor.bottom - 8);
+  const useAbove = above >= below;
+  const room = Math.min(Math.max(above, below), Math.max(0, bottom - top));
+  menu.style.maxWidth = `${Math.max(0, right - left)}px`;
+  menu.style.maxHeight = `${room >= 44 ? room : Math.max(0, bottom - top)}px`;
+  const bounds = menu.getBoundingClientRect();
+  menu.style.left = `${Math.max(left, Math.min(anchor.left, right - bounds.width))}px`;
+  menu.style.top = `${Math.max(top, Math.min(useAbove ? anchor.top - bounds.height - 8 : anchor.bottom + 8, bottom - bounds.height))}px`;
+  if (menu.contains(document.activeElement)) document.activeElement.scrollIntoView({ block: 'nearest' });
+}
+
+function renderMoreTools(menu) {
+  menu.setAttribute('aria-label', 'add a file or app context');
   menu.innerHTML = `
     <button class="ctx-item" data-tool="upload" type="button" role="menuitem">upload file</button>
     <button class="ctx-item" data-tool="app" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false">link an app</button>
   `;
+  positionMoreTools();
+}
+
+function toggleMoreTools() {
+  const existing = document.getElementById('_more_tools_menu');
+  if (existing) { closeMoreTools({ restoreFocus: true }); return; }
+  const btn = document.getElementById('more-tools-btn');
+  const menu = document.createElement('div');
+  menu.id = '_more_tools_menu';
+  menu.className = 'ctx-menu more-tools-menu';
+  menu.style.display = 'block';
+  menu.setAttribute('role', 'menu');
   menu.addEventListener('click', e => {
     e.stopPropagation();
     const item = e.target.closest('.ctx-item');
@@ -1981,16 +2008,36 @@ function toggleMoreTools() {
     if (tool === 'upload' && fileInput) {
       fileInput.accept = '';
       fileInput.click();
-      closeMoreTools();
+      closeMoreTools({ restoreFocus: true });
     }
     if (tool === 'app') {
-      item.setAttribute('aria-expanded', 'true');
       openAppLinkMenu(menu);
+    }
+    if (tool === 'back') {
+      renderMoreTools(menu);
+      menu.querySelector('[data-tool="app"]')?.focus();
+    }
+  });
+  menu.addEventListener('keydown', event => {
+    if (event.key === 'Tab') closeMoreTools({ restoreFocus: true });
+    if (event.key === 'ArrowLeft' && menu.querySelector('.app-link-menu')) {
+      event.preventDefault();
+      renderMoreTools(menu);
+      menu.querySelector('[data-tool="app"]')?.focus();
     }
   });
   document.body.appendChild(menu);
+  renderMoreTools(menu);
   btn.setAttribute('aria-expanded', 'true');
-  menu.querySelector('button')?.focus();
+  _moreToolsController = createMenuController(menu, {
+    onClose: closeMoreTools,
+    // The composer already owns outside-click dismissal, including its toggle.
+    closeOnOutsidePointer: false,
+  });
+  _moreToolsController.open({ source: btn });
+  window.addEventListener('resize', positionMoreTools);
+  window.visualViewport?.addEventListener('resize', positionMoreTools);
+  window.visualViewport?.addEventListener('scroll', positionMoreTools);
 }
 
 function insertComposerText(text) {
@@ -2010,17 +2057,20 @@ function insertComposerText(text) {
 }
 
 function openAppLinkMenu(parent) {
-  parent.querySelector('.app-link-menu')?.remove();
+  parent.setAttribute('aria-label', 'link an app');
+  parent.innerHTML = '<button class="ctx-item" data-tool="back" type="button" role="menuitem" aria-label="back to add context">back</button>';
   const submenu = document.createElement('div');
   submenu.className = 'app-link-menu';
-  submenu.setAttribute('role', 'menu');
-  submenu.setAttribute('aria-label', 'link an app');
   const apps = HOME_TILES
     .filter(app => app.view && app.view !== 'chat')
-    .slice(0, 12);
-  submenu.innerHTML = apps.map(app =>
-    `<button class="ctx-item" data-app-link="${app.view}" type="button" role="menuitem">@${app.name}</button>`,
-  ).join('');
+    .slice(0, 12)
+    .map(app => ({ ...app, owner: HOME_PINNABLE_APPS.find(owner => groupRouteFor(owner.view)?.group === groupRouteFor(app.view)?.group) }));
+  submenu.innerHTML = SHELL_GROUPS.slice(1).map(([label, destinations]) => {
+    const choices = apps.filter(app => destinations.some(destination => destination.view === app.owner?.view));
+    return `<div role="group" aria-label="${label}"><div class="ctx-label" aria-hidden="true">${label}</div>${choices.map(app =>
+      `<button class="ctx-item" data-app-link="${app.view}" type="button" role="menuitem">${app.owner.name}${app.view === app.owner.view ? '' : ` · ${app.name}`}</button>`,
+    ).join('')}</div>`;
+  }).join('');
   submenu.addEventListener('click', event => {
     event.stopPropagation();
     const view = event.target.closest('[data-app-link]')?.dataset.appLink;
@@ -2029,12 +2079,20 @@ function openAppLinkMenu(parent) {
     closeMoreTools();
   });
   parent.appendChild(submenu);
+  positionMoreTools();
   submenu.querySelector('button')?.focus();
 }
 
-function closeMoreTools() {
+function closeMoreTools({ restoreFocus = false } = {}) {
+  _moreToolsController?.destroy();
+  _moreToolsController = null;
+  window.removeEventListener('resize', positionMoreTools);
+  window.visualViewport?.removeEventListener('resize', positionMoreTools);
+  window.visualViewport?.removeEventListener('scroll', positionMoreTools);
   document.getElementById('_more_tools_menu')?.remove();
-  document.getElementById('more-tools-btn')?.setAttribute('aria-expanded', 'false');
+  const trigger = document.getElementById('more-tools-btn');
+  trigger?.setAttribute('aria-expanded', 'false');
+  if (restoreFocus) trigger?.focus();
 }
 
 // ── send ──────────────────────────────────────────────────────────────────────
