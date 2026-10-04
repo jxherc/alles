@@ -304,6 +304,7 @@ async function streamReply(request, { freshSession = false, previousRow = null }
   let receivedDone = false;
   let streamEnded = false;
   let toolActivity = false;
+  let rejectedBeforeStart = false;
   const progressEl = document.createElement('div');
   progressEl.className = 'aide-run-progress';
   progressEl.setAttribute('role', 'status');
@@ -388,12 +389,15 @@ async function streamReply(request, { freshSession = false, previousRow = null }
 
     if (!r.ok) {
       const error = await r.json().catch(() => ({}));
+      rejectedBeforeStart = r.status === 409 && error.code === 'turn_in_progress';
       const message = typeof error.detail === 'string' ? error.detail : error.detail?.message || 'could not start this answer';
       const chat = document.getElementById('chat');
       const followedReply = chat && chat.scrollHeight - chat.scrollTop - chat.clientHeight < 96;
-      body.innerHTML = `<div class="error-msg">${escHtml(message)}</div>`;
+      body.innerHTML = rejectedBeforeStart
+        ? `<div class="error-msg model-error"><p role="status">${escHtml(message)}</p></div>`
+        : `<div class="error-msg">${escHtml(message)}</div>`;
       body.classList.add('done');
-      if (!previousRow && getActiveId() === sessionId && _streamToken === streamToken) {
+      if (!rejectedBeforeStart && !previousRow && getActiveId() === sessionId && _streamToken === streamToken) {
         restoreDocumentScope(documentScope);
         if (documentScope) {
           restoreComposerInput(text);
@@ -784,15 +788,15 @@ async function streamReply(request, { freshSession = false, previousRow = null }
       applyResponsePrivacy(contentEl);
     }
 
-    // Retry only a known, finished provider failure before any answer or tool work.
+    // Retry a definite refusal before the turn is accepted, or a finished provider failure.
     // Unknown transport outcomes must not replay work that might already have happened.
-    if (sourceUserId && providerError && receivedDone && streamEnded && !ctrl.signal.aborted && !accText && !toolActivity && !(privateReply && request.file_ids.length)) {
+    if (rejectedBeforeStart || (sourceUserId && providerError && receivedDone && streamEnded && !ctrl.signal.aborted && !accText && !toolActivity && !(privateReply && request.file_ids.length))) {
       const retry = document.createElement('button');
       retry.type = 'button'; retry.className = 'btn aide-retry-response'; retry.textContent = 'retry response';
       retry.addEventListener('click', () => {
         if (!canSendMessage() || getActiveId() !== sessionId || _streamToken !== streamToken || !row.isConnected) return;
         const restoreFocus = document.activeElement === retry;
-        void streamReply({ ...request, retry_message_id: sourceUserId }, { freshSession, previousRow: row });
+        void streamReply(rejectedBeforeStart ? request : { ...request, retry_message_id: sourceUserId }, { freshSession, previousRow: row });
         if (restoreFocus) document.getElementById('composer-ta')?.focus();
       });
       body.querySelector('.error-msg')?.appendChild(retry);
