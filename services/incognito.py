@@ -101,12 +101,27 @@ def delete_session(session_id: str) -> bool:
         return _SESSIONS.pop(session_id, None) is not None
 
 
-def append_turn(session_id: str, user_text: str, assistant_text: str, meta: str = "{}") -> bool:
+def append_turn(
+    session_id: str,
+    user_text: str,
+    assistant_text: str,
+    meta: str = "{}",
+    *,
+    retry_message_id: str = "",
+) -> bool:
     with _LOCK:
         session = get_session(session_id)
         if not session:
             return False
-        session.messages.append(IncognitoMessage(role="user", content=user_text))
+        last = session.messages[-1] if session.messages else None
+        if not (
+            retry_message_id
+            and last
+            and last.id == retry_message_id
+            and last.role == "user"
+            and last.content == user_text
+        ):
+            session.messages.append(IncognitoMessage(role="user", content=user_text))
         if assistant_text:
             session.messages.append(
                 IncognitoMessage(role="assistant", content=assistant_text, meta=meta)
