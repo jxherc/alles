@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=381">
+<link rel="stylesheet" href="/static/style.css?v=382">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -985,12 +985,17 @@
         <div class="page-view-head" style="padding:0.55rem 0.75rem">
           <span class="page-view-title" style="font-size:0.8rem">compare</span>
         </div>
-        <div style="padding:0 0.75rem;flex:1;overflow-y:auto">
+        <div class="compare-picker-region">
           <div id="compare-leaderboard"></div>
-          <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.4rem;text-transform:lowercase;letter-spacing:0.04em">select models</div>
+          <p id="compare-model-status" role="status">loading models…</p>
           <div id="compare-model-picker"></div>
+          <div class="compare-model-actions">
+            <button type="button" class="btn" id="compare-model-setup">set up models</button>
+            <button type="button" class="btn" id="compare-model-refresh">refresh models</button>
+          </div>
         </div>
-        <div style="padding:0.5rem 0.75rem;border-top:1px solid var(--faint);flex-shrink:0">
+        <div class="compare-prompt-region">
+          <label for="compare-input">prompt</label>
           <textarea id="compare-input" class="settings-input" placeholder="enter prompt..." rows="3" style="width:100%;resize:vertical;margin-bottom:0.4rem"></textarea>
           <button type="button" class="btn primary" id="compare-send-btn" style="width:100%">compare</button>
         </div>
@@ -2847,7 +2852,7 @@
 </div>
 
 <script type="module">
-const _v = '381';
+const _v = '382';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

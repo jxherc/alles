@@ -2,25 +2,35 @@ import { mdToHtml, toast } from './util.js';
 
 let _compareId = null;
 let _models = [];   // model list for the active comparison, for vote recording
+let _catalogRead = 0;
 
 export async function runCompare(message, modelList) {
-  if (!message.trim() || !modelList.length) return;
-  _models = modelList;
+  if (!message.trim() || !modelList.length) return false;
+  let compare_id, count;
+  try {
+    const r = await fetch('/api/compare', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message, models: modelList }),
+    });
+    if (!r.ok) throw new Error('comparison was not accepted');
+    ({ compare_id, count } = await r.json());
+    if (typeof compare_id !== 'string' || !compare_id || count !== modelList.length) {
+      throw new Error('comparison models were not accepted');
+    }
+  } catch {
+    toast('could not start comparison — check the selected models and try again', 'error');
+    return false;
+  }
 
-  const r = await fetch('/api/compare', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ message, models: modelList }),
-  });
-  if (!r.ok) { toast('compare failed', 'error'); return; }
-  const { compare_id, count } = await r.json();
   _compareId = compare_id;
-
+  _models = modelList;
   _renderGrid(modelList);
 
   for (let i = 0; i < count; i++) {
     _streamColumn(compare_id, i, modelList[i]);
   }
+  return true;
 }
 
 function _renderGrid(modelList) {
@@ -103,12 +113,17 @@ function _esc(s = '') {
 export function initCompareView() {
   const btn = document.getElementById('compare-send-btn');
   const inp = document.getElementById('compare-input');
-  if (!btn || !inp) return;
+  if (!btn || !inp || btn.dataset.compareBound) return;
+  btn.dataset.compareBound = 'true';
+  let draftRevision = 0;
+  inp.addEventListener('input', () => { draftRevision++; });
+  document.getElementById('compare-model-setup')?.addEventListener('click', () => window._openSettings?.('models'));
+  document.getElementById('compare-model-refresh')?.addEventListener('click', loadCompareModels);
 
   btn.addEventListener('click', async () => {
-    const msg = inp.value.trim();
-    if (!msg) return;
-    inp.value = '';
+    const draft = inp.value;
+    const msg = draft.trim();
+    if (!msg || btn.disabled) return;
 
     // collect selected models from checkboxes
     const checks = document.querySelectorAll('.compare-model-check[aria-checked="true"]');
@@ -116,8 +131,24 @@ export function initCompareView() {
       endpoint_id: c.dataset.ep,
       model: c.dataset.model,
     }));
-    if (!modelList.length) { toast('select at least one model', 'error'); return; }
-    await runCompare(msg, modelList);
+    if (!modelList.length) {
+      toast('select a model first, or choose “set up models”', 'error');
+      inp.focus();
+      return;
+    }
+    const revision = draftRevision;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    btn.textContent = 'starting…';
+    try {
+      const accepted = await runCompare(msg, modelList);
+      if (accepted && draftRevision === revision && inp.value === draft) inp.value = '';
+      if (!accepted && draftRevision === revision) inp.focus();
+    } finally {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      btn.textContent = 'compare';
+    }
   });
 }
 
@@ -142,25 +173,46 @@ export async function loadCompareLeaderboard() {
 export async function loadCompareModels() {
   const container = document.getElementById('compare-model-picker');
   if (!container) return;
-  const eps = window._endpoints || [];
-  if (!eps.length) {
-    container.innerHTML = '<div style="font-size:0.75rem;color:var(--muted)">no endpoints: add one via the model picker</div>';
+  const read = ++_catalogRead;
+  const refresh = document.getElementById('compare-model-refresh');
+  const status = document.getElementById('compare-model-status');
+  if (refresh) refresh.disabled = true;
+  if (status) status.textContent = 'loading models…';
+  let eps;
+  try {
+    const response = await fetch('/api/models');
+    if (!response.ok) throw new Error('models unavailable');
+    eps = await response.json();
+    if (!Array.isArray(eps) || eps.some(ep => !ep || !Array.isArray(ep.models))) throw new Error('invalid model list');
+  } catch {
+    if (read === _catalogRead && status) status.textContent = 'could not load models — refresh to try again';
     return;
+  } finally {
+    if (read === _catalogRead && refresh) refresh.disabled = false;
   }
+  if (read !== _catalogRead) return;
+  const selected = new Set([...container.querySelectorAll('.compare-model-check[aria-checked="true"]')]
+    .map(c => JSON.stringify([c.dataset.ep, c.dataset.model])));
   let html = '';
   for (const ep of eps) {
-    if (!ep.models.length) continue;
+    if (ep.enabled === false || !ep.models.length) continue;
     html += `<div style="font-size:0.75rem;color:var(--muted);margin:0.5rem 0 0.2rem;text-transform:lowercase">${_esc(ep.name)}</div>`;
     for (const m of ep.models) {
-      html += `<div class="compare-model-row">
-        <span class="chk compare-model-check" data-ep="${ep.id}" data-model="${_esc(m)}" aria-checked="false"></span>
+      if (ep.unavailable_models?.includes(m)) continue;
+      const checked = selected.has(JSON.stringify([ep.id, m]));
+      html += `<button type="button" class="compare-model-row compare-model-check" role="checkbox" data-ep="${_esc(ep.id)}" data-model="${_esc(m)}" aria-checked="${checked}" aria-label="${_esc(m)}">
+        <span class="chk" aria-hidden="true" aria-checked="${checked}"></span>
         <span title="${_esc(m)}">${_esc(m.split('/').pop())}</span>
-      </div>`;
+      </button>`;
     }
   }
-  container.innerHTML = html || '<div style="font-size:0.75rem;color:var(--muted)">no models</div>';
+  container.innerHTML = html;
+  if (status) status.textContent = container.querySelector('.compare-model-row')
+    ? 'select models to answer the same prompt'
+    : 'no models available — set up a connection, then refresh this list';
   container.querySelectorAll('.compare-model-row').forEach(row => row.addEventListener('click', () => {
-    const c = row.querySelector('.chk');
-    c.setAttribute('aria-checked', c.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    const checked = row.getAttribute('aria-checked') === 'true' ? 'false' : 'true';
+    row.setAttribute('aria-checked', checked);
+    row.querySelector('.chk').setAttribute('aria-checked', checked);
   }));
 }
