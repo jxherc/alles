@@ -332,7 +332,7 @@ function _tickWorldClock() {
 
 let _eventsReady = false;
 
-export async function loadCalendar(fetcher = fetch) {
+export async function loadCalendar(fetcher = fetch, canReplaceEditor = () => true) {
   _eventsReady = false;
   _bindNav();
   _tickWorldClock();
@@ -373,7 +373,7 @@ export async function loadCalendar(fetcher = fetch) {
   _events = Array.isArray(evs) ? evs : [];
   _eventsReady = true;
   renderSidebar();
-  if (preserveEditor) refreshCalendarPicker();
+  if (preserveEditor || !canReplaceEditor()) refreshCalendarPicker();
   else { _editing = null; _readDraft = null; render(); }
   calendarMetadataNotice();
   return true;
@@ -400,21 +400,66 @@ function _bindNav() {
     render();
   });
 
-  // quick-add: natural language → event (was a dead input before)
   const quick = document.getElementById('cal-quick');
+  const quickFeedback = document.getElementById('cal-quick-feedback');
+  const quickStatus = document.getElementById('cal-quick-status');
+  const quickUndo = document.getElementById('cal-quick-undo');
+  let quickBusy = false;
+  let quickEvent = null;
+  const quickMessage = message => {
+    quickFeedback.hidden = false;
+    quickStatus.textContent = message;
+    quickUndo.hidden = !quickEvent;
+  };
+  const setQuickBusy = busy => {
+    quickBusy = busy;
+    quick.readOnly = busy;
+    quick.setAttribute('aria-busy', String(busy));
+    quickUndo.setAttribute('aria-disabled', String(busy));
+    quickUndo.setAttribute('aria-busy', String(busy));
+  };
+  const canReplaceDraft = async () => !_readDraft || _readDraft() === _draftSnapshot
+    || await dlgConfirm('Discard unsaved event changes?');
   quick?.addEventListener('keydown', async e => {
-    if (e.key !== 'Enter') return;
+    if (e.key !== 'Enter' || e.isComposing || quickBusy || _saving) return;
+    e.preventDefault();
     const text = quick.value.trim();
     if (!text) return;
+    setQuickBusy(true);
     try {
+      if (!(await canReplaceDraft())) return;
+      const draftReader = _readDraft, draftValue = draftReader?.();
+      const sameEditor = () => _readDraft === draftReader && (!draftReader || draftReader() === draftValue);
+      quickEvent = null;
+      quickMessage(tr('common.saving'));
       const r = await fetch('/api/calendar/quick', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
-      if (!r.ok) throw new Error();
-      const ev = await r.json();
+      const ev = await readCalendarResponse(r);
+      if (typeof ev?.id !== 'string' || !ev.id || typeof ev.title !== 'string' || !ev.start_dt) throw new Error();
+      quickEvent = ev;
       quick.value = '';
-      toast(tr('calendar.added', { title: ev.title }), 'success');
-      if (ev.start_dt) { _cursor = calendarPlacementDate(ev.start_dt); _cursor.setHours(0, 0, 0, 0); }
-      await loadCalendar();
-    } catch { toast(tr('calendar.parse_error'), 'error'); }
+      quickMessage(tr('calendar.added', { title: ev.title }));
+      _cursor = calendarPlacementDate(ev.start_dt); _cursor.setHours(0, 0, 0, 0);
+      await loadCalendar(fetch, sameEditor);
+    } catch { quickMessage(tr('calendar.quick_unconfirmed')); }
+    finally { setQuickBusy(false); }
+  });
+  quickUndo?.addEventListener('click', async () => {
+    if (quickBusy || _saving || !quickEvent) return;
+    const event = quickEvent;
+    setQuickBusy(true);
+    try {
+      if (!(await canReplaceDraft())) return;
+      const draftReader = _readDraft, draftValue = draftReader?.();
+      const sameEditor = () => _readDraft === draftReader && (!draftReader || draftReader() === draftValue);
+      const response = await fetch(`/api/calendar/${encodeURIComponent(event.id)}`, { method: 'DELETE' });
+      // A retry after a lost acknowledgment may find the exact event already gone.
+      if (response.status !== 404 && (await readCalendarResponse(response))?.ok !== true) throw new Error();
+      quickEvent = null;
+      if (document.activeElement === quickUndo) quick.focus();
+      quickMessage(tr('calendar.quick_undone', { title: event.title }));
+      await loadCalendar(fetch, sameEditor);
+    } catch { quickMessage(tr('calendar.quick_undo_failed', { title: event.title })); }
+    finally { setQuickBusy(false); }
   });
 
   const imp = document.getElementById('cal-import');

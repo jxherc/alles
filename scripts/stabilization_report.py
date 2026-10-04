@@ -63,6 +63,7 @@ BROWSER_SUITES = {
         "plan-continuity",
         "plan-recurring-continuity",
         "calendar-workflows",
+        "calendar-quick-undo",
         "mail-calendar-capture",
         "reviewed-capture",
         "home-reviewed-capture",
@@ -111,6 +112,7 @@ BROWSER_SUITES = {
     ),
     "calendar": (
         "calendar-workflows",
+        "calendar-quick-undo",
         "calendar-metadata-picker",
         "mail-calendar-capture",
         "reviewed-capture",
@@ -238,6 +240,7 @@ BROWSER_SUITES = {
         "plan-continuity",
         "plan-recurring-continuity",
         "calendar-workflows",
+        "calendar-quick-undo",
         "mail-calendar-capture",
         "reviewed-capture",
         "home-reviewed-capture",
