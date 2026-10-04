@@ -854,6 +854,9 @@ reviewed definition is pinned to `2026.7.12-c19d86faa` /
 the service supports install, health checks, restart, update, rollback, and removal while retaining private configuration. when docker is missing, stopped, or
 cannot read the selected data root, server reports the unsupported boundary without claiming an
 install; external https searxng and the other providers remain usable.
+search tests require a valid results list before reporting success; an empty list is a valid
+response. failed requests and malformed replies show a retryable error. server keeps service
+progress, failures and test results with the service's own controls.
 
 ---
 
