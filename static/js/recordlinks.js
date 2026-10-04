@@ -3,6 +3,11 @@ import { replaceRouteUrl } from './route_history.js';
 const VIEWS = new Set(['tasks', 'calendar', 'reminders', 'habits', 'subs', 'days', 'mail', 'chat', 'read']);
 
 export function recordTarget(view, id, occurrence = '', hash = '') {
+  if (view === 'wiki') {
+    if (typeof id !== 'string' || !id || id.length > 4096 || /[\\\x00-\x1f]/.test(id)
+      || id.split('/').some(part => !part || part === '.' || part === '..')) return null;
+    return { view, id, occurrence: '' };
+  }
   if (!VIEWS.has(view) || typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,160}$/.test(id)) return null;
   if (view === 'mail' && !/^(task|event)-[a-zA-Z0-9_-]+$/.test(id)) return null;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(occurrence) ? occurrence : '';
@@ -41,6 +46,10 @@ export function clearLinkedRecord(view) {
 }
 
 export async function revealRecord(target, isCurrent = () => true) {
+  if (target.view === 'wiki') {
+    const module = await import('./docs.js?v=257');
+    return isCurrent() && module.openLinkedDocument(target.id, isCurrent);
+  }
   if (target.view === 'read') {
     const module = await import('./read.js');
     return isCurrent() && module.openReadItem(target.id, isCurrent, target.hash || '');
