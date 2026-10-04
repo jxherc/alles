@@ -8190,6 +8190,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   }
   .mail-layout {
     flex-direction: column;
+    overflow-y: auto;
+  }
+  .mail-main {
+    flex: 1 0 auto;
+    overflow: visible;
   }
   .mail-sidebar,
   #mail-view.sidebar-collapsed .mail-sidebar {
