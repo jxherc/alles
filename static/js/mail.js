@@ -602,6 +602,12 @@ function confirmDraft(row, pending) {
   retireDraftSave(pending);
   const editor = mailEditor();
   if (editor && sameDraftIntent(editor.pending, pending)) editor.accept(row);
+  // Only our confirmed save advances an already listed delete action. A refresh
+  // from another writer must still conflict with the revision the owner saw.
+  $('mail-list')?.querySelectorAll('.mail-draft-del').forEach(button => {
+    if (button.dataset.id === row.id && _draftScopes.includes(button.dataset.draftScope)
+        && _draftScopes.includes(pending.recovery_scope)) button.dataset.revision = row.revision;
+  });
   if (!already) toast('draft saved', 'success');
   _draftNotice = 'draft saved'; _draftConflict = '';
   try { clearPendingDraft(pending); _draftNotice = ''; }
@@ -840,8 +846,10 @@ function updateMailRows(matches, changes, remove = false) {
   if (Array.isArray(cached)) writeCache(update(cached));
   if (!_lastMsgs.some(matches)) return;
   _lastMsgs = update(_lastMsgs);
-  if (_filter === 'unread') _lastMsgs = _lastMsgs.filter(row => !row.seen);
-  if (_filter === 'flagged') _lastMsgs = _lastMsgs.filter(row => row.flagged);
+  if (!_searchView && !_labelFilter) {
+    if (_filter === 'unread') _lastMsgs = _lastMsgs.filter(row => !row.seen);
+    if (_filter === 'flagged') _lastMsgs = _lastMsgs.filter(row => row.flagged);
+  }
   const list = $('mail-list');
   if (list?.querySelector('.mail-row[data-aid]')) preserveMailReadFocus(list)(() => renderInbox(_lastMsgs, _mailErrors));
 }
@@ -975,7 +983,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
     <div class="mail-row mail-draft-row" data-id="${esc(d.id)}">
       <span class="mail-from">${esc(d.to || '(no recipient)')}</span>
       <button type="button" class="mail-open mail-subj" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>${esc(d.subject || '(no subject)')}</button>
-      <button class="mail-draft-del" data-id="${esc(d.id)}" aria-label="delete draft" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>×</button>
+      <button class="mail-draft-del" data-id="${esc(d.id)}" data-revision="${esc(d.revision)}" data-draft-scope="${esc(_draftScopes[0])}" aria-label="delete draft" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>×</button>
       <div class="mail-snippet">${esc(draftPreview(d.body))}</div>
     </div>`).join('');
   const draftScope = _draftScopes[0];
@@ -1000,6 +1008,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
     const id = b.dataset.id, editor = mailEditor(), listed = drafts.find(draft => draft.id === id);
     if (!listed || !_draftScopes.includes(draftScope)) return;
     if (_deletingDrafts.has(id)) return;
+    const revision = b.dataset.revision || listed.revision;
     const snapshot = editor?.draftId === id ? editor.snapshot() : null;
     if (snapshot !== null && snapshot !== editor.initial) {
       if (!await dlgConfirm('delete the saved draft and discard these changes?')) return;
@@ -1014,7 +1023,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
       if (_openingDraft.generation === _messageGeneration) ++_messageGeneration;
     }
     try {
-      const result = await mailJson(`/api/mail/drafts/${encodeURIComponent(id)}?expected_revision=${encodeURIComponent(listed.revision)}&recovery_scope=${encodeURIComponent(draftScope)}`, { method: 'DELETE' });
+      const result = await mailJson(`/api/mail/drafts/${encodeURIComponent(id)}?expected_revision=${encodeURIComponent(revision)}&recovery_scope=${encodeURIComponent(draftScope)}`, { method: 'DELETE' });
       if (result?.ok !== true) throw new Error('could not confirm draft deletion');
       if (mailEditor() === editor && editor?.draftId === id) {
         if (editor.snapshot() === snapshot) clearMailEditor(editor);
@@ -1301,7 +1310,9 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     for (const key of ['record', 'record_view', 'occurrence']) url.searchParams.delete(key);
     replaceRouteUrl(url.pathname + url.search + url.hash);
   }
-  const current = () => generation === _messageGeneration && isCurrent() && Boolean($('mail-view')?.getClientRects().length);
+  let reader = null;
+  const current = () => Boolean($('mail-view')?.getClientRects().length)
+    && (reader ? reader.isConnected : generation === _messageGeneration && isCurrent());
   const main = $('mail-main');
   const hadFocus = main.contains(document.activeElement);
   const restoreFocus = () => {
@@ -1353,6 +1364,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     const f = main.querySelector('.mail-body-frame');
     f.srcdoc = mailBodySrcdoc(m.html);
   }
+  reader = main.querySelector('.mail-reader');
   // attachment chips — backend lists/serves them, the reader just never showed them
   loadAttachments(aid, uid, folder, current);
   const senderAddr = ((/<([^>]+)>/.exec(m.from) || [, m.from])[1] || '').trim().toLowerCase();

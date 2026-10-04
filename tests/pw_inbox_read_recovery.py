@@ -62,7 +62,7 @@ def run():
                 page.on(
                     "request",
                     lambda request: (
-                        seen.append(request.url) if "/api/mail/seen/" in request.url else None
+                        seen.append(request.url) if "/api/mail/read/" in request.url else None
                     ),
                 )
                 secondary = None
@@ -253,7 +253,7 @@ def run():
                             expect(main.locator(".mail-reader-subject")).to_have_text(
                                 "owned message 702"
                             )
-                            assert all("uid=702" in url for url in seen), seen
+                            assert seen and all("uid=702" in url for url in seen), seen
                         elif case == "filter-failure":
                             for choice, endpoint in [("primary", "category"), ("flagged", "smart")]:
                                 url = base + f"/api/mail/{endpoint}/{account['id']}?*"
