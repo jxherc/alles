@@ -76,6 +76,8 @@ COMMANDS = {
     "skills-keyboard": ("tests/pw_skills_keyboard.py",),
     "aide-scroll-follow": ("tests/pw_aide_scroll_follow.py",),
     "first-model-setup": ("tests/pw_first_model_setup.py",),
+    "docs-offline-recovery": ("tests/pw_docs_offline_recovery.py",),
+    "command-discovery": ("tests/pw_command_discovery.py",),
     "task-completion-recovery": ("tests/pw_task_completion_recovery.py",),
     "aide-drawer": ("tests/pw_aide_drawer.py",),
     "managed-service-workflow": ("tests/pw_managed_service.py",),

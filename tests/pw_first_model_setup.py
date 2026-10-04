@@ -147,8 +147,8 @@ with sync_playwright() as pw:
                 page.route(base + "/api/models/endpoint", create_connection)
                 page.locator("#s-ep-add-btn").click()
                 expect(page.locator("#s-ep-add-btn")).to_be_enabled()
-                expect(page.locator("#toast-container")).to_contain_text(
-                    "synthetic local save unavailable"
+                expect(page.locator("#toast-container .toast").last).to_have_text(
+                    "failed: synthetic local save unavailable"
                 )
                 expect(page.locator("#s-ep-name")).to_have_value("owned setup connection")
                 expect(page.locator("#s-ep-manual")).to_have_value("owned-synthetic-model")
