@@ -148,6 +148,21 @@ with sync_playwright() as pw:
                 assert page.evaluate("window._pendingDocumentScope") == selected
                 page.screenshot(path=str(out / f"{label}-reopened.png"))
 
+                # Empty questions still carry the selected document context.
+                for empty_text in ("", "   "):
+                    field.fill(empty_text)
+                    expect(chip).to_be_visible()
+                    stored_empty = page.evaluate(
+                        "JSON.parse(localStorage.getItem('aide-draft-v2-new'))"
+                    )
+                    assert stored_empty == {"text": "", "document_scope": selected}
+                    page.reload(wait_until="networkidle")
+                    close_compact_sidebar()
+                    expect(field).to_have_value("")
+                    expect(chip).to_be_visible()
+                    assert page.evaluate("window._pendingDocumentScope") == selected
+                page.screenshot(path=str(out / f"{label}-empty-reopened.png"))
+
                 def sidebar():
                     if not page.locator("#aide-sidebar").is_visible():
                         page.locator("#sidebar-toggle-btn").click()
@@ -165,7 +180,7 @@ with sync_playwright() as pw:
                 field.fill("ordinary other-task draft")
                 sidebar()
                 page.locator("#new-chat-btn").click()
-                expect(field).to_have_value(question)
+                expect(field).to_have_value("")
                 expect(chip).to_be_visible()
                 assert page.evaluate("window._pendingDocumentScope") == selected
                 stored = page.evaluate(
@@ -182,9 +197,10 @@ with sync_playwright() as pw:
                     == stored
                 )
                 page.locator("#incognito-exit").click()
-                expect(field).to_have_value(question)
+                expect(field).to_have_value("")
                 expect(chip).to_be_visible()
                 assert page.evaluate("window._pendingDocumentScope") == selected
+                field.fill(question)
 
                 # A local response fixture verifies client send/recovery. It does
                 # not invoke a provider or certify generated answers.
