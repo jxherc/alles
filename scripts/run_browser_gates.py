@@ -88,6 +88,7 @@ COMMANDS = {
     "compare-recovery": ("tests/pw_compare_recovery.py",),
     "skills-keyboard": ("tests/pw_skills_keyboard.py",),
     "skills-start": ("tests/pw_skills_start.py",),
+    "calendar-toolbar": ("tests/pw_calendar_toolbar.py",),
     "view-navigation": ("tests/pw_view_navigation.py",),
     "task-help": ("tests/pw_task_help.py",),
     "shortcut-help": ("tests/pw_shortcut_help.py",),

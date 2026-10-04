@@ -210,6 +210,8 @@
     "calendar.import": "导入",
     "calendar.import_failed": "导入失败",
     "calendar.import_help": "导入 .ics 文件",
+    "calendar.tools": "工具",
+    "calendar.tools_label": "日历工具",
     "calendar.month": "月",
     "calendar.my_calendars": "我的日历",
     "calendar.new_booking_page": "新建预约页面",

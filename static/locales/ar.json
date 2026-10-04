@@ -210,6 +210,8 @@
     "calendar.import": "استيراد",
     "calendar.import_failed": "فشل الاستيراد",
     "calendar.import_help": "استيراد ملف .ics",
+    "calendar.tools": "أدوات",
+    "calendar.tools_label": "أدوات التقويم",
     "calendar.month": "شهر",
     "calendar.my_calendars": "تقويماتي",
     "calendar.new_booking_page": "صفحة حجز جديدة",
