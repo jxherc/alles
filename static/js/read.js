@@ -243,10 +243,8 @@ export async function loadRead(fetcher = _fetcher) {
   const failures = [];
   const successes = [];
   if (itemsResult.status === 'fulfilled') {
-    if (!_saving) {
-      try { _readSaveRecovery(itemsResult.value.recovery_scopes); }
-      catch (error) { _saveRecoveryError = error.message; }
-    }
+    try { _readSaveRecovery(itemsResult.value.recovery_scopes); }
+    catch (error) { _saveRecoveryError = error.message; }
     _items = itemsResult.value.items || [];
     _hasItems = true;
     _itemsCurrent = true;
@@ -466,6 +464,7 @@ function _renderReader(body) {
   const back = $('read-back');
   back.addEventListener('click', async () => {
     if (back.disabled) return;
+    ++_openGeneration;
     back.disabled = complete.disabled = true;
     try {
       if ((!(await place.drain()) && !place.blocked) || _open !== it) return;
