@@ -441,7 +441,7 @@ async function streamReply(request, { freshSession = false, previousRow = null }
           // appendChild, not innerHTML += — the latter re-parses all of body and
           // detaches the live tool/agent nodes (toolEls/agentEl) + their listeners
           appendError(body, chunk.error);
-          if (isConnError(chunk.error)) showConnBanner(chunk.error);
+          if (isConnError(chunk.error)) showConnBanner();
           continue;
         }
 
@@ -691,7 +691,7 @@ async function streamReply(request, { freshSession = false, previousRow = null }
     }
     if (e.name !== 'AbortError') {
       appendError(body, `stream error: ${e.message}`);
-      if (isConnError(e.message)) showConnBanner(e.message);
+      if (isConnError(e.message)) showConnBanner();
     }
   } finally {
     if (_chatAbort === ctrl) {
@@ -899,11 +899,14 @@ function appendError(body, msg) {
   el.className = 'error-msg';
   const detail = String(msg || 'the model returned an error');
   const status = Number(detail.match(/HTTP\s+(\d{3})/i)?.[1]);
-  if (status) {
+  const connectionFailure = isConnError(detail);
+  if (status || connectionFailure) {
     el.classList.add('model-error');
     const explanation = document.createElement('p');
     explanation.setAttribute('role', 'status');
-    explanation.textContent = status === 404
+    explanation.textContent = connectionFailure
+      ? 'the model could not be reached. check its connection in model settings, then try again.'
+      : status === 404
       ? 'the model could not be found. check the selected model and connection in model settings, then try again.'
       : [401, 403].includes(status)
       ? 'the model did not authorize this request. check its credentials in model settings, then try again.'
@@ -929,14 +932,11 @@ function isConnError(msg = '') {
   return /can'?t connect|connect\s?error|connection (refused|error|reset|timed ?out|aborted)|failed to (establish|connect)|ECONNREFUSED|ENOTFOUND|getaddrinfo|name resolution|cooling down|network is unreachable|read ?timed ?out/i.test(String(msg));
 }
 
-function showConnBanner(detail = '') {
+function showConnBanner() {
   const b = document.getElementById('conn-banner');
   const m = document.getElementById('conn-banner-msg');
   if (!b || !m) return;
-  m.innerHTML = `<b>can't reach the model endpoint.</b> the request couldn't connect outbound. `
-    + `if you launched aide from a sandboxed shell, restart it from your own terminal `
-    + `(<code>python cli.py restart</code>) so it has network.`
-    + (detail ? ` <span style="opacity:.7">${escHtml(String(detail).slice(0, 160))}</span>` : '');
+  m.textContent = 'the model connection is unavailable. check the failed response for details and recovery options.';
   b.style.display = 'flex';
 }
 

@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=411">
+<link rel="stylesheet" href="/static/style.css?v=412">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -97,6 +97,8 @@
         <span data-i18n="aide.tools">tools</span><span aria-hidden="true">⌃</span>
       </button>
       <div class="aide-sidebar-menu" id="aide-sidebar-menu" role="menu" aria-label="Aide tools" hidden>
+        <button class="aide-settings-link" type="button" role="menuitem" data-aide-tool-view="compare">compare models</button>
+        <button class="aide-settings-link" type="button" role="menuitem" data-aide-tool-view="usage">usage</button>
         <button class="aide-settings-link" id="aide-settings-link" type="button" role="menuitem" data-i18n="common.settings">settings</button>
       </div>
     </footer>
@@ -2866,7 +2868,7 @@
 </div>
 
 <script type="module">
-const _v = '411';
+const _v = '412';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
