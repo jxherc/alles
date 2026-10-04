@@ -351,6 +351,8 @@ def run() -> None:
             page.locator("#aide-tools-link").click()
             assert page.locator("#aide-sidebar-menu").is_visible()
             assert page.locator("#aide-sidebar-menu [role=menuitem]").all_inner_texts() == [
+                "compare models",
+                "usage",
                 "settings",
             ]
             page.keyboard.press("Escape")
