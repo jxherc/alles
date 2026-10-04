@@ -189,7 +189,7 @@ export function renderSidebar(filter = '') {
 
   if (!src.length) {
     list.innerHTML = `<div class="empty-sessions">${fl ? 'no matching tasks' : 'no chats yet'}</div>`;
-    if (!fl) renderProjectFolders(_allSessions, id => selectSession(id), () => loadSessions());
+    if (!fl) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
     return;
   }
 
@@ -208,14 +208,14 @@ export function renderSidebar(filter = '') {
   list.innerHTML = html;
 
   // inject project folders above the session groups
-  if (!fl) renderProjectFolders(_allSessions, id => selectSession(id), () => loadSessions());
+  if (!fl) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
 
   list.querySelectorAll('.session-item').forEach(el => {
     const sid = el.dataset.id;
     const active = sid === _activeId;
     const openButton = el.querySelector('.session-open');
     syncSessionRowState(el, active);
-    openButton?.addEventListener('click', () => selectSession(sid));
+    openButton?.addEventListener('click', () => selectSidebarSession(sid));
     openButton?.addEventListener('keydown', event => {
       if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
         event.preventDefault();
@@ -239,6 +239,12 @@ export function renderSidebar(filter = '') {
       startRename(el, sid);
     });
   });
+}
+
+async function selectSidebarSession(id) {
+  const selected = await selectSession(id);
+  if (selected) window._closeCompactAideSidebar?.();
+  return selected;
 }
 
 function renderGroup(label, items) {
@@ -337,7 +343,7 @@ export function focusSessionMessage(messageId) {
   const row = [...document.querySelectorAll('#messages .msg-row')]
     .find(item => item.dataset.msgId === messageId);
   if (!row) return false;
-  if (window.matchMedia('(max-width: 700px)').matches) document.body.classList.add('sidebar-hidden');
+  window._closeCompactAideSidebar?.();
   row.classList.add('record-target'); row.tabIndex = -1;
   row.scrollIntoView({ block: 'center', behavior: 'instant' }); row.focus({ preventScroll: true });
   return true;

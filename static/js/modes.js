@@ -120,15 +120,19 @@ export function isIncognitoMode() {
 
 export function setIncognitoMode(on) {
   const next = !!on;
+  const previous = _incognitoMode;
   if (next && !_incognitoMode) {
     _incognitoSidebarWasHidden = document.body.classList.contains('sidebar-hidden');
   }
   _incognitoMode = next;
   document.body.classList.toggle('is-incognito', _incognitoMode);   // dedicated private screen state
   // Incognito hides history while active, then restores the user's prior layout.
-  if (document.body.classList.contains('is-aide')) {
+  if (document.body.classList.contains('is-aide') && (next || previous)) {
     if (_incognitoMode) document.body.classList.add('sidebar-hidden');
     else document.body.classList.toggle('sidebar-hidden', _incognitoSidebarWasHidden);
+    document.getElementById('sidebar-toggle-btn')?.setAttribute(
+      'aria-expanded', String(!document.body.classList.contains('sidebar-hidden')),
+    );
   }
   const btn = document.getElementById('incognito-btn');
   if (btn) {
