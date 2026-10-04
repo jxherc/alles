@@ -109,31 +109,72 @@ export async function initSessions({ hashOwner = 'session' } = {}) {
 // ── per-conversation composer drafts ───────────────────────────────────────
 // unsent text stays with the convo you typed it in — switch away + back, it's
 // still there. keyed by session id (or 'new' for the not-yet-created chat).
-const _draftKey = id => 'aide-draft-' + (id || 'new');
+const _legacyDraftKey = id => 'aide-draft-' + (id || 'new');
+const _draftKey = id => 'aide-draft-v2-' + (id || 'new');
+let _draftStorageWarned = false;
+function writeDraft(id, text, scope, reportFailure = true) {
+  try {
+    // Keep text and source identity in one write, including an explicit empty
+    // draft so a leftover legacy value cannot revive an already-sent question.
+    localStorage.setItem(_draftKey(id), JSON.stringify({ text, document_scope: scope }));
+    _draftStorageWarned = false;
+    try { localStorage.removeItem(_legacyDraftKey(id)); } catch {}
+    return true;
+  } catch {
+    if (reportFailure && !_draftStorageWarned) toast('could not keep this draft for reload. keep this tab open.', 'error');
+    if (reportFailure) _draftStorageWarned = true;
+    return false;
+  }
+}
 export function saveDraft() {
   const ta = document.getElementById('composer-ta');
   if (!ta) return;
   if (isIncognitoMode()) return;
-  const k = _draftKey(_activeId);
-  if (ta.value.trim()) localStorage.setItem(k, ta.value);
-  else localStorage.removeItem(k);
+  const text = ta.value.trim() ? ta.value : '';
+  if (!text) return clearDraft(_activeId);
+  return writeDraft(_activeId, text, window._pendingDocumentScope || null);
 }
 export function restoreDraft(id) {
   const ta = document.getElementById('composer-ta');
   if (!ta) return;
   if (isIncognitoMode()) {
     ta.value = '';
+    window._setAideDocumentScope?.(null);
     ta.style.height = 'auto';
     ta.dispatchEvent(new Event('input', { bubbles: true }));
     return;
   }
-  ta.value = localStorage.getItem(_draftKey(id)) || '';
+  let draft = { text: '', document_scope: null };
+  try {
+    const stored = localStorage.getItem(_draftKey(id));
+    draft = stored === null
+      ? { text: localStorage.getItem(_legacyDraftKey(id)) || '', document_scope: null }
+      : JSON.parse(stored);
+    if (!draft || typeof draft.text !== 'string') throw new Error('invalid draft');
+  } catch {
+    draft = { text: '', document_scope: null };
+    toast('could not restore this browser draft. keep any other open copy.', 'error');
+  }
+  ta.value = draft.text;
+  window._setAideDocumentScope?.(draft.document_scope || null);
   ta.style.height = 'auto';
   ta.dispatchEvent(new Event('input', { bubbles: true }));   // autosize + send-btn state
 }
 export function clearDraft(id) {
   if (isIncognitoMode()) return;
-  localStorage.removeItem(_draftKey(id === undefined ? _activeId : id));
+  const owner = id === undefined ? _activeId : id;
+  if (writeDraft(owner, '', null, false)) return true;
+  // Removing consumed drafts needs no free storage, unlike migration to an
+  // empty v2 record. Do not use this fallback for unsent edits.
+  try {
+    localStorage.removeItem(_legacyDraftKey(owner));
+    localStorage.removeItem(_draftKey(owner));
+    _draftStorageWarned = false;
+    return true;
+  } catch {
+    toast('could not clear the saved draft. check it before sending again.', 'error');
+    return false;
+  }
 }
 
 export function newChat(options = {}) {
