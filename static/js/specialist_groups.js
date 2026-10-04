@@ -628,6 +628,23 @@ async function _renderLibrary(target, request) {
         'specialist-workbench-empty',
         unavailable ? `${unavailable} unavailable; no items were returned by available sources` : 'nothing in this part of Library yet',
       ));
+      if (!unavailable) {
+        const section = filter === 'saved' ? 'read' : 'books';
+        const add = _el('button', 'btn', section === 'read' ? 'save reading' : 'add a book');
+        add.type = 'button';
+        add.addEventListener('click', async () => {
+          const navigated = await window._navigateSpecialistSection?.('library', section);
+          if (!navigated || document.getElementById('library-view')?.dataset.section !== section) return;
+          if (section === 'read') {
+            (document.getElementById('read-save-check') || document.getElementById('read-url'))?.focus();
+          } else {
+            const title = document.getElementById('book-title');
+            if (title) title.focus();
+            else document.getElementById('books-add-toggle')?.click();
+          }
+        });
+        list.append(add);
+      }
       return;
     }
     for (const record of visible) {
