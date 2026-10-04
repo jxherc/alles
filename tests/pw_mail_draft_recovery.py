@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -733,7 +734,7 @@ with sync_playwright() as pw:
                             endpoint, data={**initial, "body": "newer saved version"}
                         ).json()
                         if case == "stale-delete":
-                            page.get_by_role("button", name="delete draft", exact=True).click()
+                            page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
                             expect(
                                 page.get_by_text(
                                     "this draft has changed; refresh before deleting it", exact=True
