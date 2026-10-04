@@ -523,15 +523,14 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
         base = taskValues(result); putValues(base); saved = true;
       }
     } catch {
-      showRecovery(tr('common.request_failed'));
-      toast(tr('common.request_failed'), 'error');
+      showRecovery(tr('tasks.save_not_confirmed'));
     } finally {
       saving = false;
       controls.forEach((control, index) => { control.disabled = disabledBefore[index]; });
       dialog.removeAttribute('aria-busy');
       saveButton.textContent = tr('common.save');
       saveButton.removeAttribute('aria-disabled'); saveButton.removeAttribute('aria-busy');
-      setControlState(saveButton, saved ? 'resting' : 'error', { message: saved ? '' : tr('common.request_failed') });
+      setControlState(saveButton, saved ? 'resting' : 'error', { message: saved ? '' : message.textContent });
     }
     if (saved) {
       if (await close({ restoreFocus: false, discard: true })) {

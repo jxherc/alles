@@ -258,6 +258,7 @@
     "tasks.conflict_message": "此任務已在別處變更。儲存前請檢查兩個版本。",
     "tasks.your_change": "你的變更",
     "tasks.saved_value": "已儲存的值",
+    "tasks.save_not_confirmed": "尚未確認儲存。你的變更仍在這裡，請重試儲存。",
     "tasks.save_queued": "變更已進入離線佇列。儲存完成前，此草稿會保留在這裡。",
     "tasks.saved_refresh_failed": "任務已儲存，但清單重新整理失敗。請重新載入查看。",
     "tasks.edit_named": "編輯 {task}",
