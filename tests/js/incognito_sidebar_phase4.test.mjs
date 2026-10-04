@@ -27,6 +27,12 @@ globalThis.document = {
 
 const { setIncognitoMode } = await import('../../static/js/modes.js');
 
+test('initial non-incognito state preserves the responsive sidebar choice', () => {
+  document.body.classList = new ClassList(['is-aide', 'sidebar-hidden']);
+  setIncognitoMode(false);
+  assert.equal(document.body.classList.contains('sidebar-hidden'), true);
+});
+
 test('leaving incognito restores an open sidebar', () => {
   document.body.classList = new ClassList(['is-aide']);
   setIncognitoMode(true);

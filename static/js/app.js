@@ -367,13 +367,11 @@ async function _boot({ reachable = true } = {}) {
   const aideSidebarMedia = window.matchMedia('(max-width: 700px)');
   let aideSidebarWasMobile = aideSidebarMedia.matches;
   const storedAideSidebar = localStorage.getItem('aide-sidebar-hidden');
-  if (storedAideSidebar === '1'
-    || (storedAideSidebar === null && aideSidebarMedia.matches)) {
-    document.body.classList.add('sidebar-hidden');
-  }
+  setAideSidebarHidden(storedAideSidebar === '1'
+    || (storedAideSidebar === null && aideSidebarMedia.matches));
   const syncAideSidebarViewport = event => {
     if (event.matches && !aideSidebarWasMobile) {
-      document.body.classList.add('sidebar-hidden');
+      setAideSidebarHidden(true);
     }
     aideSidebarWasMobile = event.matches;
   };
@@ -1510,15 +1508,34 @@ function setNav(view) {
 // ── events ────────────────────────────────────────────────────────────────────
 let _eventsBound = false;
 
+function setAideSidebarHidden(hidden, { restoreFocus = false, persist = false } = {}) {
+  const hadSidebarFocus = !!document.activeElement?.closest('.sidebar');
+  const trigger = document.getElementById('sidebar-toggle-btn');
+  document.body.classList.toggle('sidebar-hidden', hidden);
+  trigger?.setAttribute('aria-expanded', String(!hidden));
+  if (persist) localStorage.setItem('aide-sidebar-hidden', hidden ? '1' : '');
+  if (!document.body.classList.contains('is-aide')) return;
+  if (hidden) {
+    setAideToolsMenu(false);
+    if (restoreFocus || hadSidebarFocus) trigger?.focus();
+  } else if (window.matchMedia('(max-width: 700px)').matches) {
+    (document.querySelector('.sidebar .session-open[aria-current="true"]')
+      || document.getElementById('new-chat-btn'))?.focus();
+  }
+}
+
+function closeCompactAideSidebar({ restoreFocus = false } = {}) {
+  if (!document.body.classList.contains('is-aide')
+    || !window.matchMedia('(max-width: 700px)').matches
+    || document.body.classList.contains('sidebar-hidden')) return false;
+  setAideSidebarHidden(true, { restoreFocus });
+  return true;
+}
+window._closeCompactAideSidebar = closeCompactAideSidebar;
+
 function bindEvents() {
   if (_eventsBound) return;
   _eventsBound = true;
-
-  const closeCompactAideSidebar = () => {
-    if (window.matchMedia('(max-width: 700px)').matches) {
-      document.body.classList.add('sidebar-hidden');
-    }
-  };
 
   // tools collapse toggle
   const moreToggle = document.getElementById('nav-more-toggle');
@@ -1670,7 +1687,10 @@ function bindEvents() {
   document.addEventListener('click', event => {
     if (!event.target.closest('.aide-sidebar-foot')) setAideToolsMenu(false);
   });
-  document.getElementById('aide-settings-link')?.addEventListener('click', () => openSettings());
+  document.getElementById('aide-settings-link')?.addEventListener('click', () => {
+    setAideToolsMenu(false, { restoreFocus: true });
+    openSettings();
+  });
   document.getElementById('aide-scheduled-link')?.addEventListener('click', () => {
     navigateTo('scheduled');
     closeCompactAideSidebar();
@@ -1729,8 +1749,7 @@ function bindEvents() {
   });
   document.getElementById('sidebar-toggle-btn')?.addEventListener('click', () => {
     if (!document.body.classList.contains('is-aide')) return;
-    document.body.classList.toggle('sidebar-hidden');
-    localStorage.setItem('aide-sidebar-hidden', document.body.classList.contains('sidebar-hidden') ? '1' : '');
+    setAideSidebarHidden(!document.body.classList.contains('sidebar-hidden'), { persist: true });
   });
 
   // tasks / calendar / gallery
@@ -1795,7 +1814,7 @@ function bindEvents() {
 
   // 11b: tapping the dim backdrop closes the phone drawer
   document.getElementById('nav-backdrop')?.addEventListener('click', () => {
-    document.body.classList.add('sidebar-hidden');
+    closeCompactAideSidebar({ restoreFocus: true });
   });
 
   // sidebar nav + brand-as-home
@@ -1803,7 +1822,7 @@ function bindEvents() {
     el.addEventListener('click', () => {
       navigateTo(el.dataset.view);
       // on a phone, a nav tap should also slide the drawer shut
-      if (window.matchMedia('(max-width: 700px)').matches) document.body.classList.add('sidebar-hidden');
+      closeCompactAideSidebar();
     });
   });
   // Aide owns its wordmark; Home has a separate quiet footer control.
@@ -1831,12 +1850,14 @@ function bindEvents() {
     const slashAllowed = slash && !e.isComposing && !e.defaultPrevented
       && !e.target?.closest?.('input, textarea, select, [contenteditable], [role="textbox"], [role="combobox"], [role="dialog"], [role="menu"], [role="listbox"]');
     if (e.key === 'Escape') {
+      if (e.defaultPrevented) return;
       const filesPreview = document.getElementById('files-preview-modal');
       if (filesPreview?.style.display !== 'none') return;
       // if a reply is streaming, Esc stops it first; otherwise it closes overlays
       const stopBtn = document.getElementById('stop-btn');
       if (stopBtn?.classList.contains('visible')) { stopStream(); return; }
       closeModelModal(); closeAllModals(); closeSettings(); closeSearch(); closeMoreTools(); closeShellPanel(); closeAppDrawer(); closePermMenu(); setAideSidebarSearch(false);
+      if (closeCompactAideSidebar({ restoreFocus: true })) e.preventDefault();
     }
     else if (matchesShortcut(e, shortcuts.focus_input)) {
       const ta = document.getElementById('composer-ta');
@@ -1844,7 +1865,10 @@ function bindEvents() {
     }
     else if ((matchesShortcut(e, shortcuts.search) && (!slash || slashAllowed)) || commandK || slashAllowed) { e.preventDefault(); openSearch(); }
     else if (matchesSettingsShortcut(e, shortcuts.settings)) { e.preventDefault(); openSettings(); }
-    else if (matchesShortcut(e, shortcuts.sidebar) && document.body.classList.contains('is-aide')) { e.preventDefault(); document.body.classList.toggle('sidebar-hidden'); }
+    else if (matchesShortcut(e, shortcuts.sidebar) && document.body.classList.contains('is-aide')) {
+      e.preventDefault();
+      setAideSidebarHidden(!document.body.classList.contains('sidebar-hidden'), { restoreFocus: true });
+    }
     else if (matchesShortcut(e, shortcuts.new_chat)) { e.preventDefault(); document.getElementById('new-chat-btn')?.click(); }
     else if (matchesShortcut(e, shortcuts.send)) { e.preventDefault(); doSend(); }
   });

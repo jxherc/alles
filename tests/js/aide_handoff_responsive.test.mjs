@@ -43,7 +43,7 @@ test('Aide drawer and backdrop share the 700px responsive breakpoint', () => {
   const responsive = style.slice(start, style.indexOf('@media', start + 1));
   assert.match(responsive, /body\.is-aide:not\(\.sidebar-hidden\) \.nav-backdrop/);
   assert.match(app, /matchMedia\('\(max-width: 700px\)'\)/);
-  const closeHelper = app.match(/const closeCompactAideSidebar = \(\) => \{[\s\S]*?\n  \};/)?.[0] || '';
+  const closeHelper = app.match(/function closeCompactAideSidebar\([^]*?\n}/)?.[0] || '';
   assert.match(closeHelper, /max-width: 700px/);
   assert.match(app, /new-chat-btn'[\s\S]{0,220}closeCompactAideSidebar\(\)/);
   assert.match(app, /aide-scheduled-link'[\s\S]{0,180}closeCompactAideSidebar\(\)/);
