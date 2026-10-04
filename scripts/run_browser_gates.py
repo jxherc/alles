@@ -93,6 +93,7 @@ COMMANDS = {
     "first-model-setup": ("tests/pw_first_model_setup.py",),
     "docs-offline-recovery": ("tests/pw_docs_offline_recovery.py",),
     "command-discovery": ("tests/pw_command_discovery.py",),
+    "artifact-motion": ("tests/pw_artifact_motion.py",),
     "task-completion-undo": ("tests/pw_task_completion_undo.py",),
     "task-completion-recovery": ("tests/pw_task_completion_recovery.py",),
     "aide-drawer": ("tests/pw_aide_drawer.py",),
