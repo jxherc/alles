@@ -100,6 +100,7 @@ COMMANDS = {
     "journal-document-route": ("tests/pw_journal_document_route.py",),
     "journal-entry-priority": ("tests/pw_journal_entry_priority.py",),
     "required-dates": ("tests/pw_required_dates.py",),
+    "mail-draft-controls": ("tests/pw_mail_draft_controls.py",),
     "server-policy-validation": ("tests/pw_server_policy_validation.py",),
     "journal-search-export": ("tests/pw_journal_search_export.py",),
     "journal-reflect": ("tests/pw_journal_reflect.py",),

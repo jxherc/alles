@@ -3,6 +3,7 @@
 import base64
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -124,7 +125,7 @@ def run():
                         page.route(base + "/api/settings", hold_settings)
                         page.get_by_role("button", name="compose", exact=True).click()
                         held_one(settings)
-                        page.get_by_role("button", name="delete draft", exact=True).click()
+                        page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
                         expect(page.locator(".mail-draft-row")).to_have_count(0)
                         route, response = settings.pop()
                         route.fulfill(response=response)
@@ -236,7 +237,7 @@ def run():
                         if case == "delete-pending-read":
                             page.get_by_role("button", name="owned deletion", exact=True).click()
                             held_one(reads)
-                        page.get_by_role("button", name="delete draft", exact=True).click()
+                        page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
                         held_one(held)
                         if case == "delete-reopen":
                             page.locator(".mail-draft-row .mail-from").click()
@@ -444,7 +445,7 @@ def run():
                             held.append((route, response))
 
                         page.route(base + "/api/mail/drafts/" + draft["id"] + "?*", hold_delete)
-                        page.get_by_role("button", name="delete draft", exact=True).click()
+                        page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
                         held_one(held)
                         body.fill("later unsaved edit")
                         route, response = held.pop()
@@ -643,7 +644,7 @@ def run():
                         page.evaluate(
                             "() => { const real = window.fetch; window.__draftDeleteReturned = false; window.fetch = async (...args) => { const response = await real(...args); if (args[1]?.method === 'DELETE' && String(args[0]).includes('/api/mail/drafts/')) setTimeout(() => { window.__draftDeleteReturned = true; }, 0); return response; }; }"
                         )
-                        page.get_by_role("button", name="delete draft", exact=True).click()
+                        page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
                         dialog = page.get_by_role("alertdialog")
                         if dialog.is_visible():
                             dialog.get_by_role("button", name="confirm", exact=True).click()
