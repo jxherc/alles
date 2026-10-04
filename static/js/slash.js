@@ -146,9 +146,10 @@ function _show(matches, ta, lineStart, cursor, grouped = false) {
 
   // position above textarea, wider than textarea for cheatsheet feel
   const rect = ta.getBoundingClientRect();
-  const width = Math.max(480, rect.width);
-  const left  = Math.min(rect.left, window.innerWidth - width - 12);
-  _popup.style.cssText = `bottom:${window.innerHeight - rect.top + 8}px;left:${left}px;width:${width}px`;
+  const width = Math.min(Math.max(480, rect.width), window.innerWidth - 24);
+  const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+  const height = Math.min(360, Math.max(0, rect.top - 20));
+  _popup.style.cssText = `bottom:${window.innerHeight - rect.top + 8}px;left:${left}px;width:${width}px;max-height:${height}px`;
   document.body.appendChild(_popup);
 
   _popup.querySelectorAll('.slash-item').forEach(el => {
@@ -184,6 +185,7 @@ function _handleKey(e, ta) {
 function _updateSelected() {
   _popup?.querySelectorAll('.slash-item').forEach((el, i) =>
     el.classList.toggle('selected', i === _selectedIdx));
+  _popup?.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
 }
 
 function _apply(entry, ta, lineStart, cursor) {

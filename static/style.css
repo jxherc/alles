@@ -6473,6 +6473,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .slash-cat-label:first-child { border-top: none; padding-top: 0.3rem; }
 .slash-item {
   display: flex; align-items: baseline; gap: 0;
+  min-height: 44px;
   padding: 0.28rem 0.85rem; cursor: pointer;
   transition: background 0.1s;
 }
@@ -9952,3 +9953,10 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .mail-accounts .mail-status, .mail-accounts .mail-saved-status { overflow-wrap: anywhere; }
 .mail-accounts [aria-disabled="true"] { opacity: 0.5; cursor: default; }
 #ma-tls { align-self: flex-start; }
+
+@media (max-width: 600px) {
+  .slash-item { flex-wrap: wrap; }
+  .slash-cmd { width: 100%; flex-wrap: wrap; }
+  .slash-args { white-space: normal; }
+  .slash-desc { flex-basis: 100%; white-space: normal; overflow-wrap: anywhere; }
+}

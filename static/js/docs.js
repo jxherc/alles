@@ -139,7 +139,11 @@ function navIcon(name) {
 async function api(url, options = {}) {
   let response;
   try { response = await _fetcher(url, options); }
-  catch { throw new Error('Alles could not reach the local server'); }
+  catch {
+    const error = new Error('Alles could not reach the local server');
+    error.code = 'server_unreachable';
+    throw error;
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(data.detail || data.message || 'request failed');
@@ -148,6 +152,13 @@ async function api(url, options = {}) {
     throw error;
   }
   return data;
+}
+
+function writeErrorMessage(error, fallback) {
+  if (error.code === 'server_unreachable') {
+    return 'Alles could not reach the local server. your edits are still here. reconnect, then choose save to retry.';
+  }
+  return error.message || fallback;
 }
 
 function jsonOptions(method, body) {
@@ -1114,7 +1125,7 @@ async function flushDraft() {
     return true;
   } catch (error) {
     if (_cur === path && _editRevision === revision) {
-      setSaveState(error.message || 'draft could not be saved', true);
+      setSaveState(writeErrorMessage(error, 'draft could not be saved'), true);
     }
     return false;
   }
@@ -1162,8 +1173,9 @@ async function saveCurrent() {
       ]);
       setSaveState('save paused · conflict', true);
     } else {
-      setSaveState(error.message || 'save failed', true);
-      toast(error.message || 'save failed', 'error');
+      const message = writeErrorMessage(error, 'save failed');
+      setSaveState(message, true);
+      toast(message, 'error');
     }
     return false;
   } finally { $('wiki-save-btn').disabled = false; }

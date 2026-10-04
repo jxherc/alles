@@ -692,6 +692,11 @@ function maybeAutoRefresh() {
   refreshModels(false);
 }
 
+async function endpointError(response, fallback) {
+  const data = await response.json().catch(() => ({}));
+  return new Error(typeof data?.detail === 'string' ? data.detail : fallback);
+}
+
 export async function addEndpoint(name, url, key, adapter = 'auto', manualModels = [], auth = {}) {
   const r = await _ownerFetch('/api/models/endpoint', {
     method: 'POST',
@@ -705,7 +710,7 @@ export async function addEndpoint(name, url, key, adapter = 'auto', manualModels
       auth_type: auth.authType || 'api_key',
     }),
   });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) throw await endpointError(r, 'connection could not be added; check the address and try again');
   const ep = await r.json();
   if (adapter === 'manual') {
     const updated = await _ownerFetch(`/api/models/endpoint/${ep.id}`, {
@@ -713,7 +718,7 @@ export async function addEndpoint(name, url, key, adapter = 'auto', manualModels
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ models: manualModels }),
     });
-    if (!updated.ok) throw new Error(await updated.text());
+    if (!updated.ok) throw await endpointError(updated, 'model list could not be saved; try again');
   } else {
     const probe = await fetch(`/api/models/endpoint/${ep.id}/probe`, { method: 'POST' });
     if (!probe.ok) toast(`${ep.name} saved, but its catalog is not available`, 'error');
