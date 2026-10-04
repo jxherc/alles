@@ -290,6 +290,7 @@ class PathBody(BaseModel):
     content: str = ""
     unique: bool = False
     request_id: str = ""
+    expected_vault: str = Field(default="", pattern=r"^(?:[a-f0-9]{64})?$")
 
 
 class SafeDocumentBody(BaseModel):
@@ -417,16 +418,23 @@ def restore_document_revision(body: RevisionRestoreBody, background_tasks: Backg
 @router.get("/create-scope")
 def note_create_scope(response: Response):
     response.headers["Cache-Control"] = "no-store"
-    return {"scopes": document_safety.create_scopes()}
+    return {
+        "scopes": document_safety.create_scopes(),
+        "vault_scopes": document_safety.create_vault_scopes(),
+    }
 
 
 @router.post("/file")
 def create_file(body: PathBody, background_tasks: BackgroundTasks):
     try:
+        if body.expected_vault and not body.request_id:
+            raise ValueError("a verified note destination requires a request identity")
         if body.request_id:
             if not body.unique:
                 raise ValueError("a note request identity requires unique creation")
-            out = document_safety.create_document(body.path, body.content, body.request_id)
+            out = document_safety.create_document(
+                body.path, body.content, body.request_id, expected_vault=body.expected_vault
+            )
         else:
             out = (
                 vault_md.create_unique(body.path, body.content)

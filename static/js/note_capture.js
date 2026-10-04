@@ -8,8 +8,9 @@ let generation = 0;
 async function pendingStore() {
   const response = await fetch('/api/vault-md/create-scope', { cache: 'no-store' });
   if (!response.ok) throw new Error('note recovery could not load; try again');
-  const { scopes } = await response.json();
+  const { scopes, vault_scopes: vaultScopes } = await response.json();
   if (!Array.isArray(scopes) || !scopes.length || scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('note recovery could not load; try again');
+  if (!Array.isArray(vaultScopes) || !vaultScopes.length || vaultScopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('note destination could not load; try again');
   const keys = scopes.map(scope => PREFIX + scope);
   let pending = null;
   for (const key of keys) {
@@ -21,6 +22,7 @@ async function pendingStore() {
   }
   return {
     pending,
+    vault: vaultScopes[0],
     put(value) {
       const raw = JSON.stringify(value);
       sessionStorage.setItem(keys[0], raw);
@@ -39,6 +41,7 @@ function requestId() {
 }
 
 async function submit(store, pending) {
+  if (!/^[a-f0-9]{64}$/.test(pending.body.expected_vault || '')) throw new Error('this older pending note has no verified vault; check the original note before discarding this retry');
   const response = await fetch('/api/vault-md/file', {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending.body),
   });
@@ -65,7 +68,7 @@ export async function saveNote(text, path, { preserveContent = false } = {}) {
   busy = true; ++generation;
   try {
     const store = await pendingStore();
-    const pending = store.pending || { text, body: { path, content, unique: true, request_id: requestId() } };
+    const pending = store.pending || { text, body: { path, content, unique: true, request_id: requestId(), expected_vault: store.vault } };
     if (pending.text !== text || pending.body.content !== content || pending.body.path !== path) throw new Error('finish the pending note below before saving another');
     store.put(pending);
     return await submit(store, pending);

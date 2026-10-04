@@ -64,6 +64,7 @@ BROWSER_SUITES = {
         "reviewed-capture",
         "home-reviewed-capture",
         "home-note-recovery",
+        "note-destination-recovery",
         "home-aide-runs",
         "calendar-metadata-picker",
         "files-workflows",
@@ -111,6 +112,7 @@ BROWSER_SUITES = {
         "reviewed-capture",
         "home-reviewed-capture",
         "home-note-recovery",
+        "note-destination-recovery",
         "home-aide-runs",
     ),
     "recurring": (
@@ -217,6 +219,7 @@ BROWSER_SUITES = {
         "reviewed-capture",
         "home-reviewed-capture",
         "home-note-recovery",
+        "note-destination-recovery",
         "home-aide-runs",
         "calendar-metadata-picker",
         "files-workflows",
