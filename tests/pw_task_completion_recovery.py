@@ -69,6 +69,7 @@ with sync_playwright() as pw:
                     else request.abort()
                 ),
             )
+            context.route_web_socket("**/*", lambda socket: socket.close())
             page = context.new_page()
             page.set_default_timeout(5000)
             errors, console = [], []
@@ -151,8 +152,9 @@ with sync_playwright() as pw:
                 ).to_be_visible()
                 assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
                 assert not errors, errors
-                assert len(console) == 4 and all(
-                    "503" in message and "Failed to load resource" in message for message in console
+                assert len(console) == 6 and all(
+                    ("503" in message or "409" in message) and "Failed to load resource" in message
+                    for message in console
                 ), console
                 row["checks"] = [
                     "completion-rejected",

@@ -42,6 +42,7 @@ def _fmt(t: Task) -> dict:
         "project": t.project or "",
         "sort_order": t.sort_order or 0,
         "created_at": t.created_at.isoformat(),
+        "completed_at": t.completed_at.isoformat() if t.completed_at else None,
     }
 
 
@@ -98,7 +99,7 @@ def _expected_value(field: str, value):
         valid = type(value) is int
     elif field == "done":
         valid = type(value) is bool
-    elif field in {"due_date", "parent_id"}:
+    elif field in {"due_date", "parent_id", "completed_at"}:
         valid = value is None or isinstance(value, str)
     else:
         valid = isinstance(value, str)
@@ -115,6 +116,10 @@ def _expected_value(field: str, value):
 
 def _current_value(task: Task, field: str):
     value = getattr(task, field)
+    if field == "stage":
+        return _stage(value, bool(task.done))
+    if field == "completed_at":
+        return value.isoformat() if value else None
     if value is None and field not in {"due_date", "parent_id"}:
         value = 0 if field in {"priority", "sort_order"} else False if field == "done" else ""
     return _expected_value(field, value)
@@ -127,12 +132,14 @@ def _guarded_changes(body: dict) -> dict | None:
     changes = set(body) - {"expected", "draft_scope"}
     if not isinstance(expected, dict) or not changes or not changes <= _TASK_FIELDS:
         raise HTTPException(400, "expected must describe the changed task fields")
-    if set(expected) != changes:
+    guards = {"completed_at"} if changes & {"done", "stage"} else set()
+    if set(expected) - guards != changes:
         raise HTTPException(400, "expected must include each changed field exactly once")
     normalized = {}
     for field, value in expected.items():
         normalized[field] = _expected_value(field, value)
-        body[field] = _expected_value(field, body[field])
+        if field in changes:
+            body[field] = _expected_value(field, body[field])
     return normalized
 
 

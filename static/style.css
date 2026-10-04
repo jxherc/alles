@@ -4381,6 +4381,10 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 
 /* task item */
 .tasks-tabs { display: flex; gap: 0.15rem; }
+#task-completion-receipt { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) var(--page-gutter, 16px); color: var(--text); font-size: 13px; }
+#task-completion-receipt[hidden], #task-completion-receipt [hidden] { display: none; }
+#task-completion-message { min-width: 0; overflow-wrap: anywhere; }
+#task-completion-receipt button { min-width: 44px; min-height: 44px; }
 .tasks-tab {
   background: none; border: 1px solid transparent; border-radius: 3px; color: var(--muted);
   font: inherit; font-size: 0.75rem; padding: 0.22rem 0.6rem; cursor: pointer; transition: all 0.15s ease;
