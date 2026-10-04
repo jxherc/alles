@@ -294,6 +294,9 @@ async def _stream_and_save(
     agent_run_id = ""
     completed = False
     interrupted = False
+    provider_failed = False
+    tool_activity = False
+    settled = False
     provenance = (settings or {}).get("context_provenance") or {}
     if (provenance.get("document") or {}).get("kind") == "vault_documents":
         # Correlate a stopped stream with its canonical reply without guessing by text.
@@ -320,6 +323,11 @@ async def _stream_and_save(
                 )
             ) as stream:
                 async for chunk in stream:
+                    provider_failed = provider_failed or bool(chunk.get("error"))
+                    tool_activity = tool_activity or any(
+                        key.startswith(("tool_", "user_question")) or key == "todo_update"
+                        for key in chunk
+                    )
                     run = chunk.get("agent_run")
                     if isinstance(run, dict) and run.get("id"):
                         agent_run_id = str(run["id"])
@@ -343,6 +351,7 @@ async def _stream_and_save(
                     if stop_event.is_set():
                         break
                     if "error" in chunk:
+                        provider_failed = True
                         yield chunk
                         break
                     if "thinking" in chunk:
@@ -355,16 +364,36 @@ async def _stream_and_save(
                         completed = True
                         usage = chunk.get("usage", {})
                         yield chunk
+        settled = True
     except (asyncio.CancelledError, GeneratorExit):
         interrupted = not completed
         raise
     finally:
+        full_text = "".join(accumulated)
+        response_recovery = None
+        if provider_failed:
+            response_recovery = {"status": "failed"}
+        elif not full_text or (not settled and not completed):
+            response_recovery = {"status": "incomplete"}
+        retry_request = (settings or {}).get("response_retry_request")
+        if (
+            provider_failed
+            and settled
+            and not full_text
+            and not tool_activity
+            and not tool_steps
+            and not interrupted
+            and not stop_event.is_set()
+            and isinstance(retry_request, dict)
+            and not (incognito and retry_request.get("file_ids"))
+        ):
+            response_recovery["request"] = retry_request
         # A disconnect closes this generator; save synchronously before cancellation can
         # interrupt another await. Each generator finalizes once, including aclose().
         saved_message = _save_turn(
             session_id,
             user_text,
-            "".join(accumulated),
+            full_text,
             model,
             db_factory,
             incognito,
@@ -375,6 +404,7 @@ async def _stream_and_save(
             usage,
             agent_run_id,
             interrupted or stop_event.is_set(),
+            response_recovery,
         )
     if saved_message:
         if "user_id" in saved_message:
@@ -397,6 +427,7 @@ def _save_turn(
     usage,
     agent_run_id,
     interrupted,
+    response_recovery=None,
 ):
     citation_report = None
     document = ((settings or {}).get("context_provenance") or {}).get("document") or {}
@@ -418,6 +449,8 @@ def _save_turn(
             meta["agent_run_id"] = agent_run_id
         if interrupted:
             meta["interrupted"] = True
+        if response_recovery:
+            meta["response_recovery"] = response_recovery
         incognito_service.append_turn(
             session_id,
             user_text,
@@ -425,11 +458,15 @@ def _save_turn(
             json.dumps(meta),
             retry_message_id=(settings or {}).get("retry_message_id", ""),
         )
-        if interrupted and not full_text:
-            private = incognito_service.get_session(session_id)
-            if private and private.messages:
-                private.messages[-1].meta = json.dumps(meta)
         private = incognito_service.get_session(session_id)
+        if private and private.messages:
+            if not full_text:
+                private.messages[-1].meta = json.dumps(meta)
+            elif len(private.messages) >= 2:
+                user = private.messages[-2]
+                user_meta = user.meta_dict()
+                user_meta.pop("response_recovery", None)
+                user.meta = json.dumps(user_meta)
         if private and full_text and private.messages and private.messages[-1].role == "assistant":
             return {
                 "id": private.messages[-1].id,
@@ -467,6 +504,12 @@ def _save_turn(
             db.add(um)
             added += 1
 
+        user_meta = um.meta_dict()
+        user_meta.pop("response_recovery", None)
+        if response_recovery and not (full_text or interrupted or tool_steps):
+            user_meta["response_recovery"] = response_recovery
+        um.meta = json.dumps(user_meta)
+
         if full_text or interrupted or tool_steps:
             meta = {
                 "usage": usage,
@@ -485,6 +528,8 @@ def _save_turn(
                 meta["agent_run_id"] = agent_run_id
             if interrupted:
                 meta["interrupted"] = True
+            if response_recovery:
+                meta["response_recovery"] = response_recovery
             artifacts = _extract_artifacts(full_text)
             if artifacts:
                 meta["artifacts"] = artifacts

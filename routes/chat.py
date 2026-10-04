@@ -176,12 +176,19 @@ def _validate_retry(body: ChatRequest, session, db) -> None:
             .populate_existing()
             .first()
         )
+    meta = last.meta_dict() if last else {}
+    recovery = meta.get("response_recovery") if isinstance(meta, dict) else None
+    original = recovery.get("request") if isinstance(recovery, dict) else None
     if (
         body.session_id in _streams
         or not last
         or last.id != body.retry_message_id
         or last.role != "user"
         or last.content != body.message
+        or not isinstance(original, dict)
+        or recovery.get("status") != "failed"
+        or original
+        != body.model_dump(mode="json", exclude={"session_id", "message", "retry_message_id"})
     ):
         raise ApiError(
             409, "retry_unavailable", "this question can no longer be retried; reopen the task"
@@ -440,6 +447,9 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
     _validate_retry(body, s, db)
     _require_idle_session(body.session_id)
     settings["retry_message_id"] = body.retry_message_id
+    settings["response_retry_request"] = body.model_dump(
+        mode="json", exclude={"session_id", "message", "retry_message_id"}
+    )
     stop_event = asyncio.Event()
     _streams[body.session_id] = stop_event
     if incognito_run:

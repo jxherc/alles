@@ -449,9 +449,14 @@ function renderMessages(msgs) {
   container.innerHTML = '';
   for (const m of msgs) {
     if (m.role === 'user') {
-      const row = appendUserMsg(m.content);
+      const row = appendUserMsg(m.content, m.meta?.response_recovery?.request?.context_scope);
       row.dataset.msgId = m.id;
       if (m.meta?.interrupted) appendInterruptionNotice(row.querySelector('.user-wrap') || row);
+      else if (m.meta?.response_recovery || m === msgs.at(-1)) {
+        const pending = createStreamingAiRow();
+        pending.body.classList.add('done');
+        appendResponseRecovery(pending.body, m, m === msgs.at(-1), pending.row);
+      }
     } else if (m.role === 'system' && m.content?.startsWith('[conversation summary]')) {
       // compact divider
       const div = document.createElement('div');
@@ -470,6 +475,7 @@ function renderMessages(msgs) {
       row.dataset.msgId = m.id;
       reconcileAnswerNote(wrap);
       if (m.meta?.interrupted) appendInterruptionNotice(body);
+      else if (m.meta?.response_recovery) appendResponseRecovery(body, m);
       const actions = wrap.querySelector('.msg-actions');
       // re-open artifact button from history
       if (m.meta?.artifacts?.length) {
@@ -497,6 +503,36 @@ function renderMessages(msgs) {
   _wireEditButtons(container);
   _wireBranchButtons(container);
   scrollDown({ force: true });
+}
+
+function appendResponseRecovery(target, message, latest = false, row = null) {
+  const recovery = message.meta?.response_recovery;
+  const request = recovery?.request;
+  const retryable = latest && recovery?.status === 'failed' && request && typeof request === 'object';
+  const notice = document.createElement('div');
+  notice.className = 'error-msg model-error aide-response-recovery';
+  const status = document.createElement('p');
+  status.setAttribute('role', 'status');
+  status.textContent = retryable
+    ? 'the model could not answer this question. check model settings, then retry the original request.'
+    : recovery?.status === 'failed'
+    ? 'this response failed. review any partial answer and task activity before sending again.'
+    : 'no complete response was saved. review task activity before sending again.';
+  const settings = document.createElement('button');
+  settings.type = 'button'; settings.className = 'btn'; settings.textContent = 'model settings';
+  settings.addEventListener('click', () => window._openSettings?.('models'));
+  notice.append(status, settings);
+  if (retryable) {
+    const original = { ...request, session_id: _activeId, message: message.content, retry_message_id: message.id };
+    const retry = document.createElement('button');
+    retry.type = 'button'; retry.className = 'btn aide-retry-response'; retry.textContent = 'retry response';
+    retry.addEventListener('click', async () => {
+      const { retrySavedResponse } = await import('./chat.js');
+      retrySavedResponse(original, row);
+    });
+    notice.appendChild(retry);
+  }
+  target.appendChild(notice);
 }
 
 
