@@ -73,6 +73,7 @@ COMMANDS = {
     "aide-task-capture": ("tests/pw_aide_task_capture.py",),
     "aide-send-preflight": ("tests/pw_aide_send_preflight.py",),
     "compare-preflight": ("tests/pw_compare_preflight.py",),
+    "skills-keyboard": ("tests/pw_skills_keyboard.py",),
     "task-completion-recovery": ("tests/pw_task_completion_recovery.py",),
     "aide-drawer": ("tests/pw_aide_drawer.py",),
     "managed-service-workflow": ("tests/pw_managed_service.py",),
