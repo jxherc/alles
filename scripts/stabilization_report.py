@@ -127,7 +127,7 @@ BROWSER_SUITES = {
         "finance-recurring-repair",
     ),
     "files": ("files-workflows", "files-upload-recovery", "files-transfer-clearance"),
-    "gallery": ("gallery-workflows", "aide-creations"),
+    "gallery": ("gallery-workflows", "gallery-pending", "aide-creations"),
     "creations": ("aide-creations",),
     "pwa": ("pwa-offline", "pwa-storage", "pwa-rejection"),
     "assistant": (
@@ -280,6 +280,7 @@ BROWSER_SUITES = {
         "server-recovery",
         "managed-service-workflow",
         "gallery-workflows",
+        "gallery-pending",
         "aide-creations",
         "andromeda-cancellation",
         "andromeda-saved",
