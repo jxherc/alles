@@ -1197,25 +1197,17 @@ body:is(
 .server-workbench-choice-list { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
 .server-workbench-choice-list button[aria-checked="true"] { color: var(--k-text, var(--text)); border-color: var(--k-line-strong, var(--faint)); }
 
-.server-workbench-switch {
-  width: 100%;
-  min-height: 48px;
+.server-workbench-switch-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--k-space-4, 16px);
   margin-top: var(--k-space-5, 24px);
-  padding: 0;
-  border: 0;
   border-bottom: 1px solid var(--k-line, var(--faint));
   color: var(--k-text, var(--text));
-  background: transparent;
-  font: inherit;
   font-size: 13px;
-  cursor: pointer;
 }
-
-.server-workbench-switch strong { color: var(--k-muted, var(--muted)); font-size: 12px; font-weight: 500; }
-.server-workbench-switch[aria-checked="true"] strong { color: var(--k-success, var(--green)); }
+.server-workbench-switch-row .home-settings-switch { flex-shrink: 0; }
 
 .server-workbench-grid {
   display: grid;
@@ -1329,7 +1321,7 @@ body:is(
   gap: 0 var(--k-space-3, 12px);
   margin-top: var(--k-space-4, 16px);
 }
-.server-managed-form > :where(p, fieldset, button, .server-workbench-switch) { grid-column: 1 / -1; }
+.server-managed-form > :where(p, fieldset, button, .server-workbench-switch-row) { grid-column: 1 / -1; }
 
 .specialist-workbench {
   display: grid;
@@ -4011,7 +4003,8 @@ html[dir="rtl"] :where(
   line-height: 1.4;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-switch {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-switch,
+.server-workbench-switch-row .home-settings-switch {
   width: var(--k-control);
   height: var(--k-control);
   position: relative;
@@ -4021,7 +4014,8 @@ html[dir="rtl"] :where(
   cursor: pointer;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-switch::before {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-switch::before,
+.server-workbench-switch-row .home-settings-switch::before {
   content: "";
   position: absolute;
   top: 10px;
@@ -4033,7 +4027,8 @@ html[dir="rtl"] :where(
   background: var(--k-raised);
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-switch::after {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-switch::after,
+.server-workbench-switch-row .home-settings-switch::after {
   content: "";
   position: absolute;
   top: 14px;
@@ -4045,25 +4040,30 @@ html[dir="rtl"] :where(
   transition: left var(--k-motion-fast) var(--k-ease), background var(--k-motion-fast) var(--k-ease);
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::before {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::before,
+.server-workbench-switch-row .home-settings-switch[aria-checked="true"]::before {
   border-color: var(--k-line-strong);
   background: var(--k-raised);
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::after {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::after,
+.server-workbench-switch-row .home-settings-switch[aria-checked="true"]::after {
   left: 23px;
   background: var(--k-text);
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-switch:disabled {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-switch:disabled,
+.server-workbench-switch-row .home-settings-switch[aria-disabled="true"] {
   cursor: default;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-switch:disabled::before {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-switch:disabled::before,
+.server-workbench-switch-row .home-settings-switch[aria-disabled="true"]::before {
   border-color: var(--k-line);
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-switch:disabled::after {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-switch:disabled::after,
+.server-workbench-switch-row .home-settings-switch[aria-disabled="true"]::after {
   background: var(--k-muted);
 }
 

@@ -59,8 +59,9 @@ test('Server mutations recover exact recent-owner challenges and reject repeated
 test('Server choices roll back failed persistence and disruptive controls confirm consequence', () => {
   assert.match(source, /const previous = buttons\.find/);
   assert.match(source, /catch \(error\) \{\s*select\(previous \|\| button\)/);
-  assert.match(source, /rollbackFocus = previous \|\| button/);
-  assert.match(source, /rollbackFocus\?\.focus\(\)/);
+  assert.match(source, /focusTarget = previous \|\| button/);
+  assert.match(source, /field.isConnected && list.contains\(document.activeElement\)/);
+  assert.match(source, /focusTarget.focus\(\{ preventScroll: true \}\)/);
   assert.match(source, /list\.setAttribute\('aria-busy', 'true'\)/);
   assert.match(source, /function destructiveAction/);
   assert.match(source, /function serviceAction/);
