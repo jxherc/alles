@@ -983,7 +983,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
     <div class="mail-row mail-draft-row" data-id="${esc(d.id)}">
       <span class="mail-from">${esc(d.to || '(no recipient)')}</span>
       <button type="button" class="mail-open mail-subj" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>${esc(d.subject || '(no subject)')}</button>
-      <button class="mail-draft-del" data-id="${esc(d.id)}" data-revision="${esc(d.revision)}" data-draft-scope="${esc(_draftScopes[0])}" aria-label="delete draft" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>×</button>
+      <button type="button" class="mail-draft-del icon-btn" data-id="${esc(d.id)}" data-revision="${esc(d.revision)}" data-draft-scope="${esc(_draftScopes[0])}" aria-label="delete draft: ${esc(d.subject || '(no subject)')}" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>${_si('trash')}</button>
       <div class="mail-snippet">${esc(draftPreview(d.body))}</div>
     </div>`).join('');
   const draftScope = _draftScopes[0];
@@ -1015,6 +1015,9 @@ async function loadDrafts({ preserveReader = false } = {}) {
       if (mailEditor() !== editor || editor.snapshot() !== snapshot) return;
     }
     if (_deletingDrafts.has(id)) return;
+    const hadFocus = document.activeElement === b, account = _active;
+    const listGeneration = _listGeneration;
+    let focusGeneration = listGeneration;
     _deletingDrafts.add(id);
     b.disabled = true;
     b.closest('.mail-draft-row')?.querySelector('.mail-open')?.setAttribute('disabled', '');
@@ -1029,11 +1032,18 @@ async function loadDrafts({ preserveReader = false } = {}) {
         if (editor.snapshot() === snapshot) clearMailEditor(editor);
         else editor.detach();
       }
-      if (_filter === 'drafts') await loadDrafts({ preserveReader: true });
+      if (_filter === 'drafts') {
+        if (_listGeneration === listGeneration) focusGeneration = listGeneration + 1;
+        await loadDrafts({ preserveReader: true });
+      }
     } catch (error) { toast(error.message || 'could not delete draft', 'error'); }
     finally {
       _deletingDrafts.delete(id); b.disabled = false;
       $('mail-list').querySelectorAll(`.mail-draft-row[data-id="${CSS.escape(id)}"] button`).forEach(button => { button.disabled = false; });
+      if (hadFocus && document.activeElement === document.body && _filter === 'drafts'
+          && _active === account && _listGeneration === focusGeneration && list.getClientRects().length) {
+        (b.isConnected ? b : list.querySelector('#mail-drafts-retry, .mail-open:not(:disabled)') || $('mail-compose-btn'))?.focus();
+      }
     }
   }));
 }
