@@ -74,6 +74,7 @@ BROWSER_SUITES = {
         "files-transfer-clearance",
         "home-reminders",
         "reminder-recovery",
+        "reminder-undo",
         "home-capture",
         "home-day-draft",
         "home-record-links",
@@ -129,6 +130,7 @@ BROWSER_SUITES = {
     "assistant": (
         "home-aide-runs",
         "reminder-recovery",
+        "reminder-undo",
         "andromeda-cancellation",
         "andromeda-saved",
         "andromeda-handoff",
@@ -238,6 +240,7 @@ BROWSER_SUITES = {
         "files-transfer-clearance",
         "home-reminders",
         "reminder-recovery",
+        "reminder-undo",
         "home-capture",
         "home-day-draft",
         "home-record-links",
