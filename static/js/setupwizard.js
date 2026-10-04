@@ -107,7 +107,7 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
       </div>
     </div>`;
     $('sw-load-close')?.addEventListener('click', _close);
-    $('sw-load-retry')?.addEventListener('click', () => openSetupWizard());
+    $('sw-load-retry')?.addEventListener('click', () => openSetupWizard({ resume }));
   } finally {
     if (loadId === _loadSequence) modal.setAttribute('aria-busy', 'false');
   }
@@ -167,7 +167,7 @@ async function _dismiss() {
     _state = response.setup;
     _dismissedThisSession = true;
     _close();
-    toast('setup paused. resume it from settings anytime.', 'success');
+    toast('setup paused. resume from settings → general → open setup.', 'success');
   } catch (error) {
     _busy(button, false, error.message);
     toast(error.message, 'error');

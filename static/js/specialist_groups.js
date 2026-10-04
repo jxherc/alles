@@ -609,10 +609,7 @@ async function _renderLibrary(target, request) {
     })),
   ];
   target.replaceChildren();
-  const note = _el('p', 'specialist-group-note', 'search results enter Library only when you choose save. feeds and existing read-later items keep their current behavior.');
   const workbench = _el('div', 'specialist-workbench specialist-workbench-library');
-  const rail = _el('aside', 'specialist-workbench-rail');
-  rail.append(_el('h2', '', 'material'));
   const main = _el('section', 'specialist-workbench-main');
   const head = _el('div', 'specialist-workbench-head');
   head.append(_el('h2', '', 'reading queue'), _el('span', '', `${records.length} items`));
@@ -657,23 +654,14 @@ async function _renderLibrary(target, request) {
       list.append(button);
     }
   };
-  rail.append(_choiceButtons('Library material', [
+  const filters = _choiceButtons('Library material', [
     { value: 'all', label: `everything · ${records.length}` },
     { value: 'saved', label: `saved · ${read.length}` },
     { value: 'books', label: `books · ${books.length}` },
-  ], filter, value => { filter = value; draw(); }), _el('h2', '', 'specialists'));
-  const jumps = _el('div', 'specialist-workbench-jumps');
-  jumps.append(_sectionJump('library', 'read', 'saved reading'), _sectionJump('library', 'books', 'books'));
-  rail.append(jumps);
-  main.append(head, list);
-  const detail = _el('aside', 'specialist-workbench-detail');
-  detail.append(
-    _el('h2', '', 'save boundary'),
-    _el('p', 'specialist-detail-body', 'An Andromeda result appears here only after you choose save to Library. Its excerpt stays local; fetching article text is a separate action.'),
-    _sectionJump('library', 'read', 'open saved reading', 'specialist-inline-action'),
-  );
-  workbench.append(rail, main, detail);
-  target.append(note);
+  ], filter, value => { filter = value; draw(); });
+  filters.setAttribute('role', 'group');
+  main.append(head, filters, list);
+  workbench.append(main);
   const partial = _partialAvailability([
     ['saved reading', readError],
     ['books', booksError],
