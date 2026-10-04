@@ -35,6 +35,7 @@ def run():
                     else route.abort()
                 ),
             )
+            context.route_web_socket("**/*", lambda socket: socket.close())
             api = context.request
             assert api.post(base + "/api/setup/dismiss").ok
             response = api.post(
@@ -127,8 +128,14 @@ def run():
                 assert not writes
                 note = f"    exact reading note {width}\n\n**my own observation**  "
                 name = f"reading-{width}.md"
-                dialog().get_by_label("note name", exact=True).fill(name)
                 dialog().get_by_label("note", exact=True).fill(note)
+                dialog().get_by_label("note name", exact=True).fill("   ")
+                dialog().get_by_role("button", name="save", exact=True).click()
+                expect(dialog().get_by_role("alert")).to_have_text("enter a note name")
+                expect(dialog().get_by_label("note", exact=True)).to_have_value(note)
+                assert not writes
+                record("empty-name-keeps-draft-without-writing")
+                dialog().get_by_label("note name", exact=True).fill(f"reading-{width}")
                 page.route(
                     note_url,
                     lambda route: (
@@ -147,10 +154,13 @@ def run():
                 open_note = page.locator("#read-note-recovery .note-saved-open")
                 expect(open_note).to_be_focused()
                 assert writes[0] == writes[1]
+                assert writes[1]["path"] == f"reading-{width}"
+                expect(page.locator("#read-note-recovery")).to_contain_text(f"saved {name}")
                 saved = api.get(note_url, params={"path": name}).json()["content"]
                 assert saved == writes[1]["content"] and saved.startswith(note + "\n\nsource: ")
                 assert not api.get(item_url).json()["read"]
                 record("failed-save-retains-exact-note-and-retries-once")
+                record("extensionless-name-saves-and-opens-canonical-markdown-note")
 
                 open_note.click()
                 preview = page.locator("#wiki-preview")
