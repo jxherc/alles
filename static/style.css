@@ -4015,6 +4015,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .photos-lb-actions { margin-left: auto; display: flex; gap: 0.35rem; flex-wrap: wrap; }
 .photos-lb-actions .btn, .photos-lb-close { display: inline-flex; align-items: center; gap: 0.32rem; font-size: 0.75rem; }
 .photos-lb-actions .btn .ic, .photos-lb-close .ic { width: 14px; height: 14px; }
+.photos-lb-close { flex-shrink: 0; }
+@media (max-width: 700px) {
+  .photos-lb-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--k-space-2); }
+  .photos-lb-actions { display: contents; }
+  .photos-lb-top .btn { justify-content: center; }
+}
 .photos-lb-body { flex: 1; min-height: 0; position: relative; display: flex; overflow: hidden; }
 .photos-lb-stage { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0 0.6rem 0.8rem; transition: padding-right 0.28s cubic-bezier(0.2,0.7,0.2,1); }
 .photos-lb-media { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; }
@@ -8858,7 +8864,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-source-copy { min-width: 0; }
 .andromeda-source-name { display: block; color: color-mix(in srgb, var(--text) 74%, var(--muted)); font-size: 0.8rem; }
 .andromeda-result-site { display: block; overflow: hidden; color: var(--muted); font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
-.andromeda-view .andromeda-result .andromeda-result-title { display: inline-block; max-width: 100%; color: var(--text); font-size: 19px; font-weight: 550; line-height: 1.36; text-decoration: none; }
+.andromeda-view .andromeda-result .andromeda-result-title { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; color: var(--text); font-size: 19px; font-weight: 550; line-height: 1.36; text-decoration: none; }
 .andromeda-view .andromeda-result .andromeda-result-title:hover { text-decoration: underline; text-underline-offset: 3px; }
 .andromeda-result p { max-width: 790px; margin: 7px 0 0; color: color-mix(in srgb, var(--text) 62%, var(--muted)); font-size: 15px; line-height: 1.62; }
 .andromeda-source-chip { margin-inline-start: 8px; color: var(--muted); font-size: 0.75rem; }
