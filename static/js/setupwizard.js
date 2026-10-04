@@ -248,8 +248,9 @@ function _renderBasics(body) {
     : 'region follows this browser automatically.';
   body.innerHTML = `
     <div class="setup-title" id="setup-title">make alles yours</div>
-    <div class="setup-sub"><span id="sw-region-status">${regionText}</span> Check your name and timezone. English is the reviewed interface language for now.</div>
-    <label class="setup-field"><span>your name</span><input class="settings-input setup-input" id="sw-name" autocomplete="name" value="${esc(_state.username)}"></label>
+    <div class="setup-sub"><span id="sw-region-status">${regionText}</span> Check your username and timezone. English is the reviewed interface language for now.</div>
+    <label class="setup-field"><span>username</span><input class="settings-input setup-input" id="sw-name" autocomplete="username" aria-describedby="sw-name-help" value="${esc(_state.username)}"></label>
+    <p class="setup-note" id="sw-name-help">Synced across your apps. Set a separate greeting name for this browser in Settings → General.</p>
     <label class="setup-field"><span>timezone</span><input class="settings-input setup-input" id="sw-timezone" placeholder="Asia/Taipei" value="${esc(_state.timezone || defaults.timezone)}"></label>
     ${_actions(false)}`;
   $('sw-name').focus();
