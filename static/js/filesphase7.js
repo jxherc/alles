@@ -939,7 +939,8 @@ async function renameItem(item) {
 async function deleteItems(items) {
   if (!isWritable() || !items.length) return;
   const locationId = state.locationId;
-  const ok = await dlgConfirm(`move ${items.length} item${items.length === 1 ? '' : 's'} to recently deleted?`);
+  const subject = items.length === 1 ? `“${items[0].path || items[0].normalized_path || items[0].name}”` : `${items.length} items`;
+  const ok = await dlgConfirm(`move ${subject} to recently deleted? you can restore ${items.length === 1 ? 'it' : 'them'} there.`);
   if (!ok) return;
   const queued = [];
   try {
