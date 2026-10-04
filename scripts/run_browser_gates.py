@@ -88,6 +88,7 @@ COMMANDS = {
     "compare-recovery": ("tests/pw_compare_recovery.py",),
     "skills-keyboard": ("tests/pw_skills_keyboard.py",),
     "skills-start": ("tests/pw_skills_start.py",),
+    "task-help": ("tests/pw_task_help.py",),
     "shortcut-help": ("tests/pw_shortcut_help.py",),
     "aide-scroll-follow": ("tests/pw_aide_scroll_follow.py",),
     "first-model-setup": ("tests/pw_first_model_setup.py",),

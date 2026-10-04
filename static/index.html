@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=421">
+<link rel="stylesheet" href="/static/style.css?v=422">
   <link rel="stylesheet" href="/static/kokuen.css?v=25">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -1352,7 +1352,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
             </button>
             <button class="perm-btn" id="perm-mode-btn" type="button" title="what aide can do without asking" data-i18n-title="aide.permission_help" aria-haspopup="menu" aria-expanded="false"><span class="perm-label">auto mode</span></button>
-            <button class="perm-btn" id="aide-help" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="aide-help-dialog" title="shortcuts &amp; commands" data-i18n-title="aide.shortcuts_commands" data-i18n="aide.help">help</button>
+            <button class="perm-btn" id="aide-help" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="aide-help-dialog" title="aide help" data-i18n-title="aide.help_title" data-i18n="aide.help">help</button>
           </div>
           <div class="c-right">
             <button class="perm-btn aide-model-choice" id="aide-model-choice" type="button" title="choose model" data-i18n-title="aide.choose_model" aria-haspopup="dialog" aria-controls="model-modal" aria-expanded="false"><span class="aide-model-choice-logo" id="aide-model-choice-logo" aria-hidden="true"></span><span id="aide-model-choice-label" data-i18n="aide.no_model">no model</span></button>
@@ -1590,19 +1590,19 @@
         <button class="s-nav-item" type="button" data-pane="themes">appearance</button>
 
         <div class="s-nav-group">aide &amp; chat behavior</div>
-        <button class="s-nav-item" type="button" data-pane="ai">chat defaults</button>
+        <button class="s-nav-item" type="button" data-pane="ai" data-i18n="settings.chat_context">chat display & context</button>
         <button class="s-nav-item" type="button" data-pane="search">search</button>
         <button class="s-nav-item" type="button" data-pane="voice">voice</button>
         <button class="s-nav-item" type="button" data-pane="personas">personas</button>
         <button class="s-nav-item" type="button" data-pane="proactive">background checks</button>
-        <button class="s-nav-item" type="button" data-pane="intelligence">intelligence</button>
+        <button class="s-nav-item" type="button" data-pane="intelligence" data-i18n="settings.patterns">patterns & suggestions</button>
 
         <div class="s-nav-group">models &amp; providers</div>
         <button class="s-nav-item" type="button" data-pane="models">models</button>
 
         <div class="s-nav-group">memory &amp; instructions</div>
-        <button class="s-nav-item" type="button" data-pane="memory">memory</button>
-        <button class="s-nav-item" type="button" data-pane="recall">recall</button>
+        <button class="s-nav-item" type="button" data-pane="memory" data-i18n="settings.memory_instructions">memory & instructions</button>
+        <button class="s-nav-item" type="button" data-pane="recall" data-i18n="settings.personal_search">search personal records</button>
 
         <div class="s-nav-group">connections &amp; mcp</div>
         <button class="s-nav-item" type="button" data-pane="tools">connections &amp; tools</button>
@@ -1613,7 +1613,7 @@
 
         <div class="s-nav-group">notifications &amp; language</div>
         <button class="s-nav-item" type="button" data-pane="notifications">language &amp; region</button>
-        <button class="s-nav-item" type="button" data-pane="rules">rules &amp; delivery</button>
+        <button class="s-nav-item" type="button" data-pane="rules" data-i18n="settings.automation_delivery">automation & delivery</button>
 
         <div class="s-nav-group">server, backups &amp; data</div>
         <button class="s-nav-item" type="button" data-pane="credits">about &amp; credits</button>
@@ -1845,10 +1845,10 @@
           <div class="s-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83"/></svg>
-              chat defaults
+              <span data-i18n="settings.chat_context">chat display & context</span>
             </div>
             <div class="s-card-body">
-              <p class="s-card-hint">aide uses the right tools automatically and can still answer normal questions.</p>
+              <p class="s-card-hint" data-i18n="settings.chat_context_hint">choose how many earlier messages Aide uses and whether replies show reasoning or artifacts. auto-compact summarizes older messages.</p>
               <div class="s-field">
                 <label>context window (messages)</label>
                 <input type="text" inputmode="numeric" class="settings-input" id="settings-context-limit" style="width:80px">
@@ -1894,7 +1894,7 @@
           <div class="s-card">
             <div class="s-card-head">owner instructions</div>
             <div class="s-card-body">
-              <p class="s-card-hint">tell aide how to work with you. these instructions are separate from memory and cannot replace alles safety rules.</p>
+              <p class="s-card-hint" data-i18n="settings.memory_instructions_hint">set how Aide responds. instructions are separate from saved facts and cannot replace Alles safety rules. source notes and mail are configured in search personal records.</p>
               <textarea class="settings-textarea" id="settings-owner-instructions" rows="5" placeholder="for example: use short answers and explain unfamiliar terms."></textarea>
               <div style="text-align:right;margin-top:0.55rem"><button class="btn primary" id="s-owner-instructions-save" type="button">save instructions</button></div>
             </div>
@@ -2605,10 +2605,10 @@
           <div class="s-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              automation rules
+              <span data-i18n="settings.automation_delivery">automation & delivery</span>
             </div>
             <div class="s-card-body">
-              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">when this happens, do that. rules run in the background. everything is checked within ~30 seconds.</p>
+              <p class="s-card-hint" data-i18n="settings.automation_delivery_hint">run a chosen action when its trigger occurs. delivery channels configure where rule notifications are sent.</p>
               <div id="rules-list" style="margin-bottom:0.85rem"></div>
               <div class="rule-presets" id="rule-presets"></div>
               <div class="rules-form">
@@ -2787,13 +2787,9 @@
 
         <div class="s-pane" id="s-pane-recall">
           <div class="s-card">
-            <div class="s-card-head">personal recall</div>
+            <div class="s-card-head" data-i18n="settings.personal_search">search personal records</div>
             <div class="s-card-body">
-              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">
-                let aide search your own notes, journal, mail, contacts, saved articles and books.
-                the vault is never indexed; the journal honours its lock. answering sends matched snippets
-                to your chosen model - use a local model for fully offline recall.
-              </p>
+              <p class="s-card-hint" data-i18n="settings.personal_search_hint">choose source notes, journal, mail, contacts, saved articles and books for Aide to search. source records are separate from saved memory. Vault is excluded and Journal respects its lock. matched snippets go to your chosen model.</p>
               <div class="s-toggle-row"><div><div class="s-toggle-label">enable recall index</div></div><div class="s-switch" id="s-pidx-enabled"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">mail</div></div><div class="s-switch" id="s-pidx-mail"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label">notes</div></div><div class="s-switch" id="s-pidx-note"></div></div>
@@ -2847,24 +2843,19 @@
 
         <div class="s-pane" id="s-pane-intelligence">
           <div class="s-card">
-            <div class="s-card-head">intelligence</div>
+            <div class="s-card-head" data-i18n="settings.patterns">patterns & suggestions</div>
             <div class="s-card-body">
-              <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">
-                aide can learn from how you use alles - find cross-domain insights, build a model of
-                your preferences, and weave both into its answers. the learning passes spend tokens so
-                they are off by default; the inject + suggestion switches are cheap and on. see what it
-                finds in the <b>brain</b> page.
-              </p>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">cross-domain insights</div><div class="s-toggle-desc">a periodic pass that finds patterns across your data (spends tokens)</div></div><div class="s-switch" id="s-intel-insights"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">inject insights into aide</div></div><div class="s-switch" id="s-intel-insights-inject"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">learn about you (user model)</div><div class="s-toggle-desc">distill durable facts from your behavior (spends tokens)</div></div><div class="s-switch" id="s-intel-distill"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">inject what it learned into aide</div></div><div class="s-switch" id="s-intel-distill-inject"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">composer suggestions</div><div class="s-toggle-desc">predicted next-step chips above the message box</div></div><div class="s-switch" id="s-intel-suggest"></div></div>
-              <div class="s-toggle-row"><div><div class="s-toggle-label">session context</div><div class="s-toggle-desc">keep aide aware of the current topic across turns</div></div><div class="s-switch" id="s-intel-session"></div></div>
+              <p class="s-card-hint" data-i18n="settings.patterns_hint">choose whether Aide finds patterns across your data or learns facts from activity. these model runs use tokens. choose whether to use their results in replies, and review results in brain.</p>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.find_patterns">find patterns across apps</div><div class="s-toggle-desc">a periodic pass that finds patterns across your data (spends tokens)</div></div><div class="s-switch" id="s-intel-insights"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.use_patterns">use patterns in replies</div></div><div class="s-switch" id="s-intel-insights-inject"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.learn_facts">learn facts from activity</div><div class="s-toggle-desc">distill durable facts from your behavior (spends tokens)</div></div><div class="s-switch" id="s-intel-distill"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.use_facts">use learned facts in replies</div></div><div class="s-switch" id="s-intel-distill-inject"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.next_steps">suggest next steps</div><div class="s-toggle-desc">predicted next-step chips above the message box</div></div><div class="s-switch" id="s-intel-suggest"></div></div>
+              <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.conversation_topic">keep the conversation topic</div><div class="s-toggle-desc">keep aide aware of the current topic across turns</div></div><div class="s-switch" id="s-intel-session"></div></div>
               <div id="s-intel-status" style="font-size:0.75rem;color:var(--muted);margin:0.6rem 0"></div>
               <div style="display:flex;gap:0.4rem">
-                <button type="button" class="btn" id="s-intel-insights-run">generate insights</button>
-                <button type="button" class="btn" id="s-intel-distill-run">distill now</button>
+                <button type="button" class="btn" id="s-intel-insights-run" data-i18n="settings.find_patterns">find patterns across apps</button>
+                <button type="button" class="btn" id="s-intel-distill-run" data-i18n="settings.learn_now">learn from activity</button>
               </div>
             </div>
           </div>
@@ -2876,7 +2867,7 @@
 </div>
 
 <script type="module">
-const _v = '421';
+const _v = '422';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

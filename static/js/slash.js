@@ -95,18 +95,32 @@ function _showHelp() {
     ['new_chat', 'aide.new_task'], ['search', 'common.search'],
     ['focus_input', 'aide.message_label'], ['send', 'common.send'], ['settings', 'common.settings'],
   ].filter(([key]) => shortcuts[key]);
+  const guides = ['model', 'notes', 'task', 'save', 'recovery'];
   const overlay = document.createElement('div');
   overlay.className = 'dialog-overlay aide-help-overlay';
   overlay.innerHTML = `<section class="dialog-card aide-help-card" id="aide-help-dialog" role="dialog" aria-labelledby="aide-help-title">
-    <header><h2 id="aide-help-title">${escapeHtml(t('aide.shortcuts_commands'))}</h2><button type="button" class="icon-btn" data-help-close aria-label="${escapeHtml(t('common.close'))}">×</button></header>
+    <header><h2 id="aide-help-title">${escapeHtml(t('aide.help_title'))}</h2><button type="button" class="icon-btn" data-help-close aria-label="${escapeHtml(t('common.close'))}">×</button></header>
+    <label class="sr-only" for="aide-help-search">${escapeHtml(t('aide.help_search'))}</label>
+    <input type="search" class="settings-input" id="aide-help-search" placeholder="${escapeHtml(t('aide.help_search'))}">
+    <p class="aide-help-status" role="status" aria-live="polite"></p>
     <div class="aide-help-body" tabindex="0">
-      <dl class="aide-help-shortcuts">${rows.map(([key, label]) => `<div><dt>${escapeHtml(t(label))}</dt><dd><kbd>${escapeHtml(shortcuts[key])}</kbd></dd></div>`).join('')}</dl>
-      <p>${escapeHtml(t('aide.shortcut_send_tip'))}</p>
-      <p>${escapeHtml(t('aide.shortcut_escape_tip'))}</p>
-      <p>${escapeHtml(t('aide.command_tip'))}</p>
-      <dl class="aide-help-commands">${_allEntries().map(entry => `<div><dt><code>/${escapeHtml(entry.name)}${entry.args ? ' ' + escapeHtml(entry.args) : ''}</code></dt><dd>${escapeHtml(entry.description || '')}</dd></div>`).join('')}</dl>
+      <section data-help-group>
+        <h3>${escapeHtml(t('aide.help_guides'))}</h3>
+        <dl class="aide-help-guides">${guides.map(key => `<div data-help-entry data-help-guide="${key}"><dt>${escapeHtml(t(`aide.help_${key}_title`))}</dt><dd>${escapeHtml(t(`aide.help_${key}_body`))}</dd></div>`).join('')}</dl>
+      </section>
+      <section data-help-group>
+        <h3>${escapeHtml(t('aide.help_shortcuts'))}</h3>
+        <dl class="aide-help-shortcuts">${rows.map(([key, label]) => `<div data-help-entry><dt>${escapeHtml(t(label))}</dt><dd><kbd>${escapeHtml(shortcuts[key])}</kbd></dd></div>`).join('')}</dl>
+        <p data-help-entry>${escapeHtml(t('aide.shortcut_send_tip'))}</p>
+        <p data-help-entry>${escapeHtml(t('aide.shortcut_escape_tip'))}</p>
+      </section>
+      <section data-help-group>
+        <h3>${escapeHtml(t('aide.help_commands'))}</h3>
+        <p data-help-entry>${escapeHtml(t('aide.command_tip'))}</p>
+        <dl class="aide-help-commands">${_allEntries().map(entry => `<div data-help-entry><dt><code>/${escapeHtml(entry.name)}${entry.args ? ' ' + escapeHtml(entry.args) : ''}</code></dt><dd>${escapeHtml(entry.description || '')}</dd></div>`).join('')}</dl>
+      </section>
     </div>
-    <footer><button type="button" class="btn" data-help-settings>${escapeHtml(t('aide.customize_shortcuts'))}</button></footer>
+    <footer><button type="button" class="btn" data-help-settings="models">${escapeHtml(t('aide.help_models'))}</button><button type="button" class="btn" data-help-settings="developer">${escapeHtml(t('aide.customize_shortcuts'))}</button></footer>
   </section>`;
   document.body.appendChild(overlay);
   const dialog = overlay.querySelector('[role="dialog"]');
@@ -120,17 +134,28 @@ function _showHelp() {
   overlay.addEventListener('keydown', event => event.stopPropagation());
   overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
   overlay.querySelector('[data-help-close]').onclick = close;
-  overlay.querySelector('[data-help-settings]').onclick = async () => {
+  overlay.querySelector('#aide-help-search').addEventListener('input', event => {
+    const query = event.target.value.trim().toLocaleLowerCase();
+    const entries = [...overlay.querySelectorAll('[data-help-entry]')];
+    for (const entry of entries) entry.hidden = !entry.textContent.toLocaleLowerCase().includes(query);
+    for (const group of overlay.querySelectorAll('[data-help-group]')) {
+      group.hidden = [...group.querySelectorAll('[data-help-entry]')].every(entry => entry.hidden);
+    }
+    overlay.querySelector('.aide-help-status').textContent = entries.every(entry => entry.hidden) ? t('aide.help_no_matches') : '';
+    overlay.querySelector('.aide-help-body').scrollTop = 0;
+  });
+  overlay.querySelectorAll('[data-help-settings]').forEach(button => { button.onclick = async () => {
+    const pane = button.dataset.helpSettings;
     close();
     const { openSettings } = await import('./settings.js?v=289');
     if (source?.isConnected && document.activeElement === source) {
-      openSettings('developer');
-      requestAnimationFrame(() => {
+      openSettings(pane);
+      if (pane === 'developer') requestAnimationFrame(() => {
         const input = document.querySelector('.shortcut-input[data-shortcut="new_chat"]');
         if (input?.offsetParent !== null) { input?.focus(); input?.scrollIntoView({ block: 'center' }); }
       });
     }
-  };
+  }; });
   trigger?.setAttribute('aria-expanded', 'true');
   boundary.activate({ source, focus: overlay.querySelector('[data-help-close]') });
 }
