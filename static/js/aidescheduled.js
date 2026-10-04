@@ -50,7 +50,7 @@ function formatDate(value) {
   const parsed = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw) ? raw : `${raw}Z`);
   if (Number.isNaN(parsed.getTime())) return '';
   return formatDateTime(parsed, {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
   });
 }
 
@@ -63,7 +63,7 @@ function formatWallTime(value) {
   const [, year, month, day, hour, minute] = match;
   const parsed = new Date(Date.UTC(+year, +month - 1, +day, +hour, +minute));
   return formatDateTime(parsed, {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC',
+    year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC',
   });
 }
 
