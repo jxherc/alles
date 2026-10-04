@@ -23,7 +23,7 @@ function harness() {
     return {
       id, hidden: id === 'wiki-inline-state', value: '', textContent: '', innerHTML: '',
       style: {}, dataset: {}, children: [], disabled: false,
-      classList: { toggle() {}, add() {}, remove() {} },
+      classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
       setAttribute() {}, removeAttribute() {}, querySelectorAll: () => [],
       replaceChildren() { this.children = []; },
       appendChild(child) { this.children.push(child); },
