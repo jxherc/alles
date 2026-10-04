@@ -61,6 +61,7 @@ COMMANDS = {
     "reviewed-capture": ("tests/pw_reviewed_capture.py",),
     "home-reviewed-capture": ("tests/pw_home_reviewed_capture.py",),
     "home-note-recovery": ("tests/pw_home_note_recovery.py",),
+    "note-destination-recovery": ("tests/pw_note_destination_recovery.py",),
     "home-aide-runs": ("tests/pw_home_aide_runs.py",),
     "calendar-metadata-picker": ("tests/pw_calendar_metadata_picker.py",),
     "pwa-offline": ("tests/pw_offline_11b.py",),

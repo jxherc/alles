@@ -109,6 +109,52 @@ class DocumentCreateApiTests(VaultApiTest):
             rotated = self.client.get("/api/vault-md/create-scope").json()["scopes"]
             self.assertEqual(rotated[1:], scopes)
 
+    def test_vault_change_rejects_first_write_and_allows_return_to_original(self):
+        context = self.client.get("/api/vault-md/create-scope").json()
+        expected = context["vault_scopes"][0]
+        with tempfile.TemporaryDirectory(prefix="alles-other-note-vault-") as other:
+            with mock.patch.object(vault_md, "vault_dir", return_value=Path(other)):
+                changed = self.client.get("/api/vault-md/create-scope").json()
+                self.assertEqual(changed["scopes"], context["scopes"])
+                self.assertNotIn(expected, changed["vault_scopes"])
+                response = self.create(expected_vault=expected)
+                self.assertEqual(response.status_code, 409, response.text)
+                self.assertEqual(list(Path(other).iterdir()), [])
+                self.assertEqual(list(Path(self.state.name).rglob("*.json")), [])
+        first = self.create(expected_vault=expected)
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(self.create(expected_vault=expected).json(), first.json())
+        self.assertEqual(len(list(Path(self._vault_tmp).glob("*.md"))), 1)
+
+    def test_published_note_retry_cannot_cross_vault_and_retained_key_still_retries(self):
+        with (
+            mock.patch("services.secretstore.active_key_id", return_value="old"),
+            mock.patch("services.secretstore.key_ids", return_value={"old"}),
+        ):
+            expected = self.client.get("/api/vault-md/create-scope").json()["vault_scopes"][0]
+            first = self.create(expected_vault=expected)
+            self.assertEqual(first.status_code, 200, first.text)
+        with (
+            mock.patch("services.secretstore.active_key_id", return_value="next"),
+            mock.patch("services.secretstore.key_ids", return_value={"old", "next"}),
+        ):
+            self.assertEqual(self.create(expected_vault=expected).json(), first.json())
+            with tempfile.TemporaryDirectory(prefix="alles-other-note-vault-") as other:
+                with mock.patch.object(vault_md, "vault_dir", return_value=Path(other)):
+                    response = self.create(expected_vault=expected)
+                    self.assertEqual(response.status_code, 409, response.text)
+                    self.assertEqual(list(Path(other).iterdir()), [])
+        self.assertEqual(len(list(Path(self._vault_tmp).glob("*.md"))), 1)
+
+    def test_destination_requires_valid_scope_and_request_identity(self):
+        for changes in (
+            {"expected_vault": "bad"},
+            {"expected_vault": "a" * 64, "request_id": ""},
+        ):
+            response = self.create(**changes)
+            self.assertIn(response.status_code, {400, 422}, response.text)
+        self.assertEqual(list(Path(self._vault_tmp).glob("*.md")), [])
+
     def test_replay_survives_a_new_process(self):
         first = self.create().json()
         script = """

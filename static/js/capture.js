@@ -48,10 +48,11 @@ function requestId() {
 export async function showPendingCapture(host, onSaved = null) {
   try {
     const store = await pendingStore();
-    host.querySelector('.capture-resume')?.remove();
+    host.querySelector('.capture-resume[data-capture-recovery]')?.remove();
     if (!store.pending || !host.isConnected) return;
     const notice = document.createElement('div');
     notice.className = 'capture-resume';
+    notice.dataset.captureRecovery = '';
     notice.innerHTML = '<span>a capture still needs confirmation</span><button class="btn" type="button">review pending capture</button>';
     notice.querySelector('button').onclick = event => openCaptureReview(null, event.currentTarget, onSaved).catch(error => toast(error.message, 'error'));
     host.prepend(notice);
@@ -147,7 +148,7 @@ export async function openCaptureReview(proposal, trigger, onSaved = null) {
       if (!saved) { status.textContent = 'could not clear the saved retry; try closing again'; status.focus(); return false; }
     }
     focus.deactivate({ restoreFocus }); focus.destroy(); ov.remove(); active = false;
-    if (cleared) document.querySelectorAll('.capture-resume').forEach(node => node.remove());
+    if (cleared) document.querySelectorAll('.capture-resume[data-capture-recovery]').forEach(node => node.remove());
     return true;
   }
   cancel.onclick = () => close();

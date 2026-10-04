@@ -357,7 +357,7 @@ def _remove_tree(path: Path) -> None:
         shutil.rmtree(path)
 
 
-def create_document(path: str, content: str, request_id: str) -> dict:
+def create_document(path: str, content: str, request_id: str, *, expected_vault: str = "") -> dict:
     """Retry one unique create without publishing a second note after an uncertain reply."""
     from services.recovery_consistency import recovery_consistency_lock
 
@@ -369,6 +369,10 @@ def create_document(path: str, content: str, request_id: str) -> dict:
     # InstanceLock owns this data directory across processes. Serialize request
     # threads and keep each receipt/publication together in backup snapshots.
     with recovery_consistency_lock, _CREATE_LOCK:
+        if expected_vault and expected_vault not in create_vault_scopes():
+            raise DocumentCreateConflict(
+                "the note vault changed; return to the original vault before retrying"
+            )
         requested_rel, requested = _normalise_rel(path)
         root = vault_md.root_dir()
         payload = (content or f"# {requested.stem}\n\n").encode("utf-8")
@@ -479,6 +483,15 @@ def create_scopes() -> list[str]:
         active = active_key_id()
         keys = [active, *sorted(key_ids() - {active})]
         return [_hash(f"alles-note-create:{data_dir().resolve()}:{key}".encode()) for key in keys]
+
+
+def create_vault_scopes() -> list[str]:
+    """Bind a pending create to its vault while keeping instance recovery discoverable."""
+    from services.recovery_consistency import recovery_consistency_lock
+
+    with recovery_consistency_lock:
+        root = vault_md.root_dir().resolve()
+        return [_hash(f"{scope}:{root}".encode()) for scope in create_scopes()]
 
 
 # Drafts ---------------------------------------------------------------------
