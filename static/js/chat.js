@@ -717,6 +717,9 @@ async function streamReply(request, { freshSession = false, previousRow = null }
     cursor?.remove();
     body.classList.add('done');
     if (ctrl.signal.aborted) appendInterruptionNotice(body);
+    else if (streamEnded && !receivedDone && !providerError) {
+      appendInterruptionNotice(body, 'response ended before completion was confirmed. review any partial answer and task activity before sending again.');
+    }
 
     if (agentEl && (toolEls.size || todoEl)) {
       const hasAttention = Boolean(
