@@ -491,6 +491,20 @@ body.sidebar-hidden .sidebar { display: none; }
 .dialog-input { width: 100%; }
 .dialog-validated .dialog-input, .dialog-validated .btn { min-height: 44px; }
 .dialog-validation { min-height: 18px; color: var(--error); font-size: 13px; line-height: 18px; }
+.aide-help-card { box-sizing: border-box; width: min(560px, calc(100vw - 2 * var(--k-space-4))); max-width: none; min-width: 0; max-height: calc(100dvh - 2 * var(--k-space-4)); padding: var(--k-space-4); }
+.aide-help-card header { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3); flex-shrink: 0; }
+.aide-help-card h2 { margin: 0; font-size: 1rem; font-weight: 620; }
+.aide-help-body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--k-space-1); font-size: 0.875rem; }
+.aide-help-body p { color: var(--muted); line-height: 1.5; }
+.aide-help-card dl { margin: 0; }
+.aide-help-card dd { margin: 0; }
+.aide-help-shortcuts > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--k-space-2); padding-block: var(--k-space-2); }
+.aide-help-card kbd { overflow-wrap: anywhere; color: var(--text); font: inherit; }
+.aide-help-commands > div { padding-block: var(--k-space-2); }
+.aide-help-commands dt { overflow-wrap: anywhere; }
+.aide-help-commands dd { margin-top: var(--k-space-1); color: var(--muted); }
+.aide-help-card footer { display: flex; justify-content: flex-end; flex-shrink: 0; }
+.aide-help-card button, body.afterlife-aide-projects[data-space="aide"] #aide-help { min-width: 44px; min-height: 44px; }
 .finance-bank-dialog { width: min(760px, calc(100vw - 32px)); max-height: min(760px, calc(100vh - 32px)); overflow: auto; }
 .finance-bank-head, .finance-bank-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .finance-bank-head h2, .finance-bank-setup h3 { margin: 0; color: var(--text); font-size: 0.86rem; font-weight: 620; }

@@ -303,6 +303,8 @@ what it supports:
 - **usage**: a token dashboard: totals, a tokens-by-month chart, and a per-model breakdown, so you can see what you're spending
 - **skills**: write reusable procedures (a name, when-to-use, and the steps in markdown) that the agent discovers and loads on its own; it ranks your skills against each task and reaches for the right one. the built-in catalogue is installed on first launch. “start here” highlights six common tasks alongside pinned and custom skills; all skills remain available through search and categories.
 
+The composer’s **help** button shows the current keyboard shortcuts and slash commands without changing the draft. It links directly to shortcut customization. `/help` also lists the commands locally, without a model call.
+
 **the model picker**: every endpoint you add shows up here, with provider labels and logos. image-generation models are flagged with a 🎨, so you can run a **chat model and an image model together** (talk to sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release. model ids come from each endpoint's live catalog or its editable manual list; alles does not ship a guessed model lineup. a failed refresh keeps the last good list and marks it stale, while models removed by a provider leave new pickers and remain marked unavailable for old runs.
 
 <p align="center"><img src="docs/screenshots/models.png" width="760" alt="the model picker: every provider in its brand colour, image models flagged with 🎨, a newest-only toggle"></p>

@@ -11,7 +11,7 @@ import { confirm as confirmDialog } from './dialog.js';
 import { loadTasks, addTask, prepareTaskNavigation } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
-import { initSlash, tryExecuteSlashCommand } from './slash.js?v=283';
+import { initSlash, tryExecuteSlashCommand } from './slash.js?v=398';
 import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=253';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';

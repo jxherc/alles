@@ -1,20 +1,22 @@
 import { toast, escapeHtml } from './util.js';
 import { exportActiveSessionMarkdown, getActiveId } from './sessions.js';
-import { formatTime } from './i18n.js';
+import { formatTime, t } from './i18n.js';
 import { confirm } from './dialog.js';
+import { loadShortcuts } from './shortcuts.js';
+import { createFocusBoundary } from './kokuen.js';
 
 let _reminderPending = null;
 let _reminderBusy = false;
 
 // ── built-in command registry ────────────────────────────────────────
 const BUILTINS = [
-  // chats
-  { name: 'new',       cat: 'chats',    help: 'start a new chat' },
-  { name: 'clear',     cat: 'chats',    help: 'clear chat display' },
-  { name: 'rename',    cat: 'chats',    help: 'rename: or auto-name if blank', args: '[name]' },
-  { name: 'archive',   cat: 'chats',    help: 'archive this chat' },
-  { name: 'export',    cat: 'chats',    help: 'export chat as markdown' },
-  { name: 'incognito', cat: 'chats',    help: 'start a new incognito chat' },
+  // Aide tasks
+  { name: 'new',       cat: 'aide',     help: 'start a new task' },
+  { name: 'clear',     cat: 'aide',     help: 'clear this task’s message display' },
+  { name: 'rename',    cat: 'aide',     help: 'rename this task: or auto-name if blank', args: '[name]' },
+  { name: 'archive',   cat: 'aide',     help: 'archive this task' },
+  { name: 'export',    cat: 'aide',     help: 'export this task as markdown' },
+  { name: 'incognito', cat: 'aide',     help: 'start a new incognito task' },
   // model & persona
   { name: 'model',     cat: 'model',    help: 'open model picker' },
   { name: 'persona',   cat: 'model',    help: 'switch persona',          args: '[name]' },
@@ -24,7 +26,7 @@ const BUILTINS = [
   { name: 'memories',  cat: 'memory',   help: 'open memory panel' },
   { name: 'forget',    cat: 'memory',   help: 'delete memory by id',     args: '<id>' },
   // productivity
-  { name: 'todo',      cat: 'tasks',    help: 'add a task',              args: '<task>' },
+  { name: 'todo',      cat: 'plan',     help: 'add a task to Plan',       args: '<task>' },
   { name: 'doc',       cat: 'docs',     help: 'create a doc',            args: '<text>' },
   // navigate (aide-only)
   { name: 'secrets',   cat: 'navigate', help: 'open secrets' },
@@ -80,6 +82,57 @@ export function initSlash(ta) {
   ta.addEventListener('keydown', e => _handleKey(e, ta));
   ta.addEventListener('blur', () => setTimeout(_hide, 150));
   ta.addEventListener('focus', _fetchCookbook);
+  document.getElementById('aide-help')?.addEventListener('click', _showHelp);
+}
+
+function _showHelp() {
+  if (document.getElementById('aide-help-dialog')) return;
+  _hide();
+  const source = document.activeElement;
+  const trigger = document.getElementById('aide-help');
+  const shortcuts = loadShortcuts();
+  const rows = [
+    ['new_chat', 'aide.new_task'], ['search', 'common.search'],
+    ['focus_input', 'aide.message_label'], ['send', 'common.send'], ['settings', 'common.settings'],
+  ].filter(([key]) => shortcuts[key]);
+  const overlay = document.createElement('div');
+  overlay.className = 'dialog-overlay aide-help-overlay';
+  overlay.innerHTML = `<section class="dialog-card aide-help-card" id="aide-help-dialog" role="dialog" aria-labelledby="aide-help-title">
+    <header><h2 id="aide-help-title">${escapeHtml(t('aide.shortcuts_commands'))}</h2><button type="button" class="icon-btn" data-help-close aria-label="${escapeHtml(t('common.close'))}">×</button></header>
+    <div class="aide-help-body" tabindex="0">
+      <dl class="aide-help-shortcuts">${rows.map(([key, label]) => `<div><dt>${escapeHtml(t(label))}</dt><dd><kbd>${escapeHtml(shortcuts[key])}</kbd></dd></div>`).join('')}</dl>
+      <p>${escapeHtml(t('aide.shortcut_send_tip'))}</p>
+      <p>${escapeHtml(t('aide.shortcut_escape_tip'))}</p>
+      <p>${escapeHtml(t('aide.command_tip'))}</p>
+      <dl class="aide-help-commands">${_allEntries().map(entry => `<div><dt><code>/${escapeHtml(entry.name)}${entry.args ? ' ' + escapeHtml(entry.args) : ''}</code></dt><dd>${escapeHtml(entry.description || '')}</dd></div>`).join('')}</dl>
+    </div>
+    <footer><button type="button" class="btn" data-help-settings>${escapeHtml(t('aide.customize_shortcuts'))}</button></footer>
+  </section>`;
+  document.body.appendChild(overlay);
+  const dialog = overlay.querySelector('[role="dialog"]');
+  const close = () => {
+    boundary.deactivate();
+    boundary.destroy();
+    overlay.remove();
+    trigger?.setAttribute('aria-expanded', 'false');
+  };
+  const boundary = createFocusBoundary(dialog, { onEscape: close });
+  overlay.addEventListener('keydown', event => event.stopPropagation());
+  overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+  overlay.querySelector('[data-help-close]').onclick = close;
+  overlay.querySelector('[data-help-settings]').onclick = async () => {
+    close();
+    const { openSettings } = await import('./settings.js?v=289');
+    if (source?.isConnected && document.activeElement === source) {
+      openSettings('developer');
+      requestAnimationFrame(() => {
+        const input = document.querySelector('.shortcut-input[data-shortcut="new_chat"]');
+        if (input?.offsetParent !== null) { input?.focus(); input?.scrollIntoView({ block: 'center' }); }
+      });
+    }
+  };
+  trigger?.setAttribute('aria-expanded', 'true');
+  boundary.activate({ source, focus: overlay.querySelector('[data-help-close]') });
 }
 
 function _handleInput(ta) {
