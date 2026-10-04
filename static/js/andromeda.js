@@ -1918,7 +1918,10 @@ async function manageSearxng(action, button) {
   let actionState = '';
   try {
     const result = await jsonRequest(endpoint, { method: 'POST' });
-    if (action === 'test') actionMessage = `search passed · ${result.results || 0} results`;
+    if (action === 'test') {
+      if (result?.ok !== true || !Number.isInteger(result.results) || result.results < 0) throw new Error('invalid search test response; try again');
+      actionMessage = `search passed · ${result.results} results`;
+    }
     await loadSearchConfiguration();
   } catch (error) {
     actionMessage = error.message || `${action} failed`;

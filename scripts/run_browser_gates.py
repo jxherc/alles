@@ -70,6 +70,7 @@ COMMANDS = {
     "andromeda-handoff": ("tests/pw_andromeda_handoff.py",),
     "andromeda-continuation": ("tests/pw_andromeda_continuation.py",),
     "aide-task-capture": ("tests/pw_aide_task_capture.py",),
+    "managed-service-workflow": ("tests/pw_managed_service.py",),
     "journal-recovery": ("tests/pw_journal_recovery.py",),
     "journal-search-export": ("tests/pw_journal_search_export.py",),
     "journal-reflect": ("tests/pw_journal_reflect.py",),
@@ -299,6 +300,7 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
                         {
                             "feed-workflows": "tests/feed_browser_server.py",
                             "read-text": "tests/read_text_browser_server.py",
+                            "managed-service-workflow": "tests/managed_service_browser_server.py",
                         }.get(name, "app.py"),
                     ],
                     cwd=ROOT,

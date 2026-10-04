@@ -93,6 +93,7 @@ BROWSER_SUITES = {
     ),
     "administration": (
         "server-recovery",
+        "managed-service-workflow",
         "settings-recovery",
         "settings-language-badges",
         "settings-selected",
@@ -240,6 +241,7 @@ BROWSER_SUITES = {
         "settings-selected",
         "settings-context",
         "server-recovery",
+        "managed-service-workflow",
         "gallery-workflows",
         "aide-creations",
         "andromeda-cancellation",
