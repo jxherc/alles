@@ -135,26 +135,29 @@ function choice(label, options, selected, onChange) {
     button.addEventListener('click', async () => {
       if (choiceBusy || button.getAttribute('aria-checked') === 'true') return;
       const previous = buttons.find(item => item.getAttribute('aria-checked') === 'true');
-      let rollbackFocus = null;
+      let focusTarget = button;
       choiceBusy = true;
       list.setAttribute('aria-busy', 'true');
-      buttons.forEach(item => { item.disabled = true; });
+      buttons.forEach(item => { item.setAttribute('aria-disabled', 'true'); });
       select(button);
       try { await onChange(option.value); }
       catch (error) {
         select(previous || button);
-        rollbackFocus = previous || button;
+        focusTarget = previous || button;
         reportFailure(error);
       } finally {
         choiceBusy = false;
         list.removeAttribute('aria-busy');
-        buttons.forEach(item => { item.disabled = false; });
-        rollbackFocus?.focus();
+        buttons.forEach(item => { item.removeAttribute('aria-disabled'); });
+        if (field.isConnected && list.contains(document.activeElement)) {
+          focusTarget.focus({ preventScroll: true });
+        }
       }
     });
     button.addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
+      if (choiceBusy) return;
       const current = buttons.indexOf(button);
       const backwards = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
       const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
@@ -170,35 +173,34 @@ function choice(label, options, selected, onChange) {
 }
 
 function switchButton(label, pressed, onChange) {
-  const button = el('button', 'server-workbench-switch');
+  const row = el('div', 'server-workbench-switch-row');
+  const button = el('button', 'home-settings-switch');
   button.type = 'button';
   button.setAttribute('role', 'switch');
+  button.setAttribute('aria-label', label);
   button.setAttribute('aria-checked', pressed ? 'true' : 'false');
-  const name = el('span', '', label);
-  const state = el('strong', '', pressed ? 'on' : 'off');
-  button.append(name, state);
   button.addEventListener('click', async () => {
-    if (button.disabled) return;
-    button.disabled = true;
+    if (button.getAttribute('aria-disabled') === 'true') return;
+    // Keep focus on this control while saving. A delayed response must not
+    // reclaim focus from another control whose save is still pending.
+    button.setAttribute('aria-disabled', 'true');
     button.setAttribute('aria-busy', 'true');
     const previous = button.getAttribute('aria-checked') === 'true';
-    const next = button.getAttribute('aria-checked') !== 'true';
-    button.setAttribute('aria-checked', next ? 'true' : 'false');
-    state.textContent = next ? 'on' : 'off';
-    try { await onChange(next); }
+    button.setAttribute('aria-checked', previous ? 'false' : 'true');
+    try { await onChange(!previous); }
     catch (error) {
       button.setAttribute('aria-checked', previous ? 'true' : 'false');
-      state.textContent = previous ? 'on' : 'off';
-      const card = button.closest('.server-workbench-card');
-      let region = card?.querySelector('.server-workbench-status');
-      if (!region && card) { region = statusLine(); card.append(region); }
+      const owner = button.closest('.server-workbench-card');
+      let region = owner?.querySelector('.server-workbench-status');
+      if (!region && owner) { region = statusLine(); owner.append(region); }
       if (region) { region.textContent = error.message || 'setting failed'; region.classList.add('is-error'); }
     } finally {
-      button.disabled = false;
+      button.removeAttribute('aria-disabled');
       button.removeAttribute('aria-busy');
     }
   });
-  return button;
+  row.append(el('span', '', label), button);
+  return row;
 }
 
 function inputField(label, type, value = '') {
@@ -243,11 +245,15 @@ function adguardSurface(service, request, rerender) {
       controls.append(
         interval.field,
         switchButton('DNS filtering', Boolean(filtering.enabled), async enabled => {
+          const feedback = host.closest('.server-workbench-card')?.querySelector('.server-workbench-status');
+          if (feedback) { feedback.classList.remove('is-error'); feedback.textContent = 'saving…'; }
           await json(request, '/api/system/companions/adguard-home/filtering', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled, interval: Number(interval.input.value) }),
           });
-          await rerender();
+          // Keep this form and its other unsaved fields in place after the
+          // acknowledged setting change. Re-entry reloads dashboard state.
+          if (feedback) feedback.textContent = 'saved';
         }),
       );
       const rewrites = managedList('DNS rewrites', dashboard.rewrites || [], rewrite => {
@@ -859,7 +865,7 @@ async function renderPolicy(target, request) {
     target.replaceChildren(section);
     return;
   }
-  const effectiveState = fact('effective state', current.valid ? current.policy.control_mode : `fail closed · ${current.error_code}`);
+  const effectiveState = fact('effective state', current.valid ? current.policy.control_mode : 'host controls unavailable');
   const policyError = current.valid ? null : statusLine(`${current.error}. Nothing outside Alles can be controlled until a valid owner-only file is saved.`, 'error');
   section.append(fact('file', current.path), effectiveState, fact('local device', current.local_device ? 'yes' : 'no'));
   if (policyError) section.append(policyError);
