@@ -27,6 +27,18 @@ test('task links discard unrelated event occurrences', () => {
   assert.deepEqual(readRecordTarget(url), { view: 'tasks', id: 'task-1', occurrence: '' });
 });
 
+test('document record links keep the complete relative path, including equal basenames', () => {
+  for (const path of ['cooking/meal #2 & 文.md', 'other/meal #2 & 文.md', 'archive/long '.repeat(20) + 'note.markdown']) {
+    const target = recordTarget('wiki', path);
+    assert.deepEqual(readRecordTarget(withRecordTarget('https://docs.example.test/?view=wiki', target)), {
+      view: 'wiki', id: path, occurrence: '',
+    });
+  }
+  for (const path of ['', null, '/absolute.md', '../note.md', 'folder/../note.md', 'folder//note.md', 'folder\\note.md']) {
+    assert.equal(recordTarget('wiki', path), null);
+  }
+});
+
 test('reading source links preserve exact item and text version without leaking it to other records', () => {
   const hash = 'a'.repeat(64);
   const target = recordTarget('read', 'article-1', '', hash);

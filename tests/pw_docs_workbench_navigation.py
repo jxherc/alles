@@ -21,7 +21,7 @@ def run() -> None:
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        for width in (1440, 720, 390):
+        for width, linked in ((w, linked) for w in (1440, 720, 390) for linked in (False, True)):
             context = browser.new_context(
                 viewport={"width": width, "height": 900},
                 is_mobile=width == 390,
@@ -33,7 +33,8 @@ def run() -> None:
             page.set_default_timeout(15_000)
             errors: list[str] = []
             page.on("pageerror", lambda error: errors.append(str(error)))
-            name = f"workbench-navigation-{width}.md"
+            label = str(width) + ("-linked" if linked else "")
+            name = f"workbench-navigation-{label}.md"
             original = "# original\n"
             changed = "# keep this unsaved draft\n"
             seed = context.request.post(
@@ -42,7 +43,8 @@ def run() -> None:
             )
             assert seed.ok, seed.text()
             assert context.request.post(base + "/api/setup/dismiss").ok
-            page.goto(f"{base}/?view=wiki&doc={name}", wait_until="networkidle")
+            target = f"record_view=wiki&record={name}" if linked else f"doc={name}"
+            page.goto(f"{base}/?view=wiki&{target}", wait_until="networkidle")
             expect(page.locator("#setup-wizard")).to_be_hidden()
             expect(page.locator("#wiki-preview")).to_contain_text("original")
             expect(page.locator("#wiki-preview")).to_be_focused()
@@ -83,7 +85,7 @@ def run() -> None:
             file_response = context.request.get(base + "/api/vault-md/file", params={"path": name})
             assert file_response.ok, file_response.text()
             assert file_response.json()["content"] == original
-            page.screenshot(path=str(output / f"docs-workbench-guard-{width}.png"))
+            page.screenshot(path=str(output / f"docs-workbench-guard-{label}.png"))
 
             page.unroute("**/api/vault-md/safety/draft", fail_draft)
             journal_tab.press("Enter")

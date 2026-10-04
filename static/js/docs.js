@@ -4,6 +4,7 @@ import { initDocumentImport } from './docs_import.js';
 import { mdToHtml, enhanceMarkdown, toast } from './util.js';
 import { loadNotes } from './notes.js';
 import { replaceRouteUrl } from './route_history.js';
+import { clearLinkedRecord, readRecordTarget, replaceLinkedRecord } from './recordlinks.js';
 
 let _section = 'docs';
 let _cur = null;
@@ -178,6 +179,10 @@ export function initDocs(initialSection = 'docs', fetcher = fetch) {
   const loads = Promise.all([loadTree(), loadTags(), showSection(section)]);
   _watch();
   const legacyDocumentPath = new URLSearchParams(location.search).get('doc');
+  if (readRecordTarget(location.href)?.view === 'wiki') {
+    _deepLinked = true;
+    return loads;
+  }
   if (!_deepLinked && legacyDocumentPath) {
     _deepLinked = true;
     return loads.then(() => openLegacyDocumentDeepLink(legacyDocumentPath));
@@ -350,6 +355,7 @@ async function openDocsHome() {
   _dirty = false;
   _mode = 'view';
   destroyEditor();
+  clearLinkedRecord('wiki');
   if (location.hash) replaceRouteUrl(location.pathname + location.search);
   showSection('docs');
   renderShell();
@@ -629,6 +635,14 @@ function renderPreview(markdown = currentContent()) {
   enhanceMarkdown(preview);
 }
 
+export function openLinkedDocument(path, isCurrent = () => true) {
+  if (!isCurrent()) return false;
+  // History can return to the editor already holding this exact document.
+  // Reopening it would replace that editor while the owner continues typing.
+  if (_cur === path && _doc) return true;
+  return openNote(path, { canRefresh: isCurrent });
+}
+
 export async function openNote(path, { quiet = false, draftFlushed = false, canRefresh = null, expectedHash = '' } = {}) {
   if (!path || (canRefresh && !canRefresh())) return false;
   const requestGeneration = ++_openGeneration;
@@ -748,6 +762,8 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
       hideInlineState();
     }
     if (!quiet) {
+      const linked = readRecordTarget(location.href);
+      if (linked?.view === 'wiki') replaceLinkedRecord('wiki', linked.id, openedPath);
       replaceRouteUrl(location.pathname + location.search + '#' + encodeURIComponent(stem(_cur)));
       if (document.activeElement === departureFocus || document.activeElement === document.body) {
         $('wiki-preview')?.focus();
@@ -756,7 +772,7 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     return true;
   } catch (error) {
     if (requestGeneration !== _openGeneration) return false;
-    toast(error.message || 'could not open that document', 'error');
+    toast(`could not open ${path}: ${error.message || 'document unavailable'}`, 'error');
     return false;
   }
 }
@@ -1519,6 +1535,7 @@ async function renameCurrent() {
       path: _cur,
       new_path: directory + answer.value.trim(),
     }));
+    replaceLinkedRecord('wiki', _cur, result.path);
     _cur = result.path;
     await loadTree();
     await openNote(result.path, { quiet: true });

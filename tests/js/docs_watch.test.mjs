@@ -14,6 +14,9 @@ const deferred = () => {
   return { promise, resolve };
 };
 
+const links = readFileSync(new URL('../../static/js/recordlinks.js', import.meta.url), 'utf8')
+  .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
+
 function harness() {
   const elements = new Map();
   function element(id = '') {
@@ -34,7 +37,7 @@ function harness() {
   const disk = new Map();
   const requests = [];
   const notices = [];
-  const routeLocation = { pathname: '/', search: '', hash: '' };
+  const routeLocation = new URL('http://local/');
   let stream;
   let intercept = null;
   function write(path, content) {
@@ -80,13 +83,14 @@ function harness() {
     mdToHtml: value => value, enhanceMarkdown() {}, toast: (...args) => notices.push(args),
     EventSource: class { constructor() { stream = this; } },
   });
+  vm.runInContext(links, context);
   vm.runInContext(source + `
     _editorFactory = (_host, options) => {
       let value = options.doc;
       return { getValue: () => value, setValue: next => { value = next; }, focus() {}, destroy() {} };
     };
     globalThis.subject = {
-      watch: _watch, open: openNote, save: saveCurrent,
+      watch: _watch, open: openNote, linked: openLinkedDocument, save: saveCurrent,
       newDocument: async name => { promptText = async () => ({ action: 'confirm', value: name }); await newDoc(); },
       edit: async value => { if (_mode !== 'edit') await enterEdit(); setEditView('source'); $('wiki-source').value = value; sourceChanged(); },
       state: () => ({ path: _cur, hash: _doc?.hash, content: currentContent(), dirty: _dirty, mode: _mode }),
@@ -269,4 +273,19 @@ test('stream hello reconciles missed disk changes and clean documents still refr
   await h.event('proof.md', { origin: 'external' });
   assert.equal(h.state().content, 'changed again');
   assert.equal(h.state().dirty, false);
+});
+
+
+test('returning to the same linked document preserves its live editor and unsaved text', async () => {
+  const h = harness();
+  h.write('folder/proof.md', 'original');
+  await h.open('folder/proof.md');
+  await h.edit('keep this unsaved editor');
+  const before = h.requests.length;
+  assert.equal(await h.linked('folder/proof.md'), true);
+  assert.equal(h.requests.length, before);
+  assert.equal(h.state().mode, 'edit');
+  assert.equal(h.state().dirty, true);
+  assert.equal(h.state().content, 'keep this unsaved editor');
+  assert.equal(await h.linked('folder/proof.md', () => false), false);
 });

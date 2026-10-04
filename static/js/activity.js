@@ -3,6 +3,7 @@
 // apps' own tables), filterable by source. clicking a row jumps to its app.
 import { formatDate, formatTime } from './i18n.js';
 import { replaceRouteUrl } from './route_history.js';
+import { toast } from './util.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -22,6 +23,7 @@ let _off = new Set();   // hidden type keys
 let _q = '';
 let _qTimer = null;
 let _loadSequence = 0;
+let _openSequence = 0;
 const _hk = 'alles-activity-hidden';
 
 function _readUrl() {
@@ -171,7 +173,7 @@ function render(events, partialSources = [], fetcher = fetch) {
     const dl = dayLabel(e.ts);
     if (dl !== curDay) { curDay = dl; html += `<div class="activity-day">${esc(dl)}</div>`; }
     const label = [LABEL[e.type] || e.type, e.title, e.subtitle].filter(Boolean).join(', ');
-    html += `<button type="button" class="activity-row" aria-label="${esc(label)}" data-view="${esc(e.view)}" data-id="${esc(e.id)}">
+    html += `<button type="button" class="activity-row" aria-label="${esc(label)}" data-type="${esc(e.type)}" data-view="${esc(e.view)}" data-id="${esc(e.id)}">
       <span class="activity-glyph act-${esc(e.type)}" aria-hidden="true">${GLYPH[e.type] || '·'}</span>
       <span class="activity-main">
         <span class="activity-title">${esc(e.title)}</span>
@@ -182,8 +184,30 @@ function render(events, partialSources = [], fetcher = fetch) {
   }
   body.innerHTML = partial + html;
   bindRetry(fetcher);
-  body.querySelectorAll('.activity-row').forEach(r => r.addEventListener('click', () => {
-    const v = r.dataset.view;
-    if (v) window._navigateTo?.(v);
+  body.querySelectorAll('.activity-row').forEach(r => r.addEventListener('click', async () => {
+    const sequence = ++_openSequence;
+    const current = () => sequence === _openSequence && r.isConnected && Boolean(r.getClientRects().length);
+    const { type, view, id } = r.dataset;
+    try {
+      if (type === 'doc') {
+        await window._openRecord?.('wiki', id);
+      } else if (type === 'agent') {
+        // These are conversation runs, distinct from the scheduled jobs in Home.
+        const response = await fetcher(`/api/agent/runs/${encodeURIComponent(id)}`);
+        if (!response.ok) throw new Error('this run is no longer available');
+        const run = await response.json();
+        if (!current()) return;
+        if (run.id !== id || !/^[a-zA-Z0-9_-]{1,160}$/.test(run.session_id || '')) throw new Error('this run has no saved conversation');
+        const historyResponse = await fetcher(`/api/sessions/${encodeURIComponent(run.session_id)}/history`);
+        if (!historyResponse.ok) throw new Error('this run’s conversation is no longer available');
+        const history = await historyResponse.json();
+        if (!current()) return;
+        if (history.session?.id !== run.session_id || !Array.isArray(history.messages)) throw new Error('could not confirm this run’s conversation');
+        const message = history.messages.find(item => item.role === 'assistant' && item.meta?.agent_run_id === id);
+        if (!await window._openSearchResult?.('chat', run.session_id, message?.id || '')) throw new Error('could not open this run’s conversation');
+      } else if (view) await window._navigateTo?.(view);
+    } catch (error) {
+      if (sequence === _openSequence) toast(error.message || 'could not open this activity item', 'error');
+    }
   }));
 }
