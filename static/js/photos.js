@@ -32,6 +32,8 @@ let _metaBusy = false;
 let _viewerClosing = false;
 let _viewerOpener = null;
 let _viewerBackground = [];
+let _viewerGeneration = 0;
+const _favoritePending = new Set();
 let _uploadBusy = false;
 let _uploadFailures = [];
 let _listGeneration = 0;
@@ -44,7 +46,20 @@ const _PAGE = 120;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
-const _setFavBtn = fav => { const b = $('photos-fav-btn'); if (b) b.innerHTML = fav ? `${_si('heart-fill')} favorited` : `${_si('heart')} favorite`; };
+const _setFavBtn = fav => {
+  const b = $('photos-fav-btn');
+  if (!b) return;
+  b.innerHTML = fav ? `${_si('heart-fill')} favorited` : `${_si('heart')} favorite`;
+  const pending = _favoritePending.has(_cur?.id);
+  b.setAttribute('aria-disabled', String(pending));
+  b.setAttribute('aria-busy', String(pending));
+};
+
+function rememberPhotoChange(photo, key, value) {
+  photo[key] = value;
+  for (const item of [..._photos, ..._lbPhotos]) if (item.id === photo.id) item[key] = value;
+  if (_cur?.id === photo.id) _cur[key] = value;
+}
 
 // justified (flickr-style) layout — pack a date bucket's photos into rows that fill the width,
 // aspect ratios preserved, no square cropping. run per bucket so a date header never sits mid-row.
@@ -779,6 +794,7 @@ async function _openStack(coverId) {
 function _showCurrent() {
   const p = _lbPhotos[_curIdx];
   if (!p) return;
+  ++_viewerGeneration;
   _cur = p;
   $('photos-lightbox').setAttribute('aria-label', p.original_name || 'photo viewer');
   $('photos-lb-drawer').inert = !_drawerOpen;
@@ -869,6 +885,7 @@ async function closeLightbox() {
   if (v) { v.pause?.(); v.src = ''; }
   _toggleHelp(false);
   $('photos-lightbox').style.display = 'none';
+  ++_viewerGeneration;
   _cur = null; _curIdx = -1; _lbPhotos = [];
   _viewerBackground.forEach(([el, inert]) => { el.inert = inert; });
   _viewerBackground = [];
@@ -1069,12 +1086,18 @@ export function initPhotos() {
   if ($('photos-next-btn')) $('photos-next-btn').innerHTML = _si('chevron-right');
   $('photos-info-btn')?.addEventListener('click', () => _toggleDrawer());
   $('photos-archive-btn')?.addEventListener('click', async () => {
-    if (!_cur || !await _discardCaption()) return;
-    const arch = !_cur.archived;
-    await fetch('/api/photos/' + _cur.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ archived: arch }) });
-    _cur.archived = arch;
+    const photo = _cur, generation = _viewerGeneration;
+    if (!photo || !await _discardCaption() || generation !== _viewerGeneration) return;
+    const arch = !photo.archived;
+    try {
+      const saved = await _response(await fetch('/api/photos/' + photo.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ archived: arch }) }));
+      if (saved?.id !== photo.id || saved.archived !== arch) throw new Error('unconfirmed archive');
+    } catch { toast('archive state could not be saved', 'error'); return; }
+    rememberPhotoChange(photo, 'archived', arch);
+    if (_cur?.id === photo.id) $('photos-archive-btn').innerHTML = arch ? `${_si('archive')} unarchive` : `${_si('archive')} archive`;
     toast(arch ? 'archived' : 'unarchived', '');
-    closeLightbox(); _reloadPhotos();
+    if (generation === _viewerGeneration) await closeLightbox();
+    _reloadPhotos();
   });
   $('photos-lightbox')?.addEventListener('keydown', e => {
     if ($('photos-lightbox')?.style.display !== 'flex' || !$('photos-lightbox').contains(e.target)) return;   // only while the viewer is open
@@ -1099,25 +1122,34 @@ export function initPhotos() {
     if (hit) { e.preventDefault(); e.stopPropagation(); }
   });
   $('photos-fav-btn')?.addEventListener('click', async () => {
-    if (!_cur) return;
-    const fav = !_cur.favorite;
+    const photo = _cur;
+    if (!photo || _favoritePending.has(photo.id)) return;
+    const fav = !photo.favorite;
+    _favoritePending.add(photo.id);
+    _setFavBtn(photo.favorite);
     try {
-      await _response(await fetch('/api/photos/' + _cur.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: fav }) }));
-    } catch { toast('favorite could not be saved', 'error'); return; }
-    _cur.favorite = fav;
-    _setFavBtn(fav);
-    const cell = document.querySelector(`.photos-cell[data-id="${_cur.id}"]`);
-    if (cell) {
-      cell.classList.toggle('fav', fav);
-      cell.querySelector('.photos-fav-badge')?.remove();
-      if (fav) cell.insertAdjacentHTML('beforeend', `<span class="photos-fav-badge">${_si('heart-fill')}</span>`);
+      const saved = await _response(await fetch('/api/photos/' + photo.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: fav }) }));
+      if (saved?.id !== photo.id || saved.favorite !== fav) throw new Error('unconfirmed favorite');
+      rememberPhotoChange(photo, 'favorite', fav);
+      const cell = document.querySelector(`.photos-cell[data-id="${photo.id}"]`);
+      if (cell) {
+        cell.classList.toggle('fav', fav);
+        cell.querySelector('.photos-fav-badge')?.remove();
+        if (fav) cell.insertAdjacentHTML('beforeend', `<span class="photos-fav-badge">${_si('heart-fill')}</span>`);
+      }
+    } catch { toast('favorite could not be saved', 'error'); }
+    finally {
+      _favoritePending.delete(photo.id);
+      if (_cur?.id === photo.id) _setFavBtn(_cur.favorite);
     }
   });
   $('photos-del-btn')?.addEventListener('click', async () => {
-    if (!_cur || !await _discardCaption() || !await dlgConfirm('delete this image?')) return;
-    try { await _response(await fetch('/api/photos/' + _cur.id, { method: 'DELETE' })); }
+    const photo = _cur, generation = _viewerGeneration;
+    if (!photo || !await _discardCaption() || !await dlgConfirm('delete this image?') || generation !== _viewerGeneration) return;
+    try { await _response(await fetch('/api/photos/' + photo.id, { method: 'DELETE' })); }
     catch { toast('delete failed', 'error'); return; }
-    closeLightbox(); _reloadPhotos();
+    if (generation === _viewerGeneration) await closeLightbox();
+    _reloadPhotos();
   });
   $('photos-meta-save')?.addEventListener('click', async () => {
     if (!_cur || _metaBusy) return;
@@ -1143,15 +1175,19 @@ export function initPhotos() {
     }
   });
   $('photos-hide-btn')?.addEventListener('click', async () => {
-    if (!_cur || !await _discardCaption()) return;
-    const hide = !_cur.hidden;
+    const photo = _cur, generation = _viewerGeneration;
+    if (!photo || !await _discardCaption() || generation !== _viewerGeneration) return;
+    const hide = !photo.hidden;
     try {
-      await _response(await fetch('/api/photos/' + _cur.id, {
+      const saved = await _response(await fetch('/api/photos/' + photo.id, {
         method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hidden: hide }),
       }));
+      if (saved?.id !== photo.id || saved.hidden !== hide) throw new Error('unconfirmed hidden state');
     } catch { toast('hidden state could not be saved', 'error'); return; }
-    _cur.hidden = hide;
-    closeLightbox(); _reloadPhotos();
+    rememberPhotoChange(photo, 'hidden', hide);
+    if (_cur?.id === photo.id) $('photos-hide-btn').innerHTML = hide ? `${_si('eye')} unhide` : `${_si('eye-off')} hide`;
+    if (generation === _viewerGeneration) await closeLightbox();
+    _reloadPhotos();
   });
   // filters
   if ($('photos-filter-btn')) $('photos-filter-btn').innerHTML = `${_si('filter')} filter`;
