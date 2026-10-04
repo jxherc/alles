@@ -178,6 +178,9 @@ export function initDocs(initialSection = 'docs', fetcher = fetch) {
   const section = ['docs', 'notes', 'journal'].includes(initialSection) ? initialSection : 'docs';
   const loads = Promise.all([loadTree(), loadTags(), showSection(section)]);
   _watch();
+  // A Journal route can retain the document fragment for browser history.
+  // Only the document view owns legacy document selectors.
+  if (section !== 'docs') return loads;
   const legacyDocumentPath = new URLSearchParams(location.search).get('doc');
   if (readRecordTarget(location.href)?.view === 'wiki') {
     _deepLinked = true;
