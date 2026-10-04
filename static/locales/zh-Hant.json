@@ -261,6 +261,8 @@
     "tasks.save_queued": "變更已進入離線佇列。儲存完成前，此草稿會保留在這裡。",
     "tasks.saved_refresh_failed": "任務已儲存，但清單重新整理失敗。請重新載入查看。",
     "tasks.edit_named": "編輯 {task}",
+    "tasks.completion_failed": "無法確認任務是否已完成。請重試。",
+    "tasks.reopen_failed": "無法確認任務是否已重新開啟。請重試。",
     "tasks.mark_complete": "將 {task} 標示為已完成",
     "tasks.mark_incomplete": "將 {task} 標示為未完成",
     "tasks.no_completed": "尚無已完成任務",
