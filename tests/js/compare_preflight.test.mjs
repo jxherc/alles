@@ -14,19 +14,26 @@ function harness(response = async () => ({ ok: true, json: async () => ({ compar
       addEventListener(name, callback) { (this.events[name] ||= []).push(callback); },
       setAttribute(name, value) { this.attributes[name] = value; },
       removeAttribute(name) { delete this.attributes[name]; },
-      focus() { document.activeElement = this; },
+      getClientRects() { return this.hidden ? [] : [{}]; },
+      focus() { document.focus(this); },
       async fire(name) { await Promise.all((this.events[name] || []).map(callback => callback({}))); },
     });
   }
   const input = nodes.get('compare-input'), button = nodes.get('compare-send-btn');
   const selection = [{ dataset: { ep: 'owned', model: 'fixture' } }];
   const calls = [], messages = [];
-  const document = { getElementById: id => nodes.get(id), querySelectorAll: () => selection, activeElement: input };
+  const listeners = new Set();
+  const document = {
+    getElementById: id => nodes.get(id), querySelectorAll: () => selection, activeElement: input,
+    addEventListener(name, callback) { assert.equal(name, 'focusin'); listeners.add(callback); },
+    removeEventListener(name, callback) { assert.equal(name, 'focusin'); listeners.delete(callback); },
+    focus(node) { this.activeElement = node; for (const listener of listeners) listener({ target: node }); },
+  };
   const context = vm.createContext({ document, window: {}, toast: (...args) => messages.push(args),
     fetch: async (...args) => { calls.push(args); return response(...args); } });
   vm.runInContext(source + '\nglobalThis.initialize = initCompareView;', context);
   context.initialize();
-  return { input, button, selection, calls, messages, document, initialize: context.initialize };
+  return { input, button, selection, calls, messages, document, listeners, initialize: context.initialize };
 }
 
 test('missing model keeps the exact prompt and returns focus without a request', async () => {
@@ -84,4 +91,47 @@ test('reopening Compare binds one submission handler', async () => {
   const h = harness(); h.initialize(); h.initialize(); h.input.value = 'original';
   await h.button.fire('click');
   assert.equal(h.calls.length, 1);
+});
+
+for (const hidden of [false, true]) {
+  test(`a rejected request preserves a newer focus even when the prompt is ${hidden ? 'hidden' : 'visible'}`, async () => {
+    let release;
+    const h = harness(() => new Promise(resolve => { release = resolve; }));
+    h.input.value = 'retain me'; h.button.focus();
+    const pending = h.button.fire('click');
+    const newer = {}; h.document.focus(newer); h.input.hidden = hidden;
+    release({ ok: false }); await pending;
+    assert.equal(h.document.activeElement, newer);
+    assert.equal(h.input.value, 'retain me');
+    assert.equal(h.listeners.size, 0);
+  });
+}
+
+test('a newer focus remains authoritative after its control is removed', async () => {
+  let release;
+  const h = harness(() => new Promise(resolve => { release = resolve; }));
+  h.input.value = 'retain me'; h.button.focus();
+  const pending = h.button.fire('click');
+  h.document.focus({}); h.document.activeElement = null;
+  release({ ok: false }); await pending;
+  assert.equal(h.document.activeElement, null);
+});
+
+test('failure restores owned submission focus only while the prompt is visible', async () => {
+  for (const hidden of [false, true]) {
+    let release;
+    const h = harness(() => new Promise(resolve => { release = resolve; }));
+    h.input.value = 'retain me'; h.button.focus();
+    const pending = h.button.fire('click');
+    h.document.activeElement = null; h.input.hidden = hidden;
+    release({ ok: false }); await pending;
+    assert.equal(h.document.activeElement, hidden ? null : h.input);
+    assert.equal(h.listeners.size, 0);
+  }
+});
+
+test('accepted requests also remove the temporary focus listener', async () => {
+  const h = harness(); h.input.value = 'submitted';
+  await h.button.fire('click');
+  assert.equal(h.listeners.size, 0);
 });
