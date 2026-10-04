@@ -2490,6 +2490,7 @@ def exercise(page, api, endpoint, destination):
         ),
     )
     page.goto("/?view=today", wait_until="networkidle")
+    assert page.evaluate("window.__settingsModelPollIsolated === true")
     page.locator("#today-settings").click()
     permission_first_read_case(page, api, events, destination)
 
@@ -4896,6 +4897,18 @@ def run():
                         data={"models": ["fixture-a", "fixture-b"]},
                     ).ok
                     page = context.new_page()
+                    # Background catalog polling must not consume pane-specific injected faults.
+                    page.add_init_script("""(() => {
+                        const startInterval = window.setInterval;
+                        window.setInterval = function(callback, delay, ...args) {
+                            const id = startInterval.call(this, callback, delay, ...args);
+                            if (callback.name === 'loadModels' && delay === 30000) {
+                                clearInterval(id);
+                                window.__settingsModelPollIsolated = true;
+                            }
+                            return id;
+                        };
+                    })()""")
                     page.set_default_timeout(12000)
                     if zoom != 1:
                         page.add_init_script(
