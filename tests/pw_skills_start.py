@@ -124,6 +124,7 @@ with sync_playwright() as pw:
                 count = len(installed)
                 expect(start).to_have_attribute("aria-pressed", "true")
                 expect(cards).to_have_count(6)
+                expect(page.locator("#skl-rail [data-cat]")).to_have_count(2)
                 assert cards.evaluate_all("nodes=>nodes.map(n=>n.dataset.slug)") == starters
                 row["installed_at_start"] = count
                 page.screenshot(path=str(out / f"{label}-start.png"))
@@ -137,9 +138,16 @@ with sync_playwright() as pw:
                 all_skills.press("Enter")
                 expect(cards).to_have_count(count)
                 expect(all_skills).to_be_focused()
+                coding = page.locator('[data-cat="coding"]')
+                coding.press("Enter")
+                expect(cards).to_have_count(
+                    sum(skill.get("category") == "coding" for skill in installed)
+                )
+                expect(coding).to_be_focused()
                 start.press("Enter")
                 expect(cards).to_have_count(6)
                 expect(start).to_be_focused()
+                expect(coding).to_have_count(0)
                 search.fill("Accessibility Pass")
                 other = page.locator('.skl-card[data-slug="accessibility-pass"]')
                 expect(other).to_be_visible()
