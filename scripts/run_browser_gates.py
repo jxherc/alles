@@ -104,6 +104,7 @@ COMMANDS = {
     "read-position": ("tests/pw_read_position.py",),
     "read-recovery": ("tests/pw_read_recovery.py",),
     "read-navigation": ("tests/pw_read_navigation.py",),
+    "read-ownership": ("tests/pw_read_ownership.py",),
     "read-notes": ("tests/pw_read_notes.py",),
     "read-save": ("tests/pw_read_save.py",),
     "read-scope-recovery": ("tests/pw_read_scope_recovery.py",),
