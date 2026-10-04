@@ -11,6 +11,7 @@ function harness() {
   const get = id => {
     if (!elements.has(id)) elements.set(id, {
       innerHTML: '', value: '', dataset: {}, attributes: {}, textContent: '',
+      contains() { return false; },
       setAttribute(name, value) { this.attributes[name] = value; },
       removeAttribute(name) { delete this.attributes[name]; },
       focus() { this.focused = true; },
