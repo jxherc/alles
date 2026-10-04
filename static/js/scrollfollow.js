@@ -25,13 +25,14 @@ function typingDraft() {
   return document.activeElement === input && Boolean(input?.value.trim());
 }
 
-function renderJump() {
-  if (_jump) _jump.hidden = _following && distanceFromBottom(_chat) <= BOTTOM_GAP;
+export function refreshScrollFollow() {
+  if (_jump) _jump.hidden = !(_chat?.getClientRects().length
+    && _chat.querySelector('#messages .msg-row') && distanceFromBottom(_chat) > BOTTOM_GAP);
 }
 
 export function pauseScrollFollow() {
   _following = false;
-  renderJump();
+  refreshScrollFollow();
 }
 
 export function resumeScrollFollow() {
@@ -55,7 +56,7 @@ export function scrollToLatest({ force = false } = {}) {
   }
   _chat.scrollTop = _chat.scrollHeight;
   _following = true;
-  renderJump();
+  refreshScrollFollow();
   return true;
 }
 
@@ -67,7 +68,7 @@ export function initScrollFollow() {
   if (!_chat) return;
   _chat.addEventListener('scroll', () => {
     _following = distanceFromBottom(_chat) <= BOTTOM_GAP;
-    renderJump();
+    refreshScrollFollow();
   }, { passive: true });
   _chat.addEventListener('wheel', event => {
     if (event.deltaY < 0) pauseScrollFollow();
@@ -81,5 +82,5 @@ export function initScrollFollow() {
     else if (distanceFromBottom(_chat) <= BOTTOM_GAP) _following = true;
   });
   _jump?.addEventListener('click', resumeScrollFollow);
-  renderJump();
+  refreshScrollFollow();
 }

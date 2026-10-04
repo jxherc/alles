@@ -45,7 +45,7 @@ import {
   effortLabel,
 } from './modes.js?v=256';
 import { initPrivacyHandlers } from './privacy.js';
-import { initScrollFollow } from './scrollfollow.js';
+import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
 import { initAideWorkspace } from './aideworkspace.js?v=278';
 import { beginBusy, createFocusBoundary, initKokuenPrimitives, setControlState } from './kokuen.js?v=1';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=248';
@@ -665,6 +665,7 @@ function hideAllViews() {
     if (el) el.style.display = 'none';
   });
   document.getElementById('composer-outer').style.display = 'none';
+  refreshScrollFollow();
 }
 
 let _specialistRunId = 0;
@@ -792,6 +793,7 @@ const showChatView = ({ preserveRecord = false } = {}) => {
   _syncShellTrigger();
   document.getElementById('composer-outer').style.display = 'block';
   setNav('chat');
+  refreshScrollFollow();
 };
 // so selectSession (sessions.js) can jump back to chat when a convo is clicked
 // from a tools page — otherwise messages render behind the still-open tool view
