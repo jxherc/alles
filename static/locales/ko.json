@@ -258,6 +258,7 @@
     "tasks.conflict_message": "이 작업이 다른 곳에서 변경되었습니다. 저장 전에 두 버전을 검토하세요.",
     "tasks.your_change": "내 변경 사항",
     "tasks.saved_value": "저장된 값",
+    "tasks.save_not_confirmed": "저장 여부를 확인하지 못했습니다. 변경 내용은 여기에 남아 있습니다. 다시 저장해 보세요.",
     "tasks.save_queued": "변경 사항이 오프라인 대기열에 있습니다. 저장될 때까지 초안은 여기에 남습니다.",
     "tasks.saved_refresh_failed": "작업은 저장되었지만 목록을 새로 고치지 못했습니다. 다시 불러와 확인하세요.",
     "tasks.edit_named": "{task} 편집",
