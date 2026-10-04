@@ -160,6 +160,32 @@ class ChatRequest(BaseModel):
     custom_effort: CustomEffort | None = None
     simple: bool = False  # pure chat — never auto-promote to tools (the home "ask aide")
     context_scope: VaultDocumentScope | VaultDocumentsScope | None = None
+    retry_message_id: str = ""
+
+
+def _validate_retry(body: ChatRequest, session, db) -> None:
+    if not body.retry_message_id:
+        return
+    if getattr(session, "incognito", False):
+        last = session.messages[-1] if session.messages else None
+    else:
+        last = (
+            db.query(Message)
+            .filter(Message.session_id == session.id)
+            .order_by(Message.timestamp.desc())
+            .populate_existing()
+            .first()
+        )
+    if (
+        body.session_id in _streams
+        or not last
+        or last.id != body.retry_message_id
+        or last.role != "user"
+        or last.content != body.message
+    ):
+        raise ApiError(
+            409, "retry_unavailable", "this question can no longer be retried; reopen the task"
+        )
 
 
 def _require_turn_authority(request: Request, settings: dict) -> None:
@@ -299,6 +325,7 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
     s = private_session or db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
+    _validate_retry(body, s, db)
     if body.incognito and not private_session and not getattr(s, "incognito", False):
         raise ApiError(
             400,
@@ -379,7 +406,15 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
         model,
         document_provenance,
     )
-    messages = _build_messages(s, aug_text, settings, db, body.file_ids, mem_ctx=mem_ctx)
+    messages = _build_messages(
+        s,
+        aug_text,
+        settings,
+        db,
+        body.file_ids,
+        mem_ctx=mem_ctx,
+        retry_message_id=body.retry_message_id,
+    )
     if incognito_run:
         for upload_id in body.file_ids:
             incognito_service.delete_upload(upload_id)
@@ -393,6 +428,10 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
 
             messages = await compact_messages(messages, ep, model, target_len=threshold)
 
+    # Context assembly can await. Recheck before claiming the stream, without
+    # another await between this check and the registry update.
+    _validate_retry(body, s, db)
+    settings["retry_message_id"] = body.retry_message_id
     stop_event = asyncio.Event()
     _streams[body.session_id] = stop_event
 

@@ -6,7 +6,7 @@ import {
 } from './sessions.js';
 import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=212';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
-import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js';
+import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js?v=253';
 import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort } from './modes.js?v=256';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { shouldRunInBackground } from './aidebackgroundpolicy.js';
@@ -251,6 +251,25 @@ export async function sendMessage(text, onAccepted = () => {}) {
   clearAttachments();
   scrollDown();
 
+  return streamReply({
+    session_id: sessionId,
+    message: text,
+    mode: getMode(),
+    file_ids: [...attachmentIds],
+    incognito: privateReply,
+    permission_mode: getPermMode(),
+    effort: getEffort(sel.model),
+    reasoning_mode: getReasoningMode(sel.model),
+    custom_effort: getCustomEffort(sel.model),
+    context_scope: documentScope || undefined,
+  }, { freshSession });
+}
+
+async function streamReply(request, { freshSession = false, previousRow = null } = {}) {
+  const { session_id: sessionId, message: text, context_scope: documentScope, incognito: privateReply } = request;
+  // Only the latest settled failure may retry. A new turn retires older controls.
+  document.querySelectorAll('.aide-retry-response').forEach(button => button.remove());
+  previousRow?.remove();
   setStreaming(true);
   const ctrl = new AbortController();
   const streamToken = ++_streamToken;
@@ -280,6 +299,11 @@ export async function sendMessage(text, onAccepted = () => {}) {
   let genStart = 0;     // first answer token time, for tok/s
   let statsEl = null;
   let outTok = 0;       // real output tokens from usage (if provided)
+  let providerError = false;
+  let sourceUserId = request.retry_message_id || '';
+  let receivedDone = false;
+  let streamEnded = false;
+  let toolActivity = false;
   const progressEl = document.createElement('div');
   progressEl.className = 'aide-run-progress';
   progressEl.setAttribute('role', 'status');
@@ -358,18 +382,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
     const r = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        session_id: sessionId,
-        message: text,
-        mode: getMode(),
-        file_ids: attachmentIds,
-        incognito: isIncognitoMode(),
-        permission_mode: getPermMode(),
-        effort: getEffort(getSelected()?.model),   // per-model effort, applies to chat + agent
-        reasoning_mode: getReasoningMode(getSelected()?.model),
-        custom_effort: getCustomEffort(getSelected()?.model),
-        context_scope: documentScope || undefined,
-      }),
+      body: JSON.stringify(request),
       signal: ctrl.signal,
     });
 
@@ -380,7 +393,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
       const followedReply = chat && chat.scrollHeight - chat.scrollTop - chat.clientHeight < 96;
       body.innerHTML = `<div class="error-msg">${escHtml(message)}</div>`;
       body.classList.add('done');
-      if (getActiveId() === sessionId && _streamToken === streamToken) {
+      if (!previousRow && getActiveId() === sessionId && _streamToken === streamToken) {
         restoreDocumentScope(documentScope);
         if (documentScope) {
           restoreComposerInput(text);
@@ -416,18 +429,20 @@ export async function sendMessage(text, onAccepted = () => {}) {
       for (const line of lines) {
         if (!line.startsWith('data:')) continue;
         const raw = line.slice(5).trim();
-        if (raw === '[DONE]') break;
+        if (raw === '[DONE]') { receivedDone = true; continue; }
 
         let chunk;
         try { chunk = JSON.parse(raw); } catch { continue; }
 
+        if (Object.keys(chunk).some(key => key.startsWith('tool_') || key.startsWith('user_question') || key === 'todo_update')) toolActivity = true;
         if (chunk.error) {
+          providerError = true;
           cursor?.remove();
           // appendChild, not innerHTML += — the latter re-parses all of body and
           // detaches the live tool/agent nodes (toolEls/agentEl) + their listeners
           appendError(body, chunk.error);
           if (isConnError(chunk.error)) showConnBanner(chunk.error);
-          break;
+          continue;
         }
 
         if (chunk.done && chunk.usage) {
@@ -452,6 +467,8 @@ export async function sendMessage(text, onAccepted = () => {}) {
         if (chunk.agent_run) {
           runId = chunk.agent_run.id || runId;
         }
+
+        if (chunk.saved_user?.id) sourceUserId = chunk.saved_user.id;
 
         if (chunk.saved_message) {
           row.dataset.msgId = chunk.saved_message.id;
@@ -654,6 +671,8 @@ export async function sendMessage(text, onAccepted = () => {}) {
       }
     }
 
+    streamEnded = true;
+
     // whole reply in one burst after >2.5s of silence = a buffering proxy ate
     // the stream (clash etc. buffer plain-http chunked responses when the
     // *.localhost host isn't in the bypass list). tell the user once a day.
@@ -666,7 +685,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
     }
 
   } catch (e) {
-    if (getActiveId() === sessionId && _streamToken === streamToken) {
+    if (!previousRow && getActiveId() === sessionId && _streamToken === streamToken) {
       restoreDocumentScope(documentScope);
       if (documentScope && !accText) restoreComposerInput(text);
     }
@@ -763,6 +782,20 @@ export async function sendMessage(text, onAccepted = () => {}) {
       }
       contentEl.innerHTML = mdToHtml(stripEmojis(cleanText));
       applyResponsePrivacy(contentEl);
+    }
+
+    // Retry only a known, finished provider failure before any answer or tool work.
+    // Unknown transport outcomes must not replay work that might already have happened.
+    if (sourceUserId && providerError && receivedDone && streamEnded && !ctrl.signal.aborted && !accText && !toolActivity && !(privateReply && request.file_ids.length)) {
+      const retry = document.createElement('button');
+      retry.type = 'button'; retry.className = 'btn aide-retry-response'; retry.textContent = 'retry response';
+      retry.addEventListener('click', () => {
+        if (!canSendMessage() || getActiveId() !== sessionId || _streamToken !== streamToken || !row.isConnected) return;
+        const restoreFocus = document.activeElement === retry;
+        void streamReply({ ...request, retry_message_id: sourceUserId }, { freshSession, previousRow: row });
+        if (restoreFocus) document.getElementById('composer-ta')?.focus();
+      });
+      body.querySelector('.error-msg')?.appendChild(retry);
     }
 
     // action buttons
@@ -871,11 +904,11 @@ function appendError(body, msg) {
     const explanation = document.createElement('p');
     explanation.setAttribute('role', 'status');
     explanation.textContent = status === 404
-      ? 'the model could not be found. check the selected model and connection in model settings, then send your question again.'
+      ? 'the model could not be found. check the selected model and connection in model settings, then try again.'
       : [401, 403].includes(status)
-      ? 'the model did not authorize this request. check its credentials in model settings, then send your question again.'
+      ? 'the model did not authorize this request. check its credentials in model settings, then try again.'
       : status === 429
-      ? 'the model is busy or has reached its limit. wait a moment, then send your question again.'
+      ? 'the model is busy or has reached its limit. wait a moment, then try again.'
       : status >= 500
       ? 'the model service is temporarily unavailable. try again later, or check its connection in model settings.'
       : 'the model could not answer this request. check the model and connection in model settings, then try again.';
