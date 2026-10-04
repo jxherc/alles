@@ -346,6 +346,7 @@ async function paySubscription(id) {
     const saved = await api(`/api/subscriptions/${id}/paid`, { method: 'POST', body: _paidRequests.get(id) });
     if (saved?.id !== id) throw new Error('invalid payment acknowledgment');
     _paidRequests.delete(id); toast(`next due ${saved.next_due}`, 'success');
+    if (_history?.id === id) await showHistory(id);
   });
 }
 
