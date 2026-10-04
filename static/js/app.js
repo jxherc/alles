@@ -1,4 +1,4 @@
-import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession } from './sessions.js';
+import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, focusSessionMessage } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=212';
 import { icon, iconEl, ICON_NAMES } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
@@ -402,6 +402,10 @@ async function _boot({ reachable = true } = {}) {
   window._reloadMail = startMailPoll;
   window._reloadSystem = () => import('./system.js?v=261').then(m => m.initSystem());
   applySubdomainScope(initialRoute);
+  const sourceMessage = new URLSearchParams(location.search).get('message');
+  if (sourceMessage && document.body.classList.contains('is-aide') && !focusSessionMessage(sourceMessage)) {
+    toast('the original conversation or reply is unavailable', 'error', 8000);
+  }
 
   // arrived from another subapp's palette "ask aide / research" → run it once
   const _p = new URLSearchParams(location.search);
@@ -804,17 +808,21 @@ window._openProject = (pid) => showView('project-view', 'project', () => import(
 window._navigateTo = (v, options) => navigateTo(v, options);
 window._navigateHome = () => navigateTo('today');
 
-window._openSearchResult = async (type, value) => {
+window._openSearchResult = async (type, value, messageId = '') => {
+  if (messageId && (type !== 'chat' || !/^[a-zA-Z0-9_-]{1,160}$/.test(messageId))) return false;
   if (!value || !['note', 'chat'].includes(type)) return false;
   const sub = type === 'note' ? 'docs' : 'aide';
   if (!singleHost() && currentSub() !== sub) {
     const target = new URL(urlForApp(sub));
     if (type === 'note') target.searchParams.set('doc', value);
-    else target.hash = encodeURIComponent(value);
+    else {
+      target.hash = encodeURIComponent(value);
+      if (messageId) target.searchParams.set('message', messageId);
+    }
     return _navigateWithHandoff(target.toString());
   }
   if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat'))) return false;
-  if (type === 'chat') return selectSession(value);
+  if (type === 'chat') return selectSession(value, messageId);
   const { openNote } = await import('./docs.js?v=257');
   return openNote(value);
 };

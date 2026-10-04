@@ -282,6 +282,12 @@ what it supports:
   A pending save keeps the original text for retry after a lost response or reload, confirms
   the same saved file, and provides an open-note action. Private replies can be saved explicitly
   but carry no permanent conversation link.
+- **review an answer as a task**: +task opens an editable proposal before saving to Plan.
+  Notes retain the reply's Markdown and links; the source keeps an excerpt and, for ordinary
+  replies, the exact conversation and reply IDs. A lost response can be retried or recovered
+  after reload using the same acceptance. Saved tasks open directly in Plan and can return to
+  their original reply. Private replies require explicit acceptance of a copy outside the
+  private conversation and retain no conversation or reply IDs.
 - **safe markdown saves**: vault writes replace files atomically, notes refuses to overwrite a file changed after you opened it and preserves unrelated frontmatter/body bytes during partial edits, and deleted docs/notes can be restored from 30-day trash
 - **voice**: talk to it and have it talk back (speech-to-text in, text-to-speech out)
 - **vision**: drop in an image and capable models can see it

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session as DbSession
 from core.database import DB_PATH, Task, get_db
 from core.settings import load_settings
 from services.commitment_requests import create_request
-from services.commitment_sources import CommitmentSource, capture_source, source_dict, source_json
+from services.commitment_sources import TaskSource, capture_source, source_dict, source_json
 from services.task_nl import parse_task, reschedule_date
 from services.task_status import TASK_STAGES, apply_status
 from services.task_status import normalize_stage as _stage
@@ -228,7 +228,7 @@ class TaskBody(BaseModel):
     stage: str = "backlog"
     nl: bool = False  # parse the title as natural language
     request_id: str = ""
-    source: CommitmentSource | None = None
+    source: TaskSource | None = None
 
 
 @router.post("/tasks")

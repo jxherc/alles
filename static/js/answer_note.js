@@ -4,17 +4,19 @@ import { stripArtifacts } from './artifacts.js';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { sourceCitationStatus } from './memoryactions.js';
 
-async function reconcileSourceReply(wrap) {
+export async function reconcileSourceReply(wrap, kind = 'note') {
   if (!wrap.pendingSourceReply) return;
-  if (!wrap.sourceReplyId) throw new Error('saved source references are unavailable; reopen this chat before saving a note');
+  if (!wrap.sourceReplyId) throw new Error(`saved source references are unavailable; reopen this chat before saving a ${kind}`);
   const response = await fetch(`/api/sessions/${encodeURIComponent(wrap.dataset.sessionId)}/history`, { signal: AbortSignal.timeout(15000) });
-  if (!response.ok) throw new Error('could not check saved source references; try +note again');
+  if (!response.ok) throw new Error(`could not check saved source references; try +${kind} again`);
   const history = await response.json();
   const reply = history.messages?.find(message => message.role === 'assistant'
     && message.meta?.context_provenance?.reply_id === wrap.sourceReplyId);
   if (!reply?.meta?.source_citations || typeof reply.content !== 'string') {
-    throw new Error('source references are still being saved; try +note again');
+    throw new Error(`source references are still being saved; try +${kind} again`);
   }
+  const row = wrap.closest('.msg-row');
+  if (row && typeof reply.id === 'string') row.dataset.msgId = reply.id;
   wrap.answerText = stripArtifacts(reply.content);
   wrap.pendingSourceReply = false;
   const content = wrap.querySelector('.ai-content');
