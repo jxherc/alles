@@ -257,7 +257,7 @@ export function createFocusBoundary(dialog, { trigger = null, onEscape = null } 
 }
 
 
-export function createMenuController(menu, { onClose = null } = {}) {
+export function createMenuController(menu, { onClose = null, closeOnOutsidePointer = true } = {}) {
   if (!menu) return null;
   let returnFocus = null;
   let outsideListening = false;
@@ -284,8 +284,10 @@ export function createMenuController(menu, { onClose = null } = {}) {
     menu.hidden = false;
     menu.style.display = 'block';
     if (focus) items()[0]?.focus();
-    outsideListening = true;
-    document.addEventListener('pointerdown', onOutsidePointer, true);
+    if (closeOnOutsidePointer) {
+      outsideListening = true;
+      document.addEventListener('pointerdown', onOutsidePointer, true);
+    }
   };
   const onKeydown = event => {
     const options = items();
