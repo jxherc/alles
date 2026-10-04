@@ -6288,6 +6288,26 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 /* let the toolbar wrap as whole controls (not split labels / cog off-screen) when narrow */
 #calendar-view .page-view-head { flex-wrap: wrap; row-gap: 0.4rem; }
 #calendar-view .page-view-head .btn { white-space: nowrap; }
+.cal-date-controls, .cal-primary-actions, .cal-tools { display: contents; }
+#cal-tools-toggle { display: none; align-items: center; min-height: var(--k-control, 44px); }
+/* Keep focus visible until the media-query handler transfers it on resize. */
+#cal-tools-toggle:focus { display: inline-flex; }
+@media (max-width: 760px) {
+  #calendar-view { overflow-y: auto; }
+  /* Keep an event workspace reachable when tools and feedback fill a short viewport. */
+  #calendar-view .cal-layout { flex-shrink: 0; min-height: min(400px, 70dvh); }
+  #calendar-view .cal-quick-feedback { flex-shrink: 0; }
+  #calendar-view .page-view-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2, 8px); }
+  .cal-date-controls { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); min-width: 0; }
+  .cal-date-controls .cal-month-title { min-width: 0; white-space: normal; text-align: end; }
+  #cal-view { width: 100%; margin-left: 0 !important; flex-wrap: wrap; }
+  #cal-view .seg-opt { flex: 1 1 auto; }
+  .cal-primary-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
+  #cal-tools-toggle { display: inline-flex; align-items: center; min-height: var(--k-control, 44px); }
+  #cal-tools { display: none; }
+  #cal-tools[data-open="true"], #cal-tools:focus-within { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); max-height: 40dvh; overflow: auto; min-width: 0; }
+  #cal-tools .cal-quick { flex: 1 1 100%; min-width: 0; width: 100%; }
+}
 /* same wrap fix for money — export/import used to clip off the right edge on mobile */
 #money-view .page-view-head { flex-wrap: wrap; row-gap: 0.4rem; }
 #money-view .page-view-head .btn { white-space: nowrap; }

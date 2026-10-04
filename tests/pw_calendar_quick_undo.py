@@ -1,5 +1,6 @@
 """Calendar quick-add exact undo, pending requests and recovery on owned local data."""
 
+import base64
 import json
 import os
 import sys
@@ -76,6 +77,12 @@ with sync_playwright() as pw:
             page = context.new_page()
             page.set_default_timeout(5000)
 
+            def capture(name):
+                shot = context.new_cdp_session(page).send(
+                    "Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False}
+                )
+                (out / f"{label}-{name}.png").write_bytes(base64.b64decode(shot["data"]))
+
             errors, console = [], []
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.on(
@@ -108,6 +115,9 @@ with sync_playwright() as pw:
                     )
                     page.wait_for_function("innerWidth === 640 && devicePixelRatio === 2")
                 quick = page.locator("#cal-quick")
+                if not quick.is_visible():
+                    page.locator("#cal-tools-toggle").click()
+                expect(quick).to_be_visible()
                 undo = page.locator("#cal-quick-undo")
                 status = page.locator("#cal-quick-status")
                 endpoint = base + "/api/calendar/quick"
@@ -163,6 +173,8 @@ with sync_playwright() as pw:
                 expect(undo).to_be_visible()
                 expect(page.locator("#cal-desc")).to_have_value("retain these later details")
                 expect(page.locator("#cal-desc")).to_be_focused()
+                page.locator("#cal-back").scroll_into_view_if_needed()
+                capture("pending-editor")
                 page.locator("#cal-back").click()
                 page.get_by_role("alertdialog").get_by_role(
                     "button", name="confirm", exact=True
@@ -186,7 +198,7 @@ with sync_playwright() as pw:
                 expect(undo).to_be_focused()
                 expect(undo).to_have_attribute("aria-disabled", "false")
                 assert event["id"] in saved()
-                page.screenshot(path=str(out / f"{label}-undo-retry.png"))
+                capture("undo-retry")
                 page.unroute(target, failed_undo)
                 page.keyboard.press("Enter")
                 removed(event)
@@ -236,7 +248,7 @@ with sync_playwright() as pw:
                 expect(quick).to_have_attribute("aria-busy", "false")
                 page.unroute(endpoint, failed_create)
                 final = create("owned final " + label)
-                page.screenshot(path=str(out / f"{label}-added.png"))
+                capture("added")
                 held_list = []
 
                 def delayed_list(route):
@@ -281,7 +293,7 @@ with sync_playwright() as pw:
                 )
             except Exception as error:
                 row.update(error=str(error), traceback=traceback.format_exc())
-                page.screenshot(path=str(out / f"{label}-failure.png"))
+                capture("failure")
             finally:
                 row.update(page_errors=errors, console_errors=console)
                 (out / "scenarios.json").write_text(json.dumps(rows, indent=2))

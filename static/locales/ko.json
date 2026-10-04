@@ -210,6 +210,8 @@
     "calendar.import": "가져오기",
     "calendar.import_failed": "가져오기 실패",
     "calendar.import_help": ".ics 파일 가져오기",
+    "calendar.tools": "도구",
+    "calendar.tools_label": "캘린더 도구",
     "calendar.month": "월",
     "calendar.my_calendars": "내 캘린더",
     "calendar.new_booking_page": "새 예약 페이지",

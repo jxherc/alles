@@ -210,6 +210,8 @@
     "calendar.import": "importar",
     "calendar.import_failed": "falló la importación",
     "calendar.import_help": "importar un archivo .ics",
+    "calendar.tools": "herramientas",
+    "calendar.tools_label": "herramientas del calendario",
     "calendar.month": "mes",
     "calendar.my_calendars": "mis calendarios",
     "calendar.new_booking_page": "nueva página de reserva",

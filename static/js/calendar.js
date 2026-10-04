@@ -392,6 +392,27 @@ function _bindNav() {
   document.querySelectorAll('#cal-view .seg-opt').forEach(b =>
     b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
   _syncViewBtns();
+  const tools = document.getElementById('cal-tools');
+  const toolsToggle = document.getElementById('cal-tools-toggle');
+  const setToolsOpen = open => {
+    if (tools) tools.dataset.open = String(open);
+    toolsToggle?.setAttribute('aria-expanded', String(open));
+  };
+  toolsToggle?.addEventListener('click', () => {
+    setToolsOpen(toolsToggle.getAttribute('aria-expanded') !== 'true');
+  });
+  tools?.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || toolsToggle?.getAttribute('aria-expanded') !== 'true') return;
+    event.preventDefault();
+    event.stopPropagation();
+    setToolsOpen(false);
+    toolsToggle.focus();
+  });
+  const compactToolbar = window.matchMedia?.('(max-width: 760px)');
+  compactToolbar?.addEventListener('change', () => {
+    if (compactToolbar.matches && tools?.contains(document.activeElement)) setToolsOpen(true);
+    else if (!compactToolbar.matches && document.activeElement === toolsToggle) document.getElementById('cal-new-btn')?.focus();
+  });
   document.getElementById('cal-sync-btn')?.addEventListener('click', openCaldavPanel);
   document.getElementById('cal-find')?.addEventListener('click', findTime);
   window.addEventListener('alles:localization-change', event => {
@@ -1216,7 +1237,9 @@ function chooseScope(verb, hasSelectedOccurrence = true) {
 
 // ── find a time: show open slots on the focused day, click to book ───────────
 async function findTime() {
-  const mins = parseInt(await dlgPrompt('how many minutes do you need?')) || 60;
+  const answer = await dlgPrompt('how many minutes do you need?');
+  if (answer === null) return;
+  const mins = parseInt(answer) || 60;
   const dstr = ymd(_cursor);
   let slots = [];
   try { slots = (await fetch(`/api/calendar/free?date=${dstr}&minutes=${mins}`).then(r => r.json())).slots || []; }

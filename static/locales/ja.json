@@ -210,6 +210,8 @@
     "calendar.import": "読み込み",
     "calendar.import_failed": "読み込みに失敗しました",
     "calendar.import_help": ".ics ファイルを読み込む",
+    "calendar.tools": "ツール",
+    "calendar.tools_label": "カレンダーのツール",
     "calendar.month": "月",
     "calendar.my_calendars": "マイカレンダー",
     "calendar.new_booking_page": "新しい予約ページ",

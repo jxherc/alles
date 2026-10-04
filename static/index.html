@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=423">
+<link rel="stylesheet" href="/static/style.css?v=424">
   <link rel="stylesheet" href="/static/kokuen.css?v=26">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -535,12 +535,14 @@
     <!-- ── calendar view ── -->
     <div class="page-view" id="calendar-view" data-specialist-app="calendar" style="display:none">
       <div class="page-view-head" style="gap:0.5rem">
-        <div class="cal-nav">
-          <button type="button" class="btn" id="cal-prev" title="previous" data-i18n-title="common.previous">‹</button>
-          <button type="button" class="btn" id="cal-today" data-i18n="common.today">today</button>
-          <button type="button" class="btn" id="cal-next" title="next" data-i18n-title="common.next">›</button>
+        <div class="cal-date-controls">
+          <div class="cal-nav">
+            <button type="button" class="btn" id="cal-prev" title="previous" data-i18n-title="common.previous">‹</button>
+            <button type="button" class="btn" id="cal-today" data-i18n="common.today">today</button>
+            <button type="button" class="btn" id="cal-next" title="next" data-i18n-title="common.next">›</button>
+          </div>
+          <span id="cal-month-label" class="cal-month-title"></span>
         </div>
-        <span id="cal-month-label" class="cal-month-title"></span>
         <div class="seg seg-cal" id="cal-view" style="margin-left:auto">
           <button type="button" class="seg-opt" data-view="month" data-i18n="calendar.month">month</button>
           <button type="button" class="seg-opt" data-view="week" data-i18n="calendar.week">week</button>
@@ -548,14 +550,19 @@
           <button type="button" class="seg-opt" data-view="agenda" data-i18n="calendar.agenda">agenda</button>
           <button type="button" class="seg-opt" data-view="year" data-i18n="calendar.year">year</button>
         </div>
-        <a class="btn" id="cal-export" href="/api/calendar/export.ics" download title="export to .ics (Apple/Google/Outlook)" data-i18n="calendar.export" data-i18n-title="calendar.export_help">export</a>
-        <input type="file" id="cal-import-file" accept=".ics,text/calendar" hidden>
-        <button type="button" class="btn" id="cal-import" title="import a .ics file" data-i18n="calendar.import" data-i18n-title="calendar.import_help">import</button>
-        <input type="text" id="cal-quick" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'" data-i18n-placeholder="calendar.quick_add_placeholder">
-        <button type="button" class="btn" id="cal-find" title="find a free time slot" data-i18n="calendar.find_time" data-i18n-title="calendar.find_time_help">find time</button>
-        <button type="button" class="btn" id="cal-sync-btn" title="CalDAV sync" data-i18n="calendar.sync" data-i18n-title="calendar.sync_help">sync</button>
-        <button type="button" class="btn primary" id="cal-new-btn" data-i18n="calendar.new_event">+ event</button>
-        <button type="button" class="icon-btn app-cog" data-app="calendar" title="calendar settings" data-i18n-title="calendar.settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+        <div class="cal-primary-actions">
+          <button type="button" class="btn primary" id="cal-new-btn" data-i18n="calendar.new_event">+ event</button>
+          <button type="button" class="btn cal-tools-toggle" id="cal-tools-toggle" aria-expanded="false" aria-controls="cal-tools" data-i18n="calendar.tools">tools</button>
+        </div>
+        <div id="cal-tools" class="cal-tools" role="group" aria-label="calendar tools" data-i18n-aria-label="calendar.tools_label">
+          <a class="btn" id="cal-export" href="/api/calendar/export.ics" download title="export to .ics (Apple/Google/Outlook)" data-i18n="calendar.export" data-i18n-title="calendar.export_help">export</a>
+          <input type="file" id="cal-import-file" accept=".ics,text/calendar" hidden>
+          <button type="button" class="btn" id="cal-import" title="import a .ics file" data-i18n="calendar.import" data-i18n-title="calendar.import_help">import</button>
+          <input type="text" id="cal-quick" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'" data-i18n-placeholder="calendar.quick_add_placeholder">
+          <button type="button" class="btn" id="cal-find" title="find a free time slot" data-i18n="calendar.find_time" data-i18n-title="calendar.find_time_help">find time</button>
+          <button type="button" class="btn" id="cal-sync-btn" title="CalDAV sync" data-i18n="calendar.sync" data-i18n-title="calendar.sync_help">sync</button>
+          <button type="button" class="icon-btn app-cog" data-app="calendar" title="calendar settings" data-i18n-title="calendar.settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+        </div>
       </div>
       <div id="cal-quick-feedback" class="cal-quick-feedback" hidden>
         <span id="cal-quick-status" role="status"></span>
@@ -2867,7 +2874,7 @@
 </div>
 
 <script type="module">
-const _v = '423';
+const _v = '424';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
