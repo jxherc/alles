@@ -123,6 +123,7 @@ COMMANDS = {
     "habit-create-recovery": ("tests/pw_habit_create_recovery.py",),
     "finance-imports": ("tests/pw_finance_imports.py",),
     "finance-workflows": ("tests/pw_finance_workflows.py",),
+    "finance-hierarchy": ("tests/pw_finance_hierarchy.py",),
     "action-names": ("tests/pw_action_names.py",),
     "product-clarity": ("tests/pw_clarity.py",),
     "navigation-clarity": ("tests/pw_navigation_clarity.py",),

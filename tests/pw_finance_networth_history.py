@@ -4,6 +4,7 @@ import json
 import os
 from datetime import date, timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
@@ -16,7 +17,7 @@ def run():
     assert os.environ["ALLES_TEST_DATA"] == "1"
     assert (data / ".alles-test-owner").read_text("utf-8").strip() == run_id
     base = f"http://127.0.0.1:{os.environ['PORT']}"
-    finance = f"http://finance.localhost:{os.environ['PORT']}"
+    finance = base + "/?view=finance"
     require_server_ownership(base, run_id)
     artifacts = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     month_start = date.today().replace(day=1)
@@ -65,6 +66,16 @@ def run():
                 service_workers="block",
                 timezone_id="UTC",
             )
+            context.route(
+                "**/*",
+                lambda route: (
+                    route.continue_()
+                    if (urlsplit(route.request.url).scheme, urlsplit(route.request.url).netloc)
+                    == (urlsplit(base).scheme, urlsplit(base).netloc)
+                    else route.abort()
+                ),
+            )
+            context.route_web_socket("**/*", lambda ws: ws.close())
             page = context.new_page()
             page_errors = []
             console_errors = []

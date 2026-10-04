@@ -22,7 +22,7 @@ INVALID_AMOUNTS = ("1,234.56", "12.34garbage", "Infinity")
 
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
-    finance = f"http://finance.localhost:{os.environ['PORT']}"
+    finance = base + "/?view=finance"
     data = Path(os.environ["ALLES_DATA"]).resolve()
     run_id = os.environ["ALLES_TEST_RUN_ID"]
     assert os.environ.get("ALLES_TEST_DATA") == "1"
@@ -104,7 +104,7 @@ def run():
             def route_request(route):
                 nonlocal lost_next
                 parsed = urlsplit(route.request.url)
-                if parsed.hostname not in {"finance.localhost", "127.0.0.1", "localhost"}:
+                if (parsed.scheme, parsed.netloc) != (urlsplit(base).scheme, urlsplit(base).netloc):
                     route.abort("blockedbyclient")
                 elif (
                     lost_next
@@ -128,6 +128,7 @@ def run():
                     route.continue_()
 
             context.route("**/*", route_request)
+            context.route_web_socket("**/*", lambda ws: ws.close())
 
             def begin(name):
                 record = {
@@ -171,6 +172,7 @@ def run():
                 expect(page.locator("#money-body")).to_be_visible()
 
             def choose_account(name):
+                page.locator("#money-entry-action").click()
                 page.locator("#tx-acct").click()
                 page.get_by_role("option", name=name, exact=True).click()
 
@@ -185,6 +187,7 @@ def run():
                 assert len(events["money_requests"]) == before, "invalid value reached the API"
 
             def create_transaction(payee, amount):
+                page.locator("#money-entry-action").click()
                 page.locator("#tx-payee").fill(payee)
                 page.locator("#tx-cat").fill(category)
                 page.locator("#tx-tags").fill("fixture,测试")
