@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 
 from core.settings import data_dir
 
@@ -113,6 +114,7 @@ def stop_compare(compare_id: str):
 class VoteBody(BaseModel):
     winner: str
     loser: str = ""
+    request_id: str = ""
 
 
 @router.post("/compare/vote")
@@ -122,10 +124,36 @@ def record_vote(body: VoteBody):
 
     if not body.winner.strip():
         raise HTTPException(400, "winner required")
+    identity = body.request_id
+    if identity:
+        try:
+            if str(uuid.UUID(identity)) != identity:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(400, "request_id must be a canonical UUID") from None
+    winner, loser = body.winner.strip(), body.loser.strip()
+
+    def replay(saved):
+        if saved.winner != winner or saved.loser != loser:
+            raise HTTPException(409, "this request already saved a different vote")
+        return {"ok": True}
+
     db = SessionLocal()
     try:
-        db.add(ModelVote(winner=body.winner.strip(), loser=body.loser.strip()))
-        db.commit()
+        if identity and (saved := db.get(ModelVote, identity)) is not None:
+            return replay(saved)
+        values = {"winner": winner, "loser": loser}
+        if identity:
+            values["id"] = identity
+        db.add(ModelVote(**values))
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            saved = db.get(ModelVote, identity) if identity else None
+            if saved is None:
+                raise
+            return replay(saved)
     finally:
         db.close()
     return {"ok": True}
