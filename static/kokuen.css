@@ -6538,3 +6538,15 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
     min-height: 320px;
   }
 }
+
+@media (max-width: 720px) {
+  .skl-rail-cat {
+    width: max-content;
+    flex: none;
+  }
+
+  .skl-rail-label,
+  .skl-rail-foot {
+    flex: none;
+  }
+}
