@@ -1638,6 +1638,7 @@ function bindEvents() {
     effortBtn.addEventListener('click', e => { e.stopPropagation(); _openEffortMenu(effortBtn); });
   }
   document.getElementById('aide-model-choice')?.addEventListener('click', openModelModal);
+  document.getElementById('composer-choose-model')?.addEventListener('click', openModelModal);
   document.getElementById('topbar-settings-btn')?.addEventListener('click', openSettings);
   document.getElementById('files-settings-btn')?.addEventListener('click', () => openSettings());
   const aideToolsButton = document.getElementById('aide-tools-link');
@@ -2011,6 +2012,7 @@ function closeMoreTools() {
 }
 
 // ── send ──────────────────────────────────────────────────────────────────────
+let _composerSending = false;
 async function doSend() {
   const ta = document.getElementById('composer-ta');
   let text = ta.value.trim();
@@ -2030,9 +2032,19 @@ async function doSend() {
   if (!text) return;
   // Enter can still reach this function while the send button is disabled. Keep the
   // draft intact instead of clearing it and letting sendMessage reject it as busy.
-  if (!canSendMessage()) return;
-  ta.value = ''; ta.style.height = 'auto'; clearDraft();
-  sendMessage(text);
+  if (_composerSending || !canSendMessage()) return;
+  _composerSending = true;
+  try {
+    await sendMessage(text, sessionId => {
+      if (getActiveId() !== sessionId) return;
+      if (ta.value.trim() === text) {
+        ta.value = ''; ta.style.height = 'auto';
+        ta.dispatchEvent(new Event('input'));
+      } else saveDraft();
+      // A new task adopts any text typed while its creation was pending.
+      if (sendingSession !== sessionId) clearDraft(sendingSession);
+    });
+  } finally { _composerSending = false; }
 }
 
 // schedule-send dialog (pointer and keyboard context paths on the send button)
@@ -2392,7 +2404,7 @@ function closeModelModal() {
   const modal = document.getElementById('model-modal');
   if (!modal || modal.style.display === 'none') return;
   modal.style.display = 'none';
-  document.querySelectorAll('#model-btn, #aide-model-choice').forEach(button => {
+  document.querySelectorAll('#model-btn, #aide-model-choice, #composer-choose-model').forEach(button => {
     button.setAttribute('aria-expanded', 'false');
   });
   _modelModalFocusBoundary?.deactivate();
@@ -2401,7 +2413,7 @@ window._closeModelModal = closeModelModal;
 function openModelModal() {
   const modal = document.getElementById('model-modal');
   modal.style.display = 'flex';
-  document.querySelectorAll('#model-btn, #aide-model-choice').forEach(button => {
+  document.querySelectorAll('#model-btn, #aide-model-choice, #composer-choose-model').forEach(button => {
     button.setAttribute('aria-expanded', 'true');
   });
   if (!_modelModalInited) { initModelModal(); _modelModalInited = true; }

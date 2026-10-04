@@ -9458,6 +9458,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .aide-note-recovery:empty { display: none; }
 .aide-note-recovery { max-height: 35vh; overflow: auto; overflow-wrap: anywhere; padding: 0.5rem; }
 .aide-note-recovery pre { white-space: pre-wrap; }
+#composer-choose-model[hidden] { display: none; }
 .aide-document-scope strong { overflow-wrap: anywhere; min-width: 0; max-height: min(8rem, 20vh); overflow: auto; overscroll-behavior: contain; }
 @media (max-width: 600px) {
   .docs-ask-panel { grid-template-columns: minmax(0, 1fr) auto; }
