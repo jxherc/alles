@@ -16,6 +16,7 @@ let _saving = false;
 let _reloadPanel = null;
 const _pendingChanges = new Set();
 const _cancelling = new Set();
+const _cancelRecovery = new Map();
 
 export async function loadReminders(fetcher = fetch) {
   const retryFocused = document.activeElement?.hasAttribute('data-reminder-retry');
@@ -84,6 +85,85 @@ function _render() {
   } else if (focusedId && document.activeElement === document.body) {
     const target = [...el.querySelectorAll('[data-reminder-cancel]')].find(button => button.dataset.reminderCancel === focusedId);
     (target && !target.disabled ? target : document.getElementById('reminder-text'))?.focus();
+  }
+  _renderCancelRecovery();
+}
+
+function _renderCancelRecovery() {
+  const el = document.getElementById('reminder-undo-list');
+  if (!el) return;
+  const focusedAction = ['data-reminder-recover', 'data-reminder-dismiss'].find(name => document.activeElement?.hasAttribute(name));
+  const focused = focusedAction && el.contains(document.activeElement) ? document.activeElement.getAttribute(focusedAction) : null;
+  el.hidden = !_cancelRecovery.size;
+  el.innerHTML = [..._cancelRecovery].map(([id, entry]) => {
+    const busy = _cancelling.has(id) || entry.restoring;
+    const label = entry.restoring ? 'restoring…' : !entry.cancelled ? 'retry cancel' : entry.error ? 'retry undo' : 'undo';
+    const status = entry.error || (entry.cancelled ? 'cancelled; undo is available until this page reloads' : 'cancelling…');
+    return `<div class="settings-list-row">
+      <div style="flex:1;min-width:0">
+        <div class="row-name">${_esc(entry.reminder.text)}</div>
+        <div class="reminder-meta">${_esc(_fmtTime(entry.reminder.trigger_at))} · ${entry.reminder.type === 'message' ? 'scheduled message' : 'reminder'}</div>
+        <div class="reminder-meta" role="status">${_esc(status)}</div>
+      </div>
+      <button type="button" class="act-btn" data-reminder-recover="${_esc(id)}"${busy ? ' disabled' : ''}>${label}</button>
+      <button type="button" class="act-btn" data-reminder-dismiss="${_esc(id)}"${busy ? ' disabled' : ''}>dismiss</button>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-reminder-recover]').forEach(button => {
+    button.addEventListener('click', () => {
+      const id = button.dataset.reminderRecover;
+      if (_cancelRecovery.get(id)?.cancelled) _undoReminder(id, button);
+      else window._delReminder(id, button);
+    });
+  });
+  el.querySelectorAll('[data-reminder-dismiss]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const id = button.dataset.reminderDismiss;
+      const entry = _cancelRecovery.get(id);
+      if (!entry || entry.restoring || _cancelling.has(id)) return;
+      if ((!entry.cancelled || entry.request) && !await confirm('this reminder may still be active. dismiss this retry? check the reminder list before creating another.')) return;
+      if (entry.restoring || _cancelling.has(id)) return;
+      const hadFocus = document.activeElement === button;
+      _cancelRecovery.delete(id);
+      _renderCancelRecovery();
+      if (hadFocus && document.activeElement === document.body) document.getElementById('reminder-text')?.focus();
+    });
+  });
+  if (focused && document.activeElement === document.body) {
+    [...el.querySelectorAll(`[${focusedAction}]`)].find(button => button.getAttribute(focusedAction) === focused && !button.disabled)?.focus();
+  }
+}
+
+async function _undoReminder(id, button) {
+  const entry = _cancelRecovery.get(id);
+  if (!entry?.cancelled || entry.restoring) return;
+  const hadFocus = document.activeElement === button;
+  entry.restoring = true;
+  _renderCancelRecovery();
+  let restored;
+  try {
+    const reminder = entry.reminder;
+    const triggerAt = reminder.trigger_at + (/(Z|[+-]\d\d:\d\d)$/.test(reminder.trigger_at) ? '' : 'Z');
+    if (!entry.request) {
+      if (reminder.type === 'message' && new Date(triggerAt) <= new Date()
+          && !await confirm('the scheduled time has passed. restoring this message will send it now. restore it?')) return;
+      entry.request = Object.freeze({ text: reminder.text, trigger_at: triggerAt, type: reminder.type, session_id: reminder.session_id, request_id: newRequestId() });
+    }
+    restored = await createReminder(entry.request);
+    _cancelRecovery.delete(id);
+    toast(restored.fired ? 'reminder already delivered' : 'reminder restored', 'success');
+  } catch (error) {
+    if (error.status === 410) _cancelRecovery.delete(id);
+    else entry.error = `${error.message || 'could not confirm restoration'}. retry undo to confirm the same reminder.`;
+    toast(error.status === 410 ? 'the restored reminder was cancelled' : entry.error, 'error');
+  } finally {
+    entry.restoring = false;
+    _renderCancelRecovery();
+    if (hadFocus && document.activeElement === document.body) {
+      const retry = [...document.querySelectorAll('[data-reminder-recover]')].find(node => node.dataset.reminderRecover === id);
+      const saved = [...document.querySelectorAll('[data-reminder-cancel]')].find(node => node.dataset.reminderCancel === restored?.id);
+      (retry || saved || document.getElementById('reminder-text'))?.focus();
+    }
   }
 }
 
@@ -189,6 +269,9 @@ export function reminderMayHaveSaved(error) {
 
 window._delReminder = async (id, button) => {
   if (_cancelling.has(id)) return false;
+  const reminder = _reminders.find(row => row.id === id);
+  if (!_cancelRecovery.has(id) && reminder) _cancelRecovery.set(id, { reminder, cancelled: false, uncertain: false, restoring: false, request: null, error: '' });
+  const recovery = _cancelRecovery.get(id);
   _cancelling.add(id);
   const hadFocus = button && document.activeElement === button;
   if (button) button.disabled = true;
@@ -197,13 +280,21 @@ window._delReminder = async (id, button) => {
     const response = await fetch(`/api/reminders/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!response.ok && response.status !== 404) {
       const data = await response.json().catch(() => ({}));
-      throw new Error(typeof data.detail === 'string' ? data.detail : 'could not cancel reminder; try again');
+      const error = new Error(typeof data.detail === 'string' ? data.detail : 'could not cancel reminder; try again');
+      error.status = response.status;
+      throw error;
     }
     _revision++;
     _loading = false;
     _reminders = _reminders.filter(r => r.id !== id);
+    if (recovery) { recovery.cancelled = true; recovery.uncertain = false; recovery.error = ''; }
     return true;
   } catch (error) {
+    if ([400, 401, 403, 409, 422].includes(error.status) && !recovery?.uncertain) _cancelRecovery.delete(id);
+    else if (recovery) {
+      recovery.uncertain = true;
+      recovery.error = 'could not confirm cancellation. retry cancel to check.';
+    }
     toast(error.message || 'could not cancel reminder; try again', 'error');
     return false;
   } finally {
@@ -212,7 +303,8 @@ window._delReminder = async (id, button) => {
     _render();
     if (hadFocus && document.activeElement === document.body) {
       const retry = [...document.querySelectorAll('[data-reminder-cancel]')].find(node => node.dataset.reminderCancel === id);
-      const target = retry || document.getElementById('reminder-text');
+      const undo = [...document.querySelectorAll('[data-reminder-recover]')].find(node => node.dataset.reminderRecover === id);
+      const target = retry || undo || document.getElementById('reminder-text');
       if (target?.getClientRects().length) target.focus();
     }
   }
