@@ -3,7 +3,7 @@
 import hashlib
 import re
 from urllib.parse import urlparse
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlalchemy import text as sql_text
@@ -155,6 +155,7 @@ def fetch_saved_text(
             raise HTTPException(409, "saved text changed while fetching; reopen the article")
         if item.text != text:
             item.read_position = 0.0
+            item.position_revision = f"{uuid4()}:0"
         item.text = text
         item.text_state = "extracted"
         item.excerpt = make_excerpt(text)

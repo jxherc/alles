@@ -30,7 +30,7 @@ function harness() {
   const context = vm.createContext({
     window: { addEventListener() {}, _mdToHtml: text => text },
     document: { getElementById: () => messages, createElement: element },
-    stripEmojis: text => text, applyResponsePrivacy() {}, scrollToLatest() {},
+    stripEmojis: text => text, applyResponsePrivacy() {}, scrollToLatest() {}, reconcileAnswerNote() {},
     contextProvenanceElement: () => null, sourceCitationStatus: () => null, isIncognitoMode: () => false,
   });
   vm.runInContext(source + `

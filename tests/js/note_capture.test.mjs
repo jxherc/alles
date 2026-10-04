@@ -1,3 +1,4 @@
+import { requestId } from '../../static/js/request_id.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
@@ -12,7 +13,7 @@ function harness() {
   const writes = [];
   let fail = false;
   const context = vm.createContext({
-    crypto: webcrypto, Uint8Array,
+    crypto: webcrypto, requestId, Uint8Array,
     sessionStorage: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) },
     fetch: async (url, options) => {
       if (url.endsWith('create-scope')) return { ok: true, json: async () => ({ scopes: ['a'.repeat(64)], vault_scopes: ['b'.repeat(64)] }) };
@@ -72,4 +73,18 @@ test('an older pending note without a verified vault is retained without a new w
   await assert.rejects(h.save('original', 'note.md'), /no verified vault/);
   assert.equal(h.writes.length, 0);
   assert.equal(h.values.get(key), raw);
+});
+
+test('reply identity survives an uncertain save without entering the server payload', async () => {
+  const h = harness(); h.fail(true);
+  const sourceKey = 'aide:session-a:reply-a';
+  await assert.rejects(h.save('answer', 'answer.md', { sourceKey }), /lost response/);
+  const pending = JSON.parse([...h.values.values()][0]);
+  assert.equal(pending.sourceKey, sourceKey);
+  assert.equal(h.writes[0].sourceKey, undefined);
+  h.fail(false);
+  await assert.rejects(h.save('answer', 'answer.md', { sourceKey: 'aide:session-a:reply-b' }), /pending note/);
+  assert.equal(h.writes.length, 1);
+  await h.save('answer', 'answer.md', { sourceKey });
+  assert.deepEqual(h.writes[0], h.writes[1]);
 });

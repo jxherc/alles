@@ -543,6 +543,44 @@ def run():
                                     page.locator("#aide-note-recovery .note-retry").click()
                                 open_note = page.locator("#aide-note-recovery .note-saved-open")
                                 expect(open_note).to_be_visible()
+                                if case == "save-lost":
+                                    repeat_posts = []
+                                    page.on(
+                                        "request",
+                                        lambda request: (
+                                            repeat_posts.append(request.post_data_json)
+                                            if request.method == "POST"
+                                            and request.url.endswith("/api/vault-md/file")
+                                            else None
+                                        ),
+                                    )
+                                    original_feedback = page.locator(
+                                        "#aide-note-recovery p"
+                                    ).inner_text()
+                                    saved_button = page.locator(".ai-wrap").last.get_by_role(
+                                        "button", name="saved note", exact=True
+                                    )
+                                    expect(saved_button).to_be_visible()
+                                    saved_button.focus()
+                                    page.keyboard.press("Enter")
+                                    expect(open_note).to_be_visible()
+                                    page.wait_for_timeout(100)
+                                    assert not repeat_posts, repeat_posts
+                                    assert (
+                                        page.locator("#aide-note-recovery p").inner_text()
+                                        == original_feedback
+                                    )
+                                    with page.expect_response(
+                                        lambda response: response.url.endswith(
+                                            f"/api/sessions/{session}/history"
+                                        )
+                                    ):
+                                        page.evaluate("window._reloadActiveSession()")
+                                    expect(saved_button).to_be_visible()
+                                    saved_button.click()
+                                    page.wait_for_timeout(100)
+                                    assert not repeat_posts, repeat_posts
+
                                 saved_path = (
                                     page.locator("#aide-note-recovery p")
                                     .inner_text()
@@ -567,12 +605,18 @@ def run():
                                 expect(page.locator("#wiki-preview")).to_contain_text(
                                     "source passages"
                                 )
-                                page.locator("#wiki-preview").get_by_role(
-                                    "link", name="from Aide", exact=True
-                                ).click()
-                                expect(page.locator(".ai-content").last).to_contain_text(
+                                with page.expect_popup() as source_page:
+                                    page.locator("#wiki-preview").get_by_role(
+                                        "link", name="from Aide", exact=True
+                                    ).click()
+                                source_page = source_page.value
+                                expect(source_page.locator(".ai-content").last).to_be_visible()
+                                expect(source_page.locator(".ai-content").last).to_contain_text(
                                     "comparison"
                                 )
+                                assert source_page.evaluate("window._currentSession.id") == session
+                                source_page.close()
+
                                 assert page.evaluate("window._currentSession.id") == session
                                 read = api(
                                     "GET", "/api/vault-md/file?path=" + quote(path1, safe="")

@@ -64,10 +64,9 @@ test('an uncertain save retries the same version and position', async () => {
   assert.equal(await place.flush(), false);
   assert.equal(place.unsaved, true);
   assert.equal(await place.drain(), true);
-  assert.deepEqual(writes, [
-    { position: 0.625, content_hash: 'local-text-version' },
-    { position: 0.625, content_hash: 'local-text-version' },
-  ]);
+  assert.deepEqual(writes[0], writes[1]);
+  assert.equal(writes[0].position, 0.625);
+  assert.equal(writes[0].content_hash, 'local-text-version');
 });
 
 test('changed or deleted text blocks retries against the old version', async () => {
@@ -104,4 +103,86 @@ test('returning to the last confirmed place still reconciles an uncertain write'
   assert.equal(await place.drain(), true);
   assert.equal(stored, 0.2);
   assert.deepEqual(writes, [0.6, 0.2]);
+});
+
+for (const late of ['success', 'rejected']) {
+  test(`leaving sends the newest place immediately and ignores an older ${late}`, async () => {
+    const gate = deferred();
+    const source = item();
+    const writes = [];
+    const place = readingPlace(source, async patch => {
+      writes.push(patch);
+      if (writes.length === 1) {
+        await gate.promise;
+        if (late === 'rejected') throw Object.assign(new Error('superseded'), { status: 409 });
+      }
+    });
+    place.set(0.6);
+    const first = place.flush();
+    place.set(0.75);
+    assert.equal(await place.flush(true), true);
+    assert.equal(writes.length, 2);
+    assert.equal(writes[0].position_revision.split(':')[0], writes[1].position_revision.split(':')[0]);
+    assert.ok(writes[1].position_revision.endsWith(':2'));
+    assert.equal(source.position, 0.75);
+    gate.resolve();
+    await first;
+    assert.equal(source.position, 0.75);
+    assert.equal(place.unsaved, false);
+    assert.equal(place.blocked, false);
+    assert.equal(await place.drain(), true);
+    assert.equal(writes.length, 2);
+  });
+}
+
+test('leaving sends an intentional return to the original saved place', async () => {
+  const gate = deferred();
+  const source = item();
+  const writes = [];
+  const place = readingPlace(source, async patch => {
+    writes.push(patch);
+    if (writes.length === 1) await gate.promise;
+  });
+  place.set(0.6);
+  const first = place.flush();
+  place.set(0.2);
+  await place.flush(true);
+  assert.deepEqual(writes.map(p => p.position), [0.6, 0.2]);
+  gate.resolve();
+  await first;
+  assert.equal(source.position, 0.2);
+  assert.equal(place.unsaved, false);
+});
+
+test('visibility and pagehide reuse the pending final write', async () => {
+  const gate = deferred();
+  let writes = 0;
+  const place = readingPlace(item(), async () => { writes++; await gate.promise; });
+  place.set(0.6);
+  const hidden = place.flush(true);
+  const pagehide = place.flush(true);
+  assert.equal(writes, 1);
+  gate.resolve();
+  await Promise.all([hidden, pagehide]);
+  assert.equal(place.unsaved, false);
+});
+
+test('a failed final write stays retryable even when an earlier write succeeds', async () => {
+  const gate = deferred();
+  const writes = [];
+  const place = readingPlace(item(), async patch => {
+    writes.push(patch);
+    const attempt = writes.length;
+    if (attempt === 1) await gate.promise;
+    if (attempt === 2) throw new TypeError('lost final reply');
+  });
+  place.set(0.6);
+  const first = place.flush();
+  place.set(0.8);
+  assert.equal(await place.flush(true), false);
+  gate.resolve();
+  await first;
+  assert.equal(place.unsaved, true);
+  assert.equal(await place.drain(), true);
+  assert.deepEqual(writes[1], writes[2]);
 });

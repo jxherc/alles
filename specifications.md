@@ -346,7 +346,10 @@ related apps now open together without merging their records.
 - **saved reading** keeps an approximate reading place across reloads and screen sizes. Opening or
   scrolling an article does not mark it read; mark read/unread is explicit and safe to retry after
   an uncertain reply. Position saves check the version of the stored text and offer retry or reopen
-  when saving fails or the text changes. Card changes confirm storage before reporting success.
+  when saving fails or the text changes. On page exit, the latest place can supersede an older
+  pending save; ordered revisions prevent late writes from moving it backward. A newer reader
+  or legacy position update blocks stale saves and offers reopen. Existing clients remain supported.
+  Card changes confirm storage before reporting success.
   Take note saves a named Markdown document through the existing recoverable note writer, with a
   link to that saved article and its text version. A changed source is labelled when reopened;
   uncertain note saves can be confirmed after reload without creating another document.
@@ -3311,7 +3314,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `push_subscriptions` | `id: VARCHAR pk`, `endpoint: TEXT`, `p256dh: VARCHAR ?`, `auth: TEXT ? sealed`, `created_at: DATETIME ?` | — |
 | `read_feeds` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `last_checked: DATETIME ?`, `created_at: DATETIME ?` | — |
 | `read_create_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR`, `item_id: VARCHAR`, `created_at: DATETIME ?` | — |
-| `read_items` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `text: TEXT ?`, `text_state: VARCHAR` (default unknown), `excerpt: VARCHAR ?`, `site: VARCHAR ?`, `image: VARCHAR ?`, `read_minutes: INTEGER ?`, `added_at: DATETIME ?`, `read_at: VARCHAR ?`, `read_position: FLOAT` (default 0), `fav: BOOLEAN ?`, `archived: BOOLEAN ?`, `tags: VARCHAR ?` | — |
+| `read_items` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `text: TEXT ?`, `text_state: VARCHAR` (default unknown), `excerpt: VARCHAR ?`, `site: VARCHAR ?`, `image: VARCHAR ?`, `read_minutes: INTEGER ?`, `added_at: DATETIME ?`, `read_at: VARCHAR ?`, `read_position: FLOAT` (default 0), `position_revision: VARCHAR` (default empty), `fav: BOOLEAN ?`, `archived: BOOLEAN ?`, `tags: VARCHAR ?` | — |
 | `reminder_create_receipts` | `id: VARCHAR pk`, `reminder_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `reminders` | `id: VARCHAR pk`, `text: TEXT`, `trigger_at: DATETIME`, `type: VARCHAR ?`, `session_id: VARCHAR ?`, `fired: BOOLEAN ?`, `notified: BOOLEAN ?`, `created_at: DATETIME ?` | — |
 | `research_findings` | `id: VARCHAR pk`, `url: VARCHAR ?`, `question: TEXT ?`, `title: VARCHAR ?`, `summary: TEXT ?`, `ts: DATETIME ?` | — |
@@ -3414,6 +3417,7 @@ known versions run in ascending order.
 | 64 | `book_create_receipts` | [m0064_book_create_receipts.py](core/migrations/m0064_book_create_receipts.py) |
 | 65 | `reading_text_state` | [m0065_reading_text_state.py](core/migrations/m0065_reading_text_state.py) |
 | 66 | `andromeda_save_receipts` | [m0066_andromeda_save_receipts.py](core/migrations/m0066_andromeda_save_receipts.py) |
+| 67 | `reading_position_revision` | [m0067_reading_position_revision.py](core/migrations/m0067_reading_position_revision.py) |
 
 </details>
 

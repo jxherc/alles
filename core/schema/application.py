@@ -1417,6 +1417,7 @@ class ReadItem(Base):
     added_at = Column(DateTime, default=_now)
     read_at = Column(String, default="")  # iso when marked read; "" = unread
     read_position = Column(Float, default=0.0, server_default="0", nullable=False)
+    position_revision = Column(String, default="", server_default="", nullable=False)
     fav = Column(Boolean, default=False)
     archived = Column(Boolean, default=False)
     tags = Column(String, default="")  # comma-separated

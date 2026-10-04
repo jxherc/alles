@@ -1,3 +1,4 @@
+import { requestId } from './request_id.js';
 import { confirm } from './dialog.js';
 import { t } from './i18n.js';
 
@@ -32,13 +33,6 @@ async function pendingStore() {
   };
 }
 
-function requestId() {
-  if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
-  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
 
 async function submit(store, pending) {
   if (!/^[a-f0-9]{64}$/.test(pending.body.expected_vault || '')) throw new Error('this older pending note has no verified vault; check the original note before discarding this retry');
@@ -61,15 +55,15 @@ async function submit(store, pending) {
   return data;
 }
 
-export async function saveNote(text, path, { preserveContent = false } = {}) {
+export async function saveNote(text, path, { preserveContent = false, sourceKey = '' } = {}) {
   if (preserveContent && !text.trim()) throw new Error('cannot import empty text');
   const content = preserveContent ? text : `${text.trim()}\n`;
   if (busy) throw new Error('a note is already being saved');
   busy = true; ++generation;
   try {
     const store = await pendingStore();
-    const pending = store.pending || { text, body: { path, content, unique: true, request_id: requestId(), expected_vault: store.vault } };
-    if (pending.text !== text || pending.body.content !== content || pending.body.path !== path) throw new Error('finish the pending note below before saving another');
+    const pending = store.pending || { text, ...(sourceKey ? { sourceKey } : {}), body: { path, content, unique: true, request_id: requestId(), expected_vault: store.vault } };
+    if (pending.text !== text || pending.body.content !== content || pending.body.path !== path || (pending.sourceKey || '') !== sourceKey) throw new Error('finish the pending note below before saving another');
     store.put(pending);
     return await submit(store, pending);
   } finally { busy = false; }
@@ -141,7 +135,7 @@ export async function showNoteRecovery(host, onSaved, onOpen, focusTarget = () =
       const saved = await submit(store, pending);
       const restore = returnFocus();
       notice.remove();
-      onSaved(saved, pending.text, restore, pending.body);
+      onSaved(saved, pending.text, restore, pending.body, pending.sourceKey);
     } catch (error) {
       status.textContent = `${error.message}; your original text is kept here`;
       open.hidden = !error.path || error.status === 410;
