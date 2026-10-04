@@ -275,6 +275,20 @@ def run(context_factory=None):
                         assert (
                             len(api.get(endpoint + "/" + copies()[0]["id"]).json()["results"]) == 13
                         )
+                        page.reload(wait_until="networkidle")
+                        expect(page.locator("#andromeda-query")).to_have_value(query)
+                        expect(page.locator(".andromeda-result")).to_have_count(13)
+                        page.locator("#andromeda-save").press("Enter")
+                        expect(page.locator("#andromeda-save-message")).to_have_text(
+                            "this search is already saved"
+                        )
+                        assert len(posts) == 1 and len(copies()) == 1
+                        changed_query = f"changed local query {width} !ai"
+                        search(changed_query)
+                        page.locator("#andromeda-save").click()
+                        expect(page.locator("#andromeda-save-message")).to_have_text("search saved")
+                        assert len(posts) == 2
+                        assert posts[-1]["query"] == changed_query
                     elif case == "category-save":
                         page.locator("[data-andromeda-category=news]").click()
                         expect(page.locator(".andromeda-news-card")).to_have_count(20)
