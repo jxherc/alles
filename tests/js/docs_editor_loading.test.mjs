@@ -8,6 +8,9 @@ const source = readFileSync(new URL('../../static/js/docs.js', import.meta.url),
   .replace(/^export /gm, '')
   .replace("import('../vendor/cm6.bundle.js')", '__loadEditor()');
 
+const links = readFileSync(new URL('../../static/js/recordlinks.js', import.meta.url), 'utf8')
+  .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
+
 function harness() {
   const elements = new Map();
   const loads = [];
@@ -58,7 +61,7 @@ function harness() {
     } else throw new Error(`unexpected request: ${url}`);
     return { ok: true, json: async () => response };
   };
-  const routeLocation = { pathname: '/', search: '', hash: '' };
+  const routeLocation = new URL('http://local/');
   const context = vm.createContext({
     document, fetch: fetcher, URL, URLSearchParams, TextEncoder, console,
     setTimeout: () => 1, clearTimeout() {},
@@ -73,6 +76,7 @@ function harness() {
     matchMedia: () => ({ matches: false }), mdToHtml: value => value, enhanceMarkdown() {}, toast() {},
     __loadEditor: () => new Promise((resolve, reject) => loads.push({ resolve: () => resolve({ createDocEditor: factory }), reject })),
   });
+  vm.runInContext(links, context);
   vm.runInContext(source + `
     globalThis.subject = {
       open: openNote, enter: enterEdit, done: exitEdit, save: saveCurrent, view: setEditView,

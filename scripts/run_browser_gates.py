@@ -79,6 +79,7 @@ COMMANDS = {
     "aide-scoped-draft": ("tests/pw_aide_scoped_draft.py",),
     "aide-model-errors": ("tests/pw_aide_model_errors.py",),
     "aide-app-context": ("tests/pw_aide_app_context.py",),
+    "activity-records": ("tests/pw_activity_records.py",),
     "secondary-action-targets": ("tests/pw_secondary_action_targets.py",),
     "compare-preflight": ("tests/pw_compare_preflight.py",),
     "compare-recovery": ("tests/pw_compare_recovery.py",),
