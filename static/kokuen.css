@@ -809,7 +809,7 @@ body:is(
   align-items: center;
   gap: var(--k-space-2, 8px);
   margin-top: var(--k-space-2, 8px);
-  color: var(--k-quiet, var(--muted));
+  color: var(--k-muted, var(--muted));
   font-size: 0.75rem;
 }
 

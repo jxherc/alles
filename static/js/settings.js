@@ -94,6 +94,7 @@ function _switchPane(name) {
   // unknown pane key (e.g. a stale 'appearance') would leave every pane inactive →
   // a blank modal. fall back to the consolidated General pane.
   if (!document.getElementById(`s-pane-${name}`)) name = 'general';
+  const paneChanged = name !== _activePane;
   _activePane = name;
   const selected = document.querySelector(`.s-nav-item[data-pane="${CSS.escape(name)}"]`);
   const context = document.getElementById('settings-pane-title');
@@ -110,6 +111,8 @@ function _switchPane(name) {
     n.setAttribute('aria-current', n.dataset.pane === name ? 'page' : 'false'));
   document.querySelectorAll('.s-pane').forEach(p =>
     p.classList.toggle('active', p.id === `s-pane-${name}`));
+  const content = document.querySelector('#settings-modal .s-content');
+  if (paneChanged && content) content.scrollTop = 0;
   _onPaneOpen(name);
 }
 
