@@ -407,6 +407,10 @@ function _renderModelRoles(eps, settings, states) {
   const saveState = document.getElementById('s-role-save-state');
   if (saveState) saveState.textContent = '';
   _modelRoleSettings = settings.model_roles || {};
+  const defaults = document.getElementById('s-model-defaults-card');
+  // Keep saved defaults visible even when their connection is no longer available.
+  if (defaults) defaults.hidden = !eps.length && !Object.values(_modelRoleSettings)
+    .some(role => role?.endpoint_id || role?.model);
   root.innerHTML = Object.entries(_MODEL_ROLE_COPY).map(([role, copy]) => {
     const state = states?.[role];
     const effective = state?.effective;
@@ -560,7 +564,7 @@ async function loadEpList() {
     if (!_modelRolesDirty && !document.activeElement?.matches('#s-model-roles [data-role-select]')) _renderModelRoles(eps, settings, roles);
     if (_hasEndpointDrafts() || _endpointPending.size || _endpointConfirmations.size) return;
     if (!eps.length) {
-      el.innerHTML = '<div class="s-role-empty">no endpoints yet. add one below, then choose your defaults.</div>';
+      el.innerHTML = '<div class="s-role-empty">connect a local model server or a provider below. then choose your defaults.</div>';
       return;
     }
     el.innerHTML = eps.map(ep => {
