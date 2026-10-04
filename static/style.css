@@ -5203,6 +5203,17 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 }
 
 #money-view .money-entry-action { min-height: 44px; margin-bottom: var(--k-space-3, 12px); }
+#money-view :is(#money-entry-fields, #money-entry-close, #money-summary-toggle, .ms-card)[hidden] { display: none; }
+#money-view #money-entry-close { margin-bottom: var(--k-space-3, 12px); }
+@media (max-width: 720px) {
+  #money-view .money-summary { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-1, 4px); margin-bottom: var(--k-space-1, 4px); }
+  #money-view .ms-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: baseline; gap: var(--k-space-2, 8px); border: 0; background: transparent; padding: var(--k-space-2, 8px) 0; }
+  #money-view .ms-label { letter-spacing: normal; }
+  #money-view .ms-val { text-align: right; }
+  #money-view .ms-card[data-forecast] { min-height: 0; }
+  #money-view .ms-unavailable { text-align: right; }
+  #money-view .ms-retry { grid-column: 2; justify-self: end; }
+}
 #money-view .money-section-toggle { display: flex; align-items: center; width: 100%; min-height: 44px; margin-bottom: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) 0; border: 0; background: transparent; color: var(--k-ink, var(--text)); font: inherit; font-size: 0.85rem; text-align: left; cursor: pointer; }
 #money-view .money-section-toggle::before { content: '+'; flex: 0 0 20px; color: var(--k-ink-muted, var(--muted)); }
 #money-view .money-section-toggle[aria-expanded="true"]::before { content: '−'; }

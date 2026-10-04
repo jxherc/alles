@@ -47,6 +47,8 @@ let _searchTimer = null;
 let _cur = '$';
 let _inited = false;
 const _expandedMoneySections = new Set();
+let _moneyEntryOpen = false;
+let _moneyTotalsOpen = false;
 let _editTxn = null;   // id of the txn row currently being edited inline
 let _splitTxn = null;  // id of the txn whose split editor is open (4a)
 let _splitRows = [];   // working split rows in the open editor
@@ -180,9 +182,36 @@ function toggleMoneySection(button) {
   button.setAttribute('aria-expanded', String(open));
 }
 
+function compactMoney() {
+  return globalThis.matchMedia?.('(max-width: 720px)')?.matches || false;
+}
+
+function syncMoneyLayout() {
+  const entry = $('money-entry-fields');
+  const action = $('money-entry-action');
+  const totals = $('money-summary-toggle');
+  if (!entry || !action || !totals) return;
+  const compact = compactMoney();
+  // Resizing must not hide the field or recovery control the owner is using.
+  if (entry.contains(document.activeElement)) _moneyEntryOpen = true;
+  const secondary = $('money-body').querySelectorAll('[data-secondary-total]');
+  if ([...secondary].some(card => card.contains(document.activeElement))) _moneyTotalsOpen = true;
+  entry.hidden = compact && !_moneyEntryOpen;
+  action.setAttribute('aria-expanded', String(!entry.hidden));
+  if (!compact && document.activeElement === $('money-entry-close')) action.focus();
+  $('money-entry-close').hidden = !compact;
+  for (const card of secondary) card.hidden = compact && !_moneyTotalsOpen;
+  if (!compact && document.activeElement === totals) action.focus();
+  totals.hidden = !compact;
+  totals.setAttribute('aria-expanded', String(_moneyTotalsOpen));
+  totals.textContent = (_moneyTotalsOpen ? 'fewer totals' : 'more totals')
+    + (_forecast ? '' : ' · forecast unavailable');
+}
+
 export function initMoneyPanel(fetcher = fetch) {
   if (!_inited) {
     _inited = true;
+    window.matchMedia('(max-width: 720px)').addEventListener('change', syncMoneyLayout);
     $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(); });
     $('money-next')?.addEventListener('click', () => { _month = _shiftMonth(_month, 1); load(); });
     $('money-connect')?.addEventListener('click', openBankConnections);
@@ -348,12 +377,13 @@ function render() {
     return;
   }
   b.innerHTML =
-    `<button type="button" class="btn money-entry-action" id="money-entry-action">add transaction</button>` +
+    `<button type="button" class="btn money-entry-action" id="money-entry-action" aria-controls="money-entry-fields">add transaction</button>` +
     summaryCards() +
+    `<button type="button" class="money-section-toggle" id="money-summary-toggle" aria-controls="money-income money-net money-projection">more totals</button>` +
     `<div id="money-alerts-content" role="status" tabindex="-1">${alertsStrip()}</div>` +
     `<section class="money-card money-txns">
       <h2>transactions · ${_monthLabel(_month)}</h2>
-      ${addTxnRow()}${transferRow()}
+      <div id="money-entry-fields"><button type="button" class="btn" id="money-entry-close">close entry</button>${addTxnRow()}${transferRow()}</div>
       <div class="txn-search-wrap" role="group" aria-label="filter transactions">
         ${moneyField('search transactions', '<input type="text" id="txn-search" class="settings-input" placeholder="payee, category or notes" autocomplete="off">')}
         ${moneyField('minimum amount', '<input type="text" id="txn-min" class="settings-input" placeholder="0.00" inputmode="decimal">')}
@@ -385,9 +415,9 @@ function summaryCards() {
   const s = _sum || {};
   return `<div class="money-summary">
     <div class="ms-card"><span class="ms-label">net worth</span><span class="ms-val">${summaryAmount(s.net_worth)}</span></div>
-    <div class="ms-card"><span class="ms-label">income · this month</span><span class="ms-val pos">${summaryAmount(s.income)}</span></div>
+    <div class="ms-card" id="money-income" data-secondary-total><span class="ms-label">income · this month</span><span class="ms-val pos">${summaryAmount(s.income)}</span></div>
     <div class="ms-card"><span class="ms-label">spent · this month</span><span class="ms-val neg">${summaryAmount(s.expense)}</span></div>
-    <div class="ms-card"><span class="ms-label">net</span><span class="ms-val ${s.net >= 0 ? 'pos' : 'neg'}">${summaryAmount(s.net || 0, true)}</span></div>
+    <div class="ms-card" id="money-net" data-secondary-total><span class="ms-label">net</span><span class="ms-val ${s.net >= 0 ? 'pos' : 'neg'}">${summaryAmount(s.net || 0, true)}</span></div>
     ${forecastCard()}
   </div>`;
 }
@@ -400,7 +430,7 @@ function summaryAmount(n, showSign = false) {
 }
 
 function forecastCard() {
-  return `<div class="ms-card" data-forecast tabindex="-1"><span class="ms-label">projected · month-end</span>
+  return `<div class="ms-card" id="money-projection" data-secondary-total data-forecast tabindex="-1"><span class="ms-label">projected · month-end</span>
     ${_forecast ? `<span class="ms-val ${_forecast.projected < 0 ? 'neg' : ''}">${summaryAmount(_forecast.projected)}</span>` : `<span class="ms-unavailable" role="status">${esc(_forecastError)}</span><button type="button" class="btn ms-retry" id="forecast-retry">retry</button>`}</div>`;
 }
 
@@ -412,15 +442,22 @@ function forecastFailure(error) {
 
 async function retryForecast() {
   const button = $('forecast-retry');
+  const ownedFocus = document.activeElement === button;
+  if (ownedFocus) _moneyTotalsOpen = true;
   button.disabled = true;
   button.textContent = 'retrying…';
   try { _forecast = await api(`/api/money/forecast?month=${_month}`); }
   catch (error) { _forecast = null; _forecastError = forecastFailure(error); }
   const card = document.querySelector('[data-forecast]');
   if (!card) return;
+  const restoreFocus = card.contains(document.activeElement)
+    || (ownedFocus && document.activeElement === document.body);
   card.outerHTML = forecastCard();
   wireForecast();
-  (_forecast ? document.querySelector('[data-forecast]') : $('forecast-retry'))?.focus();
+  syncMoneyLayout();
+  if (restoreFocus && !$('money-projection').hidden && $('money-projection').getClientRects().length) {
+    (_forecast ? $('money-projection') : $('forecast-retry'))?.focus();
+  }
 }
 
 function wireForecast() {
@@ -906,9 +943,21 @@ function wire() {
   _initControls();
   $('money-body').querySelectorAll('[data-money-section]').forEach(button => button.addEventListener('click', () => toggleMoneySection(button)));
   $('money-entry-action')?.addEventListener('click', () => {
+    _moneyEntryOpen = true;
+    syncMoneyLayout();
     $('tx-payee')?.focus();
     $('tx-payee')?.scrollIntoView({ block: 'center' });
   });
+  $('money-entry-close')?.addEventListener('click', () => {
+    $('money-entry-action').focus();
+    _moneyEntryOpen = false;
+    syncMoneyLayout();
+  });
+  $('money-summary-toggle')?.addEventListener('click', () => {
+    _moneyTotalsOpen = !_moneyTotalsOpen;
+    syncMoneyLayout();
+  });
+  syncMoneyLayout();
   $('tx-add')?.addEventListener('click', addTxn);
   $('tx-amt')?.addEventListener('input', () => transactionAmountError(''));
   $('tx-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') addTxn(); });
@@ -1251,6 +1300,8 @@ async function addTxn() {
   }
   transactionAmountError('');
   const sign = getDropdownValue($('tx-sign')) === '+' ? 1 : -1;
+  const focusAtSubmit = document.activeElement;
+  const ownedEntryFocus = $('money-entry-fields')?.contains?.(focusAtSubmit);
   let requestId = '';
   try {
     const transactionPayload = {
@@ -1260,9 +1311,16 @@ async function addTxn() {
     };
     requestId = await _createRequestId('transaction', transactionPayload);
     transactionPayload.request_id = requestId;
-    await api('/api/money/transactions', { method: 'POST', body: transactionPayload });
+    const saved = await api('/api/money/transactions', { method: 'POST', body: transactionPayload });
     _completeCreateRequest('transaction', requestId);
+    const restoreFocus = ownedEntryFocus && document.activeElement === focusAtSubmit;
+    _moneyEntryOpen = false;
     await load();
+    if (compactMoney() && saved?.id && restoreFocus && document.activeElement === document.body) {
+      const row = $('txn-rows')?.querySelector(`[data-id="${CSS.escape(saved.id)}"]`);
+      row?.querySelector('.tx-edit')?.focus({ preventScroll: true });
+      row?.scrollIntoView({ block: 'nearest' });
+    }
   } catch {
     if (requestId) _releaseCreateRequest('transaction', requestId);
     toast('couldn\'t add transaction', 'error');

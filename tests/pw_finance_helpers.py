@@ -9,3 +9,6 @@ def show_money_sections(page):
         toggle = page.locator(f'[data-money-section="{name}"]')
         if toggle.count() and toggle.get_attribute("aria-expanded") == "false":
             toggle.click()
+    totals = page.locator("#money-summary-toggle")
+    if totals.is_visible() and totals.get_attribute("aria-expanded") == "false":
+        totals.click()
