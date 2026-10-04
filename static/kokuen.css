@@ -400,6 +400,32 @@ body:is(
 }
 
 /* Local views share one strip; data navigation stays inside its workspace. */
+.specialist-view-strip {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  min-width: 0;
+  background: var(--k-page, var(--bg));
+}
+
+.specialist-view-strip .specialist-group-tabs { flex: 1; }
+
+.specialist-view-scroll {
+  flex: 0 0 var(--k-control, 44px);
+  min-height: var(--k-control, 44px);
+  padding: 0;
+  border: 0;
+  color: var(--k-ink, var(--text));
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.specialist-view-scroll[hidden] { display: none; }
+.specialist-view-scroll[aria-disabled="true"] { color: var(--k-ink-muted, var(--muted)); cursor: default; }
+.specialist-view-scroll:focus-visible { outline: 2px solid var(--k-focus); outline-offset: -2px; }
+[dir="rtl"] .specialist-view-scroll { transform: scaleX(-1); }
+
 .specialist-group-tabs {
   grid-column: 1;
   grid-row: 2;
@@ -483,7 +509,7 @@ body:is(
   #files-workbench-view,
   #vault-workbench-view,
   #server-workbench-view
-)[data-sidebar-collapsed="true"] .specialist-group-tabs {
+)[data-sidebar-collapsed="true"] :is(.specialist-group-tabs, .specialist-view-strip) {
   display: none;
 }
 

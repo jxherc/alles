@@ -29,6 +29,8 @@
     "common.remove": "quitar",
     "common.request_failed": "la solicitud falló",
     "common.saving": "guardando…",
+    "navigation.previous_views": "vistas anteriores",
+    "navigation.more_views": "más vistas",
     "common.search": "buscar",
     "common.send": "enviar",
     "common.settings": "ajustes",
