@@ -4767,13 +4767,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .skl-card:hover { border-color: var(--muted); background: var(--panel); }
 .skl-card.active { border-color: var(--accent); background: var(--panel); }
 .skl-card-top { display: flex; align-items: center; gap: 0.35rem; }
-.skl-card-name { flex: 1; min-width: 0; font-size: 0.8rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skl-card-name { flex: 1; min-width: 44px; min-height: 44px; background: none; border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; font-size: 0.8rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skl-card-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .skl-card-desc { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .skl-badge { font-size: 0.75rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0 0.25rem; flex-shrink: 0; }
 .skl-badge.git { color: var(--accent); border-color: var(--accent); }
-.skl-card-acts { position: absolute; top: 0.3rem; right: 0.35rem; display: flex; gap: 0.15rem; opacity: 0; transition: opacity 0.15s; }
-.skl-card:hover .skl-card-acts, .skl-card .skl-pin.on { opacity: 1; }
+.skl-card-acts { display: flex; justify-content: flex-end; gap: 0.15rem; margin-top: 0.25rem; }
 .skl-pin, .skl-del-q { background: none; border: 0; cursor: pointer; font-size: 0.75rem; line-height: 1; color: var(--muted); padding: 0.1rem; }
 .skl-pin:hover, .skl-del-q:hover { color: var(--text); }
 .skl-pin.on { color: var(--accent); opacity: 1; }
@@ -4781,7 +4781,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .skl-lib-bar { grid-column: 1 / -1; font-size: 0.75rem; color: var(--muted); padding: 0 0 0.2rem; }
 .skl-lib-bar .btn { font-size: 0.75rem; padding: 0.12rem 0.5rem; margin-left: 0.3rem; }
 .skl-add { background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 3px;
-  font: inherit; font-size: 0.75rem; padding: 0.1rem 0.45rem; cursor: pointer; position: absolute; top: 0.4rem; right: 0.4rem; }
+  font: inherit; font-size: 0.75rem; padding: 0.1rem 0.45rem; cursor: pointer; margin-top: 0.25rem; }
 .skl-add:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .skl-added { position: absolute; top: 0.45rem; right: 0.5rem; font-size: 0.75rem; color: var(--green); }
 .skl-empty { font-size: 0.75rem; color: var(--muted); padding: 0.6rem 0.2rem; }
@@ -4811,6 +4811,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   background: var(--bg); border-left: 1px solid var(--faint); z-index: 61; display: flex; flex-direction: column;
   transform: translateX(100%); transition: transform 0.22s cubic-bezier(0.2,0.7,0.2,1); }
 .skl-drawer.open { transform: translateX(0); }
+.skl-drawer[hidden], .skl-drawer [hidden] { display: none; }
 .skl-drawer-head { display: flex; align-items: center; justify-content: space-between;
   padding: 0.8rem 1rem; border-bottom: 1px solid var(--faint); font-size: 0.84rem; color: var(--text); }
 .skl-drawer-x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 0.9rem; }
