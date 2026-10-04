@@ -6568,6 +6568,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   transition: width 0.2s ease;
 }
 .artifact-panel.open { width: 420px; }
+@media (prefers-reduced-motion: reduce) {
+  #artifact-panel { transition: none !important; }
+}
 
 .artifact-panel-head {
   min-width: 420px;
