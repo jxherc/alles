@@ -67,8 +67,25 @@ class CaptureSource(BaseModel):
         return self
 
 
+class AideSource(CaptureSource):
+    kind: Literal["aide"] = "aide"
+    label: Literal["original Aide reply"] = "original Aide reply"
+    session_id: str = Field(default="", pattern=r"^(?:[a-zA-Z0-9_-]{1,160})?$")
+    message_id: str = Field(default="", pattern=r"^(?:[a-zA-Z0-9_-]{1,160})?$")
+    private: bool = False
+
+    @model_validator(mode="after")
+    def valid_origin(self):
+        if self.private and (self.session_id or self.message_id):
+            raise ValueError("private copies cannot retain conversation identifiers")
+        if not self.private and not (self.session_id and self.message_id):
+            raise ValueError("an Aide source needs its conversation and reply")
+        return self
+
+
 CommitmentSource = MailSource | CaptureSource
-_SOURCE = TypeAdapter(CommitmentSource)
+TaskSource = CommitmentSource | AideSource
+_SOURCE = TypeAdapter(TaskSource)
 
 
 def capture_source(text: str) -> dict:
@@ -162,7 +179,7 @@ def source_dict(value: str) -> dict | None:
         return None
 
 
-def source_json(source: CommitmentSource | dict | None) -> str:
+def source_json(source: TaskSource | dict | None) -> str:
     if source is None:
         return "{}"
     value = _SOURCE.validate_python(source)

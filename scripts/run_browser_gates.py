@@ -69,6 +69,7 @@ COMMANDS = {
     "andromeda-saved": ("tests/pw_andromeda_saved.py",),
     "andromeda-handoff": ("tests/pw_andromeda_handoff.py",),
     "andromeda-continuation": ("tests/pw_andromeda_continuation.py",),
+    "aide-task-capture": ("tests/pw_aide_task_capture.py",),
     "journal-recovery": ("tests/pw_journal_recovery.py",),
     "journal-search-export": ("tests/pw_journal_search_export.py",),
     "journal-reflect": ("tests/pw_journal_reflect.py",),
