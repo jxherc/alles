@@ -1182,7 +1182,7 @@ async function saveCurrent() {
   if (_saveBusy || !_saveReady || _pendingSave || _unreadableSave) return;
   if (!_state.rawQuery || _state.resultStatus === 'loading') return;
   const payload = searchSnapshot();
-  if (_savedResult && JSON.stringify(payload) === _savedPayload) {
+  if (matchingSavedSearch(JSON.stringify(payload))) {
     _saveMessage = 'this search is already saved'; renderSaveRecovery(); return;
   }
   try {
