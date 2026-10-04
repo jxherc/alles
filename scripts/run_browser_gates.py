@@ -77,6 +77,7 @@ COMMANDS = {
     "files-completed-history": ("tests/pw_files_completed_history.py",),
     "server-controls": ("tests/pw_server_controls.py",),
     "aide-scoped-draft": ("tests/pw_aide_scoped_draft.py",),
+    "aide-model-errors": ("tests/pw_aide_model_errors.py",),
     "compare-preflight": ("tests/pw_compare_preflight.py",),
     "compare-recovery": ("tests/pw_compare_recovery.py",),
     "skills-keyboard": ("tests/pw_skills_keyboard.py",),
