@@ -294,6 +294,9 @@ what it supports:
 - **incognito chats**: conversations and attachments kept only in short-lived ram; they use no
   long-term memory and disappear when you exit or restart alles
 - **slash commands** (`/new`, `/clear`, `/rename`, …) and `@`-mentions to pull a file into context
+- **unsent messages**: missing models and failed task creation keep the composer draft for retry.
+  Ordinary drafts survive reload; private drafts stay in memory. Repeated send attempts during
+  task creation do not start another request, and newer text remains after the first message is accepted.
 - **cookbook**: a browser over **900+ open models** ranked against *your* actual hardware (what fits, at what quant, how fast), so you can pick + pull a local model that'll actually run
 - **usage**: a token dashboard: totals, a tokens-by-month chart, and a per-model breakdown, so you can see what you're spending
 - **skills**: write reusable procedures (a name, when-to-use, and the steps in markdown) that the agent discovers and loads on its own; it ranks your skills against each task and reaches for the right one. ships with a few starters (summarize, web research, code review)

@@ -2,7 +2,7 @@ import { mdToHtml, toast } from './util.js';
 import { canRevertTool } from './agentview.js';
 import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown,
-  showMessages, updateSessionName, createSession, getActiveId, markActive,
+  showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive,
 } from './sessions.js';
 import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=212';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
@@ -138,10 +138,20 @@ function restoreDocumentScope(scope) {
 }
 
 
-export async function sendMessage(text) {
+function showSendIssue(message, chooseModel = false) {
+  const recovery = document.getElementById('composer-send-recovery');
+  if (!recovery) { toast(message, 'error'); return; }
+  recovery.hidden = false;
+  recovery.querySelector('p').textContent = message;
+  recovery.querySelector('button').hidden = !chooseModel;
+  const composer = document.getElementById('composer-ta');
+  if (composer?.getClientRects().length && ['composer-ta', 'send-btn'].includes(document.activeElement?.id)) composer.focus();
+}
+
+export async function sendMessage(text, onAccepted = () => {}) {
   if (!text?.trim() || _streaming || _backgroundLaunching) return;
   if (hasPendingAttachments()) {
-    toast('wait for attachments to finish uploading', 'error');
+    showSendIssue('wait for attachments to finish uploading.');
     return;
   }
 
@@ -150,15 +160,22 @@ export async function sendMessage(text) {
 
   // no active session — create one lazily now (first message)
   if (!sessionId) {
+    const composerGeneration = getComposerGeneration();
     const ep = getCurrentEndpoint();
-    if (!ep) { toast('no endpoint configured: add one via the model picker', 'error'); return; }
+    if (!ep) { showSendIssue('choose a model before sending.', true); return; }
     const model = getSelected()?.model || ep.models[0] || '';
-    const s = await createSession(model, ep.id, {
-      incognito: isIncognitoMode(),
-      mode: 'agent',
-      chatBehavior: window._pendingChatBehavior || '',
-    });
-    if (!s) { toast('failed to create session', 'error'); return; }
+    let s;
+    try {
+      s = await createSession(model, ep.id, {
+        incognito: isIncognitoMode(),
+        mode: 'agent',
+        chatBehavior: window._pendingChatBehavior || '',
+      });
+    } catch { /* The composer still owns the unsent text. */ }
+    if (!s) {
+      if (getComposerGeneration() === composerGeneration) showSendIssue('could not start this task. try sending again.');
+      return;
+    }
     // carry over a persona picked before the session existed (fresh-chat picker)
     if (window._pendingPersona) {
       try {
@@ -177,14 +194,17 @@ export async function sendMessage(text) {
   }
 
   const sel = getSelected();
-  if (!sel) { toast('select a model first', 'error'); return; }
+  if (!sel) { showSendIssue('choose a model before sending.', true); return; }
   const attachmentIds = getAttachments();
   const documentScope = normalizeDocumentScope(window._pendingDocumentScope);
   const privateReply = isIncognitoMode();
   if (documentScope?.kind === 'vault_documents' && attachmentIds.length) {
-    toast('remove attachments to answer from selected notes only', 'error');
+    showSendIssue('remove attachments to answer from selected notes only.');
     return;
   }
+
+  document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
+  onAccepted(sessionId);
 
   // image model picked as the primary → generate (legacy single-pick path)
   if (!documentScope && isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }

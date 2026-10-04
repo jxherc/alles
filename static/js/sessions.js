@@ -19,11 +19,13 @@ import { replaceRouteUrl } from './route_history.js';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
+let _composerGeneration = 0;
 let _allSessions = [];  // flat list for search
 const SESSION_ORDER_KEY = 'aide-session-order';
 let _contextMenuController = null;
 
 export function getActiveId() { return _activeId; }
+export function getComposerGeneration() { return _composerGeneration; }
 
 function syncSessionRowState(row, active) {
   row.classList.toggle('active', active);
@@ -55,9 +57,9 @@ export async function initSessions({ hashOwner = 'session' } = {}) {
   const hash = location.hash.slice(1);
   const sourceMessage = new URLSearchParams(location.search).get('message') || '';
   if (hashOwner === 'session' && hash && _allSessions.find(s => s.id === hash)) {
-    await selectSession(hash, sourceMessage);
+    await selectSession(hash, sourceMessage, { skipDraft: true });
   } else {
-    newChat({ preserveHash: hashOwner !== 'session' || Boolean(sourceMessage) });
+    newChat({ skipDraft: true, preserveHash: hashOwner !== 'session' || Boolean(sourceMessage) });
   }
 }
 
@@ -94,7 +96,9 @@ export function clearDraft(id) {
 }
 
 export function newChat(options = {}) {
+  ++_composerGeneration;
   if (!options.skipDraft) saveDraft(); // keep whatever was half-typed in the outgoing convo
+  document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
   _activeId = null;
   window._currentSession = null;
   const requestedProject = options.projectId ?? new URLSearchParams(location.search).get('project_id') ?? '';
@@ -297,9 +301,11 @@ export function focusSessionMessage(messageId) {
   return true;
 }
 
-export async function selectSession(id, messageId = '') {
+export async function selectSession(id, messageId = '', options = {}) {
   if (messageId && !/^[a-zA-Z0-9_-]{1,160}$/.test(messageId)) return false;
-  if (id !== _activeId) saveDraft();   // stash the outgoing convo's unsent text
+  ++_composerGeneration;
+  if (id !== _activeId && !options.skipDraft) saveDraft();   // stash the outgoing convo's unsent text
+  document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
   _activeId = id;
   location.hash = id;
   const sourceUrl = new URL(location.href);

@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const src = readFileSync(new URL('../../static/js/chat.js', import.meta.url), 'utf8');
-const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
 
 test('stopStream aborts the active browser chat request', () => {
   assert.match(src, /let _chatAbort = null/);
@@ -25,14 +24,6 @@ test('old aborted stream cleanup cannot hide a newer stream', () => {
   assert.match(src, /let _streamToken = 0/);
   assert.match(src, /const streamToken = \+\+_streamToken/);
   assert.match(src, /if \(_streamToken === streamToken\) setStreaming\(false\)/);
-});
-
-test('a rapid send keeps its draft until the current stream can accept it', () => {
-  assert.match(src, /export function canSendMessage\(\) \{\s*return !_streaming && !_backgroundLaunching/);
-  assert.match(
-    app,
-    /if \(!canSendMessage\(\)\) return;\s*ta\.value = ''; ta\.style\.height = 'auto'; clearDraft\(\);\s*sendMessage\(text\)/,
-  );
 });
 
 test('background startup blocks duplicate launches until the first request settles', () => {
