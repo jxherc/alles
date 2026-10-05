@@ -71,6 +71,12 @@ def run() -> None:
                     return route.abort()
                 path = parsed.path
                 if path == "/api/money/recurring" and route.request.method == "GET":
+                    if state.get("fail_read"):
+                        return route.fulfill(
+                            status=503,
+                            content_type="application/json",
+                            body='{"detail":"schedule read temporarily unavailable"}',
+                        )
                     rows = []
                     if state["phase"] in {
                         "pending",
@@ -311,6 +317,22 @@ def run() -> None:
                 pause.press("Enter")
                 assert len(held_posts) == 1
                 if transition == "newer":
+                    page.locator("#rc-payee").fill("newer schedule 草稿")
+                    page.locator("#rc-amt").fill("73.10")
+                    page.locator("#rc-category-choice").click()
+                    page.get_by_role("dialog").get_by_role("button", name="bills / housing").click()
+                    page.locator("#rc-sign").click()
+                    page.get_by_role("option", name="income", exact=True).click()
+                    page.locator("#rc-cycle").click()
+                    page.get_by_role("option", name="quarterly", exact=True).click()
+                    page.locator("#rc-next").click()
+                    page.get_by_role("dialog").get_by_role("button", name="next month").click()
+                    page.get_by_role("dialog").locator('[data-d="17"]').click()
+                    draft = page.evaluate("""() => {
+                        window.recurringDraftNode = document.querySelector('#recurring-create');
+                        return Object.fromEntries(['rc-sign', 'rc-cycle', 'rc-next', 'rc-acct']
+                            .map(id => [id, document.getElementById(id).dataset.value]));
+                    }""")
                     page.locator("#rc-add").focus()
                     expect(page.locator("#rc-add")).to_be_focused()
                 elif transition == "plans":
@@ -335,7 +357,19 @@ def run() -> None:
                 expect(card.get_by_text("pause not confirmed", exact=False).first).to_be_visible()
                 choice = page.locator('[data-money-task="schedules"]')
                 expect(choice).to_be_visible()
-                expect(choice).to_be_focused()
+                if transition == "newer":
+                    expect(page.locator("#rc-add")).to_be_focused()
+                    expect(page.locator("#rc-payee")).to_have_value("newer schedule 草稿")
+                    expect(page.locator("#rc-amt")).to_have_value("73.10")
+                    expect(page.locator("#rc-category-choice")).to_have_text("bills / housing")
+                    for field, value in draft.items():
+                        expect(page.locator(f"#{field}")).to_have_attribute("data-value", value)
+                    assert page.evaluate(
+                        "window.recurringDraftNode === document.querySelector('#recurring-create')"
+                    )
+                    assert len(state["requests"]) == 1
+                else:
+                    expect(choice).to_be_focused()
                 expect(card.locator(".card-hide")).to_be_disabled()
                 expect(page.locator('[data-money-section="plans"]')).to_be_disabled()
                 if transition == "restore":
@@ -346,6 +380,33 @@ def run() -> None:
                 page.screenshot(
                     path=str(output / f"recurring-create-{profile}-attention-{transition}.png")
                 )
+            # An unavailable read hides the mounted form; a successful retry restores its exact draft.
+            state["fail_read"] = True
+            pause = card.get_by_role("button", name="retry pause", exact=True)
+            pause.click()
+            assert len(held_posts) == 1
+            held_posts.pop().fulfill(
+                status=200, content_type="application/json", body='{"ok":true}'
+            )
+            expect(card.get_by_role("button", name="retry", exact=True)).to_be_visible()
+            expect(page.locator("#recurring-create")).to_be_hidden()
+            expect(page.locator("#rc-payee")).to_have_value("newer schedule 草稿")
+            expect(page.locator("#rc-amt")).to_have_value("73.10")
+            state["fail_read"] = False
+            retry_read = card.get_by_role("button", name="retry", exact=True)
+            retry_read.focus()
+            retry_read.press("Enter")
+            expect(page.locator("#recurring-create")).to_be_visible()
+            expect(page.locator("#rc-payee")).to_have_value("newer schedule 草稿")
+            expect(page.locator("#rc-amt")).to_have_value("73.10")
+            expect(page.locator("#rc-category-choice")).to_have_text("bills / housing")
+            for field, value in draft.items():
+                expect(page.locator(f"#{field}")).to_have_attribute("data-value", value)
+            assert page.evaluate(
+                "window.recurringDraftNode === document.querySelector('#recurring-create')"
+            )
+            assert len(state["requests"]) == 1
+            page.screenshot(path=str(output / f"recurring-create-{profile}-draft-restored.png"))
             state["phase"] = "edit_pending"
             page.reload(wait_until="networkidle")
             show_money_sections(page, task="schedules")
@@ -390,6 +451,8 @@ def run() -> None:
                     "saved_hide_confirmation_restore": True,
                     "held_newer_task": True,
                     "held_newer_entry_focus": True,
+                    "newer_recurring_draft": True,
+                    "failed_read_draft_recovery": True,
                     "attention_focus_transitions": ["plans", "hide", "restore", "newer"],
                 }
             )
