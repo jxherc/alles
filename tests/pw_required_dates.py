@@ -72,7 +72,8 @@ def run():
                 external, errors, console = [], [], []
 
                 def route(request):
-                    if urlparse(request.request.url).netloc != urlparse(base).netloc:
+                    url = urlparse(request.request.url)
+                    if (url.scheme, url.netloc) != ("http", urlparse(base).netloc):
                         external.append(request.request.url)
                         return request.abort()
                     return request.continue_()
@@ -188,13 +189,17 @@ def run():
                     expect(page.locator("#sub-required")).to_be_visible()
                     expect(due).to_have_attribute("aria-describedby", "sub-required")
                     capture("subscription-empty")
-                    add_sub.press("Enter")
-                    expect(name_field).to_be_focused()
+                    expect(add_sub).to_be_disabled()
+                    expect(page.locator("#sub-required")).to_have_text(
+                        "enter a name and choose the next billing date."
+                    )
                     subscription = f"synthetic renewal {label}"
                     name_field.fill(subscription)
                     page.locator("#sub-price").fill("12.5")
-                    add_sub.press("Enter")
-                    expect(due).to_be_focused()
+                    expect(add_sub).to_be_disabled()
+                    expect(page.locator("#sub-required")).to_have_text(
+                        "choose the next billing date to continue."
+                    )
                     expect(name_field).to_have_value(subscription)
                     expect(page.locator("#sub-price")).to_have_value("12.5")
                     assert len(posts) == 1, posts
@@ -203,6 +208,7 @@ def run():
                     page.locator('.dp-day[data-d="1"]').press("Enter")
                     expect(due).to_be_focused()
                     billing = due.evaluate("el=>el.value")
+                    expect(add_sub).to_be_enabled()
                     page.locator("#sub-price").fill("invalid")
                     add_sub.press("Enter")
                     expect(page.locator("#sub-price")).to_be_focused()
