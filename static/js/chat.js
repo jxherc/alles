@@ -109,7 +109,7 @@ function renderDocumentScope(scope) {
   chip.hidden = !scope;
   const name = document.getElementById('aide-document-scope-name');
   if (name) name.tabIndex = scope ? 0 : -1;
-  if (name) name.textContent = scope?.kind === 'vault_documents' ? `${scope.documents.length} notes only · ${scope.documents.map(item => item.path).join(', ')}` : scope ? scope.path.split('/').pop().replace(/\.(md|markdown)$/i, '') : '';
+  if (name) name.textContent = scope?.kind === 'vault_documents' ? `${scope.documents.length} note${scope.documents.length === 1 ? '' : 's'} only · ${scope.documents.map(item => item.path).join(', ')}` : scope ? scope.path.split('/').pop().replace(/\.(md|markdown)$/i, '') : '';
 }
 
 window._setAideDocumentScope = scope => {

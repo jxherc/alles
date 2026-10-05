@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v294';   // Refresh Gallery action menus and zoom layout corrections.
+const VERSION = 'v295';   // Refresh the selected-note labels in Aide.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '446';   // keep in sync with index.html ?v= / const _v
+const STAMP = '447';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

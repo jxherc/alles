@@ -569,7 +569,7 @@ export function appendUserMsg(text, documentScope = null) {
   const { row } = _makeRow('user');
   row.innerHTML = `<div class="user-wrap">
     ${documentScope?.path ? `<div class="user-context-scope">using note · ${escHtml(documentScope.path)}</div>` : ''}
-    ${documentScope?.documents ? `<details class="user-context-scope"><summary>selected notes only · ${documentScope.documents.length} notes</summary><ul tabindex="0" aria-label="selected source notes">${documentScope.documents.map(item => `<li>${escHtml(item.path)}</li>`).join('')}</ul></details>` : ''}
+    ${documentScope?.documents ? `<details class="user-context-scope"><summary>selected notes only · ${documentScope.documents.length} note${documentScope.documents.length === 1 ? '' : 's'}</summary><ul tabindex="0" aria-label="selected source notes">${documentScope.documents.map(item => `<li>${escHtml(item.path)}</li>`).join('')}</ul></details>` : ''}
     <div class="user-bubble">${escHtml(text)}</div>
     <button class="msg-memory-btn" type="button" onclick="rememberUserMessage(this)">remember this</button>
     <button class="msg-edit-btn" title="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
