@@ -11,7 +11,7 @@ export function provenanceLabels(provenance = {}) {
   const count = Array.isArray(provenance.memories) ? provenance.memories.length : 0;
   if (count) labels.push(`${count} memor${count === 1 ? 'y' : 'ies'}`);
   if (provenance.document?.path) labels.push(`note: ${provenance.document.path}`);
-  if (Array.isArray(provenance.document?.documents)) labels.push(`${provenance.document.documents.length} selected notes only`);
+  if (Array.isArray(provenance.document?.documents)) labels.push(`${provenance.document.documents.length} selected note${provenance.document.documents.length === 1 ? '' : 's'} only`);
   if (provenance.model) labels.push(`${provenance.endpoint || 'model'} / ${provenance.model}`);
   return labels;
 }

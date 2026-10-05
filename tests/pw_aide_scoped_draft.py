@@ -140,6 +140,7 @@ with sync_playwright() as pw:
                 chip = page.locator("#aide-document-scope")
                 expect(field).to_have_value(question)
                 expect(chip).to_be_visible()
+                expect(page.locator("#aide-document-scope-name")).to_contain_text("1 note only")
                 selected = page.evaluate("window._pendingDocumentScope")
                 assert selected["documents"][0]["path"] == name
                 page.reload(wait_until="networkidle")
