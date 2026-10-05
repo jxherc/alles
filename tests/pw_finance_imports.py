@@ -5,6 +5,7 @@ import os
 import re
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
@@ -28,6 +29,17 @@ def run():
                 has_touch=width == 390,
                 timezone_id="UTC",
             )
+            external = []
+
+            def owned_only(route):
+                parsed = urlsplit(route.request.url)
+                if (parsed.scheme, parsed.netloc) != (urlsplit(base).scheme, urlsplit(base).netloc):
+                    external.append(route.request.url)
+                    return route.abort("blockedbyclient")
+                return route.continue_()
+
+            context.route("**/*", owned_only)
+            context.route_web_socket("**/*", lambda ws: ws.close())
             page = context.new_page()
             page.set_default_timeout(10000)
             errors, console, legacy = [], [], []
@@ -122,6 +134,7 @@ def run():
             record = begin("header-destination-preview")
             try:
                 page.goto(base + "/?view=money", wait_until="networkidle")
+                page.locator("#money-manage-toggle").press("Enter")
                 header = page.locator("#money-import")
                 header.focus()
                 page.keyboard.press("Enter")
@@ -226,6 +239,7 @@ def run():
                 statement.fill("82.66")
                 page.locator(f'[data-rc-run="{aid}"]').click()
                 expect(page.locator(f"#rc-out-{aid}")).to_contain_text("reconciled")
+                page.locator("#money-manage-toggle").click()
                 page.locator("#money-import").click()
                 page.get_by_role("button", name=name + " · applied", exact=True).click()
                 page.get_by_role("button", name="undo this import", exact=True).click()
@@ -240,6 +254,7 @@ def run():
                 page.goto(base + "/?view=money", wait_until="networkidle")
                 row.locator(".tx-clear").click()
                 expect(row.locator(".tx-clear")).not_to_have_class(re.compile(r"\bon\b"))
+                page.locator("#money-manage-toggle").click()
                 page.locator("#money-import").click()
                 page.get_by_role("button", name=name + " · applied", exact=True).click()
                 undo_path = base + f"/api/finance/imports/{batch['id']}/undo"
@@ -305,7 +320,7 @@ def run():
                 assert all(
                     any(str(status) in message for status in [409, 503]) for message in console
                 ), console
-                assert not legacy
+                assert not legacy and not external, external
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                 passed(record)
             except Exception as error:
