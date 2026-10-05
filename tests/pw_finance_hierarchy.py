@@ -1,8 +1,9 @@
-"""Verify the compact ledger, preserved entry drafts and secondary-total recovery."""
+"""Verify ledger entry, optional filters, management access and total recovery."""
 
 import base64
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -32,6 +33,7 @@ with sync_playwright() as pw:
                 service_workers="block",
                 reduced_motion="reduce" if theme == "dark" else "no-preference",
                 timezone_id="UTC",
+                has_touch=width <= 390,
             )
             if zoom:
                 profile = Path(os.environ["ALLES_DATA"]) / f"zoom-{theme}"
@@ -67,15 +69,24 @@ with sync_playwright() as pw:
             reject = False
             hold_save = False
             held_saves = []
+            hold_tag = False
+            held_tags = []
             forecast_mode = "normal"
             held = []
             large_amounts = False
 
             def route(r):
                 url = urlparse(r.request.url)
-                if url.netloc != urlparse(base).netloc:
+                if (url.scheme, url.netloc) != (urlparse(base).scheme, urlparse(base).netloc):
                     external.append(r.request.url)
                     return r.abort()
+                if (
+                    hold_tag
+                    and url.path == "/api/money/transactions"
+                    and url.query.startswith("tag=")
+                ):
+                    held_tags.append(r)
+                    return None
                 if url.path == "/api/money/transactions" and r.request.method == "POST":
                     requests.append(r.request.post_data_json)
                     if hold_save:
@@ -111,6 +122,9 @@ with sync_playwright() as pw:
             assert api.post(base + "/api/setup/dismiss").ok
             assert api.put(base + "/api/appearance", data=from_legacy(theme, None)).ok
             if not rows:
+                page.goto(base + "/?view=money", wait_until="networkidle")
+                expect(page.locator("#money-body")).to_contain_text("no accounts yet")
+                expect(page.locator("#money-entry-action")).to_have_count(0)
                 assert api.post(
                     base + "/api/money/accounts", data={"name": "garden budget", "opening": 200}
                 ).ok
@@ -136,19 +150,30 @@ with sync_playwright() as pw:
             action = page.locator("#money-entry-action")
             totals = page.locator("#money-summary-toggle")
             expect(action).to_be_visible()
+            expect(page.locator("#money-management")).to_be_hidden()
+            expect(page.locator("#money-manage-toggle")).to_have_attribute("aria-expanded", "false")
+            expect(page.locator("#txn-amount-range")).to_be_hidden()
             if compact:
                 expect(entry).to_be_hidden()
+                expect(action).to_have_class(re.compile(r"\bprimary\b"))
                 expect(totals).to_have_attribute("aria-expanded", "false")
                 expect(page.locator("[data-secondary-total]:visible")).to_have_count(0)
             else:
                 expect(entry).to_be_visible()
+                expect(action).not_to_have_class(re.compile(r"\bprimary\b"))
                 expect(totals).to_be_hidden()
                 expect(page.locator(".ms-card:visible")).to_have_count(5)
-            action.press("Enter")
+            if width <= 390:
+                action.tap()
+            else:
+                action.press("Enter")
             expect(page.locator("#tx-payee")).to_be_focused()
+            expect(action).not_to_have_class(re.compile(r"\bprimary\b"))
             payee = "garden supplies " + label + " 中文"
             page.locator("#tx-payee").fill(payee)
             page.locator("#tx-cat").fill("garden")
+            tag = "garden-" + label
+            page.locator("#tx-tags").fill(tag)
             page.locator("#tx-amt").fill("18.75")
             if compact:
                 page.locator("#money-entry-close").press("Enter")
@@ -229,6 +254,76 @@ with sync_playwright() as pw:
                 (out / f"{label}-{name}.png").write_bytes(base64.b64decode(capture["data"]))
 
             shot("ledger")
+            search = page.locator("#txn-search")
+            search.fill(payee)
+            expect(page.locator("#txn-rows .txn")).to_have_count(1)
+            expect(row).to_contain_text(payee)
+            amount_range = page.locator("#txn-range-toggle")
+            if width <= 390:
+                amount_range.tap()
+            else:
+                amount_range.press("Enter")
+            expect(page.locator("#txn-min")).to_be_focused()
+            page.locator("#txn-max").fill("5")
+            expect(amount_range).to_have_text("clear range")
+            expect(page.locator("#txn-rows .txn")).to_have_count(0)
+            shot("amount-range")
+            amount_range.press("Enter")
+            expect(amount_range).to_be_focused()
+            expect(amount_range).to_have_attribute("aria-expanded", "false")
+            expect(page.locator("#txn-amount-range")).to_be_hidden()
+            expect(search).to_have_value(payee)
+            expect(row).to_contain_text(payee)
+            search.fill("")
+            expect(page.locator("#txn-rows .txn")).to_have_count(len(before) + 2)
+            amount_range.press("Enter")
+            hold_tag = True
+            row.locator(".tx-tag[data-tag]").click()
+            for _ in range(100):
+                if held_tags:
+                    break
+                page.wait_for_timeout(20)
+            assert len(held_tags) == 1
+            amount_range.press("Enter")
+            expect(page.locator("#txn-rows .txn")).to_have_count(len(before) + 2)
+            hold_tag = False
+            with page.expect_response(lambda r: "/api/money/transactions?tag=" in r.url) as late:
+                held_tags.pop().continue_()
+            assert late.value.ok
+            page.wait_for_timeout(50)
+            expect(page.locator("#txn-rows .txn")).to_have_count(len(before) + 2)
+            expect(page.locator(".txn-tagfilter")).to_have_count(0)
+            row.locator(".tx-tag[data-tag]").click()
+            expect(page.locator(".txn-tagfilter")).to_contain_text(tag)
+            current_month = page.locator(".money-txns h2").inner_text()
+            page.locator("#money-next").press("Enter")
+            expect(page.locator(".money-txns h2")).not_to_have_text(current_month)
+            expect(page.locator(".txn-tagfilter")).to_have_count(0)
+            page.locator("#money-prev").press("Enter")
+            expect(row).to_be_visible()
+            manage = page.locator("#money-manage-toggle")
+            if width <= 390:
+                manage.tap()
+            else:
+                manage.press("Enter")
+            expect(page.locator("#money-management")).to_be_visible()
+            manage.press("Tab")
+            expect(page.locator("#money-export")).to_be_focused()
+            with page.expect_download() as downloaded:
+                page.keyboard.press("Enter")
+            export = Path(os.environ["ALLES_DATA"]) / f"{label}-transactions.csv"
+            downloaded.value.save_as(export)
+            assert payee in export.read_text()
+            page.locator("#money-connect").press("Enter")
+            bank = page.get_by_role("dialog", name="bank connections", exact=True)
+            expect(bank).to_be_visible()
+            bank.get_by_role("button", name="close", exact=True).press("Enter")
+            expect(bank).to_have_count(0)
+            expect(page.locator("#money-connect")).to_be_focused()
+            shot("management")
+            manage.press("Enter")
+            expect(page.locator("#money-management")).to_be_hidden()
+            expect(manage).to_be_focused()
             if compact:
                 totals.press("Enter")
                 expect(totals).to_have_attribute("aria-expanded", "true")
@@ -324,7 +419,7 @@ with sync_playwright() as pw:
                     "compact": compact,
                     "first_transaction": first,
                     "status": "passed",
-                    "checks": "exact saved expense, entry close/reopen/resize draft and focus preservation, held save respects newer focus, refused save/retry/no duplicate, all totals, held forecast recovery/newer focus and resize, large currency amounts, actual native zoom",
+                    "checks": "leading transaction action; optional amount filter clears without losing text query; late tag response ignored after range clear; month change clears tag; touch/keyboard; manage export and bank close/focus; no-account entry; exact saved expense, entry close/reopen/resize draft and focus preservation, held save respects newer focus, refused save/retry/no duplicate, all totals, held forecast recovery/newer focus and resize, large currency amounts, actual native zoom",
                 }
             )
             (out / "scenarios.json").write_text(

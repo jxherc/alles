@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=431">
+<link rel="stylesheet" href="/static/style.css?v=432">
   <link rel="stylesheet" href="/static/kokuen.css?v=27">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -789,14 +789,18 @@
     <div class="page-view" id="money-view" data-specialist-app="money" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title">money</span>
+        <span id="money-entry-slot"></span>
         <div class="money-monthnav">
           <button type="button" class="icon-btn" id="money-prev" title="previous month">‹</button>
           <span id="money-month-label">—</span>
           <button type="button" class="icon-btn" id="money-next" title="next month">›</button>
         </div>
-        <a class="btn" id="money-export" href="/api/money/transactions/export.csv" download title="export CSV" style="margin-left:auto">export</a>
-        <button type="button" class="btn" id="money-import" title="import a bank CSV">import</button>
-        <button type="button" class="btn" id="money-connect" title="manage read-only bank connections">banks</button>
+        <button type="button" class="btn" id="money-manage-toggle" aria-expanded="false" aria-controls="money-management">manage</button>
+        <div id="money-management" role="group" aria-label="export, import and bank connections" hidden>
+          <a class="btn" id="money-export" href="/api/money/transactions/export.csv" download title="export CSV">export</a>
+          <button type="button" class="btn" id="money-import" title="import a bank CSV">import</button>
+          <button type="button" class="btn" id="money-connect" title="manage read-only bank connections">banks</button>
+        </div>
       </div>
       <div class="page-view-body" id="money-body"></div>
     </div>
@@ -2896,7 +2900,7 @@
 </div>
 
 <script type="module">
-const _v = '431';
+const _v = '432';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

@@ -5202,7 +5202,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   :where(#money-view) .txn .tx-del { grid-column: 2; grid-row: 5; justify-self: end; }
 }
 
-#money-view .money-entry-action { min-height: 44px; margin-bottom: var(--k-space-3, 12px); }
+#money-view .money-entry-action { min-height: 44px; }
 #money-view :is(#money-entry-fields, #money-entry-close, #money-summary-toggle, .ms-card)[hidden] { display: none; }
 #money-view #money-entry-close { margin-bottom: var(--k-space-3, 12px); }
 @media (max-width: 720px) {
@@ -5225,7 +5225,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-field-label { color: var(--k-ink-muted, var(--muted)); font-size: 0.75rem; font-weight: 400; letter-spacing: normal; line-height: 1.4; }
 #money-view .money-field > :is(.settings-input, .date-input) { width: 100%; min-width: 0; min-height: 44px; height: 44px; box-sizing: border-box; }
 #money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .split-row) > .btn { min-height: 44px; height: auto; }
-#money-view .txn-search-wrap { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); width: 100%; margin: var(--k-space-3, 12px) 0; align-items: end; }
+#money-view .txn-search-wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--k-space-2, 8px); width: 100%; margin: var(--k-space-3, 12px) 0; align-items: end; }
+#money-view #txn-amount-range { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k-space-2, 8px); }
+#money-view :is(#txn-amount-range, #money-management)[hidden] { display: none; }
+#money-view #txn-range-toggle { min-height: 44px; white-space: normal; }
 #money-view .money-field-error { margin: 0 0 var(--k-space-2, 8px); color: var(--k-danger, var(--error)); font-size: 0.8rem; }
 #money-view .money-field-error:empty { display: none; }
 #money-view .money-acct { min-width: 0; flex: 1 1 15rem; }
@@ -5245,10 +5248,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #finance-view .finance-actual-toggle:focus-visible { outline: 2px solid var(--k-focus); outline-offset: 2px; }
 #finance-view .finance-actual-toggle:disabled { color: var(--k-ink-muted, var(--muted)); cursor: wait; }
 
-@media (max-width: 720px) {
-  #money-view .txn-search-wrap { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #money-view .txn-search-wrap .money-field:first-child { grid-column: 1 / -1; }
-}
 
 .days-grid {
   display: grid;
@@ -6319,9 +6318,18 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   #cal-tools[data-open="true"], #cal-tools:focus-within { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); max-height: 40dvh; overflow: auto; min-width: 0; }
   #cal-tools .cal-quick { flex: 1 1 100%; min-width: 0; width: 100%; }
 }
-/* same wrap fix for money — export/import used to clip off the right edge on mobile */
-#money-view .page-view-head { flex-wrap: wrap; row-gap: 0.4rem; }
+#money-view .page-view-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--k-space-2, 8px); }
+#money-view .page-view-head > .page-view-title { grid-column: 1 / -1; }
+#money-view .money-monthnav { margin-left: 0; justify-content: center; }
+#money-view #money-manage-toggle { grid-column: 3; }
+#money-view #money-management { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); justify-content: flex-end; }
+#money-view #money-entry-slot:empty { display: none; }
 #money-view .page-view-head .btn { white-space: nowrap; }
+@media (max-width: 720px) {
+  #money-view #money-entry-slot { grid-column: 1; grid-row: 1; }
+  #money-view #money-manage-toggle { grid-row: 1; }
+  #money-view .money-monthnav { grid-column: 1 / -1; grid-row: 2; }
+}
 /* 5c — calendar view switcher is the shared segmented control, sized a touch larger than seg-sm */
 .seg.seg-cal { display: inline-flex; flex-shrink: 0; }
 .seg.seg-cal .seg-opt { flex: 0 0 auto; padding: 0.26rem 0.7rem; font-size: 0.75rem; letter-spacing: 0.02em; white-space: nowrap; }

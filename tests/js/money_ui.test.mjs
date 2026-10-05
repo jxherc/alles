@@ -41,7 +41,9 @@ test('Money puts transaction entry before dashboard panels and exposes a direct 
   const h = harness();
   h.render();
   const html = h.get('money-body').innerHTML;
-  assert.ok(html.indexOf('money-entry-action') < html.indexOf('money-summary'));
+  assert.match(h.get('money-entry-slot').innerHTML, /btn primary money-entry-action/);
+  assert.doesNotMatch(html, /id="money-entry-action"/);
+  assert.match(html, /id="txn-amount-range" hidden/);
   assert.ok(html.indexOf('money-txns') < html.indexOf('money-grid'));
   assert.match(html, /id="tx-add">add transaction/);
   assert.match(html, /filter transactions/);
