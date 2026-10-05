@@ -327,6 +327,7 @@ function fakeEl(value = '') {
     value,
     dataset: {},
     innerHTML: '',
+    contains: () => false,
     querySelectorAll: () => [],
     addEventListener: () => {},
   };

@@ -128,6 +128,8 @@ COMMANDS = {
     "finance-imports": ("tests/pw_finance_imports.py",),
     "finance-workflows": ("tests/pw_finance_workflows.py",),
     "finance-hierarchy": ("tests/pw_finance_hierarchy.py",),
+    "finance-undo": ("tests/pw_finance_undo.py",),
+    "finance-undo-recovery": ("tests/pw_finance_undo_recovery.py",),
     "action-names": ("tests/pw_action_names.py",),
     "product-clarity": ("tests/pw_clarity.py",),
     "navigation-clarity": ("tests/pw_navigation_clarity.py",),

@@ -26,12 +26,23 @@ def _route_rows():
     return sorted(rows)
 
 
+_FINANCE_ADDITIONS = {
+    "GET /api/money/currencies",
+    "GET /api/money/transactions/{tid}/undo",
+    "POST /api/money/transactions/{tid}/undo",
+}
+
+
+def _before_finance_additions():
+    return [row for row in _route_rows() if row not in _FINANCE_ADDITIONS]
+
+
 class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 914)
-        self.assertEqual(digest, "d2f1e721abc8247f7833cf9af239ae747b0b4d4c015fee4100172582facec6cd")
+        self.assertEqual(len(rows), 917)
+        self.assertEqual(digest, "4f2aec58ae7471a12bf539c5edc571b05a29758b7d2d319000fe094888b25e8b")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -40,12 +51,21 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 897, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 900, "v1": 2, "public": 15})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 
+    def test_finance_currency_and_undo_are_additive_to_previous_surface(self):
+        self.assertTrue(_FINANCE_ADDITIONS <= set(_route_rows()))
+        rows = _before_finance_additions()
+        self.assertEqual(len(rows), 914)
+        self.assertEqual(
+            hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest(),
+            "d2f1e721abc8247f7833cf9af239ae747b0b4d4c015fee4100172582facec6cd",
+        )
+
     def test_result_save_is_additive_to_previous_surface(self):
-        rows = [row for row in _route_rows() if row != "POST /api/read/save-result"]
+        rows = [row for row in _before_finance_additions() if row != "POST /api/read/save-result"]
         self.assertEqual(len(rows), 913)
         self.assertEqual(
             hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest(),
@@ -55,7 +75,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_saved_search_recovery_is_additive_to_previous_surface(self):
         rows = [
             row
-            for row in _route_rows()
+            for row in _before_finance_additions()
             if row
             not in {"GET /api/andromeda/saved/requests/{request_id}", "POST /api/read/save-result"}
         ]
@@ -68,7 +88,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_saved_text_fetch_is_additive_to_the_previous_http_surface(self):
         rows = [
             row
-            for row in _route_rows()
+            for row in _before_finance_additions()
             if row
             not in {
                 "POST /api/read/save-result",
@@ -85,7 +105,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_book_recovery_is_additive_to_the_previous_http_surface(self):
         rows = [
             row
-            for row in _route_rows()
+            for row in _before_finance_additions()
             if row
             not in {
                 "POST /api/read/save-result",
