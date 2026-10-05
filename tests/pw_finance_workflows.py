@@ -230,6 +230,8 @@ def run():
                 if not page.locator("#af-name").is_visible():
                     page.get_by_role("button", name="+ account", exact=True).click()
                 page.locator("#af-name").fill(account_name)
+                page.locator("#af-currency").click()
+                page.get_by_role("option", name="CAD", exact=True).click()
                 for invalid in INVALID_AMOUNTS:
                     invalid_amount(page.locator("#af-open"), page.locator("#af-add"), invalid)
                 page.locator("#af-open").fill("1234.56")
@@ -324,7 +326,7 @@ def run():
                 expect(reconcile_output).to_contain_text("reconciled")
                 statement.fill("1177.79")
                 reconcile_button.click()
-                expect(reconcile_output).to_contain_text("off by $0.01")
+                expect(reconcile_output).to_contain_text("off by CAD\u00a00.01")
                 exact = api(f"/api/money/accounts/{aid}/reconcile?statement=1177.78")
                 assert exact["reconciled"] and exact["difference"] == 0
                 mismatch = api(f"/api/money/accounts/{aid}/reconcile?statement=1177.79")

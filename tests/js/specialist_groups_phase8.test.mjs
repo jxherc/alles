@@ -330,6 +330,21 @@ test('Finance daily balances precede routine ledger setup and keep grouped cents
   assert.equal(ledger.querySelector('.finance-actual-content').hidden, false);
 });
 
+test('Finance overview labels live canonical balances with base and keeps native historical units separate', async () => {
+  const h = financeHarness();
+  await h.render(h.target, async path => ({ ok: true, json: async () => ({
+    '/api/money/accounts': [
+      { name: 'migrated', currency: 'CAD', currency_code: 'USD', balance: 13.5 },
+      { name: 'native', currency: 'CAD', currency_code: 'CAD', balance: 90, balance_by_currency: [{ currency: 'USD', balance: 97 }, { currency: 'XXX', balance: -7 }] },
+    ],
+    '/api/subscriptions?advance=false': { subscriptions: [] },
+    '/api/finance/actual': healthyFinance,
+  })[path] }));
+  const rows = h.target.querySelector('.finance-daily').querySelectorAll('.specialist-group-row');
+  assert.equal(rows[0].children[1].textContent, 'CAD\u00a013.50');
+  assert.equal(rows[1].children[1].textContent, 'USD\u00a097.00 · currency not set\u00a0-7.00');
+});
+
 test('Finance keeps an unhealthy authoritative ledger warning open before daily work', async () => {
   const h = financeHarness();
   const warning = { ...healthyFinance, service: { available: true, installed: true, running: false, healthy: false }, ledger: { mode: 'actual' } };
@@ -505,7 +520,6 @@ test('Finance distinguishes unavailable data and gates apply until review is com
   assert.match(source, /retry import setup/);
   assert.match(source, /if \(!profiles\.length\)/);
   assert.match(source, /const selectedProfile = profiles\.find/);
-  assert.match(source, /item\.currency_code \|\| item\.currency/);
   assert.match(source, /file\.size > 5 \* 1024 \* 1024/);
   assert.match(source, /statement files must be 5 MiB or smaller/);
   assert.match(source, /try \{ receipts = await _json\(request, '\/api\/finance\/imports'\); \}/);

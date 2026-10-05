@@ -105,8 +105,10 @@ class MoneyApiTest(ApiTest):
         self.assertEqual(r.json()["name"], "new")
 
     def test_transfer_creates_two_linked_legs(self):
-        a = self.client.post("/api/money/accounts", json={"name": "src", "opening": 500.0}).json()
-        b = self.client.post("/api/money/accounts", json={"name": "dst"}).json()
+        a = self.client.post(
+            "/api/money/accounts", json={"name": "src", "currency": "CAD", "opening": 500.0}
+        ).json()
+        b = self.client.post("/api/money/accounts", json={"name": "dst", "currency": "CAD"}).json()
         r = self.client.post(
             "/api/money/transfer",
             json={

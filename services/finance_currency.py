@@ -9,6 +9,7 @@ from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from sqlalchemy import inspect
 
 from core.database import Account, MoneyFxEvidence
+from services.money_stats import finite_amount
 
 # Frozen active ISO 4217 legal-tender codes. Explicit codes are unambiguous;
 # shared symbols such as $ and yen/yuan remain review-only below.
@@ -142,6 +143,64 @@ def prepare_account(account) -> None:
     account.opening_fx_rate_text = "1" if known else ""
     account.opening_fx_rate_date = ""
     account.opening_fx_source = "manual_identity" if known else ""
+
+
+def account_currency_edit_reason(account, *, has_saved_amounts: bool) -> str:
+    """A denomination change cannot reinterpret saved amounts or reviewed evidence."""
+    if has_saved_amounts or account.opening or account.low_balance:
+        return "currency is fixed while an account has saved amounts. use a new account for another currency."
+    if account.opening_fx_source not in (None, "", "manual_identity"):
+        return "reviewed opening evidence must be kept. use a new account for another currency."
+    return ""
+
+
+def native_currency_totals(accounts, transactions, month=""):
+    """Separate raw native amounts by their own currency; unknown units stay per account."""
+    by_account = {account.id: {} for account in accounts}
+    account_names = {account.id: account.name for account in accounts}
+    archived = {account.id for account in accounts if account.archived}
+    totals = {}
+
+    def group(account_id, code):
+        code = currency_code(code)
+        key = (code, account_id if code == "XXX" else "")
+        if key not in totals:
+            totals[key] = {
+                "currency": code,
+                "account_id": key[1],
+                "account_name": account_names.get(key[1], "account"),
+                "net_worth": 0.0,
+                "income": 0.0,
+                "expense": 0.0,
+            }
+        return code, totals[key]
+
+    for account in accounts:
+        code, total = group(account.id, account.currency_code or account.currency)
+        opening = finite_amount(account.opening)
+        by_account[account.id][code] = opening
+        if not account.archived:
+            total["net_worth"] += opening
+    for transaction in transactions:
+        # Blank historical row evidence is unknown, even if its account now has a code.
+        code, total = group(transaction.account_id, transaction.original_currency_code)
+        amount = finite_amount(transaction.amount)
+        balance = by_account.setdefault(transaction.account_id, {})
+        balance[code] = balance.get(code, 0.0) + amount
+        if transaction.account_id not in archived:
+            total["net_worth"] += amount
+        if not transaction.transfer_id and (transaction.date or "")[:7] == month:
+            total["income" if amount >= 0 else "expense"] += abs(amount)
+    for total in totals.values():
+        total["net"] = total["income"] - total["expense"]
+        for key in ("net_worth", "income", "expense", "net"):
+            total[key] = round(total[key], 2)
+    return list(totals.values()), {
+        account_id: [
+            {"currency": code, "balance": round(balance, 2)} for code, balance in values.items()
+        ]
+        for account_id, values in by_account.items()
+    }
 
 
 def refresh_account_opening(account) -> None:

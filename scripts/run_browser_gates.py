@@ -116,6 +116,7 @@ COMMANDS = {
     "andromeda-cancellation": ("tests/pw_andromeda_cancellation.py",),
     "andromeda-disabled": ("tests/pw_andromeda_disabled.py",),
     "finance-calendar": ("tests/pw_finance_calendar.py",),
+    "finance-currency": ("tests/pw_finance_currency.py",),
     "health-workflows": ("tests/pw_health_workflows.py",),
     "health-create-recovery": ("tests/pw_health_create_recovery.py",),
     "health-import-recovery": ("tests/pw_health_import_recovery.py",),

@@ -34,6 +34,8 @@ function harness() {
     globalThis.subject = { render, addTxnRow, transferRow, editTxnRow, splitEditorRow,
       _accountForm, _budgetForm, _recurringForm, goalsCard, holdingsCard, reportsCard,
       moneyField, moneySection, toggleMoneySection, fmt, summaryAmount, addTxn, transactionAmountError,
+      _renderTxnMain, accountsList, summaryCards, catChart, trendChart, envelopeCard, networthCard, alertsStrip,
+      setCurrency: (accounts, summary, canonical = false) => { _accounts = accounts; _sum = summary; _canonicalLedger = canonical; _cur = summary.currency; },
       setRecurring: (rows, error = false) => { _recurring = rows; _recurringError = error; } };
   `, context);
   return { ...context.subject, get, requests };
@@ -56,7 +58,7 @@ test('Money custom choices retain a purpose distinct from their selected value',
   for (const [form, labels] of [
     [h.addTxnRow(), ['account', 'type', 'date']],
     [h.transferRow(), ['from account', 'to account', 'date']],
-    [h._accountForm(), ['account type']],
+    [h._accountForm(), ['account type', 'currency']],
     [h._recurringForm(), ['account', 'type', 'repeat', 'next date']],
   ]) {
     for (const label of labels) {
@@ -122,6 +124,38 @@ test('Money summary can wrap its currency prefix while preserving one complete n
   assert.equal(strip(h.summaryAmount(-12345678.9, true)), '−CAD\u00a012,345,678.90');
   assert.equal(strip(h.summaryAmount(0, true)), '+CAD\u00a00.00');
   assert.equal(strip(h.summaryAmount(-12.34)), 'CAD\u00a0-12.34');
+});
+
+test('native rows use historical currency and unknown evidence stays unknown', () => {
+  const h = harness();
+  h.setCurrency([{ id: 'a', name: 'changed account', currency_code: 'CAD' }], { currency: 'CAD' });
+  const row = { id: 'old', account_id: 'a', amount: -10, date: '2026-10-01', payee: 'old' };
+  assert.match(h._renderTxnMain({ ...row, original_currency_code: 'USD' }, { a: 'changed account' }), /−USD\u00a010\.00/);
+  for (const code of ['', 'XXX']) {
+    const html = h._renderTxnMain({ ...row, original_currency_code: code }, { a: 'changed account' });
+    assert.match(html, /−currency not set\u00a010\.00/);
+    assert.doesNotMatch(html, /−CAD/);
+  }
+  h.setCurrency([{ id: 'a', name: 'migrated', currency_code: 'USD', currency: 'CAD', balance: 13.5 }], { currency: 'CAD' }, true);
+  assert.match(h.accountsList(), /CAD\u00a013\.50/);
+  assert.doesNotMatch(h.accountsList(), /USD\u00a013\.50/);
+  assert.match(h._renderTxnMain({ ...row, original_currency_code: 'USD' }, { a: 'migrated' }), /−CAD\u00a010\.00/);
+});
+
+test('mixed-currency summary stays separate and combined analytics cannot present raw sums as a conversion', () => {
+  const h = harness();
+  h.setCurrency([], { currency: 'CAD', currency_status: 'mixed', net_worth: 180, expense: 20,
+    totals_by_currency: ['CAD', 'USD'].map(currency => ({ currency, net_worth: 90, expense: 10, income: 0, net: -10 })) });
+  const strip = html => html.replace(/<[^>]*>/g, '');
+  const html = h.summaryCards();
+  assert.match(html, /mixed currencies/);
+  assert.match(strip(html), /CAD\u00a090\.00/);
+  assert.match(strip(html), /USD\u00a090\.00/);
+  assert.doesNotMatch(strip(html), /CAD\u00a0180\.00|CAD\u00a020\.00/);
+  for (const renderer of [h.catChart, h.trendChart, h.envelopeCard, h.networthCard, h.goalsCard, h.holdingsCard, h.reportsCard]) {
+    assert.match(renderer(), /combined analytics need one known currency/);
+  }
+  assert.equal(h.alertsStrip(), '');
 });
 
 test('Money supporting sections start closed and preserve deliberate expansion through refresh', () => {

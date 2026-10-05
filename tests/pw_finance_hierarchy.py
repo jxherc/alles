@@ -126,7 +126,8 @@ with sync_playwright() as pw:
                 expect(page.locator("#money-body")).to_contain_text("no accounts yet")
                 expect(page.locator("#money-entry-action")).to_have_count(0)
                 assert api.post(
-                    base + "/api/money/accounts", data={"name": "garden budget", "opening": 200}
+                    base + "/api/money/accounts",
+                    data={"name": "garden budget", "currency": "CAD", "opening": 200},
                 ).ok
             page.goto(base + "/?view=money", wait_until="networkidle")
             if zoom:

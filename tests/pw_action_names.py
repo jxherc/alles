@@ -125,8 +125,10 @@ def run():
                     base + "/api/appearance", data=from_legacy(theme, None)
                 ).ok
                 account_name = f'checking & "daily" {label}'
-                account = post("/api/money/accounts", {"name": account_name})
-                savings = post("/api/money/accounts", {"name": "savings " + label})
+                account = post("/api/money/accounts", {"name": account_name, "currency": "CAD"})
+                savings = post(
+                    "/api/money/accounts", {"name": "savings " + label, "currency": "CAD"}
+                )
                 payee = f'R&D "market" {label}'
                 day = date.today().isoformat()
                 txn = post(
@@ -182,7 +184,7 @@ def run():
                     )
                     page.wait_for_function("innerWidth === 640 && devicePixelRatio === 2")
 
-                item = f"{payee}, {day}, −$12.50, {account_name}"
+                item = f"{payee}, {day}, −CAD\u00a012.50, {account_name}"
                 row = page.locator(f'.txn[data-id="{txn["id"]}"]')
                 clear = named(f'[data-clear-txn="{txn["id"]}"]', "cleared: " + item)
                 expect(clear).to_have_attribute("aria-pressed", "false")
@@ -253,7 +255,7 @@ def run():
                     leg = transfer[direction]
                     named(
                         f'.txn[data-id="{leg["id"]}"] [data-del-transfer]',
-                        f"delete transfer (both legs): {leg['payee']}, {day}, {sign}$3.00, {account_label}",
+                        f"delete transfer (both legs): {leg['payee']}, {day}, {sign}CAD\u00a03.00, {account_label}",
                     )
 
                 show_money_sections(page)

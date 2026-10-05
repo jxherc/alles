@@ -7,6 +7,29 @@ from tests._client import ApiTest
 
 
 class FinanceCurrencyFoundationTests(ApiTest):
+    def test_currency_choices_support_explicit_creation_without_rewriting_legacy_records(self):
+        legacy = self.client.post(
+            "/api/money/accounts", json={"name": "legacy symbol", "currency": "$", "opening": 100}
+        ).json()
+        choices = self.client.get("/api/money/currencies")
+        self.assertEqual(choices.status_code, 200)
+        codes = choices.json()["codes"]
+        self.assertIn("CAD", codes)
+        self.assertIn("USD", codes)
+        self.assertNotIn("XXX", codes)
+        self.assertNotIn("$", codes)
+        selected = self.client.post(
+            "/api/money/accounts",
+            json={"name": "explicit dollars", "currency": "USD", "opening": 100},
+        ).json()
+        self.assertEqual(selected["currency_code"], "USD")
+        self.assertEqual(selected["original_opening_text"], "100.0")
+        accounts = self.client.get("/api/money/accounts").json()
+        preserved = next(account for account in accounts if account["id"] == legacy["id"])
+        self.assertEqual(preserved["currency"], "$")
+        self.assertEqual(preserved["currency_code"], "XXX")
+        self.assertEqual(preserved["opening"], 100)
+
     def test_decimal_text_rejects_unbounded_precision_before_fixed_point_formatting(self):
         for value in ("1e1000000000", "1e-1000000000", "12345678901234567890123456789"):
             with (

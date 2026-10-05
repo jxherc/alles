@@ -2,7 +2,7 @@
 // the charts (no chart lib), api() helper for the fetches.
 import { api, toast } from './util.js';
 import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from './dialog.js';
-import { initCustomDropdown, getDropdownValue } from './dropdown.js?v=212';
+import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=212';
 import { initDatePicker, calendarDateParts } from './datepick.js';
 import { calendarDateKey, formatCalendarDate, formatDate, formatNumber } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=1';
@@ -47,6 +47,7 @@ let _searchTimer = null;
 let _searchSequence = 0;
 let _amountRangeOpen = false;
 let _cur = '$';
+let _currencyCodes = [];
 let _inited = false;
 const _expandedMoneySections = new Set();
 let _moneyEntryOpen = false;
@@ -151,8 +152,35 @@ function _shiftMonth(m, delta) {
 function _monthLabel(m) {
   return formatCalendarDate(`${m}-01`, { month: 'long', year: 'numeric' }).toLowerCase();
 }
-const fmt = n => `${_cur}${/^[A-Z]{3}$/.test(_cur) ? '\u00a0' : ''}${formatNumber(Math.round((n || 0) * 100) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const signed = n => (n >= 0 ? '+' : '−') + fmt(Math.abs(n));
+function currencyPrefix(currency = _cur) {
+  return currency === 'XXX' ? 'currency not set\u00a0' : currency + (/^[A-Z]{3}$/.test(currency) ? '\u00a0' : '');
+}
+const fmt = (n, currency = _cur) => `${currencyPrefix(currency)}${formatNumber(Math.round((n || 0) * 100) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const signed = (n, currency = _cur) => (n >= 0 ? '+' : '−') + fmt(Math.abs(n), currency);
+
+function transactionCurrency(transaction) {
+  if (_canonicalLedger) return _cur;
+  return transaction.original_currency_code || 'XXX';
+}
+
+function accountCurrency(account) {
+  return _canonicalLedger ? _cur : account?.currency_code || 'XXX';
+}
+
+function comparableTotals() {
+  return _canonicalLedger || !_sum?.currency_status || _sum.currency_status === 'single';
+}
+
+function currencyBoundary() {
+  return '<p class="money-empty-sm" role="status">combined analytics need one known currency. account balances and transactions stay available below.</p>';
+}
+
+function groupedSummaryAmount(field, showSign = false) {
+  if (comparableTotals()) return summaryAmount(_sum?.[field] || 0, showSign);
+  return (_sum?.totals_by_currency || []).map(row =>
+    `${summaryAmount(row[field], showSign, row.currency)}${row.account_id ? `<span class="ms-label">${esc(row.account_name)}</span>` : ''}`,
+  ).join('<br>');
+}
 
 function moneyField(label, control) {
   const layout = control.match(/ style="([^"]*)"/)?.[1] || '';
@@ -341,7 +369,7 @@ async function load(fetcher = fetch) {
     // Legacy reads post due entries before balances; Actual owns posting after cutover.
     _recurringStatus = '';
     await readRecurring(request);
-    [_accounts, _txns, _budgets, _sum, _rules, _envelope, _aom, _forecast, _nwhist, _holdings, _alerts] = await Promise.all([
+    [_accounts, _txns, _budgets, _sum, _rules, _envelope, _aom, _forecast, _nwhist, _holdings, _alerts, _currencyCodes] = await Promise.all([
       request('/api/money/accounts'),
       request(`/api/money/transactions?month=${_month}`),
       request('/api/money/budgets'),
@@ -353,11 +381,13 @@ async function load(fetcher = fetch) {
       request('/api/money/networth-history?months=6').catch(() => null),
       request('/api/money/holdings').catch(() => null),
       request(`/api/money/alerts?month=${_month}`).catch(() => null),
+      request('/api/money/currencies').then(result => result.codes || []).catch(() => []),
     ]);
     _goals = (await request('/api/money/goals').catch(() => null))?.goals || [];
     _canonicalLedger = _sum?.ledger === 'actual';
     if (_recurringEdit && !_recurring.some(row => row.id === _recurringEdit.id && row.editable)) _recurringEdit = null;
-    _cur = _sum?.currency || (_accounts[0]?.currency) || '$';
+    _cur = (!_canonicalLedger && _sum?.currency_status === 'single' && _sum.totals_by_currency?.[0]?.currency)
+      || _sum?.currency || (_accounts[0]?.currency) || '$';
   } catch {
     $('money-entry-slot').replaceChildren();
     $('money-body').innerHTML = '<div class="money-empty">failed to load</div>';
@@ -416,7 +446,7 @@ function render() {
         <button class="btn money-add-acct" id="money-add-acct">+ account</button></section>
       <section class="money-card money-envelope" data-card="envelope">${envelopeHeading()}${envelopeCard()}</section>
       <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
-      <section class="money-card" data-card="budgets"><h3>spending caps</h3>${budgetsList()}${_budgetForm()}</section>
+      <section class="money-card" data-card="budgets"><h3>spending caps</h3>${comparableTotals() ? budgetsList() + _budgetForm() : currencyBoundary()}</section>
       <section class="money-card" data-card="recurring"><h3 tabindex="-1">recurring</h3><div id="recurring-content"><div id="recurring-list">${recurringList()}</div>${_recurringForm()}</div></section>
     `, _recurringError || _recurring.some(r => r.repair_needed || r.repair_pending || r.posting_pending || r.create_pending || r.create_needs_review || r.edit_pending || r.edit_needs_review || r.delete_pending || r.delete_needs_review) || !!_envelope?.pending_assignments?.length) +
     moneySection('analytics', 'analytics & tools', `
@@ -433,23 +463,24 @@ function render() {
 
 function summaryCards() {
   const s = _sum || {};
-  return `<div class="money-summary">
-    <div class="ms-card"><span class="ms-label">net worth</span><span class="ms-val">${summaryAmount(s.net_worth)}</span></div>
-    <div class="ms-card" id="money-income" data-secondary-total><span class="ms-label">income · this month</span><span class="ms-val pos">${summaryAmount(s.income)}</span></div>
-    <div class="ms-card"><span class="ms-label">spent · this month</span><span class="ms-val neg">${summaryAmount(s.expense)}</span></div>
-    <div class="ms-card" id="money-net" data-secondary-total><span class="ms-label">net</span><span class="ms-val ${s.net >= 0 ? 'pos' : 'neg'}">${summaryAmount(s.net || 0, true)}</span></div>
+  return `${comparableTotals() ? '' : `<p class="money-empty-sm" role="status">${_sum.currency_status === 'mixed' ? 'mixed currencies' : 'currency not set'} · totals stay separate. no conversion has been applied.</p>`}<div class="money-summary">
+    <div class="ms-card"><span class="ms-label">net worth</span><span class="ms-val">${groupedSummaryAmount('net_worth')}</span></div>
+    <div class="ms-card" id="money-income" data-secondary-total><span class="ms-label">income · this month</span><span class="ms-val pos">${groupedSummaryAmount('income')}</span></div>
+    <div class="ms-card"><span class="ms-label">spent · this month</span><span class="ms-val neg">${groupedSummaryAmount('expense')}</span></div>
+    <div class="ms-card" id="money-net" data-secondary-total><span class="ms-label">net</span><span class="ms-val ${s.net >= 0 ? 'pos' : 'neg'}">${groupedSummaryAmount('net', true)}</span></div>
     ${forecastCard()}
   </div>`;
 }
 
-function summaryAmount(n, showSign = false) {
-  const prefix = _cur + (/^[A-Z]{3}$/.test(_cur) ? '\u00a0' : '');
-  const amount = fmt(showSign ? Math.abs(n) : n).slice(prefix.length);
+function summaryAmount(n, showSign = false, currency = _cur) {
+  const prefix = currencyPrefix(currency);
+  const amount = fmt(showSign ? Math.abs(n) : n, currency).slice(prefix.length);
   const sign = showSign ? (n >= 0 ? '+' : '−') : '';
   return `${esc(sign + prefix)}<wbr><span class="ms-number">${esc(amount)}</span>`;
 }
 
 function forecastCard() {
+  if (!comparableTotals()) return `<div class="ms-card" id="money-projection" data-secondary-total><span class="ms-label">projected · month-end</span>${currencyBoundary()}</div>`;
   return `<div class="ms-card" id="money-projection" data-secondary-total data-forecast tabindex="-1"><span class="ms-label">projected · month-end</span>
     ${_forecast ? `<span class="ms-val ${_forecast.projected < 0 ? 'neg' : ''}">${summaryAmount(_forecast.projected)}</span>` : `<span class="ms-unavailable" role="status">${esc(_forecastError)}</span><button type="button" class="btn ms-retry" id="forecast-retry">retry</button>`}</div>`;
 }
@@ -485,6 +516,7 @@ function wireForecast() {
 }
 
 function alertsStrip() {
+  if (!comparableTotals()) return '';
   const a = _alerts;
   if (!a) return '<div class="money-alerts money-history-error">couldn\'t load alerts <button type="button" class="btn" id="alerts-retry">retry</button></div>';
   const items = [];
@@ -517,6 +549,7 @@ function wireAlerts() {
 }
 
 function networthCard() {
+  if (!comparableTotals()) return currencyBoundary();
   if (_nwhist === null) return '<div class="money-empty-sm money-history-error" role="status">couldn\'t load history <button type="button" class="btn" id="nw-history-retry">retry</button></div>';
   const h = _nwhist || [];
   if (h.length < 2) return '<div class="money-empty-sm">not enough history yet</div>';
@@ -551,6 +584,7 @@ function wireNetworthHistory() {
 }
 
 function goalsCard() {
+  if (!comparableTotals()) return currencyBoundary();
   const rows = (_goals || []).map(g => {
     const pct = Math.round((g.progress || 0) * 100);
     const eta = g.eta_months === 0 ? 'reached 🎉' : (g.eta_months != null ? `~${g.eta_months}mo left` : 'set a monthly amount');
@@ -574,6 +608,7 @@ function goalsCard() {
 }
 
 function reportsCard() {
+  if (!comparableTotals()) return currencyBoundary();
   return `<div class="report-form">
       ${moneyField('start date', `<div class="date-input" id="rp-start" data-type="date" data-value="" data-ph="start" style="width:128px"></div>`)}
       ${moneyField('end date', `<div class="date-input" id="rp-end" data-type="date" data-value="" data-ph="end" style="width:128px"></div>`)}
@@ -584,6 +619,7 @@ function reportsCard() {
 }
 
 function holdingsCard() {
+  if (!comparableTotals()) return currencyBoundary();
   const d = _holdings;
   const rows = (d?.holdings || []).map(h => `
     <div class="hold-row" data-id="${h.id}">
@@ -613,8 +649,9 @@ function accountsList() {
       <div class="ma-top"><span class="ma-name">${esc(a.name)}</span>
         <button class="ma-rc" data-rc-acct="${a.id}" aria-label="reconcile ${esc(a.name)} to a statement" title="reconcile to a statement">⚖</button>
         <button class="ma-del" data-del-acct="${a.id}" aria-label="delete account ${esc(a.name)}" title="delete">×</button></div>
-      <div class="ma-bal ${a.balance < 0 ? 'neg' : ''}">${fmt(a.balance)}</div>
-      <div class="ma-kind">${esc(a.kind)}</div>
+      <div class="ma-bal ${a.balance < 0 ? 'neg' : ''}">${(!_canonicalLedger && a.balance_by_currency?.length ? a.balance_by_currency : [{ currency: accountCurrency(a), balance: a.balance }]).map(row => esc(fmt(row.balance, row.currency))).join('<br>')}</div>
+      <div class="ma-kind">${esc(a.kind)} · ${esc(accountCurrency(a))}</div>
+      ${_canonicalLedger ? '' : `<button type="button" class="btn" data-currency-acct="${a.id}"${a.currency_edit_reason ? ' disabled' : ''}>change currency</button>${a.currency_edit_reason ? `<p class="money-empty-sm">${esc(a.currency_edit_reason)}</p>` : ''}<p id="acct-currency-status-${a.id}" class="money-field-error" role="status"></p>`}
       <div class="rc-panel" id="rc-panel-${a.id}" style="display:none">
         ${moneyField('statement balance', `<input type="text" class="settings-input" id="rc-stmt-${a.id}" placeholder="statement balance" inputmode="decimal">`)}
         <button class="btn" data-rc-run="${a.id}">check</button>
@@ -624,6 +661,7 @@ function accountsList() {
 }
 
 function catChart() {
+  if (!comparableTotals()) return currencyBoundary();
   const cats = (_sum?.by_category || []).slice(0, 8);
   if (!cats.length) return '<div class="money-empty-sm">no spending this month</div>';
   const max = Math.max(...cats.map(c => c[1])) || 1;
@@ -636,6 +674,7 @@ function catChart() {
 }
 
 function trendChart() {
+  if (!comparableTotals()) return currencyBoundary();
   const t = _sum?.trend || [];
   if (!t.length) return '<div class="money-empty-sm">no data</div>';
   const max = Math.max(1, ...t.map(m => Math.max(m.income, m.expense)));
@@ -655,6 +694,7 @@ function trendChart() {
 }
 
 function ageOfMoneyStatus() {
+  if (!comparableTotals()) return '';
   if (!_aom) return '<span class="aom aom-error">couldn\'t load age of money <button type="button" class="btn" id="age-retry">retry</button></span>';
   if (_aom.age == null) return '<span class="aom aom-empty">age of money: not enough data</span>';
   return `<span class="aom" title="days between income arriving and being spent">age of money: ${esc(_aom.age)}d</span>`;
@@ -665,6 +705,7 @@ function envelopeHeading() {
 }
 
 function envelopeCard() {
+  if (!comparableTotals()) return currencyBoundary();
   const e = _envelope;
   if (!e) return _canonicalLedger
     ? `<div class="money-empty-sm" role="status">couldn't load Actual's budget month <button type="button" class="btn" id="env-retry">retry</button></div>`
@@ -781,7 +822,7 @@ function recurringList() {
   return `${status}<div class="recurs">` + _recurring.map(r => `
     <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending || r.create_pending || r.edit_pending || r.delete_pending || (_canonicalLedger && r.editable) ? '' : 'paused'}">
       <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
-      <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? 'range' : 'varies') : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount)}`}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
+      <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? 'range' : 'varies') : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount, accountCurrency(_accounts.find(a => a.id === r.account_id)))}`}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
       <span class="rc-next" title="${r.create_pending ? 'creation pending' : r.edit_pending ? 'edit pending' : r.delete_pending ? 'deletion pending' : r.next_date ? `next post ${esc(r.next_date)}` : 'next date unavailable'}">${r.create_pending || r.edit_pending || r.delete_pending ? 'pending' : r.active ? (r.next_date ? esc(r.next_date.slice(5)) : 'unknown') : (_canonicalLedger ? 'inactive' : 'paused')}</span>
       ${_canonicalLedger && r.manageable && !r.edit_pending && _recurringEdit?.id !== r.id ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? `retry ${r.posting_target_active ? 'resume' : 'pause'}` : r.active ? 'pause' : 'resume'}</button>` : ''}
       ${_canonicalLedger && r.editable ? `<button type="button" class="btn rc-edit" data-edit-rec="${esc(r.id)}" aria-label="edit ${esc(r.payee || 'recurring')} schedule" aria-expanded="${_recurringEdit?.id === r.id}" ${_recurringEdit?.id === r.id && _recurringEdit.options ? 'aria-controls="rce-panel"' : ''} ${_recurringEdit && (_recurringEdit.id !== r.id || _recurringEdit.saving) ? 'disabled' : ''}>edit</button>` : ''}
@@ -873,7 +914,8 @@ function _renderTxnMain(t, an) {
   const tags = (t.tags || '').split(',').filter(Boolean)
     .map(tg => `<button type="button" class="tx-tag" data-tag="${esc(tg)}" aria-label="filter by ${esc(tg)}">${esc(tg)}</button>`).join('');
   const canSplit = (t.amount || 0) < 0;  // only an expense divides across categories (matches the api)
-  const label = esc(`${t.payee || 'transaction'}, ${t.date || 'undated'}, ${signed(t.amount)}, ${an[t.account_id] || 'account'}`);
+  const currency = transactionCurrency(t);
+  const label = esc(`${t.payee || 'transaction'}, ${t.date || 'undated'}, ${signed(t.amount, currency)}, ${an[t.account_id] || 'account'}`);
   const actions = xf ? '' : `<span class="tx-actions">
     <button type="button" class="tx-edit" data-edit-txn="${t.id}" aria-label="edit ${label}">edit</button>
     <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" aria-label="cleared: ${label}" aria-pressed="${!!t.cleared}" title="${t.cleared ? 'mark uncleared' : 'mark cleared'}">${t.cleared ? '✓' : '○'}</button>
@@ -889,7 +931,7 @@ function _renderTxnMain(t, an) {
       <span class="tx-cat">${xf ? '⇄ transfer' : (t.category ? esc(t.category) : '')}</span>
       ${xf ? '' : `<span class="tx-tags">${tags}</span>`}
       <span class="tx-acct">${esc(an[t.account_id] || '')}</span>
-      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount)}</span>
+      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount, currency)}</span>
       ${actions}
       ${xf
         ? `<button class="tx-del" data-del-transfer="${t.transfer_id}" aria-label="delete transfer (both legs): ${label}" title="delete transfer (both legs)">×</button>`
@@ -905,7 +947,7 @@ function splitEditorRow(t) {
       <button class="btn split-row-del" data-i="${i}" aria-label="remove split row ${i + 1}" title="remove">×</button>
     </div>`).join('');
   return `<div class="txn-split-editor" data-id="${t.id}">
-    <div class="split-head">split ${fmt(Math.abs(t.amount || 0))} across categories</div>
+    <div class="split-head">split ${fmt(Math.abs(t.amount || 0), transactionCurrency(t))} across categories</div>
     ${rows}
     <div class="split-actions">
       <button class="btn" id="split-add-row">+ row</button>
@@ -935,10 +977,11 @@ function _accountForm() {
   return `<div class="acct-form" id="acct-form">
     ${moneyField('account name', `<input type="text" id="af-name" class="settings-input" placeholder="account name (e.g. checking)" style="flex:1;min-width:150px">`)}
     ${moneyField('account type', `<div class="settings-input custom-select" id="af-kind" data-value="checking" data-options="checking|checking;savings|savings;cash|cash;credit|credit card;investment|investment" style="width:150px"></div>`)}
+    ${moneyField('currency', `<div class="settings-input custom-select" id="af-currency" data-value="" data-options="|choose currency;${_currencyCodes.map(code => `${code}|${code}`).join(';')}" aria-describedby="af-currency-error" style="width:150px"></div>`)}
     ${moneyField('opening balance', `<input type="text" id="af-open" class="settings-input" placeholder="opening balance" inputmode="decimal" style="width:140px">`)}
     ${moneyField('low balance alert (0 = off)', `<input type="text" id="af-low" class="settings-input" placeholder="low-bal alert" inputmode="decimal" style="width:110px" title="alert when balance drops below this (0 = off)">`)}
     <button class="btn primary" id="af-add">add account</button>
-  </div>`;
+  </div><p id="af-currency-error" class="money-field-error" role="status">${_currencyCodes.length ? '' : 'currency choices could not be loaded.'}</p>${_currencyCodes.length ? '' : '<button type="button" class="btn" id="af-currency-retry">retry currency choices</button>'}`;
 }
 function _budgetForm() {
   return `<div class="budget-form">
@@ -958,6 +1001,32 @@ function _initControls() {
 function _wireAccountForm() {
   _initControls();
   $('af-add')?.addEventListener('click', addAccount);
+  $('af-currency-retry')?.addEventListener('click', retryCurrencyChoices);
+  $('af-currency')?.addEventListener('change', () => {
+    if (!_currencyCodes.includes(getDropdownValue($('af-currency')))) return;
+    $('af-currency-error').textContent = '';
+    $('af-currency').removeAttribute('aria-invalid');
+  });
+}
+
+async function retryCurrencyChoices() {
+  const control = $('af-currency'), button = $('af-currency-retry');
+  if (!control || !button) return;
+  const ownedFocus = document.activeElement === button;
+  button.disabled = true;
+  try {
+    const result = await api('/api/money/currencies');
+    if (control !== $('af-currency')) return;
+    _currencyCodes = result.codes || [];
+    if (!_currencyCodes.length) throw new Error('currency choices unavailable');
+    populateDropdown(control, [{ value: '', label: 'choose currency' }, ..._currencyCodes.map(value => ({ value, label: value }))], '');
+    control.removeAttribute('aria-invalid');
+    $('af-currency-error').textContent = '';
+    button.remove();
+    if (ownedFocus && (document.activeElement === button || document.activeElement === document.body)) control.focus();
+  } catch {
+    if (control === $('af-currency')) $('af-currency-error').textContent = 'currency choices could not be loaded. retry.';
+  } finally { button.disabled = false; }
 }
 function wire() {
   _initControls();
@@ -985,8 +1054,7 @@ function wire() {
     const wrap = $('money-acct-form-wrap');
     if (wrap.innerHTML) { wrap.innerHTML = ''; return; }
     wrap.innerHTML = _accountForm();
-    _initControls();
-    $('af-add')?.addEventListener('click', addAccount);
+    _wireAccountForm();
     $('af-name')?.focus();
   });
   $('bf-add')?.addEventListener('click', addBudget);
@@ -1015,6 +1083,7 @@ function wire() {
   }));
   _wireTxnRows();
   $('money-body').querySelectorAll('[data-del-acct]').forEach(b => b.addEventListener('click', () => delAccount(b.dataset.delAcct)));
+  $('money-body').querySelectorAll('[data-currency-acct]').forEach(b => b.addEventListener('click', () => editAccountCurrency(b.dataset.currencyAcct)));
   $('money-body').querySelectorAll('[data-rc-acct]').forEach(b => b.addEventListener('click', () => toggleReconcile(b.dataset.rcAcct)));
   $('money-body').querySelectorAll('[data-rc-run]').forEach(b => b.addEventListener('click', () => runReconcile(b.dataset.rcRun)));
   $('money-body').querySelectorAll('[data-del-budget]').forEach(b => b.addEventListener('click', () => delBudget(b.dataset.delBudget)));
@@ -1308,9 +1377,17 @@ async function addAccount() {
   const opening = _decimal($('af-open')?.value, 0);
   const low_balance = _decimal($('af-low')?.value, 0);
   if (!_validAmounts(opening, low_balance)) return;
+  const currency = getDropdownValue($('af-currency'));
+  if (!_currencyCodes.includes(currency)) {
+    const error = $('af-currency-error');
+    if (error) error.textContent = _currencyCodes.length ? 'choose a currency for this account.' : 'currency choices could not be loaded. retry.';
+    $('af-currency')?.setAttribute?.('aria-invalid', 'true');
+    $('af-currency')?.focus?.();
+    return;
+  }
   let requestId = '';
   try {
-    const accountPayload = { name, kind: getDropdownValue($('af-kind')), opening, low_balance };
+    const accountPayload = { name, kind: getDropdownValue($('af-kind')), currency, opening, low_balance };
     requestId = await _createRequestId('account', accountPayload);
     accountPayload.request_id = requestId;
     await api('/api/money/accounts', { method: 'POST', body: accountPayload });
@@ -1495,9 +1572,9 @@ async function doTransfer() {
     _completeCreateRequest('transfer', requestId);
     toast('transferred', 'success');
     await load();
-  } catch {
+  } catch (error) {
     if (requestId) _releaseCreateRequest('transfer', requestId);
-    toast('transfer failed', 'error');
+    toast(error.message || 'transfer failed', 'error');
   }
 }
 async function delTransfer(tid) {
@@ -1513,14 +1590,38 @@ async function saveTxn(id) {
   if (!_validAmounts(amtRaw)) return;
   if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
   const sign = getDropdownValue(f('sign')) === '+' ? 1 : -1;
+  const existing = (_searchResults || _txns).find(transaction => transaction.id === id);
+  const payload = {
+    account_id: getDropdownValue(f('account_id')), date: f('date')?.dataset.value || _today(),
+    amount: sign * amtRaw, category: f('category').value.trim(), payee: f('payee').value.trim(),
+  };
+  if (existing) {
+    if (payload.account_id === existing.account_id) delete payload.account_id;
+    if (payload.amount === existing.amount) delete payload.amount;
+  }
   try {
-    await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: {
-      account_id: getDropdownValue(f('account_id')), date: f('date')?.dataset.value || _today(),
-      amount: sign * amtRaw, category: f('category').value.trim(), payee: f('payee').value.trim(),
-    } });
+    await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: payload });
     _editTxn = null;
     await load();
   } catch { toast('save failed', 'error'); }
+}
+
+async function editAccountCurrency(id) {
+  const account = _accounts.find(row => row.id === id);
+  if (!account || _canonicalLedger || account.currency_edit_reason) return;
+  const status = $(`acct-currency-status-${id}`);
+  if (!_currencyCodes.length) { status.textContent = 'currency choices could not be loaded. reload Finance to retry.'; return; }
+  const selected = await dlgChoose(`currency for ${account.name}`, _currencyCodes.map(value => ({ value, label: value })));
+  if (selected === null || selected === account.currency_code) return;
+  const button = document.querySelector(`[data-currency-acct="${CSS.escape(id)}"]`);
+  if (!button || !_currencyCodes.includes(selected)) return;
+  button.disabled = true;
+  try {
+    await api(`/api/money/accounts/${id}`, { method: 'PATCH', body: { currency: selected } });
+    await load();
+    document.querySelector(`[data-currency-acct="${CSS.escape(id)}"]`)?.focus();
+  } catch (error) { status.textContent = error.message || 'currency could not be saved. try again.'; }
+  finally { button.disabled = false; }
 }
 async function addGoal() {
   const name = $('gl-name')?.value.trim();
