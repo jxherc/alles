@@ -76,7 +76,11 @@ function _initActionMenu(triggerId, menuId) {
     for (const item of menu.querySelectorAll('[role="menuitem"]')) item.setAttribute('aria-disabled', String(!!item.disabled));
     _closeActionMenus();
     trigger.setAttribute('aria-expanded', 'true');
+    menu.style.transform = '';
     controller.open({ source: trigger });
+    const bounds = menu.getBoundingClientRect();
+    const shift = Math.max(0, -bounds.left) + Math.min(0, window.innerWidth - bounds.right);
+    menu.style.transform = `translateX(${shift}px)`;
   };
   trigger.addEventListener('click', () => {
     if (menu.hidden) open();
@@ -746,10 +750,12 @@ function _setMacPhotosButton(status = _macPhotosStatus) {
     const progress = job.total ? ` ${job.processed || 0}/${job.total}` : '';
     btn.innerHTML = `${_si('image')} importing${progress}`;
     btn.disabled = true;
+    btn.setAttribute('aria-disabled', 'true');
     return;
   }
   btn.innerHTML = `${_si('image')} ${status.available ? 'apple photos' : 'photos setup'}`;
   btn.disabled = !status.available;
+  btn.setAttribute('aria-disabled', String(btn.disabled));
   btn.title = status.reason || 'import from Apple Photos';
 }
 
@@ -780,6 +786,7 @@ async function _startMacPhotosSync() {
   const btn = $('photos-macos-btn');
   if (btn) {
     btn.disabled = true;
+    btn.setAttribute('aria-disabled', 'true');
     btn.innerHTML = `${_si('image')} requesting access…`;
   }
   try {
