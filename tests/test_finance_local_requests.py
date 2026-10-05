@@ -22,12 +22,12 @@ from tests._client import ApiTest
 class FinanceLocalRequestTests(ApiTest):
     def setUp(self):
         super().setUp()
-        self.a = self.client.post("/api/money/accounts", json={"name": "A", "opening": 100}).json()[
-            "id"
-        ]
-        self.b = self.client.post("/api/money/accounts", json={"name": "B", "opening": 50}).json()[
-            "id"
-        ]
+        self.a = self.client.post(
+            "/api/money/accounts", json={"name": "A", "currency": "CAD", "opening": 100}
+        ).json()["id"]
+        self.b = self.client.post(
+            "/api/money/accounts", json={"name": "B", "currency": "CAD", "opening": 50}
+        ).json()["id"]
 
     def cases(self):
         return [
@@ -85,7 +85,11 @@ class FinanceLocalRequestTests(ApiTest):
             self.assertEqual(db.query(FinanceCreateReceipt).one().response_json, "null")
 
     def test_account_deletion_forgets_content_in_all_affected_receipts(self):
-        account_body = {"name": "private account", "request_id": str(uuid.uuid4())}
+        account_body = {
+            "name": "private account",
+            "currency": "CAD",
+            "request_id": str(uuid.uuid4()),
+        }
         account = self.client.post("/api/money/accounts", json=account_body).json()
         transaction_body = self.cases()[1][1] | {
             "account_id": account["id"],
