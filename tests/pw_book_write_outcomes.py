@@ -23,10 +23,12 @@ with sync_playwright() as pw:
                 "**/*",
                 lambda route: (
                     route.continue_()
-                    if urlparse(route.request.url).netloc == urlparse(base).netloc
+                    if (urlparse(route.request.url).scheme, urlparse(route.request.url).netloc)
+                    == (urlparse(base).scheme, urlparse(base).netloc)
                     else route.abort()
                 ),
             )
+            context.route_web_socket("**/*", lambda ws: ws.close())
             api = context.request
             assert api.post(base + "/api/setup/dismiss").ok
             result = api.post(
