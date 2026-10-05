@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=434">
+<link rel="stylesheet" href="/static/style.css?v=435">
   <link rel="stylesheet" href="/static/kokuen.css?v=27">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -772,14 +772,14 @@
       </div>
       <div class="page-view-body" id="subs-list"></div>
       <div class="page-view-footer" style="flex-wrap:wrap;gap:0.4rem">
-        <p id="sub-required" class="specialist-group-note" style="flex-basis:100%;margin:0">name and next billing date are required.</p>
+        <p id="sub-required" aria-live="polite" class="specialist-group-note" style="flex-basis:100%;margin:0">enter a name and choose the next billing date.</p>
         <input type="text" id="sub-name" aria-label="subscription name" aria-required="true" aria-describedby="sub-required" class="settings-input" placeholder="name (e.g. netflix)" style="flex:2;min-width:130px">
         <input type="text" id="sub-price" class="settings-input" placeholder="price" style="width:75px" inputmode="decimal">
         <div id="sub-cycle" class="settings-input custom-select" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly;custom|custom days" style="width:auto;min-width:110px"></div>
         <input type="text" id="sub-cycle-days" class="settings-input" placeholder="days" style="width:60px;display:none" inputmode="numeric">
         <div class="date-input" id="sub-due" data-type="date" data-ph="next billing date" aria-label="next billing date (required)" aria-describedby="sub-required" style="width:170px"></div>
         <input type="text" id="sub-category" class="settings-input" placeholder="category" style="width:105px">
-        <button type="button" class="btn primary" id="sub-add-btn">add</button>
+        <button type="button" class="btn primary" id="sub-add-btn" aria-describedby="sub-required" disabled>add</button>
         <div id="sub-create-status" class="specialist-group-note" hidden></div>
       </div>
     </div>
@@ -2900,7 +2900,7 @@
 </div>
 
 <script type="module">
-const _v = '434';
+const _v = '435';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
