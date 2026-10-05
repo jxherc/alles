@@ -18,7 +18,7 @@ import { openSearch, closeSearch, initSearch } from './search.js';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
 import { loadVaultView, initVault } from './vault.js?v=282';
 import { loadContacts, addContact } from './contacts.js';
-import { loadFiles, initFiles } from './filesphase7.js?v=273';
+import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=273';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
@@ -660,6 +660,7 @@ const _VIEW_IDS = [
 ];
 
 function hideAllViews() {
+  closeFilesDialogs();
   closeAideRun({ clearTarget: false, restoreFocus: false });
   _VIEW_IDS.forEach(id => {
     const el = document.getElementById(id);
@@ -1661,7 +1662,6 @@ function bindEvents() {
   document.getElementById('aide-model-choice')?.addEventListener('click', openModelModal);
   document.getElementById('composer-choose-model')?.addEventListener('click', openModelModal);
   document.getElementById('topbar-settings-btn')?.addEventListener('click', openSettings);
-  document.getElementById('files-settings-btn')?.addEventListener('click', () => openSettings());
   const aideToolsButton = document.getElementById('aide-tools-link');
   const aideToolsMenu = document.getElementById('aide-sidebar-menu');
   aideToolsButton?.addEventListener('click', event => {

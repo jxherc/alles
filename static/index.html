@@ -28,8 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=430">
-  <link rel="stylesheet" href="/static/kokuen.css?v=26">
+<link rel="stylesheet" href="/static/style.css?v=431">
+  <link rel="stylesheet" href="/static/kokuen.css?v=27">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#090909">
@@ -1107,14 +1107,14 @@
           <span class="files-phase7-app-status" id="files-app-status" role="status" aria-live="polite"></span>
         </div>
         <div class="files-phase7-app-actions">
-          <button class="files-text-button" id="files-settings-btn" type="button">settings</button>
+          <button class="files-text-button" id="files-settings-btn" type="button" aria-haspopup="dialog">location settings</button>
         </div>
       </header>
       <div class="files-phase7-workbench">
         <aside class="files-phase7-location-panel" aria-label="storage locations">
           <div class="files-phase7-panel-head">
-            <span>locations</span>
-            <button class="files-text-button" id="files-add-location" type="button">add</button>
+            <span id="files-locations-label">locations</span>
+            <button class="files-text-button" id="files-add-location" type="button">add location</button>
           </div>
           <div class="files-phase7-location-list" id="files-location-list"></div>
           <nav class="files-phase7-views" aria-label="file views">
@@ -1123,7 +1123,6 @@
             <button class="files-view-button" data-files-view="offline" type="button">available offline</button>
             <button class="files-view-button" data-files-view="trash" type="button">recently deleted</button>
           </nav>
-          <div class="files-phase7-location-foot" id="files-location-status" aria-live="polite"></div>
         </aside>
 
         <section class="files-phase7-browser" id="files-browser" aria-label="files browser">
@@ -1131,7 +1130,7 @@
             <div class="files-phase7-actions">
               <input type="search" id="files-search" autocomplete="off" placeholder="search files" aria-label="search files">
               <button class="files-text-button" id="files-mkdir-btn" type="button">new folder</button>
-              <button class="files-text-button" id="files-upload-btn" type="button">upload</button>
+              <button class="files-text-button files-primary-action" id="files-upload-btn" type="button">upload</button>
               <input type="file" id="files-upload-input" multiple hidden>
             </div>
           </header>
@@ -1172,6 +1171,29 @@
         </div>
         <div id="files-operation-list" aria-live="polite"></div>
       </section>
+
+      <div class="files-phase7-dialog-layer" id="files-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="files-settings-title" hidden>
+        <div class="files-phase7-dialog">
+          <div class="files-phase7-dialog-head">
+            <h2 id="files-settings-title">location settings</h2>
+            <button class="files-bare-icon" data-files-dialog-close="settings" type="button" aria-label="close location settings">×</button>
+          </div>
+          <div class="files-location-settings" id="files-location-status">
+            <strong id="files-current-location-name"></strong>
+            <div id="files-current-location-path"></div>
+            <div id="files-current-location-access"></div>
+            <div id="files-location-message" role="status" aria-live="polite"></div>
+            <div class="files-location-index-state" role="status" aria-live="polite"></div>
+            <div id="files-index-help">Index readable text for search without changing your files. Local filename search works without an index.</div>
+            <div class="files-location-controls">
+              <button class="files-text-button" type="button" data-location-action="test">test connection</button>
+              <button class="files-text-button" type="button" data-location-action="index" aria-describedby="files-index-help">index for search</button>
+              <button class="files-text-button" type="button" data-location-action="access" hidden>change access</button>
+              <button class="files-text-button files-danger" type="button" data-location-action="remove" hidden>remove location</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="files-phase7-dialog-layer" id="files-location-dialog" role="dialog" aria-modal="true" aria-labelledby="files-location-dialog-title" hidden>
         <form class="files-phase7-dialog" id="files-location-form">
@@ -2874,7 +2896,7 @@
 </div>
 
 <script type="module">
-const _v = '430';
+const _v = '431';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

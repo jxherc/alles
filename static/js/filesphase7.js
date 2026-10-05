@@ -47,6 +47,7 @@ let indexPoll = 0;
 const indexRevision = new Map();
 let filesRetry = null;
 const dialogReturnFocus = new Map();
+const dialogBackground = new Map();
 
 function icon(name) {
   if (window.icon) return window.icon(name);
@@ -164,6 +165,8 @@ async function loadLocations(fetcher = fetch) {
 function renderLocations() {
   const host = $('files-location-list');
   if (!host) return;
+  host.hidden = state.locations.length < 2;
+  if ($('files-locations-label')) $('files-locations-label').hidden = host.hidden;
   host.innerHTML = state.locations.map(location => `
     <button class="files-location-button${location.id === state.locationId ? ' is-active' : ''}"
       type="button" data-location-id="${esc(location.id)}" aria-pressed="${location.id === state.locationId}">
@@ -191,21 +194,34 @@ function renderAppStatus(location, index) {
     host.textContent = 'indexing failed';
     return;
   }
-  const kind = location.kind === 'local' ? 'local' : location.kind.toUpperCase();
-  host.textContent = `${kind} · ${location.access === 'managed' ? 'managed' : 'read only'}`;
+  host.textContent = location.access === 'managed' ? '' : 'read only';
 }
 
-function renderLocationStatus(message = '') {
+function renderLocationStatus(message) {
   const host = $('files-location-status');
   const location = currentLocation();
   if (!location) {
     renderAppStatus(null, { state: 'idle' });
-    if (host) host.textContent = '';
+    if (host) host.hidden = true;
+    if ($('files-settings-btn')) $('files-settings-btn').disabled = true;
     return;
   }
   const index = state.indexStatus.get(location.id) || { state: 'idle', files_indexed: 0 };
   renderAppStatus(location, index);
   if (!host) return;
+  host.hidden = false;
+  $('files-settings-btn').disabled = false;
+  const notice = $('files-location-message');
+  if (host.dataset.locationId !== location.id) notice.textContent = '';
+  host.dataset.locationId = location.id;
+  if (message !== undefined) notice.textContent = message;
+  $('files-current-location-name').textContent = location.name;
+  $('files-current-location-path').textContent = locationLabel(location);
+  const kind = location.kind === 'local' ? 'local folder' : location.kind.toUpperCase();
+  $('files-current-location-access').textContent = `${kind} · ${location.access === 'managed' ? 'changes allowed' : 'read only'}`;
+  $('files-index-help').textContent = location.kind === 'local'
+    ? 'Index readable text for search without changing your files. Local filename search works without an index.'
+    : 'Index readable text to search this location. Refresh the index after changing files.';
   const indexing = ['queued', 'running'].includes(index.state);
   const indexCopy = indexing
     ? `indexing${index.files_indexed ? ` · ${index.files_indexed} files` : ''}`
@@ -214,15 +230,17 @@ function renderLocationStatus(message = '') {
       : index.state === 'error'
         ? (index.error || 'indexing failed')
         : 'not indexed yet';
-  host.innerHTML = `
-    <div>${esc(message || locationLabel(location))}</div>
-    <div class="files-location-index-state">${esc(indexCopy)}</div>
-    <div>
-      <button class="files-text-button" type="button" data-location-action="test">test</button>
-      <button class="files-text-button" type="button" data-location-action="index"${indexing ? ' disabled' : ''}>${index.state === 'completed' ? 'reindex' : 'index'}</button>
-      ${location.is_default ? '' : '<button class="files-text-button" type="button" data-location-action="access">change access</button>'}
-      ${location.is_default ? '' : '<button class="files-text-button files-danger" type="button" data-location-action="remove">remove</button>'}
-    </div>`;
+  host.querySelector('.files-location-index-state').textContent = indexCopy;
+  const indexButton = host.querySelector('[data-location-action="index"]');
+  if (indexing && document.activeElement === indexButton) {
+    $('files-settings-dialog').querySelector('[data-files-dialog-close]').focus();
+  }
+  indexButton.disabled = indexing;
+  indexButton.textContent = index.state === 'completed' ? 'refresh search index' : 'index for search';
+  const access = host.querySelector('[data-location-action="access"]');
+  access.hidden = location.is_default;
+  access.textContent = location.access === 'managed' ? 'make read only' : 'allow changes';
+  host.querySelector('[data-location-action="remove"]').hidden = location.is_default;
 }
 
 async function loadIndexStatus(requestedLocationId = state.locationId, fetcher = fetch) {
@@ -236,6 +254,8 @@ async function loadIndexStatus(requestedLocationId = state.locationId, fetcher =
       fetcher,
     );
     if (locationId !== state.locationId || revision !== (indexRevision.get(locationId) || 0)) return;
+    // An idle server has not resolved a failed start; keep the error until retry or progress.
+    if (state.indexStatus.get(locationId)?.state === 'error' && status.state === 'idle') return;
     state.indexStatus.set(locationId, status);
     renderLocationStatus();
     if (['queued', 'running'].includes(status.state)) scheduleIndexPoll(locationId);
@@ -284,7 +304,7 @@ async function startIndexing() {
       state: 'error',
       error: error.message,
     });
-    renderLocationStatus(error.message);
+    renderLocationStatus();
   }
 }
 
@@ -1421,6 +1441,7 @@ async function removeLocation() {
       await loadLocations();
       return;
     }
+    closeDialog('settings');
     state.locationId = '';
     state.cwd = '';
     await loadLocations();
@@ -1440,6 +1461,16 @@ function openFilesDialog(name, focusSelector) {
   if (!dialog) return;
   dialogReturnFocus.set(name, document.activeElement);
   dialog.hidden = false;
+  const background = [];
+  for (let branch = dialog; branch.parentElement; branch = branch.parentElement) {
+    for (const sibling of branch.parentElement.children) {
+      if (sibling === branch || sibling.inert) continue;
+      background.push(sibling);
+      sibling.inert = true;
+    }
+    if (branch.parentElement === document.body) break;
+  }
+  dialogBackground.set(name, background);
   (dialog.querySelector(focusSelector) || dialogFocusables(dialog)[0])?.focus();
 }
 
@@ -1458,11 +1489,18 @@ function trapFilesDialogFocus(event, dialog) {
   }
 }
 
-function closeDialog(name) {
+function closeDialog(name, restoreFocus = true) {
   const dialog = $(`files-${name}-dialog`);
-  if (dialog) dialog.hidden = true;
-  dialogReturnFocus.get(name)?.focus?.();
+  if (!dialog || dialog.hidden) return;
+  dialog.hidden = true;
+  dialogBackground.get(name)?.forEach(element => { element.inert = false; });
+  dialogBackground.delete(name);
+  if (restoreFocus) dialogReturnFocus.get(name)?.focus?.();
   dialogReturnFocus.delete(name);
+}
+
+export function closeFilesDialogs() {
+  for (const name of [...dialogReturnFocus.keys()].reverse()) closeDialog(name, false);
 }
 
 async function searchFiles(term) {
@@ -1709,6 +1747,10 @@ function wireChoiceGroup(host, onChange) {
 }
 
 function bindEvents() {
+  $('files-settings-btn')?.addEventListener('click', () => {
+    renderLocationStatus();
+    openFilesDialog('settings', '[data-files-dialog-close]');
+  });
   $('files-add-location')?.addEventListener('click', openLocationDialog);
   $('files-location-list')?.addEventListener('click', async event => {
     const button = event.target.closest('[data-location-id]');
@@ -1871,12 +1913,13 @@ function bindEvents() {
   wireChoiceGroup($('files-vault-workflow'), resetVaultReview);
   wireChoiceGroup($('files-transfer-locations'));
   document.addEventListener('keydown', event => {
+    if (event.defaultPrevented || event.target.closest?.('.dialog-overlay')) return;
     const previewModal = $('files-preview-modal');
     if (previewModal?.style.display !== 'none' && event.key === 'Tab') {
       trapFilesDialogFocus(event, previewModal);
       return;
     }
-    const openDialog = ['transfer', 'location']
+    const openDialog = ['transfer', 'location', 'settings']
       .map(name => $(`files-${name}-dialog`))
       .find(dialog => dialog && !dialog.hidden);
     if (openDialog && event.key === 'Tab') {
@@ -1887,6 +1930,7 @@ function bindEvents() {
     if (previewModal?.style.display !== 'none') closePreview();
     else if (!$('files-transfer-dialog')?.hidden) closeDialog('transfer');
     else if (!$('files-location-dialog')?.hidden) closeDialog('location');
+    else if (!$('files-settings-dialog')?.hidden) closeDialog('settings');
     else if (!$('files-detail-panel')?.hidden) closeDetails();
   });
 }
