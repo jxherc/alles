@@ -8609,7 +8609,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 
 /* ── books (reading list) ─────────────────────────────────────────────────────── */
 #books-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }
-.books-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
+.books-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
 .books-summary { font-size: 0.78rem; color: var(--muted); }
 .books-bar { display: flex; align-items: center; gap: 0.9rem; }
 .books-bar .books-summary { flex: 0 0 auto; }
@@ -8655,6 +8655,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-notes-error { color: var(--error); font-size: 0.8rem; line-height: 1.45; }
 .book-notes-edit textarea { width: 100%; resize: vertical; }
 .book-notes-actions { display: flex; gap: 0.3rem; margin-top: 0.3rem; }
+.book-undo-actions { flex-wrap: wrap; }
 .book-del { position: absolute; top: 0.5rem; right: 0.5rem; }
 .book-del svg { width: 14px; height: 14px; }
 .book-del:hover { color: var(--error); }
