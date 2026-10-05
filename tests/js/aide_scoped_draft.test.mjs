@@ -30,7 +30,7 @@ function harness(storage = new Map()) {
   });
   vm.runInContext('let _activeId = null;\n' + draftSource + scopeSource + '\nglobalThis.activate = id => { _activeId = id; restoreDraft(id); };', context);
   return { field, storage, chip, label, notices, writes,
-    restore: id => context.activate(id), save: () => context.saveDraft(), clear: id => context.clearDraft(id),
+    restore: id => context.activate(id), save: () => context.saveDraft(), clear: id => context.clearDraft(id), consume: (id, value, remaining) => context.consumeDraft(id, value, remaining), snapshot: id => context.getDraftSnapshot(id),
     select: value => context.window._setAideDocumentScope(value), remove: () => remove.click(),
     selected: () => JSON.parse(JSON.stringify(context.window._pendingDocumentScope || null)),
     private: value => { privateMode = value; }, failWrites: value => { failWrites = value; },
@@ -147,4 +147,69 @@ test('an empty-text scope stays private in incognito mode', () => {
   h.private(true); h.restore(null); h.select(scope('private.md')); h.save(); h.clear(null);
   assert.deepEqual([...h.storage], before);
   h.private(false); h.restore(null); assert.deepEqual(h.selected(), scope('public.md'));
+});
+
+
+test('a late accepted question consumes only its matching stored draft', () => {
+  const h = harness(); h.restore('first'); h.field.value = 'sent question'; h.select(scope('first.md'));
+  const submitted = { text: h.field.value, document_scope: scope('first.md') };
+  h.restore('second'); h.field.value = 'other question'; h.select(scope('second.md'));
+  assert.equal(h.consume('first', submitted), true);
+  const restored = harness(h.storage); restored.restore('first');
+  assert.equal(restored.field.value, ''); assert.equal(restored.selected(), null);
+  restored.restore('second'); assert.equal(restored.field.value, 'other question');
+  assert.deepEqual(restored.selected(), scope('second.md'));
+});
+
+for (const change of ['text', 'scope']) {
+  test(`a late acceptance never clears newer stored ${change}`, () => {
+    const h = harness(); h.restore('first'); h.field.value = 'sent question'; h.select(scope('first.md'));
+    const submitted = { text: h.field.value, document_scope: scope('first.md') };
+    if (change === 'text') h.field.value = 'newer question';
+    else h.select(scope('newer.md'));
+    h.save(); const before = [...h.storage];
+    assert.equal(h.consume('first', submitted), false);
+    assert.deepEqual([...h.storage], before);
+  });
+}
+
+test('late acceptance at quota still clears the matching consumed draft', () => {
+  const h = harness(); h.restore('first'); h.field.value = 'sent question'; h.select(scope('first.md'));
+  h.failWrites(true);
+  assert.equal(h.consume('first', { text: h.field.value, document_scope: scope('first.md') }), true);
+  const restored = harness(h.storage); restored.restore('first');
+  assert.equal(restored.field.value, ''); assert.equal(restored.selected(), null);
+});
+
+
+test('a scoped acceptance at quota consumes its unmigrated legacy text but preserves a different draft', () => {
+  const h = harness(new Map([['aide-draft-new', 'already-sent question']]));
+  h.failWrites(true);
+  const sent = { text: 'already-sent question', document_scope: scope('sent.md') };
+  assert.equal(h.consume(null, sent), true);
+  h.storage.set('aide-draft-new', 'newer question');
+  assert.equal(h.consume(null, sent), false);
+  const restored = harness(h.storage); restored.restore(null);
+  assert.equal(restored.field.value, 'newer question');
+});
+
+
+test('quota recovery retires the exact old draft snapshot without erasing a newer source choice', () => {
+  const h = harness(); h.restore(null); h.field.value = 'sent question'; h.save();
+  h.failWrites(true); h.select(scope('submitted.md'));
+  const old = h.snapshot(null);
+  assert.equal(h.consume(null, old), true);
+  h.failWrites(false); h.select(scope('newer.md'));
+  assert.equal(h.consume(null, old), false);
+  const restored = harness(h.storage); restored.restore(null);
+  assert.deepEqual(restored.selected(), scope('newer.md'));
+});
+
+
+test('programmatic acceptance clears only the consumed scope from an inactive draft', () => {
+  const h = harness(); h.restore('first'); h.field.value = 'unsubmitted text'; h.select(scope('source.md'));
+  const observed = h.snapshot('first'); h.restore('second');
+  assert.equal(h.consume('first', observed, observed.text), true);
+  const restored = harness(h.storage); restored.restore('first');
+  assert.equal(restored.field.value, 'unsubmitted text'); assert.equal(restored.selected(), null);
 });

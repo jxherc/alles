@@ -126,7 +126,7 @@ with sync_playwright() as pw:
 
             def route(request):
                 url = urlparse(request.request.url)
-                if url.netloc != urlparse(base).netloc:
+                if (url.scheme, url.netloc) != ("http", urlparse(base).netloc):
                     external.append(request.request.url)
                     return request.abort()
                 if url.path.endswith("/history") and "history" in state:
@@ -234,8 +234,12 @@ with sync_playwright() as pw:
                 upload.set_input_files(
                     {"name": "newer.txt", "mimeType": "text/plain", "buffer": b"newer attachment"}
                 )
-                expect(page.locator(".attach-chip").first).to_contain_text("newer.txt")
+                expect(page.locator(".attach-chip").filter(has_text="newer.txt")).to_be_visible()
+                page.wait_for_function("!document.querySelector('.attach-chip.uploading')")
+                newer_remove = page.get_by_role("button", name="remove newer.txt", exact=True)
+                newer_remove.focus()
                 reply(held.pop())
+                expect(newer_remove).to_be_focused()
                 retry = page.get_by_role("button", name="retry response", exact=True)
                 expect(retry).to_be_visible()
                 expect(field).to_have_value(newer)

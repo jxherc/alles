@@ -66,7 +66,8 @@ with sync_playwright() as pw:
                 "**/*",
                 lambda request: (
                     request.continue_()
-                    if urlparse(request.request.url).netloc == urlparse(base).netloc
+                    if (urlparse(request.request.url).scheme, urlparse(request.request.url).netloc)
+                    == ("http", urlparse(base).netloc)
                     else request.abort()
                 ),
             )

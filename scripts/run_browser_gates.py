@@ -80,6 +80,7 @@ COMMANDS = {
     "aide-scoped-draft": ("tests/pw_aide_scoped_draft.py",),
     "aide-model-errors": ("tests/pw_aide_model_errors.py",),
     "aide-response-retry": ("tests/pw_aide_response_retry.py",),
+    "aide-refused-draft": ("tests/pw_aide_refused_draft.py",),
     "aide-stream-completion": ("tests/pw_aide_stream_completion.py",),
     "aide-schedule-dates": ("tests/pw_aide_schedule_dates.py",),
     "aide-tool-discovery": ("tests/pw_aide_tool_discovery.py",),

@@ -79,8 +79,10 @@ function _release(item) {
   _requests.delete(item?.id);
 }
 
-export function clearAttachments() {
-  _attachments.forEach(item => {
+export function clearAttachments(ids = null) {
+  // A delayed send consumes only its uploaded files, never newer or pending ones.
+  const consumed = ids ? _attachments.filter(item => !item.status && ids.includes(item.id)) : _attachments;
+  consumed.forEach(item => {
     if (item.status === 'uploading') {
       _discardedUploads.add(item.id);
       _requests.get(item.id)?.abort();
@@ -91,8 +93,15 @@ export function clearAttachments() {
     }
     _release(item);
   });
-  _attachments = [];
-  _render();
+  _attachments = _attachments.filter(item => !consumed.includes(item));
+  if (ids) {
+    // Keep newer controls mounted so a late acceptance cannot take their focus.
+    const container = document.getElementById('attachment-chips');
+    container?.querySelectorAll('.attach-chip').forEach(chip => {
+      if (consumed.some(item => item.id === chip.dataset.id)) chip.remove();
+    });
+    if (container && !_attachments.length) container.style.display = 'none';
+  } else _render();
 }
 
 export async function discardAttachments() {

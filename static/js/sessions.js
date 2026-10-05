@@ -163,7 +163,36 @@ export function restoreDraft(id) {
 }
 export function clearDraft(id) {
   if (isIncognitoMode()) return;
-  const owner = id === undefined ? _activeId : id;
+  return clearStoredDraft(id === undefined ? _activeId : id);
+}
+
+export function getDraftSnapshot(id) {
+  try {
+    const stored = localStorage.getItem(_draftKey(id));
+    return stored === null
+      ? { text: localStorage.getItem(_legacyDraftKey(id)) || '', document_scope: null }
+      : JSON.parse(stored);
+  } catch { return null; }
+}
+
+// A late acceptance may belong to a task that is no longer on screen. Only
+// consume its submitted draft; a newer saved question still belongs to the user.
+export function consumeDraft(id, expected, remainingText = '') {
+  try {
+    const stored = localStorage.getItem(_draftKey(id));
+    if (stored === null) {
+      // At quota, a scoped send may still own an unmigrated text-only draft.
+      if (localStorage.getItem(_legacyDraftKey(id)) !== expected.text) return false;
+    } else {
+      const draft = JSON.parse(stored);
+      if (!draft || draft.text !== expected.text
+        || JSON.stringify(draft.document_scope) !== JSON.stringify(expected.document_scope)) return false;
+    }
+  } catch { return false; }
+  return remainingText ? writeDraft(id, remainingText, null) : clearStoredDraft(id);
+}
+
+function clearStoredDraft(owner) {
   if (writeDraft(owner, '', null, false)) return true;
   // Removing consumed drafts needs no free storage, unlike migration to an
   // empty v2 record. Do not use this fallback for unsent edits.

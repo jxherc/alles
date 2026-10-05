@@ -26,7 +26,7 @@ test('switching privacy modes discards selected attachments', () => {
 });
 
 test('attachment ids are copied before the composer clears them', () => {
-  const snapshot = chat.indexOf('const attachmentIds = getAttachments()');
+  const snapshot = chat.indexOf('let attachmentIds = getAttachments()');
   const clear = chat.indexOf('clearAttachments()');
   const request = chat.indexOf('file_ids: [...attachmentIds]');
   assert.ok(snapshot >= 0 && snapshot < clear && clear < request);

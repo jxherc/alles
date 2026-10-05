@@ -16,7 +16,7 @@ test('stopping a document-scoped request restores its scope for the next send', 
   const caught = src.match(/} catch \(e\) \{[\s\S]*?\n  } finally \{/)?.[0] || '';
   assert.match(
     caught,
-    /if \(!previousRow && getActiveId\(\) === sessionId && _streamToken === streamToken\) \{\s*restoreDocumentScope\(documentScope\);/,
+    /if \(getActiveId\(\) === sessionId && _streamToken === streamToken\) \{\s*if \(pendingDraft\) pendingDraft.restore\(accText\);/,
   );
 });
 
