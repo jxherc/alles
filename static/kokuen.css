@@ -5610,19 +5610,35 @@ body[data-app="files"] #files-view .files-phase7-views {
   border-top: 1px solid var(--k-line);
 }
 
-body[data-app="files"] #files-view .files-phase7-location-foot {
-  margin-top: auto;
+body[data-app="files"] #files-view :is(#files-location-list, #files-locations-label, .files-location-settings, .files-location-controls button)[hidden] {
+  display: none;
+}
+
+body[data-app="files"] #files-view .files-location-settings {
+  display: grid;
+  gap: var(--k-space-2);
+  margin-top: var(--k-space-4);
   min-width: 0;
   overflow-wrap: anywhere;
-  padding: var(--k-space-3) var(--k-space-2) 0;
-  color: var(--k-quiet);
-  font-size: 12px;
+  color: var(--k-muted);
+  font-size: 13px;
   line-height: 1.45;
 }
 
-body[data-app="files"] #files-view .files-location-index-state {
+body[data-app="files"] #files-view #files-current-location-name {
+  color: var(--k-text);
+  font-weight: 500;
+}
+
+body[data-app="files"] #files-view #files-location-message:empty {
+  display: none;
+}
+
+body[data-app="files"] #files-view .files-location-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-2);
   margin-top: var(--k-space-2);
-  color: var(--k-muted);
 }
 
 body[data-app="files"] #files-view .files-phase7-browser {
@@ -6348,31 +6364,6 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
     border: 0;
     vertical-align: middle;
     overflow: visible;
-  }
-
-  body[data-app="files"] #files-view .files-phase7-location-foot {
-    display: flex;
-    align-items: center;
-    gap: var(--k-space-2);
-    width: 100%;
-    margin: var(--k-space-2) 0 0;
-    padding: 0;
-    white-space: normal;
-  }
-
-  body[data-app="files"] #files-view .files-phase7-location-foot > :first-child {
-    display: none;
-  }
-
-  body[data-app="files"] #files-view .files-location-index-state {
-    flex: 0 0 auto;
-    margin: 0;
-  }
-
-  body[data-app="files"] #files-view .files-phase7-location-foot > :last-child {
-    display: flex;
-    min-width: 0;
-    overflow-x: auto;
   }
 
   body[data-app="files"] #files-view .files-phase7-views {

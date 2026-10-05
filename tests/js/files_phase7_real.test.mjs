@@ -262,7 +262,8 @@ test('Files owns the approved app header instead of the legacy app crumb', () =>
   }
   assert.match(css, /body\[data-app="files"\] \.main > \.topbar\s*\{\s*display:\s*none\s*!important;/);
   assert.doesNotMatch(view, /id="files-home-btn"/);
-  assert.match(app, /getElementById\('files-settings-btn'\)[\s\S]{0,160}openSettings/);
+  assert.match(view, /id="files-settings-dialog"[^>]*role="dialog"/);
+  assert.doesNotMatch(app, /getElementById\('files-settings-btn'\)/);
 });
 
 test('Files sends location identity through reads and writes', () => {

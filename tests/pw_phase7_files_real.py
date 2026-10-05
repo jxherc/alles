@@ -163,11 +163,23 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     assert page.locator("#files-app-header").is_visible()
     assert page.locator(".files-phase7-wordmark").inner_text() == "files"
     assert "on this server" in page.locator("#files-breadcrumb").inner_text()
-    assert page.locator("#files-app-status").inner_text() == "local · managed"
+    assert page.locator("#files-app-status").inner_text() == ""
     page.locator("#files-settings-btn").focus()
     page.keyboard.press("Enter")
-    page.wait_for_selector("#settings-modal:visible")
-    page.locator("#settings-modal-close").click()
+    page.wait_for_selector("#files-settings-dialog:visible")
+    assert page.locator("#files-current-location-name").inner_text() == "on this server"
+    assert page.locator(".files-phase7-workbench").get_attribute("inert") is not None
+    assert page.locator('[data-location-action="remove"]').is_hidden()
+    page.keyboard.press("Shift+Tab")
+    assert page.locator('[data-location-action="index"]').evaluate(
+        "el => el === document.activeElement"
+    )
+    page.keyboard.press("Tab")
+    assert page.locator('[data-files-dialog-close="settings"]').evaluate(
+        "el => el === document.activeElement"
+    )
+    page.keyboard.press("Escape")
+    assert page.locator(".files-phase7-workbench").get_attribute("inert") is None
     assert page.evaluate("document.activeElement?.id") == "files-settings-btn"
     shell_trigger = page.locator("#app-drawer-btn")
     shell_trigger.focus()
@@ -187,6 +199,7 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
         == 0
     )
     assert page.locator("#files-location-list .files-location-button").count() == 1
+    assert page.locator("#files-location-list").is_hidden()
     assert page.locator("#files-list .file-row").count() >= 3
     header_box = page.locator(".files-phase7-table-head").bounding_box()
     first_row_box = page.locator("#files-list .file-row").first.bounding_box()
@@ -391,11 +404,14 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     page.locator('[data-files-bulk="clear"]').click()
     assert page.locator("#files-selection-bar").is_hidden()
 
+    page.locator("#files-settings-btn").click()
     page.locator('[data-location-action="index"]').click()
     page.wait_for_function(
         "document.querySelector('.files-location-index-state')?.textContent.includes('files indexed')",
         timeout=30_000,
     )
+
+    page.keyboard.press("Escape")
 
     # The add-location dialog is custom, keyboard operable, and exposes every backend kind.
     page.locator("#files-add-location").click()
@@ -438,6 +454,8 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     assert page.locator("#files-upload-btn").is_disabled()
 
     # Location health, access changes, and safe removal are all live controls.
+    assert page.locator("#files-app-status").inner_text() == "read only"
+    page.locator("#files-settings-btn").click()
     page.locator('[data-location-action="test"]').click()
     page.wait_for_function(
         "document.querySelector('#files-location-status')?.textContent.includes('ready')"
@@ -447,11 +465,20 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     page.locator('[data-location-action="access"]').click()
     page.wait_for_function("document.querySelector('#files-mkdir-btn').disabled")
     page.locator('[data-location-action="remove"]').click()
+    page.locator(".dialog-overlay [data-dialog-cancel]").press("Enter")
+    assert page.locator("#files-settings-dialog").is_visible()
+    assert page.locator('[data-location-action="remove"]').evaluate(
+        "el => el === document.activeElement"
+    )
+    page.locator('[data-location-action="remove"]').press("Enter")
     assert page.locator('.dialog-overlay [role="alertdialog"]').is_visible()
     page.locator(".dialog-overlay [data-dialog-confirm]").click()
     page.wait_for_function(
         "document.querySelectorAll('#files-location-list .files-location-button').length === 2"
     )
+
+    assert page.locator("#files-settings-dialog").is_hidden()
+    assert page.locator("#files-settings-btn").evaluate("el => el === document.activeElement")
 
     # Copy a real file through the durable operation queue.
     page.locator("#files-location-list .files-location-button").first.click()
@@ -628,6 +655,40 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     _close_context(context)
 
 
+def _dialog_history(browser: Browser, errors: list[str]) -> None:
+    context = _context(
+        browser,
+        "dialog-history",
+        viewport={"width": 390, "height": 844},
+        reduced_motion="reduce",
+        service_workers="block",
+    )
+    page = context.new_page()
+    _errors(page, errors, "dialog-history")
+    # Use one origin so Back exercises the in-page router, not a full reload.
+    assert context.request.post(f"http://127.0.0.1:{PORT}/api/setup/dismiss").ok
+    page.goto(f"http://127.0.0.1:{PORT}/?view=today", wait_until="networkidle")
+    for opener, dialog in (
+        ("files-settings-btn", "files-settings-dialog"),
+        ("files-add-location", "files-location-dialog"),
+    ):
+        page.locator("#app-drawer-btn").click()
+        page.locator('.app-drawer-item[data-view="files"]').click()
+        page.wait_for_selector("#files-view:visible")
+        page.locator(f"#{opener}").click()
+        assert page.locator(f"#{dialog}").is_visible()
+        page.go_back(wait_until="networkidle")
+        page.wait_for_selector("#today-view:visible")
+        assert page.locator(f"#{dialog}").get_attribute("hidden") is not None
+        assert not page.locator("#today-view").evaluate("e => !!e.closest('[inert]')")
+        page.locator("#app-drawer-btn").focus()
+        assert page.evaluate("document.activeElement?.id") == "app-drawer-btn"
+    page.locator("#app-drawer-btn").click()
+    assert page.locator("#app-drawer").is_visible()
+    page.keyboard.press("Escape")
+    _close_context(context)
+
+
 def _recovery(browser: Browser, errors: list[str]) -> None:
     context = _context(
         browser,
@@ -701,7 +762,7 @@ def _mobile(browser: Browser, errors: list[str]) -> None:
     assert page.locator("#files-app-header").is_visible()
     assert page.locator(".files-phase7-wordmark").inner_text() == "files"
     assert "on this server" in page.locator("#files-breadcrumb").inner_text()
-    assert page.locator("#files-app-status").inner_text() == "local · managed"
+    assert page.locator("#files-app-status").inner_text() == ""
     header_box = page.locator("#files-app-header").bounding_box()
     shell_box = page.locator("#app-drawer-btn").bounding_box()
     sidebar_box = page.locator(
@@ -802,6 +863,7 @@ def run() -> None:
                 _desktop(browser, errors, second, read_only)
                 _recovery(browser, errors)
                 _mobile(browser, errors)
+                _dialog_history(browser, errors)
             finally:
                 for context in RECORDINGS:
                     _close_context(context)
