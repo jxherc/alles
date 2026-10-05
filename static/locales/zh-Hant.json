@@ -168,6 +168,8 @@
     "andromeda.recent_first": "近期來源優先",
     "andromeda.remote_confirm": "要將此查詢和所選網頁證據傳送到 {endpoint} / {model} 嗎？",
     "andromeda.results_disabled": "本次搜尋已關閉普通結果。",
+    "andromeda.search_disabled": "搜尋已停用。請在搜尋設定中選擇提供商。",
+    "andromeda.search_settings": "搜尋設定",
     "andromeda.retry_save": "再次嘗試儲存",
     "andromeda.return_home": "返回 Alles 首頁",
     "andromeda.save_failed": "無法儲存這篇內容",
