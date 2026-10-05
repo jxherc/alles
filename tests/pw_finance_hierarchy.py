@@ -213,7 +213,7 @@ with sync_playwright() as pw:
             before = api.get(base + "/api/money/transactions").json()
             reject = True
             page.locator("#tx-add").press("Enter")
-            expect(page.locator(".toast.error").last).to_contain_text("couldn't add transaction")
+            expect(page.locator("#tx-save-status")).to_contain_text("save not confirmed")
             expect(entry).to_be_visible()
             expect(page.locator("#tx-payee")).to_have_value(payee)
             expect(page.locator("#tx-amt")).to_have_value("18.75")

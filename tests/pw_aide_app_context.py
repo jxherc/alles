@@ -25,7 +25,7 @@ choices = {
     "library": "library",
     "health": "health",
     "finance": "finance",
-    "wiki": "docs",
+    "wiki": "docs · @wiki",
     "files": "files",
     "photos": "files · gallery",
     "vault": "vault",
@@ -239,6 +239,12 @@ with sync_playwright() as pw:
                     expect(menu).to_have_count(0)
                     expect(field).to_be_focused()
                     expect(field).to_have_value(f"before @{token}  after")
+                    if token == "wiki":
+                        expect(page.locator(".toast").last).to_contain_text(
+                            "docs context added as @wiki"
+                        )
+                        page.reload(wait_until="networkidle")
+                        expect(field).to_have_value("before @wiki  after")
                 page.reload(wait_until="networkidle")
                 expect(field).to_have_value("before @activity  after")
                 trigger.click()

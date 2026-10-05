@@ -218,8 +218,13 @@ def run():
                             assert len(held) == 1
                             page.locator("#tx-add").press("Enter")
                             expect(
-                                page.get_by_text("couldn't add transaction", exact=True)
+                                page.get_by_text(
+                                    "transaction creation is already in progress", exact=True
+                                )
                             ).to_be_visible()
+                            expect(page.locator("#tx-save-status")).to_have_text(
+                                "saving transaction…"
+                            )
                             assert len(held) == 1
                             pending = held.pop()
                             response = pending.fetch()
@@ -278,6 +283,9 @@ def run():
                                 "JSON.parse(sessionStorage.getItem('alles:finance-saved-transactions'))"
                             )
                             assert pointers[-1]["id"] == first["id"]
+                            if page.locator("#money-entry-fields").is_hidden():
+                                page.locator("#money-entry-action").press("Enter")
+                            expect(page.locator("#tx-save-status")).to_be_hidden()
                             page.reload(wait_until="networkidle")
                             expect(first_receipt).to_be_visible()
                             expect(first_receipt).to_contain_text("transaction undone")

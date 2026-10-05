@@ -35,6 +35,7 @@ const state = {
 
 let initialized = false;
 let uploadActive = false;
+let selectionRestoreActive = false;
 let versionRestoreActive = false;
 let operationPoll = 0;
 let searchTimer = 0;
@@ -328,8 +329,14 @@ function applyWriteState() {
     const cacheOnlyDescendant = cacheView
       && [...state.selected.values()].some(item => item.cache_only
         && !state.offline.has(item.path || item.normalized_path));
-    button.hidden = (trashView && action !== 'clear')
-      || (cacheView && !['offline', 'clear'].includes(action));
+    button.hidden = (trashView && !['restore', 'clear'].includes(action))
+      || (cacheView && !['offline', 'clear'].includes(action))
+      || (action === 'restore' && (!trashView || state.selected.size !== 1));
+    if (action === 'restore') {
+      button.disabled = !writable || state.selected.size !== 1;
+      button.setAttribute('aria-busy', String(selectionRestoreActive));
+      button.setAttribute('aria-disabled', String(button.disabled || selectionRestoreActive));
+    }
     if (['move', 'delete'].includes(action)) button.disabled = !writable || cacheView;
     if (action === 'offline') button.disabled = cacheOnlyDescendant;
   });
@@ -987,15 +994,16 @@ async function deleteItems(items) {
   }
 }
 
-async function restoreItem(item) {
+async function restoreItem(item, { close = true } = {}) {
   if (!isWritable()) return;
   try {
-    await queueOperation({
+    const operation = await queueOperation({
       action: 'restore',
       source_location_id: state.locationId,
       source_path: item.trash_id,
     });
-    closeDetails();
+    if (close) closeDetails();
+    return operation;
   } catch (error) {
     toast(error.message, 'error');
   }
@@ -1835,8 +1843,29 @@ function bindEvents() {
   });
   $('files-select-all')?.addEventListener('click', selectAll);
   $('files-selection-bar')?.addEventListener('click', async event => {
-    const action = event.target.closest('[data-files-bulk]')?.dataset.filesBulk;
-    if (state.view === 'trash' && action !== 'clear') return;
+    const button = event.target.closest('[data-files-bulk]');
+    const action = button?.dataset.filesBulk;
+    if (state.view === 'trash' && !['restore', 'clear'].includes(action)) return;
+    if (action === 'restore') {
+      if (state.view !== 'trash' || !isWritable() || state.selected.size !== 1 || selectionRestoreActive) return;
+      const [key, item] = [...state.selected.entries()][0];
+      const locationId = state.locationId;
+      const sequence = viewSequence;
+      selectionRestoreActive = true;
+      applyWriteState();
+      try {
+        const operation = await restoreItem(item, { close: false });
+        if (operation && state.locationId === locationId && state.view === 'trash'
+            && viewSequence === sequence && state.selected.size === 1 && state.selected.get(key) === item) {
+          const restoreFocus = document.activeElement === button;
+          state.selected.clear(); renderItems(); renderSelection();
+          if (restoreFocus) document.querySelector('[data-files-view="trash"]')?.focus();
+        }
+      } finally {
+        selectionRestoreActive = false;
+        applyWriteState();
+      }
+    }
     if (action === 'copy' || action === 'move') openTransferDialog(action);
     if (action === 'offline') await keepItemsOffline([...state.selected.values()]);
     if (action === 'delete') deleteItems([...state.selected.values()]);

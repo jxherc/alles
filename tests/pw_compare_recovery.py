@@ -193,6 +193,11 @@ with sync_playwright() as pw:
                 page.evaluate("window._pickWinner(1)")
                 assert not votes
                 expect(retry).to_be_visible()
+                placement = beta.evaluate("""col => ({
+                  headingBottom:col.querySelector('.compare-col-head').getBoundingClientRect().bottom,
+                  statusTop:col.querySelector('.compare-column-status').getBoundingClientRect().top,
+                })""")
+                assert placement["statusTop"] <= placement["headingBottom"] + 16, placement
                 for selector in [
                     "[data-compare-stop]",
                     "[data-compare-retry]",
