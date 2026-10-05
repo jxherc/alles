@@ -124,6 +124,105 @@ def run():
                         expect(page.locator("#aide-schedule-form")).to_be_hidden()
                         record["scheduled_geometry"] = geometry
                         capture("scheduled")
+                        # Only synthetic job status: never start an import or inspect Apple Photos.
+                        job_state = {"failed": False}
+                        status_route = base + "/api/photos/sync/macos/status"
+                        job_route = base + "/api/photos/sync/macos/jobs/owned-menu-job"
+
+                        def mac_status(route):
+                            route.fulfill(
+                                status=200,
+                                content_type="application/json",
+                                body=json.dumps(
+                                    {
+                                        "platform": "darwin",
+                                        "available": True,
+                                        "authorization": "authorized",
+                                        "job": None
+                                        if job_state["failed"]
+                                        else {
+                                            "id": "owned-menu-job",
+                                            "state": "running",
+                                            "processed": 0,
+                                            "total": 1,
+                                        },
+                                    }
+                                ),
+                            )
+
+                        def mac_job(route):
+                            route.fulfill(
+                                status=200,
+                                content_type="application/json",
+                                body=json.dumps(
+                                    {
+                                        "id": "owned-menu-job",
+                                        "state": "failed" if job_state["failed"] else "running",
+                                        "processed": 0,
+                                        "total": 1,
+                                        "message": "synthetic local job failure",
+                                    }
+                                ),
+                            )
+
+                        context.route(status_route, mac_status)
+                        context.route(job_route, mac_job)
+                        page.goto(base + "/?view=files", wait_until="networkidle")
+                        page.get_by_role("tab", name="gallery", exact=True).press("Enter")
+                        expect(page.locator("#photos-view")).to_be_visible()
+                        mac = page.locator("#photos-macos-btn")
+                        expect(mac).to_be_disabled()
+                        page.locator("#photos-more-btn").press("Enter")
+                        expect(mac).to_have_attribute("aria-disabled", "true")
+                        job_state["failed"] = True
+                        page.wait_for_function(
+                            "!document.querySelector('#photos-macos-btn').disabled"
+                        )
+                        expect(page.locator("#photos-more-menu")).to_be_visible()
+                        expect(mac).to_have_attribute("aria-disabled", "false")
+                        page.keyboard.press("Home")
+                        cycle = []
+                        for _ in range(7):
+                            cycle.append(page.evaluate("document.activeElement.id"))
+                            page.keyboard.press("ArrowDown")
+                        assert "photos-macos-btn" in cycle, cycle
+                        capture("job-failure-menu")
+                        record["job_menu_recovery"] = {
+                            "keyboard_cycle": cycle,
+                            "reachable_without_reopen": True,
+                            "fixture": "synthetic local status only; no native import or library access",
+                        }
+                        bounds = page.locator("#photos-more-menu").evaluate(
+                            "e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:innerWidth,height:innerHeight}}"
+                        )
+                        record["job_menu_geometry"] = bounds
+                        assert 0 <= bounds["left"] and bounds["right"] <= bounds["width"], bounds
+                        if width == 390:
+                            reopened = []
+                            for resized_width in (1440, 390):
+                                page.set_viewport_size({"width": resized_width, "height": 900})
+                                expect(page.locator("#photos-more-menu")).to_be_hidden()
+                                page.locator("#photos-more-btn").press("Enter")
+                                bounds = page.locator("#photos-more-menu").evaluate(
+                                    "e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,width:innerWidth}}"
+                                )
+                                assert 0 <= bounds["left"] and bounds["right"] <= bounds["width"], (
+                                    bounds
+                                )
+                                reopened.append(bounds)
+                            record["resize_reopen_geometry"] = reopened
+                        page.locator("#photos-more-menu").get_by_role(
+                            "menuitem", name="gallery settings", exact=True
+                        ).click()
+                        expect(page.locator("#photos-more-menu")).to_be_hidden()
+                        expect(
+                            page.locator('.app-settings-pop input[data-k="photos_dir"]')
+                        ).to_be_focused()
+                        record["pointer_menu_settings"] = True
+                        page.locator("#photos-search").click()
+                        expect(page.locator(".app-settings-pop")).to_have_count(0)
+                        context.unroute(status_route, mac_status)
+                        context.unroute(job_route, mac_job)
                         page.goto(base + "/?view=files", wait_until="networkidle")
                         page.get_by_role("tab", name="gallery", exact=True).press("Enter")
                         expect(page.locator("#photos-view")).to_be_visible()
@@ -182,6 +281,11 @@ def run():
                         assert all(x["right"] <= page.evaluate("innerWidth") for x in controls)
                         more.press("Enter")
                         expect(page.locator("#photos-archive-btn")).to_be_focused()
+                        bounds = viewer_menu.evaluate(
+                            "e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,width:innerWidth}}"
+                        )
+                        assert 0 <= bounds["left"] and bounds["right"] <= bounds["width"], bounds
+                        record["viewer_menu_geometry"] = bounds
                         capture("viewer-menu")
                         page.keyboard.press("End")
                         expect(page.locator("#photos-del-btn")).to_be_focused()
