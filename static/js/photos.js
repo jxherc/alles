@@ -2,6 +2,8 @@ import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
 import { formatDateTime } from './i18n.js';
+import { createMenuController } from './kokuen.js?v=1';
+import { openAppSettings } from './appsettings.js';
 
 let _view = '';      // current view: '' | __fav__ | __archive__ | __hidden__ | __map__ | __memories__ | __trash__ | <albumId>
 let _photos = [];    // flat list (for the lightbox)
@@ -54,6 +56,65 @@ const _setFavBtn = fav => {
   b.setAttribute('aria-disabled', String(pending));
   b.setAttribute('aria-busy', String(pending));
 };
+
+const _actionMenus = [];
+function _closeActionMenus(restoreFocus = false) {
+  for (const { menu, controller } of _actionMenus) {
+    if (!menu.hidden) controller.close({ restoreFocus });
+  }
+}
+
+function _initActionMenu(triggerId, menuId) {
+  const trigger = $(triggerId), menu = $(menuId);
+  if (!trigger || !menu) return;
+  const controller = createMenuController(menu, {
+    closeOnOutsidePointer: false,
+    onClose: () => trigger.setAttribute('aria-expanded', 'false'),
+  });
+  _actionMenus.push({ menu, controller });
+  const open = () => {
+    for (const item of menu.querySelectorAll('[role="menuitem"]')) item.setAttribute('aria-disabled', String(!!item.disabled));
+    _closeActionMenus();
+    trigger.setAttribute('aria-expanded', 'true');
+    controller.open({ source: trigger });
+  };
+  trigger.addEventListener('click', () => {
+    if (menu.hidden) open();
+    else controller.close();
+  });
+  trigger.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault(); event.stopPropagation(); open();
+  });
+  // Close before the existing item handler opens a confirmation or editor.
+  menu.addEventListener('click', event => {
+    const item = event.target.closest('[role="menuitem"]');
+    if (!item || item.disabled || item.getAttribute('aria-disabled') === 'true') return;
+    controller.close();
+  }, true);
+  menu.addEventListener('keydown', event => {
+    if (event.key === 'Tab') { controller.close(); return; }
+    event.stopPropagation(); // Menu Escape and arrows belong to the menu, not the viewer.
+    if (['Enter', ' '].includes(event.key)) {
+      event.preventDefault();
+      const item = event.target.closest('[role="menuitem"]');
+      if (item && !item.disabled && item.getAttribute('aria-disabled') !== 'true') item.click();
+    }
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!menu.hidden && !menu.contains(event.target) && !trigger.contains(event.target)) {
+      controller.close({ restoreFocus: false });
+    }
+  }, true);
+  document.addEventListener('focusin', event => {
+    if (!menu.hidden && !menu.contains(event.target) && event.target !== trigger) {
+      controller.close({ restoreFocus: false });
+    }
+  });
+  window.addEventListener('resize', () => {
+    if (!menu.hidden) controller.close({ restoreFocus: menu.contains(document.activeElement) });
+  });
+}
 
 function rememberPhotoChange(photo, key, value) {
   photo[key] = value;
@@ -291,6 +352,7 @@ async function _loadAlbums(fetcher = fetch) {
 }
 
 export async function loadPhotos(fetcher = fetch) {
+  _closeActionMenus();
   const generation = ++_listGeneration;
   await _loadAlbums(fetcher);
   if (generation !== _listGeneration) return;
@@ -770,6 +832,7 @@ async function _pollMacPhotosJob(jobId) {
 }
 
 function openLightbox(id, src) {
+  _closeActionMenus();
   _lbPhotos = src || _photos;   // a stack opens its own members; the grid opens the timeline
   _curIdx = _lbPhotos.findIndex(x => x.id === id);
   if (_curIdx < 0) return;
@@ -792,6 +855,7 @@ async function _openStack(coverId) {
 
 // render _lbPhotos[_curIdx] into the open lightbox — reused by prev/next stepping
 function _showCurrent() {
+  _closeActionMenus();
   const p = _lbPhotos[_curIdx];
   if (!p) return;
   ++_viewerGeneration;
@@ -881,6 +945,7 @@ async function _discardCaption() {
 
 async function closeLightbox() {
   if (!await _discardCaption()) return;
+  _closeActionMenus();
   const v = $('photos-lightbox-video');
   if (v) { v.pause?.(); v.src = ''; }
   _toggleHelp(false);
@@ -990,6 +1055,15 @@ let _inited = false;
 export function initPhotos() {
   if (_inited) return;
   _inited = true;
+  _initActionMenu('photos-more-btn', 'photos-more-menu');
+  _initActionMenu('photos-viewer-more-btn', 'photos-viewer-more-menu');
+  $('photos-settings-btn')?.addEventListener('click', async event => {
+    event.stopPropagation();
+    await openAppSettings('photos', $('photos-more-btn'));
+    if (document.activeElement === $('photos-more-btn')) {
+      document.querySelector('.app-settings-pop input')?.focus();
+    }
+  });
   initCustomDropdown($('photos-filt-camera'));
   const psearch = $('photos-search');
   let _pt;

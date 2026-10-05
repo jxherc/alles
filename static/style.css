@@ -3947,7 +3947,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .photos-head { gap: 0.45rem; align-items: center; }
 .photos-head .btn, .photos-head .photos-search { font-size: 0.75rem; }
 .photos-head .photos-search { max-width: 240px; margin-left: auto; }
-.photos-head .photos-share-album-btn, .photos-head .app-cog { flex-shrink: 0; }
+.photos-more-wrap { position: relative; flex-shrink: 0; }
+.photos-more-menu { position: absolute; top: 100%; right: 0; z-index: 10; min-width: 180px; max-width: calc(100vw - 24px); max-height: min(360px, calc(100dvh - 96px)); overflow-y: auto; border-radius: var(--ui-radius, 4px); }
+.photos-more-menu .ctx-item { display: flex; align-items: center; gap: var(--k-space-2); min-height: var(--ui-control-height, 44px); text-decoration: none; }
+.photos-more-menu .ctx-item[hidden] { display: none; }
+.photos-more-menu .ic { width: 14px; height: 14px; flex-shrink: 0; }
+.photos-more-menu .ctx-item:disabled { opacity: 0.5; cursor: default; }
 #photos-head-title { text-transform: lowercase; }
 
 /* immich-style left rail + scrolling justified timeline */
@@ -4038,16 +4043,15 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 #photos-lightbox-video { max-width: 100%; max-height: 100%; }
 
 /* lightbox — top action bar, centered stage with prev/next, slide-in info drawer */
-#photos-lightbox { flex-direction: column; align-items: stretch; justify-content: flex-start; background: rgba(0,0,0,0.92); }
+#photos-lightbox { flex-direction: column; align-items: stretch; justify-content: flex-start; background: var(--bg); }
 .photos-lb-top { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.9rem; flex-shrink: 0; }
-.photos-lb-actions { margin-left: auto; display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.photos-lb-actions { margin-left: auto; display: flex; gap: 0.35rem; }
 .photos-lb-actions .btn, .photos-lb-close { display: inline-flex; align-items: center; gap: 0.32rem; font-size: 0.75rem; }
 .photos-lb-actions .btn .ic, .photos-lb-close .ic { width: 14px; height: 14px; }
 .photos-lb-close { flex-shrink: 0; }
 @media (max-width: 700px) {
-  .photos-lb-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--k-space-2); }
-  .photos-lb-actions { display: contents; }
-  .photos-lb-top .btn { justify-content: center; }
+  .photos-lb-top { gap: var(--k-space-2); padding-inline: var(--k-space-2); }
+  .photos-lb-top .btn { justify-content: center; padding-inline: var(--k-space-2); }
 }
 .photos-lb-body { flex: 1; min-height: 0; position: relative; display: flex; overflow: hidden; }
 .photos-lb-stage { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0 0.6rem 0.8rem; transition: padding-right 0.28s cubic-bezier(0.2,0.7,0.2,1); }
@@ -4168,15 +4172,6 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
   #photos-view .photos-head {
     position: relative;
     padding-left: var(--photos-rail-content-x);
-  }
-  #photos-view .photos-head::after {
-    content: '';
-    position: absolute;
-    left: var(--photos-rail-w);
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--faint);
   }
 }
 
@@ -5506,6 +5501,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   cursor: pointer;
 }
 .aide-scheduled-new {
+  flex-shrink: 0;
   min-height: 34px;
   padding: 0 12px;
   border: 1px solid var(--faint);
