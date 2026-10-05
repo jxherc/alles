@@ -67,10 +67,11 @@ function renderComparison(comparison) {
   grid.style.gridTemplateColumns = `repeat(${comparison.columns.length}, minmax(280px, 1fr))`;
   grid.innerHTML = comparison.columns.map(column => `
     <section class="compare-col" id="compare-col-${column.index}" aria-label="${_esc(column.model.model)} response">
-      <div class="compare-col-head"><span class="compare-model-label">${_esc(column.model.model)}</span></div>
+      <div class="compare-col-head"><span class="compare-model-label">${_esc(column.model.model)}</span>
+        <p class="compare-column-status" role="status" tabindex="-1"></p>
+      </div>
       <div class="compare-body" id="compare-body-${column.index}" tabindex="0" aria-label="${_esc(column.model.model)} answer"></div>
       <div class="compare-col-foot">
-        <p class="compare-column-status" role="status" tabindex="-1"></p>
         <details class="compare-error-detail" hidden><summary>error details</summary><pre></pre></details>
         <div class="compare-response-actions">
           <button type="button" class="btn" data-compare-stop>stop response</button>

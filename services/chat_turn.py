@@ -373,7 +373,7 @@ async def _stream_and_save(
         response_recovery = None
         if provider_failed:
             response_recovery = {"status": "failed"}
-        elif not full_text or (not settled and not completed):
+        elif not full_text or not completed:
             response_recovery = {"status": "incomplete"}
         retry_request = (settings or {}).get("response_retry_request")
         if (
@@ -406,6 +406,10 @@ async def _stream_and_save(
             interrupted or stop_event.is_set(),
             response_recovery,
         )
+    if not completed and not provider_failed and not stop_event.is_set():
+        yield {
+            "error": "response ended before completion. review task activity before sending again."
+        }
     if saved_message:
         if "user_id" in saved_message:
             yield {"saved_user": {"id": saved_message["user_id"]}}
