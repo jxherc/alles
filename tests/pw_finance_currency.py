@@ -265,9 +265,11 @@ with sync_playwright() as pw:
                 plans()
                 expect(page.locator(f'[data-currency-acct="{aid}"]')).to_be_disabled()
                 expect(page.locator(f'[data-currency-acct="{planned["id"]}"]')).to_be_disabled()
+                page.locator('[data-money-task="schedules"]').press("Enter")
                 expect(
                     page.locator('.recur-group[data-id="' + before_schedule["id"] + '"] .rc-amt')
                 ).to_contain_text("−CAD\u00a010.00")
+                page.locator('[data-money-task="accounts"]').press("Enter")
                 expect(page.locator(f'.money-acct[data-id="{aid}"] .ma-bal')).to_have_text(
                     "USD\u00a0-10.00"
                 )

@@ -36,6 +36,8 @@ function harness() {
       moneyField, moneySection, toggleMoneySection, fmt, summaryAmount, addTxn, transactionAmountError,
       _renderTxnMain, accountsList, summaryCards, catChart, trendChart, envelopeCard, networthCard, alertsStrip,
       setCurrency: (accounts, summary, canonical = false) => { _accounts = accounts; _sum = summary; _canonicalLedger = canonical; _cur = summary.currency; },
+      setTask: id => { _moneyPlanTask = id; },
+      setEnvelope: value => { _envelope = value; },
       setRecurring: (rows, error = false) => { _recurring = rows; _recurringError = error; } };
   `, context);
   return { ...context.subject, get, requests };
@@ -186,4 +188,48 @@ test('pending schedule recovery opens plans and prevents hiding the unresolved s
   h.toggleMoneySection(button);
   h.render();
   assert.doesNotMatch(h.get('money-body').innerHTML, /id="money-section-plans" hidden/);
+});
+
+
+test('chosen management task survives refresh while other forms remain disclosed by choice', () => {
+  const h = harness();
+  h.setTask('goals');
+  for (let n = 0; n < 2; n++) {
+    h.render();
+    const html = h.get('money-body').innerHTML;
+    assert.match(html, /data-money-task="goals" aria-pressed="true"/);
+    assert.match(html, /data-money-task-panel="accounts" hidden/);
+    assert.match(html, /data-money-task-panel="budgets" hidden/);
+    assert.match(html, /data-money-task-panel="schedules" hidden/);
+    assert.match(html, /data-money-task-panel="goals">/);
+    assert.doesNotMatch(html, /id="money-entry-close"/);
+  }
+});
+
+test('pending schedules and envelope writes stay visible alongside the chosen task', () => {
+  const h = harness();
+  h.setTask('accounts');
+  h.setRecurring([{ id: 'pending', payee: 'rent', amount: -10, create_pending: true }]);
+  h.setEnvelope({ pending_assignments: [{ category_id: 'rent', assigned: 10 }] });
+  h.render();
+  const html = h.get('money-body').innerHTML;
+  for (const id of ['schedules', 'budgets']) {
+    assert.match(html, new RegExp(`data-money-task-panel="${id}" data-attention="true">`));
+    assert.doesNotMatch(html, new RegExp(`data-money-task-panel="${id}"[^>]* hidden`));
+  }
+  assert.match(html, /data-card="recurring" data-attention="true"/);
+  assert.match(html, /data-card="envelope" data-attention="true"/);
+});
+
+test('transaction action text explains effects and cleared keeps a stable toggle name', () => {
+  const h = harness();
+  const row = {id: 't', account_id: 'checking', amount: -12.5, payee: 'owned & exact', date: '2026-10-01', original_currency_code:'CAD'};
+  let html = h._renderTxnMain(row, {checking:'checking'});
+  for (const text of ['edit', 'split', 'attach receipt', 'delete']) assert.ok(html.includes(`>${text}</`), text);
+  assert.match(html, /aria-label="cleared: owned &amp; exact/);
+  html = h._renderTxnMain({...row,cleared:true,receipt_id:'owned-local'}, {checking:'checking'});
+  assert.match(html, /aria-pressed="true"><span aria-hidden="true">✓<\/span> cleared<\/button>/);
+  assert.match(html, /aria-label="cleared: owned &amp; exact/);
+  assert.match(html, />view receipt<\/a>/);
+  assert.match(h._renderTxnMain({...row,transfer_id:'transfer'}, {checking:'checking'}), />delete transfer<\/button>/);
 });

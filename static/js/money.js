@@ -50,7 +50,9 @@ let _cur = '$';
 let _currencyCodes = [];
 let _inited = false;
 const _expandedMoneySections = new Set();
-let _moneyEntryOpen = false;
+let _moneyEntryOpen = null;
+let _moneyPlanTask = 'accounts';
+let _moneyFocusChange = 0;
 let _moneyTotalsOpen = false;
 let _editTxn = null;   // id of the txn row currently being edited inline
 let _splitTxn = null;  // id of the txn whose split editor is open (4a)
@@ -216,6 +218,76 @@ function compactMoney() {
   return globalThis.matchMedia?.('(max-width: 720px)')?.matches || false;
 }
 
+function scheduleNeedsAttention() {
+  return _recurringError || _recurring.some(r => r.repair_needed || r.repair_pending || r.posting_pending || r.create_pending || r.create_needs_review || r.edit_pending || r.edit_needs_review || r.delete_pending || r.delete_needs_review);
+}
+
+function moneyTask(id, cards, attention = false) {
+  return `<div class="money-task money-grid" id="money-task-${id}" data-money-task-panel="${id}"${attention ? ' data-attention="true"' : ''}${_moneyPlanTask === id || attention ? '' : ' hidden'}>${cards}</div>`;
+}
+
+function selectMoneyTask(button) {
+  button.focus({ preventScroll: true });
+  _moneyFocusChange++;
+  _moneyPlanTask = button.dataset.moneyTask;
+  $('money-section-plans').querySelectorAll('[data-money-task]').forEach(item => {
+    item.setAttribute('aria-pressed', String(item.dataset.moneyTask === _moneyPlanTask));
+  });
+  $('money-section-plans').querySelectorAll('[data-money-task-panel]').forEach(panel => {
+    panel.hidden = panel.dataset.moneyTaskPanel !== _moneyPlanTask && panel.dataset.attention !== 'true';
+  });
+}
+
+function captureMoneyFocus(task) {
+  return { task, panel: $(`money-task-${task}`), node: document.activeElement, version: _moneyFocusChange };
+}
+
+function ownsMoneyFocus(owner) {
+  const { task, panel, node, version } = owner;
+  return version === _moneyFocusChange && panel === $(`money-task-${task}`)
+    && panel?.contains?.(node) && panel.getClientRects().length
+    && (document.activeElement === node || (document.activeElement === document.body && node.disabled));
+}
+
+function focusMoneyTask(task, target = null) {
+  const choice = $('money-body').querySelector(`[data-money-task="${task}"]`);
+  (target?.getClientRects().length ? target : choice)?.focus();
+}
+
+function refreshMoneyTasks() {
+  const plans = $('money-body').querySelector('[data-money-section="plans"]');
+  if (!plans) return;
+  const pending = { schedules: scheduleNeedsAttention(), budgets: !!_envelope?.pending_assignments?.length || !!$('env-save-status')?.textContent.trim() };
+  for (const [id, attention] of Object.entries(pending)) {
+    const panel = $(`money-task-${id}`);
+    if (!panel) continue;
+    if (panel.contains(document.activeElement)) _moneyPlanTask = id;
+    panel.dataset.attention = String(attention);
+    const card = panel.querySelector(`[data-card="${id === 'schedules' ? 'recurring' : 'envelope'}"]`);
+    if (card) {
+      card.dataset.attention = String(attention);
+      const title = id === 'schedules' ? card.querySelector('h3')?.firstChild : null;
+      if (title?.nodeType === 3) title.textContent = 'recurring' + (attention ? ' · needs attention' : '');
+    }
+  }
+  const attention = Object.values(pending).some(Boolean);
+  plans.textContent = 'accounts, budgets, schedules & goals' + (attention ? ' · needs attention' : '');
+  if (attention) {
+    _expandedMoneySections.add('plans');
+    $('money-section-plans').hidden = false;
+    plans.setAttribute('aria-expanded', 'true');
+    if (document.activeElement === plans) focusMoneyTask(_moneyPlanTask);
+  }
+  plans.disabled = attention;
+  $('money-section-plans').querySelectorAll('[data-money-task]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.moneyTask === _moneyPlanTask));
+  });
+  $('money-section-plans').querySelectorAll('[data-money-task-panel]').forEach(panel => {
+    panel.hidden = panel.dataset.moneyTaskPanel !== _moneyPlanTask && panel.dataset.attention !== 'true';
+  });
+  _decorateCards();
+}
+
 function syncMoneyLayout() {
   const entry = $('money-entry-fields');
   const action = $('money-entry-action');
@@ -226,11 +298,10 @@ function syncMoneyLayout() {
   if (entry.contains(document.activeElement)) _moneyEntryOpen = true;
   const secondary = $('money-body').querySelectorAll('[data-secondary-total]');
   if ([...secondary].some(card => card.contains(document.activeElement))) _moneyTotalsOpen = true;
-  entry.hidden = compact && !_moneyEntryOpen;
+  entry.hidden = _moneyEntryOpen === null ? compact : !_moneyEntryOpen;
   action.classList.toggle('primary', entry.hidden);
   action.setAttribute('aria-expanded', String(!entry.hidden));
-  if (!compact && document.activeElement === $('money-entry-close')) action.focus();
-  $('money-entry-close').hidden = !compact;
+  action.textContent = entry.hidden ? 'add transaction' : 'close entry';
   for (const card of secondary) card.hidden = compact && !_moneyTotalsOpen;
   if (!compact && document.activeElement === totals) action.focus();
   totals.hidden = !compact;
@@ -242,6 +313,8 @@ function syncMoneyLayout() {
 export function initMoneyPanel(fetcher = fetch) {
   if (!_inited) {
     _inited = true;
+    // A disabled control losing focus to body is still ours only until a newer interaction.
+    ['focusin', 'pointerdown'].forEach(event => document.addEventListener(event, () => { _moneyFocusChange++; }));
     window.matchMedia('(max-width: 720px)').addEventListener('change', syncMoneyLayout);
     $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(); });
     $('money-next')?.addEventListener('click', () => { _month = _shiftMonth(_month, 1); load(); });
@@ -430,7 +503,7 @@ function render() {
     `<div id="money-alerts-content" role="status" tabindex="-1">${alertsStrip()}</div>` +
     `<section class="money-card money-txns">
       <h2>transactions · ${_monthLabel(_month)}</h2>
-      <div id="money-entry-fields"><button type="button" class="btn" id="money-entry-close">close entry</button>${addTxnRow()}${transferRow()}</div>
+      <div id="money-entry-fields">${addTxnRow()}${transferRow()}</div>
       <div class="txn-search-wrap" role="group" aria-label="filter transactions">
         ${moneyField('search transactions', '<input type="text" id="txn-search" class="settings-input" placeholder="payee, category or notes" autocomplete="off">')}
         <button type="button" class="btn" id="txn-range-toggle" aria-expanded="false" aria-controls="txn-amount-range">amount range</button>
@@ -442,13 +515,21 @@ function render() {
       <div id="txn-rows">${txnList()}</div>
     </section>` +
     moneySection('plans', 'accounts, budgets, schedules & goals', `
+      <div class="money-task-choices" role="group" aria-label="manage money">
+        ${['accounts', 'budgets', 'schedules', 'goals'].map(id => `<button type="button" class="btn" data-money-task="${id}" aria-pressed="${_moneyPlanTask === id}" aria-controls="money-task-${id}">${id}</button>`).join('')}
+      </div>
+      ${moneyTask('accounts', `
       <section class="money-card" data-card="accounts"><h3>accounts</h3>${accountsList()}<div id="money-acct-form-wrap"></div>
-        <button class="btn money-add-acct" id="money-add-acct">+ account</button></section>
-      <section class="money-card money-envelope" data-card="envelope">${envelopeHeading()}${envelopeCard()}</section>
-      <section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>
+        <button class="btn money-add-acct" id="money-add-acct">+ account</button></section>`)}
+      ${moneyTask('budgets', `
+      <section class="money-card money-envelope" data-card="envelope"${_envelope?.pending_assignments?.length ? ' data-attention="true"' : ''}>${envelopeHeading()}${envelopeCard()}</section>
       <section class="money-card" data-card="budgets"><h3>spending caps</h3>${comparableTotals() ? budgetsList() + _budgetForm() : currencyBoundary()}</section>
-      <section class="money-card" data-card="recurring"><h3 tabindex="-1">recurring</h3><div id="recurring-content"><div id="recurring-list">${recurringList()}</div>${_recurringForm()}</div></section>
-    `, _recurringError || _recurring.some(r => r.repair_needed || r.repair_pending || r.posting_pending || r.create_pending || r.create_needs_review || r.edit_pending || r.edit_needs_review || r.delete_pending || r.delete_needs_review) || !!_envelope?.pending_assignments?.length) +
+      `, !!_envelope?.pending_assignments?.length)}
+      ${moneyTask('schedules', `
+      <section class="money-card" data-card="recurring"${scheduleNeedsAttention() ? ' data-attention="true"' : ''}><h3 tabindex="-1">recurring${scheduleNeedsAttention() ? ' · needs attention' : ''}</h3><div id="recurring-content"><div id="recurring-list">${recurringList()}</div>${_recurringForm()}</div></section>
+      `, scheduleNeedsAttention())}
+      ${moneyTask('goals', `<section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>`)}
+    `, scheduleNeedsAttention() || !!_envelope?.pending_assignments?.length) +
     moneySection('analytics', 'analytics & tools', `
       <section class="money-card" data-card="category"><h3>spending by category</h3>${catChart()}</section>
       <section class="money-card" data-card="trend"><h3>last 6 months</h3>${trendChart()}</section>
@@ -918,11 +999,11 @@ function _renderTxnMain(t, an) {
   const label = esc(`${t.payee || 'transaction'}, ${t.date || 'undated'}, ${signed(t.amount, currency)}, ${an[t.account_id] || 'account'}`);
   const actions = xf ? '' : `<span class="tx-actions">
     <button type="button" class="tx-edit" data-edit-txn="${t.id}" aria-label="edit ${label}">edit</button>
-    <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" aria-label="cleared: ${label}" aria-pressed="${!!t.cleared}" title="${t.cleared ? 'mark uncleared' : 'mark cleared'}">${t.cleared ? '✓' : '○'}</button>
-    ${canSplit ? `<button class="tx-split-btn ${t.split ? 'on' : ''}" data-split-txn="${t.id}" aria-label="split ${label} across categories" aria-expanded="${_splitTxn === t.id}" title="split across categories">${t.split ? '⊟' : '⊞'}</button>` : ''}
+    <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" aria-label="cleared: ${label}" aria-pressed="${!!t.cleared}"><span aria-hidden="true">${t.cleared ? '✓' : '○'}</span> cleared</button>
+    ${canSplit ? `<button class="tx-split-btn ${t.split ? 'on' : ''}" data-split-txn="${t.id}" aria-label="split ${label} across categories" aria-expanded="${_splitTxn === t.id}" title="split across categories">split</button>` : ''}
     ${t.receipt_id
-      ? `<a class="tx-receipt" href="/api/uploads/${esc(t.receipt_id)}" target="_blank" rel="noopener" aria-label="view receipt for ${label}" title="view receipt">📎</a>`
-      : `<button class="tx-receipt-btn" data-receipt-txn="${t.id}" aria-label="attach receipt to ${label}" title="attach receipt">📎</button>`}
+      ? `<a class="tx-receipt" href="/api/uploads/${esc(t.receipt_id)}" target="_blank" rel="noopener" aria-label="view receipt for ${label}" title="view receipt">view receipt</a>`
+      : `<button class="tx-receipt-btn" data-receipt-txn="${t.id}" aria-label="attach receipt to ${label}" title="attach receipt">attach receipt</button>`}
   </span>`;
   return `
     <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${t.id}">
@@ -934,8 +1015,8 @@ function _renderTxnMain(t, an) {
       <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount, currency)}</span>
       ${actions}
       ${xf
-        ? `<button class="tx-del" data-del-transfer="${t.transfer_id}" aria-label="delete transfer (both legs): ${label}" title="delete transfer (both legs)">×</button>`
-        : `<button class="tx-del" data-del-txn="${t.id}" aria-label="delete ${label}" title="delete">×</button>`}
+        ? `<button class="tx-del" data-del-transfer="${t.transfer_id}" aria-label="delete transfer (both legs): ${label}" title="delete transfer (both legs)">delete transfer</button>`
+        : `<button class="tx-del" data-del-txn="${t.id}" aria-label="delete ${label}" title="delete">delete</button>`}
     </div>`;
 }
 
@@ -1031,16 +1112,15 @@ async function retryCurrencyChoices() {
 function wire() {
   _initControls();
   $('money-body').querySelectorAll('[data-money-section]').forEach(button => button.addEventListener('click', () => toggleMoneySection(button)));
+  $('money-body').querySelectorAll('[data-money-task]').forEach(button => button.addEventListener('click', () => selectMoneyTask(button)));
   $('money-entry-action')?.addEventListener('click', () => {
-    _moneyEntryOpen = true;
+    _moneyEntryOpen = $('money-entry-fields').hidden;
+    if (!_moneyEntryOpen) $('money-entry-action').focus({ preventScroll: true });
     syncMoneyLayout();
-    $('tx-payee')?.focus();
-    $('tx-payee')?.scrollIntoView({ block: 'center' });
-  });
-  $('money-entry-close')?.addEventListener('click', () => {
-    $('money-entry-action').focus();
-    _moneyEntryOpen = false;
-    syncMoneyLayout();
+    if (_moneyEntryOpen) {
+      $('tx-payee')?.focus();
+      $('tx-payee')?.scrollIntoView({ block: 'center' });
+    }
   });
   $('money-summary-toggle')?.addEventListener('click', () => {
     _moneyTotalsOpen = !_moneyTotalsOpen;
@@ -1094,7 +1174,7 @@ function wire() {
   $('money-body').querySelectorAll('[data-del-rule]').forEach(b => b.addEventListener('click', () => delRule(b.dataset.delRule)));
 }
 
-async function retryRecurring(focusId = '') {
+async function retryRecurring(focusId = '', focusOwner = captureMoneyFocus('schedules')) {
   const button = $('recurring-retry');
   if (button) {
     button.disabled = true;
@@ -1103,10 +1183,15 @@ async function retryRecurring(focusId = '') {
   await readRecurring(api);
   const content = $('recurring-content');
   if (!content) return;
+  const restoreFocus = ownsMoneyFocus(focusOwner);
+  if (restoreFocus) _moneyPlanTask = 'schedules';
+  else if (content.contains(document.activeElement)) focusMoneyTask(_moneyPlanTask);
+  _snapshotRecurringEdit();
   content.innerHTML = `<div id="recurring-list">${recurringList()}</div>` + _recurringForm();
   wireRecurring();
   const action = focusId ? [...content.querySelectorAll('[data-toggle-rec], [data-del-rec], [data-retry-create-rec], [data-retry-edit-rec], [data-retry-delete-rec]')].find(b => b.dataset.toggleRec === focusId || b.dataset.delRec === focusId || b.dataset.retryCreateRec === focusId || b.dataset.retryEditRec === focusId || b.dataset.retryDeleteRec === focusId) : null;
-  (action || $('recurring-retry') || document.querySelector('.money-card[data-card="recurring"] h3'))?.focus();
+  if (restoreFocus) focusMoneyTask('schedules', action || $('recurring-retry') || document.querySelector('.money-card[data-card="recurring"] h3'));
+  refreshMoneyTasks();
 }
 
 function wireRecurring() {
@@ -1118,6 +1203,7 @@ function wireRecurring() {
 }
 
 function wireRecurringList() {
+  refreshMoneyTasks();
   $('recurring-retry')?.addEventListener('click', () => retryRecurring());
   document.querySelectorAll('#recurring-list [data-edit-rec]').forEach(b => b.addEventListener('click', () => openRecurringEdit(b.dataset.editRec)));
   document.querySelectorAll('#recurring-list [data-retry-open-rec]').forEach(b => b.addEventListener('click', () => openRecurringEdit(b.dataset.retryOpenRec, true)));
@@ -1282,12 +1368,13 @@ async function saveRecurringEdit() {
   edit.saving = true;
   edit.status = '';
   _drawRecurringEdit('#rce-panel');
+  const focusOwner = captureMoneyFocus('schedules');
   try {
     await api(`/api/money/recurring/${encodeURIComponent(edit.id)}/edit`, { method: 'POST', body: payload });
     if (_recurringEdit !== edit) return;
     _recurringEdit = null;
     _recurringStatus = '';
-    await retryRecurring(edit.id);
+    await retryRecurring(edit.id, focusOwner);
   } catch (error) {
     if (_recurringEdit !== edit) return;
     edit.saving = false;
@@ -1688,6 +1775,7 @@ function _hiddenCards() { try { return new Set(JSON.parse(localStorage.getItem('
 function _saveHidden(set) { try { localStorage.setItem('money-hidden-cards', JSON.stringify([...set])); } catch {} }
 function _decorateCards() {
   const hidden = _hiddenCards();
+  let hiddenCount = 0;
   $('money-body').querySelectorAll('.money-card[data-card]').forEach(card => {
     const id = card.dataset.card;
     const h3 = card.querySelector('h3');
@@ -1698,20 +1786,41 @@ function _decorateCards() {
       x.addEventListener('click', () => { const s = _hiddenCards(); s.add(id); _saveHidden(s); _decorateCards(); });
       h3.appendChild(x);
     }
-    card.style.display = hidden.has(id) ? 'none' : '';
+    const attention = card.dataset.attention === 'true';
+    const hide = h3?.querySelector('.card-hide');
+    if (hide) {
+      if (attention && document.activeElement === hide) focusMoneyTask(_moneyPlanTask);
+      hide.disabled = attention;
+      hide.title = attention ? 'resolve pending work before hiding this card' : 'hide this card';
+    }
+    const conceal = hidden.has(id) && !attention;
+    if (conceal) {
+      hiddenCount++;
+      if (card.contains(document.activeElement)) {
+        const task = card.closest('[data-money-task-panel]')?.dataset.moneyTaskPanel;
+        if (task) focusMoneyTask(task);
+        else card.closest('.money-section')?.querySelector('[data-money-section]')?.focus();
+      }
+    }
+    card.style.display = conceal ? 'none' : '';
   });
   // a restore chip when anything is hidden
   let chip = $('money-restore-cards');
-  if (hidden.size) {
+  if (hiddenCount) {
     if (!chip) {
       chip = document.createElement('button');
       chip.id = 'money-restore-cards'; chip.className = 'btn money-restore-cards';
-      chip.addEventListener('click', () => { _saveHidden(new Set()); _decorateCards(); });
+      chip.addEventListener('click', () => {
+        _saveHidden(new Set()); _decorateCards(); focusMoneyTask(_moneyPlanTask);
+      });
       $('money-body').querySelector('.money-grid')?.appendChild(chip);
     }
-    chip.textContent = `+ ${hidden.size} hidden card${hidden.size > 1 ? 's' : ''}`;
+    chip.textContent = `restore ${hiddenCount} hidden card${hiddenCount > 1 ? 's' : ''}`;
     chip.style.display = '';
-  } else if (chip) { chip.style.display = 'none'; }
+  } else if (chip) {
+    if (document.activeElement === chip) focusMoneyTask(_moneyPlanTask);
+    chip.style.display = 'none';
+  }
 }
 async function assignEnvelope(category, amount, categoryId = '', expectedAmount = null) {
   category = (category || '').trim();
@@ -1720,6 +1829,7 @@ async function assignEnvelope(category, amount, categoryId = '', expectedAmount 
   if (!_validAmounts(amount)) return false;
   const key = `${_month}:${categoryId || category}`;
   if (_envAssignmentBusy.has(key)) return false;
+  const focusOwner = captureMoneyFocus('budgets');
   _envAssignmentBusy.add(key);
   try {
     const body = _canonicalLedger
@@ -1730,10 +1840,15 @@ async function assignEnvelope(category, amount, categoryId = '', expectedAmount 
     _envelope = await api(`/api/money/envelope?month=${_month}`).catch(() => null);
     const card = $('money-body').querySelector('.money-envelope');
     if (card) {
+      const restoreFocus = ownsMoneyFocus(focusOwner);
+      if (restoreFocus) _moneyPlanTask = 'budgets';
+      else if (card.contains(document.activeElement)) focusMoneyTask(_moneyPlanTask);
       card.innerHTML = envelopeHeading() + envelopeCard(); _wireEnvelope();
-      [...card.querySelectorAll('.env-assign')]
-        .find(input => input.dataset.categoryId === categoryId)?.focus();
-      if (!_envelope) card.querySelector('#env-retry')?.focus();
+      refreshMoneyTasks();
+      const target = _envelope
+        ? [...card.querySelectorAll('.env-assign')].find(input => input.dataset.categoryId === categoryId)
+        : card.querySelector('#env-retry');
+      if (restoreFocus) focusMoneyTask('budgets', target || card.querySelector('h3'));
     }
     return true;
   } catch (error) {
@@ -1751,7 +1866,7 @@ async function assignEnvelope(category, amount, categoryId = '', expectedAmount 
       }
     } else toast('assign failed', 'error');
     return false;
-  } finally { _envAssignmentBusy.delete(key); }
+  } finally { _envAssignmentBusy.delete(key); refreshMoneyTasks(); }
 }
 
 async function retryAgeOfMoney() {
@@ -1768,15 +1883,20 @@ async function retryAgeOfMoney() {
 
 async function retryEnvelope() {
   const button = $('env-retry');
+  const focusOwner = captureMoneyFocus('budgets');
   button.disabled = true;
   button.textContent = 'retrying…';
   try { _envelope = await api(`/api/money/envelope?month=${_month}`); }
   catch { _envelope = null; }
   const card = $('money-body').querySelector('.money-envelope');
   if (!card) return;
+  const restoreFocus = ownsMoneyFocus(focusOwner);
+  if (restoreFocus) _moneyPlanTask = 'budgets';
+  else if (card.contains(document.activeElement)) focusMoneyTask(_moneyPlanTask);
   card.innerHTML = envelopeHeading() + envelopeCard();
   _wireEnvelope();
-  (_envelope ? card.querySelector('h3') : $('env-retry'))?.focus();
+  refreshMoneyTasks();
+  if (restoreFocus) focusMoneyTask('budgets', _envelope ? card.querySelector('h3') : $('env-retry'));
 }
 
 function _wireEnvelope() {
@@ -1941,6 +2061,7 @@ async function chooseRecurringCategory() {
 async function retryRecurringCreate(button) {
   const r = _recurring.find(row => row.id === button.dataset.retryCreateRec);
   if (!_canonicalLedger || !r?.create_pending || r.create_needs_review || button.disabled) return;
+  const focusOwner = captureMoneyFocus('schedules');
   button.disabled = true;
   button.textContent = 'retrying…';
   try {
@@ -1949,11 +2070,12 @@ async function retryRecurringCreate(button) {
   } catch (error) {
     _recurringStatus = `creation not confirmed for ${r.payee}: ${error.message || 'review the schedule in Actual'}`;
   }
-  await retryRecurring(r.id);
+  await retryRecurring(r.id, focusOwner);
 }
 async function retryRecurringEdit(button) {
   const r = _recurring.find(row => row.id === button.dataset.retryEditRec);
   if (!_canonicalLedger || !r?.edit_pending || r.edit_needs_review || button.disabled) return;
+  const focusOwner = captureMoneyFocus('schedules');
   button.disabled = true;
   button.textContent = 'retrying…';
   try {
@@ -1962,11 +2084,12 @@ async function retryRecurringEdit(button) {
   } catch (error) {
     _recurringStatus = `edit not confirmed for ${r.payee}: ${error.message || 'review the schedule in Actual'}`;
   }
-  await retryRecurring(r.id);
+  await retryRecurring(r.id, focusOwner);
 }
 async function retryRecurringDelete(button) {
   const r = _recurring.find(row => row.id === button.dataset.retryDeleteRec);
   if (!_canonicalLedger || !r?.delete_pending || r.delete_needs_review || button.disabled) return;
+  const focusOwner = captureMoneyFocus('schedules');
   button.disabled = true;
   button.textContent = 'retrying…';
   try {
@@ -1975,13 +2098,15 @@ async function retryRecurringDelete(button) {
   } catch (error) {
     _recurringStatus = `deletion not confirmed for ${r.payee}: ${error.message || 'review the schedule in Actual'}`;
   }
-  await retryRecurring(r.id);
+  await retryRecurring(r.id, focusOwner);
 }
 async function delRecurring(id) {
+  let focusOwner = captureMoneyFocus('schedules');
   if (_canonicalLedger) {
     const r = _recurring.find(row => row.id === id);
     if (!r?.editable || _recurringEdit) return;
     if (!await dlgConfirm(`delete the ${r.payee || 'recurring'} schedule? future posts stop; past transactions stay. a backup is saved first.`)) return;
+    focusOwner = captureMoneyFocus('schedules');
     try {
       await api(`/api/money/recurring/${encodeURIComponent(id)}/delete`, {
         method: 'POST', body: { confirm_id: id },
@@ -1990,7 +2115,7 @@ async function delRecurring(id) {
     } catch (error) {
       _recurringStatus = `deletion not confirmed for ${r.payee}: ${error.message || 'retry the saved deletion'}`;
     }
-    await retryRecurring(id);
+    await retryRecurring(id, focusOwner);
     return;
   }
   if (!await dlgConfirm('stop this recurring transaction?')) return;
@@ -1998,6 +2123,7 @@ async function delRecurring(id) {
   catch { toast('delete failed', 'error'); }
 }
 async function toggleRecurring(button) {
+  const focusOwner = captureMoneyFocus('schedules');
   const r = _recurring.find(x => x.id === button.dataset.toggleRec);
   if (!r || button.disabled || (_canonicalLedger && !r.manageable)) return;
   const active = r.posting_pending ? r.posting_target_active : !r.active;
@@ -2006,12 +2132,12 @@ async function toggleRecurring(button) {
   try {
     await api(`/api/money/recurring/${encodeURIComponent(r.id)}`, { method: 'PATCH', body: { active } });
     _recurringStatus = '';
-    if (_canonicalLedger) await retryRecurring(r.id);
+    if (_canonicalLedger) await retryRecurring(r.id, focusOwner);
     else await load();
   } catch (error) {
     if (_canonicalLedger) {
       _recurringStatus = `${active ? 'resume' : 'pause'} not confirmed for ${r.payee}: ${error.message || 'retry the saved action'}`;
-      await retryRecurring(r.id);
+      await retryRecurring(r.id, focusOwner);
     } else {
       button.disabled = false;
       button.textContent = r.active ? 'pause' : 'resume';
@@ -2020,6 +2146,7 @@ async function toggleRecurring(button) {
   }
 }
 async function repairRecurring(button) {
+  let focusOwner = captureMoneyFocus('schedules');
   const r = _recurring.find(row => row.id === button.dataset.repairRec);
   if (!r?.repair_needed || !_canonicalLedger || button.disabled) return;
   let categoryId = r.repair_category_id;
@@ -2031,7 +2158,7 @@ async function repairRecurring(button) {
     }
     if (!Array.isArray(categories)) {
       _recurringStatus = 'could not load Actual categories. retry when Actual is available.';
-      await retryRecurring();
+      await retryRecurring('', focusOwner);
       return;
     }
     const names = categories.map(row => row.group ? `${row.group} / ${row.category}` : row.category);
@@ -2043,11 +2170,12 @@ async function repairRecurring(button) {
     if (!r.category) options.unshift({ value: '', label: 'leave uncategorized' });
     if (!options.length) {
       _recurringStatus = 'add a spending category in Actual before repairing this schedule.';
-      await retryRecurring();
+      await retryRecurring('', focusOwner);
       return;
     }
     categoryId = await dlgChoose(`choose the Actual category for ${r.payee}`, options);
     if (categoryId === null) return;
+    focusOwner = captureMoneyFocus('schedules');
   }
   button.disabled = true;
   button.textContent = 'repairing…';
@@ -2056,11 +2184,11 @@ async function repairRecurring(button) {
       method: 'POST', body: { category_id: categoryId },
     });
     _recurringStatus = '';
-    await retryRecurring();
+    await retryRecurring('', focusOwner);
     toast('posting repaired', 'success');
   } catch (error) {
     _recurringStatus = `repair not confirmed for ${r.payee}: ${error.message || 'retry the saved choice'}`;
-    await retryRecurring();
+    await retryRecurring('', focusOwner);
   }
 }
 async function addRule() {

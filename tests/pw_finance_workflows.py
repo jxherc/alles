@@ -172,7 +172,8 @@ def run():
                 expect(page.locator("#money-body")).to_be_visible()
 
             def choose_account(name):
-                page.locator("#money-entry-action").click()
+                if page.locator("#money-entry-fields").is_hidden():
+                    page.locator("#money-entry-action").click()
                 page.locator("#tx-acct").click()
                 page.get_by_role("option", name=name, exact=True).click()
 
@@ -187,7 +188,8 @@ def run():
                 assert len(events["money_requests"]) == before, "invalid value reached the API"
 
             def create_transaction(payee, amount):
-                page.locator("#money-entry-action").click()
+                if page.locator("#money-entry-fields").is_hidden():
+                    page.locator("#money-entry-action").click()
                 page.locator("#tx-payee").fill(payee)
                 page.locator("#tx-cat").fill(category)
                 page.locator("#tx-tags").fill("fixture,测试")

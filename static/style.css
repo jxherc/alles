@@ -5188,7 +5188,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .txn-search-wrap #txn-search { width: 190px; }
 :where(#money-view) .txn-search-wrap #txn-min, :where(#money-view) .txn-search-wrap #txn-max { width: 64px; }
 @media (max-width: 720px) { :where(#money-view) .money-grid { grid-template-columns: 1fr; } }
-@media (max-width: 1000px) {
   :where(#money-view) .txn:not(.txn-edit) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -5202,13 +5201,11 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   :where(#money-view) .txn .tx-cat { grid-column: 1 / -1; grid-row: 3; white-space: normal; overflow-wrap: anywhere; }
   :where(#money-view) .txn .tx-tags { grid-column: 1 / -1; grid-row: 4; max-width: 100%; }
   :where(#money-view) .txn .tx-tags:empty { display: none; }
-  :where(#money-view) .txn .tx-actions { grid-column: 1; grid-row: 5; flex-wrap: wrap; }
+  :where(#money-view) .txn .tx-actions { grid-column: 1; grid-row: 5; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
   :where(#money-view) .txn .tx-del { grid-column: 2; grid-row: 5; justify-self: end; }
-}
 
 #money-view .money-entry-action { min-height: 44px; }
-#money-view :is(#money-entry-fields, #money-entry-close, #money-summary-toggle, .ms-card)[hidden] { display: none; }
-#money-view #money-entry-close { margin-bottom: var(--k-space-3, 12px); }
+#money-view :is(#money-entry-fields, #money-summary-toggle, .ms-card)[hidden] { display: none; }
 @media (max-width: 720px) {
   #money-view .money-summary { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-1, 4px); margin-bottom: var(--k-space-1, 4px); }
   #money-view .ms-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: baseline; gap: var(--k-space-2, 8px); border: 0; background: transparent; padding: var(--k-space-2, 8px) 0; }
@@ -5224,6 +5221,12 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-section-toggle:focus-visible { outline: 2px solid var(--k-focus); outline-offset: 2px; }
 #money-view .money-section-toggle:disabled { cursor: default; }
 #money-view .money-section .money-grid[hidden] { display: none; }
+#money-view #money-section-plans { grid-template-columns: minmax(0, 1fr); }
+#money-view .money-task-choices { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
+#money-view .money-task-choices .btn { min-height: 44px; }
+#money-view .money-task-choices [aria-pressed="true"] { background: var(--k-raised, var(--raised)); color: var(--k-ink, var(--text)); font-weight: 580; }
+#money-view .money-task { margin-bottom: 0; }
+#money-view .txn .tx-del { align-self: start; }
 #money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .nw-base, .split-row) { align-items: end; }
 #money-view .money-field { display: grid; gap: var(--k-space-1, 4px); height: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
 #money-view .money-field-label { color: var(--k-ink-muted, var(--muted)); font-size: 0.75rem; font-weight: 400; letter-spacing: normal; line-height: 1.4; }
