@@ -600,16 +600,17 @@ async function renderServices(target, request) {
     if (!(payload.services || []).length) host.append(el('p', 'server-workbench-empty', 'no host services are allowlisted'));
   }
   target.replaceChildren(heading, search, host);
-  const actual = card('actual budget service', 'Actual is the canonical Finance service when its ledger cutover is active. Service lifecycle actions keep the existing Finance authority guard.');
+  const actual = card('actual budget service', 'manage the optional Actual Budget service. installing or starting it does not change where transactions are saved.');
   if (actualResult.status === 'rejected') actual.append(statusLine(actualResult.reason.message, 'error'));
   else {
     const payload = actualResult.value;
     const service = payload.service || {};
     actual.append(
       fact('service', !service.available ? 'runtime unavailable' : !service.installed ? 'not installed' : service.healthy ? 'healthy' : service.running ? 'unhealthy' : 'stopped'),
-      fact('ledger', payload.ledger?.mode || 'Alles'),
-      fact('ownership', service.owned === false ? 'unverified' : 'Alles-managed'),
+      fact('transactions saved in', { alles: 'Alles', actual: 'Actual' }[payload.ledger?.mode] || 'not reported'),
     );
+    if (service.installed) actual.append(fact('managed by', service.owned === false ? 'not verified' : 'Alles'));
+    if (!service.available) actual.append(el('p', 'server-workbench-copy', 'Node.js 22.12 or later is required on this server before these service controls are available.'));
     const actions = el('div', 'server-workbench-actions');
     const verbs = [];
     if (service.available && !service.installed) verbs.push('install');
@@ -623,6 +624,10 @@ async function renderServices(target, request) {
     }
     actual.append(actions);
   }
+  actual.append(el('p', 'server-workbench-copy', 'choose where transactions are saved in Finance → overview → Actual ledger.'));
+  const financeActions = el('div', 'server-workbench-actions');
+  financeActions.append(action('open Finance overview', () => window._navigateSpecialistSection('finance', 'overview')));
+  actual.append(financeActions);
   target.append(actual);
   const companions = card('network companions', 'AdGuard Home and Nginx Proxy Manager stay separate from Alles. Preparing downloads pinned images only; activation is a second, verified network step.');
   if (companionsResult.status === 'rejected') companions.append(statusLine(companionsResult.reason.message, 'error'));
