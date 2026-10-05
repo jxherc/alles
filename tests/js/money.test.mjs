@@ -1,3 +1,4 @@
+import { calendarDateKey } from '../../static/js/i18n.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -41,6 +42,7 @@ test('old Actual schedule repair chooses a category once and retries the saved c
   const calls = [];
   let choices = 0;
   const context = vm.createContext({
+    calendarDateKey,
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     dlgChoose: async () => { choices += 1; return 'housing-id'; },
@@ -70,6 +72,7 @@ test('canonical recurring pause retries only the saved provider posting choice',
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
   const context = vm.createContext({
+    calendarDateKey,
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     toast: () => {},
@@ -114,6 +117,7 @@ test('canonical recurring creation sends an exact category id and reuses its req
   element('rc-category-choice').dataset.categoryId = 'housing-id';
   const calls = [], storage = new Map();
   const context = vm.createContext({
+    calendarDateKey,
     location: { search: '' }, URLSearchParams, crypto: webcrypto, TextEncoder,
     sessionStorage: {
       getItem: key => storage.get(key) || null,
@@ -150,6 +154,7 @@ test('pending canonical creation offers one retry action and holds the new form'
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
   const context = vm.createContext({
+    calendarDateKey,
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     formatNumber: value => String(value),
@@ -178,6 +183,7 @@ test('pending recurring edit stays visible and retries only the saved edit', asy
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
   const context = vm.createContext({
+    calendarDateKey,
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     formatNumber: value => String(value),
@@ -211,6 +217,7 @@ test('canonical recurring deletion confirms its scope and retries only a saved d
   const calls = [];
   const confirmations = [];
   const context = vm.createContext({
+    calendarDateKey,
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     dlgConfirm: async message => { confirmations.push(message); return true; },
@@ -255,6 +262,7 @@ test('canonical recurring deletion confirms its scope and retries only a saved d
 test('recurring edit stays scoped to one eligible linked schedule', () => {
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const context = vm.createContext({
+    calendarDateKey,
     location: { search: '' }, URLSearchParams,
     formatNumber: value => String(value),
   });
