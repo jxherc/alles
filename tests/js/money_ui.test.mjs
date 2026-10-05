@@ -1,3 +1,4 @@
+import { calendarDateKey } from '../../static/js/i18n.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -20,6 +21,7 @@ function harness() {
   };
   const requests = [];
   const context = vm.createContext({
+    calendarDateKey,
     document: { getElementById: get }, location: { search: '' }, URLSearchParams,
     formatCalendarDate: () => 'october 2026',
     formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),

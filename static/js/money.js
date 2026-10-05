@@ -4,7 +4,7 @@ import { api, toast } from './util.js';
 import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker, calendarDateParts } from './datepick.js';
-import { formatCalendarDate, formatDate, formatNumber } from './i18n.js';
+import { calendarDateKey, formatCalendarDate, formatDate, formatNumber } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=1';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { replaceRouteUrl } from './route_history.js';
@@ -26,7 +26,7 @@ function _validAmounts(...values) {
   return false;
 }
 
-function _thisMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
+function _thisMonth() { return calendarDateKey().slice(0, 7); }
 function _monthFromUrl() { const m = new URLSearchParams(location.search).get('m'); return (m && /^\d{4}-\d{2}$/.test(m)) ? m : ''; }
 function _setMonthUrl() { try { const u = new URL(location.href); u.searchParams.set('m', _month); replaceRouteUrl(u); } catch {} }
 
@@ -142,7 +142,7 @@ function _completeCreateRequest(kind, requestId) {
   } catch {}
 }
 
-function _today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function _today() { return calendarDateKey(); }
 function _shiftMonth(m, delta) {
   let [y, mo] = m.split('-').map(Number); mo += delta;
   while (mo < 1) { mo += 12; y--; } while (mo > 12) { mo -= 12; y++; }
