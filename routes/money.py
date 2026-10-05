@@ -22,6 +22,7 @@ from core.database import (
     Goal,
     Holding,
     RecurringTxn,
+    Subscription,
     TagRule,
     Transaction,
     TxnSplit,
@@ -218,6 +219,17 @@ def _acct(a, balance):
     }
 
 
+@router.get("/currencies")
+def supported_currencies(db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        state = db.get(FinanceLedgerState, "primary")
+        code = finance_currency.currency_code(state.base_currency_code if state else "")
+        if code == "XXX":
+            raise HTTPException(409, "canonical ledger base currency is invalid")
+        return {"codes": [code]}
+    return {"codes": sorted(finance_currency.SUPPORTED_CURRENCY_CODES)}
+
+
 @router.get("/accounts")
 def list_accounts(db: DbSession = Depends(get_db)):
     if actual_finance.is_canonical(db):
@@ -227,7 +239,21 @@ def list_accounts(db: DbSession = Depends(get_db)):
             _actual_error(exc)
     bal = _balances(db)
     rows = db.query(Account).order_by(Account.created_at.asc()).all()
-    return [_acct(a, (a.opening or 0.0) + bal.get(a.id, 0.0)) for a in rows]
+    transactions = db.query(Transaction).all()
+    _, balances = finance_currency.native_currency_totals(rows, transactions)
+    populated = {transaction.account_id for transaction in transactions}
+    for model in (RecurringTxn, Subscription):
+        populated.update(account_id for (account_id,) in db.query(model.account_id).all())
+    return [
+        _acct(a, (a.opening or 0.0) + bal.get(a.id, 0.0))
+        | {
+            "balance_by_currency": balances.get(a.id, []),
+            "currency_edit_reason": finance_currency.account_currency_edit_reason(
+                a, has_saved_amounts=a.id in populated
+            ),
+        }
+        for a in rows
+    ]
 
 
 class AccountBody(BaseModel):
@@ -283,14 +309,36 @@ def update_account(aid: str, body: dict, db: DbSession = Depends(get_db)):
     if not a:
         raise HTTPException(404)
     _need_floats(body, "opening", "low_balance")
+    changed_currency = False
+    opening_changed = "opening" in body and body["opening"] != a.opening
+    original_opening = a.original_opening_text
+    if "currency" in body and body["currency"] != a.currency:
+        requested = finance_currency.currency_code(body["currency"])
+        if requested == "XXX":
+            raise HTTPException(400, "choose a supported currency code")
+        current = finance_currency.currency_code(a.currency_code or a.currency)
+        changed_currency = requested != current
+        if changed_currency:
+            reason = finance_currency.account_currency_edit_reason(
+                a,
+                has_saved_amounts=any(
+                    db.query(model.id).filter_by(account_id=aid).first() is not None
+                    for model in (Transaction, RecurringTxn, Subscription)
+                ),
+            )
+            if reason:
+                raise HTTPException(409, reason)
     for k in ("name", "kind", "currency", "opening", "color", "archived", "low_balance"):
         if k in body:
             setattr(a, k, body[k])
-    if "currency" in body:
+    if changed_currency:
         _prepare_money(
             lambda: finance_currency.prepare_account(a), detail="opening balance is invalid"
         )
-    elif "opening" in body:
+        if original_opening and not opening_changed:
+            a.original_opening_text = original_opening
+            a.base_opening_text = original_opening
+    elif opening_changed:
         _prepare_money(
             lambda: finance_currency.refresh_account_opening(a),
             detail="opening balance is invalid",
@@ -636,6 +684,8 @@ def update_txn(tid: str, body: dict, db: DbSession = Depends(get_db)):
             raise HTTPException(400, "amount must be a finite number")
     if "account_id" in body and not db.get(Account, body["account_id"]):
         raise HTTPException(400, "unknown account")
+    amount_changed = "amount" in body and body["amount"] != t.amount
+    account_changed = "account_id" in body and body["account_id"] != t.account_id
     for k in ("account_id", "date", "amount", "category", "payee", "notes", "receipt_id"):
         if k in body:
             setattr(t, k, body[k])
@@ -643,7 +693,7 @@ def update_txn(tid: str, body: dict, db: DbSession = Depends(get_db)):
         t.tags = _norm_tags(body["tags"])
     if "cleared" in body:
         t.cleared = bool(body["cleared"])
-    if "amount" in body or "account_id" in body:
+    if amount_changed or account_changed:
         _prepare_money(
             lambda: finance_currency.prepare_transaction(db, t, source="manual_update_identity")
         )
@@ -987,6 +1037,12 @@ def create_transfer(body: TransferBody, db: DbSession = Depends(get_db)):
     dst = db.get(Account, body.to_account)
     if not src or not dst:
         raise HTTPException(400, "unknown account")
+    source_currency = finance_currency.currency_code(src.currency_code or src.currency)
+    destination_currency = finance_currency.currency_code(dst.currency_code or dst.currency)
+    if "XXX" in (source_currency, destination_currency) or source_currency != destination_currency:
+        raise HTTPException(
+            409, "transfers require accounts in the same known currency; no conversion was applied"
+        )
     import uuid
 
     tid = uuid.uuid4().hex
@@ -2275,10 +2331,10 @@ def networth_base(base: str | None = None, db: DbSession = Depends(get_db)):
         state = db.get(FinanceLedgerState, "primary")
         if state is None:
             raise HTTPException(409, "canonical ledger state is unavailable")
-        reviewed_base = fx.code(state.base_currency_code)
+        reviewed_base = finance_currency.currency_code(state.base_currency_code)
         if reviewed_base == "XXX":
             raise HTTPException(409, "canonical ledger base currency is invalid")
-        requested_base = reviewed_base if not base else fx.code(base)
+        requested_base = reviewed_base if not base else finance_currency.currency_code(base)
         if requested_base != reviewed_base:
             raise HTTPException(
                 409, "Actual totals are available only in the reviewed base currency"
@@ -2303,27 +2359,44 @@ def networth_base(base: str | None = None, db: DbSession = Depends(get_db)):
             "net_worth": round(sum(row["converted"] for row in rows), 2),
             "accounts": rows,
         }
-    base = base or "USD"
+    base = finance_currency.currency_code(base or "USD")
+    if base == "XXX":
+        raise HTTPException(400, "choose a supported base currency code")
     rates = fx.get_rates()
     bal = _balances(db)
+    accounts = db.query(Account).all()
+    _, balances = finance_currency.native_currency_totals(accounts, db.query(Transaction).all())
     rows = []
     total = 0.0
-    for a in db.query(Account).all():
+    for a in accounts:
         if a.archived:
             continue
+        currency = finance_currency.currency_code(a.currency_code or a.currency)
+        codes = {row["currency"] for row in balances.get(a.id, [])}
+        if currency == "XXX" or codes != {currency}:
+            raise HTTPException(
+                409, "account currency evidence is incomplete; no conversion was applied"
+            )
+        if currency != base and (currency not in rates or base not in rates):
+            raise HTTPException(409, "no stored rate for this currency; no conversion was applied")
         native = (a.opening or 0.0) + bal.get(a.id, 0.0)
-        conv = fx.convert(native, a.currency, base, rates)
+        conv = round(native, 2) if currency == base else fx.convert(native, currency, base, rates)
         total += conv
         rows.append(
             {
                 "id": a.id,
                 "name": a.name,
-                "currency": fx.code(a.currency),
+                "currency": currency,
                 "native": round(native, 2),
                 "converted": conv,
             }
         )
-    return {"base": fx.code(base), "net_worth": round(total, 2), "accounts": rows}
+    return {
+        "base": base,
+        "net_worth": round(total, 2),
+        "accounts": rows,
+        "rate_source": "static_estimate",
+    }
 
 
 # ── summary — powers the cards + charts ───────────────────────────────────────
@@ -2347,7 +2420,7 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
         state = db.get(FinanceLedgerState, "primary")
         if state is None:
             raise HTTPException(409, "canonical ledger state is unavailable")
-        base = fx.code(state.base_currency_code)
+        base = finance_currency.currency_code(state.base_currency_code)
         if base == "XXX":
             raise HTTPException(409, "canonical ledger base currency is invalid")
         try:
@@ -2430,6 +2503,8 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
 
     # fetch all transactions and splits once to avoid N+1 scans
     all_txns = db.query(Transaction).all()
+    currency_totals, _ = finance_currency.native_currency_totals(accounts, all_txns, month)
+    codes = {row["currency"] for row in currency_totals}
     splits_by_txn = defaultdict(list)
     for s in db.query(TxnSplit).all():
         splits_by_txn[s.txn_id].append(s)
@@ -2504,4 +2579,6 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
         "budgets": budgets,
         "trend": trend,
         "currency": accounts[0].currency if accounts else "$",
+        "currency_status": "unknown" if "XXX" in codes else "mixed" if len(codes) > 1 else "single",
+        "totals_by_currency": currency_totals,
     }

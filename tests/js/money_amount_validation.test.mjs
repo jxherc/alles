@@ -33,11 +33,13 @@ function harness(values = {}, { canonical = false, targetEditor = null, apiHandl
     dlgFields: targetEditor || (async () => ({ amount: values['target-amount'] })),
   });
   vm.runInContext(source + `
+    _currencyCodes = ['CAD', 'USD'];
     _canonicalLedger = ${canonical};
     load = async () => {};
     globalThis.subject = { addAccount, addTxn, saveTxn, doTransfer, runReconcile,
       addGoal, addHolding, addBudget, addRecurring, assignEnvelope, setEnvTarget,
       applySearch, saveSplits, readSplits: _readSplitRows, decimal: _decimal };
+    globalThis.subject.setTransactions = rows => { _txns = rows; };
   `, context);
   return { ...context.subject, requests, notices, get };
 }
@@ -82,12 +84,35 @@ test('failed legacy target drafts stay with their category', async () => {
 });
 
 const valid = {
-  'af-name': 'checking', 'af-kind': 'checking', 'tx-amt': '12.34',
+  'af-name': 'checking', 'af-kind': 'checking', 'af-currency': 'CAD', 'tx-amt': '12.34',
   'tx-sign': '-', 'tx-acct': 'a', 'tx-payee': 'groceries', 'tx-cat': 'food',
   'edit-amount': '56.78', 'edit-sign': '-', 'edit-payee': 'corrected', 'edit-category': 'food', 'edit-account': 'a',
   'tr-from': 'a', 'tr-to': 'b', 'tr-amt': '23.45',
   'gl-name': 'rainy day', 'hd-sym': 'SYNTH', 'bf-cat': 'food', 'rc-payee': 'bill', 'rc-amt': '10',
 };
+
+test('a metadata-only transaction save omits unchanged amount and account so currency proof survives', async () => {
+  const h = harness(valid);
+  h.setTransactions([{ id: 't', amount: -56.78, account_id: 'a', original_currency_code: 'USD' }]);
+  await h.saveTxn('t');
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.requests[0].method, 'PATCH');
+  assert.equal(h.requests[0].body.payee, 'corrected');
+  assert.equal('amount' in h.requests[0].body, false);
+  assert.equal('account_id' in h.requests[0].body, false);
+});
+
+test('a refused transfer explains its currency boundary and retains the exact draft', async () => {
+  const message = 'transfers require accounts in the same known currency; no conversion was applied';
+  const h = harness(valid, { apiHandler: async () => { throw new Error(message); } });
+  await h.doTransfer();
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.requests[0].url, '/api/money/transfer');
+  assert.equal(h.notices[0][0], message);
+  assert.equal(h.get('tr-amt').value, '23.45');
+  assert.equal(h.get('tr-from').dataset.value, 'a');
+  assert.equal(h.get('tr-to').dataset.value, 'b');
+});
 
 for (const malformed of ['1,234.56', '12.34garbage', 'Infinity', '1e309', '0x10']) {
   test(`Finance refuses the complete malformed number ${malformed} before any request`, async () => {
@@ -161,4 +186,20 @@ test('decimal input supports signs, leading decimals, whitespace, and rejects ov
   for (const raw of ['', ' ', 'NaN', '--1', '1.2.3', '9'.repeat(400)]) {
     assert.ok(Number.isNaN(h.decimal(raw)));
   }
+});
+
+test('new account currency requires an explicit supported choice without consuming its draft', async () => {
+  for (const currency of ['', '$', 'XXX', 'BTC']) {
+    const h = harness({ ...valid, 'af-currency': currency, 'af-open': '12.34' });
+    await h.addAccount();
+    assert.equal(h.requests.length, 0, currency);
+    assert.equal(h.get('af-name').value, 'checking');
+    assert.equal(h.get('af-open').value, '12.34');
+    assert.match(h.get('af-currency-error').textContent, /choose a currency/);
+  }
+  const h = harness({ ...valid, 'af-currency': 'USD', 'af-open': '12.34' });
+  await h.addAccount();
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.requests[0].body.currency, 'USD');
+  assert.equal(h.requests[0].body.opening, 12.34);
 });

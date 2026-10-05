@@ -999,7 +999,7 @@ function _renderActualStatus(value, request) {
 
 function financeAmount(value, currency = '') {
   const number = formatNumber(value ?? 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}${number}`;
+  return `${currency === 'XXX' ? 'currency not set' : currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}${number}`;
 }
 
 async function _renderFinance(target, request) {
@@ -1016,10 +1016,10 @@ async function _renderFinance(target, request) {
   const subscriptionsError = _settledError(subscriptionsResult, 'subscription data could not be loaded');
   const actualError = _settledError(actualResult, 'Actual status could not be loaded');
   target.replaceChildren();
-  const note = _el('p', 'specialist-group-note', 'balances remain in their original currency. converted totals show their rate evidence when available.');
+  const note = _el('p', 'specialist-group-note', 'account balances show their recorded currency. mixed currencies stay separate; Actual balances use the reviewed ledger base.');
   const grid = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
   grid.append(
-    _list('accounts', accounts.map(item => ({ title: item.name, meta: financeAmount(item.balance, item.currency_code || item.currency || '') })), accountsError ? `accounts unavailable: ${accountsError}` : 'no accounts yet'),
+    _list('accounts', accounts.map(item => ({ title: item.name, meta: item.balance_by_currency?.length ? item.balance_by_currency.map(row => financeAmount(row.balance, row.currency)).join(' · ') : financeAmount(item.balance, item.currency || item.currency_code || '') })), accountsError ? `accounts unavailable: ${accountsError}` : 'no accounts yet'),
     _list('subscriptions', subscriptions.map(item => ({ title: item.name, meta: `${financeAmount(item.price, item.currency || '')} · ${item.cycle || ''}` })), subscriptionsError ? `subscriptions unavailable: ${subscriptionsError}` : 'no subscriptions yet'),
   );
   const work = _el('div', 'finance-daily-actions');
