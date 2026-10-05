@@ -1676,7 +1676,7 @@ function _wireTxnRows() {
     _splitRows = _readSplitRows();
     _splitRows.push({ category: '', amount: '' });
     renderTxns(true);
-    root.querySelectorAll('.split-cat')[_splitRows.length - 1]?.focus();
+    $('txn-rows')?.querySelectorAll('.split-cat')[_splitRows.length - 1]?.focus();
   });
   $('split-save')?.addEventListener('click', b => saveSplits($('split-save').dataset.id));
   $('split-cancel')?.addEventListener('click', () => { _splitTxn = null; _splitRows = []; renderTxns(); });
@@ -1686,7 +1686,7 @@ function _wireTxnRows() {
     _splitRows.splice(index, 1);
     if (!_splitRows.length) _splitRows = [{ category: '', amount: '' }];
     renderTxns(true);
-    root.querySelectorAll('.split-row-del')[Math.min(index, _splitRows.length - 1)]?.focus();
+    $('txn-rows')?.querySelectorAll('.split-row-del')[Math.min(index, _splitRows.length - 1)]?.focus();
   }));
 }
 
