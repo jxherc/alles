@@ -913,10 +913,20 @@ function recurringList() {
     </div>${_recurringEditForm(r)}${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? 'creation marker missing in Actual. review the schedule there before trying again.' : 'creation not confirmed. retry the saved schedule; this will not start another one.'}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">retry creation</button>`}</div>` : ''}${_canonicalLedger && r.edit_pending ? `<div class="recur-repair" role="status"><span>${r.edit_needs_review ? "couldn't match this edit in Actual. review the schedule there before retrying." : 'edit not confirmed; Actual may be paused. retry the saved edit.'}</span>${r.edit_needs_review ? '' : `<button type="button" class="btn" data-retry-edit-rec="${esc(r.id)}">retry edit</button>`}</div>` : ''}${_canonicalLedger && r.delete_pending ? `<div class="recur-repair" role="status"><span>${r.delete_needs_review ? "couldn't match this schedule in Actual. review it before retrying deletion." : 'deletion not confirmed. retry the saved deletion; past transactions stay.'}</span>${r.delete_needs_review ? '' : `<button type="button" class="btn" data-retry-delete-rec="${esc(r.id)}">retry deletion</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? 'resume' : 'pause'} not confirmed; Actual may have changed. retry the saved action.</span></div>` : ''}</div>`).join('') + `</div>`;
 }
 
+function recurringCreateUnavailable() {
+  if (_recurringError) return 'retry loading schedules before adding another.';
+  if (_canonicalLedger && _recurring.some(row => row.create_pending)) return 'finish the pending schedule before adding another.';
+  if (!_accounts.length) return 'add an account before adding a schedule.';
+  if (_canonicalLedger && !_accounts.some(a => !a.archived)) return 'open an Actual account before adding a schedule.';
+  return '';
+}
+
 function _recurringForm() {
-  if (_recurringError) return '';
-  if (!_accounts.length) return '';
-  if (_canonicalLedger && _recurring.some(row => row.create_pending)) return '<p class="money-recurring-note">finish the pending schedule before adding another.</p>';
+  const reason = recurringCreateUnavailable();
+  return `<p id="recurring-create-status" class="money-recurring-note" role="status"${reason ? '' : ' hidden'}>${esc(reason)}</p><div id="recurring-create"${reason ? ' hidden' : ''}>${_recurringFields()}</div>`;
+}
+
+function _recurringFields() {
   const availableAccounts = _canonicalLedger ? _accounts.filter(a => !a.archived) : _accounts;
   if (!availableAccounts.length) return _canonicalLedger ? '<p class="money-recurring-note">open an Actual account before adding a schedule.</p>' : '';
   const acctOpts = availableAccounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
@@ -1183,12 +1193,13 @@ async function retryRecurring(focusId = '', focusOwner = captureMoneyFocus('sche
   await readRecurring(api);
   const content = $('recurring-content');
   if (!content) return;
+  const list = $('recurring-list');
   const restoreFocus = ownsMoneyFocus(focusOwner);
   if (restoreFocus) _moneyPlanTask = 'schedules';
-  else if (content.contains(document.activeElement)) focusMoneyTask(_moneyPlanTask);
+  else if (list?.contains(document.activeElement) || (recurringCreateUnavailable() && content.contains(document.activeElement))) focusMoneyTask(_moneyPlanTask);
   _snapshotRecurringEdit();
-  content.innerHTML = `<div id="recurring-list">${recurringList()}</div>` + _recurringForm();
-  wireRecurring();
+  if (list) list.innerHTML = recurringList();
+  wireRecurringList();
   const action = focusId ? [...content.querySelectorAll('[data-toggle-rec], [data-del-rec], [data-retry-create-rec], [data-retry-edit-rec], [data-retry-delete-rec]')].find(b => b.dataset.toggleRec === focusId || b.dataset.delRec === focusId || b.dataset.retryCreateRec === focusId || b.dataset.retryEditRec === focusId || b.dataset.retryDeleteRec === focusId) : null;
   if (restoreFocus) focusMoneyTask('schedules', action || $('recurring-retry') || document.querySelector('.money-card[data-card="recurring"] h3'));
   refreshMoneyTasks();
@@ -1203,6 +1214,11 @@ function wireRecurring() {
 }
 
 function wireRecurringList() {
+  const reason = recurringCreateUnavailable();
+  const create = $('recurring-create');
+  if (create) create.hidden = !!reason;
+  const status = $('recurring-create-status');
+  if (status) { status.textContent = reason; status.hidden = !reason; }
   refreshMoneyTasks();
   $('recurring-retry')?.addEventListener('click', () => retryRecurring());
   document.querySelectorAll('#recurring-list [data-edit-rec]').forEach(b => b.addEventListener('click', () => openRecurringEdit(b.dataset.editRec)));
