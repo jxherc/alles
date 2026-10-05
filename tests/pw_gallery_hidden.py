@@ -7,6 +7,7 @@ import json
 import os
 import secrets
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from PIL import Image
@@ -35,6 +36,14 @@ def run():
                 service_workers="block",
             )
             context.tracing.start(screenshots=True, snapshots=True, sources=True)
+
+            def local_only(route):
+                target = urlsplit(route.request.url)
+                assert (target.scheme, target.netloc) == ("http", urlsplit(base).netloc)
+                route.continue_()
+
+            context.route("**/*", local_only)
+            context.route_web_socket("**/*", lambda socket: socket.close())
             page = context.new_page()
             page.set_default_timeout(12000)
             errors = []
@@ -63,7 +72,8 @@ def run():
                 opener = page.get_by_role("button", name="open " + fixture.name, exact=True)
                 expect(opener).to_be_visible()
                 opener.click()
-                page.get_by_role("button", name="hide", exact=True).click()
+                page.locator("#photos-viewer-more-btn").press("Enter")
+                page.get_by_role("menuitem", name="hide", exact=True).click()
                 expect(opener).to_have_count(0)
                 record = {
                     "scenario_id": "gallery.hidden-unlock-media",
@@ -95,7 +105,8 @@ def run():
                 )
                 expect(page.locator("#photos-close-btn")).to_be_focused()
                 page.screenshot(path=str(out / f"{profile}-hidden-open.png"), full_page=True)
-                page.get_by_role("button", name="edit", exact=True).click()
+                page.locator("#photos-viewer-more-btn").press("Enter")
+                page.get_by_role("menuitem", name="edit", exact=True).click()
                 page.wait_for_function("() => document.querySelector('#ie-canvas')?.width > 0")
                 page.locator('#imgeditor-modal [data-act="save"]').click()
                 expect(page.locator("#imgeditor-modal")).to_be_hidden()

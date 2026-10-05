@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=445">
+<link rel="stylesheet" href="/static/style.css?v=446">
   <link rel="stylesheet" href="/static/kokuen.css?v=27">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -1290,15 +1290,20 @@
     <div class="page-view" id="photos-view" data-specialist-app="gallery" style="display:none">
       <div class="page-view-head photos-head">
         <span class="page-view-title" id="photos-head-title">photos</span>
-        <input type="text" id="photos-search" class="cal-quick photos-search" placeholder="search photos…">
-        <button type="button" class="btn ic-btn-lbl" id="photos-smart-btn" title="smart search: find by content" hidden>smart</button>
+        <input type="text" id="photos-search" class="cal-quick photos-search" aria-label="search photos…" placeholder="search photos…">
         <button type="button" class="btn ic-btn-lbl" id="photos-filter-btn" title="filter the timeline">filter</button>
-        <button type="button" class="btn ic-btn-lbl photos-share-album-btn" id="photos-share-album-btn" title="share the open album as a read-only link"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg> share</button>
         <input type="file" id="photos-upload-input" accept="image/*,video/*" multiple hidden>
-        <button type="button" class="btn ic-btn-lbl" id="photos-macos-btn" title="import from Apple Photos" hidden>apple photos</button>
-        <button type="button" class="btn ic-btn-lbl" id="photos-rescan-btn" title="scan the photos folder">scan folder</button>
         <button type="button" class="btn primary" id="photos-upload-btn">upload</button>
-        <button type="button" class="icon-btn app-cog" data-app="photos" title="gallery settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
+        <div class="photos-more-wrap">
+          <button type="button" class="btn" id="photos-more-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="photos-more-menu">more</button>
+          <div class="ctx-menu photos-more-menu" id="photos-more-menu" role="menu" aria-labelledby="photos-more-btn" hidden>
+            <button type="button" class="ctx-item" role="menuitem" id="photos-smart-btn" title="smart search: find by content" hidden>smart</button>
+            <button type="button" class="ctx-item photos-share-album-btn" role="menuitem" id="photos-share-album-btn" title="share the open album as a read-only link"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.2" y1="10.8" x2="15.8" y2="7.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="16.8"/></svg> share</button>
+            <button type="button" class="ctx-item" role="menuitem" id="photos-macos-btn" title="import from Apple Photos" hidden>apple photos</button>
+            <button type="button" class="ctx-item" role="menuitem" id="photos-rescan-btn" title="scan the photos folder">scan folder</button>
+            <button type="button" class="ctx-item" role="menuitem" id="photos-settings-btn">gallery settings</button>
+          </div>
+        </div>
       </div>
       <div class="photos-recovery" id="photos-load-status" role="status" hidden><span></span><button type="button" class="btn" id="photos-load-retry">retry</button></div>
       <div class="photos-recovery" id="photos-upload-status" role="status" hidden><span></span><button type="button" class="btn" id="photos-upload-retry">retry upload</button><button type="button" class="btn" id="photos-upload-dismiss">dismiss</button></div>
@@ -1504,12 +1509,17 @@
     <button type="button" class="btn photos-lb-close" id="photos-close-btn">close</button>
     <div class="photos-lb-actions">
       <button type="button" class="btn" id="photos-fav-btn">favorite</button>
-      <button type="button" class="btn" id="photos-archive-btn">archive</button>
-      <button type="button" class="btn" id="photos-hide-btn" title="move to the hidden album">hide</button>
-      <button type="button" class="btn" id="photos-edit-btn">edit</button>
-      <a class="btn" id="photos-dl-btn" href="#" download>download</a>
       <button type="button" class="btn" id="photos-info-btn" title="info (i)">info</button>
-      <button type="button" class="btn danger" id="photos-del-btn">delete</button>
+      <div class="photos-more-wrap">
+        <button type="button" class="btn" id="photos-viewer-more-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="photos-viewer-more-menu">more</button>
+        <div class="ctx-menu photos-more-menu" id="photos-viewer-more-menu" role="menu" aria-labelledby="photos-viewer-more-btn" hidden>
+          <button type="button" class="ctx-item" role="menuitem" id="photos-archive-btn">archive</button>
+          <button type="button" class="ctx-item" role="menuitem" id="photos-hide-btn" title="move to the hidden album">hide</button>
+          <button type="button" class="ctx-item" role="menuitem" id="photos-edit-btn">edit</button>
+          <a class="ctx-item" role="menuitem" id="photos-dl-btn" href="#" download>download</a>
+          <button type="button" class="ctx-item danger" role="menuitem" id="photos-del-btn">delete</button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="photos-lb-body">
@@ -2903,7 +2913,7 @@
 </div>
 
 <script type="module">
-const _v = '445';
+const _v = '446';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

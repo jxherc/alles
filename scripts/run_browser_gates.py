@@ -134,6 +134,7 @@ COMMANDS = {
     "daily-feedback": ("tests/pw_daily_feedback.py",),
     "setup-focus": ("tests/pw_setup_focus.py",),
     "vault-switcher-resize": ("tests/pw_vault_switcher_resize.py",),
+    "gallery-action-menus": ("tests/pw_gallery_action_menus.py",),
     "action-names": ("tests/pw_action_names.py",),
     "product-clarity": ("tests/pw_clarity.py",),
     "navigation-clarity": ("tests/pw_navigation_clarity.py",),

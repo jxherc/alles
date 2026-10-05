@@ -7,6 +7,7 @@ import json
 import os
 from collections import Counter
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from PIL import Image, ImageDraw
@@ -43,6 +44,14 @@ def run():
                 locale="en-US",
             )
             context.tracing.start(screenshots=True, snapshots=True, sources=True)
+
+            def local_only(route):
+                target = urlsplit(route.request.url)
+                assert (target.scheme, target.netloc) == ("http", urlsplit(base).netloc)
+                route.continue_()
+
+            context.route("**/*", local_only)
+            context.route_web_socket("**/*", lambda socket: socket.close())
             page = context.new_page()
             page.set_default_timeout(10000)
             events, expected_http, expected_reset = [], [], []
@@ -450,7 +459,8 @@ def run():
                 begin("viewer-editor-reentry-neighbor")
                 for _ in range(2):
                     open_photo(names[2])
-                    page.get_by_role("button", name="edit", exact=True).click()
+                    page.locator("#photos-viewer-more-btn").press("Enter")
+                    page.get_by_role("menuitem", name="edit", exact=True).click()
                     expect(page.locator("#imgeditor-modal")).to_be_visible()
                     page.locator('#imgeditor-modal [data-act="close"]').click()
                     expect(page.locator("#imgeditor-modal")).to_be_hidden()
@@ -492,10 +502,12 @@ def run():
 
                 begin("delete-restore-rejection-and-reload")
                 open_photo(names[0])
-                page.get_by_role("button", name="delete", exact=True).click()
+                page.locator("#photos-viewer-more-btn").press("Enter")
+                page.get_by_role("menuitem", name="delete", exact=True).click()
                 page.get_by_role("button", name="cancel", exact=True).click()
                 assert by_id(photos[0]["id"])
-                page.get_by_role("button", name="delete", exact=True).click()
+                page.locator("#photos-viewer-more-btn").press("Enter")
+                page.get_by_role("menuitem", name="delete", exact=True).click()
                 page.get_by_role("button", name="confirm", exact=True).click()
                 expect(page.locator("#photos-lightbox")).to_be_hidden()
                 page.get_by_role("button", name="trash", exact=True).click()
