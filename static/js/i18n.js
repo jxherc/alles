@@ -172,6 +172,8 @@ const BUILTIN_ENGLISH = {
     "andromeda.recent_first": "recent sources first",
     "andromeda.remote_confirm": "send this query and selected web evidence to {endpoint} / {model}?",
     "andromeda.results_disabled": "normal results are off for this search.",
+    "andromeda.search_disabled": "search is disabled. choose a provider in search settings.",
+    "andromeda.search_settings": "search settings",
     "andromeda.retry_save": "try save again",
     "andromeda.return_home": "return to Alles home",
     "andromeda.save_failed": "could not save this story",

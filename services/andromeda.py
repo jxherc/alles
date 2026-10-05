@@ -227,6 +227,8 @@ async def normal_search(
     results = normalized[:requested]
     if results:
         status = "partial" if error else "ready"
+    elif getattr(chain_result, "failure_type", "") == "disabled":
+        status = "disabled"
     else:
         status = "error" if error else "empty"
     return {

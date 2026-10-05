@@ -168,6 +168,8 @@
     "andromeda.recent_first": "fuentes recientes primero",
     "andromeda.remote_confirm": "¿enviar esta consulta y las pruebas web seleccionadas a {endpoint} / {model}?",
     "andromeda.results_disabled": "los resultados normales están desactivados para esta búsqueda.",
+    "andromeda.search_disabled": "la búsqueda está desactivada. elige un proveedor en los ajustes de búsqueda.",
+    "andromeda.search_settings": "ajustes de búsqueda",
     "andromeda.retry_save": "intentar guardar de nuevo",
     "andromeda.return_home": "volver al inicio de Alles",
     "andromeda.save_failed": "no se pudo guardar esta historia",

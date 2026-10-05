@@ -12,6 +12,7 @@ let _verificationPollTimer = 0;
 let _searchGeneration = 0;
 let _modelChoices = new Map();
 let _settingsState = {};
+let _settingsTrigger = null;
 let _searchConfigurationWrite = Promise.resolve();
 let _searchConfigurationGeneration = 0;
 let _state = freshState();
@@ -42,7 +43,7 @@ function freshState() {
     rawQuery: '', query: '', category: 'all', request: {}, results: [], overviewSeed: [],
     overview: {}, evidence: [], model: {}, verification: {}, verifierModel: {},
     hasMore: false, usedNoAi: false,
-    resultStatus: 'empty', documentScope: null,
+    resultStatus: 'empty', providerDisabled: false, documentScope: null,
   };
 }
 
@@ -499,7 +500,7 @@ function videoNode(result) {
 
 function emptyMessage(state, currentCategory) {
   const categoryLabel = tr(`andromeda.category.${currentCategory}`);
-  if (state === 'disabled') return tr('andromeda.results_disabled');
+  if (state === 'disabled') return tr(_state.providerDisabled ? 'andromeda.search_disabled' : 'andromeda.results_disabled');
   if (state === 'loading') return tr('andromeda.finding_results', { category: categoryLabel });
   if (state === 'error') return tr('andromeda.search_error');
   if (state === 'offline') return tr('andromeda.offline');
@@ -529,6 +530,18 @@ export function renderAndromedaResults(results, state = 'ready', currentCategory
     const empty = document.createElement('div');
     empty.className = 'andromeda-empty';
     empty.textContent = emptyMessage(state, currentCategory);
+    if (state === 'disabled' && _state.providerDisabled) {
+      const recovery = document.createElement('div');
+      recovery.className = 'andromeda-recovery';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'andromeda-text-action andromeda-disabled-settings';
+      button.dataset.kokuenPrimitive = 'text-action';
+      button.textContent = tr('andromeda.search_settings');
+      button.addEventListener('click', openSettings);
+      recovery.appendChild(button);
+      empty.appendChild(recovery);
+    }
     list.appendChild(empty);
   }
   const actions = el('andromeda-actions');
@@ -1079,10 +1092,11 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     _state.results = result.results || [];
     _state.hasMore = !!result.has_more;
     _state.overviewSeed = result.overview_seed || _state.results;
+    _state.providerDisabled = result.status === 'disabled' && !!result.normal_results_enabled;
     if (input) input.value = _state.query;
     renderAndromedaResults(_state.results, result.status, currentCategory);
     updateMoreResults();
-    text('andromeda-result-meta', result.normal_results_enabled
+    text('andromeda-result-meta', _state.providerDisabled ? '' : result.normal_results_enabled
       ? [trp('andromeda.result_count', _state.results.length), result.provider || tr('andromeda.provider'), `${result.elapsed_ms} ms`].filter(Boolean).join(' · ')
       : tr('andromeda.normal_hidden'));
     if (result.status === 'partial') status(tr('andromeda.partial_sources'));
@@ -1936,9 +1950,10 @@ async function manageSearxng(action, button) {
   }
 }
 
-function openSettings() {
+function openSettings(event) {
   const panel = el('andromeda-settings-panel');
   if (!panel) return;
+  _settingsTrigger = event?.currentTarget || el('andromeda-settings-button');
   panel.hidden = false;
   el('andromeda-settings-button')?.setAttribute('aria-expanded', 'true');
   loadSearchConfiguration();
@@ -1951,7 +1966,7 @@ function closeSettings({ restoreFocus = false } = {}) {
   if (!panel || panel.hidden) return;
   panel.hidden = true;
   el('andromeda-settings-button')?.setAttribute('aria-expanded', 'false');
-  if (restoreFocus) el('andromeda-settings-button')?.focus();
+  if (restoreFocus) (_settingsTrigger?.getClientRects().length ? _settingsTrigger : el('andromeda-settings-button'))?.focus();
 }
 
 export function andromedaLandingUrl(value) {
@@ -2104,7 +2119,7 @@ function bindOnce() {
   document.addEventListener('click', event => {
     const panel = el('andromeda-settings-panel');
     if (!panel || panel.hidden) return;
-    if (panel.contains(event.target) || el('andromeda-settings-button')?.contains(event.target) || el('andromeda-idle-settings')?.contains(event.target)) return;
+    if (panel.contains(event.target) || el('andromeda-settings-button')?.contains(event.target) || el('andromeda-idle-settings')?.contains(event.target) || event.target.closest('.andromeda-disabled-settings')) return;
     if (event.target.closest('.custom-dropdown-panel')) return;
     closeSettings();
   });
