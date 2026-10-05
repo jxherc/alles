@@ -410,6 +410,7 @@ def run():
                     page.keyboard.press("Tab")
                     expect(row.locator(".tx-clear")).to_be_focused()
                     shot("populated-row", row)
+                    page.locator("#txn-range-toggle").click()
                     page.locator("#txn-max").click()
                     filter_box = page.locator("#txn-max").bounding_box()
                     assert (

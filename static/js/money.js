@@ -44,6 +44,8 @@ let _forecastError = 'couldn\'t load forecast';
 let _goals = [];   // savings/debt goals (4d)
 let _searchResults = null;   // array when a search/filter is active, else null
 let _searchTimer = null;
+let _searchSequence = 0;
+let _amountRangeOpen = false;
 let _cur = '$';
 let _inited = false;
 const _expandedMoneySections = new Set();
@@ -197,6 +199,7 @@ function syncMoneyLayout() {
   const secondary = $('money-body').querySelectorAll('[data-secondary-total]');
   if ([...secondary].some(card => card.contains(document.activeElement))) _moneyTotalsOpen = true;
   entry.hidden = compact && !_moneyEntryOpen;
+  action.classList.toggle('primary', entry.hidden);
   action.setAttribute('aria-expanded', String(!entry.hidden));
   if (!compact && document.activeElement === $('money-entry-close')) action.focus();
   $('money-entry-close').hidden = !compact;
@@ -214,6 +217,11 @@ export function initMoneyPanel(fetcher = fetch) {
     window.matchMedia('(max-width: 720px)').addEventListener('change', syncMoneyLayout);
     $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(); });
     $('money-next')?.addEventListener('click', () => { _month = _shiftMonth(_month, 1); load(); });
+    $('money-manage-toggle')?.addEventListener('click', () => {
+      const panel = $('money-management');
+      panel.hidden = !panel.hidden;
+      $('money-manage-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+    });
     $('money-connect')?.addEventListener('click', openBankConnections);
     $('money-import')?.addEventListener('click', () => {
       window._navigateSpecialistSection?.('finance', 'imports');
@@ -325,7 +333,10 @@ async function load(fetcher = fetch) {
   const request = (path, options = {}) => api(path, options, fetcher);
   const lbl = $('money-month-label'); if (lbl) lbl.textContent = _monthLabel(_month);
   _setMonthUrl();
+  clearTimeout(_searchTimer);
+  _searchSequence += 1;
   _searchResults = null;   // month change / reload clears any active search
+  _tagFilter = '';
   try {
     // Legacy reads post due entries before balances; Actual owns posting after cutover.
     _recurringStatus = '';
@@ -347,7 +358,11 @@ async function load(fetcher = fetch) {
     _canonicalLedger = _sum?.ledger === 'actual';
     if (_recurringEdit && !_recurring.some(row => row.id === _recurringEdit.id && row.editable)) _recurringEdit = null;
     _cur = _sum?.currency || (_accounts[0]?.currency) || '$';
-  } catch { $('money-body').innerHTML = '<div class="money-empty">failed to load</div>'; return; }
+  } catch {
+    $('money-entry-slot').replaceChildren();
+    $('money-body').innerHTML = '<div class="money-empty">failed to load</div>';
+    return;
+  }
   render();
 }
 
@@ -368,6 +383,9 @@ function render() {
   const b = $('money-body'); if (!b) return;
   const clearedFocus = b.contains(document.activeElement) ? document.activeElement.dataset.clearTxn : null;
   _snapshotRecurringEdit();
+  $('money-entry-slot').innerHTML = _accounts.length
+    ? '<button type="button" class="btn primary money-entry-action" id="money-entry-action" aria-controls="money-entry-fields">add transaction</button>'
+    : '';
   if (!_accounts.length) {
     b.innerHTML = `<div class="money-empty">
       <div class="money-empty-title">no accounts yet</div>
@@ -377,7 +395,6 @@ function render() {
     return;
   }
   b.innerHTML =
-    `<button type="button" class="btn money-entry-action" id="money-entry-action" aria-controls="money-entry-fields">add transaction</button>` +
     summaryCards() +
     `<button type="button" class="money-section-toggle" id="money-summary-toggle" aria-controls="money-income money-net money-projection">more totals</button>` +
     `<div id="money-alerts-content" role="status" tabindex="-1">${alertsStrip()}</div>` +
@@ -386,8 +403,11 @@ function render() {
       <div id="money-entry-fields"><button type="button" class="btn" id="money-entry-close">close entry</button>${addTxnRow()}${transferRow()}</div>
       <div class="txn-search-wrap" role="group" aria-label="filter transactions">
         ${moneyField('search transactions', '<input type="text" id="txn-search" class="settings-input" placeholder="payee, category or notes" autocomplete="off">')}
-        ${moneyField('minimum amount', '<input type="text" id="txn-min" class="settings-input" placeholder="0.00" inputmode="decimal">')}
-        ${moneyField('maximum amount', '<input type="text" id="txn-max" class="settings-input" placeholder="0.00" inputmode="decimal">')}
+        <button type="button" class="btn" id="txn-range-toggle" aria-expanded="false" aria-controls="txn-amount-range">amount range</button>
+        <div id="txn-amount-range" hidden>
+          ${moneyField('minimum amount', '<input type="text" id="txn-min" class="settings-input" placeholder="0.00" inputmode="decimal">')}
+          ${moneyField('maximum amount', '<input type="text" id="txn-max" class="settings-input" placeholder="0.00" inputmode="decimal">')}
+        </div>
       </div>
       <div id="txn-rows">${txnList()}</div>
     </section>` +
@@ -987,7 +1007,10 @@ function wire() {
   });
   $('tr-do')?.addEventListener('click', doTransfer);
   $('tr-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') doTransfer(); });
+  $('txn-range-toggle')?.addEventListener('click', toggleAmountRange);
+  syncAmountRange();
   ['txn-search', 'txn-min', 'txn-max'].forEach(id => $(id)?.addEventListener('input', () => {
+    syncAmountRange();
     clearTimeout(_searchTimer); _searchTimer = setTimeout(applySearch, 220);
   }));
   _wireTxnRows();
@@ -1227,7 +1250,33 @@ function _wireTxnRows() {
   root.querySelectorAll('.split-row-del').forEach(b => b.addEventListener('click', () => { _splitRows = _readSplitRows(); _splitRows.splice(+b.dataset.i, 1); if (!_splitRows.length) _splitRows = [{ category: '', amount: '' }]; renderTxns(); }));
 }
 
+function syncAmountRange() {
+  const panel = $('txn-amount-range'), button = $('txn-range-toggle');
+  if (!panel || !button) return;
+  const hasAmount = Boolean($('txn-min')?.value.trim() || $('txn-max')?.value.trim());
+  panel.hidden = !_amountRangeOpen;
+  button.setAttribute('aria-expanded', String(_amountRangeOpen));
+  button.textContent = hasAmount ? 'clear range' : _amountRangeOpen ? 'hide range' : 'amount range';
+}
+
+function toggleAmountRange() {
+  if (_amountRangeOpen) {
+    $('txn-range-toggle').focus();
+    $('txn-min').value = '';
+    $('txn-max').value = '';
+    clearTimeout(_searchTimer);
+    _amountRangeOpen = false;
+    syncAmountRange();
+    void applySearch();
+  } else {
+    _amountRangeOpen = true;
+    syncAmountRange();
+    $('txn-min').focus();
+  }
+}
+
 export async function applySearch() {
+  const sequence = ++_searchSequence;
   const q = $('txn-search')?.value.trim() || '';
   const mn = $('txn-min')?.value.trim() || '';
   const mx = $('txn-max')?.value.trim() || '';
@@ -1243,9 +1292,12 @@ export async function applySearch() {
   if (!_validAmounts(_decimal(mn, 0), _decimal(mx, 0))) return;
   if (mn) p.set('min_amt', _decimal(mn));
   if (mx) p.set('max_amt', _decimal(mx));
+  let results;
   try {
-    _searchResults = await api(`/api/money/transactions/search?${p}`);
-  } catch { _searchResults = []; }
+    results = await api(`/api/money/transactions/search?${p}`);
+  } catch { results = []; }
+  if (sequence !== _searchSequence) return;
+  _searchResults = results;
   const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
 }
 
@@ -1390,12 +1442,23 @@ async function toggleCleared(id) {
   } catch { toast('failed', 'error'); }
 }
 export async function filterByTag(tag) {
+  clearTimeout(_searchTimer);
+  const sequence = ++_searchSequence;
   _tagFilter = tag;
-  try { _searchResults = await api(`/api/money/transactions?tag=${encodeURIComponent(tag)}`); }
-  catch { _searchResults = []; }
+  let results;
+  try { results = await api(`/api/money/transactions?tag=${encodeURIComponent(tag)}`); }
+  catch { results = []; }
+  if (sequence !== _searchSequence) return;
+  _searchResults = results;
   renderTxns();
 }
-function clearTagFilter() { _tagFilter = ''; _searchResults = null; renderTxns(); }
+function clearTagFilter() {
+  clearTimeout(_searchTimer);
+  _searchSequence += 1;
+  _tagFilter = '';
+  _searchResults = null;
+  renderTxns();
+}
 function renderTxns() {
   const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
 }
