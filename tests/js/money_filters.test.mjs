@@ -13,6 +13,7 @@ function harness() {
   const get = id => {
     if (!elements.has(id)) elements.set(id, {
       value: '', innerHTML: '', textContent: '', hidden: false, attributes: {},
+      contains() { return false; },
       setAttribute(name, value) { this.attributes[name] = value; },
       focus() { focused = id; },
     });
@@ -29,6 +30,7 @@ function harness() {
     _txns = [{id: 'month-row'}];
     txnList = () => (_searchResults ?? _txns).map(row => row.id).join(',');
     _wireTxnRows = () => {};
+    syncMoneyLayout = () => {};
     globalThis.subject = { applySearch, toggleAmountRange, syncAmountRange,
       filterByTag, clearTagFilter, tag: () => _tagFilter };
   `, context);

@@ -53,6 +53,15 @@ const _expandedMoneySections = new Set();
 let _moneyEntryOpen = null;
 let _moneyPlanTask = 'accounts';
 let _moneyFocusChange = 0;
+let _moneyEntryChange = 0;
+let _moneyLoadSequence = 0;
+let _moneyRefreshFailed = false;
+let _moneySaved = [];
+let _moneySavedExpanded = false;
+let _moneySavedCurrent = null;
+let _moneySavedAction = 0;
+let _moneySavedActionSequence = 0;
+const _moneySavedKey = 'alles:finance-saved-transactions';
 let _moneyTotalsOpen = false;
 let _editTxn = null;   // id of the txn row currently being edited inline
 let _splitTxn = null;  // id of the txn whose split editor is open (4a)
@@ -315,9 +324,20 @@ export function initMoneyPanel(fetcher = fetch) {
     _inited = true;
     // A disabled control losing focus to body is still ours only until a newer interaction.
     ['focusin', 'pointerdown'].forEach(event => document.addEventListener(event, () => { _moneyFocusChange++; }));
+    ['input', 'change'].forEach(event => document.addEventListener(event, e => {
+      if (e.target.closest?.('#money-entry-fields')) _moneyEntryChange++;
+    }));
+    try {
+      const pointers = JSON.parse(sessionStorage.getItem(_moneySavedKey) || '[]');
+      if (Array.isArray(pointers)) _moneySaved = pointers.filter(item => item && typeof item.id === 'string' && item.id.length <= 128 && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(item.request_id || '')).map(item => ({
+        id: item.id, request_id: item.request_id,
+        state: ['ready', 'uncertain', 'blocked', 'undone', 'removed', 'unsupported'].includes(item.state) ? item.state : 'ready',
+      }));
+    } catch {}
+    _moneySavedCurrent = _moneySaved.at(-1)?.id;
     window.matchMedia('(max-width: 720px)').addEventListener('change', syncMoneyLayout);
-    $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(); });
-    $('money-next')?.addEventListener('click', () => { _month = _shiftMonth(_month, 1); load(); });
+    $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(fetch, true, false); });
+    $('money-next')?.addEventListener('click', () => { _month = _shiftMonth(_month, 1); load(fetch, true, false); });
     $('money-manage-toggle')?.addEventListener('click', () => {
       const panel = $('money-management');
       panel.hidden = !panel.hidden;
@@ -430,43 +450,73 @@ async function openBankConnections() {
   try { await refresh(); } catch (error) { setStatus(error.message, true); }
 }
 
-async function load(fetcher = fetch) {
+async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = preserveDrafts) {
+  const sequence = ++_moneyLoadSequence;
+  const month = _month;
   const request = (path, options = {}) => api(path, options, fetcher);
   const lbl = $('money-month-label'); if (lbl) lbl.textContent = _monthLabel(_month);
   _setMonthUrl();
   clearTimeout(_searchTimer);
   _searchSequence += 1;
-  _searchResults = null;   // month change / reload clears any active search
-  _tagFilter = '';
+  if (!preserveFilters) {
+    _searchResults = null;   // month change / reload clears any active search
+    _tagFilter = '';
+    if (preserveDrafts) for (const id of ['txn-search', 'txn-min', 'txn-max']) if ($(id)) $(id).value = '';
+  }
   try {
     // Legacy reads post due entries before balances; Actual owns posting after cutover.
-    _recurringStatus = '';
-    await readRecurring(request);
-    [_accounts, _txns, _budgets, _sum, _rules, _envelope, _aom, _forecast, _nwhist, _holdings, _alerts, _currencyCodes] = await Promise.all([
+    const recurring = await request('/api/money/recurring').then(rows => {
+      if (!Array.isArray(rows)) throw new Error('invalid schedule list');
+      return rows;
+    }).catch(() => null);
+    const results = await Promise.all([
       request('/api/money/accounts'),
-      request(`/api/money/transactions?month=${_month}`),
+      request(`/api/money/transactions?month=${month}`),
       request('/api/money/budgets'),
-      request(`/api/money/summary?month=${_month}`),
+      request(`/api/money/summary?month=${month}`),
       request('/api/money/rules').catch(() => []),
-      request(`/api/money/envelope?month=${_month}`).catch(() => null),
+      request(`/api/money/envelope?month=${month}`).catch(() => null),
       request('/api/money/age-of-money').catch(() => null),
-      request(`/api/money/forecast?month=${_month}`).catch(error => { _forecastError = forecastFailure(error); return null; }),
+      request(`/api/money/forecast?month=${month}`).catch(error => { if (sequence === _moneyLoadSequence) _forecastError = forecastFailure(error); return null; }),
       request('/api/money/networth-history?months=6').catch(() => null),
       request('/api/money/holdings').catch(() => null),
-      request(`/api/money/alerts?month=${_month}`).catch(() => null),
+      request(`/api/money/alerts?month=${month}`).catch(() => null),
       request('/api/money/currencies').then(result => result.codes || []).catch(() => []),
     ]);
-    _goals = (await request('/api/money/goals').catch(() => null))?.goals || [];
+    const goals = (await request('/api/money/goals').catch(() => null))?.goals || [];
+    if (sequence !== _moneyLoadSequence || month !== _month) return false;
+    if (preserveDrafts && recurring === null && _recurringEdit) throw new Error('schedule refresh unavailable');
+    [_accounts, _txns, _budgets, _sum, _rules, _envelope, _aom, _forecast, _nwhist, _holdings, _alerts, _currencyCodes] = results;
+    _recurring = recurring || [];
+    _recurringError = recurring === null;
+    _recurringStatus = '';
+    _goals = goals;
     _canonicalLedger = _sum?.ledger === 'actual';
     if (_recurringEdit && !_recurring.some(row => row.id === _recurringEdit.id && row.editable)) _recurringEdit = null;
     _cur = (!_canonicalLedger && _sum?.currency_status === 'single' && _sum.totals_by_currency?.[0]?.currency)
       || _sum?.currency || (_accounts[0]?.currency) || '$';
   } catch {
+    if (sequence !== _moneyLoadSequence) return false;
+    if (preserveDrafts) {
+      _moneyRefreshFailed = true;
+      renderSavedTransactions();
+      return false;
+    }
+    _moneyRefreshFailed = true;
     $('money-entry-slot').replaceChildren();
-    $('money-body').innerHTML = '<div class="money-empty">failed to load</div>';
-    return;
+    $('money-body').innerHTML = savedTransactions() + '<div class="money-empty">failed to load</div>';
+    wireSavedTransactions();
+    return false;
   }
-  render();
+  await hydrateSavedTransactions(request);
+  if (sequence !== _moneyLoadSequence || month !== _month) return false;
+  _moneyRefreshFailed = false;
+  render(preserveDrafts);
+  if (preserveDrafts) {
+    if (_tagFilter) await filterByTag(_tagFilter);
+    else await applySearch();
+  }
+  return true;
 }
 
 async function readRecurring(request) {
@@ -482,23 +532,28 @@ async function readRecurring(request) {
 }
 
 // ── render ────────────────────────────────────────────────────────────────────
-function render() {
+function render(preserveDrafts = false, preserveFilters = preserveDrafts) {
   const b = $('money-body'); if (!b) return;
+  const retained = preserveDrafts ? retainMoneyDrafts(b, preserveFilters) : null;
+  const savedFocus = retainSavedFocus();
   const clearedFocus = b.contains(document.activeElement) ? document.activeElement.dataset.clearTxn : null;
   _snapshotRecurringEdit();
   $('money-entry-slot').innerHTML = _accounts.length
     ? '<button type="button" class="btn primary money-entry-action" id="money-entry-action" aria-controls="money-entry-fields">add transaction</button>'
     : '';
   if (!_accounts.length) {
-    b.innerHTML = `<div class="money-empty">
+    b.innerHTML = savedTransactions() + `<div class="money-empty">
       <div class="money-empty-title">no accounts yet</div>
       <div class="money-empty-sub">add an account to start tracking your money</div>
       ${_accountForm()}</div>`;
     _wireAccountForm();
+    wireSavedTransactions();
+    if (retained) restoreMoneyDrafts(b, retained);
+    restoreSavedFocus(savedFocus);
     return;
   }
   b.innerHTML =
-    summaryCards() +
+    savedTransactions() + summaryCards() +
     `<button type="button" class="money-section-toggle" id="money-summary-toggle" aria-controls="money-income money-net money-projection">more totals</button>` +
     `<div id="money-alerts-content" role="status" tabindex="-1">${alertsStrip()}</div>` +
     `<section class="money-card money-txns">
@@ -539,7 +594,199 @@ function render() {
       <section class="money-card" data-card="rules"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
     `);
   wire();
+  wireSavedTransactions();
+  if (retained) restoreMoneyDrafts(b, retained);
+  restoreSavedFocus(savedFocus);
   if (clearedFocus && document.activeElement === document.body) b.querySelector(`[data-clear-txn="${CSS.escape(clearedFocus)}"]`)?.focus();
+}
+
+function retainMoneyDrafts(body, preserveFilters) {
+  const selectors = ['#money-entry-fields', '#money-acct-form-wrap', '#acct-form',
+    '.budget-form', '#recurring-create', '#rce-panel', '.goal-form', '.hold-form', '.report-form',
+    '.rule-form', '.env-add', '.nw-base'];
+  if (preserveFilters) selectors.push('.txn-search-wrap');
+  const nodes = selectors.map(selector => ({ selector, node: body.querySelector?.(selector) })).filter(item => item.node);
+  for (const node of body.querySelectorAll?.('.rc-panel, .txn-edit, .txn-split-editor, .env-assign') || []) {
+    const selector = node.id ? `#${CSS.escape(node.id)}` : node.classList.contains('env-assign')
+      ? `.env-assign[data-cat="${CSS.escape(node.dataset.cat)}"]`
+      : `.${node.classList.contains('txn-edit') ? 'txn-edit' : 'txn-split-editor'}[data-id="${CSS.escape(node.dataset.id)}"]`;
+    nodes.push({ selector, node });
+  }
+  const active = document.activeElement;
+  let control = active?.id ? `#${CSS.escape(active.id)}` : null;
+  if (!control && body.contains(active) && active.matches('button, [role="button"], a')) {
+    const row = active.closest('.txn[data-id]');
+    const scope = row ? `.txn[data-id="${CSS.escape(row.dataset.id)}"] ` : '';
+    for (const attribute of active.attributes) {
+      if (!attribute.name.startsWith('data-')) continue;
+      const selector = `${scope}${active.localName}[${attribute.name}="${CSS.escape(attribute.value)}"]`;
+      if (body.querySelectorAll(selector).length === 1) { control = selector; break; }
+    }
+  }
+  return { nodes, active, control, focusVersion: _moneyFocusChange };
+}
+
+function restoreMoneyDrafts(body, retained) {
+  for (const { selector, node } of retained.nodes) {
+    const replacement = body.querySelector(selector);
+    if (!replacement || replacement === node) continue;
+    replacement.replaceWith(node);
+    if (node.classList.contains('rc-panel')) node.querySelector('.rc-out')?.replaceChildren();
+    if (node.classList.contains('nw-base')) node.querySelector('#nw-base-out')?.replaceChildren();
+  }
+  const create = $('recurring-create');
+  if (create) create.hidden = !!recurringCreateUnavailable();
+  syncMoneyLayout();
+  if (retained.focusVersion !== _moneyFocusChange || document.activeElement !== document.body) return;
+  const candidates = retained.control ? document.querySelectorAll(retained.control) : [];
+  const target = retained.active?.isConnected ? retained.active
+    : candidates.length === 1 ? candidates[0]
+    : retained.active?.id === 'money-entry-action' ? $('af-name') : null;
+  if (target && !target.disabled && !target.closest('[hidden], [inert]') && target.getClientRects().length) target.focus({ preventScroll: true });
+}
+
+function persistSavedTransactions() {
+  try {
+    const chosen = _moneySaved.find(item => item.id === _moneySavedCurrent);
+    const receipts = chosen ? [..._moneySaved.filter(item => item !== chosen), chosen] : _moneySaved;
+    sessionStorage.setItem(_moneySavedKey, JSON.stringify(receipts.map(item => ({
+      id: item.id, request_id: item.request_id, state: item.state,
+    }))));
+  } catch {}
+}
+
+async function hydrateSavedTransactions(request) {
+  await Promise.all(_moneySaved.filter(item => !item.saved && item.state !== 'unsupported').map(async item => {
+    try {
+      const result = await request(`/api/money/transactions/${encodeURIComponent(item.id)}/undo?request_id=${encodeURIComponent(item.request_id)}`);
+      if (!_moneySaved.includes(item)) return;
+      if (result.removed) {
+        if (item.state !== 'undone') item.state = 'removed';
+      } else item.saved = result;
+    } catch {} // Keep the pointer and explicit retry; a failed read proves no outcome.
+  }));
+  persistSavedTransactions();
+}
+
+function savedTransactions() {
+  const focused = document.activeElement?.closest?.('[data-saved-txn]')?.dataset.savedTxn;
+  const current = _moneySaved.find(item => item.id === _moneySavedCurrent) || _moneySaved.at(-1);
+  const recent = item => item === current || item.id === focused || item.busy || item.state === 'uncertain';
+  const receipt = item => {
+    const saved = item.saved;
+    const label = saved ? `${saved.payee || saved.category || 'transaction'} · ${signed(saved.amount, saved.undo ? saved.original_currency_code || 'XXX' : _cur)} · ${saved.date}` : 'saved transaction';
+    const status = item.state === 'undone' ? 'transaction undone.' : item.state === 'removed' ? 'transaction already removed.'
+      : item.state === 'uncertain' ? 'undo not confirmed. retry checks this same transaction.'
+      : item.state === 'blocked' ? 'undo unavailable: the transaction changed or its saved proof is unavailable. review it before deleting.'
+      : item.state === 'unsupported' ? 'transaction saved. undo is unavailable for Actual transactions; review the transaction before deleting.'
+      : 'transaction saved.';
+    const canUndo = !['undone', 'removed', 'blocked', 'unsupported'].includes(item.state);
+    return `<div class="money-saved-result" data-saved-txn="${esc(item.id)}"><p role="status">${esc(status)} <span>${esc(label)}</span></p>
+      <div class="money-saved-actions">${canUndo ? `<button type="button" class="btn" data-undo-saved="${esc(item.id)}" aria-label="${item.state === 'uncertain' ? 'retry undo' : 'undo'} ${esc(saved?.payee || 'saved transaction')}"${item.busy ? ' disabled' : ''}>${item.busy ? 'undoing…' : item.state === 'uncertain' ? 'retry undo' : 'undo'}</button>` : ''}
+      <button type="button" class="btn" data-dismiss-saved="${esc(item.id)}"${item.busy || item.state === 'uncertain' ? ' disabled' : ''}>dismiss</button></div></div>`;
+  };
+  const receipts = _moneySaved.filter(recent).map(receipt).join('');
+  const earlier = _moneySaved.filter(item => !recent(item));
+  const history = earlier.length ? `<button type="button" class="btn" id="money-saved-history" aria-controls="money-earlier-saved" aria-expanded="${_moneySavedExpanded}">${_moneySavedExpanded ? 'hide' : 'show'} earlier saved transactions (${earlier.length})</button><div id="money-earlier-saved"${_moneySavedExpanded ? '' : ' hidden'}>${earlier.map(receipt).join('')}</div>` : '';
+  return `<div id="money-save-results" tabindex="-1" role="region" aria-label="saved transactions">${receipts}${history}${_moneyRefreshFailed ? '<p role="status">the list and balances could not be refreshed. your drafts and saved outcomes are retained.</p><button type="button" class="btn" id="money-result-retry">retry balances</button>' : ''}</div>`;
+}
+
+function wireSavedTransactions() {
+  const root = $('money-save-results');
+  if (!root) return;
+  $('money-saved-history')?.addEventListener('click', event => {
+    _moneySavedExpanded = !_moneySavedExpanded;
+    if (!_moneySavedExpanded && $('money-earlier-saved')?.contains(document.activeElement)) event.currentTarget.focus();
+    renderSavedTransactions();
+  });
+  (root.querySelectorAll?.('[data-undo-saved]') || []).forEach(button => button.addEventListener('click', () => undoSavedTransaction(button)));
+  (root.querySelectorAll?.('[data-dismiss-saved]') || []).forEach(button => button.addEventListener('click', () => {
+    const item = _moneySaved.find(receipt => receipt.id === button.dataset.dismissSaved);
+    if (!item || item.busy || item.state === 'uncertain') return;
+    _moneySaved = _moneySaved.filter(item => item.id !== button.dataset.dismissSaved);
+    persistSavedTransactions();
+    renderSavedTransactions();
+    savedResultFocusTarget()?.focus();
+  }));
+  $('money-result-retry')?.addEventListener('click', async event => {
+    const button = event.currentTarget;
+    const focusVersion = _moneyFocusChange;
+    button.disabled = true;
+    await load(fetch, true);
+    if (_moneyFocusChange === focusVersion && (document.activeElement === button || document.activeElement === document.body)) savedResultFocusTarget()?.focus();
+  });
+}
+
+function savedResultFocusTarget() {
+  return _moneySaved.length || _moneyRefreshFailed ? $('money-save-results') : $('money-entry-action') || $('af-name');
+}
+
+function retainSavedFocus() {
+  const active = document.activeElement;
+  if (!$('money-save-results')?.contains(active)) return null;
+  const selector = active.dataset.undoSaved ? `[data-undo-saved="${CSS.escape(active.dataset.undoSaved)}"]`
+    : active.dataset.dismissSaved ? `[data-dismiss-saved="${CSS.escape(active.dataset.dismissSaved)}"]`
+    : active.id ? `#${CSS.escape(active.id)}` : '#money-save-results';
+  return { active, selector, version: _moneyFocusChange };
+}
+
+function restoreSavedFocus(retained) {
+  if (!retained || retained.version !== _moneyFocusChange
+      || (document.activeElement !== document.body && document.activeElement !== retained.active)) return;
+  const target = document.querySelector(retained.selector);
+  (target && !target.disabled && !target.closest('[hidden]') && (target.id !== 'money-save-results' || _moneySaved.length || _moneyRefreshFailed)
+    ? target : savedResultFocusTarget())?.focus({ preventScroll: true });
+}
+
+function renderSavedTransactions() {
+  const root = $('money-save-results');
+  if (!root) return;
+  const retained = retainSavedFocus();
+  root.outerHTML = savedTransactions();
+  wireSavedTransactions();
+  restoreSavedFocus(retained);
+}
+
+async function undoSavedTransaction(button) {
+  const item = _moneySaved.find(receipt => receipt.id === button.dataset.undoSaved);
+  if (!item || item.busy || item.state === 'unsupported') return;
+  if (_editTxn === item.id || _splitTxn === item.id) {
+    toast('finish or cancel this transaction edit before undoing it', 'error');
+    return;
+  }
+  const focusVersion = _moneyFocusChange;
+  _moneySavedAction = ++_moneySavedActionSequence;
+  _moneySavedCurrent = item.id;
+  item.busy = true;
+  item.state = 'uncertain';
+  persistSavedTransactions();
+  button.disabled = true;
+  button.textContent = 'undoing…';
+  $('money-save-results')?.querySelector(`[data-dismiss-saved="${CSS.escape(item.id)}"]`)?.setAttribute('disabled', '');
+  setTransactionUndoAvailability(item.id);
+  try {
+    const result = await api(`/api/money/transactions/${encodeURIComponent(item.id)}/undo`, { method: 'POST', body: { request_id: item.request_id } });
+    if (result?.ok !== true || !['undone', 'already_removed'].includes(result.outcome)) throw new Error('undo not confirmed');
+    item.state = result.outcome === 'already_removed' ? 'removed' : 'undone';
+    persistSavedTransactions();
+    await load(fetch, true);
+  } catch (error) {
+    item.state = error.status === 409 && /Actual/.test(error.message) ? 'unsupported'
+      : error.status === 400 || error.status === 409 ? 'blocked' : 'uncertain';
+    persistSavedTransactions();
+    if (item.state === 'blocked' || item.state === 'unsupported') await load(fetch, true);
+  } finally {
+    item.busy = false;
+    setTransactionUndoAvailability(item.id);
+    renderSavedTransactions();
+    if (_moneyFocusChange === focusVersion && (document.activeElement === button || document.activeElement === document.body)) $('money-save-results')?.focus();
+  }
+}
+
+function setTransactionUndoAvailability(id) {
+  const blocked = _moneySaved.some(item => item.id === id && (item.busy || item.state === 'uncertain'));
+  const row = $('txn-rows')?.querySelector(`[data-id="${CSS.escape(id)}"]`);
+  row?.querySelectorAll('[data-edit-txn], [data-clear-txn], [data-split-txn], [data-receipt-txn], [data-del-txn]').forEach(button => { button.disabled = blocked; });
 }
 
 function summaryCards() {
@@ -1402,6 +1649,7 @@ async function saveRecurringEdit() {
 // wire the txn row buttons within a root (the whole #txn-rows list); called on full
 // render and again after a search replaces just the list
 function _wireTxnRows() {
+  for (const item of _moneySaved) setTransactionUndoAvailability(item.id);
   const root = $('txn-rows'); if (!root) return;
   root.querySelectorAll('.txn-edit .custom-select').forEach(initCustomDropdown);
   root.querySelectorAll('.txn-edit .date-input').forEach(initDatePicker);
@@ -1455,7 +1703,7 @@ export async function applySearch() {
   if (!q && !mn && !mx) {   // nothing to filter → back to the plain month list
     _searchResults = null;
     _tagFilter = '';
-    const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
+    renderTxns();
     return;
   }
   _tagFilter = '';
@@ -1470,7 +1718,7 @@ export async function applySearch() {
   } catch { results = []; }
   if (sequence !== _searchSequence) return;
   _searchResults = results;
-  const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
+  renderTxns();
 }
 
 // ── actions ────────────────────────────────────────────────────────────────
@@ -1534,6 +1782,9 @@ async function addTxn() {
   const sign = getDropdownValue($('tx-sign')) === '+' ? 1 : -1;
   const focusAtSubmit = document.activeElement;
   const ownedEntryFocus = $('money-entry-fields')?.contains?.(focusAtSubmit);
+  const entryVersion = _moneyEntryChange;
+  const entrySnapshot = transactionEntrySnapshot();
+  const action = ++_moneySavedActionSequence;
   let requestId = '';
   try {
     const transactionPayload = {
@@ -1542,21 +1793,43 @@ async function addTxn() {
       tags: $('tx-tags')?.value.trim() || '',
     };
     requestId = await _createRequestId('transaction', transactionPayload);
+    _moneySavedAction = Math.max(_moneySavedAction, action);
     transactionPayload.request_id = requestId;
     const saved = await api('/api/money/transactions', { method: 'POST', body: transactionPayload });
     _completeCreateRequest('transaction', requestId);
-    const restoreFocus = ownedEntryFocus && document.activeElement === focusAtSubmit;
-    _moneyEntryOpen = false;
-    await load();
-    if (compactMoney() && saved?.id && restoreFocus && document.activeElement === document.body) {
-      const row = $('txn-rows')?.querySelector(`[data-id="${CSS.escape(saved.id)}"]`);
-      row?.querySelector('.tx-edit')?.focus({ preventScroll: true });
-      row?.scrollIntoView({ block: 'nearest' });
+    const restoreFocus = action === _moneySavedAction && ownedEntryFocus && document.activeElement === focusAtSubmit;
+    if (saved?.id && !_moneySaved.some(item => item.id === saved.id)) {
+      _moneySaved.push({ id: saved.id, request_id: requestId, saved, state: saved.undo ? 'ready' : _canonicalLedger ? 'unsupported' : 'blocked' });
+    }
+    if (saved?.id && action === _moneySavedAction) _moneySavedCurrent = saved.id;
+    persistSavedTransactions();
+    if (entryVersion === _moneyEntryChange && entrySnapshot === transactionEntrySnapshot()) {
+      for (const id of ['tx-payee', 'tx-cat', 'tx-amt', 'tx-tags']) if ($(id)) $(id).value = '';
+      if (!$('tr-amt')?.value.trim() && (restoreFocus || !$('money-entry-fields')?.contains(document.activeElement))) {
+        _moneyEntryOpen = false;
+        if (restoreFocus) {
+          renderSavedTransactions();
+          const undo = saved?.id && $('money-save-results')?.querySelector(`[data-undo-saved="${CSS.escape(saved.id)}"]`);
+          (undo || savedResultFocusTarget())?.focus();
+        }
+        syncMoneyLayout();
+      }
+    }
+    const focusVersion = _moneyFocusChange;
+    await load(fetch, true);
+    if (restoreFocus && _moneyFocusChange === focusVersion && document.activeElement === document.body) {
+      const undo = $('money-save-results')?.querySelector(`[data-undo-saved="${CSS.escape(saved.id)}"]`);
+      (undo || $('money-save-results'))?.focus();
     }
   } catch {
     if (requestId) _releaseCreateRequest('transaction', requestId);
     toast('couldn\'t add transaction', 'error');
   }
+}
+
+function transactionEntrySnapshot() {
+  return JSON.stringify(['tx-payee', 'tx-cat', 'tx-amt', 'tx-tags', 'tx-acct', 'tx-sign', 'tx-date',
+    'tr-from', 'tr-to', 'tr-amt', 'tr-date', 'tr-notes'].map(id => [$(id)?.value, $(id)?.dataset?.value]));
 }
 async function delTxn(id) {
   if (!await dlgConfirm('delete this transaction?')) return;
@@ -1640,7 +1913,12 @@ function clearTagFilter() {
   renderTxns();
 }
 function renderTxns() {
-  const rows = $('txn-rows'); if (rows) { rows.innerHTML = txnList(); _wireTxnRows(); }
+  const rows = $('txn-rows');
+  if (!rows) return;
+  const retained = retainMoneyDrafts(rows, false);
+  rows.innerHTML = txnList();
+  _wireTxnRows();
+  restoreMoneyDrafts(rows, retained);
 }
 function toggleReconcile(aid) {
   const wrap = $(`rc-panel-${aid}`); if (!wrap) return;

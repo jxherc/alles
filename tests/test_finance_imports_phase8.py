@@ -1037,6 +1037,12 @@ class FinanceImportsPhase8Tests(ApiTest):
         db.close()
 
     def test_legacy_apply_rechecks_the_preview_account_currency(self):
+        empty = self.client.post(
+            "/api/money/accounts",
+            json={"name": "empty chequing", "currency": "CAD", "opening": 0},
+        )
+        self.assertEqual(empty.status_code, 200, empty.text)
+        self.account = empty.json()
         preview = self._preview("Date,Description,Debit,Credit\n2026-07-01,Coffee,5,,\n")
         changed = self.client.patch(
             f"/api/money/accounts/{self.account['id']}", json={"currency": "USD"}
