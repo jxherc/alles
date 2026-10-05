@@ -43,6 +43,7 @@ test('old Actual schedule repair chooses a category once and retries the saved c
   let choices = 0;
   const context = vm.createContext({
     calendarDateKey,
+    document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     dlgChoose: async () => { choices += 1; return 'housing-id'; },
@@ -73,6 +74,7 @@ test('canonical recurring pause retries only the saved provider posting choice',
   const calls = [];
   const context = vm.createContext({
     calendarDateKey,
+    document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     toast: () => {},
@@ -155,6 +157,7 @@ test('pending canonical creation offers one retry action and holds the new form'
   const calls = [];
   const context = vm.createContext({
     calendarDateKey,
+    document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     formatNumber: value => String(value),
@@ -184,6 +187,7 @@ test('pending recurring edit stays visible and retries only the saved edit', asy
   const calls = [];
   const context = vm.createContext({
     calendarDateKey,
+    document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     formatNumber: value => String(value),
@@ -218,6 +222,7 @@ test('canonical recurring deletion confirms its scope and retries only a saved d
   const confirmations = [];
   const context = vm.createContext({
     calendarDateKey,
+    document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
     api: async (path, options) => { calls.push({ path, options }); return {}; },
     dlgConfirm: async message => { confirmations.push(message); return true; },
@@ -263,6 +268,7 @@ test('recurring edit stays scoped to one eligible linked schedule', () => {
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const context = vm.createContext({
     calendarDateKey,
+    document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
     formatNumber: value => String(value),
   });

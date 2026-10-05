@@ -164,20 +164,30 @@ with sync_playwright() as pw:
                 expect(action).not_to_have_class(re.compile(r"\bprimary\b"))
                 expect(totals).to_be_hidden()
                 expect(page.locator(".ms-card:visible")).to_have_count(5)
-            if width <= 390:
-                action.tap()
+            if entry.is_visible():
+                expect(action).to_have_text("close entry")
+                page.locator("#tx-payee").focus()
             else:
-                action.press("Enter")
+                action.tap() if width <= 390 else action.press("Enter")
             expect(page.locator("#tx-payee")).to_be_focused()
+            expect(action).to_have_text("close entry")
+            expect(page.get_by_role("button", name="add transaction", exact=True)).to_have_count(1)
             expect(action).not_to_have_class(re.compile(r"\bprimary\b"))
             payee = "garden supplies " + label + " 中文"
             page.locator("#tx-payee").fill(payee)
+            page.locator("#tx-payee").focus()
+            action.evaluate("button => button.click()")
+            expect(entry).to_be_hidden()
+            expect(action).to_be_focused()
+            action.press("Enter")
+            expect(page.locator("#tx-payee")).to_have_value(payee)
+            expect(page.locator("#tx-payee")).to_be_focused()
             page.locator("#tx-cat").fill("garden")
             tag = "garden-" + label
             page.locator("#tx-tags").fill(tag)
             page.locator("#tx-amt").fill("18.75")
             if compact:
-                page.locator("#money-entry-close").press("Enter")
+                action.press("Enter")
                 expect(entry).to_be_hidden()
                 expect(action).to_be_focused()
                 action.press("Enter")
@@ -190,12 +200,14 @@ with sync_playwright() as pw:
                     page.set_viewport_size({"width": width, "height": 844})
                     expect(page.locator("#tx-payee")).to_be_focused()
                     expect(entry).to_be_visible()
-                    expect(page.locator("#money-entry-close")).to_be_visible()
-                    page.locator("#money-entry-close").focus()
+                    expect(action).to_have_text("close entry")
+                    action.focus()
                     page.set_viewport_size({"width": 1440, "height": 844})
-                    expect(page.locator("#money-entry-close")).to_be_hidden()
+                    expect(action).to_have_text("close entry")
                     expect(action).to_be_focused()
                     page.set_viewport_size({"width": width, "height": 844})
+                    action.press("Enter")
+                    expect(entry).to_be_hidden()
                     action.press("Enter")
                     expect(page.locator("#tx-payee")).to_have_value(payee)
             before = api.get(base + "/api/money/transactions").json()
@@ -325,6 +337,39 @@ with sync_playwright() as pw:
             manage.press("Enter")
             expect(page.locator("#money-management")).to_be_hidden()
             expect(manage).to_be_focused()
+            plans = page.locator('[data-money-section="plans"]')
+            plans.press("Enter")
+            accounts_task = page.locator('[data-money-task="accounts"]')
+            expect(accounts_task).to_have_attribute("aria-pressed", "true")
+            expect(page.locator("#money-task-accounts")).to_be_visible()
+            expect(page.locator("#bf-cat")).to_be_hidden()
+            expect(page.locator("#gl-name")).to_be_hidden()
+            expect(page.locator("#rc-payee")).to_be_hidden()
+            page.locator("#money-add-acct").press("Enter")
+            page.locator("#af-name").fill("exact account draft 中文")
+            for task, field in [
+                ("budgets", "bf-cat"),
+                ("schedules", "rc-payee"),
+                ("goals", "gl-name"),
+            ]:
+                choice = page.locator(f'[data-money-task="{task}"]')
+                choice.tap() if width <= 390 else choice.press("Enter")
+                expect(choice).to_have_attribute("aria-pressed", "true")
+                expect(choice).to_be_focused()
+                expect(page.locator("#money-task-accounts")).to_be_hidden()
+                page.locator("#" + field).fill("exact " + task + " draft 中文")
+            accounts_task.press("Enter")
+            expect(page.locator("#af-name")).to_have_value("exact account draft 中文")
+            for task, field in [
+                ("budgets", "bf-cat"),
+                ("schedules", "rc-payee"),
+                ("goals", "gl-name"),
+            ]:
+                page.locator(f'[data-money-task="{task}"]').press("Enter")
+                expect(page.locator("#" + field)).to_have_value("exact " + task + " draft 中文")
+            shot("chosen-management")
+            accounts_task.press("Enter")
+            plans.press("Enter")
             if compact:
                 totals.press("Enter")
                 expect(totals).to_have_attribute("aria-expanded", "true")
@@ -356,7 +401,8 @@ with sync_playwright() as pw:
             if compact:
                 totals.press("Enter")
                 expect(page.locator("#money-projection")).to_be_hidden()
-            action.press("Enter")
+            if entry.is_hidden():
+                action.press("Enter")
             page.locator("#tx-payee").fill("newer exact draft during forecast 中文")
             page.locator("#tx-amt").fill("7.25")
             page.locator("#tx-payee").focus()
@@ -371,7 +417,7 @@ with sync_playwright() as pw:
             if compact:
                 expect(page.locator("#money-projection")).to_be_hidden()
                 expect(totals).not_to_contain_text("unavailable")
-                page.locator("#money-entry-close").press("Enter")
+                action.press("Enter")
             if not compact:
                 for retry_fails in [True, False]:
                     forecast_mode = "error"

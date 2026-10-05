@@ -102,15 +102,17 @@ def run():
             money_tab = page.locator('#finance-tabs [data-group-section="money"]')
             if money_tab.get_attribute("aria-selected") != "true":
                 money_tab.click()
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             card = page.locator('.money-card[data-card="networth"]')
             expect(card.locator(".nw-svg")).to_be_visible()
             expect(card.locator(".nw-now")).to_contain_text("120")
             assert card.locator(".trend-labels span").count() == 6
+            page.locator('[data-money-task="schedules"]').click()
             recurring_card = page.locator('.money-card[data-card="recurring"]')
             expect(recurring_card).to_contain_text("test rent")
             expect(recurring_card.locator("#rc-add")).to_be_visible()
             expect(recurring_card.locator("[data-toggle-rec]")).to_have_count(1)
+            page.locator('[data-money-task="budgets"]').click()
             envelope_card = page.locator('.money-card[data-card="envelope"]')
             expect(envelope_card.locator("h3")).to_contain_text("age of money:")
             envelope_card.locator("#env-new-cat").fill("food")
@@ -138,7 +140,7 @@ def run():
 
             page.route("**/api/money/networth-history?*", history)
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             use_light_theme_on_phone()
             card = page.locator('.money-card[data-card="networth"]')
             retry = card.get_by_role("button", name="retry", exact=True)
@@ -181,7 +183,7 @@ def run():
 
             page.route("**/api/money/forecast?*", forecast)
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             projection = page.locator("[data-forecast]")
             retry_forecast = projection.get_by_role("button", name="retry", exact=True)
             expect(retry_forecast).to_be_visible()
@@ -222,7 +224,7 @@ def run():
 
             page.route("**/api/money/forecast?*", schedule_rule)
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             projection = page.locator("[data-forecast]")
             expect(projection).to_contain_text("fix Actual schedule")
             projection.scroll_into_view_if_needed()
@@ -340,7 +342,7 @@ def run():
             )
             page.route("**/api/money/recurring", canonical_recurring)
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             recurring_card = page.locator('.money-card[data-card="recurring"]')
             recurring_retry = recurring_card.get_by_role("button", name="retry", exact=True)
             expect(recurring_retry).to_be_visible()
@@ -379,10 +381,12 @@ def run():
 
             recurring_empty = True
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
+            page.locator('[data-money-task="schedules"]').click()
             recurring_card = page.locator('.money-card[data-card="recurring"]')
             expect(recurring_card).to_contain_text("no auto-post schedules in Actual")
             expect(recurring_card.locator("#rc-add")).to_be_visible()
+            page.locator('[data-money-task="budgets"]').click()
 
             alert_failures = 2
             alerts_empty = False
@@ -445,7 +449,7 @@ def run():
 
             page.route("**/api/money/alerts?*", canonical_alerts)
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             use_light_theme_on_phone()
             alert_content = page.locator("#money-alerts-content")
             alert_retry = alert_content.get_by_role("button", name="retry", exact=True)
@@ -485,7 +489,7 @@ def run():
             alerts_empty = True
             alert_failures = 1
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             use_light_theme_on_phone()
             alert_content = page.locator("#money-alerts-content")
             alert_retry = alert_content.get_by_role("button", name="retry", exact=True)
@@ -498,7 +502,7 @@ def run():
             alert_content.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-alerts-empty-{profile}.png"))
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             expect(page.locator("#money-alerts-content")).to_be_empty()
 
             age_failures = 2
@@ -523,6 +527,8 @@ def run():
 
             page.route("**/api/money/age-of-money", canonical_age)
             envelope_failures = 2
+            hold_envelope = {"enabled": False}
+            held_envelopes = []
 
             def canonical_envelope(route):
                 nonlocal envelope_failures
@@ -534,6 +540,9 @@ def run():
                         content_type="application/json",
                     )
                 else:
+                    if hold_envelope["enabled"]:
+                        held_envelopes.append(route)
+                        return
                     route.fulfill(
                         status=200,
                         body=json.dumps(canonical_envelope_month),
@@ -543,6 +552,8 @@ def run():
             page.route("**/api/money/envelope?*", canonical_envelope)
             assignment_writes = []
             assignment_failures = 1
+            held_assignments = []
+            hold_assignment = {"enabled": False}
 
             def canonical_assignment(route):
                 nonlocal assignment_failures
@@ -557,6 +568,9 @@ def run():
                         body='{"detail":"Actual assignment unavailable"}',
                         content_type="application/json",
                     )
+                    return
+                if hold_assignment["enabled"]:
+                    held_assignments.append((route, payload))
                     return
                 canonical_envelope_month["categories"][0]["assigned"] = payload["amount"]
                 canonical_envelope_month["pending_assignments"] = []
@@ -638,7 +652,7 @@ def run():
             page.route("**/api/money/envelope/target/bind", canonical_target_bind)
             page.route("**/api/money/envelope/target", canonical_target)
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             use_light_theme_on_phone()
             envelope_card = page.locator('.money-card[data-card="envelope"]')
             age_retry = envelope_card.locator("#age-retry")
@@ -729,22 +743,138 @@ def run():
                     "expected_assigned": 75,
                 }
             ]
+            page.evaluate(
+                "localStorage.setItem('money-hidden-cards', JSON.stringify(['envelope']))"
+            )
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             envelope_card = page.locator('.money-card[data-card="envelope"]')
             pending_retry = envelope_card.get_by_role("button", name="retry the same amount")
             expect(pending_retry).to_be_visible()
+            page.locator('[data-money-task="accounts"]').click()
+            expect(pending_retry).to_be_visible()
+            expect(envelope_card.locator(".card-hide")).to_be_disabled()
+            expect(page.locator('[data-money-section="plans"]')).to_be_disabled()
+            assert page.evaluate("JSON.parse(localStorage.getItem('money-hidden-cards'))") == [
+                "envelope"
+            ]
+            page.locator('[data-money-task="budgets"]').click()
             expect(
                 envelope_card.locator('.env-row[data-category-id="food-id"] .env-assign')
             ).to_have_count(0)
-            if profile == "phone":
-                pending_retry.tap()
-            else:
-                pending_retry.click()
+            pending_retry.focus()
+            pending_retry.press("Enter")
+            expect(pending_retry).to_have_count(0)
+            expect(envelope_card).to_be_hidden()
+            budgets_choice = page.locator('[data-money-task="budgets"]')
+            expect(budgets_choice).to_be_focused()
+            assert page.evaluate("JSON.parse(localStorage.getItem('money-hidden-cards'))") == [
+                "envelope"
+            ]
+            restore = page.get_by_role("button", name="restore 1 hidden card", exact=True)
+            expect(restore).to_be_visible()
+            restore.focus()
+            restore.press("Enter")
+            expect(restore).to_be_hidden()
+            expect(budgets_choice).to_be_focused()
+            assert page.evaluate("JSON.parse(localStorage.getItem('money-hidden-cards'))") == []
             expect(
                 envelope_card.locator('.env-row[data-category-id="food-id"] .env-assign')
             ).to_have_value("80")
             assert assignment_writes[-1]["expected_amount"] == 75
+            expect(envelope_card.locator(".card-hide")).to_be_enabled()
+            expect(page.locator('[data-money-section="plans"]')).to_be_enabled()
+            page.locator('[data-money-task="accounts"]').click()
+            expect(envelope_card).to_be_hidden()
+            # A repeated pending recovery must not take over a newer accounts draft.
+            canonical_envelope_month["pending_assignments"] = [
+                {
+                    "category_id": "food-id",
+                    "category": "food",
+                    "assigned": 85,
+                    "expected_assigned": 75,
+                }
+            ]
+            page.reload(wait_until="networkidle")
+            show_money_sections(page, task="budgets")
+            pending_retry = envelope_card.get_by_role("button", name="retry the same amount")
+            hold_assignment["enabled"] = True
+            pending_retry.focus()
+            pending_retry.press("Enter")
+            accounts_choice = page.locator('[data-money-task="accounts"]')
+            accounts_choice.click()
+            page.locator("#money-add-acct").click()
+            account_draft = page.locator("#af-name")
+            account_draft.fill("newer exact account 草稿")
+            page.locator("#af-open").fill("123.45")
+            account_draft.focus()
+            assert len(held_assignments) == 1
+            held, payload = held_assignments.pop()
+            assert payload["expected_amount"] == 75 and payload["amount"] == 85
+            canonical_envelope_month["categories"][0]["assigned"] = payload["amount"]
+            canonical_envelope_month["pending_assignments"] = []
+            hold_assignment["enabled"] = False
+            held.fulfill(status=200, content_type="application/json", body='{"ok":true}')
+            expect(envelope_card.locator("[data-env-retry]")).to_have_count(0)
+            expect(accounts_choice).to_have_attribute("aria-pressed", "true")
+            expect(account_draft).to_be_visible()
+            expect(account_draft).to_be_focused()
+            expect(account_draft).to_have_value("newer exact account 草稿")
+            expect(page.locator("#af-open")).to_have_value("123.45")
+            expect(envelope_card).to_be_hidden()
+            page.screenshot(path=str(artifacts / f"finance-envelope-newer-draft-{profile}.png"))
+            page.locator('[data-money-task="budgets"]').click()
+            expect(assignment_input).to_have_value("85")
+            # A late budget read retry also leaves a newer account draft and focus alone.
+            envelope_failures = 1
+            page.reload(wait_until="networkidle")
+            show_money_sections(page, task="budgets")
+            read_retry = envelope_card.locator("#env-retry")
+            expect(read_retry).to_be_visible()
+            hold_envelope["enabled"] = True
+            read_retry.focus()
+            read_retry.press("Enter")
+            accounts_choice.click()
+            page.locator("#money-add-acct").click()
+            account_draft.fill("newer budget-read draft 草稿")
+            page.locator("#af-open").fill("456.78")
+            account_draft.focus()
+            assert len(held_envelopes) == 1
+            hold_envelope["enabled"] = False
+            held_envelopes.pop().fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(canonical_envelope_month),
+            )
+            expect(read_retry).to_have_count(0)
+            expect(accounts_choice).to_have_attribute("aria-pressed", "true")
+            expect(account_draft).to_be_visible()
+            expect(account_draft).to_be_focused()
+            expect(account_draft).to_have_value("newer budget-read draft 草稿")
+            expect(page.locator("#af-open")).to_have_value("456.78")
+            page.locator('[data-money-task="budgets"]').click()
+            expect(assignment_input).to_have_value("85")
+            # A newer control inside the replaced card gets a visible destination too.
+            envelope_failures = 1
+            page.reload(wait_until="networkidle")
+            show_money_sections(page, task="budgets")
+            read_retry = envelope_card.locator("#env-retry")
+            hold_envelope["enabled"] = True
+            read_retry.focus()
+            read_retry.press("Enter")
+            envelope_card.locator(".card-hide").focus()
+            expect(envelope_card.locator(".card-hide")).to_be_focused()
+            assert len(held_envelopes) == 1
+            hold_envelope["enabled"] = False
+            held_envelopes.pop().fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(canonical_envelope_month),
+            )
+            expect(read_retry).to_have_count(0)
+            expect(page.locator('[data-money-task="budgets"]')).to_be_focused()
+            expect(assignment_input).to_have_value("85")
+            page.screenshot(path=str(artifacts / f"finance-envelope-newer-inside-{profile}.png"))
             food_target = envelope_card.get_by_role(
                 "button", name="set funding target for living / food"
             )
@@ -822,7 +952,7 @@ def run():
             age_empty = True
             age_failures = 1
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="budgets")
             use_light_theme_on_phone()
             envelope_card = page.locator('.money-card[data-card="envelope"]')
             age_retry = envelope_card.locator("#age-retry")
