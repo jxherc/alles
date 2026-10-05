@@ -1369,6 +1369,7 @@ function _syncShellTrigger(root = null) {
   if (!document.body.classList.contains('afterlife-shell')) return;
   const trigger = document.getElementById('app-drawer-btn');
   if (!trigger) return;
+  root ||= trigger.closest('[data-specialist-app]');
   const space = document.body.dataset.space;
   const app = root?.dataset.specialistApp || document.body.dataset.app || 'alles';
   const label = space === 'today' ? 'alles' : space === 'aide' ? 'aide'
