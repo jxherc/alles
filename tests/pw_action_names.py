@@ -278,6 +278,14 @@ def run():
                     ),
                     ('.money-card[data-card="goals"] .card-hide', "hide goals card"),
                 ]:
+                    if "goal" in selector:
+                        page.locator('[data-money-task="goals"]').click()
+                    elif "budget" in selector:
+                        page.locator('[data-money-task="budgets"]').click()
+                    elif "rec=" in selector:
+                        page.locator('[data-money-task="schedules"]').click()
+                    elif "acct=" in selector:
+                        page.locator('[data-money-task="accounts"]').click()
                     named(selector, name)
 
                 page.goto(base + "/?view=skills", wait_until="networkidle")

@@ -19,7 +19,7 @@ from services.appearance import LIGHT_BASE
 
 def run() -> None:
     base = f"http://127.0.0.1:{os.environ['PORT']}"
-    finance = f"http://finance.localhost:{os.environ['PORT']}"
+    finance = base + "/?view=finance"
     data = Path(os.environ["ALLES_DATA"]).resolve()
     run_id = os.environ["ALLES_TEST_RUN_ID"]
     assert os.environ.get("ALLES_TEST_DATA") == "1"
@@ -87,7 +87,11 @@ def run() -> None:
             )
 
             def response(route):
-                path = urlsplit(route.request.url).path
+                parsed = urlsplit(route.request.url)
+                if (parsed.scheme, parsed.netloc) != (urlsplit(base).scheme, urlsplit(base).netloc):
+                    state["errors"].append("blocked external request: " + route.request.url)
+                    return route.abort()
+                path = parsed.path
                 if path == "/api/money/recurring" and route.request.method == "GET":
                     if state["fail_check_once"]:
                         state["fail_check_once"] = False
@@ -212,12 +216,22 @@ def run() -> None:
                 else:
                     route.continue_()
 
+            context.route(
+                "**/*",
+                lambda route: (
+                    route.continue_()
+                    if (urlsplit(route.request.url).scheme, urlsplit(route.request.url).netloc)
+                    == (urlsplit(base).scheme, urlsplit(base).netloc)
+                    else route.abort()
+                ),
+            )
+            context.route_web_socket("**/*", lambda ws: ws.close())
             context.route("**/api/money/**", response)
             page.goto(finance, wait_until="networkidle")
             tab = page.locator('#finance-tabs [data-group-section="money"]')
             if tab.get_attribute("aria-selected") != "true":
                 tab.click()
-            show_money_sections(page)
+            show_money_sections(page, task="schedules")
             card = page.locator('.money-card[data-card="recurring"]')
             linked = card.locator('.recur-group[data-id="linked-rent"]')
             native = card.locator('.recur-group[data-id="native-rent"]')
@@ -302,7 +316,7 @@ def run() -> None:
             assert len(state["posts"]) == 2
             state["phase"] = "review"
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="schedules")
             expect(
                 linked.get_by_text("review the schedule there before retrying", exact=False)
             ).to_be_visible()
@@ -315,7 +329,7 @@ def run() -> None:
             )
             state["phase"] = "ready"
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="schedules")
             delete = linked.get_by_role("button", name="delete landlord schedule")
             expect(delete).to_be_visible()
             expect(native.get_by_role("button", name="delete native schedule")).to_have_count(0)
@@ -348,7 +362,7 @@ def run() -> None:
             )
             state["phase"] = "delete-review"
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="schedules")
             expect(
                 linked.get_by_text("review it before retrying deletion", exact=False)
             ).to_be_visible()
@@ -361,7 +375,7 @@ def run() -> None:
             linked.screenshot(path=str(output / f"recurring-delete-{profile}-review-row.png"))
             state["phase"] = "delete-pending"
             page.reload(wait_until="networkidle")
-            show_money_sections(page)
+            show_money_sections(page, task="schedules")
             retry_delete = linked.get_by_role("button", name="retry deletion")
             retry_delete.focus()
             page.keyboard.press("Enter")
