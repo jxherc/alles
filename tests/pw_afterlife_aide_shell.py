@@ -351,7 +351,6 @@ def run() -> None:
             page.locator("#aide-tools-link").click()
             assert page.locator("#aide-sidebar-menu").is_visible()
             assert page.locator("#aide-sidebar-menu [role=menuitem]").all_inner_texts() == [
-                "compare models",
                 "usage",
                 "settings",
             ]
@@ -365,6 +364,7 @@ def run() -> None:
                 "brain",
                 "skills",
                 "reminders",
+                "compare models",
             ]
             for tool_view, route_view in (
                 ("brain", "brain"),

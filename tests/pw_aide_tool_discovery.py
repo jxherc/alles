@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 import traceback
 from pathlib import Path
@@ -79,7 +80,7 @@ with sync_playwright() as pw:
 
             def route(request):
                 url = urlparse(request.request.url)
-                if url.netloc != urlparse(base).netloc:
+                if url.scheme + "://" + url.netloc != base:
                     external.append(request.request.url)
                     return request.abort()
                 if url.path == "/api/chat" and request.request.method == "POST":
@@ -143,6 +144,27 @@ with sync_playwright() as pw:
                         == 2
                     )
                     page.wait_for_function("innerWidth === 720 && devicePixelRatio === 2")
+                for id, text in [
+                    ("sidebar-toggle-btn", "tasks"),
+                    ("aide-work-panel-toggle", "tools"),
+                ]:
+                    label_element = page.locator("#" + id + " .aide-toggle-label")
+                    expect(label_element).to_have_text(text)
+                    expect(page.locator("#" + id)).to_have_accessible_name(re.compile(text, re.I))
+                    if page.evaluate("innerWidth <= 700"):
+                        expect(label_element).to_be_visible()
+                        assert page.locator("#" + id).bounding_box()["height"] >= 44
+                    else:
+                        expect(label_element).to_be_hidden()
+                page.screenshot(path=str(out / f"{label}-named-controls.png"))
+                panel_toggle = page.locator("#aide-work-panel-toggle")
+                if width <= 390:
+                    panel_toggle.tap()
+                else:
+                    panel_toggle.press("Enter")
+                expect(page.locator("#aide-work-panel")).to_be_visible()
+                page.keyboard.press("Escape")
+                expect(panel_toggle).to_be_focused()
                 field = page.locator("#composer-ta")
                 draft = "keep the current question while comparing models"
                 field.fill(draft)
@@ -165,20 +187,33 @@ with sync_playwright() as pw:
                 tools = menu_open()
                 menu = page.locator("#aide-sidebar-menu")
                 items = menu.get_by_role("menuitem")
-                expect(items).to_have_text(["compare models", "usage", "settings"])
+                expect(items).to_have_text(["usage", "settings"])
                 expect(items.first).to_be_focused()
                 page.keyboard.press("End")
                 expect(items.last).to_be_focused()
                 page.keyboard.press("ArrowDown")
                 expect(items.first).to_be_focused()
-                for index in range(3):
+                for index in range(2):
                     assert items.nth(index).bounding_box()["height"] >= 44
                 page.screenshot(path=str(out / f"{label}-tools.png"))
                 page.keyboard.press("Escape")
                 expect(tools).to_be_focused()
                 for view, title in [("compare", "compare models"), ("usage", "usage")]:
-                    menu_open()
-                    menu.get_by_role("menuitem", name=title, exact=True).press("Enter")
+                    if view == "compare":
+                        sidebar = page.locator("#sidebar-toggle-btn")
+                        if sidebar.get_attribute("aria-expanded") == "false":
+                            sidebar.click()
+                        direct = page.locator(".sidebar-nav #aide-compare-link")
+                        expect(direct).to_have_text("compare models")
+                        expect(menu).to_be_hidden()
+                        page.screenshot(path=str(out / f"{label}-direct-compare.png"))
+                        if width <= 390:
+                            direct.tap()
+                        else:
+                            direct.press("Enter")
+                    else:
+                        menu_open()
+                        menu.get_by_role("menuitem", name=title, exact=True).press("Enter")
                     root = page.locator("#" + view + "-view")
                     expect(root).to_be_visible()
                     page.wait_for_function(
