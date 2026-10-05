@@ -168,6 +168,8 @@
     "andromeda.recent_first": "新しい情報源を優先",
     "andromeda.remote_confirm": "この検索語と選択したウェブ上の根拠を {endpoint} / {model} に送信しますか？",
     "andromeda.results_disabled": "この検索では通常の結果が無効です。",
+    "andromeda.search_disabled": "検索は無効です。検索設定でプロバイダーを選択してください。",
+    "andromeda.search_settings": "検索設定",
     "andromeda.retry_save": "もう一度保存",
     "andromeda.return_home": "Alles ホームに戻る",
     "andromeda.save_failed": "この記事を保存できませんでした",

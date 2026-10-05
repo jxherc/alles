@@ -168,6 +168,8 @@
     "andromeda.recent_first": "sources récentes en premier",
     "andromeda.remote_confirm": "envoyer cette requête et les preuves web sélectionnées à {endpoint} / {model} ?",
     "andromeda.results_disabled": "les résultats normaux sont désactivés pour cette recherche.",
+    "andromeda.search_disabled": "la recherche est désactivée. choisissez un fournisseur dans les paramètres de recherche.",
+    "andromeda.search_settings": "paramètres de recherche",
     "andromeda.retry_save": "réessayer l’enregistrement",
     "andromeda.return_home": "retour à l’accueil Alles",
     "andromeda.save_failed": "impossible d’enregistrer cet article",

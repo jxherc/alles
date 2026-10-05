@@ -168,6 +168,8 @@
     "andromeda.recent_first": "المصادر الأحدث أولًا",
     "andromeda.remote_confirm": "هل تريد إرسال عبارة البحث وأدلة الويب المحددة إلى {endpoint} / {model}؟",
     "andromeda.results_disabled": "النتائج العادية معطلة لهذا البحث.",
+    "andromeda.search_disabled": "البحث معطل. اختر مزودًا من إعدادات البحث.",
+    "andromeda.search_settings": "إعدادات البحث",
     "andromeda.retry_save": "محاولة الحفظ مجددًا",
     "andromeda.return_home": "العودة إلى رئيسية Alles",
     "andromeda.save_failed": "تعذّر حفظ هذا الخبر",

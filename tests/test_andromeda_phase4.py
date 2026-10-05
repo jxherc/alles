@@ -745,6 +745,75 @@ class AndromedaApiTest(ApiTest):
         self.assertEqual(response.json()["results"], [])
         provider.assert_not_awaited()
 
+    def test_disabled_provider_remains_disabled_with_normal_results_on(self):
+        save_settings(
+            {
+                "search_provider": "disabled",
+                "research_search_provider": "",
+                "search_fallback_chain": [],
+            }
+        )
+        with mock.patch(
+            "services.research.search._search_provider", new=mock.AsyncMock()
+        ) as provider:
+            response = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "owned synthetic question !ai", "normal_results": True},
+            )
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result["status"], "disabled")
+        self.assertEqual(result["failure_type"], "disabled")
+        self.assertEqual(result["results"], [])
+        self.assertEqual(result["attempted_sources"], [])
+        self.assertEqual(result["provider"], "")
+        self.assertTrue(result["normal_results_enabled"])
+        self.assertFalse(result["overview_requested"])
+        provider.assert_not_awaited()
+
+    def test_explicit_provider_can_override_disabled_default(self):
+        save_settings({"search_provider": "disabled", "research_search_provider": ""})
+        fixture = [{"url": "http://localhost/owned-source", "title": "synthetic source"}]
+        with mock.patch(
+            "services.research.search._search_provider", new=mock.AsyncMock(return_value=fixture)
+        ) as provider:
+            response = self.client.post(
+                "/api/andromeda/search",
+                json={"query": "owned question !ai", "provider": "duckduckgo"},
+            )
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["provider"], "duckduckgo")
+        self.assertEqual(result["failure_type"], "")
+        provider.assert_awaited_once()
+
+    def test_normal_search_preserves_neighboring_result_states(self):
+        from services.research.search import SearchChainResult, SearchReport
+
+        fixture = [{"url": "http://localhost/owned-source", "title": "synthetic source"}]
+        for rows, error, failure, expected in (
+            ([], None, "", "empty"),
+            ([], "local timeout", "timeout", "error"),
+            (fixture, "local timeout", "timeout", "partial"),
+            (fixture, None, "", "ready"),
+        ):
+            with (
+                self.subTest(expected=expected),
+                mock.patch(
+                    "services.research.search.search_chain",
+                    new=mock.AsyncMock(
+                        return_value=SearchChainResult(
+                            SearchReport(rows, "duckduckgo", error, failure, ("duckduckgo",))
+                        )
+                    ),
+                ),
+            ):
+                result = asyncio.run(andromeda.normal_search("owned question"))
+                self.assertEqual(result["status"], expected)
+                self.assertEqual(result["failure_type"], failure)
+                self.assertEqual(len(result["results"]), len(rows))
+
     def test_provider_menu_only_marks_configured_engines_available(self):
         save_settings(
             {
