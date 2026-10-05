@@ -202,7 +202,7 @@ function _render(el) {
     else sel.mi = (sel.mi + (s === 'mi1' ? 1 : 59)) % 60;
     _commit(el); _render(el);
   }));
-  panel.querySelector('.dp-clear').addEventListener('click', e => { e.stopPropagation(); el.value = ''; _close(); });
+  panel.querySelector('.dp-clear').addEventListener('click', e => { e.stopPropagation(); el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })); _close(); });
   panel.querySelector('.dp-now').addEventListener('click', e => {
     e.stopPropagation();
     Object.assign(sel, _currentParts());

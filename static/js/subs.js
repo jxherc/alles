@@ -82,6 +82,20 @@ function setBusy() {
     if (el.matches('.date-input')) { el.setAttribute('aria-disabled', String(disabled)); el.tabIndex = disabled ? -1 : 0; }
   });
   if ($('sub-add-btn')) $('sub-add-btn').textContent = _creation?.uncertain ? 'retry add' : 'add';
+  syncAddState();
+}
+
+function syncAddState() {
+  const nameMissing = !$('sub-name')?.value.trim();
+  const dateMissing = !$('sub-due')?.value;
+  const retry = !!_creation?.uncertain;
+  const add = $('sub-add-btn'), hint = $('sub-required');
+  if (add) add.disabled = _busy || (!retry && (nameMissing || dateMissing));
+  if (hint) hint.textContent = retry ? 'retry uses the original name and billing date.'
+    : nameMissing && dateMissing ? 'enter a name and choose the next billing date.'
+    : nameMissing ? 'enter a name to continue.'
+    : dateMissing ? 'choose the next billing date to continue.'
+    : 'name and next billing date are required.';
 }
 
 function errorText(error) {
@@ -159,12 +173,16 @@ export function initSubsPanel(fetcher = fetch) {
   const cycleEl = $('sub-cycle');
   initCustomDropdown(cycleEl);
   initDatePicker($('sub-due'));
+  syncAddState();
   cycleEl?.addEventListener('change', () => {
     $('sub-cycle-days').style.display = cycleEl.dataset.value === 'custom' ? '' : 'none';
   });
   if (!$('sub-add-btn') || $('sub-add-btn').dataset.wired) return loading;
   $('sub-add-btn').dataset.wired = '1';
   $('sub-add-btn').addEventListener('click', _add);
+  $('sub-name')?.addEventListener('input', syncAddState);
+  $('sub-name')?.addEventListener('change', syncAddState);
+  $('sub-due')?.addEventListener('change', syncAddState);
   $('sub-name')?.addEventListener('keydown', e => { if (e.key === 'Enter') _add(); });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && _history && !_busy) { e.preventDefault(); closeHistory(); }
@@ -281,6 +299,7 @@ function _wireDetected(list) {
     $('sub-price').value = String(Math.abs(candidate.amount || 0));
     $('sub-cycle').value = candidate.cycle || 'monthly';
     $('sub-due').value = calendarDateKey();
+    syncAddState();
     $('sub-name').focus();
   }));
 }
