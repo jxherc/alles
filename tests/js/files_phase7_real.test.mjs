@@ -226,7 +226,7 @@ test('the real Files screen uses the Phase 7 multi-location workbench', () => {
   ]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
   }
-  assert.match(app, /from '\.\/filesphase7\.js\?v=273'/);
+  assert.match(app, /from '\.\/filesphase7\.js\?v=444'/);
   assert.doesNotMatch(html.match(/id="files-view"[\s\S]*?<\/div>\s*\n\s*<!-- ── mail view/)[0], /<select\b|type="(?:checkbox|radio)"/i);
 });
 
@@ -473,7 +473,7 @@ test('Files preview close stops and removes active media', () => {
 
 test('Files never offers or runs trash restore on a read-only location', () => {
   const details = files.match(/async function renderDetails\(item\)[\s\S]*?\n}\n\nasync function loadVersions/)[0];
-  const restore = files.match(/async function restoreItem\(item\)[\s\S]*?\n}\n\nfunction photosImportMessage/)[0];
+  const restore = files.match(/async function restoreItem\(item, \{ close = true \} = \{\}\)[\s\S]*?\n}\n\nfunction photosImportMessage/)[0];
   assert.match(details, /state\.view === 'trash'[\s\S]{0,180}writable[\s\S]{0,180}data-detail-action="restore"/);
   assert.match(restore, /if \(!isWritable\(\)\) return/);
 });
@@ -676,7 +676,8 @@ test('Files operation completion refreshes affected trash and offline views', ()
 test('Files trash rows use stable trash identities and block live bulk mutations', () => {
   assert.match(files, /row_key:\s*`trash:\$\{item\.id\}`/);
   assert.match(files, /function itemKey\(item\)/);
-  assert.match(files, /state\.view === 'trash' && action !== 'clear'/);
+  assert.match(files, /state\.view === 'trash' && !\['restore', 'clear'\]\.includes\(action\)/);
+  assert.match(files, /state\.view !== 'trash' \|\| !isWritable\(\) \|\| state\.selected\.size !== 1 \|\| selectionRestoreActive/);
   const writeState = files.match(/function applyWriteState\(\)[\s\S]*?\n}\n\nfunction renderFilesLoading/)[0];
   assert.match(writeState, /button\.hidden = trashView/);
   assert.match(writeState, /button\.disabled = !writable \|\| trashView/);

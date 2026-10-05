@@ -30,7 +30,7 @@ assert.match(wizard, /let _loadSequence = 0/);
 assert.match(wizard, /let _dismissedThisSession = false/);
 assert.match(wizard, /function _anotherDialogOpen\(modal\)/);
 assert.match(wizard, /if \(!resume && _anotherDialogOpen\(modal\)\) return/);
-assert.match(wizard, /if \(!resume && _anotherDialogOpen\(modal\)\) \{\s*modal\.style\.display = 'none'/);
+assert.match(wizard, /if \(!resume && _anotherDialogOpen\(modal\)\) \{\s*_close\(\{ restoreFocus: false \}\)/);
 assert.match(wizard, /const loadId = \+\+_loadSequence/);
 assert.match(wizard, /const stillOpen = \(\) => loadId === _loadSequence/);
 assert.match(wizard, /if \(!stillOpen\(\)\) return/);

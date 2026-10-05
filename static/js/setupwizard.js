@@ -23,6 +23,7 @@ let _filesSaved = false;
 let _savedFilesSignature = '';
 let _obsidian = null;
 let _returnFocus = null;
+let _background = null;
 let _loadSequence = 0;
 let _dismissedThisSession = false;
 
@@ -63,6 +64,11 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
   delete modal.dataset.loadFailed;
   modal.setAttribute('aria-busy', 'true');
   $('setup-wizard-body').innerHTML = '<div class="setup-loading">loading setup…</div>';
+  if (!_background) {
+    const node = document.querySelector('.app');
+    if (node) { _background = { node, inert: node.inert }; node.inert = true; }
+  }
+  $('setup-skip')?.focus();
   _bindModal();
   try {
     if (resume) await _api('/api/setup/resume', { method: 'POST' });
@@ -70,8 +76,7 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
     const response = status || await _api('/api/setup/status');
     if (!stillOpen()) return;
     if (!resume && (response.setup?.dismissed || response.setup?.completed)) {
-      modal.style.display = 'none';
-      modal.setAttribute('aria-busy', 'false');
+      _close({ restoreFocus: false });
       return;
     }
     _state = response.setup;
@@ -91,8 +96,7 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
       : '';
     _obsidian = null;
     if (!resume && _anotherDialogOpen(modal)) {
-      modal.style.display = 'none';
-      modal.setAttribute('aria-busy', 'false');
+      _close({ restoreFocus: false });
       return;
     }
     _render();
@@ -108,6 +112,7 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
     </div>`;
     $('sw-load-close')?.addEventListener('click', _close);
     $('sw-load-retry')?.addEventListener('click', () => openSetupWizard({ resume }));
+    $('sw-load-retry')?.focus();
   } finally {
     if (loadId === _loadSequence) modal.setAttribute('aria-busy', 'false');
   }
@@ -142,7 +147,7 @@ function _bindModal() {
   });
 }
 
-function _close() {
+function _close({ restoreFocus = true } = {}) {
   const modal = $('setup-wizard');
   _loadSequence += 1;
   _busy($('setup-skip'), false);
@@ -152,9 +157,10 @@ function _close() {
   }
   const firstRun = $('home-firstrun');
   if (firstRun) firstRun.style.display = 'none';
+  if (_background) { _background.node.inert = _background.inert; _background = null; }
   const target = _returnFocus;
   _returnFocus = null;
-  if (target?.isConnected) target.focus();
+  if (restoreFocus && target?.isConnected) target.focus();
 }
 
 async function _dismiss() {
@@ -195,6 +201,9 @@ function _render() {
   else if (_step === 3) _renderAiSearch(body);
   else if (_step === 4) _renderProtection(body);
   else _renderDone(body);
+  if (!body.contains(document.activeElement)) {
+    body.querySelector('input:not([disabled]), [role="radio"][aria-checked="true"], button:not([disabled])')?.focus();
+  }
 }
 
 function _setStep(next) {

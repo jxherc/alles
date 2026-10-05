@@ -13,12 +13,13 @@ function harness({ resume, completed = false }) {
     nodes.set(id, { style: { display: 'none' }, dataset: {}, attributes: {}, events: {},
       setAttribute(key, value) { this.attributes[key] = value; },
       addEventListener(name, fn) { this.events[name] = fn; },
+      focus() { this.focused = true; },
     });
   }
   let dismissed = resume, failed = false;
   const calls = [], rendered = [];
   const context = vm.createContext({
-    document: { getElementById: id => nodes.get(id), activeElement: null }, HTMLElement: class {},
+    document: { getElementById: id => nodes.get(id), querySelector: () => null, activeElement: null }, HTMLElement: class {},
     fetch: async (path, options = {}) => {
       calls.push([path, options.method || 'GET']);
       if (!failed && path === (resume ? '/api/setup/resume' : '/api/setup/status')) {
@@ -45,6 +46,7 @@ for (const completed of [false, true]) {
     const h = harness({ resume: true, completed });
     await h.open({ resume: true });
     assert.equal(h.nodes.get('setup-wizard').dataset.loadFailed, '1');
+    assert.equal(h.nodes.get('sw-load-retry').focused, true);
     assert.equal(h.rendered.length, 0);
     await h.nodes.get('sw-load-retry').events.click();
     assert.equal(h.calls.filter(([path]) => path === '/api/setup/resume').length, 2);

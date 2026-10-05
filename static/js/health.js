@@ -316,7 +316,8 @@ function _addForm() {
           <label class="health-field" for="health-value">value<input type="text" class="settings-input" id="health-value" value="${esc(_draft.value)}" inputmode="decimal" aria-describedby="health-entry-error"></label>
           <label class="health-field" for="health-unit">unit<input type="text" class="settings-input" id="health-unit" value="${esc(_draft.unit)}"></label>
         </div>
-        <label class="health-field" for="health-date">date<input type="text" class="settings-input" id="health-date" value="${esc(_draft.date)}" placeholder="${editing ? 'YYYY-MM-DD' : 'YYYY-MM-DD (today if empty)'}"></label>
+        <label class="health-field" for="health-date">date<input type="text" class="settings-input" id="health-date" value="${esc(_draft.date)}" placeholder="${editing ? 'YYYY-MM-DD' : 'YYYY-MM-DD (today if empty)'}" aria-describedby="health-date-help health-entry-error"></label>
+        <p id="health-date-help" class="muted" role="status"></p>
         ${!editing && _draft.kind === 'custom' ? `<label class="health-field" for="health-label">metric name<input type="text" class="settings-input" id="health-label" value="${esc(_draft.label)}"></label>` : ''}
         <label class="health-field" for="health-note">note (optional)<input type="text" class="settings-input" id="health-note" value="${esc(_draft.note)}"></label>
         <div class="health-form-actions">
@@ -327,6 +328,22 @@ function _addForm() {
       <p id="health-entry-error" role="alert" ${_formError ? '' : 'hidden'}>${esc(_formError)}</p>
       ${_conflictId != null ? `<button type="button" class="btn" id="health-open-saved" ${_saving || _draft.openingSaved ? 'disabled' : ''}>${_draft.openingSaved ? 'opening saved entry…' : 'open saved entry'}</button>` : ''}
     </form>`;
+}
+
+function _validDate(date, editing) {
+  return (!date && !editing) || (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date);
+}
+
+function _dateGuidance(force = false) {
+  const input = $('health-date');
+  const help = $('health-date-help');
+  if (!input || !help || !_draft) return;
+  const date = input.value.trim();
+  const editing = _draft.id != null;
+  const invalid = (force || date.length >= 10) && !_validDate(date, editing);
+  input.setAttribute('aria-invalid', String(invalid));
+  help.textContent = invalid ? 'that date isn’t in the calendar. use YYYY-MM-DD.'
+    : editing ? 'use YYYY-MM-DD.' : 'use YYYY-MM-DD; leave empty for today.';
 }
 
 async function _openEntry(entry = null) {
@@ -380,6 +397,9 @@ function _wire(body) {
     for (const key of ['value', 'unit', 'date', 'label', 'note']) {
       $(`health-${key}`)?.addEventListener('input', event => { _draft[key] = event.target.value; });
     }
+    $('health-date')?.addEventListener('input', () => _dateGuidance());
+    $('health-date')?.addEventListener('blur', () => _dateGuidance(true));
+    _dateGuidance(Boolean(_formError));
     $('health-entry-form')?.addEventListener('submit', event => { event.preventDefault(); _create(); });
     $('health-cancel')?.addEventListener('click', _closeEntry);
     $('health-open-saved')?.addEventListener('click', async () => {
@@ -447,7 +467,7 @@ async function _create() {
   const raw = _draft.value.trim();
   const value = Number(raw);
   const date = _draft.date.trim();
-  const validDate = (!date && _draft.id == null) || (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date);
+  const validDate = _validDate(date, _draft.id != null);
   _formError = !DECIMAL.test(raw) || !Number.isFinite(value) ? 'enter a number, such as 74.25.' : !validDate ? 'enter a valid date as YYYY-MM-DD.' : '';
   if (_formError) {
     _render();

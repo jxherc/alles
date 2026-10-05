@@ -18,7 +18,7 @@ import { openSearch, closeSearch, initSearch } from './search.js';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
 import { loadVaultView, initVault } from './vault.js?v=282';
 import { loadContacts, addContact } from './contacts.js';
-import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=273';
+import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=444';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos } from './photos.js';
@@ -1485,10 +1485,10 @@ async function _renderFirstRun() {
   catch { return; }   // never let this block Home
   if (st.setup?.completed || st.setup?.dismissed) return;
   if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
-  (await import('./setupwizard.js?v=284')).openSetupWizard({ status: st });
+  (await import('./setupwizard.js?v=444')).openSetupWizard({ status: st });
 }
 // let anything (a settings link, the command palette) re-run the wizard on demand
-window._openSetupWizard = async () => (await import('./setupwizard.js?v=284')).openSetupWizard({ resume: true });
+window._openSetupWizard = async () => (await import('./setupwizard.js?v=444')).openSetupWizard({ resume: true });
 
 // aide's tools live in the collapsible "tools" group
 const _moreViews = new Set(['gallery','brain','models','aide-reminders','subs','days']);
@@ -2090,7 +2090,7 @@ function openAppLinkMenu(parent) {
   submenu.innerHTML = SHELL_GROUPS.slice(1).map(([label, destinations]) => {
     const choices = apps.filter(app => destinations.some(destination => destination.view === app.owner?.view));
     return `<div role="group" aria-label="${label}"><div class="ctx-label" aria-hidden="true">${label}</div>${choices.map(app =>
-      `<button class="ctx-item" data-app-link="${app.view}" type="button" role="menuitem">${app.owner.name}${app.view === app.owner.view ? '' : ` · ${app.name}`}</button>`,
+      `<button class="ctx-item" data-app-link="${app.view}" type="button" role="menuitem">${app.owner.name}${app.view === 'wiki' ? ' · @wiki' : app.view === app.owner.view ? '' : ` · ${app.name}`}</button>`,
     ).join('')}</div>`;
   }).join('');
   submenu.addEventListener('click', event => {
@@ -2099,6 +2099,7 @@ function openAppLinkMenu(parent) {
     if (!view) return;
     insertComposerText(`@${view} `);
     closeMoreTools();
+    if (view === 'wiki') toast('docs context added as @wiki');
   });
   parent.appendChild(submenu);
   positionMoreTools();

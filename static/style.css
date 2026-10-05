@@ -8534,6 +8534,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .habit-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 0.3rem 0; border: 1px solid var(--faint); border-radius: 3px; background: none; color: var(--muted); cursor: pointer; transition: border-color 0.12s, background 0.12s; }
 .habit-day span { font-size: 0.75rem; text-transform: uppercase; }
 .habit-day b { font-size: 0.78rem; font-weight: 500; }
+.habit-day .habit-day-state { font-size: 0.75rem; line-height: 1; }
 .habit-day:hover { border-color: var(--muted); color: var(--text); }
 .habit-day.done { background: var(--habit-accent); border-color: var(--habit-accent); color: var(--bg); }
 .habit-heat { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 2px; margin-bottom: 0.55rem; }
@@ -8721,6 +8722,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .health-add-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--k-space-3, 12px); }
 .health-field { display: flex; flex-direction: column; min-width: 0; gap: var(--k-space-1, 4px); color: var(--muted); font-size: 13px; }
 .health-field .settings-input { width: 100%; min-width: 0; }
+#health-date-help { margin: 0; color: var(--muted); font-size: 13px; }
 .health-form-actions, .health-row-actions { display: flex; gap: var(--k-space-2, 8px); align-items: center; }
 #health-entry-error, #health-import-error { color: var(--error); margin: 0; font-size: 14px; }
 #health-import-form .health-form-title { overflow-wrap: anywhere; }

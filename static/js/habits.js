@@ -4,7 +4,7 @@
 import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm } from './dialog.js';
-import { calendarDateKey } from './i18n.js';
+import { calendarDateKey, formatCalendarDate } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -197,7 +197,9 @@ function _weekStrip(h) {
   const done = new Set(h.grid.filter(g => g.done).map(g => g.date));
   return `<div class="habit-week">${_localDays(7).map(d => {
     const iso = _iso(d);
-    return `<button class="habit-day${done.has(iso) ? ' done' : ''}" data-toggle="${iso}" title="${iso}"><span>${_DOW[d.getDay()]}</span><b>${d.getDate()}</b></button>`;
+    const completed = done.has(iso);
+    const date = formatCalendarDate(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    return `<button type="button" class="habit-day${completed ? ' done' : ''}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}" aria-label="${esc(h.name + ', ' + date + ', ' + (completed ? 'completed' : 'not completed'))}"><span>${_DOW[d.getDay()]}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? '✓' : '·'}</span></button>`;
   }).join('')}</div>`;
 }
 

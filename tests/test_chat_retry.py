@@ -141,6 +141,42 @@ class ChatRetryTests(ApiTest):
                 self.assertEqual([m["role"] for m in history], ["user", "assistant"])
                 self.assertNotIn("response_recovery", history[0]["meta"])
 
+    def test_partial_clean_eof_keeps_incomplete_history_without_replay(self):
+        for private in (False, True):
+            for complete in (False, True):
+                with self.subTest(private=private, complete=complete):
+                    sid = self.session(private)
+
+                    async def provider(*args, **kwargs):
+                        yield {"delta": "owned partial answer 草稿"}
+                        if complete:
+                            yield {"done": True, "usage": {}}
+
+                    with mock.patch("services.chat_turn.stream_chat", provider):
+                        response = self.send(sid)
+                    self.assertEqual(response.status_code, 200, response.text)
+                    history = self.history(sid)
+                    self.assertEqual([m["role"] for m in history], ["user", "assistant"])
+                    saved = history[-1]
+                    self.assertEqual(saved["content"], "owned partial answer 草稿")
+                    if complete:
+                        self.assertNotIn("response_recovery", saved["meta"])
+                        self.assertNotIn('"error"', response.text)
+                    else:
+                        recovery = saved["meta"].get("response_recovery", {})
+                        self.assertEqual(recovery.get("status"), "incomplete")
+                        self.assertNotIn("request", recovery)
+                        self.assertIn('"error"', response.text)
+                    before = len(self.captured)
+                    self.assertEqual(
+                        self.send(sid, retry_message_id=history[0]["id"]).status_code, 409
+                    )
+                    self.assertEqual(len(self.captured), before)
+                    if private:
+                        with self.db() as db:
+                            self.assertIsNone(db.get(Session, sid))
+                            self.assertEqual(db.query(Message).filter_by(session_id=sid).count(), 0)
+
     def test_partial_empty_and_tool_outcomes_do_not_offer_replay(self):
         for kind in ("partial", "empty", "tool"):
             for private in (False, True):

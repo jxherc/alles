@@ -54,6 +54,9 @@ let _moneyEntryOpen = null;
 let _moneyPlanTask = 'accounts';
 let _moneyFocusChange = 0;
 let _moneyEntryChange = 0;
+let _transactionSaveStatus = '';
+let _transactionUncertainSnapshot = null;
+let _transactionSaveRequestId = '';
 let _moneyLoadSequence = 0;
 let _moneyRefreshFailed = false;
 let _moneySaved = [];
@@ -298,6 +301,7 @@ function refreshMoneyTasks() {
 }
 
 function syncMoneyLayout() {
+  updateTransactionSaveStatus();
   const entry = $('money-entry-fields');
   const action = $('money-entry-action');
   const totals = $('money-summary-toggle');
@@ -325,7 +329,10 @@ export function initMoneyPanel(fetcher = fetch) {
     // A disabled control losing focus to body is still ours only until a newer interaction.
     ['focusin', 'pointerdown'].forEach(event => document.addEventListener(event, () => { _moneyFocusChange++; }));
     ['input', 'change'].forEach(event => document.addEventListener(event, e => {
-      if (e.target.closest?.('#money-entry-fields')) _moneyEntryChange++;
+      if (e.target.closest?.('#money-entry-fields')) {
+        _moneyEntryChange++;
+        updateTransactionSaveStatus();
+      }
     }));
     try {
       const pointers = JSON.parse(sessionStorage.getItem(_moneySavedKey) || '[]');
@@ -1213,7 +1220,8 @@ function addTxnRow() {
     ${moneyField('amount', `<input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
     <button class="btn primary" id="tx-add">add transaction</button>
     ${_accounts.length >= 2 ? '<button class="btn" id="tx-transfer-toggle" title="move money between accounts">⇄ transfer</button>' : ''}
-  </div><p id="tx-amt-error" class="money-field-error" role="status"></p>`;
+  </div><p id="tx-amt-error" class="money-field-error" role="status"></p>
+  <p id="tx-save-status" class="money-field-error" role="status" ${_transactionSaveStatus ? '' : 'hidden'}>${esc(_transactionSaveStatus)}</p>`;
 }
 
 function transferRow() {
@@ -1664,10 +1672,22 @@ function _wireTxnRows() {
   root.querySelectorAll('[data-receipt-txn]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); attachReceipt(b.dataset.receiptTxn); }));
   root.querySelectorAll('.tx-tag[data-tag]').forEach(c => c.addEventListener('click', e => { e.stopPropagation(); filterByTag(c.dataset.tag); }));
   $('tag-clear')?.addEventListener('click', clearTagFilter);
-  $('split-add-row')?.addEventListener('click', () => { _splitRows = _readSplitRows(); _splitRows.push({ category: '', amount: '' }); renderTxns(); });
+  $('split-add-row')?.addEventListener('click', () => {
+    _splitRows = _readSplitRows();
+    _splitRows.push({ category: '', amount: '' });
+    renderTxns(true);
+    root.querySelectorAll('.split-cat')[_splitRows.length - 1]?.focus();
+  });
   $('split-save')?.addEventListener('click', b => saveSplits($('split-save').dataset.id));
   $('split-cancel')?.addEventListener('click', () => { _splitTxn = null; _splitRows = []; renderTxns(); });
-  root.querySelectorAll('.split-row-del').forEach(b => b.addEventListener('click', () => { _splitRows = _readSplitRows(); _splitRows.splice(+b.dataset.i, 1); if (!_splitRows.length) _splitRows = [{ category: '', amount: '' }]; renderTxns(); }));
+  root.querySelectorAll('.split-row-del').forEach(b => b.addEventListener('click', () => {
+    const index = Number(b.dataset.i);
+    _splitRows = _readSplitRows();
+    _splitRows.splice(index, 1);
+    if (!_splitRows.length) _splitRows = [{ category: '', amount: '' }];
+    renderTxns(true);
+    root.querySelectorAll('.split-row-del')[Math.min(index, _splitRows.length - 1)]?.focus();
+  }));
 }
 
 function syncAmountRange() {
@@ -1767,6 +1787,21 @@ function transactionAmountError(message) {
   }
 }
 
+function transactionSaveStatus(message) {
+  _transactionSaveStatus = message;
+  const status = $('tx-save-status');
+  if (!status) return;
+  status.textContent = message;
+  status.hidden = !message;
+}
+
+function updateTransactionSaveStatus() {
+  if (_transactionUncertainSnapshot === null) return transactionSaveStatus(_transactionSaveStatus);
+  transactionSaveStatus(transactionEntrySnapshot() === _transactionUncertainSnapshot
+    ? 'save not confirmed. your input is kept. retry without changing it to check the same transaction.'
+    : 'earlier transaction save not confirmed. your newer input is kept; check transactions before adding it again.');
+}
+
 async function addTxn() {
   const amtRaw = _decimal($('tx-amt')?.value);
   if (!_validAmounts(amtRaw)) {
@@ -1794,9 +1829,17 @@ async function addTxn() {
     };
     requestId = await _createRequestId('transaction', transactionPayload);
     _moneySavedAction = Math.max(_moneySavedAction, action);
+    _transactionSaveRequestId = requestId;
+    _transactionUncertainSnapshot = null;
+    transactionSaveStatus('saving transaction…');
     transactionPayload.request_id = requestId;
     const saved = await api('/api/money/transactions', { method: 'POST', body: transactionPayload });
     _completeCreateRequest('transaction', requestId);
+    if (requestId === _transactionSaveRequestId) {
+      _transactionSaveRequestId = '';
+      _transactionUncertainSnapshot = null;
+      transactionSaveStatus('');
+    }
     const restoreFocus = action === _moneySavedAction && ownedEntryFocus && document.activeElement === focusAtSubmit;
     if (saved?.id && !_moneySaved.some(item => item.id === saved.id)) {
       _moneySaved.push({ id: saved.id, request_id: requestId, saved, state: saved.undo ? 'ready' : _canonicalLedger ? 'unsupported' : 'blocked' });
@@ -1821,9 +1864,15 @@ async function addTxn() {
       const undo = $('money-save-results')?.querySelector(`[data-undo-saved="${CSS.escape(saved.id)}"]`);
       (undo || $('money-save-results'))?.focus();
     }
-  } catch {
+  } catch (error) {
     if (requestId) _releaseCreateRequest('transaction', requestId);
-    toast('couldn\'t add transaction', 'error');
+    if (requestId && requestId === _transactionSaveRequestId) {
+      const refused = [400, 401, 403, 404, 409, 410, 422].includes(error.status);
+      _transactionUncertainSnapshot = refused ? null : entrySnapshot;
+      if (refused) transactionSaveStatus(`transaction refused. your input is kept. ${error.message || 'review the entry and try again.'}`);
+      else updateTransactionSaveStatus();
+    }
+    toast(requestId ? 'check the transaction entry for save status.' : error.message || 'could not start this transaction.', 'error');
   }
 }
 
@@ -1912,10 +1961,12 @@ function clearTagFilter() {
   _searchResults = null;
   renderTxns();
 }
-function renderTxns() {
+function renderTxns(rebuildSplit = false) {
   const rows = $('txn-rows');
   if (!rows) return;
   const retained = retainMoneyDrafts(rows, false);
+  // An explicit row change replaces the editor; background reads retain its live draft.
+  if (rebuildSplit) retained.nodes = retained.nodes.filter(({ node }) => !node.classList.contains('txn-split-editor'));
   rows.innerHTML = txnList();
   _wireTxnRows();
   restoreMoneyDrafts(rows, retained);
