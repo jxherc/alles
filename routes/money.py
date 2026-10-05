@@ -29,7 +29,7 @@ from core.database import (
     Watch,
     get_db,
 )
-from services import actual_finance, finance_currency, finance_requests, fx
+from services import actual_finance, finance_currency, finance_requests, finance_undo, fx
 from services.money_stats import balance_deltas as _balances
 from services.money_stats import distribute_expense as _distribute
 from services.money_stats import finite_amount as _fin
@@ -659,7 +659,10 @@ def create_txn(body: TxnBody, db: DbSession = Depends(get_db)):
     )
     db.add(t)
     _prepare_money(lambda: finance_currency.prepare_transaction(db, t, source="manual_identity"))
-    response = finance_requests.finish(receipt, _txn(t))
+    response = _txn(t)
+    if receipt is not None:
+        response["undo"] = finance_undo.acknowledgment(db, t, body.request_id.lower())
+    response = finance_requests.finish(receipt, response)
     db.commit()
     return response
 
@@ -718,6 +721,28 @@ def delete_txn(tid: str, db: DbSession = Depends(get_db)):
     db.delete(t)
     db.commit()
     return {"ok": True}
+
+
+class UndoTxnBody(BaseModel):
+    request_id: str
+
+
+@router.get("/transactions/{tid}/undo")
+def saved_txn_result(tid: str, request_id: str, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        raise HTTPException(
+            409, "undo is unavailable for Actual transactions; review before deleting"
+        )
+    return finance_undo.saved_result(db, tid, request_id)
+
+
+@router.post("/transactions/{tid}/undo")
+def undo_txn(tid: str, body: UndoTxnBody, db: DbSession = Depends(get_db)):
+    if actual_finance.is_canonical(db):
+        raise HTTPException(
+            409, "undo is unavailable for Actual transactions; review before deleting"
+        )
+    return finance_undo.reverse(db, tid, body.request_id)
 
 
 # ── splits (one charge across categories, 4a) ─────────────────────────────────

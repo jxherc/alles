@@ -611,6 +611,11 @@ imports, with an optional gated move to an alles-managed actual budget core.
   retrying identical values returns the saved result; reusing the id with changed values returns
   409. deletion clears saved receipt content and retains a tombstone so a late retry returns 410
   instead of recreating the entry. requests without an id retain their existing behavior
+- new manual local transactions offer **undo** when their original saved receipt proves the entire
+  transaction and conversion evidence are unchanged. reversal removes exactly that record and its
+  evidence together; an interrupted retry uses the same uuid and cannot replay the create.
+  saved outcomes and the chosen result remain available after reload. edited records, splits,
+  transfers and Actual transactions use their existing review and deletion paths.
 - **csv import / export**: money's import button opens the reviewed import flow. choose the
   destination account, preview rows, then apply them with a receipt and supported undo. generic csv
   accepts named date and amount (or debit/credit) columns in any order, with optional
@@ -1387,9 +1392,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 83 included fastapi router modules
-- 914 http method/path pairs
-- 897 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `d2f1e721abc8247f7833cf9af239ae747b0b4d4c015fee4100172582facec6cd`
+- 917 http method/path pairs
+- 900 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `4f2aec58ae7471a12bf539c5edc571b05a29758b7d2d319000fe094888b25e8b`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -2358,7 +2363,7 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 </details>
 
 <details>
-<summary>routes/money.py · 66 operations</summary>
+<summary>routes/money.py · 69 operations</summary>
 
 [source](routes/money.py)
 
@@ -2374,6 +2379,7 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 | `GET` | `/api/money/budgets` | `list_budgets` |
 | `POST` | `/api/money/budgets` | `upsert_budget` |
 | `DELETE` | `/api/money/budgets/{bid}` | `delete_budget` |
+| `GET` | `/api/money/currencies` | `supported_currencies` |
 | `GET` | `/api/money/envelope` | `envelope` |
 | `PUT` | `/api/money/envelope/assign` | `assign_envelope` |
 | `PUT` | `/api/money/envelope/target` | `set_target` |
@@ -2425,6 +2431,8 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 | `PATCH` | `/api/money/transactions/{tid}` | `update_txn` |
 | `GET` | `/api/money/transactions/{tid}/splits` | `get_splits` |
 | `PUT` | `/api/money/transactions/{tid}/splits` | `put_splits` |
+| `GET` | `/api/money/transactions/{tid}/undo` | `saved_txn_result` |
+| `POST` | `/api/money/transactions/{tid}/undo` | `undo_txn` |
 | `POST` | `/api/money/transfer` | `create_transfer` |
 | `DELETE` | `/api/money/transfer/{tid}` | `delete_transfer` |
 | `GET` | `/api/money/watches` | `list_watches` |

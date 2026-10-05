@@ -233,7 +233,7 @@ with sync_playwright() as pw:
             assert len(api.get(base + "/api/money/transactions").json()) == len(before) + 1
             if compact:
                 expect(entry).to_be_hidden()
-                expect(row.locator(".tx-edit")).to_be_focused()
+                expect(page.locator(f'[data-undo-saved="{transaction["id"]}"]')).to_be_focused()
             action.press("Enter")
             held_payee = "held expense " + label
             page.locator("#tx-payee").fill(held_payee)

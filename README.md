@@ -52,6 +52,11 @@ this keeps access limited to your device and saves your data in the `alles-data`
 | vault | store encrypted secrets, passwords, and passkeys |
 | server | check health, access settings, backups, and updates |
 
+new manual transactions saved in the local finance ledger have an undo action.
+undo removes that exact transaction only while its saved details remain unchanged;
+an interrupted reply keeps a retry for the same transaction. Actual transactions,
+imports, and transfers use their existing review and deletion workflows.
+
 some things need a connection before they work. add your imap/smtp account for mail, connect a service for online storage or banking, and add a model in **settings → models** if you want to use aide. local models through ollama work too.
 
 [specifications.md](specifications.md) has the detailed app behavior, architecture, api, and configuration.
