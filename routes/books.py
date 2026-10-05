@@ -9,6 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import DB_PATH, Book, get_db
@@ -179,34 +180,66 @@ class BookPatch(BaseModel):
     cover: str | None = None
     notes: str | None = None
     isbn: str | None = None
+    expected_rating: int | None = None
+    expected_notes: str | None = None
+    recovery_scope: str | None = None
 
 
 @router.patch("/books/{bid}")
 def update_book(bid: str, body: BookPatch, db: DbSession = Depends(get_db)):
+    _check_scope(body.recovery_scope or "")
     b = db.get(Book, bid)
     if not b:
         raise HTTPException(404)
-    if body.status is not None:
-        if body.status not in STATUSES:
-            raise HTTPException(400, f"status must be one of {', '.join(STATUSES)}")
-        # stamp/clear milestones when moving shelves so the dates match the shelf
-        if body.status == "reading":
-            if not b.started:
-                b.started = date.today().isoformat()
-            b.finished = ""  # (re-)reading: it's not finished anymore
-        elif body.status == "done":
-            if not b.finished:
-                b.finished = date.today().isoformat()
-        elif body.status == "want":
-            b.started = b.finished = ""  # not started yet
-        b.status = body.status
-    if body.rating is not None:
-        b.rating = clamp_rating(body.rating)
-    for f in ("title", "author", "started", "finished", "cover", "notes", "isbn"):
-        v = getattr(body, f)
-        if v is not None:
-            setattr(b, f, v.strip() if isinstance(v, str) and f in ("title", "author") else v)
-    db.commit()
+    expected = {
+        field: getattr(body, f"expected_{field}")
+        for field in ("rating", "notes")
+        if getattr(body, f"expected_{field}") is not None
+    }
+    if expected:
+        changes = body.model_dump(exclude_none=True)
+        changes.pop("recovery_scope", None)
+        if set(changes) != set(expected) | {f"expected_{field}" for field in expected}:
+            raise HTTPException(
+                422, "a restore must include only each value and its expected value"
+            )
+        values = {
+            field: clamp_rating(body.rating) if field == "rating" else body.notes
+            for field in expected
+        }
+        query = db.query(Book).filter(Book.id == bid)
+        for field, value in expected.items():
+            column = getattr(Book, field)
+            # An already-restored value permits retry after a lost response. The
+            # condition is part of the UPDATE so a newer edit cannot be overwritten.
+            query = query.filter(or_(column == value, column == values[field]))
+        if query.update(values, synchronize_session=False) != 1:
+            db.rollback()
+            raise HTTPException(409, "this book changed after your edit; newer values were kept")
+        db.commit()
+        db.refresh(b)
+    else:
+        if body.status is not None:
+            if body.status not in STATUSES:
+                raise HTTPException(400, f"status must be one of {', '.join(STATUSES)}")
+            # stamp/clear milestones when moving shelves so the dates match the shelf
+            if body.status == "reading":
+                if not b.started:
+                    b.started = date.today().isoformat()
+                b.finished = ""  # (re-)reading: it's not finished anymore
+            elif body.status == "done":
+                if not b.finished:
+                    b.finished = date.today().isoformat()
+            elif body.status == "want":
+                b.started = b.finished = ""  # not started yet
+            b.status = body.status
+        if body.rating is not None:
+            b.rating = clamp_rating(body.rating)
+        for f in ("title", "author", "started", "finished", "cover", "notes", "isbn"):
+            v = getattr(body, f)
+            if v is not None:
+                setattr(b, f, v.strip() if isinstance(v, str) and f in ("title", "author") else v)
+        db.commit()
     try:
         from services import personal_index
 

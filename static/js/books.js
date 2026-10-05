@@ -14,6 +14,7 @@ const _noteErrors = new Map();
 const _savingNotes = new Set();
 const _writingBooks = new Set();
 const _bookErrors = new Map();
+const _bookUndo = new Map();
 let _goalDraft = null;
 let _lookup = [];
 let _lookupBusy = false;
@@ -102,6 +103,28 @@ function _cover(b) {
   return `<div class="book-cover book-cover-ph">${esc((b.title || '?')[0].toUpperCase())}</div>`;
 }
 
+function _applyBookValue(id, field, value, scope) {
+  if (!_createScopes.includes(scope)) return;
+  const book = Object.values(_data.shelves).flat().find(book => book.id === id);
+  if (book) book[field] = value;
+}
+
+function _rememberBookEdit(id, field, before, after, scope) {
+  _applyBookValue(id, field, after, scope);
+  if (before === after || typeof before !== typeof after || !_createScopes.includes(scope)) return;
+  const edits = _bookUndo.get(id) || {};
+  edits[field] = { before, after, scope };
+  _bookUndo.set(id, edits);
+}
+
+function _undoControls(book) {
+  const edits = _bookUndo.get(book.id);
+  const buttons = ['rating', 'notes'].filter(field => edits?.[field] && edits[field].after === book[field]
+    && !(field === 'notes' && _noteDrafts.has(book.id)))
+    .map(field => `<button type="button" class="btn" data-undo="${field}">undo ${field === 'notes' ? 'note edit' : 'rating'}</button>`);
+  return buttons.length ? `<div class="book-notes-actions book-undo-actions">${buttons.join('')}</div>` : '';
+}
+
 function _card(b) {
   const others = SHELVES.map(([k]) => k).filter(k => k !== b.status);
   return `
@@ -116,6 +139,7 @@ function _card(b) {
         ${b.id === _editingNotes
           ? `<div class="book-notes-edit"><textarea class="settings-input" data-f="notes" rows="3" placeholder="your notes…">${esc(_noteDrafts.get(b.id) ?? b.notes)}</textarea>${_noteErrors.has(b.id) ? `<p class="book-notes-error" role="alert">${esc(_noteErrors.get(b.id))}</p>` : ''}<div class="book-notes-actions"><button class="btn primary" data-act="save-notes">save</button><button class="btn" data-act="cancel-notes">cancel</button></div></div>`
           : (b.notes ? `<button type="button" class="book-notes" data-act="notes" aria-label="edit notes for ${esc(b.title)}">${esc(b.notes)}</button>` : `<button class="book-add-note" data-act="notes">+ note</button>`)}
+        ${_undoControls(b)}
       </div>
       <button class="icon-btn danger book-del" data-act="del" title="remove">${_si('trash')}</button>
     </div>`;
@@ -127,6 +151,12 @@ function _render() {
   const active = document.activeElement;
   const editing = body.contains(active) && ['book-q', 'book-title', 'book-author'].includes(active.id)
     ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
+  const editingNote = body.contains(active) && active.matches('[data-f="notes"]')
+    ? { id: active.closest('.book-card').dataset.id, start: active.selectionStart, end: active.selectionEnd } : null;
+  const buttonKey = body.contains(active) && active.matches('button')
+    ? ['data-act', 'data-rate', 'data-move', 'data-undo', 'data-pick', 'data-val'].find(key => active.hasAttribute(key)) : null;
+  const focusedButton = body.contains(active) && active.matches('button') && (active.id || buttonKey)
+    ? { id: active.id, book: active.closest('.book-card')?.dataset.id, key: buttonKey, value: active.getAttribute(buttonKey) } : null;
   const shelves = _data.shelves || {};
   const shelfHtml = SHELVES.map(([k, label]) => {
     const list = shelves[k] || [];
@@ -166,6 +196,17 @@ function _render() {
     field?.focus();
     if (editing.start != null) field?.setSelectionRange(editing.start, editing.end);
   }
+  if (editingNote && body.getClientRects().length) {
+    const field = body.querySelector(`.book-card[data-id="${editingNote.id}"] [data-f="notes"]`);
+    field?.focus();
+    if (editingNote.start != null) field?.setSelectionRange(editingNote.start, editingNote.end);
+  }
+  if (focusedButton && body.getClientRects().length) {
+    const button = [...body.querySelectorAll('button')].find(button => button.id === focusedButton.id
+      && button.closest('.book-card')?.dataset.id === focusedButton.book
+      && (!focusedButton.key || button.getAttribute(focusedButton.key) === focusedButton.value));
+    if (button && !button.disabled) button.focus();
+  }
 }
 
 function _addForm() {
@@ -198,6 +239,7 @@ function _readCreateRecovery(scopes) {
     throw new Error('book save recovery could not load; retry recovery before saving');
   }
   if (_createScopes.length && !scopes.some(scope => _createScopes.includes(scope))) {
+    _bookUndo.clear();
     _pendingCreate = null; _savedBook = null; _draft = emptyDraft(); _lookup = [];
   }
   if (_pendingCreate && !scopes.includes(_pendingCreate.recovery_scope)) _pendingCreate = null;
@@ -250,12 +292,16 @@ async function _bookRequest(url, options, valid) {
   const response = await _fetcher(url, options);
   const result = await response.json().catch(() => null);
   if (options.method === 'DELETE' && response.status === 404) return { ok: true };
-  if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : 'could not confirm this change; try again');
+  if (!response.ok) {
+    const error = new Error(typeof result?.detail === 'string' ? result.detail : 'could not confirm this change; try again');
+    error.status = response.status;
+    throw error;
+  }
   if (!valid(result)) throw new Error('could not confirm this change; check saved books before retrying');
   return result;
 }
 
-async function _changeBook(card, options, valid, message) {
+async function _changeBook(card, options, valid, message, onSaved = () => {}) {
   const id = card.dataset.id;
   if (_writingBooks.has(id) || _savingNotes.has(id)) return;
   _writingBooks.add(id); _bookErrors.delete(id);
@@ -266,12 +312,15 @@ async function _changeBook(card, options, valid, message) {
   controls.forEach(([control]) => { control.disabled = true; });
   card.setAttribute('aria-busy', 'true');
   try {
-    await _bookRequest(`/api/books/${id}`, options, valid);
+    const saved = await _bookRequest(`/api/books/${id}`, options, valid);
+    onSaved(saved);
+    if (options.method === 'DELETE') _bookUndo.delete(id);
     toast(message, 'success');
     await loadBooks();
   } catch (failure) {
     const message = failure instanceof TypeError ? 'could not connect; check your connection and try again' : failure.message;
     _bookErrors.set(id, message);
+    if (failure.status === 409) await loadBooks();
     const current = [...document.querySelectorAll('#books-body .book-card')].find(item => item.dataset.id === id);
     if (current) {
       let notice = current.querySelector('.book-write-error');
@@ -388,7 +437,19 @@ function _wire(body) {
       card.querySelectorAll('button, textarea').forEach(control => { control.disabled = true; });
     }
     card.querySelectorAll('.book-star').forEach(s => s.addEventListener('click', async () => {
-      await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rating: +s.dataset.rate }) }, result => result?.id === id && result.rating === +s.dataset.rate, 'rating saved');
+      const before = Object.values(_data.shelves).flat().find(book => book.id === id)?.rating;
+      const scope = _createScopes[0];
+      await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rating: +s.dataset.rate }) }, result => result?.id === id && result.rating === +s.dataset.rate, 'rating saved', result => _rememberBookEdit(id, 'rating', before, result.rating, scope));
+    }));
+    card.querySelectorAll('[data-undo]').forEach(button => button.addEventListener('click', async () => {
+      const field = button.dataset.undo;
+      const edit = _bookUndo.get(id)?.[field];
+      if (!edit) return;
+      await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ [field]: edit.before, [`expected_${field}`]: edit.after, recovery_scope: edit.scope }) }, result => result?.id === id && result[field] === edit.before, `${field === 'notes' ? 'previous note' : 'previous rating'} restored`, result => {
+        _applyBookValue(id, field, result[field], edit.scope);
+        const edits = _bookUndo.get(id);
+        if (edits) delete edits[field];
+      });
     }));
     card.querySelectorAll('[data-move]').forEach(btn => btn.addEventListener('click', async () => {
       await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: btn.dataset.move }) }, result => result?.id === id && result.status === btn.dataset.move, `moved to ${btn.dataset.move}`);
@@ -400,16 +461,15 @@ function _wire(body) {
       if (act === 'save-notes') {
         if (_savingNotes.has(id)) return;
         const v = card.querySelector('[data-f="notes"]').value;
+        const before = Object.values(_data.shelves).flat().find(book => book.id === id)?.notes;
+        const scope = _createScopes[0];
         _noteDrafts.set(id, v);
         _noteErrors.delete(id);
         _savingNotes.add(id);
         _render();
         try {
-          const response = await _fetcher(`/api/books/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ notes: v }) });
-          if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(typeof error.detail === 'string' ? error.detail : 'Notes could not be saved. Try again.');
-          }
+          await _bookRequest(`/api/books/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ notes: v }) }, result => result?.id === id && result.notes === v);
+          _rememberBookEdit(id, 'notes', before, v, scope);
           _noteDrafts.delete(id);
           if (_editingNotes === id) _editingNotes = null;
           toast('saved', 'success');
@@ -419,7 +479,9 @@ function _wire(body) {
         } finally {
           _savingNotes.delete(id);
           _render();
-          body.querySelector(`.book-card[data-id="${id}"] ${_editingNotes === id ? 'textarea' : '[data-act="notes"]'}`)?.focus();
+          if (body.getClientRects().length && document.activeElement === document.body) {
+            body.querySelector(`.book-card[data-id="${id}"] ${_editingNotes === id ? 'textarea' : '[data-act="notes"]'}`)?.focus();
+          }
         }
         return;
       }

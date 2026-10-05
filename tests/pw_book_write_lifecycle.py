@@ -26,10 +26,12 @@ with sync_playwright() as pw:
                 "**/*",
                 lambda r: (
                     r.continue_()
-                    if urlparse(r.request.url).netloc == urlparse(base).netloc
+                    if (urlparse(r.request.url).scheme, urlparse(r.request.url).netloc)
+                    == (urlparse(base).scheme, urlparse(base).netloc)
                     else r.abort()
                 ),
             )
+            context.route_web_socket("**/*", lambda ws: ws.close())
             api = context.request
             assert api.post(base + "/api/setup/dismiss").ok
             assert api.put(base + "/api/books/goal", data={"goal": 3}).ok
