@@ -3216,6 +3216,7 @@ body.afterlife-aide-projects[data-space="aide"] #sidebar-toggle-btn {
 body.afterlife-aide-projects[data-space="aide"] #sidebar-toggle-btn:hover,
 body.afterlife-aide-projects[data-space="aide"] #sidebar-toggle-btn:active { background: transparent; color: var(--text); }
 body.afterlife-aide-projects[data-space="aide"] #sidebar-toggle-btn svg { width: 19px; height: 19px; }
+.aide-toggle-label { display: none; }
 body.afterlife-aide-projects[data-space="aide"] #app-crumb,
 body.afterlife-aide-projects[data-space="aide"] #ai-top-controls { display: none !important; }
 body.afterlife-aide-projects[data-space="aide"] .topbar-right { display: flex !important; }
@@ -3698,7 +3699,10 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
   body.afterlife-aide-projects[data-space="aide"] .aide-model-choice { min-height: 44px; max-width: min(42vw, 160px); }
   body.afterlife-aide-projects[data-space="aide"] #aide-model-choice-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   body.afterlife-aide-projects[data-space="aide"] #sidebar-toggle-btn,
-  body.afterlife-aide-projects[data-space="aide"] .aide-work-panel-toggle { width: 44px; height: 44px; flex: 0 0 44px; }
+  body.afterlife-aide-projects[data-space="aide"] .aide-work-panel-toggle { width: 44px; height: 44px; flex: 0 0 44px; display: flex !important; flex-direction: column; justify-content: center; align-items: center; gap: 2px; }
+  body.afterlife-aide-projects[data-space="aide"] .aide-toggle-label { display: block; font-size: 0.75rem; line-height: 1; }
+  body.afterlife-aide-projects[data-space="aide"] #sidebar-toggle-btn svg,
+  body.afterlife-aide-projects[data-space="aide"] .aide-work-panel-toggle svg { width: 16px; height: 16px; }
   body.afterlife-aide-projects[data-space="aide"] .aide-message-rail { left: 3px; }
   body.afterlife-aide-projects[data-space="aide"] .aide-work-panel {
     position: fixed;

@@ -1498,6 +1498,7 @@ function setNav(view) {
     n.classList.toggle('active', n.dataset.view === view);
   });
   document.getElementById('aide-scheduled-link')?.classList.toggle('active', view === 'scheduled');
+  document.getElementById('aide-compare-link')?.classList.toggle('active', view === 'compare');
   // auto-expand tools section if navigating to a hidden item
   if (_moreViews.has(view)) {
     const items = document.getElementById('nav-more-items');
@@ -1668,12 +1669,16 @@ function bindEvents() {
     event.stopPropagation();
     setAideToolsMenu(aideToolsMenu?.hidden !== false);
   });
-  aideToolsMenu?.addEventListener('click', async event => {
-    event.stopPropagation();
-    if (event.target.closest('[role="menuitem"]')) setAideToolsMenu(false);
-    const view = event.target.closest('[data-aide-tool-view]')?.dataset.aideToolView;
+  document.getElementById('aide-sidebar')?.addEventListener('click', async event => {
+    const trigger = event.target.closest('[data-aide-tool-view]');
+    const view = trigger?.dataset.aideToolView;
     if (!view || !['compare', 'usage'].includes(view)) return;
-    if (!await navigateTo(view)) { document.getElementById('aide-tools-link')?.focus(); return; }
+    event.stopPropagation();
+    setAideToolsMenu(false);
+    if (!await navigateTo(view)) {
+      (trigger.closest('#aide-sidebar-menu') ? document.getElementById('aide-tools-link') : trigger)?.focus();
+      return;
+    }
     const root = document.getElementById(`${view}-view`);
     if (!root?.getClientRects().length) return;
     closeCompactAideSidebar();
