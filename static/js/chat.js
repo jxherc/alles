@@ -2,7 +2,7 @@ import { mdToHtml, toast } from './util.js';
 import { canRevertTool } from './agentview.js';
 import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown,
-  showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft,
+  showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
 } from './sessions.js';
 import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=212';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
@@ -147,6 +147,42 @@ function showSendIssue(message, chooseModel = false) {
   if (composer?.getClientRects().length && ['composer-ta', 'send-btn'].includes(document.activeElement?.id)) composer.focus();
 }
 
+// Keep a scoped question recoverable until the server accepts the turn. The
+// same ownership check is used by the original send and a refused-turn retry.
+function holdDocumentDraft(sessionId, draft, attachmentIds, privateReply, { ownsText = true, submittedRecord = draft, retiredDraft = null } = {}) {
+  const composer = document.getElementById('composer-ta');
+  let accepted = false, consumed = false, generation = null;
+  return {
+    accept() {
+      if (accepted) return;
+      accepted = true;
+      const sameAttachments = !hasPendingAttachments() && JSON.stringify(getAttachments()) === JSON.stringify(attachmentIds);
+      clearAttachments(attachmentIds);
+      if (retiredDraft && !privateReply) consumeDraft(null, retiredDraft, ownsText ? '' : draft.text);
+      if (getActiveId() !== sessionId || isIncognitoMode() !== privateReply) {
+        if (!privateReply) consumeDraft(sessionId, submittedRecord, ownsText ? '' : draft.text);
+        return;
+      }
+      if (!composer || composer.value !== draft.text
+        || JSON.stringify(normalizeDocumentScope(window._pendingDocumentScope)) !== JSON.stringify(draft.document_scope)
+        || !sameAttachments) return;
+      consumed = true;
+      generation = getComposerGeneration();
+      if (ownsText) composer.value = '';
+      composer.style.height = 'auto';
+      window._setAideDocumentScope(null);
+      composer.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+    restore(answer) {
+      if (!consumed || getActiveId() !== sessionId || getComposerGeneration() !== generation
+        || isIncognitoMode() !== privateReply || composer.value !== (ownsText ? '' : draft.text) || window._pendingDocumentScope
+        || hasPendingAttachments() || getAttachments().length) return;
+      restoreDocumentScope(draft.document_scope);
+      if (ownsText && !answer) restoreComposerInput(draft.text);
+    },
+  };
+}
+
 export async function sendMessage(text, onAccepted = () => {}) {
   if (!text?.trim() || _streaming || _backgroundLaunching) return;
   if (hasPendingAttachments()) {
@@ -154,7 +190,12 @@ export async function sendMessage(text, onAccepted = () => {}) {
     return;
   }
 
+  let attachmentIds = getAttachments();
+  let documentScope = normalizeDocumentScope(window._pendingDocumentScope);
+  const privateReply = isIncognitoMode();
+  let draft = { text: document.getElementById('composer-ta')?.value || '', document_scope: documentScope };
   let sessionId = getActiveId();
+  let originalRecord = documentScope && !privateReply ? getDraftSnapshot(sessionId) : null;
   let freshSession = false;
 
   // no active session — create one lazily now (first message)
@@ -175,6 +216,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
       if (getComposerGeneration() === composerGeneration) showSendIssue('could not start this task. try sending again.');
       return;
     }
+    if (getComposerGeneration() !== composerGeneration) return;
     // carry over a persona picked before the session existed (fresh-chat picker)
     if (window._pendingPersona) {
       try {
@@ -186,6 +228,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
       } catch {}
       window._pendingPersona = null;
     }
+    if (getComposerGeneration() !== composerGeneration) return;
     window._currentSession = s;
     sessionId = s.id;
     freshSession = true;     // first message ever → auto-name it after the reply
@@ -194,16 +237,35 @@ export async function sendMessage(text, onAccepted = () => {}) {
 
   const sel = getSelected();
   if (!sel) { showSendIssue('choose a model before sending.', true); return; }
-  const attachmentIds = getAttachments();
-  const documentScope = normalizeDocumentScope(window._pendingDocumentScope);
-  const privateReply = isIncognitoMode();
+  if (!documentScope) {
+    // Ordinary sends keep input added during creation, including a first source choice.
+    attachmentIds = getAttachments();
+    documentScope = normalizeDocumentScope(window._pendingDocumentScope);
+    if (documentScope) {
+      draft = { text: document.getElementById('composer-ta')?.value || '', document_scope: documentScope };
+      originalRecord = !privateReply ? getDraftSnapshot(freshSession ? null : sessionId) : null;
+    }
+  }
   if (documentScope?.kind === 'vault_documents' && attachmentIds.length) {
     showSendIssue('remove attachments to answer from selected notes only.');
     return;
   }
 
   document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
-  onAccepted(sessionId);
+  // Adopt the new task's draft before awaiting the request, including edits made
+  // during task creation. At quota, keep the old copy instead of deleting it.
+  const savedDraft = documentScope && !privateReply && saveDraft();
+  if (freshSession && savedDraft) clearDraft(null);
+  // Only a failed write can leave the submitted question's old scope in storage.
+  // A successfully adopted newer scope is never owned by this request.
+  const submittedRecord = { ...draft, text: draft.text.trim() ? draft.text : '' };
+  const quotaRecord = !savedDraft && originalRecord?.text === submittedRecord.text ? originalRecord : null;
+  const pendingDraft = documentScope ? holdDocumentDraft(sessionId, draft, attachmentIds, privateReply, {
+    ownsText: draft.text.trim() === text.trim(),
+    submittedRecord: !freshSession && quotaRecord ? quotaRecord : submittedRecord,
+    retiredDraft: freshSession ? quotaRecord : null,
+  }) : null;
+  if (!documentScope) onAccepted(sessionId);
 
   // image model picked as the primary → generate (legacy single-pick path)
   if (!documentScope && isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
@@ -247,8 +309,10 @@ export async function sendMessage(text, onAccepted = () => {}) {
 
   showMessages();
   appendUserMsg(text, documentScope);
-  window._setAideDocumentScope(null);
-  clearAttachments();
+  if (!documentScope) {
+    window._setAideDocumentScope(null);
+    clearAttachments();
+  }
   scrollDown();
 
   return streamReply({
@@ -262,7 +326,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
     reasoning_mode: getReasoningMode(sel.model),
     custom_effort: getCustomEffort(sel.model),
     context_scope: documentScope || undefined,
-  }, { freshSession });
+  }, { freshSession, pendingDraft });
 }
 
 export function retrySavedResponse(request, previousRow) {
@@ -272,7 +336,7 @@ export function retrySavedResponse(request, previousRow) {
   return true;
 }
 
-async function streamReply(request, { freshSession = false, previousRow = null } = {}) {
+async function streamReply(request, { freshSession = false, previousRow = null, pendingDraft = null } = {}) {
   const { session_id: sessionId, message: text, context_scope: documentScope, incognito: privateReply } = request;
   // Only the latest settled failure may retry. A new turn retires older controls.
   document.querySelectorAll('.aide-retry-response').forEach(button => button.remove());
@@ -404,7 +468,7 @@ async function streamReply(request, { freshSession = false, previousRow = null }
         ? `<div class="error-msg model-error"><p role="status">${escHtml(message)}</p></div>`
         : `<div class="error-msg">${escHtml(message)}</div>`;
       body.classList.add('done');
-      if (!rejectedBeforeStart && !previousRow && getActiveId() === sessionId && _streamToken === streamToken) {
+      if (!pendingDraft && !rejectedBeforeStart && !previousRow && getActiveId() === sessionId && _streamToken === streamToken) {
         restoreDocumentScope(documentScope);
         if (documentScope) {
           restoreComposerInput(text);
@@ -416,6 +480,7 @@ async function streamReply(request, { freshSession = false, previousRow = null }
       return;
     }
 
+    pendingDraft?.accept();
     const reader = r.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
@@ -696,9 +761,12 @@ async function streamReply(request, { freshSession = false, previousRow = null }
     }
 
   } catch (e) {
-    if (!previousRow && getActiveId() === sessionId && _streamToken === streamToken) {
-      restoreDocumentScope(documentScope);
-      if (documentScope && !accText) restoreComposerInput(text);
+    if (getActiveId() === sessionId && _streamToken === streamToken) {
+      if (pendingDraft) pendingDraft.restore(accText);
+      else if (!previousRow) {
+        restoreDocumentScope(documentScope);
+        if (documentScope && !accText) restoreComposerInput(text);
+      }
     }
     if (e.name !== 'AbortError') {
       appendError(body, `stream error: ${e.message}`);
@@ -806,7 +874,7 @@ async function streamReply(request, { freshSession = false, previousRow = null }
       retry.addEventListener('click', () => {
         if (!canSendMessage() || getActiveId() !== sessionId || _streamToken !== streamToken || !row.isConnected) return;
         const restoreFocus = document.activeElement === retry;
-        void streamReply(rejectedBeforeStart ? request : { ...request, retry_message_id: sourceUserId }, { freshSession, previousRow: row });
+        void streamReply(rejectedBeforeStart ? request : { ...request, retry_message_id: sourceUserId }, { freshSession, previousRow: row, pendingDraft: rejectedBeforeStart ? pendingDraft : null });
         if (restoreFocus) document.getElementById('composer-ta')?.focus();
       });
       body.querySelector('.error-msg')?.appendChild(retry);
