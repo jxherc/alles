@@ -42,11 +42,11 @@ export async function loadSessions() {
   renderSessionLoadState();
   try {
     const r = await fetch('/api/sessions');
-    if (!r.ok) throw new Error('could not load tasks');
+    if (!r.ok) throw new Error('could not load aide tasks');
     const sessions = await r.json();
     if (!['today', 'yesterday', 'earlier'].every(group => Array.isArray(sessions?.[group])
       && sessions[group].every(item => item && typeof item.id === 'string' && typeof item.name === 'string'))) {
-      throw new Error('could not read the task list');
+      throw new Error('could not read the aide task list');
     }
     if (generation !== _sessionLoadGeneration) return false;
     _sessions = sessions;
@@ -82,8 +82,8 @@ function renderSessionLoadState() {
     return;
   }
   message.textContent = _sessionLoadState === 'loading'
-    ? (_sessionsLoaded ? 'refreshing tasks…' : 'loading tasks…')
-    : (_sessionsLoaded ? 'could not refresh tasks. showing the last loaded list.' : 'could not load tasks. retry to see your saved work.');
+    ? (_sessionsLoaded ? 'refreshing aide tasks…' : 'loading aide tasks…')
+    : (_sessionsLoaded ? 'could not refresh aide tasks. showing the last loaded list.' : 'could not load aide tasks. retry to see your saved work.');
   if (_sessionLoadState === 'error') retry.hidden = false;
   retry.setAttribute('aria-disabled', String(_sessionLoadState === 'loading'));
   retry.onclick = () => { if (_sessionLoadState !== 'loading') void loadSessions(); };
@@ -259,7 +259,7 @@ export function renderSidebar(filter = '') {
   }
 
   if (!src.length) {
-    list.innerHTML = `<div class="empty-sessions">${fl ? 'no matching tasks' : 'no tasks yet'}</div>`;
+    list.innerHTML = `<div class="empty-sessions">${fl ? t('aide.no_matching_tasks') : t('aide.no_tasks')}</div>`;
     if (!fl) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
     return;
   }
@@ -522,7 +522,7 @@ function renderMessages(msgs) {
         const bb = document.createElement('button');
         bb.className = 'act-btn msg-branch-btn';
         bb.textContent = 'branch';
-        bb.title = 'branch a new task from here (keeps this one)';
+        bb.title = 'branch a new aide task from here (keeps this one)';
         bb.dataset.msgId = m.id;
         actions.appendChild(bb);
       }
@@ -624,7 +624,7 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
   actions.className = 'msg-actions';
   actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>
     <button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>
-    <button class="act-btn" onclick="saveMsgAs(this,'task')" title="review this reply as a task">+task</button>
+    <button class="act-btn" onclick="saveMsgAs(this,'task')" title="${t('aide.review_plan_task')}">${t('aide.add_plan_task')}</button>
     <button class="msg-regen-btn act-btn" title="regenerate">regen</button>
     <button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>
     <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;

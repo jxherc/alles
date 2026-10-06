@@ -1,5 +1,6 @@
 import { openCaptureReview, showPendingCapture } from './capture.js';
 import { reconcileSourceReply } from './answer_note.js';
+import { t } from './i18n.js';
 
 const identity = /^[a-zA-Z0-9_-]{1,160}$/;
 let preparation = 0;
@@ -56,7 +57,7 @@ export async function saveAnswerTask(button) {
       if (kind === 'task' && origin?.kind === 'aide' && origin.fingerprint === fingerprint
           && origin.session_id === sessionId && origin.message_id === messageId && origin.private === privateReply) {
         wrap.savedTask = saved;
-        button.textContent = 'saved task';
+        button.textContent = t('aide.saved_plan_task');
       }
       taskSaved(saved, kind);
     });
@@ -71,6 +72,6 @@ export async function saveAnswerTask(button) {
     }
   } finally {
     button.removeAttribute('aria-disabled');
-    button.textContent = wrap.savedTask ? 'saved task' : '+task';
+    button.textContent = wrap.savedTask ? t('aide.saved_plan_task') : t('aide.add_plan_task');
   }
 }

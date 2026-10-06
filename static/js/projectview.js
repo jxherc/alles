@@ -5,6 +5,7 @@ import { prompt as dlgPrompt } from './dialog.js';
 import { getProjects, loadProjects } from './projects.js';
 import { projectFolderMessage } from './projectenv.js';
 import { selectSession, loadSessions } from './sessions.js';
+import { t } from './i18n.js';
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -47,15 +48,15 @@ export async function renderProject(pid) {
     <div class="page-view-head">
       <span class="project-dot"${dot}></span>
       <span class="page-view-title">${esc(proj.name)}</span>
-      <button class="btn primary" id="pj-newchat" style="margin-left:auto;font-size:0.75rem">+ new task</button>
+      <button class="btn primary" id="pj-newchat" style="margin-left:auto;font-size:0.75rem">+ ${t('aide.new_task')}</button>
     </div>
     <div class="page-view-body project-workspace">
       <div class="pj-col">
         <div class="s-card">
-          <div class="s-card-head">tasks · ${mine.length}</div>
+          <div class="s-card-head">${t('aide.tasks')} · ${mine.length}</div>
           <div class="s-card-body" id="pj-chats">${mine.length
             ? mine.map(s => `<div class="pj-chat" data-id="${s.id}"><span class="session-dot"></span>${esc(s.name || 'untitled')}</div>`).join('')
-            : '<div class="settings-row-empty">no tasks yet: start one, or drag a task onto this project</div>'}</div>
+            : '<div class="settings-row-empty">no aide tasks yet: start one, or drag an aide task onto this project</div>'}</div>
         </div>
         <div class="s-card">
           <div class="s-card-head">files<span class="pj-hint">: the Project's server folder</span></div>
@@ -71,7 +72,7 @@ export async function renderProject(pid) {
       </div>
       <div class="pj-col">
         <div class="s-card">
-          <div class="s-card-head">instructions<span class="pj-hint">: context for this project's tasks</span></div>
+          <div class="s-card-head">instructions<span class="pj-hint">: context for this project's aide tasks</span></div>
           <div class="s-card-body"><textarea class="settings-textarea" id="pj-sys" rows="7" placeholder="e.g. You're helping me build X. Prefer Y. Always…">${esc(proj.system_prompt || '')}</textarea></div>
         </div>
         <div class="s-card">
@@ -86,7 +87,7 @@ export async function renderProject(pid) {
 
   view.querySelector('#pj-newchat')?.addEventListener('click', async () => {
     const r = await fetch('/api/sessions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'new task', project_id: pid }) });
-    if (!r.ok) { toast('failed to start task', 'error'); return; }
+    if (!r.ok) { toast('failed to start aide task', 'error'); return; }
     const s = await r.json();
     await loadSessions();
     selectSession(s.id);

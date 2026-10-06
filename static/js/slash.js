@@ -11,12 +11,12 @@ let _reminderBusy = false;
 // ── built-in command registry ────────────────────────────────────────
 const BUILTINS = [
   // Aide tasks
-  { name: 'new',       cat: 'aide',     help: 'start a new task' },
-  { name: 'clear',     cat: 'aide',     help: 'clear this task’s message display' },
-  { name: 'rename',    cat: 'aide',     help: 'rename this task: or auto-name if blank', args: '[name]' },
-  { name: 'archive',   cat: 'aide',     help: 'archive this task' },
-  { name: 'export',    cat: 'aide',     help: 'export this task as markdown' },
-  { name: 'incognito', cat: 'aide',     help: 'start a new incognito task' },
+  { name: 'new',       cat: 'aide',     help: 'start a new aide task' },
+  { name: 'clear',     cat: 'aide',     help: 'clear this aide task’s message display' },
+  { name: 'rename',    cat: 'aide',     help: 'rename this aide task: or auto-name if blank', args: '[name]' },
+  { name: 'archive',   cat: 'aide',     help: 'archive this aide task' },
+  { name: 'export',    cat: 'aide',     help: 'export this aide task as markdown' },
+  { name: 'incognito', cat: 'aide',     help: 'start a new private aide task' },
   // model & persona
   { name: 'model',     cat: 'model',    help: 'open model picker' },
   { name: 'persona',   cat: 'model',    help: 'switch persona',          args: '[name]' },
