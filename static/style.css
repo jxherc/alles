@@ -3250,11 +3250,28 @@ body.afterlife-aide-projects[data-space="aide"] .aide-current-context {
   align-items: center;
   gap: 8px;
   margin-left: 8px;
+  flex: 1;
+  overflow: hidden;
   color: var(--text);
   font-size: 0.84rem;
   font-weight: 400;
 }
-body.afterlife-aide-projects[data-space="aide"] .aide-context-folder { width: 18px; height: 18px; color: var(--muted); }
+body.afterlife-aide-projects[data-space="aide"] .topbar-left { min-width: 0; flex: 1; }
+body.afterlife-aide-projects[data-space="aide"] #aide-conversation-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.afterlife-aide-projects[data-space="aide"] #aide-project-name {
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.afterlife-aide-projects[data-space="aide"] .aide-context-folder { width: 18px; height: 18px; flex: 0 0 18px; color: var(--muted); }
 body.afterlife-aide-projects[data-space="aide"] .aide-current-context:has(#aide-project-name:empty) .aide-context-folder { display: none; }
 body.afterlife-aide-projects[data-space="aide"] .aide-current-context small { color: var(--muted); font-size: 0.75rem; font-weight: 400; }
 body.afterlife-aide-projects[data-space="aide"] .chat { background: var(--bg); }

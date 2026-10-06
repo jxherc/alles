@@ -44,7 +44,26 @@ test('Aide drawer and backdrop share the 700px responsive breakpoint', () => {
   assert.match(responsive, /body\.is-aide:not\(\.sidebar-hidden\) \.nav-backdrop/);
   assert.match(app, /matchMedia\('\(max-width: 700px\)'\)/);
   const closeHelper = app.match(/function closeCompactAideSidebar\([^]*?\n}/)?.[0] || '';
-  assert.match(closeHelper, /max-width: 700px/);
+  const closeAt = (width, options, classes = ['is-aide']) => {
+    const changes = [];
+    const close = new Function('document', 'window', 'setAideSidebarHidden',
+      closeHelper + '; return closeCompactAideSidebar;')(
+      { body: { classList: { contains: value => classes.includes(value) } } },
+      { matchMedia: query => ({ matches: width <= Number(query.match(/\d+/)[0]) }) },
+      (hidden, focus) => changes.push({ hidden, focus }),
+    );
+    return { closed: close(options), changes };
+  };
+  assert.deepEqual(closeAt(700), {
+    closed: true, changes: [{ hidden: true, focus: { restoreFocus: false } }],
+  });
+  assert.deepEqual(closeAt(701), { closed: false, changes: [] });
+  assert.deepEqual(closeAt(820, { maxWidth: 1100, restoreFocus: true }), {
+    closed: true, changes: [{ hidden: true, focus: { restoreFocus: true } }],
+  });
+  assert.deepEqual(closeAt(1101, { maxWidth: 1100 }), { closed: false, changes: [] });
+  assert.deepEqual(closeAt(390, {}, []), { closed: false, changes: [] });
+  assert.deepEqual(closeAt(390, {}, ['is-aide', 'sidebar-hidden']), { closed: false, changes: [] });
   assert.match(app, /new-chat-btn'[\s\S]{0,220}closeCompactAideSidebar\(\)/);
   assert.match(app, /aide-scheduled-link'[\s\S]{0,180}closeCompactAideSidebar\(\)/);
   assert.doesNotMatch(app, /max-width: 480px/);

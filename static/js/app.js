@@ -1525,15 +1525,18 @@ function setAideSidebarHidden(hidden, { restoreFocus = false, persist = false } 
   if (hidden) {
     setAideToolsMenu(false);
     if (restoreFocus || hadSidebarFocus) trigger?.focus();
-  } else if (window.matchMedia('(max-width: 700px)').matches) {
-    (document.querySelector('.sidebar .session-open[aria-current="true"]')
-      || document.getElementById('new-chat-btn'))?.focus();
+  } else {
+    document.dispatchEvent(new CustomEvent('alles:aide-sidebar-open'));
+    if (window.matchMedia('(max-width: 700px)').matches) {
+      (document.querySelector('.sidebar .session-open[aria-current="true"]')
+        || document.getElementById('new-chat-btn'))?.focus();
+    }
   }
 }
 
-function closeCompactAideSidebar({ restoreFocus = false } = {}) {
+function closeCompactAideSidebar({ restoreFocus = false, maxWidth = 700 } = {}) {
   if (!document.body.classList.contains('is-aide')
-    || !window.matchMedia('(max-width: 700px)').matches
+    || !window.matchMedia(`(max-width: ${maxWidth}px)`).matches
     || document.body.classList.contains('sidebar-hidden')) return false;
   setAideSidebarHidden(true, { restoreFocus });
   return true;

@@ -466,6 +466,7 @@ function setPanelOpen(open, focusInside = true) {
   const toggle = $('aide-work-panel-toggle');
   if (!panel || !toggle) return;
   if (!open) setTerminalOpen(false);
+  else window._closeCompactAideSidebar?.({ maxWidth: 1100 });
   panelReturnFocus = open ? document.activeElement : panelReturnFocus;
   panel.hidden = !open;
   panel.inert = !open;
@@ -795,6 +796,13 @@ export function initAideWorkspace() {
       closeProjectMenu();
       closeBranchMenu();
     }
+  });
+  const constrainedPanels = window.matchMedia('(max-width: 1100px)');
+  document.addEventListener('alles:aide-sidebar-open', () => {
+    if (constrainedPanels.matches && !panel.hidden) setPanelOpen(false, false);
+  });
+  constrainedPanels.addEventListener?.('change', event => {
+    if (event.matches && !panel.hidden) window._closeCompactAideSidebar?.({ maxWidth: 1100 });
   });
   toggle.addEventListener('click', () => setPanelOpen(panel.hidden));
   $('aide-work-panel-close')?.addEventListener('click', () => setPanelOpen(false));

@@ -1125,6 +1125,28 @@ function _choiceField(label, options, selected, onSelect) {
   return field;
 }
 
+function _importRepairHint(row) {
+  if (row.status !== 'needs_review') return '';
+  const reason = row.conflict_reason || '';
+  const retry = ' correct the file, choose it again, and preview before applying.';
+  if (reason === 'date is missing or ambiguous') {
+    return 'use a date column with year-month-day, for example 2026-04-05.' + retry;
+  }
+  if (/^amount (is missing|is not a decimal number|has more than two decimal places)$/.test(reason)) {
+    return 'use an amount column: -8.25 for spending or 8.25 for money received, with at most two decimal places.' + retry;
+  }
+  if (reason === 'currency is missing or ambiguous') {
+    return 'use a currency code such as CAD or USD in the currency column; a dollar sign alone is ambiguous.' + retry;
+  }
+  if (/^import currency [A-Z]{3} does not match selected account currency [A-Z]{3}$/.test(reason)) {
+    return 'choose an account matching the file’s currency. for mixed currencies, split the file by currency and preview each part with its matching account. amounts are not converted.';
+  }
+  if (reason === 'selected account requires a reviewed currency code before import') {
+    return 'set a currency code in account settings, then create a new preview.';
+  }
+  return '';
+}
+
 function _renderImportReceipt(target, receipt, request, refresh) {
   target.replaceChildren();
   if (!receipt) {
@@ -1154,6 +1176,8 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       if (parsed[key]) item.append(_el('small', 'finance-import-metadata', `${key}: ${parsed[key]}`));
     }
     if (row.conflict_reason && parsed.payee) item.append(_el('small', '', row.conflict_reason));
+    const repairHint = _importRepairHint(row);
+    if (repairHint) item.append(_el('p', 'specialist-group-note finance-import-repair-hint', repairHint));
     if (row.status === 'needs_review' && /conversion evidence/i.test(row.conflict_reason || '')) {
       const form = _el('form', 'finance-import-conversion');
       const baseCode = receipt.canonical_base_currency_code || 'base';
@@ -1397,6 +1421,9 @@ async function _renderImports(target, request) {
   let activePreviewGeneration = 0;
   const panel = _el('section', 'finance-import-panel');
   const boundary = _el('p', 'specialist-group-note', 'choose the destination account and preview every file before applying it. bank connections are managed separately.');
+  const formatHelp = _el('p', 'specialist-group-note finance-import-format-help',
+    'csv columns: date, payee, amount. example row: 2026-04-05,groceries,-8.25. optional currency uses a code such as CAD or USD; otherwise the selected account’s currency is used. use one currency per file and choose a matching account. fix the file and preview again if a row needs review.');
+  formatHelp.hidden = profileId !== 'generic-csv';
   const choices = _el('div', 'finance-import-choices');
   choices.append(
     _choiceField('account', accounts.map(account => ({ value: account.id, label: `${account.name} · ${account.currency_code || account.currency}` })), accountId, value => {
@@ -1405,6 +1432,7 @@ async function _renderImports(target, request) {
     }),
     _choiceField('statement format', profiles.map(profile => ({ value: profile.id, label: profile.label })), profileId, value => {
       profileId = value;
+      formatHelp.hidden = profileId !== 'generic-csv';
       previewGeneration += 1;
     }),
   );
@@ -1504,7 +1532,7 @@ async function _renderImports(target, request) {
   historySection.append(_el('h2', '', 'recent receipts'));
   historyTarget = _el('div', 'finance-import-history-list');
   historySection.append(historyTarget);
-  panel.append(boundary, choices, fileRow, receiptTarget, historySection);
+  panel.append(boundary, choices, formatHelp, fileRow, receiptTarget, historySection);
   target.append(panel);
   _renderImportReceipt(receiptTarget, receipts[0] || null, request, showReceipt);
   if (historyUnavailable) {
