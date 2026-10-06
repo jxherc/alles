@@ -950,7 +950,7 @@ async function _discardCaption() {
   finally { _viewerClosing = false; }
 }
 
-async function closeLightbox() {
+export async function closeLightbox() {
   if (!await _discardCaption()) return;
   _closeActionMenus();
   const v = $('photos-lightbox-video');
@@ -1234,7 +1234,9 @@ export function initPhotos() {
   });
   $('photos-meta-save')?.addEventListener('click', async () => {
     if (!_cur || _metaBusy) return;
-    const photo = _cur;
+    const photo = _cur, generation = _viewerGeneration;
+    const focused = document.activeElement;
+    const ownedFocus = ['photos-meta-save', 'photos-caption', 'photos-keywords'].some(id => $(id) === focused);
     const caption = $('photos-caption').value;
     const keywords = $('photos-keywords').value.split(',').map(s => s.trim()).filter(Boolean);
     _metaBusy = true;
@@ -1253,6 +1255,8 @@ export function initPhotos() {
     finally {
       _metaBusy = false;
       ['photos-meta-save', 'photos-caption', 'photos-keywords'].forEach(id => { $(id).disabled = false; });
+      if (ownedFocus && generation === _viewerGeneration && document.activeElement === document.body
+          && $('photos-lightbox').style.display === 'flex') focused.focus();
     }
   });
   $('photos-hide-btn')?.addEventListener('click', async () => {

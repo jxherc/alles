@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
+import struct
 from collections import Counter
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -28,13 +30,15 @@ def run():
     records = []
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        for profile, width, theme in [
-            ("desktop-light", 1440, "light"),
-            ("desktop-dark", 1440, "dark"),
-            ("phone-light", 390, "light"),
-            ("phone-dark", 390, "dark"),
+        for profile, width, theme, zoom in [
+            ("desktop-light", 1440, "light", False),
+            ("desktop-dark", 1440, "dark", False),
+            ("phone-light", 390, "light", False),
+            ("phone-dark", 390, "dark", False),
+            ("native200-light", 1440, "light", True),
+            ("native200-dark", 1440, "dark", True),
         ]:
-            context = browser.new_context(
+            options = dict(
                 viewport={"width": width, "height": 900},
                 has_touch=width == 390,
                 is_mobile=width == 390,
@@ -43,6 +47,36 @@ def run():
                 timezone_id="UTC",
                 locale="en-US",
             )
+            if zoom:
+                profile_dir = data / profile
+                extension = profile_dir / "extension"
+                extension.mkdir(parents=True)
+                (extension / "manifest.json").write_text(
+                    json.dumps(
+                        dict(
+                            manifest_version=3,
+                            name="owned zoom check",
+                            version="1.0",
+                            permissions=["tabs"],
+                            background={"service_worker": "zoom.js"},
+                        )
+                    )
+                )
+                (extension / "zoom.js").write_text(
+                    "chrome.runtime.onInstalled.addListener(() => {});"
+                )
+                context = p.chromium.launch_persistent_context(
+                    profile_dir / "browser",
+                    channel="chromium",
+                    headless=True,
+                    args=[
+                        f"--disable-extensions-except={extension}",
+                        f"--load-extension={extension}",
+                    ],
+                    **options,
+                )
+            else:
+                context = browser.new_context(**options)
             context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
             def local_only(route):
@@ -87,7 +121,17 @@ def run():
                 active.update(status="passed", **proof)
 
             def shot(name):
-                page.screenshot(path=str(out / f"{profile}-{name}.png"), full_page=True)
+                if zoom:
+                    png = base64.b64decode(
+                        context.new_cdp_session(page).send(
+                            "Page.captureScreenshot",
+                            {"format": "png", "captureBeyondViewport": False},
+                        )["data"]
+                    )
+                    assert struct.unpack("!II", png[16:24]) == (width, 900)
+                    (out / f"{profile}-{name}.png").write_bytes(png)
+                else:
+                    page.screenshot(path=str(out / f"{profile}-{name}.png"), full_page=True)
 
             def saved():
                 response = context.request.get(base + "/api/photos/list?offset=0&limit=120")
@@ -158,6 +202,21 @@ def run():
             try:
                 begin("navigation-and-empty")
                 page.goto(base + "/?view=today", wait_until="networkidle")
+                if zoom:
+                    worker = (
+                        context.service_workers[0]
+                        if context.service_workers
+                        else context.wait_for_event("serviceworker")
+                    )
+                    assert (
+                        worker.evaluate(
+                            "async base=>{const tab=(await chrome.tabs.query({})).find(t=>t.url.startsWith(base));await chrome.tabs.setZoom(tab.id,2);return chrome.tabs.getZoom(tab.id)}",
+                            base,
+                        )
+                        == 2
+                    )
+                    page.wait_for_function("innerWidth === 720 && devicePixelRatio === 2")
+                    active["native_zoom"] = {"factor": 2, "css_width": 720, "dpr": 2}
                 if page.get_by_role("button", name="exit setup", exact=True).is_visible():
                     page.get_by_role("button", name="exit setup", exact=True).click()
                 page.locator("#today-settings").click()
@@ -270,7 +329,7 @@ def run():
                 page.get_by_role("button", name="add to album", exact=True).click()
                 dialog = page.get_by_role("dialog", name="add to album", exact=True)
                 box = dialog.bounding_box()
-                assert box["x"] >= 0 and box["x"] + box["width"] <= width
+                assert box["x"] >= 0 and box["x"] + box["width"] <= page.evaluate("innerWidth")
                 assert dialog.evaluate("el=>el.scrollWidth<=el.clientWidth")
                 option = dialog.get_by_role("button", name=album_name.strip(), exact=True)
                 assert option.bounding_box()["height"] >= 44
@@ -426,6 +485,18 @@ def run():
                 expect(page.locator("#photos-meta-status")).to_contain_text("save failed")
                 expect(page.locator("#photos-caption")).to_have_value(draft)
                 assert by_id(photos[2]["id"])["caption"] == ""
+                expect(page.locator("#photos-meta-save")).to_be_focused()
+                page.keyboard.press("Escape")
+                expect(
+                    page.get_by_role("alertdialog", name="discard unsaved caption and keywords?")
+                ).to_be_visible()
+                page.keyboard.press("Escape")
+                expect(page.locator(".dialog-overlay")).to_have_count(0)
+                expect(page.locator("#photos-lightbox")).to_be_visible()
+                expect(page.locator("#photos-caption")).to_have_value(draft)
+                assert page.locator(".app").evaluate("e=>e.inert")
+                expect(page.locator("#photos-meta-save")).to_be_focused()
+                active["failed_save_escape_keeps_draft"] = True
                 unroute(rule)
                 for payload in [None, {}]:
                     rule = reject(
@@ -445,15 +516,107 @@ def run():
                 page.get_by_role("button", name="cancel", exact=True).click()
                 expect(page.locator("#photos-caption")).to_have_value(draft)
                 shot("caption-rejected")
-                page.get_by_role("button", name="save caption & keywords", exact=True).click()
+                held = []
+                patch_pattern = "**/api/photos/" + photos[2]["id"]
+
+                def hold_patch(route):
+                    assert route.request.method == "PATCH"
+                    target = urlsplit(route.request.url)
+                    assert (target.scheme, target.netloc) == ("http", urlsplit(base).netloc)
+                    held.append(route)
+
+                page.route(patch_pattern, hold_patch)
+                page.locator("#photos-meta-save").press("Enter")
+                expect(page.locator("#photos-meta-save")).to_be_disabled()
+                assert len(held) == 1
+                assert page.evaluate("document.activeElement === document.body")
+                page.keyboard.press("Escape")
+                expect(page.locator("#photos-lightbox")).to_be_visible()
+                expect(page.locator(".dialog-overlay")).to_have_count(0)
+                assert page.locator(".app").evaluate("e=>e.inert")
+                expect(page.locator("#photos-meta-status")).to_have_text("saving…")
+                shot("caption-busy-escape")
+                response = held[0].fetch(max_redirects=0)
+                assert response.ok
+                held[0].fulfill(response=response)
+                page.unroute(patch_pattern, hold_patch)
                 expect(page.locator("#photos-meta-status")).to_have_text("saved")
-                page.get_by_role("button", name="close", exact=True).click()
+                active["busy_body_escape_preserves_viewer"] = True
+                expect(page.locator("#photos-meta-save")).to_be_focused()
+                active["before_escape"] = page.evaluate(
+                    "({focus:document.activeElement.tagName, appInert:document.querySelector('.app').inert})"
+                )
+                page.keyboard.press("Escape")
+                expect(page.locator("#photos-lightbox")).to_be_hidden()
+                active["after_escape"] = page.evaluate(
+                    "({focus:document.activeElement.tagName, appInert:document.querySelector('.app').inert})"
+                )
+                shot("caption-saved-escape")
+                assert not active["after_escape"]["appInert"], active
+                expect(
+                    page.get_by_role("button", name="open " + names[2], exact=True)
+                ).to_be_focused()
                 reload()
                 assert by_id(photos[2]["id"])["caption"] == draft
                 assert by_id(photos[2]["id"])["keywords"] == ["study", "autumn"]
                 open_photo(names[2])
+                if page.locator("#photos-lb-drawer").evaluate("e=>e.inert"):
+                    page.get_by_role("button", name="info", exact=True).click()
+                expect(page.locator("#photos-caption")).to_be_visible()
                 expect(page.locator("#photos-caption")).to_have_value(draft)
                 page.get_by_role("button", name="close", exact=True).click()
+                assert not page.locator(".app").evaluate("e=>e.inert")
+                expect(
+                    page.get_by_role("button", name="open " + names[2], exact=True)
+                ).to_be_focused()
+                open_photo(names[2])
+                second_draft = draft + " updated"
+                page.locator("#photos-caption").fill(second_draft)
+                held.clear()
+                page.route(patch_pattern, hold_patch)
+                page.locator("#photos-meta-save").press("Enter")
+                expect(page.locator("#photos-meta-save")).to_be_disabled()
+                assert len(held) == 1
+                page.locator("#photos-close-btn").click()
+                expect(page.locator("#photos-lightbox")).to_be_visible()
+                expect(page.locator("#photos-close-btn")).to_be_focused()
+                response = held[0].fetch(max_redirects=0)
+                assert response.ok
+                held[0].fulfill(response=response)
+                page.unroute(patch_pattern, hold_patch)
+                expect(page.locator("#photos-meta-status")).to_have_text("saved")
+                expect(page.locator("#photos-close-btn")).to_be_focused()
+                shot("caption-newer-focus")
+                page.keyboard.press("Escape")
+                expect(page.locator("#photos-lightbox")).to_be_hidden()
+                assert not page.locator(".app").evaluate("e=>e.inert")
+                expect(
+                    page.get_by_role("button", name="open " + names[2], exact=True)
+                ).to_be_focused()
+                reload()
+                assert by_id(photos[2]["id"])["caption"] == second_draft
+                assert by_id(photos[2]["id"])["keywords"] == ["study", "autumn"]
+                open_photo(names[2])
+                if page.locator("#photos-lb-drawer").evaluate("e=>e.inert"):
+                    page.get_by_role("button", name="info", exact=True).click()
+                expect(page.locator("#photos-caption")).to_be_visible()
+                expect(page.locator("#photos-caption")).to_have_value(second_draft)
+                page.locator("#photos-lb-stage").click(position={"x": 1, "y": 1})
+                expect(page.locator("#photos-lightbox")).to_be_hidden()
+                assert not page.locator(".app").evaluate("e=>e.inert")
+                expect(
+                    page.get_by_role("button", name="open " + names[2], exact=True)
+                ).to_be_focused()
+                search = page.get_by_role("textbox", name="search photos…", exact=True)
+                search.fill(names[2])
+                expect(
+                    page.get_by_role("button", name="open " + names[2], exact=True)
+                ).to_be_visible()
+                search.fill("")
+                draft = second_draft
+                active["newer_focus_preserved"] = True
+                active["close_button_backdrop_and_background_usable"] = True
+                shot("caption-all-close-paths")
                 passed(photo=by_id(photos[2]["id"]))
 
                 begin("viewer-editor-reentry-neighbor")
