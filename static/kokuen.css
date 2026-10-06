@@ -2196,9 +2196,15 @@ html[data-theme="light"] :where(
 }
 
 #today-view[data-kokuen-surface="home"] .today-kicker,
-#today-view[data-kokuen-surface="home"] :where(.today-section h2, .today-section > header span) {
+#today-view[data-kokuen-surface="home"] .today-section > header span {
   color: var(--k-muted);
   font-size: 12px;
+  letter-spacing: 0;
+}
+
+#today-view[data-kokuen-surface="home"] .today-section h2 {
+  color: var(--k-text);
+  font-size: 14px;
   letter-spacing: 0;
 }
 
@@ -3206,7 +3212,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   border-color: var(--k-line);
   background: var(--k-panel);
   color: var(--k-text);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -3833,9 +3839,9 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   max-height: 240px;
   overflow: auto;
   margin: 0 0 var(--k-space-3);
-  color: var(--k-muted);
+  color: var(--k-text);
   font-family: var(--k-mono);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
   white-space: pre-wrap;
 }
@@ -4681,8 +4687,11 @@ body.afterlife-aide-projects[data-space="aide"] :where(.news-source-name, .news-
 
 body.afterlife-aide-projects[data-space="aide"] .news-source-name strong {
   color: var(--k-soft);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 580;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 body.afterlife-aide-projects[data-space="aide"] :where(.news-source-name, .news-source-health) span {
@@ -4758,7 +4767,7 @@ body.afterlife-aide-projects[data-space="aide"] .news-settings-grid {
 
 body.afterlife-aide-projects[data-space="aide"] .news-settings-grid h4 {
   color: var(--k-soft);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
 }
 
