@@ -7,10 +7,12 @@ import re
 import struct
 import sys
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 from pw_finance_helpers import show_money_sections
@@ -26,7 +28,7 @@ def run():
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         for width, theme, zoom in [
-            (w, t, False) for w in (1440, 390, 320) for t in ("light", "dark")
+            (w, t, False) for w in (1440, 820, 390, 320) for t in ("light", "dark")
         ] + [(1440, t, True) for t in ("light", "dark")]:
             profile = f"{width}-{theme}" + ("-native200" if zoom else "")
             options = dict(
@@ -438,6 +440,124 @@ def run():
                 ), console
                 assert not legacy and not external, external
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+                passed(record)
+                choose_option("account", account["name"] + " · USD")
+                choose_option("statement format", "CSV (date, payee, amount)")
+                expect(page.locator(".finance-import-format-help")).to_be_visible()
+                expect(page.locator(".finance-import-format-help")).to_contain_text(
+                    "date, payee, amount"
+                )
+                expect(page.locator(".finance-import-format-help")).to_contain_text(
+                    "2026-04-05,groceries,-8.25"
+                )
+                stable = transactions()
+                for kind, content in [
+                    ("unsupported-columns", f"posted,merchant,net\n{day},unknown,-2.10\n"),
+                    (
+                        "ambiguous-date",
+                        "date,payee,amount,currency\n04/05/2026,ambiguous date,-2.10,USD\n",
+                    ),
+                    (
+                        "ambiguous-currency",
+                        f"date,payee,amount,currency\n{day},ambiguous currency,-2.10,$\n",
+                    ),
+                ]:
+                    record = begin(kind + "-recovery")
+                    blocked = upload(kind + "-" + name, content)
+                    assert blocked["counts"]["conflicts"] == 1, blocked
+                    expect(receipt.locator(".finance-import-apply")).to_have_count(0)
+                    assert (
+                        api.post(base + "/api/finance/imports/" + blocked["id"] + "/apply").status
+                        == 409
+                    )
+                    assert transactions() == stable
+                    record["blocked_preview"] = blocked
+                    hint = receipt.locator(".finance-import-repair-hint")
+                    expect(hint).to_contain_text(
+                        {
+                            "unsupported-columns": "amount column",
+                            "ambiguous-date": "year-month-day",
+                            "ambiguous-currency": "currency code",
+                        }[kind]
+                    )
+                    expect(hint).to_contain_text("preview before applying")
+                    record["actual_guidance"] = receipt.inner_text()
+                    capture(kind + "-blocked")
+                    repaired = f"date,payee,amount,currency,reference\n{day},repaired {kind},-2.10,USD,repaired-{kind}-{profile}\n"
+                    corrected = upload("corrected-" + kind + "-" + name, repaired)
+                    assert (
+                        corrected["counts"]["pending"] == 1
+                        and corrected["counts"]["conflicts"] == 0
+                    )
+                    page.get_by_role("button", name="apply 1 ready row", exact=True).press("Enter")
+                    expect(receipt).to_contain_text("applied")
+                    assert len(imported(corrected)) == 1
+                    page.get_by_role("button", name="undo this import", exact=True).click()
+                    page.get_by_role("alertdialog").get_by_role(
+                        "button", name="confirm", exact=True
+                    ).press("Enter")
+                    expect(receipt).to_contain_text("undone")
+                    assert transactions() == stable
+                    record["recovery"] = (
+                        "real corrected CSV preview/apply/exact one linked transaction/undo; all original transactions unchanged"
+                    )
+                    passed(record)
+                record = begin("mixed-currency-separate-account-recovery")
+                mixed = f"date,payee,amount,currency,reference\n{day},mixed dollar row,-2.10,USD,mixed-usd-{profile}\n{day},mixed canada row,-3.10,CAD,mixed-cad-{profile}\n"
+                blocked = upload("mixed-" + name, mixed)
+                assert blocked["counts"]["pending"] == 1 and blocked["counts"]["conflicts"] == 1, (
+                    blocked
+                )
+                expect(receipt.locator(".finance-import-apply")).to_have_count(0)
+                assert (
+                    api.post(base + "/api/finance/imports/" + blocked["id"] + "/apply").status
+                    == 409
+                )
+                assert transactions() == stable
+                record["blocked_preview"] = blocked
+                record["actual_guidance"] = receipt.inner_text()
+                expect(receipt.locator(".finance-import-repair-hint")).to_contain_text(
+                    "split the file by currency"
+                )
+                expect(receipt.locator(".finance-import-repair-hint")).to_contain_text(
+                    "amounts are not converted"
+                )
+                capture("mixed-currency-blocked")
+                for selected, code, amount in [
+                    (account, "USD", "-2.10"),
+                    (accounts[0], "CAD", "-3.10"),
+                ]:
+                    choose_option("account", selected["name"] + " · " + code)
+                    correct = upload(
+                        "split-" + code + "-" + name,
+                        f"date,payee,amount,currency,reference\n{day},split {code},{amount},{code},split-{code}-{profile}\n",
+                    )
+                    assert (
+                        correct["counts"]["pending"] == 1 and correct["counts"]["conflicts"] == 0
+                    ), correct
+                    page.get_by_role("button", name="apply 1 ready row", exact=True).press("Enter")
+                    expect(receipt).to_contain_text("applied")
+                    linked = imported(correct)
+                    assert (
+                        len(linked) == 1
+                        and linked[0]["account_id"] == selected["id"]
+                        and Decimal(str(linked[0]["amount"])) == Decimal(amount)
+                        and linked[0]["original_amount_text"] == amount
+                        and linked[0]["original_currency_code"] == code
+                        and linked[0]["base_amount_text"] == amount
+                        and linked[0]["base_currency_code"] == code
+                    ), linked
+                    page.get_by_role("button", name="undo this import", exact=True).click()
+                    page.get_by_role("alertdialog").get_by_role(
+                        "button", name="confirm", exact=True
+                    ).press("Enter")
+                    expect(receipt).to_contain_text("undone")
+                    assert transactions() == stable
+                assert not errors and not external and not legacy
+                assert all(any(str(status) in m for status in [409, 503]) for m in console), console
+                record["recovery"] = (
+                    "mixed file refused with no writes; split USD and CAD into matching accounts, exact native amounts applied and undone; all original records preserved"
+                )
                 passed(record)
             except Exception as error:
                 record["error"] = str(error)
