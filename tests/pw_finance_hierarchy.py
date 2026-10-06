@@ -536,7 +536,7 @@ with sync_playwright() as pw:
             edited_payee = "saved edit 草稿 " + label
             edit.locator('[data-f="payee"]').fill(edited_payee)
             edit.locator("[data-save-txn]").press("Enter")
-            expect(page.get_by_text("save failed", exact=True)).to_be_visible()
+            expect(page.get_by_text("save failed", exact=True).last).to_be_visible()
             expect(edit.locator('[data-f="payee"]')).to_have_value(edited_payee)
             expect(edit.locator("[data-save-txn]")).to_be_focused()
             expect(entry).to_be_hidden()
@@ -575,6 +575,109 @@ with sync_playwright() as pw:
             check_new_draft()
             assert stored_target()["payee"] == final_payee
             assert len(edit_requests) == 3
+            for navigation in ("month", "filter"):
+                before_navigation = stored_target()
+                wanted = "retained " + navigation + " edit 草稿 " + label
+
+                def leave_edit_list():
+                    if navigation == "month":
+                        page.locator("#money-next").press("Enter")
+                        expect(page.locator("#txn-rows > .money-empty-sm")).to_have_text(
+                            "no transactions this month"
+                        )
+                    else:
+                        page.locator("#txn-search").fill("owned no match " + label)
+                        expect(page.locator("#txn-rows > .money-empty-sm")).to_have_text(
+                            "no matches"
+                        )
+                    expect(edit).to_be_visible()
+                    expect(edit.locator("[data-edit-context]")).to_be_visible()
+                    expect(edit.locator('[data-f="payee"]')).to_have_value(wanted)
+                    assert page.evaluate(
+                        "window.ownedInlineEdit === document.querySelector('.txn-edit')"
+                    )
+                    expect(entry).to_be_hidden()
+                    expect(page.locator("#money-entry-action")).to_be_hidden()
+                    expect(page.locator(".money-txns .btn.primary:visible")).to_have_count(1)
+                    check_new_draft()
+
+                def return_edit_list():
+                    if navigation == "month":
+                        page.locator("#money-prev").press("Enter")
+                    else:
+                        page.locator("#txn-search").fill("")
+
+                edit_action.press("Enter")
+                edit.locator('[data-f="payee"]').fill(wanted)
+                page.evaluate("window.ownedInlineEdit = document.querySelector('.txn-edit')")
+                leave_edit_list()
+                shot("transaction-edit-" + navigation)
+                return_edit_list()
+                expect(edit.locator("[data-edit-context]")).to_be_hidden()
+                expect(edit.locator('[data-f="payee"]')).to_have_value(wanted)
+                leave_edit_list()
+                prior_writes = len(edit_requests)
+                edit.locator("[data-cancel-txn]").press("Enter")
+                expect(edit).to_have_count(0)
+                expect(page.locator("#txn-search")).to_be_focused()
+                expect(entry).to_be_visible()
+                check_new_draft()
+                assert len(edit_requests) == prior_writes
+                assert stored_target() == before_navigation
+                return_edit_list()
+                expect(edit_action).to_be_visible()
+                edit_action.press("Enter")
+                edit.locator('[data-f="payee"]').fill(wanted)
+                page.evaluate("window.ownedInlineEdit = document.querySelector('.txn-edit')")
+                leave_edit_list()
+                edit_mode = "reject"
+                edit.locator("[data-save-txn]").press("Enter")
+                expect(page.get_by_text("save failed", exact=True).last).to_be_visible()
+                expect(edit.locator("[data-save-txn]")).to_be_focused()
+                expect(edit.locator('[data-f="payee"]')).to_have_value(wanted)
+                check_new_draft()
+                assert stored_target() == before_navigation
+                shot("transaction-edit-" + navigation + "-rejected")
+                edit_mode = "hold"
+                edit.locator("[data-save-txn]").press("Enter")
+                for _ in range(100):
+                    if held_edits:
+                        break
+                    page.wait_for_timeout(20)
+                assert len(held_edits) == 1
+                page.locator("#txn-search").click()
+                pending = held_edits.pop()
+                result = pending.fetch(max_redirects=0)
+                assert result.ok
+                pending.fulfill(response=result)
+                expect(edit).to_have_count(0)
+                expect(page.locator("#txn-search")).to_be_focused()
+                expect(entry).to_be_visible()
+                check_new_draft()
+                assert len(edit_requests) == prior_writes + 2
+                assert edit_requests[-1] == edit_requests[-2]
+                assert "amount" not in edit_requests[-1]
+                assert "account_id" not in edit_requests[-1]
+                changed = stored_target()
+                assert changed["payee"] == wanted
+                for field in (
+                    "id",
+                    "account_id",
+                    "amount",
+                    "date",
+                    "category",
+                    "tags",
+                    "original_amount_text",
+                    "original_currency_code",
+                    "base_amount_text",
+                    "base_currency_code",
+                    "import_identity",
+                ):
+                    assert changed[field] == before_navigation[field]
+                shot("transaction-edit-" + navigation + "-saved")
+                return_edit_list()
+                expect(edit_action).to_be_visible()
+                final_payee = wanted
             page.unroute(edit_pattern, edit_response)
             page.reload(wait_until="networkidle")
             expect(edit_action).to_be_visible()
@@ -584,14 +687,14 @@ with sync_playwright() as pw:
             assert not errors and not external, (errors, external)
             assert console == [
                 "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
-            ] * (3 if compact else 6), console
+            ] * (5 if compact else 8), console
             rows.append(
                 {
                     "profile": label,
                     "compact": compact,
                     "first_transaction": first,
                     "status": "passed",
-                    "edit_recovery": "single labelled edit, same new draft node and exact fields, cancel without write and row focus, rejected save retained/retry, same record readback, newer search focus, reload",
+                    "edit_recovery": "single labelled edit, same new draft node and exact fields, cancel without write and row focus, rejected save retained/retry, same record readback, same editor through month/filter with clear context, cancel/search focus, rejected save/retry/unchanged native and base records, newer search focus, reload",
                     "checks": "leading transaction action; optional amount filter clears without losing text query; late tag response ignored after range clear; month change clears tag; touch/keyboard; manage export and bank close/focus; no-account entry; exact saved expense, entry close/reopen/resize draft and focus preservation, held save respects newer focus, refused save/retry/no duplicate, all totals, held forecast recovery/newer focus and resize, large currency amounts, actual native zoom",
                 }
             )
@@ -605,7 +708,7 @@ with sync_playwright() as pw:
                             "profile": label,
                             "page_errors": errors,
                             "console_errors": console,
-                            "expected": f"{3 if compact else 6} synthetic503 responses",
+                            "expected": f"{5 if compact else 8} synthetic503 responses",
                         }
                     )
                     + "\n"

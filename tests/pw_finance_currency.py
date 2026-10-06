@@ -66,6 +66,8 @@ with sync_playwright() as pw:
             errors, console, blocked, writes = [], [], [], []
             currency_refused = True
             create_refused = True
+            currency_edit_mode = "normal"
+            currency_edits, held_currency_edits = [], []
 
             def guard(route):
                 parsed = urlsplit(route.request.url)
@@ -78,6 +80,18 @@ with sync_playwright() as pw:
                     writes.append(route.request.post_data_json)
                     if create_refused:
                         return route.fulfill(status=503, json={"detail": "owned save refused"})
+                if (
+                    parsed.path.startswith("/api/money/accounts/")
+                    and route.request.method == "PATCH"
+                ):
+                    currency_edits.append(route.request.post_data_json)
+                    if currency_edit_mode == "reject":
+                        return route.fulfill(
+                            status=503, json={"detail": "owned currency save refused"}
+                        )
+                    if currency_edit_mode == "hold":
+                        held_currency_edits.append(route)
+                        return None
                 return route.continue_()
 
             context.route("**/*", guard)
@@ -184,12 +198,75 @@ with sync_playwright() as pw:
                 button = page.locator(f'[data-currency-acct="{aid}"]')
                 bounds = button.bounding_box()
                 assert bounds and bounds["height"] >= 44 and bounds["width"] >= 44
-                button.press("Enter")
-                dialog = page.get_by_role(
-                    "dialog", name="currency for owned dollars " + label, exact=True
+                if page.locator("#money-entry-fields").is_hidden():
+                    page.locator("#money-entry-action").press("Enter")
+                drafts = {
+                    "tx-payee": "independent draft 草稿",
+                    "tx-cat": "independent category",
+                    "tx-tags": "independent-tag",
+                    "tx-amt": "23.45",
+                }
+                for key, value in drafts.items():
+                    page.locator("#" + key).fill(value)
+                page.locator("#txn-search").fill("owned no matches 草稿")
+                expect(page.locator("#txn-rows > .money-empty-sm")).to_have_text("no matches")
+                page.evaluate("window.ownedEntry = document.getElementById('money-entry-fields')")
+                choices = page.evaluate(
+                    "Object.fromEntries(['tx-date','tx-acct','tx-sign'].map(id=>[id,document.getElementById(id).dataset.value]))"
                 )
-                expect(dialog).to_be_visible()
-                dialog.get_by_role("button", name="USD", exact=True).press("Enter")
+                initial_account = next(
+                    item
+                    for item in api.get(base + "/api/money/accounts").json()
+                    if item["id"] == aid
+                )
+
+                def check_draft():
+                    assert page.evaluate(
+                        "window.ownedEntry === document.getElementById('money-entry-fields')"
+                    )
+                    for key, value in drafts.items():
+                        expect(page.locator("#" + key)).to_have_value(value)
+                    expect(page.locator("#txn-search")).to_have_value("owned no matches 草稿")
+                    assert (
+                        page.evaluate(
+                            "Object.fromEntries(['tx-date','tx-acct','tx-sign'].map(id=>[id,document.getElementById(id).dataset.value]))"
+                        )
+                        == choices
+                    )
+
+                def change_currency(code):
+                    button.press("Enter")
+                    dialog = page.get_by_role(
+                        "dialog", name="currency for owned dollars " + label, exact=True
+                    )
+                    expect(dialog).to_be_visible()
+                    dialog.get_by_role("button", name=code, exact=True).press("Enter")
+
+                button.press("Enter")
+                page.get_by_role(
+                    "dialog", name="currency for owned dollars " + label, exact=True
+                ).press("Escape")
+                expect(button).to_be_focused()
+                assert not currency_edits
+                check_draft()
+                currency_edit_mode = "reject"
+                change_currency("USD")
+                expect(page.locator(f"#acct-currency-status-{aid}")).to_contain_text(
+                    "owned currency save refused"
+                )
+                expect(button).to_be_enabled()
+                check_draft()
+                assert (
+                    next(
+                        item
+                        for item in api.get(base + "/api/money/accounts").json()
+                        if item["id"] == aid
+                    )
+                    == initial_account
+                )
+                capture("currency-edit-rejected")
+                currency_edit_mode = "normal"
+                change_currency("USD")
                 expect(page.locator(f'.money-acct[data-id="{aid}"] .ma-kind')).to_contain_text(
                     "USD"
                 )
@@ -203,6 +280,41 @@ with sync_playwright() as pw:
                     saved["currency_code"] == "USD"
                     and saved["original_opening_text"] == account["original_opening_text"]
                 )
+                check_draft()
+                assert currency_edits == [{"currency": "USD"}] * 2
+                currency_edit_mode = "hold"
+                change_currency("CAD")
+                for _ in range(100):
+                    if held_currency_edits:
+                        break
+                    page.wait_for_timeout(20)
+                assert len(held_currency_edits) == 1
+                page.locator("#txn-search").click()
+                pending = held_currency_edits.pop()
+                result = pending.fetch(max_redirects=0)
+                assert result.ok
+                pending.fulfill(response=result)
+                expect(page.locator(f'.money-acct[data-id="{aid}"] .ma-kind')).to_contain_text(
+                    "CAD"
+                )
+                expect(page.locator("#txn-search")).to_be_focused()
+                check_draft()
+                capture("currency-edit-newer-focus")
+                currency_edit_mode = "normal"
+                change_currency("USD")
+                expect(page.locator(f'.money-acct[data-id="{aid}"] .ma-kind')).to_contain_text(
+                    "USD"
+                )
+                expect(button).to_be_focused()
+                check_draft()
+                assert currency_edits == [
+                    {"currency": "USD"},
+                    {"currency": "USD"},
+                    {"currency": "CAD"},
+                    {"currency": "USD"},
+                ]
+                capture("currency-edit-saved")
+                page.locator("#txn-search").fill("")
                 planned = api.post(
                     base + "/api/money/accounts",
                     data={"name": "owned planned CAD", "currency": "CAD", "opening": 0},
@@ -368,13 +480,15 @@ with sync_playwright() as pw:
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
                 assert not errors and not blocked, (errors, blocked)
                 assert (
-                    len(console) == 3
-                    and sum("503" in item for item in console) == 2
+                    len(console) == 4
+                    and sum("503" in item for item in console) == 3
                     and sum("409" in item for item in console) == 1
                 ), console
                 row.update(
                     status="passed",
                     create_payloads=writes,
+                    currency_edit_payloads=currency_edits,
+                    currency_edit_recovery="cancel without write/source focus; refused save exact draft and filter retained; retry/readback; held response newer focus; original opening exact",
                     preserved_transaction=preserved,
                     summary=api.get(base + "/api/money/summary?month=2026-10").json(),
                 )

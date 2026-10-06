@@ -637,6 +637,15 @@ function retainMoneyDrafts(body, preserveFilters) {
 function restoreMoneyDrafts(body, retained) {
   for (const { selector, node } of retained.nodes) {
     const replacement = body.querySelector(selector);
+    if (node.classList.contains('txn-edit') && node.dataset.id === _editTxn) {
+      const context = node.querySelector('[data-edit-context]');
+      if (context) context.hidden = !!replacement;
+      if (!replacement) {
+        const rows = body.id === 'txn-rows' ? body : body.querySelector('#txn-rows');
+        rows?.prepend(node);
+        continue;
+      }
+    }
     if (!replacement || replacement === node) continue;
     replacement.replaceWith(node);
     if (node.classList.contains('rc-panel')) node.querySelector('.rc-out')?.replaceChildren();
@@ -1315,8 +1324,8 @@ function splitEditorRow(t) {
 function editTxnRow(t) {
   const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const neg = (t.amount || 0) < 0;
-  return `<div class="txn txn-edit" data-id="${t.id}" role="group" aria-label="edit ${esc(t.payee || 'transaction')}">
-    <h3>edit ${esc(t.payee || 'transaction')}</h3>
+  return `<div class="txn txn-edit" data-id="${t.id}" data-original-account="${esc(t.account_id)}" data-original-amount="${esc(String(t.amount))}" role="group" aria-label="edit ${esc(t.payee || 'transaction')}">
+    <h3>edit ${esc(t.payee || 'transaction')}<span data-edit-context hidden> · outside this list</span></h3>
     ${moneyField('date', `<div class="date-input" data-f="date" data-type="date" data-value="${esc(t.date || _today())}" data-ph="date" style="width:124px"></div>`)}
     ${moneyField('account', `<div class="settings-input custom-select" data-f="account_id" data-value="${esc(t.account_id)}" data-options="${esc(acctOpts)}" style="width:120px"></div>`)}
     ${moneyField('payee', `<input type="text" class="settings-input" data-f="payee" value="${esc(t.payee || '')}" placeholder="payee" style="flex:1.4;min-width:90px">`)}
@@ -1680,7 +1689,7 @@ function _wireTxnRows() {
   root.querySelectorAll('[data-save-txn]').forEach(b => b.addEventListener('click', () => saveTxn(b.dataset.saveTxn)));
   root.querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => {
     const id = b.dataset.cancelTxn; _editTxn = null; render(true);
-    $('txn-rows').querySelector(`[data-edit-txn="${CSS.escape(id)}"]`)?.focus();
+    ($('txn-rows').querySelector(`[data-edit-txn="${CSS.escape(id)}"]`) || $('txn-search'))?.focus();
   }));
   // 4a actions
   root.querySelectorAll('[data-clear-txn]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleCleared(b.dataset.clearTxn); }));
@@ -2038,7 +2047,8 @@ async function saveTxn(id) {
   if (!_validAmounts(amtRaw)) return;
   if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
   const sign = getDropdownValue(f('sign')) === '+' ? 1 : -1;
-  const existing = (_searchResults || _txns).find(transaction => transaction.id === id);
+  const existing = (_searchResults || _txns).find(transaction => transaction.id === id)
+    || { account_id: row.dataset.originalAccount, amount: Number(row.dataset.originalAmount) };
   const payload = {
     account_id: getDropdownValue(f('account_id')), date: f('date')?.dataset.value || _today(),
     amount: sign * amtRaw, category: f('category').value.trim(), payee: f('payee').value.trim(),
@@ -2067,11 +2077,14 @@ async function editAccountCurrency(id) {
   if (selected === null || selected === account.currency_code) return;
   const button = document.querySelector(`[data-currency-acct="${CSS.escape(id)}"]`);
   if (!button || !_currencyCodes.includes(selected)) return;
+  const focused = document.activeElement, focusVersion = _moneyFocusChange;
   button.disabled = true;
   try {
     await api(`/api/money/accounts/${id}`, { method: 'PATCH', body: { currency: selected } });
-    await load();
-    document.querySelector(`[data-currency-acct="${CSS.escape(id)}"]`)?.focus();
+    await load(fetch, true);
+    if (focused === button && focusVersion === _moneyFocusChange && document.activeElement === document.body) {
+      document.querySelector(`[data-currency-acct="${CSS.escape(id)}"]`)?.focus();
+    }
   } catch (error) { status.textContent = error.message || 'currency could not be saved. try again.'; }
   finally { button.disabled = false; }
 }

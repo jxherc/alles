@@ -8,7 +8,7 @@ import { webcrypto } from 'node:crypto';
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
 
-function harness(values = {}, { canonical = false, targetEditor = null, apiHandler = null } = {}) {
+function harness(values = {}, { canonical = false, targetEditor = null, apiHandler = null, originalEditor = {} } = {}) {
   const elements = new Map();
   const requests = [], notices = [];
   const get = id => {
@@ -20,12 +20,13 @@ function harness(values = {}, { canonical = false, targetEditor = null, apiHandl
   };
   const edits = { amount: 'edit-amount', sign: 'edit-sign', payee: 'edit-payee', category: 'edit-category', account_id: 'edit-account', date: 'edit-date' };
   get('money-body').querySelector = selector => selector.startsWith('.txn-edit')
-    ? { querySelector: field => get(edits[field.match(/data-f="(.+)"/)[1]]) }
+    ? { dataset: originalEditor, contains: () => false, querySelector: field => get(edits[field.match(/data-f="(.+)"/)[1]]) }
     : null;
   const context = vm.createContext({
     calendarDateKey,
     document: { getElementById: get, querySelectorAll: () => [] }, location: { search: '' }, URLSearchParams,
     crypto: webcrypto, TextEncoder,
+    fetch: async () => {},
     sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     getDropdownValue: el => el?.dataset.value,
     toast: (...args) => notices.push(args),
@@ -100,6 +101,25 @@ test('a metadata-only transaction save omits unchanged amount and account so cur
   assert.equal(h.requests[0].body.payee, 'corrected');
   assert.equal('amount' in h.requests[0].body, false);
   assert.equal('account_id' in h.requests[0].body, false);
+});
+
+test('a retained editor outside the loaded list preserves its unchanged amount and account', async () => {
+  const h = harness(valid, { originalEditor: { originalAccount: 'a', originalAmount: '-56.78' } });
+  await h.saveTxn('t');
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.requests[0].body.payee, 'corrected');
+  assert.equal('amount' in h.requests[0].body, false);
+  assert.equal('account_id' in h.requests[0].body, false);
+  assert.deepEqual(h.notices, []);
+});
+
+test('a retained editor outside the loaded list still sends an explicitly changed amount', async () => {
+  const h = harness(valid, { originalEditor: { originalAccount: 'a', originalAmount: '-10' } });
+  await h.saveTxn('t');
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.requests[0].body.amount, -56.78);
+  assert.equal('account_id' in h.requests[0].body, false);
+  assert.deepEqual(h.notices, []);
 });
 
 test('a refused transfer explains its currency boundary and retains the exact draft', async () => {
