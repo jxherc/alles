@@ -814,7 +814,9 @@ async function renderBackups(target, request, completed = null) {
     const button = action('run encrypted backup', async () => {
       message.classList.remove('is-error');
       message.textContent = 'creating encrypted backup…';
-      const saved = await json(request, `/api/backup/${type}/run`, { method: 'POST' });
+      let saved;
+      try { saved = await json(request, `/api/backup/${type}/run`, { method: 'POST' }); }
+      catch (error) { message.textContent = ''; throw error; }
       await renderBackups(target, request, { type, message: `backup complete · ${saved.filename}` });
     });
     button.disabled = !value.configured;
