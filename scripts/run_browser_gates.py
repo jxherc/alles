@@ -132,6 +132,7 @@ COMMANDS = {
     "finance-imports": ("tests/pw_finance_imports.py",),
     "finance-workflows": ("tests/pw_finance_workflows.py",),
     "finance-hierarchy": ("tests/pw_finance_hierarchy.py",),
+    "finance-late-load": ("tests/pw_finance_late_load.py",),
     "finance-undo": ("tests/pw_finance_undo.py",),
     "finance-undo-recovery": ("tests/pw_finance_undo_recovery.py",),
     "finance-splits": ("tests/pw_finance_splits.py",),
