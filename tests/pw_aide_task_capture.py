@@ -242,7 +242,7 @@ def run(context_factory=None, cases=None):
                             )
                             button.click()
                             expect(page.locator("#aide-task-recovery")).to_contain_text(
-                                "try +task again"
+                                "try +plan task again"
                             )
                             expect(page.locator("#capture-title")).to_have_count(0)
                             assert not writes

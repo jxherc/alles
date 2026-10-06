@@ -57,10 +57,10 @@ for (const [label, value] of [
 
 test('cold failure is unavailable; only a successful empty response establishes no tasks', async () => {
   const h = harness(); let pending = h.load();
-  assert.match(h.nodes.get('session-list-message').textContent, /loading tasks/);
+  assert.match(h.nodes.get('session-list-message').textContent, /loading aide tasks/);
   h.requests[0].resolve(response({}, false)); await pending;
   assert.equal(h.state().loaded, false);
-  assert.match(h.nodes.get('session-list-message').textContent, /could not load tasks/);
+  assert.match(h.nodes.get('session-list-message').textContent, /could not load aide tasks/);
   pending = h.load(); h.requests[1].resolve(response(groups())); assert.equal(await pending, true);
   assert.deepEqual(h.state(), { ids: [], active: null, loaded: true, status: 'ready' });
   assert.equal(h.nodes.get('session-list-state').hidden, true);

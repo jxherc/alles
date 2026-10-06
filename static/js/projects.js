@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
+import { t } from './i18n.js';
 
 let _projects = [];
 
@@ -51,9 +52,9 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   let html = '';
   if (afterlife) {
     const taskSessions = sessions.filter(session => !session.project_id);
-    html += `<section class="aide-session-section" data-session-drop="unassigned"><span class="section-label">tasks</span>${taskSessions.map(s => `<div class="session-item" data-id="${s.id}">
+    html += `<section class="aide-session-section" data-session-drop="unassigned"><span class="section-label">${t('aide.tasks')}</span>${taskSessions.map(s => `<div class="session-item" data-id="${s.id}">
       <button type="button" class="session-open" aria-haspopup="menu" aria-current="false" aria-label="open session ${_esc(s.name)}"><span class="session-name">${_esc(s.name)}</span></button>
-    </div>`).join('') || '<span class="aide-session-empty">no tasks yet</span>'}</section><span class="section-label aide-projects-label">projects</span>`;
+    </div>`).join('') || `<span class="aide-session-empty">${t('aide.no_tasks')}</span>`}</section><span class="section-label aide-projects-label">projects</span>`;
   }
   const groups = _projects;
   for (const p of groups) {

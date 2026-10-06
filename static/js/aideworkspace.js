@@ -113,7 +113,7 @@ function renderProjectMenu() {
   const menu = $('aide-project-context-menu');
   if (!menu) return;
   const current = window._currentSession?.project_id || window._pendingProjectId || '';
-  const choices = [{ id: '', name: t('tasks.title') }, ...getProjects()];
+  const choices = [{ id: '', name: t('aide.tasks') }, ...getProjects()];
   menu.classList.remove('folder-mode');
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', t('aide.choose_project'));
@@ -451,7 +451,7 @@ function syncNewTaskContext(session = window._currentSession) {
   }
   const project = selectedProject(session);
   const workingDir = selectedWorkingDir(session);
-  label.textContent = project?.name || (workingDir ? folderName(workingDir) : t('tasks.title'));
+  label.textContent = project?.name || (workingDir ? folderName(workingDir) : t('aide.tasks'));
   closeProjectMenu();
   if (!row.hidden) loadBranchContext(project, session);
   else {

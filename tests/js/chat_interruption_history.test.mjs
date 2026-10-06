@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8')
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
@@ -28,6 +29,7 @@ function harness() {
   }
   const messages = element();
   const context = vm.createContext({
+    t,
     window: { addEventListener() {}, _mdToHtml: text => text },
     document: { getElementById: () => messages, createElement: element },
     stripEmojis: text => text, applyResponsePrivacy() {}, scrollToLatest() {}, reconcileAnswerNote() {},

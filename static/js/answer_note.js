@@ -4,6 +4,7 @@ import { mdToHtml } from './util.js';
 import { stripArtifacts } from './artifacts.js';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { sourceCitationStatus } from './memoryactions.js';
+import { t } from './i18n.js';
 
 const savedAnswers = new Map();
 
@@ -33,14 +34,15 @@ export function reconcileAnswerNote(wrap) {
 
 export async function reconcileSourceReply(wrap, kind = 'note') {
   if (!wrap.pendingSourceReply) return;
+  const action = kind === 'task' ? t('aide.add_plan_task') : '+note';
   if (!wrap.sourceReplyId) throw new Error(`saved source references are unavailable; reopen this chat before saving a ${kind}`);
   const response = await fetch(`/api/sessions/${encodeURIComponent(wrap.dataset.sessionId)}/history`, { signal: AbortSignal.timeout(15000) });
-  if (!response.ok) throw new Error(`could not check saved source references; try +${kind} again`);
+  if (!response.ok) throw new Error(`could not check saved source references; try ${action} again`);
   const history = await response.json();
   const reply = history.messages?.find(message => message.role === 'assistant'
     && message.meta?.context_provenance?.reply_id === wrap.sourceReplyId);
   if (!reply?.meta?.source_citations || typeof reply.content !== 'string') {
-    throw new Error(`source references are still being saved; try +${kind} again`);
+    throw new Error(`source references are still being saved; try ${action} again`);
   }
   const row = wrap.closest('.msg-row');
   if (row && typeof reply.id === 'string') row.dataset.msgId = reply.id;

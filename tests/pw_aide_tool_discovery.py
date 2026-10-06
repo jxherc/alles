@@ -145,7 +145,7 @@ with sync_playwright() as pw:
                     )
                     page.wait_for_function("innerWidth === 720 && devicePixelRatio === 2")
                 for id, text in [
-                    ("sidebar-toggle-btn", "tasks"),
+                    ("sidebar-toggle-btn", "aide tasks"),
                     ("aide-work-panel-toggle", "tools"),
                 ]:
                     label_element = page.locator("#" + id + " .aide-toggle-label")
@@ -154,6 +154,12 @@ with sync_playwright() as pw:
                     if page.evaluate("innerWidth <= 700"):
                         expect(label_element).to_be_visible()
                         assert page.locator("#" + id).bounding_box()["height"] >= 44
+                        if id == "sidebar-toggle-btn":
+                            assert label_element.bounding_box()["height"] <= 14
+                            assert (
+                                page.locator("#aide-conversation-name").bounding_box()["height"]
+                                <= 21
+                            )
                     else:
                         expect(label_element).to_be_hidden()
                 page.screenshot(path=str(out / f"{label}-named-controls.png"))
@@ -300,6 +306,11 @@ with sync_playwright() as pw:
                 expect(page.locator(".ai-content").last).to_have_text(
                     "successful synthetic local answer"
                 )
+                stream_action = page.locator(".ai-wrap").last.get_by_role(
+                    "button", name="+plan task", exact=True
+                )
+                expect(stream_action).to_have_attribute("title", "review this reply as a plan task")
+                row["streamed_plan_action_verified"] = True
                 expect(page.locator("#conn-banner")).to_be_hidden()
                 expect(field).to_have_value("newer draft survives the connection failure")
                 # An existing owner-provided name remains unchanged after the new default.
@@ -318,9 +329,11 @@ with sync_playwright() as pw:
                 ).json()
                 page.evaluate("id => window._openProject(id)", project["id"])
                 project_view = page.locator("#project-view")
-                expect(project_view.locator("#pj-chats")).to_contain_text("no tasks yet")
-                expect(project_view.locator(".s-card-head").first).to_have_text("tasks · 0")
-                project_view.get_by_role("button", name="+ new task", exact=True).press("Enter")
+                expect(project_view.locator("#pj-chats")).to_contain_text("no aide tasks yet")
+                expect(project_view.locator(".s-card-head").first).to_have_text("aide tasks · 0")
+                project_view.get_by_role("button", name="+ new aide task", exact=True).press(
+                    "Enter"
+                )
                 expect(page.locator("#aide-conversation-name")).to_have_text("new task")
                 page.wait_for_function(
                     "id => window._currentSession?.project_id === id", arg=project["id"]

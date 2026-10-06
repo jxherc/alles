@@ -10,7 +10,7 @@ import { getAttachments, hasPendingAttachments, clearAttachments } from './uploa
 import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort } from './modes.js?v=256';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { shouldRunInBackground } from './aidebackgroundpolicy.js';
-import { formatNumber } from './i18n.js';
+import { formatNumber, t } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { saveAnswerNote } from './answer_note.js';
 import { saveAnswerTask } from './answer_task.js';
@@ -900,7 +900,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       if (cleanText) {
         html += `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
         html += `<button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>`;
-        html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="review this reply as a task">+task</button>`;
+        html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="${t('aide.review_plan_task')}">${t('aide.add_plan_task')}</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
       }

@@ -122,8 +122,8 @@ def run():
             try:
                 page.goto(base + "/?app=aide#" + ids[0], wait_until="domcontentloaded")
                 wait_held()
-                expect(page.locator("#session-list-message")).to_have_text("loading tasks…")
-                assert "no tasks yet" not in page.locator("#session-list").inner_text()
+                expect(page.locator("#session-list-message")).to_have_text("loading aide tasks…")
+                assert "no aide tasks yet" not in page.locator("#session-list").inner_text()
                 if width == 1440:
                     page.screenshot(path=str(out / f"{row['profile']}-loading.png"))
                 mode = "fail"
@@ -147,7 +147,7 @@ def run():
                 status = page.locator("#session-list-state")
                 retry = page.locator("#session-list-retry")
                 search = page.locator("#session-search")
-                expect(status).to_contain_text("could not load tasks")
+                expect(status).to_contain_text("could not load aide tasks")
                 expect(retry).to_be_visible()
                 box = retry.bounding_box()
                 assert box["height"] >= 44 and box["width"] >= 44, box
@@ -192,8 +192,9 @@ def run():
                 expect(status).to_contain_text("last loaded list")
                 expect(page.locator("#session-list .session-item")).to_have_count(2)
                 expect(other).to_have_attribute("aria-current", "true")
+                open_sidebar()
                 search.fill("missing task")
-                expect(page.locator("#session-list")).to_have_text("no matching tasks")
+                expect(page.locator("#session-list")).to_have_text("no matching aide tasks")
                 expect(status).to_be_visible()
                 search.fill("")
                 expect(page.locator("#session-list .session-item")).to_have_count(2)
@@ -215,7 +216,8 @@ def run():
                     assert api.delete(base + "/api/sessions/" + sid).ok
                 ids.clear()
                 page.evaluate("window._reloadAideSessions()")
-                expect(page.locator("#session-list")).to_contain_text("no tasks yet")
+                open_sidebar()
+                expect(page.locator("#session-list")).to_contain_text("no aide tasks yet")
                 expect(status).to_be_hidden()
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                 assert not errors, errors
@@ -223,7 +225,7 @@ def run():
                     message
                     for message in console
                     if "503" not in message
-                    and "loadSessions Error: could not load tasks" not in message
+                    and "loadSessions Error: could not load aide tasks" not in message
                 ]
                 assert not unexpected, unexpected
                 row.update(
