@@ -1543,7 +1543,10 @@ async function compose(pre = {}, generation = null) {
       <span class="mc-chip-label">bcc</span><div class="mc-chips"></div>
       <input class="mc-chip-input" autocomplete="off"><input type="hidden" id="mc-bcc">
     </div>
-    <input class="settings-input" id="mc-subj" placeholder="subject" value="${esc(pre.subject || '')}">
+    <div>
+      <label class="settings-label" for="mc-subj">subject</label>
+      <input class="settings-input" id="mc-subj" placeholder="subject" value="${esc(pre.subject || '')}">
+    </div>
     <div class="mail-richbar" id="mc-richbar">
       <button class="btn mc-rt" data-cmd="bold" title="bold"><b>B</b></button>
       <button class="btn mc-rt" data-cmd="italic" title="italic"><i>I</i></button>

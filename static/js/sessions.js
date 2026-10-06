@@ -898,8 +898,14 @@ export function updateSessionHeader(session) {
   const conversation = document.getElementById('aide-conversation-name');
   const projectName = document.getElementById('aide-project-name');
   const project = session?.project_id ? getProjects().find(item => item.id === session.project_id) : null;
-  if (conversation) conversation.textContent = session?.name || t('aide.new_task');
-  if (projectName) projectName.textContent = project?.name || '';
+  if (conversation) {
+    conversation.textContent = session?.name || t('aide.new_task');
+    conversation.title = conversation.textContent;
+  }
+  if (projectName) {
+    projectName.textContent = project?.name || '';
+    projectName.title = projectName.textContent;
+  }
   window._syncAideNewTaskContext?.(session || null);
   if (!session) {
     if (actBtn)   actBtn.style.display   = 'none';
