@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v309';   // Distinguish Aide work from Plan tasks.
+const VERSION = 'v310';   // Recover acknowledged changes without duplicate writes.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '461';   // keep in sync with index.html ?v= / const _v
+const STAMP = '462';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

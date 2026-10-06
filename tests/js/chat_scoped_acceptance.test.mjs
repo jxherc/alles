@@ -121,3 +121,40 @@ for (const text of ['', 'another unsent question']) {
     assert.equal(h.window._pendingDocumentScope, null);
   });
 }
+
+
+const sessionsSource = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8');
+const storedDraftHelper = sessionsSource.slice(sessionsSource.indexOf('const _legacyDraftKey'), sessionsSource.indexOf('export function newChat')).replace(/^export /gm, '');
+for (const quota of [true, false]) {
+  test(`accepted stored question is consumed without losing a newer composer: quota=${quota}`, () => {
+    const storage = new Map();
+    const state = { quota: false };
+    const question = '  submitted question\n中文  ';
+    const newer = 'newer exact question 草稿';
+    const field = { value: question, style: {}, dispatchEvent() {} };
+    const window = { _pendingDocumentScope: scope, _setAideDocumentScope(value) { this._pendingDocumentScope = value; } };
+    const context = vm.createContext({
+      document: { getElementById: () => field }, window, Event: class {},
+      _activeId: 'original', getActiveId: () => 'original', getComposerGeneration: () => 1,
+      isIncognitoMode: () => false, getAttachments: () => [], hasPendingAttachments: () => false,
+      clearAttachments() {}, normalizeDocumentScope: value => value, toast() {},
+      localStorage: {
+        getItem: key => storage.get(key) ?? null,
+        setItem(key, value) { if (state.quota) throw new Error('synthetic quota'); storage.set(key, value); },
+        removeItem: key => storage.delete(key),
+      },
+    });
+    vm.runInContext(storedDraftHelper + '\n' + helper, context);
+    context.saveDraft();
+    const held = context.holdDocumentDraft('original', {text:question,document_scope:scope}, [], false);
+    state.quota = quota;
+    field.value = newer;
+    context.saveDraft();
+    held.accept();
+    assert.equal(field.value, newer);
+    assert.equal(window._pendingDocumentScope, scope);
+    const stored = storage.get('aide-draft-v2-original');
+    if (quota) assert.equal(stored, undefined);
+    else assert.deepEqual(JSON.parse(stored), {text:newer,document_scope:scope});
+  });
+}
