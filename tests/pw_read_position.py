@@ -5,7 +5,7 @@ import os
 import sqlite3
 import traceback
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
@@ -24,7 +24,7 @@ def run():
         browser = pw.chromium.launch()
         for width in (1440, 390):
             context = browser.new_context(
-                viewport={"width": width, "height": 900},
+                viewport={"width": width, "height": 844 if width == 390 else 900},
                 reduced_motion="reduce",
                 service_workers="block",
             )
@@ -32,10 +32,12 @@ def run():
                 "**/*",
                 lambda route: (
                     route.continue_()
-                    if urlparse(route.request.url).netloc == urlparse(base).netloc
+                    if (urlsplit(route.request.url).scheme, urlsplit(route.request.url).netloc)
+                    == (urlsplit(base).scheme, urlsplit(base).netloc)
                     else route.abort()
                 ),
             )
+            context.route_web_socket("**/*", lambda socket: socket.close())
             api = context.request
             assert api.post(base + "/api/setup/dismiss").ok
             item = api.post(
@@ -216,6 +218,46 @@ def run():
                 page.locator(f'[data-open="{item["id"]}"]').click()
                 at_position(0.35)
                 record("back-saves-latest-place-before-returning")
+                profile_viewport = {"width": width, "height": 844 if width == 390 else 900}
+                page.set_viewport_size(profile_viewport)
+                at_position(0.35)
+                assert (
+                    page.evaluate("({width: innerWidth, height: innerHeight})") == profile_viewport
+                )
+                original_hash = api.get(url).json()["content_hash"]
+                changed_place = api.patch(
+                    url, data={"position": 0.25, "content_hash": original_hash}
+                )
+                assert changed_place.ok
+                fresh_place = changed_place.json()
+                assert fresh_place["content_hash"] == original_hash
+                scroll_to(0.5)
+                expect(status).to_contain_text("reading place changed")
+                expect(page.locator("#read-position-retry")).to_have_text("reopen article")
+                writes_before_reopen = len(writes)
+                page.locator("#read-position-retry").focus()
+                page.keyboard.press("Enter")
+                at_position(0.25)
+                expect(status).to_have_text("reading place saved")
+                expect(page.locator("#read-position-retry")).to_be_hidden()
+                expect(page.locator("#read-back")).to_be_focused()
+                assert len(writes) == writes_before_reopen
+                with page.expect_response(
+                    lambda response: response.url == url and response.request.method == "PATCH"
+                ) as resumed_response:
+                    scroll_to(0.65)
+                assert resumed_response.value.ok
+                expect(status).to_have_text("reading place saved")
+                assert writes[-1]["position_base"] == fresh_place["position_revision"]
+                assert writes[-1]["content_hash"] == original_hash
+                resumed = api.get(url).json()
+                assert abs(resumed["position"] - 0.65) < 0.015
+                assert not resumed["read"]
+                assert (
+                    page.evaluate("({width: innerWidth, height: innerHeight})") == profile_viewport
+                )
+                page.screenshot(path=str(out / f"{width}-same-text-reopen-saved.png"))
+                record("same-text-position-conflict-reopens-and-resumes-saving")
                 with sqlite3.connect(data / "aide.db") as db:
                     db.execute(
                         "UPDATE read_items SET text=?, read_position=0 WHERE id=?",
@@ -232,6 +274,39 @@ def run():
                 assert not errors, errors
                 assert all("503" in message or "409" in message for message in console), console
                 record("changed-text-rejects-old-place-and-reopens")
+                current_hash = api.get(url).json()["content_hash"]
+                for source_hash, changed in ((original_hash, True), (current_hash, False)):
+                    href = page.evaluate(
+                        """async ({id, hash}) => {
+                            const {sourcesHtml} = await import('/static/js/runs.js');
+                            const holder = document.createElement('div');
+                            holder.innerHTML = sourcesHtml({
+                                sources: [{kind: 'read', ref: id, hash}],
+                                outcomes: {}, history_complete: true
+                            });
+                            return holder.querySelector('a').href;
+                        }""",
+                        {"id": item["id"], "hash": source_hash},
+                    )
+                    assert "record_hash=" + source_hash in href
+                    page.goto(href, wait_until="networkidle")
+                    expect(page.locator(".read-article")).to_contain_text("Changed local source.")
+                    expect(page.locator(".read-source-notice")).to_have_count(1 if changed else 0)
+                    if changed:
+                        expect(page.locator(".read-source-notice")).to_be_visible()
+                        expect(page.locator(".read-source-notice")).to_contain_text(
+                            "this article changed"
+                        )
+                    assert not api.get(url).json()["read"]
+                page.goto(
+                    base + "/?app=read&record_view=read&record=" + item["id"],
+                    wait_until="networkidle",
+                )
+                expect(page.locator(".read-article")).to_contain_text("Changed local source.")
+                expect(page.locator(".read-source-notice")).to_have_count(0)
+                assert not errors, errors
+                assert all("503" in message or "409" in message for message in console), console
+                record("history-hash-notice-matching-and-live-links")
             except Exception as error:
                 rows.append(
                     {

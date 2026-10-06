@@ -131,7 +131,9 @@ def run():
                     expect(delete).to_be_focused()
                     expect(row).to_be_visible()
                     delete.press("Enter")
-                    dialog.get_by_role("button", name="confirm", exact=True).press("Enter")
+                    dialog.get_by_role("button", name="move to recently deleted", exact=True).press(
+                        "Enter"
+                    )
                     expect(row).to_have_count(0)
                     page.locator('[data-files-view="trash"]').click()
                     trashed = page.locator(".file-row[data-trash-id]").filter(has_text=filename)

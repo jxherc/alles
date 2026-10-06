@@ -103,6 +103,7 @@ export function sourcesHtml(src) {
       if (/^[a-f0-9]{64}$/.test(item.hash || '')) href += `&doc_hash=${encodeURIComponent(item.hash)}`;
     } else if (item.kind === 'read' && /^[a-zA-Z0-9_-]{1,160}$/.test(item.ref || '')) {
       href = `/?app=read&record_view=read&record=${encodeURIComponent(item.ref)}`;
+      if (/^[a-f0-9]{64}$/.test(item.hash || '')) href += `&record_hash=${encodeURIComponent(item.hash)}`;
     } else if (item.kind === 'url') {
       try {
         const url = new URL(item.url);

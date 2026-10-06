@@ -418,11 +418,22 @@ def update_event(
 
 
 @router.delete("/calendar/{eid}")
-def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = Depends(get_db)):
+def delete_event(
+    eid: str,
+    scope: str = "all",
+    occ: str = "",
+    db: DbSession = Depends(get_db),
+    expected: dict | None = None,
+):
     """scope='all' deletes the event/series; 'this' excludes one occurrence (occ
     date); 'following' ends the series the day before occ."""
     from datetime import date, timedelta
 
+    if expected is not None:
+        if scope != "all" or occ:
+            raise HTTPException(422, "Quick-add undo must delete the whole event.")
+        if expected.get("id") != eid:
+            raise HTTPException(409, "This event does not match the saved quick-add receipt.")
     e = db.get(CalendarEvent, eid)
     if not e:
         raise HTTPException(404)
@@ -441,7 +452,7 @@ def delete_event(eid: str, scope: str = "all", occ: str = "", db: DbSession = De
             return {"ok": True, "scope": "following"}
         except ValueError:
             pass
-    calendar_events.delete_event(db, e)
+    calendar_events.delete_event(db, e, expected=expected)
     return {"ok": True}
 
 

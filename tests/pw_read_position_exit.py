@@ -139,6 +139,13 @@ def run():
                     )
                     page.close(run_before_unload=True)
                     page = context.new_page()
+                    page.on("pageerror", lambda error: errors.append(str(error)))
+                    page.on(
+                        "console",
+                        lambda message: (
+                            console.append(message.text) if message.type == "error" else None
+                        ),
+                    )
                     page.set_default_timeout(5000)
                     deadline = time.monotonic() + 5
                     while time.monotonic() < deadline:

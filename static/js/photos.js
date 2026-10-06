@@ -1,6 +1,7 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
+import { initDatePicker } from './datepick.js';
 import { formatDateTime } from './i18n.js';
 import { createMenuController } from './kokuen.js?v=1';
 import { openAppSettings } from './appsettings.js';
@@ -1072,6 +1073,8 @@ export function initPhotos() {
     }
   });
   initCustomDropdown($('photos-filt-camera'));
+  initDatePicker($('photos-filt-from'));
+  initDatePicker($('photos-filt-to'));
   const psearch = $('photos-search');
   let _pt;
   psearch?.addEventListener('input', () => {

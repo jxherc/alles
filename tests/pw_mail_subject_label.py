@@ -5,6 +5,7 @@ import json
 import os
 import struct
 import sys
+import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -19,7 +20,7 @@ from pw_inbox_workflows import seed_mail  # noqa: E402
 from services.appearance import from_legacy  # noqa: E402
 
 
-def owned_context(pw, browser, width, zoom, label):
+def owned_context(pw, browser, width, zoom, label, profiles_root):
     options = dict(
         viewport={"width": width, "height": 844 if width == 390 else 900},
         service_workers="block",
@@ -28,7 +29,7 @@ def owned_context(pw, browser, width, zoom, label):
     )
     if not zoom:
         return browser.new_context(**options)
-    profile = Path(os.environ["ALLES_DATA"]) / label
+    profile = Path(profiles_root) / label
     extension = profile / "extension"
     extension.mkdir(parents=True)
     (extension / "manifest.json").write_text(
@@ -79,7 +80,12 @@ origin = urlsplit(base)
 require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
 out = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
 rows = []
-with sync_playwright() as pw:
+with (
+    tempfile.TemporaryDirectory(
+        prefix="pw_mail_subject_label-", dir=os.environ["ALLES_DATA"]
+    ) as profiles_root,
+    sync_playwright() as pw,
+):
     fixture = pw.request.new_context()
     account = seed_mail(fixture, base)
     fixture.dispose()
@@ -89,7 +95,7 @@ with sync_playwright() as pw:
             (w, t, False) for w in (1440, 820, 390) for t in ("light", "dark")
         ] + [(1440, t, True) for t in ("light", "dark")]:
             label = f"{width}-{theme}" + ("-native200" if zoom else "")
-            ctx = owned_context(pw, browser, width, zoom, label)
+            ctx = owned_context(pw, browser, width, zoom, label, profiles_root)
             errors = []
             console = []
             external = []
@@ -102,8 +108,10 @@ with sync_playwright() as pw:
                     return route.abort()
                 if (
                     u.path in {"/api/mail/send", "/api/mail/outbox"}
-                    and route.request.method == "POST"
-                ):
+                    or u.path.startswith(
+                        ("/api/mail/send/", "/api/mail/send-undoable/", "/api/mail/schedule/")
+                    )
+                ) and route.request.method == "POST":
                     sends.append(route.request.url)
                     return route.abort()
                 return route.continue_()

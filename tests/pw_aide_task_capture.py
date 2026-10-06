@@ -227,7 +227,7 @@ def run(context_factory=None, cases=None):
                                 page.locator("#nav-backdrop").click(
                                     position={"x": width - 20, "y": 80}
                                 )
-                        button = reply.locator('button[title="review this reply as a task"]')
+                        button = reply.locator('button[title="review this reply as a plan task"]')
                         if case in ("source-fail", "source-pending"):
                             page.route(
                                 f"**/api/sessions/{session}/history",
@@ -274,7 +274,9 @@ def run(context_factory=None, cases=None):
                             message = reply.locator("xpath=..").get_attribute("data-msg-id")
                             session = reply.get_attribute("data-session-id")
                             expected = ANSWER
-                            button = reply.locator('button[title="review this reply as a task"]')
+                            button = reply.locator(
+                                'button[title="review this reply as a plan task"]'
+                            )
                             button.click()
                         if case == "source-busy":
                             expect(button).to_have_attribute("aria-disabled", "true")

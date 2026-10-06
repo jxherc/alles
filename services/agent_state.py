@@ -292,7 +292,9 @@ def run_sources(run_id: str) -> dict:
         name, args = step.get("name", ""), step.get("args") or {}
         source = step.get("source")
         source = dict(source) if isinstance(source, dict) else None
-        if not source and name in ("docs_read", "note_read"):
+        # Legacy note_read output was document text, including arbitrary JSON.
+        legacy_note_read = name == "note_read" and run.get("source_tracking") != 1
+        if not source and name in ("docs_read", "note_read") and not legacy_note_read:
             try:
                 snapshot = json.loads(step.get("output", ""))
                 if isinstance(snapshot, dict) and snapshot.get("path") and snapshot.get("hash"):
@@ -303,6 +305,8 @@ def run_sources(run_id: str) -> dict:
                     }
             except (ValueError, TypeError):
                 pass
+        if not source and legacy_note_read and args.get("name"):
+            source = {"kind": "tool", "label": args["name"]}
         if not source and name == "read_file" and args.get("path"):
             source = {"kind": "file", "path": args["path"]}
         if not source and name == "web_fetch" and args.get("url"):

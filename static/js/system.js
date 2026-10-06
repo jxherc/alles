@@ -1,5 +1,5 @@
-// system monitor — neofetch (the real OS logo + a live spec list) on top of a
-// btop-dense live dashboard: a block-char cpu history graph, a per-core grid,
+// system monitor — a btop-dense live dashboard followed by neofetch host identity:
+// a block-char cpu history graph, a per-core grid,
 // memory/swap breakdown, up/down network graphs, a disk panel, and a top-process
 // table. all monospace + hand-rendered, polled live. no chart library.
 import { confirm as confirmDialog } from './dialog.js';
@@ -267,12 +267,6 @@ function buildShell(s) {
   const logoGridSize = logoGrid(s.host.platform);
   $('system-body').innerHTML = `${note}
     <div id="sys-shell">
-      <div class="neofetch">
-        <div class="nf-logo" data-os="${logoKey}" role="img" aria-label="${logoLabel} logo">
-          <div class="nf-logo-art" aria-hidden="true"><pre class="nf-logo-glyphs" data-columns="${logoGridSize.columns}" data-rows="${logoGridSize.rows}" style="--nf-row-height:${logoGridSize.rowHeightCh.toFixed(6)}ch">${esc(logoFor(s.host.platform))}</pre></div>
-        </div>
-        <div class="nf-info" id="nf-info"></div>
-      </div>
       <div class="btop-grid">
         <div class="btop-box span2" id="box-cpu">
           <div class="bx-line" id="cpu-top"></div>
@@ -287,6 +281,12 @@ function buildShell(s) {
           </div>
           <div class="btop-box span2" id="box-proc"><div id="proc-body"></div></div>
         </div>
+      </div>
+      <div class="neofetch">
+        <div class="nf-logo" data-os="${logoKey}" role="img" aria-label="${logoLabel} logo">
+          <div class="nf-logo-art" aria-hidden="true"><pre class="nf-logo-glyphs" data-columns="${logoGridSize.columns}" data-rows="${logoGridSize.rows}" style="--nf-row-height:${logoGridSize.rowHeightCh.toFixed(6)}ch">${esc(logoFor(s.host.platform))}</pre></div>
+        </div>
+        <div class="nf-info" id="nf-info"></div>
       </div>
     </div>`;
 }

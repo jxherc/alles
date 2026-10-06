@@ -99,6 +99,14 @@ def run():
                     expect(page.locator("#photos-lightbox")).to_be_visible()
 
                 def activate(action):
+                    if action in ("archive", "hide", "delete"):
+                        more = page.locator("#photos-viewer-more-btn")
+                        if width <= 390:
+                            more.tap()
+                        else:
+                            more.press("Enter")
+                        expect(more).to_have_attribute("aria-expanded", "true")
+                        expect(page.locator("#photos-viewer-more-menu")).to_be_visible()
                     button = page.locator("#photos-" + buttons[action] + "-btn")
                     if width <= 390:
                         button.tap()

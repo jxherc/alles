@@ -472,7 +472,9 @@ function _bindNav() {
       if (!(await canReplaceDraft())) return;
       const draftReader = _readDraft, draftValue = draftReader?.();
       const sameEditor = () => _readDraft === draftReader && (!draftReader || draftReader() === draftValue);
-      const response = await fetch(`/api/calendar/${encodeURIComponent(event.id)}`, { method: 'DELETE' });
+      const response = await fetch(`/api/calendar/${encodeURIComponent(event.id)}`, {
+        method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify(event),
+      });
       // A retry after a lost acknowledgment may find the exact event already gone.
       if (response.status !== 404 && (await readCalendarResponse(response))?.ok !== true) throw new Error();
       quickEvent = null;
@@ -1053,7 +1055,6 @@ export function openEvent(id, occ) {
   if (!_eventsReady || !ev) return false;
   if (ev.recurrence && occ && !hasOccurrence(ev, occ)) return false;
   if (_editing?.id === id && _editOcc === (occ || null) && document.querySelector('.cal-editor')) {
-    document.getElementById('cal-title')?.focus();
     return true;
   }
   openEditor(ev, null, null, false, occ);

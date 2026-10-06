@@ -312,17 +312,52 @@ def run():
                             held.append((route, response))
 
                         page.route(base + "/api/vault/*/reveal", hold_selection)
+                        page.evaluate("""() => {
+                            const open = window._vaultOpen;
+                            window.__vaultRevealFinished = [];
+                            window._vaultOpen = async id => {
+                                try { return await open(id); }
+                                finally { window.__vaultRevealFinished.push(id); }
+                            };
+                        }""")
                         page.locator(f'[data-vault-open="{first_id}"]').click()
                         page.locator(f'[data-vault-open="{other_entry}"]').click()
                         wait_for_held_response(2)
                         first = next(pair for pair in held if first_id in pair[0].request.url)
                         second = next(pair for pair in held if other_entry in pair[0].request.url)
-                        first[0].fulfill(response=first[1])
+                        second[0].fulfill(response=second[1])
+                        page.wait_for_function(
+                            "id => window.__vaultRevealFinished.includes(id)",
+                            arg=other_entry,
+                            timeout=10000,
+                        )
+                        assert page.evaluate("window.__vaultRevealFinished") == [other_entry]
+                        expect(page.locator(".vault-modal")).to_have_count(1)
+                        assert (
+                            page.locator(".vault-modal").evaluate("el => el._entry?.id")
+                            == other_entry
+                        )
+                        expect(page.locator("#vf-name")).to_have_value(second_name)
+                        expect(page.locator("#vf-f-password")).to_have_value(corrected)
                         page.evaluate(
                             "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
                         )
-                        second[0].fulfill(response=second[1])
+                        first[0].fulfill(response=first[1])
                         page.wait_for_load_state("networkidle")
+                        page.wait_for_function(
+                            "ids => ids.every(id => window.__vaultRevealFinished.includes(id))",
+                            arg=[other_entry, first_id],
+                            timeout=10000,
+                        )
+                        assert page.evaluate("window.__vaultRevealFinished") == [
+                            other_entry,
+                            first_id,
+                        ]
+                        expect(page.locator(".vault-modal")).to_have_count(1)
+                        assert (
+                            page.locator(".vault-modal").evaluate("el => el._entry?.id")
+                            == other_entry
+                        )
                         expect(page.locator("#vf-name")).to_have_value(second_name)
                         expect(page.locator("#vf-f-password")).to_have_value(corrected)
                     page.screenshot(path=str(output / f"{case}-{width}-result.png"), full_page=True)

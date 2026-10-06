@@ -143,7 +143,32 @@ def create_event(db: Session, data: dict) -> CalendarEvent:
         return event
 
 
-def delete_event(db: Session, event: CalendarEvent) -> None:
+def delete_event(db: Session, event: CalendarEvent, expected: dict | None = None) -> None:
+    if expected is not None:
+        columns = tuple(CalendarEvent.__mapper__.columns)
+        current = {column.key: getattr(event, column.key) for column in columns}
+        if json.dumps(expected, sort_keys=True) != json.dumps(event_dict(event), sort_keys=True):
+            raise HTTPException(409, "This event changed after quick add. Newer changes were kept.")
+        try:
+            matched = (
+                db.query(CalendarEvent)
+                .filter(*(column == current[column.key] for column in columns))
+                .delete(synchronize_session=False)
+            )
+            if matched != 1:
+                raise HTTPException(
+                    409, "This event changed after quick add. Newer changes were kept."
+                )
+            db.query(EventAttendee).filter(EventAttendee.event_id == current["id"]).delete()
+            # Bulk deletion bypasses the mapper hook that records accepted changes.
+            from services import events
+
+            events._emit(db.connection(), event, "delete", {})
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        return
     # Invitees have no FK cascade; their RSVP tokens must retire with the event.
     db.query(EventAttendee).filter(EventAttendee.event_id == event.id).delete()
     db.delete(event)

@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 from urllib.parse import urlparse
@@ -223,6 +224,9 @@ with sync_playwright() as pw:
                 field.fill(question)
                 page.locator("#send-btn").click()
                 expect(page.locator("#send-btn")).to_be_disabled()
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(held) == 1
                 original = requests[0]
@@ -256,6 +260,9 @@ with sync_playwright() as pw:
                 expect(field).to_be_focused()
                 expect(field).to_have_value(newer)
                 expect(page.locator("#send-btn")).to_be_disabled()
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(held) == 1 and len(requests) == 2, requests
                 assert requests[1] == {**original, "retry_message_id": "synthetic-saved-user"}
@@ -267,6 +274,9 @@ with sync_playwright() as pw:
                 reply(held.pop())
                 expect(retry).to_be_visible()
                 retry.press("Enter")
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(requests) == 3
                 assert requests[-1] == requests[-2]
@@ -315,6 +325,9 @@ with sync_playwright() as pw:
                 page.locator("#send-btn").click()
                 expect(retry).to_have_count(0)
                 old_button.evaluate("e=>e.click()")
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(held) == 1
                 before = len(requests)

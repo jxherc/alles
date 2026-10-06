@@ -208,14 +208,22 @@ class GenericFinanceImportTests(ApiTest):
             )
             duplicate = self.preview(content)
             self.assertEqual(duplicate["counts"]["duplicates"], 1)
-            actual_rows[0]["tags"] = "owner edit"
-            blocked = self.client.post(f"/api/finance/imports/{batch['id']}/undo")
-            self.assertEqual(blocked.status_code, 409, blocked.text)
-            deletes.assert_not_called()
-            actual_rows[0]["tags"] = "home"
-            undone = self.client.post(f"/api/finance/imports/{batch['id']}/undo")
-            self.assertEqual(undone.status_code, 200, undone.text)
-            deletes.assert_called_once()
+            saved_receipt = self.client.get(f"/api/finance/imports/{batch['id']}").json()
+            with patch("routes.finance_imports.actual_finance.transactions") as reads:
+                for tags in ("owner edit", "home"):
+                    actual_rows[0]["tags"] = tags
+                    blocked = self.client.post(f"/api/finance/imports/{batch['id']}/undo")
+                    self.assertEqual(blocked.status_code, 409, blocked.text)
+                    self.assertEqual(
+                        blocked.json()["detail"],
+                        "undo is unavailable for Actual transactions; review before deleting",
+                    )
+                    reads.assert_not_called()
+                    deletes.assert_not_called()
+                    self.assertEqual(actual_rows[0]["tags"], tags)
+                    self.assertEqual(
+                        self.client.get(f"/api/finance/imports/{batch['id']}").json(), saved_receipt
+                    )
 
     def test_date_and_amount_only_keep_optional_text_empty(self):
         batch = self.preview("date,amount\n2026-10-01,-2.00\n")

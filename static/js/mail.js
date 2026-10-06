@@ -42,7 +42,7 @@ async function _showAc(input, addFn) {
   const m = book.filter(e => e.email.toLowerCase().includes(q) || (e.name || '').toLowerCase().includes(q)).slice(0, 6);
   _hideAc();
   if (!m.length) return;
-  _acAdd = addFn;
+  _acAdd = email => { addFn(email); input.value = ''; };
   _acEl = document.createElement('div'); _acEl.className = 'mc-ac';
   _acEl.innerHTML = m.map((x, i) => `<div class="mc-ac-item" data-email="${esc(x.email)}" data-i="${i}">${x.name ? `<b>${esc(x.name)}</b> ` : ''}<span>${esc(x.email)}</span></div>`).join('');
   document.body.appendChild(_acEl);
@@ -80,12 +80,18 @@ function _initChipField(wrap) {
     if (e.key === 'Enter' || e.key === 'Tab') { if (_acPick(e)) return; if (input.value.trim()) { if (e.key !== 'Tab') e.preventDefault(); commit(); } return; }
     if (e.key === ' ' || e.key === ',' || e.key === ';') { if (input.value.trim()) { e.preventDefault(); commit(); } }
     else if (e.key === 'Backspace' && !input.value && chips.length) { input.value = chips.pop(); render(); sync(); _hideAc(); }
-    else if (e.key === 'Escape') _hideAc();
+    else if (e.key === 'Escape' && _acEl) { e.preventDefault(); e.stopPropagation(); _hideAc(); }
   });
-  input.addEventListener('blur', () => setTimeout(commit, 160));
+  let blurTimer = null;
+  input.addEventListener('focus', () => { clearTimeout(blurTimer); blurTimer = null; });
+  input.addEventListener('blur', () => { clearTimeout(blurTimer); blurTimer = setTimeout(() => { blurTimer = null; commit(); }, 160); });
   input.addEventListener('input', () => _showAc(input, add));
   wrap._chips = () => chips;
   wrap._add = add;
+  wrap._commit = commit;
+}
+function commitMailRecipients(root) {
+  root.querySelectorAll('.mc-chipfield').forEach(field => field._commit());
 }
 
 let _accounts = [];
@@ -165,12 +171,102 @@ function providerHelpHtml() {
 }
 
 let _messageGeneration = 0;
-let _mailEditor = null, _mailLeave = null, _openingDraft = null;
+let _mailEditor = null, _mailReader = null, _mailLeave = null, _openingDraft = null;
+let _mailNavigation = 0, _mailPaneGeneration = 0, _mailSettings = null, _mailSettingsReturn = null;
+function mailSettings() {
+  if (_mailSettings?.root.isConnected) return _mailSettings;
+  _mailSettings = null;
+  return null;
+}
+function mountMailSettings(root, reopen) {
+  _mailSettingsReturn = null;
+  return _mailSettings = { root, reopen, snapshot: () => '', dirty: () => false };
+}
 const _deletingDrafts = new Set();
 function mailEditor() {
   if (_mailEditor?.root.isConnected) return _mailEditor;
   _mailEditor = null;
   return null;
+}
+let _mailReturnTarget = null;
+function mailPaneReturnTarget(trigger = document.activeElement) {
+  if ($('mail-main')?.contains(trigger)) return _mailReturnTarget;
+  const row = trigger?.closest('.mail-row');
+  return {
+    element: row?.querySelector('.mail-open') || trigger,
+    row: row && Object.fromEntries(['aid', 'uid', 'folder', 'id', 'thread'].map(key => [key, row.dataset[key] || ''])),
+  };
+}
+function restoreMailListFocus(target) {
+  let element = target?.element;
+  if (!element?.isConnected || !element.getClientRects().length || element.disabled) {
+    const row = target?.row && [...$('mail-list').querySelectorAll('.mail-row')]
+      .find(node => Object.entries(target.row).every(([key, value]) => (node.dataset[key] || '') === value));
+    element = row?.querySelector('.mail-open:not(:disabled)')
+      || $('mail-list').querySelector('.mail-open:not(:disabled), #mail-read-retry, #mail-drafts-retry')
+      || $('mail-compose-btn');
+  }
+  element?.focus({ preventScroll: true });
+  element?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+}
+async function backToMailList() {
+  const target = _mailReturnTarget;
+  if (!await prepareMailNavigation()) return;
+  $('mail-main').replaceChildren();
+  _mailSettingsReturn = null;
+  _mailReturnTarget = null;
+  _hideAc();
+  restoreMailListFocus(target);
+}
+function paintMailPaneWarning() {
+  const box = $('mail-main')?.querySelector('.mail-pane-warning');
+  if (!box) return;
+  const state = JSON.stringify(_mailErrors);
+  if (box.dataset.state === state) return;
+  const hadFocus = box.contains(document.activeElement);
+  box.dataset.state = state;
+  box.hidden = !_mailErrors.length;
+  box.innerHTML = _mailErrors.length ? `<summary>connection warning</summary><p>${_mailErrors.map(esc).join('<br>')}</p><button type="button" class="btn">retry connection</button>` : '';
+  box.querySelector('button')?.addEventListener('click', () => _reloadCurrent({ force: true }));
+  if (hadFocus) (box.querySelector('summary') || $('mail-main').querySelector('.mail-pane-back'))?.focus();
+}
+function showMailPane(root, returnTarget, focusTarget = root, focus = true) {
+  _mailSettingsReturn = null;
+  _mailReturnTarget = returnTarget;
+  const nav = document.createElement('div');
+  nav.className = 'mail-pane-nav';
+  nav.innerHTML = '<button type="button" class="btn mail-pane-back">back to messages</button><details class="mail-pane-warning" hidden></details>';
+  if (root.matches('.mail-compose')) nav.querySelector('button').setAttribute('id', 'mc-close');
+  nav.querySelector('button').addEventListener('click', backToMailList);
+  root.prepend(nav);
+  paintMailPaneWarning();
+  root.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
+    event.preventDefault(); event.stopPropagation();
+    if (_acEl) { _hideAc(); return; }
+    backToMailList();
+  });
+  if (focus) {
+    $('mail-main').scrollTop = 0;
+    $('mail-main').parentElement.scrollTop = 0;
+    if (focusTarget === root || focusTarget.matches('.mail-reader-subject')) focusTarget.tabIndex = -1;
+    focusTarget.focus();
+    if (root.matches('.mail-compose') && focusTarget.id === 'mc-subj') {
+      const generation = _messageGeneration;
+      // Control decoration can change heights after the initial focus scroll.
+      requestAnimationFrame(() => {
+        if (generation !== _messageGeneration || !root.isConnected || document.activeElement !== focusTarget) return;
+        const main = $('mail-main'), body = root.querySelector('#mc-html');
+        const pane = main.getBoundingClientRect(), subject = focusTarget.getBoundingClientRect();
+        const top = Math.max(0, pane.top, nav.getBoundingClientRect().bottom);
+        const bottom = Math.min(window.innerHeight, pane.bottom), style = getComputedStyle(body);
+        const bodyStart = body.getBoundingClientRect().top + parseFloat(style.paddingTop);
+        if (subject.top >= top && subject.bottom <= bottom && bodyStart + 2 * parseFloat(style.lineHeight) <= bottom) return;
+        const gap = parseFloat(getComputedStyle(root).rowGap) || 0;
+        main.scrollBy({ top: focusTarget.parentElement.getBoundingClientRect().top - top - gap, behavior: 'instant' });
+      });
+    }
+  }
 }
 function clearMailEditor(editor) {
   if (mailEditor() !== editor) return;
@@ -179,27 +275,35 @@ function clearMailEditor(editor) {
   _mailEditor = null;
 }
 export async function prepareMailNavigation() {
-  const generation = ++_messageGeneration;
-  const account = _accountEditor?.root.isConnected ? _accountEditor : null;
-  if (account && ((account.snapshot() !== account.initial && account.snapshot() !== account.pendingSnapshot) || account.extraSnapshot() !== account.extraInitial)) {
-    const snapshot = () => JSON.stringify([account.snapshot(), account.extraSnapshot()]);
-    const leaving = snapshot();
-    if (!await dlgConfirm('discard unsaved account changes?')) return false;
-    if (generation !== _messageGeneration || snapshot() !== leaving) return false;
-  }
-  _accountEditor = null;
-  const editor = mailEditor();
-  if (!editor) return true;
+  const navigation = ++_mailNavigation;
   if (!_mailLeave) {
-    const snapshot = editor.snapshot();
+    const generation = _messageGeneration;
+    const account = _accountEditor?.root.isConnected ? _accountEditor : null;
+    const editor = mailEditor(), settings = mailSettings();
+    const accountValue = () => account && JSON.stringify([account.snapshot(), account.extraSnapshot()]);
+    const accountSnapshot = accountValue(), draftSnapshot = editor?.snapshot(), settingsSnapshot = settings?.snapshot();
+    const current = () => generation === _messageGeneration
+      && (account ? _accountEditor === account && account.root.isConnected && accountValue() === accountSnapshot : !_accountEditor?.root.isConnected)
+      && mailEditor() === editor && editor?.snapshot() === draftSnapshot
+      && mailSettings() === settings && settings?.snapshot() === settingsSnapshot;
     _mailLeave = (async () => {
-      if (snapshot !== editor.initial && !await dlgConfirm('discard unsaved draft changes?')) return false;
-      if (mailEditor() !== editor || editor.snapshot() !== snapshot) return false;
-      clearMailEditor(editor);
-      return true;
+      if (account && ((account.snapshot() !== account.initial && account.snapshot() !== account.pendingSnapshot) || account.extraSnapshot() !== account.extraInitial)
+          && !await dlgConfirm('discard unsaved account changes?')) return null;
+      if (editor && draftSnapshot !== editor.initial && !await dlgConfirm('discard unsaved draft changes?')) return null;
+      if (settings?.dirty() && !await dlgConfirm('discard unsaved rules or vacation changes?')) return null;
+      return current() ? { editor, settings, current } : null;
     })().finally(() => { _mailLeave = null; });
   }
-  return await _mailLeave && generation === _messageGeneration;
+  const leaving = await _mailLeave;
+  if (!leaving || navigation !== _mailNavigation || !leaving.current()) return false;
+  ++_messageGeneration;
+  ++_mailPaneGeneration;
+  if (leaving.editor) clearMailEditor(leaving.editor);
+  _accountEditor = null;
+  if (leaving.settings) _mailSettingsReturn = leaving.settings.reopen;
+  else if ($('mail-view')?.getClientRects().length) _mailSettingsReturn = null;
+  if (leaving.settings) { leaving.settings.root.remove(); _mailSettings = null; }
+  return true;
 }
 let _inited = false;
 export function initMail() {
@@ -208,7 +312,7 @@ export function initMail() {
   window.addEventListener('beforeunload', event => {
     const editor = mailEditor();
     const account = _accountEditor?.root.isConnected ? _accountEditor : null;
-    if ((editor && editor.snapshot() !== editor.initial) || (account && (account.snapshot() !== account.initial || account.extraSnapshot() !== account.extraInitial)) || _accountRecovery.pending || _oauthRecovery.pending) {
+    if (mailSettings()?.dirty() || (editor && editor.snapshot() !== editor.initial) || (account && (account.snapshot() !== account.initial || account.extraSnapshot() !== account.extraInitial)) || _accountRecovery.pending || _oauthRecovery.pending) {
       event.preventDefault();
       event.returnValue = '';
     }
@@ -222,7 +326,7 @@ export function initMail() {
   // conversation grouping is a mail-settings toggle now (4a) — not a toolbar button
   _applyThreadsSetting();
   window._reloadMail = () => { _applyThreadsSetting().then(() => { _expanded.clear(); renderInbox(_lastMsgs); }); };
-  $('mail-compose-btn')?.addEventListener('click', () => compose());
+  $('mail-compose-btn')?.addEventListener('click', event => compose({}, null, mailPaneReturnTarget(event.currentTarget)));
   // accounts + rules live in mail settings now (4e) — exposed for the cog popover's action buttons
   window._mailAccounts = () => accountsPanel();
   window._mailRules = () => rulesPanel();
@@ -764,7 +868,9 @@ async function openCurrentDraft() {
 
 export async function loadMail(fetcher = fetch) {
   initMail();
-  ++_messageGeneration;
+  if (!mailSettings()) ++_messageGeneration;
+  if (_mailReader?.root.isConnected && _mailReader.generation !== _mailPaneGeneration) clearMailReader();
+  const paneGeneration = _messageGeneration;
   showPendingCapture($('mail-view'));
   startMailPoll(fetcher).catch(error => console.error(error));
   const generation = ++_mailLoadGeneration;
@@ -777,10 +883,16 @@ export async function loadMail(fetcher = fetch) {
   syncAccountSelect();
   loadDraftRecovery();
   _renderScheduled();
+  if (_mailSettingsReturn && paneGeneration === _messageGeneration && !$('mail-main').firstElementChild) {
+    const reopen = _mailSettingsReturn;
+    _mailSettingsReturn = null;
+    await reopen();
+    if (generation !== _mailLoadGeneration) return;
+  }
   if (!_accounts.length) {
     $('mail-list').innerHTML = '';
     if (mailEditor()) toast('the mail account is unavailable; your draft is still open', 'error');
-    else accountsPanel(true);
+    else if (!mailSettings()) accountsPanel(true);
     return;
   }
   _renderSavedBar();
@@ -921,19 +1033,25 @@ function setFilter(f) {
   else loadInbox();
 }
 
+function clearMailReader() {
+  const main = $('mail-main');
+  if (main.querySelector('.mail-compose, .mail-accounts, .mail-rules-panel')) return;
+  ++_messageGeneration;
+  main.replaceChildren();
+}
 async function loadCategory(cat, { preserveReader = false } = {}) {
   _searchView = ''; _labelFilter = '';
-  if (!preserveReader) { ++_messageGeneration; if (!mailEditor()) $('mail-main').innerHTML = ''; }
+  if (!preserveReader) clearMailReader();
   return loadCachedMail(`category:${cat}`, `loading ${cat}…`, a => `/api/mail/category/${a.id}?cat=${encodeURIComponent(cat)}`);
 }
 async function loadByLabel(label, { preserveReader = false } = {}) {
   _searchView = ''; _labelFilter = label;
-  if (!preserveReader) { ++_messageGeneration; if (!mailEditor()) $('mail-main').innerHTML = ''; }
+  if (!preserveReader) clearMailReader();
   return loadCachedMail(`label:${label}`, `label “${label}”…`, a => `/api/mail/by-label/${a.id}?label=${encodeURIComponent(label)}`);
 }
 async function loadSmart(filter, { preserveReader = false } = {}) {
   _searchView = ''; _labelFilter = '';
-  if (!preserveReader) { ++_messageGeneration; if (!mailEditor()) $('mail-main').innerHTML = ''; }
+  if (!preserveReader) clearMailReader();
   return loadCachedMail(`smart:${filter}`, `loading ${filter}…`, a => `/api/mail/smart/${a.id}?filter=${encodeURIComponent(filter)}`);
 }
 
@@ -961,7 +1079,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
   _searchView = '';
   _labelFilter = '';
   const list = $('mail-list'); const main = $('mail-main');
-  if (!preserveReader) { ++_messageGeneration; if (!mailEditor()) main.innerHTML = ''; }
+  if (!preserveReader) clearMailReader();
   list.setAttribute('aria-busy', 'true');
   list.innerHTML = '<div class="mail-empty">loading drafts…</div>';
   let drafts = [];
@@ -990,6 +1108,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
   list.querySelectorAll('.mail-draft-row').forEach(row => {
     row.addEventListener('click', async e => {
       if (e.target.closest('.mail-draft-del') || _deletingDrafts.has(row.dataset.id)) return;
+      const returnTarget = mailPaneReturnTarget(row.querySelector('.mail-open'));
       if (!await prepareMailNavigation() || _deletingDrafts.has(row.dataset.id)) return;
       const generation = _messageGeneration, opening = { id: row.dataset.id, canceled: false, generation };
       _openingDraft = opening;
@@ -997,7 +1116,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
         const d = await mailJson(`/api/mail/drafts/${encodeURIComponent(row.dataset.id)}?recovery_scope=${encodeURIComponent(draftScope)}`);
         if (generation !== _messageGeneration || opening.canceled) return;
         if (d?.id !== row.dataset.id || typeof d.body !== 'string' || typeof d.subject !== 'string') throw new Error('could not confirm this draft');
-        await compose({ ...d, recovery_scope: draftScope }, generation);
+        await compose({ ...d, recovery_scope: draftScope }, generation, returnTarget);
       } catch (error) { if (generation === _messageGeneration && !opening.canceled) toast(error.message || 'could not open draft', 'error'); }
       finally { if (_openingDraft === opening) _openingDraft = null; }
     });
@@ -1032,8 +1151,8 @@ async function loadDrafts({ preserveReader = false } = {}) {
         if (editor.snapshot() === snapshot) clearMailEditor(editor);
         else editor.detach();
       }
-      if (_filter === 'drafts') {
-        if (_listGeneration === listGeneration) focusGeneration = listGeneration + 1;
+      if (_filter === 'drafts' && _active === account && _listGeneration === listGeneration && !_searchView && !_labelFilter) {
+        focusGeneration = listGeneration + 1;
         await loadDrafts({ preserveReader: true });
       }
     } catch (error) { toast(error.message || 'could not delete draft', 'error'); }
@@ -1163,6 +1282,7 @@ function renderInbox(messages, errors = []) {
   const msgTime = m => Number(m.date_ts || 0) || Math.floor((Date.parse(m.date || '') || 0) / 1000);
   messages = [...messages].sort((a, b) => msgTime(b) - msgTime(a));
   _lastMsgs = messages; _mailErrors = errors;
+  paintMailPaneWarning();
   if (!messages.length && !errors.length) {
     list.innerHTML = `<div class="mail-empty" role="status">nothing in ${esc(_filter)}</div>`;
     return;
@@ -1217,7 +1337,7 @@ function _wireRows(list) {
   list.querySelectorAll('.mail-row:not(.mail-thread-head)').forEach(r => r.addEventListener('click', () => {
     list.querySelectorAll('.mail-row').forEach(x => x.classList.remove('sel'));
     r.classList.add('sel');
-    openMessage(r.dataset.aid, r.dataset.uid, r.dataset.folder);
+    openMessage(r.dataset.aid, r.dataset.uid, r.dataset.folder, null, undefined, r.querySelector('.mail-open'));
   }));
   list.querySelectorAll('.mail-flag').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
@@ -1312,9 +1432,10 @@ export async function openMailSource(id, isCurrent = () => true) {
   }
 }
 
-async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurrent = () => true) {
+async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurrent = () => true, trigger = document.activeElement) {
+  const returnTarget = mailPaneReturnTarget(trigger);
   if (!await prepareMailNavigation() || !isCurrent()) return;
-  const generation = _messageGeneration;
+  const generation = _messageGeneration, paneGeneration = _mailPaneGeneration;
   if (!verified && readRecordTarget(location.href)?.view === 'mail') {
     const url = new URL(location.href);
     for (const key of ['record', 'record_view', 'occurrence']) url.searchParams.delete(key);
@@ -1324,13 +1445,8 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   const current = () => Boolean($('mail-view')?.getClientRects().length)
     && (reader ? reader.isConnected : generation === _messageGeneration && isCurrent());
   const main = $('mail-main');
-  const hadFocus = main.contains(document.activeElement);
-  const restoreFocus = () => {
-    if (!hadFocus || document.activeElement !== document.body) return;
-    const target = main.querySelector('#mail-message-retry, .mail-reader-subject');
-    if (target) { if (!target.matches('button')) target.tabIndex = -1; target.focus(); }
-  };
   main.innerHTML = '<div class="mail-empty" role="status">loading message...</div>';
+  showMailPane(main.firstElementChild, returnTarget);
   let m;
   try {
     m = verified || await mailJson(`/api/mail/message/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`);
@@ -1339,16 +1455,18 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     if (typeof m?.from !== 'string' || typeof m.subject !== 'string' || typeof m.text !== 'string' || typeof m.html !== 'string' || (m.uid != null && String(m.uid) !== String(uid))) throw new Error('could not confirm this message');
   } catch (error) {
     if (current()) {
+      const hadFocus = main.contains(document.activeElement);
       main.innerHTML = `<div class="mail-empty" role="alert">could not load message: ${esc(error.message)} <button type="button" class="btn" id="mail-message-retry">retry</button></div>`;
       main.querySelector('button').onclick = () => {
         const target = verified && readRecordTarget(location.href);
         if (target?.view === 'mail') return openMailSource(target.id, isCurrent);
         return openMessage(aid, uid, folder, null, isCurrent);
       };
-      restoreFocus();
+      showMailPane(main.firstElementChild, returnTarget, $('mail-message-retry'), hadFocus);
     }
     return;
   }
+  const hadFocus = main.contains(document.activeElement);
   const bodyHtml = m.html
     ? `<div class="mail-reader-meta">remote images are blocked for privacy</div><iframe class="mail-body-frame" sandbox></iframe>`
     : `<pre class="mail-body-text">${esc(m.text || '(no content)')}</pre>`;
@@ -1375,6 +1493,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     f.srcdoc = mailBodySrcdoc(m.html);
   }
   reader = main.querySelector('.mail-reader');
+  _mailReader = { root: reader, generation: paneGeneration };
   // attachment chips — backend lists/serves them, the reader just never showed them
   loadAttachments(aid, uid, folder, current);
   const senderAddr = ((/<([^>]+)>/.exec(m.from) || [, m.from])[1] || '').trim().toLowerCase();
@@ -1430,6 +1549,8 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   });
   const origin = { account_id: aid, folder, uid: String(uid), ...Object.fromEntries(['message_id', 'from', 'to', 'subject', 'date', 'text', 'html'].map(key => [key, m[key] || ''])) };
   async function reviewCapture(kind, button) {
+    const ownsPreview = () => paneGeneration === _mailPaneGeneration && current();
+    if (!ownsPreview()) return;
     const originalLabel = button.textContent;
     button.disabled = true; button.textContent = kind === 'event' ? 'extracting…' : 'preparing…';
     try {
@@ -1438,11 +1559,11 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
         body: JSON.stringify({ preview: true, source: origin, ...(kind === 'task' ? { title: m.subject || `mail from ${fromName(m.from)}` } : { subject: m.subject || '', body: m.text || '', date: m.date || '' }) }),
       });
       const proposal = await response.json();
-      if (!current()) return;
+      if (!ownsPreview()) return;
       if (!response.ok) throw new Error(typeof proposal.detail === 'string' ? proposal.detail : 'could not prepare the capture');
       if (kind === 'event' && !proposal.found) { toast('no event found in this mail', ''); return; }
-      await openCaptureReview(proposal, button);
-    } catch (error) { if (current()) toast(error.message || 'could not prepare the capture; try again', 'error'); }
+      await openCaptureReview(proposal, button, null, ownsPreview);
+    } catch (error) { if (ownsPreview()) toast(error.message || 'could not prepare the capture; try again', 'error'); }
     finally { button.disabled = false; button.textContent = originalLabel; }
   }
   $('mail-to-task')?.addEventListener('click', event => reviewCapture('task', event.currentTarget));
@@ -1462,7 +1583,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     btn.disabled = false; btn.textContent = 'summarize';
   });
   $('mail-to-cal')?.addEventListener('click', event => reviewCapture('event', event.currentTarget));
-  restoreFocus();
+  showMailPane(reader, returnTarget, main.querySelector('.mail-reader-subject'), hadFocus);
 }
 
 const fmtBytes = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`;
@@ -1487,7 +1608,7 @@ async function loadAttachments(aid, uid, folder, isCurrent = () => true) {
   head.appendChild(row);
 }
 
-async function compose(pre = {}, generation = null) {
+async function compose(pre = {}, generation = null, returnTarget = mailPaneReturnTarget()) {
   const outgoingCurrent = () => !pre._outgoing || (sameOutgoing(pre._outgoing, _outboxPending) && _outboxOperation?.action !== 'cleanup');
   if (!outgoingCurrent()) return;
   if (generation === null) {
@@ -1517,7 +1638,6 @@ async function compose(pre = {}, generation = null) {
         <div class="mail-form-sub">from ${esc(acctName(defaultAid))}</div>
       </div>
       <div class="mail-form-actions">
-        <button class="btn" id="mc-close">close</button>
         <button class="btn" id="mc-save">save draft</button>
         <button class="btn" id="mc-schedule" title="schedule for later">schedule</button>
         <button class="btn primary" id="mc-send">send</button>
@@ -1604,7 +1724,7 @@ async function compose(pre = {}, generation = null) {
   });
   // rich-compose toolbar + signatures (5c)
   _wireRichCompose(defaultAid, root, current);
-  (pre.id ? $('mc-subj') : main.querySelector('.mc-chip-input'))?.focus();
+  showMailPane(root, returnTarget, pre.id ? $('mc-subj') : main.querySelector('.mc-chip-input'));
   $('mc-save').addEventListener('click', async () => {
     if (_draftBusy || !_draftReady || _draftReadError || _draftStorageError) { paintDraftRecovery(); return; }
     if (editor.scope && !_draftScopes.includes(editor.scope)) { paintDraftRecovery(); return; }
@@ -1613,6 +1733,7 @@ async function compose(pre = {}, generation = null) {
       else toast('resolve the pending draft save first', 'error');
       return;
     }
+    commitMailRecipients(root);
     if (editor.deleted) {
       const snapshot = editor.snapshot();
       if (!await dlgConfirm('this saved draft was deleted. save this text as a new draft?')) return;
@@ -1630,10 +1751,6 @@ async function compose(pre = {}, generation = null) {
     }
   });
   paintDraftRecovery();
-  $('mc-close').addEventListener('click', async () => {
-    if (!await prepareMailNavigation()) return;
-    document.getElementById('mail-list').querySelector(`.mail-draft-row[data-id="${CSS.escape(_draftId)}"] .mail-open`)?.focus();
-  });
   const _composeBody = () => {
     const el = $('mc-html');
     return {
@@ -1648,6 +1765,7 @@ async function compose(pre = {}, generation = null) {
     if (_draftPending) { toast('resolve the pending draft save before sending', 'error'); paintDraftRecovery(); return; }
     const account_id = $('mc-account')?.value || defaultAid;
     if (!_accounts.some(account => account.id === account_id)) { toast('choose an available sending account', 'error'); return; }
+    commitMailRecipients(root);
     if (!$('mc-to').value.trim()) { toast('recipient required', 'error'); return; }
     const pending = {
       version: 1, action, request_id: savedRequestId(), recovery_scope: _outboxScopes[0], account_id,
@@ -1897,6 +2015,7 @@ const OUTGOING_PREFIX = 'alles-mail-outbox:';
 const OUTGOING_FIELDS = ['to', 'cc', 'bcc', 'subject', 'body', 'html', 'in_reply_to', 'references'];
 const OUTGOING_STATES = ['scheduled', 'sending', 'sent', 'uncertain', 'canceled'];
 let _outboxScopes = [], _outboxRows = [], _outboxPending = null, _outboxKnown = null;
+let _outboxCancelOwner = null;
 let _outboxRead = 0, _outboxReady = false, _outboxOperation = null;
 let _outboxAnnounced = '';
 let _outboxReadError = '', _outboxStorageError = '', _outboxNotice = '', _outboxConflict = false;
@@ -1946,7 +2065,7 @@ function clearPendingOutgoing(pending) {
       if (sessionStorage.getItem(key) !== null) throw new Error('could not clear delivery recovery data');
     }
   }
-  if (sameOutgoing(pending, _outboxPending)) { _outboxPending = null; _outboxKnown = null; }
+  if (sameOutgoing(pending, _outboxPending)) { _outboxPending = null; _outboxKnown = null; _outboxCancelOwner = null; }
 }
 function outgoingStatus(row) {
   if (row.status === 'sending') return 'delivery has started; cancellation is no longer available';
@@ -2011,7 +2130,7 @@ async function _renderScheduled() {
     if (!Array.isArray(data?.scheduled) || data.scheduled.some(row => !validOutgoingRow(row)) || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('could not read outbox');
     if (generation !== _outboxRead) return;
     if (!_outboxScopes.some(scope => data.recovery_scopes.includes(scope))) {
-      retireOutgoing(); _outboxPending = null; _outboxKnown = null; _outboxNotice = ''; _outboxConflict = false;
+      retireOutgoing(); _outboxPending = null; _outboxKnown = null; _outboxCancelOwner = null; _outboxNotice = ''; _outboxConflict = false;
       $('mail-undo-bar')?.remove();
     }
     _outboxScopes = data.recovery_scopes; _outboxRows = data.scheduled; _outboxReady = true; _outboxReadError = '';
@@ -2048,9 +2167,12 @@ async function finishOutgoing(pending, row, keepDraft = false) {
   if (canceled) {
     const undo = $('mail-undo-bar'); if (undo?.dataset.id === row.id) undo.remove();
     if (!keepDraft && !(owns && editor.snapshot() === editor.outgoingSnapshot)) {
-      if (editor) { paintOutbox(); return; }
+      const owner = _outboxCancelOwner;
+      if (editor || mailSettings() || !owner || !sameOutgoing(owner.pending, pending)
+          || owner.generation !== _messageGeneration || owner.pane !== $('mail-main').firstElementChild
+          || !$('mail-view')?.getClientRects().length) { paintOutbox(); return; }
       const message = pending.action === 'cancel' ? row : pending.message;
-      await compose({ ...message, id: '', body: outgoingHtml(message), account_id: pending.account_id || row.account_id, _outgoing: pending });
+      await compose({ ...message, id: '', body: outgoingHtml(message), account_id: pending.account_id || row.account_id, _outgoing: pending }, owner.generation);
       if (!sameOutgoing(pending, _outboxPending) || !sameOutgoing(mailEditor()?.outgoing, pending)) return;
     }
     if (owns) editor.outgoing = null;
@@ -2114,8 +2236,10 @@ async function cancelOutgoing(row = null, scope = _outboxScopes[0]) {
     pending = { version: 1, action: 'cancel', request_id: row.id, recovery_scope: scope, subject: row.subject };
   } else if (!pending || (_outboxKnown && _outboxKnown.status !== 'scheduled')) return;
   else pending = { ...pending, cancel_requested: true };
+  const firstCancel = !(_outboxPending?.cancel_requested || _outboxPending?.action === 'cancel');
   try { storePendingOutgoing(pending); }
   catch { _outboxStorageError = 'could not retain cancellation for recovery. no cancellation was sent.'; paintOutbox(); return; }
+  if (firstCancel) _outboxCancelOwner = { pending, generation: _messageGeneration, pane: $('mail-main').firstElementChild };
   retireOutgoing();
   const operation = { pending, action: 'cancel', retired: false };
   _outboxOperation = operation; paintOutbox();
@@ -2166,6 +2290,8 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
     action: getDropdownValue(el('mr-action')), action_arg: savedText(el('mr-arg').value), enabled: true });
   const sameFields = value => ruleFields.every(key => fields()[key] === value[key]);
   const initialFields = fields();
+  const snapshot = () => JSON.stringify([getDropdownValue(el('mr-field')), el('mr-value').value, getDropdownValue(el('mr-action')), el('mr-arg').value]);
+  let savedSnapshot = snapshot();
   function keep(value) {
     const raw = JSON.stringify(value), key = ruleKey(value.recovery_scope);
     sessionStorage.setItem(key, raw);
@@ -2182,7 +2308,7 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
   function finish(deleted = false) {
     confirmed = true;
     notice = deleted ? 'rule removed' : 'rule saved';
-    if (!deleted && current() && sameFields(pending)) { el('mr-value').value = ''; el('mr-arg').value = ''; }
+    if (!deleted && current() && sameFields(pending)) { el('mr-value').value = ''; el('mr-arg').value = ''; savedSnapshot = snapshot(); }
     else if (!deleted && current()) notice += '; newer changes are unsaved';
     try { clear(); }
     catch { notice += '. recovery data could not be cleared; retry cleanup.'; }
@@ -2320,6 +2446,7 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
     try { await running; } finally { if (_ruleWrite === running) _ruleWrite = null; busy = false; paint(); }
   });
   paint();
+  return { snapshot, dirty: () => snapshot() !== savedSnapshot };
 }
 
 let _vacationWrite = null;
@@ -2328,6 +2455,7 @@ async function rulesPanel() {
   const generation = _messageGeneration;
   const main = $('mail-main');
   main.innerHTML = '<div class="mail-empty" role="status">loading rules…</div>';
+  mountMailSettings(main.firstElementChild, rulesPanel);
   // A reopened form must read after its earlier save, not race a newer save against it.
   if (_vacationWrite) await _vacationWrite.catch(() => {});
   if (_ruleWrite) await _ruleWrite.catch(() => {});
@@ -2344,6 +2472,7 @@ async function rulesPanel() {
   } catch (error) {
     if (generation !== _messageGeneration) return;
     main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || 'could not load rules and vacation settings')} <button type="button" class="btn">retry</button></div>`;
+    mountMailSettings(main.firstElementChild, rulesPanel);
     main.querySelector('button').addEventListener('click', () => rulesPanel());
     return;
   }
@@ -2378,7 +2507,7 @@ async function rulesPanel() {
     $('mv-enabled').classList.toggle('active', on);
     $('mv-enabled').textContent = (on ? '✓ ' : '') + "auto-reply when I'm away";
   });
-  mountRuleEditor(main.querySelector('.mail-rules-panel'), generation, rules, scopes);
+  const ruleEditor = mountRuleEditor(main.querySelector('.mail-rules-panel'), generation, rules, scopes);
   const vacationRoot = main.querySelector('.mail-rules-panel');
   const vacationSave = vacationRoot.querySelector('#mv-save');
   const vacationStatus = vacationRoot.querySelector('#mv-status');
@@ -2388,7 +2517,10 @@ async function rulesPanel() {
     body: vacationRoot.querySelector('#mv-body').value,
   });
   const sameVacation = (a, b) => ['enabled', 'subject', 'body'].every(key => a?.[key] === b?.[key]);
-  let vacationSaved = null;
+  let vacationSaved = null, vacationInitial = vac;
+  const settings = mountMailSettings(vacationRoot, rulesPanel);
+  settings.snapshot = () => JSON.stringify([ruleEditor.snapshot(), vacationValue()]);
+  settings.dirty = () => ruleEditor.dirty() || !sameVacation(vacationValue(), vacationInitial);
   const updateVacationStatus = () => {
     if (!vacationSaved || vacationSave.disabled) return;
     vacationStatus.textContent = sameVacation(vacationValue(), vacationSaved)
@@ -2408,7 +2540,7 @@ async function rulesPanel() {
       const saved = await writing;
       if (!sameVacation(saved, body)) throw new Error('could not confirm the saved vacation reply');
       if (!vacationRoot.isConnected || generation !== _messageGeneration) return;
-      vacationSaved = body;
+      vacationSaved = body; vacationInitial = body;
       vacationStatus.textContent = sameVacation(vacationValue(), body)
         ? 'vacation reply saved' : 'earlier vacation reply saved; newer changes are unsaved';
     } catch (error) {
@@ -2619,6 +2751,7 @@ async function accountsPanel(firstRun = false) {
   const main = $('mail-main'), generation = _messageGeneration;
   const current = () => main.isConnected && generation === _messageGeneration;
   main.innerHTML = '<div class="mail-empty" role="status">loading accounts…</div>';
+  mountMailSettings(main.firstElementChild, () => accountsPanel(firstRun));
   if (_accountRecovery.write) await _accountRecovery.write.catch(() => {});
   if (!current()) return;
   try {
@@ -2628,6 +2761,7 @@ async function accountsPanel(firstRun = false) {
   } catch (error) {
     if (!current()) return;
     main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || 'could not load accounts')} <button type="button" class="btn">retry</button></div>`;
+    mountMailSettings(main.firstElementChild, () => accountsPanel(firstRun));
     main.querySelector('button').addEventListener('click', () => accountsPanel(firstRun)); return;
   }
   main.innerHTML = `<div class="mail-accounts">
@@ -2635,6 +2769,7 @@ async function accountsPanel(firstRun = false) {
       <div class="mail-form-actions"><button type="button" class="btn" id="mail-accounts-close">close</button><button type="button" class="btn primary" id="mail-add-acct">add</button></div></div>
     <div class="mail-service-links">${providerHelpHtml()}</div>${accountRecoveryHtml}<div id="mail-account-rows"></div></div>`;
   const root = main.querySelector('.mail-accounts');
+  mountMailSettings(root, () => accountsPanel(firstRun));
   const live = () => current() && root.isConnected;
   const paintRecovery = mountAccountRecovery(root, live, paintRows);
   function paintRows() {
@@ -2656,14 +2791,14 @@ async function accountsPanel(firstRun = false) {
     if (focused && document.activeElement === document.body) root.querySelector('#mail-add-acct').focus();
   }
   root.querySelector('#mail-add-acct').addEventListener('click', () => { if (!_accountRecovery.pending && !_accountRecovery.error && !_accountRecovery.write) acctForm(null); });
-  root.querySelector('#mail-accounts-close').addEventListener('click', () => { if (live()) { ++_messageGeneration; root.remove(); _reloadCurrent(); } });
+  root.querySelector('#mail-accounts-close').addEventListener('click', () => { if (live()) { ++_messageGeneration; root.remove(); _mailSettings = null; _mailSettingsReturn = null; _reloadCurrent(); } });
   paintRows(); paintRecovery();
 }
 
 function acctForm(acct) {
   const main = $('mail-main');
   const a = acct || {};
-  ++_messageGeneration;
+  const generation = ++_messageGeneration;
   let existing = acct, testing = false;
   const state = _accountRecovery;
   main.innerHTML = `<div class="mail-accounts">
@@ -2701,8 +2836,9 @@ function acctForm(acct) {
   </div>`;
 
   const root = main.querySelector('.mail-accounts');
+  mountMailSettings(root, accountsPanel);
   const el = id => root.querySelector('#' + id);
-  const current = () => root.isConnected;
+  const current = () => root.isConnected && generation === _messageGeneration;
   const applyProvider = (p) => {
     const em = el('ma-email').value.trim();
     if (!p) return;

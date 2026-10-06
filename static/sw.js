@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v316';   // Readable primary headings and license text.
+const VERSION = 'v327';   // Daily workflow navigation and readable content.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '468';   // keep in sync with index.html ?v= / const _v
+const STAMP = '479';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

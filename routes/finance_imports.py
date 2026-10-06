@@ -292,7 +292,12 @@ def _batch_payload(db: DbSession, batch: FinanceImportBatch) -> dict:
         ),
         "status": batch.status,
         "counts": _counts(rows),
-        "receipt": json.loads(batch.receipt_json or "{}"),
+        "receipt": {
+            **json.loads(batch.receipt_json or "{}"),
+            "ledger_backend": _receipt_backend(
+                batch, rows, "actual" if actual_finance.is_canonical(db) else "alles"
+            ),
+        },
         "rows": [_row_payload(row) for row in rows],
     }
 
@@ -1620,109 +1625,38 @@ def _undo_batch_locked(batch_id: str, db: DbSession):
         )
     current_backend = "actual" if actual_finance.is_canonical(db) else "alles"
     canonical = _receipt_backend(batch, rows, current_backend) == "actual"
-    if canonical:
-        # Validate the complete Actual receipt before issuing its first deletion.
-        # A changed imported transaction is owner data, just like a changed
-        # legacy row, and an interrupted earlier undo may already have removed it.
-        current = actual_finance.transactions(db)
-        current_by_id = {str(transaction.get("id") or ""): transaction for transaction in current}
-        if len(current_by_id) != len(current):
-            raise HTTPException(409, "import receipt transaction ownership is ambiguous")
-        state = db.get(FinanceLedgerState, "primary")
-        if state is None:
-            raise HTTPException(409, "canonical Finance state is unavailable")
-        for row in rows:
-            if row.status != "applied" or not row.created_transaction_id:
-                continue
-            source_id = f"finance-import:{batch.id}:{row.row_number}"
-            if row.created_transaction_id != source_id:
-                raise HTTPException(409, "import receipt transaction ownership is invalid")
-            transaction = current_by_id.get(source_id)
-            if transaction is None:
-                continue
-            try:
-                accepted = _owner_accepted_replacement(batch, row)
-                if accepted is not None:
-                    unchanged = bool(
-                        transaction.get("import_identity") == row.stable_identity
-                        and transaction.get("import_batch_id") == batch.id
-                        and transaction.get("import_source") == f"finance_import:{batch.profile}"
-                        and transaction.get("account_id") == accepted.get("account_id")
-                        and transaction.get("date") == accepted.get("date")
-                        and finance_currency.decimal_text(transaction.get("amount"))
-                        == finance_currency.decimal_text(accepted.get("amount"))
-                        and transaction.get("payee", "") == accepted.get("payee", "")
-                        and transaction.get("category", "") == accepted.get("category", "")
-                        and transaction.get("notes", "") == accepted.get("notes", "")
-                        and transaction.get("tags", "") == accepted.get("tags", "")
-                        and bool(transaction.get("cleared")) == bool(accepted.get("cleared"))
-                    )
-                else:
-                    parsed = json.loads(row.parsed_json or "{}")
-                    conversion = _conversion_evidence(row, parsed, batch, state)
-                    unchanged = bool(
-                        conversion
-                        and transaction.get("import_identity") == row.stable_identity
-                        and transaction.get("import_batch_id") == batch.id
-                        and transaction.get("import_source") == f"finance_import:{batch.profile}"
-                        and all(
-                            (transaction.get(key) or "") == value
-                            for key, value in _import_metadata(parsed, batch.source_name).items()
-                        )
-                        and not bool(transaction.get("cleared"))
-                        and _same_actual(
-                            transaction,
-                            parsed,
-                            batch.account_id,
-                            expected_base_amount=conversion[0],
-                        )
-                    )
-            except (InvalidOperation, KeyError, TypeError, ValueError):
-                unchanged = False
-            if not unchanged:
-                raise HTTPException(
-                    409,
-                    "an imported transaction changed after apply; undo was not performed",
-                )
-    else:
-        # Validate the whole receipt before deleting its first row. An imported
-        # transaction becomes owner data as soon as any editable field changes.
-        for row in rows:
-            if row.status != "applied" or not row.created_transaction_id:
-                continue
-            transaction = db.get(Transaction, row.created_transaction_id)
-            if transaction is None:
-                continue  # an interrupted earlier undo already removed it
-            parsed = json.loads(row.parsed_json or "{}")
-            unchanged = (
-                transaction.import_batch_id == batch.id
-                and transaction.import_identity == row.stable_identity
-                and transaction.import_source == f"finance_import:{batch.profile}"
-                and transaction.import_row_number == row.row_number
-                and all(
-                    (getattr(transaction, key) or "") == value
-                    for key, value in _import_metadata(parsed, batch.source_name).items()
-                )
-                and not bool(transaction.cleared)
-                and _same(transaction, parsed, batch.account_id)
-            )
-            if not unchanged:
-                raise HTTPException(
-                    409,
-                    "an imported transaction changed after apply; undo was not performed",
-                )
+    if canonical and any(row.status == "applied" for row in rows):
+        raise HTTPException(
+            409, "undo is unavailable for Actual transactions; review before deleting"
+        )
+    # Validate the whole receipt before deleting its first row. An imported
+    # transaction becomes owner data as soon as any editable field changes.
     for row in rows:
         if row.status != "applied" or not row.created_transaction_id:
             continue
-        if canonical:
-            source_id = f"finance-import:{batch.id}:{row.row_number}"
-            if row.created_transaction_id != source_id:
-                raise HTTPException(409, "import receipt transaction ownership is invalid")
-            # The idempotent deletion intent is the recovery mechanism. Call it
-            # even if the current projection no longer shows the external row:
-            # a prior interrupted delete may already have removed it from Actual.
-            actual_finance.delete_transaction(db, source_id)
-            row.status = "undone"
+        transaction = db.get(Transaction, row.created_transaction_id)
+        if transaction is None:
+            continue  # an interrupted earlier undo already removed it
+        parsed = json.loads(row.parsed_json or "{}")
+        unchanged = (
+            transaction.import_batch_id == batch.id
+            and transaction.import_identity == row.stable_identity
+            and transaction.import_source == f"finance_import:{batch.profile}"
+            and transaction.import_row_number == row.row_number
+            and all(
+                (getattr(transaction, key) or "") == value
+                for key, value in _import_metadata(parsed, batch.source_name).items()
+            )
+            and not bool(transaction.cleared)
+            and _same(transaction, parsed, batch.account_id)
+        )
+        if not unchanged:
+            raise HTTPException(
+                409,
+                "an imported transaction changed after apply; undo was not performed",
+            )
+    for row in rows:
+        if row.status != "applied" or not row.created_transaction_id:
             continue
         transaction = db.get(Transaction, row.created_transaction_id)
         if transaction:

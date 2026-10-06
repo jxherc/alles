@@ -607,18 +607,24 @@ def run(context_factory=None):
                             assert stored["results"] == payload["results"]
                             assert stored["evidence"] == payload["evidence"]
                             assert stored["overview"] == payload["overview"]
-                        assert not forbidden, forbidden
-                        assert not errors, errors
-                        unexpected = [
-                            line
-                            for line in console
-                            if not any(f"status of {code}" in line for code in (400, 404, 503))
-                        ]
-                        assert not unexpected, unexpected
                         record["status"] = "passed"
                     except Exception:
                         record["error"] = traceback.format_exc()
                     finally:
+                        try:
+                            assert not forbidden, forbidden
+                            assert not errors, errors
+                            unexpected = [
+                                line
+                                for line in console
+                                if not any(f"status of {code}" in line for code in (400, 404, 503))
+                            ]
+                            assert not unexpected, unexpected
+                        except AssertionError:
+                            record["status"] = "failed"
+                            record["error"] = (
+                                record.get("error", "") + "\n" + traceback.format_exc()
+                            )
                         for route in held:
                             route.abort()
                         record["rendered"] = page.evaluate(

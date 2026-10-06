@@ -11,8 +11,14 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from core.database import Base, MailAccount, MailAccountDeletion
+from core.database import Base, MailAccount, MailAccountDeletion, SessionLocal
+from core.database_credentials import (
+    _CREDENTIAL_LOCK_INFO,
+    _lock_credential_session,
+    _unlock_credential_session,
+)
 from routes.mail import AcctBody, add_account, del_account, patch_account
+from services.recovery_consistency import recovery_consistency_lock
 from tests._client import ApiTest
 
 
@@ -234,6 +240,31 @@ class AccountRequests(ApiTest):
                 self.assertEqual(db.get(MailAccount, row["id"]).revision, row["revision"])
                 self.assertIsNone(db.get(MailAccountDeletion, row["id"]))
 
+    def _assert_production_session_hooks(self, sessions):
+        def lock_available():
+            acquired = recovery_consistency_lock.acquire(blocking=False)
+            if acquired:
+                recovery_consistency_lock.release()
+            return acquired
+
+        # An RLock can be reacquired by its owner; check from another thread.
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            for finish in ("commit", "rollback"):
+                with self.subTest(transaction_end=finish), sessions() as db:
+                    self.assertIn(_lock_credential_session, db.dispatch.before_flush)
+                    self.assertIn(_unlock_credential_session, db.dispatch.after_transaction_end)
+                    row = MailAccount(name="session hook fixture")
+                    db.add(row)
+                    db.flush()
+                    self.assertIs(db.info.get(_CREDENTIAL_LOCK_INFO), recovery_consistency_lock)
+                    self.assertFalse(pool.submit(lock_available).result(timeout=5))
+                    db.delete(row)
+                    db.flush()
+                    self.assertFalse(pool.submit(lock_available).result(timeout=5))
+                    getattr(db, finish)()
+                    self.assertNotIn(_CREDENTIAL_LOCK_INFO, db.info)
+                    self.assertTrue(pool.submit(lock_available).result(timeout=5))
+
     def test_two_sessions_serialize_creation_edit_and_cancellation(self):
         scope = self.client.get("/api/mail/accounts", params={"context": True}).json()[
             "recovery_scopes"
@@ -241,7 +272,7 @@ class AccountRequests(ApiTest):
         with tempfile.TemporaryDirectory(prefix="alles-account-races-") as root:
             engine = create_engine("sqlite:///" + str(Path(root) / "owned.db"))
             Base.metadata.create_all(engine)
-            sessions = sessionmaker(bind=engine, autoflush=False)
+            sessions = sessionmaker(bind=engine, class_=SessionLocal.class_, autoflush=False)
 
             def race(*actions):
                 barrier = threading.Barrier(len(actions))
@@ -259,6 +290,7 @@ class AccountRequests(ApiTest):
                     return [future.result(timeout=10) for future in futures]
 
             try:
+                self._assert_production_session_hooks(sessions)
                 body = AcctBody(**self.body(request_id=str(uuid4()), recovery_scope=scope))
                 created = race(lambda db: add_account(body, db), lambda db: add_account(body, db))
                 self.assertEqual(created[0], created[1])
@@ -291,8 +323,9 @@ class AccountRequests(ApiTest):
                 "sqlite:///" + str(Path(root) / "owned.db"), connect_args={"timeout": 0.2}
             )
             Base.metadata.create_all(engine)
-            sessions = sessionmaker(bind=engine, autoflush=False)
+            sessions = sessionmaker(bind=engine, class_=SessionLocal.class_, autoflush=False)
             try:
+                self._assert_production_session_hooks(sessions)
                 with sessions() as db:
                     body = AcctBody(**self.body(request_id=str(uuid4())))
                     row = add_account(body, db)

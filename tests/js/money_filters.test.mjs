@@ -14,6 +14,10 @@ function harness() {
     if (!elements.has(id)) elements.set(id, {
       value: '', innerHTML: '', textContent: '', hidden: false, attributes: {},
       contains() { return false; },
+      querySelector(selector) {
+        const id = /^#([\w-]+)$/.exec(selector)?.[1];
+        return id && new RegExp(`<[^>]+\\sid="${id}"`).test(this.innerHTML) ? get(id) : null;
+      },
       setAttribute(name, value) { this.attributes[name] = value; },
       focus() { focused = id; },
     });
