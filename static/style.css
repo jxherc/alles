@@ -4065,7 +4065,18 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .photos-lb-drawer { position: absolute; top: 0; right: 0; height: 100%; width: 300px; background: var(--panel); border-left: 1px solid var(--faint); padding: 1rem 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.95rem; overflow-y: auto; transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.2,0.7,0.2,1); z-index: 2; }
 #photos-lightbox.drawer-open .photos-lb-drawer { transform: none; }
 #photos-lightbox.drawer-open .photos-lb-stage { padding-right: 300px; }
-.photos-meta { display: flex; flex-direction: column; gap: 0.4rem; }
+@media (max-width: 700px) {
+  #photos-lightbox.drawer-open .photos-lb-body { flex-direction: column; overflow-y: auto; }
+  #photos-lightbox.drawer-open .photos-lb-stage { flex: 0 0 30vh; padding-inline: var(--k-space-3); }
+  #photos-lightbox.drawer-open .photos-lb-drawer {
+    position: static; flex: none; width: auto; height: auto;
+    border-left: 0; border-top: 1px solid var(--faint); overflow-y: visible;
+  }
+}
+.photos-meta { display: flex; flex-direction: column; gap: var(--k-space-3); }
+.photos-meta-field { display: grid; gap: var(--k-space-1); }
+.photos-meta-field label { font-size: 0.8125rem; color: var(--text); }
+#photos-keywords-help { margin: 0; font-size: 0.75rem; color: var(--muted); }
 .photos-meta-in { font-size: 0.75rem; width: 100%; box-sizing: border-box; }
 .photos-exif { display: flex; flex-direction: column; }
 .photos-exif-row:first-child { border-top: 1px solid var(--faint); }

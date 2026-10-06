@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=456">
+<link rel="stylesheet" href="/static/style.css?v=457">
   <link rel="stylesheet" href="/static/kokuen.css?v=27">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -1533,8 +1533,15 @@
   </div>
   <aside class="photos-lb-drawer" id="photos-lb-drawer">
     <div class="photos-meta">
-      <input type="text" id="photos-caption" class="settings-input photos-meta-in" placeholder="add a caption…">
-      <input type="text" id="photos-keywords" class="settings-input photos-meta-in" placeholder="keywords, comma separated">
+      <div class="photos-meta-field">
+        <label for="photos-caption">caption</label>
+        <input type="text" id="photos-caption" class="settings-input photos-meta-in" placeholder="add a caption…">
+      </div>
+      <div class="photos-meta-field">
+        <label for="photos-keywords">keywords</label>
+        <input type="text" id="photos-keywords" class="settings-input photos-meta-in" placeholder="study, autumn" aria-describedby="photos-keywords-help">
+        <p id="photos-keywords-help">separate keywords with commas</p>
+      </div>
       <button type="button" class="btn primary" id="photos-meta-save" style="font-size:0.75rem">save caption & keywords</button>
       <p id="photos-meta-status" role="status"></p>
     </div>
@@ -2913,7 +2920,7 @@
 </div>
 
 <script type="module">
-const _v = '456';
+const _v = '457';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
