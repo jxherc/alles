@@ -265,7 +265,7 @@ export async function shareResource(kind, ref, level = 'view') {
 }
 
 export function closeAllModals() {
-  document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+  document.querySelectorAll('.modal-overlay:not(#photos-lightbox)').forEach(m => m.style.display = 'none');
   document.getElementById('ctx-menu').style.display = 'none';
 }
 
