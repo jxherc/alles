@@ -659,7 +659,8 @@ function persistSavedTransactions() {
     sessionStorage.setItem(_moneySavedKey, JSON.stringify(receipts.map(item => ({
       id: item.id, request_id: item.request_id, state: item.state,
     }))));
-  } catch {}
+    return true;
+  } catch { return false; }
 }
 
 async function hydrateSavedTransactions(request) {
@@ -761,12 +762,19 @@ async function undoSavedTransaction(button) {
     toast('finish or cancel this transaction edit before undoing it', 'error');
     return;
   }
+  const previousState = item.state;
+  const previousCurrent = _moneySavedCurrent;
+  _moneySavedCurrent = item.id;
+  item.state = 'uncertain';
+  if (!persistSavedTransactions()) {
+    item.state = previousState;
+    _moneySavedCurrent = previousCurrent;
+    toast("couldn't save undo recovery in this browser. this attempt wasn't sent. try again.", 'error');
+    return;
+  }
   const focusVersion = _moneyFocusChange;
   _moneySavedAction = ++_moneySavedActionSequence;
-  _moneySavedCurrent = item.id;
   item.busy = true;
-  item.state = 'uncertain';
-  persistSavedTransactions();
   button.disabled = true;
   button.textContent = 'undoing…';
   $('money-save-results')?.querySelector(`[data-dismiss-saved="${CSS.escape(item.id)}"]`)?.setAttribute('disabled', '');
