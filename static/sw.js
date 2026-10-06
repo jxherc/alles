@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v300';   // Keep Gallery viewer cleanup and caption focus together.
+const VERSION = 'v301';   // Require durable recovery before a Finance undo request.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '452';   // keep in sync with index.html ?v= / const _v
+const STAMP = '453';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
