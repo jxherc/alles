@@ -225,8 +225,32 @@ function _card(h) {
     </div>`;
 }
 
-function _cadenceSelect(v) {
-  return `<div class="settings-input custom-select" data-f="cadence" data-value="${esc(v || 'daily')}" data-options="daily|every day;weekly|a few times a week"></div>`;
+function _cadenceSelect(v, id) {
+  return `<div class="habit-field">
+    <span id="${id}-frequency-label">frequency</span>
+    <div class="settings-input custom-select" data-f="cadence" data-value="${esc(v || 'daily')}" data-options="daily|every day;weekly|weekly" aria-labelledby="${id}-frequency-label" aria-describedby="${id}-frequency-help"></div>
+  </div>`;
+}
+
+function _cadenceHelp(cadence) {
+  return cadence === 'weekly' ? 'track the chosen number of days each week.' : 'check in once each day.';
+}
+
+function _formFields(h, scope) {
+  const id = esc(scope);
+  return `<label class="habit-field">habit name
+      <input type="text" class="settings-input" data-f="name" value="${esc(h.name)}" placeholder="e.g. read, water, walk">
+    </label>
+    <div class="habit-edit-row">
+      <label class="habit-field habit-icon-field">icon
+        <input type="text" class="settings-input habit-icon-in" data-f="icon" value="${esc(h.icon)}" placeholder="emoji" maxlength="2">
+      </label>
+      ${_cadenceSelect(h.cadence, id)}
+      <label class="habit-field habit-target-field"${h.cadence === 'weekly' ? '' : ' hidden'}>days per week
+        <input type="text" class="settings-input" data-f="target" value="${esc(h.target)}" inputmode="numeric" placeholder="e.g. 3" aria-describedby="${id}-frequency-help">
+      </label>
+    </div>
+    <p class="habit-cadence-help specialist-group-note" id="${id}-frequency-help">${_cadenceHelp(h.cadence)}</p>`;
 }
 
 const HABIT_COLORS = ['', '#818cf8', '#34d399', '#f472b6', '#fbbf24', '#60a5fa', '#f87171', '#a78bfa'];
@@ -241,12 +265,7 @@ function _editCard(h) {
   if (_draft?.id === h.id) h = { ...h, ..._draft };
   return `
     <div class="habit-card editing" data-id="${h.id}">
-      <input type="text" class="settings-input" data-f="name" value="${esc(h.name)}" placeholder="habit name">
-      <div class="habit-edit-row">
-        <input type="text" class="settings-input habit-icon-in" data-f="icon" value="${esc(h.icon)}" placeholder="icon (emoji)" maxlength="2">
-        ${_cadenceSelect(h.cadence)}
-        <input type="text" class="settings-input" data-f="target" value="${esc(h.target)}" inputmode="numeric" placeholder="x / week" title="weekly target">
-      </div>
+      ${_formFields(h, `habit-${h.id}`)}
       ${_colorPicker(h.color)}
       <div class="habit-actions">
         <button class="btn primary" data-act="save">save</button>
@@ -260,12 +279,7 @@ function _addForm() {
   const draft = _draft?.id === null ? _draft : { name: '', icon: '', cadence: 'daily', target: '3', color: '' };
   return `
     <div class="habit-card editing habit-add" data-add="1">
-      <input type="text" class="settings-input" data-f="name" value="${esc(draft.name)}" placeholder="habit name (e.g. read, water, walk)">
-      <div class="habit-edit-row">
-        <input type="text" class="settings-input habit-icon-in" data-f="icon" value="${esc(draft.icon)}" placeholder="icon" maxlength="2">
-        ${_cadenceSelect(draft.cadence)}
-        <input type="text" class="settings-input" data-f="target" value="${esc(draft.target)}" inputmode="numeric" placeholder="x / week">
-      </div>
+      ${_formFields(draft, 'habit-add')}
       ${_colorPicker(draft.color)}
       ${_creation?.error ? `<div class="habit-create-error specialist-group-note" role="alert">${esc(_creation.error)}</div>` : ''}
       <div class="habit-actions">
@@ -295,7 +309,11 @@ function _wire(body) {
     body.querySelector('.habit-add [data-f="name"]')?.focus();
   });
   body.querySelectorAll('.habit-card.editing').forEach(card => {
-    for (const event of ['input', 'change']) card.addEventListener(event, () => { _draft = readForm(card); });
+    for (const event of ['input', 'change']) card.addEventListener(event, () => {
+      _draft = readForm(card);
+      card.querySelector('.habit-target-field').hidden = _draft.cadence !== 'weekly';
+      card.querySelector('.habit-cadence-help').textContent = _cadenceHelp(_draft.cadence);
+    });
   });
   body.querySelectorAll('.habit-colors').forEach(box => box.querySelectorAll('.habit-sw').forEach(sw =>
     sw.addEventListener('click', () => {

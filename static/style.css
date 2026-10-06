@@ -8537,9 +8537,14 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .habit-heat i { width: 100%; aspect-ratio: 1; min-width: 7px; border-radius: 2px; background: var(--faint); opacity: 0.5; }
 .habit-heat i.on { background: var(--habit-accent); opacity: 1; }
 .habit-meta { font-size: 0.75rem; color: var(--muted); }
-.habit-edit-row { display: flex; gap: 0.4rem; }
+.habit-field, .book-field { display: flex; flex-direction: column; gap: var(--k-space-1); min-width: 0; color: var(--muted); font-size: 13px; }
+.habit-edit-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.4rem; }
+.habit-edit-row .habit-field { flex: 1 1 120px; }
+.habit-edit-row .habit-icon-field { flex: 0 0 64px; }
+.habit-target-field[hidden] { display: none; }
+.habit-cadence-help { margin: 0; }
 .habit-edit-row .settings-input { flex: 1; min-width: 0; }
-.habit-edit-row .habit-icon-in { max-width: 64px; flex: 0 0 64px; text-align: center; }
+.habit-edit-row .habit-icon-in { width: 64px; max-width: 64px; text-align: center; }
 .habit-colors { display: flex; gap: 0.4rem; align-items: center; }
 .habit-sw { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 1px solid var(--faint); display: inline-flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.75rem; box-sizing: border-box; }
 .habit-sw.sel { outline: 2px solid var(--text); outline-offset: 1px; }
@@ -8675,6 +8680,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-add { border: 1px solid var(--faint); border-left: 2px solid var(--accent); border-radius: 4px; background: var(--panel); padding: 0.8rem; margin-bottom: 1.2rem; max-width: 560px; display: flex; flex-direction: column; gap: 0.5rem; }
 .book-add-row { display: flex; gap: 0.4rem; align-items: center; }
 .book-add-row .settings-input { flex: 1; min-width: 0; }
+.book-add-row .book-field { flex: 1; }
 .book-lookup { display: flex; flex-direction: column; gap: 0.2rem; max-height: 240px; overflow-y: auto; border: 1px solid var(--faint); border-radius: 3px; padding: 0.3rem; }
 .book-lookup-item { display: flex; gap: 0.5rem; align-items: center; background: none; border: none; cursor: pointer; padding: 0.3rem; border-radius: 3px; text-align: left; }
 .book-lookup-item:hover { background: var(--bg); }
