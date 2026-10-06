@@ -1,5 +1,6 @@
 """Skills starting choices, complete catalogue and personal choices on owned local data."""
 
+import base64
 import json
 import os
 import sys
@@ -63,14 +64,18 @@ with sync_playwright() as pw:
                 )
             else:
                 context = browser.new_context(**options)
-            context.route(
-                "**/*",
-                lambda request: (
-                    request.continue_()
-                    if urlparse(request.request.url).netloc == urlparse(base).netloc
-                    else request.abort()
-                ),
-            )
+            external = []
+
+            def guard(route):
+                parsed = urlparse(route.request.url)
+                owned = urlparse(base)
+                if (parsed.scheme, parsed.netloc) == (owned.scheme, owned.netloc):
+                    route.continue_()
+                else:
+                    external.append(route.request.url)
+                    route.abort()
+
+            context.route("**/*", guard)
             context.route_web_socket("**/*", lambda socket: socket.close())
             page = context.new_page()
             page.set_default_timeout(5000)
@@ -86,7 +91,53 @@ with sync_playwright() as pw:
                 "status": "failed",
             }
             rows.append(row)
-            name = "owned personal procedure " + label
+            name = (
+                "owned personal procedure: compare lesson notes and create a clear "
+                "study guide for the next assessment 草稿 " + label
+            )
+            purpose = (
+                "compare the supplied local lesson notes, identify the topics that need "
+                "practice, explain the differences, and save a clear study guide with "
+                "specific next steps before the next assessment."
+            )
+            saved_body = "keep the exact local study guide and receipt 草稿\n"
+
+            def shot(suffix):
+                capture = context.new_cdp_session(page).send(
+                    "Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False}
+                )
+                (out / f"{label}-{suffix}.png").write_bytes(base64.b64decode(capture["data"]))
+
+            def choices():
+                geometry = page.locator("#skl-grid .skl-card").evaluate_all(
+                    """nodes => nodes.map(card => {
+                        const title = card.querySelector('.skl-card-name');
+                        const desc = card.querySelector('.skl-card-desc');
+                        return {
+                            title: [title.clientWidth,title.scrollWidth,title.clientHeight,title.scrollHeight],
+                            purpose: [desc.clientWidth,desc.scrollWidth,desc.clientHeight,desc.scrollHeight],
+                            targets: [...card.querySelectorAll('button')].map(button => {
+                                const r=button.getBoundingClientRect();
+                                return {name:button.getAttribute('aria-label'),width:r.width,height:r.height};
+                            }),
+                            width:card.getBoundingClientRect().width,
+                            x:card.getBoundingClientRect().x
+                        };
+                    })"""
+                )
+                for card in geometry:
+                    for key in ("title", "purpose"):
+                        w, sw, h, sh = card[key]
+                        assert sw <= w + 1 and sh <= h + 1, (key, card)
+                    assert all(
+                        t["width"] >= 44 and t["height"] >= 44 and t["name"]
+                        for t in card["targets"]
+                    ), card
+                if page.evaluate("innerWidth") <= 720:
+                    assert len({round(card["x"]) for card in geometry}) == 1, geometry
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), geometry
+                return geometry
+
             original = context.request.get(base + "/api/skills/plan-my-day").json()
             try:
                 assert context.request.post(base + "/api/setup/dismiss").ok
@@ -127,7 +178,7 @@ with sync_playwright() as pw:
                 expect(page.locator("#skl-rail [data-cat]")).to_have_count(2)
                 assert cards.evaluate_all("nodes=>nodes.map(n=>n.dataset.slug)") == starters
                 row["installed_at_start"] = count
-                page.screenshot(path=str(out / f"{label}-start.png"))
+                shot("start")
                 opener = page.get_by_role("button", name="open Plan My Day", exact=True)
                 opener.press("Enter")
                 drawer = page.get_by_role("dialog", name="edit skill", exact=True)
@@ -161,7 +212,7 @@ with sync_playwright() as pw:
                 expect(cards).to_have_count(6)
                 page.locator("#skl-new").press("Enter")
                 page.locator("#skl-d-name").fill(name)
-                page.locator("#skl-d-desc").fill("a personal daily checklist")
+                page.locator("#skl-d-desc").fill(purpose)
                 page.locator("#skl-d-when").fill("before leaving home")
                 page.locator("#skl-d-body").fill("check the list and keep the receipt")
                 page.locator("#skl-d-save").press("Enter")
@@ -174,6 +225,57 @@ with sync_playwright() as pw:
                 page.reload(wait_until="networkidle")
                 expect(own).to_be_visible()
                 expect(cards).to_have_count(7)
+                own_card = page.locator(f'.skl-card[data-slug="{slug}"]')
+                expect(own_card.locator(".skl-card-desc")).to_have_text(purpose)
+                row["long_choices"] = choices()
+                own.scroll_into_view_if_needed()
+                shot("full-choice")
+                own.press("Enter")
+                expect(drawer).to_be_visible()
+                expect(page.locator("#skl-d-name")).to_have_value(name)
+                expect(page.locator("#skl-d-desc")).to_have_value(purpose)
+                page.locator("#skl-d-body").fill(saved_body)
+                save = page.locator("#skl-d-save")
+                edit_endpoint = base + "/api/skills/" + slug
+
+                def refused_save(route):
+                    route.fulfill(status=503, json={"detail": "synthetic local save unavailable"})
+
+                page.route(edit_endpoint, refused_save)
+                save.press("Enter")
+                expect(page.locator(".toast.error").last).to_contain_text("save failed")
+                expect(save).to_be_focused()
+                expect(page.locator("#skl-d-body")).to_have_value(saved_body)
+                expect(page.locator("#skl-d-desc")).to_have_value(purpose)
+                assert (
+                    context.request.get(edit_endpoint).json()["body"]
+                    == "check the list and keep the receipt"
+                )
+                shot("edit-rejected")
+                page.unroute(edit_endpoint, refused_save)
+                save.press("Enter")
+                expect(page.locator("#skl-d-status")).to_have_text("saved")
+                expect(own).to_have_count(1)
+                page.keyboard.press("Escape")
+                expect(own).to_be_focused()
+                assert context.request.get(edit_endpoint).json()["body"] == saved_body
+                page.reload(wait_until="networkidle")
+                own.press("Enter")
+                expect(page.locator("#skl-d-body")).to_have_value(saved_body)
+                expect(page.locator("#skl-d-desc")).to_have_value(purpose)
+                page.keyboard.press("Escape")
+                expect(own).to_be_focused()
+                delete = own_card.get_by_role("button", name="delete skill " + name, exact=True)
+                delete.press("Enter")
+                page.get_by_role("alertdialog").get_by_role(
+                    "button", name="cancel", exact=True
+                ).press("Enter")
+                expect(delete).to_be_focused()
+                assert context.request.get(edit_endpoint).json()["body"] == saved_body
+                row["edit_recovery"] = (
+                    "read full title and purpose, exact fields, local refusal retains draft/focus, retry same record, reload, delete cancel without write/source focus"
+                )
+                shot("saved-choice")
                 all_skills.press("Enter")
                 pin = page.locator('.skl-card[data-slug="accessibility-pass"] .skl-pin')
                 search.fill("Accessibility Pass")
@@ -218,7 +320,7 @@ with sync_playwright() as pw:
                 expect(cards).to_have_count(8)
                 expect(pin).to_be_visible()
                 expect(own).to_be_visible()
-                page.screenshot(path=str(out / f"{label}-personal-and-pinned.png"))
+                shot("personal-and-pinned")
                 pin.press("Enter")
                 expect(pin).to_have_count(0)
                 expect(start).to_be_focused()
@@ -244,8 +346,7 @@ with sync_playwright() as pw:
                 search.fill("")
                 expect(own).to_be_visible()
                 assert (
-                    context.request.get(base + "/api/skills/" + slug).json()["body"]
-                    == "check the list and keep the receipt"
+                    context.request.get(base + "/api/skills/" + slug).json()["body"] == saved_body
                 )
                 assert context.request.delete(base + "/api/skills/" + slug).ok
                 assert context.request.delete(base + "/api/skills/plan-my-day").ok
@@ -272,11 +373,12 @@ with sync_playwright() as pw:
                 expect(cards).to_have_count(6)
                 assert len(context.request.get(base + "/api/skills").json()) == count
                 assert not errors, errors
-                assert len(console) == 1 and "503" in console[0], console
+                assert len(console) == 2 and all("503" in message for message in console), console
+                assert not external, external
                 row.update(status="passed", starting_count=6, personal_count=7, pinned_count=8)
             except Exception as error:
                 row.update(error=str(error), traceback=traceback.format_exc())
-                page.screenshot(path=str(out / f"{label}-failure.png"))
+                shot("failure")
             finally:
                 try:
                     remaining = context.request.get(base + "/api/skills").json()
@@ -296,7 +398,7 @@ with sync_playwright() as pw:
                         ).ok
                 except Exception as error:
                     row.update(status="failed", cleanup_error=str(error))
-                row.update(page_errors=errors, console_errors=console)
+                row.update(page_errors=errors, console_errors=console, external=external)
                 (out / "scenarios.json").write_text(json.dumps(rows, indent=2))
                 context.close()
     finally:

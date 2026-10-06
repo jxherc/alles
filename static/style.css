@@ -4820,10 +4820,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .skl-card:hover { border-color: var(--muted); background: var(--panel); }
 .skl-card.active { border-color: var(--accent); background: var(--panel); }
 .skl-card-top { display: flex; align-items: center; gap: 0.35rem; }
-.skl-card-name { flex: 1; min-width: 44px; min-height: 44px; background: none; border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; font-size: 0.8rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skl-card-name { flex: 1; min-width: 44px; min-height: 44px; background: none; border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; font-size: 0.8rem; color: var(--text); white-space: normal; overflow-wrap: anywhere; }
 .skl-card-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .skl-card-desc { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  overflow-wrap: anywhere; }
 .skl-badge { font-size: 0.75rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0 0.25rem; flex-shrink: 0; }
 .skl-badge.git { color: var(--accent); border-color: var(--accent); }
 .skl-card-acts { display: flex; justify-content: flex-end; gap: 0.15rem; margin-top: 0.25rem; }
@@ -4877,7 +4877,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   .skl-rail-foot { flex-direction: row; margin-top: 0; padding-top: 0; border-top: 0; border-left: 1px solid var(--faint); padding-left: 0.4rem; }
   .skl-rail-cat { border-left: 0; border-bottom: 2px solid transparent; white-space: nowrap; }
   .skl-rail-cat.active { border-left: 0; border-bottom-color: var(--accent); }
-  .skl-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .skl-grid { grid-template-columns: minmax(0, 1fr); }
   .skl-drawer { width: 100%; max-width: 100%; }
 }
 
