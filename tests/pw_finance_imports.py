@@ -1,15 +1,21 @@
 """Reviewed local import workflows through Money's header; no live bank or Actual service."""
 
+import base64
 import json
 import os
 import re
+import struct
+import sys
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlsplit
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 from pw_finance_helpers import show_money_sections
+
+from services.appearance import from_legacy
 
 
 def run():
@@ -19,16 +25,48 @@ def run():
     scenarios = []
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
-        for width in (1440, 390):
-            profile = "desktop" if width == 1440 else "phone"
-            context = browser.new_context(
+        for width, theme, zoom in [
+            (w, t, False) for w in (1440, 390, 320) for t in ("light", "dark")
+        ] + [(1440, t, True) for t in ("light", "dark")]:
+            profile = f"{width}-{theme}" + ("-native200" if zoom else "")
+            options = dict(
                 viewport={"width": width, "height": 900},
                 reduced_motion="reduce",
                 service_workers="block",
-                is_mobile=width == 390,
-                has_touch=width == 390,
+                is_mobile=width <= 390,
+                has_touch=width <= 390,
                 timezone_id="UTC",
             )
+            if zoom:
+                profile_root = Path(os.environ["ALLES_DATA"]) / profile
+                extension = profile_root / "extension"
+                extension.mkdir(parents=True)
+                (extension / "manifest.json").write_text(
+                    json.dumps(
+                        dict(
+                            manifest_version=3,
+                            name="owned zoom check",
+                            version="1.0",
+                            permissions=["tabs"],
+                            background={"service_worker": "zoom.js"},
+                        )
+                    )
+                )
+                (extension / "zoom.js").write_text(
+                    "chrome.runtime.onInstalled.addListener(() => {});"
+                )
+                context = pw.chromium.launch_persistent_context(
+                    profile_root / "browser",
+                    channel="chromium",
+                    headless=True,
+                    args=[
+                        f"--disable-extensions-except={extension}",
+                        f"--load-extension={extension}",
+                    ],
+                    **options,
+                )
+            else:
+                context = browser.new_context(**options)
             external = []
 
             def owned_only(route):
@@ -58,6 +96,8 @@ def run():
             )
             api = context.request
             assert api.post(base + "/api/setup/dismiss").ok
+            assert api.put(base + "/api/appearance", data=from_legacy(theme, None)).ok
+            assert api.patch(base + "/api/settings", data={"language": "en", "timezone": "UTC"}).ok
             accounts = [
                 api.post(
                     base + "/api/money/accounts",
@@ -67,7 +107,10 @@ def run():
                         "opening": 100,
                     },
                 ).json()
-                for name, currency in [("a other account", "CAD"), ("z chosen account", "USD")]
+                for name, currency in [
+                    ("a other account", "CAD"),
+                    ("z chosen account résumé; 秋季 | everyday", "USD"),
+                ]
             ]
             account = accounts[1]
             aid = account["id"]
@@ -131,17 +174,90 @@ def run():
             def imported(batch):
                 return [row for row in transactions() if row.get("import_batch_id") == batch["id"]]
 
+            def capture(state):
+                if zoom:
+                    data = base64.b64decode(
+                        context.new_cdp_session(page).send(
+                            "Page.captureScreenshot",
+                            {"format": "png", "captureBeyondViewport": False},
+                        )["data"]
+                    )
+                    assert struct.unpack("!II", data[16:24]) == (1440, 900)
+                    (output / f"{profile}-{state}.png").write_bytes(data)
+                else:
+                    page.screenshot(path=str(output / f"{profile}-{state}.png"), full_page=True)
+
+            def choose_option(label, name):
+                field = page.get_by_role("group", name=label, exact=True)
+                trigger = field.get_by_role("button", name="change " + label, exact=True)
+                trigger.press("Enter")
+                search = field.get_by_role(
+                    "searchbox", name="search " + label + " choices", exact=True
+                )
+                expect(search).to_be_focused()
+                search.fill("owned nonexistent choice")
+                expect(field.get_by_role("option")).to_have_count(0)
+                expect(field.get_by_role("status")).to_contain_text("no matching choices")
+                search.press("Escape")
+                expect(trigger).to_be_focused()
+                expect(trigger).to_have_attribute("aria-expanded", "false")
+                trigger.press("Enter")
+                catalogue = api.get(
+                    base
+                    + (
+                        "/api/money/accounts"
+                        if label == "account"
+                        else "/api/finance/imports/profiles"
+                    )
+                ).json()
+                expect(field.get_by_role("option")).to_have_count(
+                    len(catalogue if label == "account" else catalogue["profiles"])
+                )
+                search.fill(name)
+                expect(field.get_by_role("option", name=name, exact=True)).to_be_visible()
+                search.press("ArrowDown")
+                expect(field.get_by_role("option", name=name, exact=True)).to_be_focused()
+                page.keyboard.press("Enter")
+                expect(trigger).to_be_focused()
+                expect(trigger).to_have_attribute("aria-expanded", "false")
+                expect(field.locator(".finance-import-selected")).to_have_text(name)
+
             record = begin("header-destination-preview")
             try:
                 page.goto(base + "/?view=money", wait_until="networkidle")
+                if zoom:
+                    worker = (
+                        context.service_workers[0]
+                        if context.service_workers
+                        else context.wait_for_event("serviceworker")
+                    )
+                    assert (
+                        worker.evaluate(
+                            "async base=>{const tab=(await chrome.tabs.query({})).find(t=>t.url.startsWith(base));await chrome.tabs.setZoom(tab.id,2);return chrome.tabs.getZoom(tab.id)}",
+                            base,
+                        )
+                        == 2
+                    )
+                    page.wait_for_function("innerWidth===720 && devicePixelRatio===2")
+                    record["native_zoom"] = {"factor": 2, "css_width": 720, "dpr": 2}
+
                 page.locator("#money-manage-toggle").press("Enter")
                 header = page.locator("#money-import")
                 header.focus()
                 page.keyboard.press("Enter")
                 panel = page.locator(".finance-import-panel")
                 expect(panel).to_be_visible()
-                panel.get_by_role("option", name=account["name"] + " · USD", exact=True).click()
-                panel.get_by_role("option", name="CSV (date, payee, amount)", exact=True).click()
+                expect(panel.get_by_role("option")).to_have_count(0)
+                file_button = panel.get_by_role(
+                    "button", name="choose statement or notification file", exact=True
+                )
+                bounds = file_button.bounding_box()
+                assert bounds and bounds["y"] + bounds["height"] <= page.evaluate("innerHeight"), (
+                    bounds
+                )
+                capture("compact-choices")
+                choose_option("account", account["name"] + " · USD")
+                choose_option("statement format", "CSV (date, payee, amount)")
                 page.route(
                     base + "/api/finance/imports/preview",
                     lambda route: route.fulfill(
@@ -176,7 +292,7 @@ def run():
                 ) == receipt.locator(".finance-import-row-date").evaluate(
                     "el => getComputedStyle(el).color"
                 )
-                page.screenshot(path=str(output / f"preview-{profile}.png"), full_page=True)
+                capture("preview")
                 passed(record)
 
                 record = begin("lost-apply-retry-reload")
@@ -216,7 +332,7 @@ def run():
                 passed(record)
 
                 record = begin("repeat-and-changed-source")
-                panel.get_by_role("option", name=account["name"] + " · USD", exact=True).click()
+                choose_option("account", account["name"] + " · USD")
                 duplicate = upload("duplicate-" + name, content)
                 assert duplicate["counts"]["duplicates"] == 1
                 page.get_by_role("button", name="finish duplicate receipt", exact=True).click()
@@ -284,11 +400,11 @@ def run():
                 page.reload(wait_until="networkidle")
                 page.get_by_role("button", name=name + " · undone", exact=True).click()
                 expect(receipt).to_contain_text("undone")
-                page.screenshot(path=str(output / f"undone-{profile}.png"), full_page=True)
+                capture("undone")
                 passed(record)
 
                 record = begin("unreferenced-overlap-explicit-decisions")
-                panel.get_by_role("option", name=account["name"] + " · USD", exact=True).click()
+                choose_option("account", account["name"] + " · USD")
                 overlap = f"date,payee,amount\n{day},overlap {profile},-3.00\n"
                 original = upload("original-" + name, overlap)
                 assert original["counts"]["pending"] == 1
@@ -326,8 +442,14 @@ def run():
             except Exception as error:
                 record["error"] = str(error)
                 checkpoint()
-                page.screenshot(path=str(output / f"failed-{profile}.png"), full_page=True)
+                capture("failed")
             finally:
+                (output / f"{profile}-events.json").write_text(
+                    json.dumps(
+                        {"page_errors": errors, "console_errors": console, "external": external},
+                        indent=2,
+                    )
+                )
                 page.unroute_all(behavior="ignoreErrors")
                 context.close()
         browser.close()

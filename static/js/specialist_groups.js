@@ -1040,39 +1040,88 @@ async function _renderServer(target, request, section) {
 function _choiceField(label, options, selected, onSelect) {
   const field = _el('fieldset', 'finance-import-choice');
   field.append(_el('legend', '', label));
+  const value = _el('span', 'finance-import-selected', options.find(option => option.value === selected)?.label || '');
+  const change = _el('button', '', `change ${label}`);
+  change.type = 'button';
+  change.setAttribute('aria-expanded', 'false');
+  const picker = _el('div', 'finance-import-picker');
+  picker.hidden = true;
+  const search = _el('input', 'settings-input');
+  search.type = 'search';
+  search.setAttribute('aria-label', `search ${label} choices`);
+  const empty = _el('p', 'specialist-group-note', 'no matching choices. try another search.');
+  empty.setAttribute('role', 'status');
+  empty.hidden = true;
   const list = _el('div', 'finance-import-choice-list');
   list.setAttribute('role', 'listbox');
   list.setAttribute('aria-label', label);
+  const close = () => {
+    picker.hidden = true;
+    change.setAttribute('aria-expanded', 'false');
+    change.focus();
+  };
   const buttons = options.map(option => {
     const button = _el('button', '', option.label);
     button.type = 'button';
     button.setAttribute('role', 'option');
     button.dataset.value = option.value;
-    const active = option.value === selected;
-    button.setAttribute('aria-selected', active ? 'true' : 'false');
-    button.tabIndex = active ? 0 : -1;
+    button.setAttribute('aria-selected', String(option.value === selected));
+    button.tabIndex = option.value === selected ? 0 : -1;
     button.addEventListener('click', () => {
+      selected = option.value;
+      value.textContent = option.label;
       buttons.forEach(item => {
         const chosen = item === button;
-        item.setAttribute('aria-selected', chosen ? 'true' : 'false');
+        item.setAttribute('aria-selected', String(chosen));
         item.tabIndex = chosen ? 0 : -1;
       });
       onSelect(option.value);
+      close();
     });
     button.addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      const current = buttons.indexOf(button);
+      const visible = buttons.filter(item => !item.hidden);
+      const current = visible.indexOf(button);
       const backwards = ['ArrowLeft', 'ArrowUp'].includes(event.key);
-      const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
-        : (current + (backwards ? -1 : 1) + buttons.length) % buttons.length;
-      buttons[next].focus();
-      buttons[next].click();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? visible.length - 1
+        : (current + (backwards ? -1 : 1) + visible.length) % visible.length;
+      visible.forEach((item, index) => { item.tabIndex = index === next ? 0 : -1; });
+      visible[next]?.focus();
     });
     list.append(button);
     return button;
   });
-  field.append(list);
+  const filter = () => {
+    const query = search.value.trim().toLowerCase();
+    buttons.forEach(button => { button.hidden = !button.textContent.toLowerCase().includes(query); });
+    const visible = buttons.filter(button => !button.hidden);
+    const active = visible.find(button => button.dataset.value === selected) || visible[0];
+    buttons.forEach(button => { button.tabIndex = button === active ? 0 : -1; });
+    empty.hidden = visible.length > 0;
+  };
+  search.addEventListener('input', filter);
+  search.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    buttons.find(button => !button.hidden && button.tabIndex === 0)?.focus();
+  });
+  picker.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    close();
+  });
+  change.addEventListener('click', () => {
+    if (!picker.hidden) return close();
+    search.value = '';
+    filter();
+    picker.hidden = false;
+    change.setAttribute('aria-expanded', 'true');
+    search.focus();
+  });
+  picker.append(search, list, empty);
+  field.append(value, change, picker);
   return field;
 }
 
@@ -1354,7 +1403,7 @@ async function _renderImports(target, request) {
       accountId = value;
       previewGeneration += 1;
     }),
-    _choiceField('profile', profiles.map(profile => ({ value: profile.id, label: profile.label })), profileId, value => {
+    _choiceField('statement format', profiles.map(profile => ({ value: profile.id, label: profile.label })), profileId, value => {
       profileId = value;
       previewGeneration += 1;
     }),
