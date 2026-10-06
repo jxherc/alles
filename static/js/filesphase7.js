@@ -967,7 +967,7 @@ async function deleteItems(items) {
   if (!isWritable() || !items.length) return;
   const locationId = state.locationId;
   const subject = items.length === 1 ? `“${items[0].path || items[0].normalized_path || items[0].name}”` : `${items.length} items`;
-  const ok = await dlgConfirm(`move ${subject} to recently deleted? you can restore ${items.length === 1 ? 'it' : 'them'} there.`);
+  const ok = await dlgConfirm(`move ${subject} to recently deleted? you can restore ${items.length === 1 ? 'it' : 'them'} there.`, { confirmLabel: 'move to recently deleted' });
   if (!ok) return;
   const queued = [];
   try {
