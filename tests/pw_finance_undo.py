@@ -133,7 +133,14 @@ def run():
                         )
                     route.continue_()
 
-                context.route("**/*", guard)
+                def tracked_guard(route):
+                    state["active_routes"] = state.get("active_routes", 0) + 1
+                    try:
+                        guard(route)
+                    finally:
+                        state["active_routes"] -= 1
+
+                context.route("**/*", tracked_guard)
                 context.route_web_socket("**/*", lambda socket: socket.close())
                 api = context.request
                 assert api.post(base + "/api/setup/dismiss").ok
@@ -174,6 +181,66 @@ def run():
                 def open_entry():
                     if page.locator("#money-entry-fields").is_hidden():
                         page.locator("#money-entry-action").press("Enter")
+
+                def quota_blocks_undo(button, expected_state):
+                    pointers = page.evaluate(
+                        "JSON.parse(sessionStorage.getItem('alles:finance-saved-transactions'))"
+                    )
+                    pointer = next(item for item in pointers if item["id"] == first["id"])
+                    assert pointer["state"] == expected_state
+                    open_entry()
+                    page.locator("#tx-payee").fill("quota draft 草稿")
+                    page.locator("#tx-amt").fill("21.35")
+                    page.evaluate(
+                        """() => {
+                          const ownedStorageSetItem = Storage.prototype.setItem;
+                          Storage.prototype.setItem = function(key, value) {
+                            if (key === 'alles:finance-saved-transactions' && window.ownedReceiptQuota) {
+                              throw new DOMException('owned synthetic quota', 'QuotaExceededError');
+                            }
+                            return ownedStorageSetItem.call(this, key, value);
+                          };
+                          window.ownedReceiptQuota = true;
+                        }"""
+                    )
+                    before = len(reversals)
+                    button.focus()
+                    button.press("Enter")
+                    page.wait_for_timeout(100)
+                    assert len(reversals) == before, "undo submitted without durable recovery"
+                    expect(
+                        page.get_by_text(
+                            "couldn't save undo recovery in this browser. this attempt wasn't sent. try again.",
+                            exact=True,
+                        )
+                    ).to_be_visible()
+                    expect(button).to_be_focused()
+                    expect(button).to_be_enabled()
+                    expect(page.locator("#tx-payee")).to_have_value("quota draft 草稿")
+                    expect(page.locator("#tx-amt")).to_have_value("21.35")
+                    assert (
+                        page.evaluate(
+                            "JSON.parse(sessionStorage.getItem('alles:finance-saved-transactions'))"
+                        )
+                        == pointers
+                    )
+                    if expected_state == "uncertain":
+                        expect(
+                            page.locator(f'[data-dismiss-saved="{first["id"]}"]')
+                        ).to_be_disabled()
+                        expect(page.locator(f'[data-saved-txn="{first["id"]}"]')).to_contain_text(
+                            "undo not confirmed"
+                        )
+                    else:
+                        expect(
+                            page.locator(f'[data-dismiss-saved="{first["id"]}"]')
+                        ).to_be_enabled()
+                        assert any(
+                            row["id"] == first["id"]
+                            for row in api.get(base + "/api/money/transactions").json()
+                        )
+                    capture("quota-" + expected_state)
+                    page.evaluate("window.ownedReceiptQuota = false")
 
                 def save(payee, amount):
                     open_entry()
@@ -216,6 +283,7 @@ def run():
                     expect(undo).to_be_focused()
                     assert undo.bounding_box()["height"] >= 44
                     capture("saved")
+                    quota_blocks_undo(undo, "ready")
                     state["undo"] = "lost"
                     undo.press("Enter")
                     retry = page.locator(f'[data-undo-saved="{first["id"]}"]')
@@ -231,6 +299,9 @@ def run():
                     page.reload(wait_until="networkidle")
                     expect(page.locator(f'[data-saved-txn="{first["id"]}"]')).to_contain_text(
                         "undo not confirmed"
+                    )
+                    quota_blocks_undo(
+                        page.locator(f'[data-undo-saved="{first["id"]}"]'), "uncertain"
                     )
                     state.update(fail_saved_read=False, undo="normal")
                     page.locator(f'[data-undo-saved="{first["id"]}"]').press("Enter")
@@ -386,11 +457,19 @@ def run():
                         delayed_create_drafts=True,
                         failed_balance_retry=True,
                         pointer_only_storage=True,
+                        quota_ready_no_submit=True,
+                        quota_uncertain_no_submit=True,
+                        quota_recovery_same_id=True,
                         simulated_actual_unavailable=True,
                     )
                 finally:
                     record.update(page_errors=errors, console_errors=console, external=external)
                     (out / "scenarios.json").write_text(json.dumps(records, indent=2) + "\n")
+                    for _ in range(500):
+                        if not state.get("active_routes", 0):
+                            break
+                        page.wait_for_timeout(10)
+                    assert not state.get("active_routes", 0), "owned browser routes did not settle"
                     context.close()
         finally:
             browser.close()
