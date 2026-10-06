@@ -351,7 +351,7 @@ export function formatPublishedDate(value) {
   });
 }
 
-function resultNode(result) {
+function resultNode(result, savedItems = null) {
   const row = document.createElement('article');
   row.className = 'andromeda-result';
   const body = document.createElement('div');
@@ -372,7 +372,7 @@ function resultNode(result) {
   const snippet = document.createElement('p');
   renderResultSnippet(snippet, result.snippet, _state.query);
   body.append(source, link, snippet);
-  const action = libraryAction(result);
+  const action = libraryAction(result, false, savedItems);
   if (action) body.append(action);
   row.append(body);
   return row;
@@ -386,7 +386,7 @@ function resultSaveUrl(value) {
   return url.href;
 }
 
-function libraryAction(result, news = false) {
+function libraryAction(result, news = false, savedItems = null) {
   const url = resultSaveUrl(result.url);
   if (!url) return null;
   const action = document.createElement('div');
@@ -399,13 +399,25 @@ function libraryAction(result, news = false) {
   message.setAttribute('role', 'status');
   let savedItem = null;
   let busy = false;
+  let acted = false;
   const label = () => {
     button.textContent = savedItem ? 'open in Library' : tr('andromeda.save_library');
     button.setAttribute('aria-label', `${button.textContent}: ${result.title || url}`);
   };
   label();
+  savedItems?.then(items => {
+    if (!items || acted || !action.isConnected) return;
+    const matches = new Map(items.filter(item => resultSaveUrl(item?.url) === url)
+      .map(item => [item.id, item]));
+    if (matches.size !== 1) return;
+    const item = matches.values().next().value;
+    if (typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]{1,160}$/.test(item.id)) return;
+    savedItem = item;
+    label();
+  });
   button.addEventListener('click', async () => {
     if (busy) return;
+    acted = true;
     busy = true;
     button.setAttribute('aria-disabled', 'true');
     try {
@@ -458,7 +470,7 @@ function imageNode(result) {
   return card;
 }
 
-function newsNode(result) {
+function newsNode(result, savedItems = null) {
   const card = document.createElement('article');
   card.className = `andromeda-news-card${result.thumbnail_url || result.image_url ? '' : ' no-media'}`;
   const copy = document.createElement('div');
@@ -474,7 +486,7 @@ function newsNode(result) {
   const meta = document.createElement('div');
   meta.className = 'andromeda-news-meta';
   if (date.textContent) meta.appendChild(date);
-  const action = libraryAction(result, true);
+  const action = libraryAction(result, true, savedItems);
   if (action) meta.appendChild(action);
   copy.append(source, link);
   if (result.snippet) copy.appendChild(snippet);
@@ -507,7 +519,7 @@ function emptyMessage(state, currentCategory) {
   return tr('andromeda.no_results', { category: categoryLabel });
 }
 
-export function renderAndromedaResults(results, state = 'ready', currentCategory = category()) {
+export function renderAndromedaResults(results, state = 'ready', currentCategory = category(), restoreLibrary = false) {
   _state.resultStatus = state;
   const targets = {
     all: el('andromeda-results'), images: el('andromeda-images'),
@@ -525,7 +537,14 @@ export function renderAndromedaResults(results, state = 'ready', currentCategory
     }
   }
   const render = { all: resultNode, images: imageNode, news: newsNode, videos: videoNode }[currentCategory];
-  for (const result of results || []) list.appendChild(render(result));
+  // Read both shelves: archiving an excerpt does not remove its saved identity.
+  const savedItems = restoreLibrary && results?.length && ['all', 'news'].includes(currentCategory)
+    ? Promise.all(['/api/read', '/api/read?filter=archived'].map(url => jsonRequest(url, { cache: 'no-store' })))
+      .then(replies => replies.every(reply => Array.isArray(reply?.items))
+        ? replies.flatMap(reply => reply.items) : null)
+      .catch(() => null)
+    : null;
+  for (const result of results || []) list.appendChild(render(result, savedItems));
   if (!results?.length && !(state === 'loading' && currentCategory === 'images')) {
     const empty = document.createElement('div');
     empty.className = 'andromeda-empty';
@@ -1356,7 +1375,7 @@ function reopen(saved) {
   );
   setDropdownValue(el('andromeda-provider'), saved.request?.provider || '');
   setDropdownValue(el('andromeda-band'), saved.request?.band || 'standard');
-  renderAndromedaResults(_state.results, _state.results.length ? 'ready' : 'empty', savedCategory);
+  renderAndromedaResults(_state.results, _state.results.length ? 'ready' : 'empty', savedCategory, true);
   updateMoreResults();
   renderEvidence(_state.evidence);
   showOverview(savedCategory === 'all' && !!Object.keys(_state.overview).length);
