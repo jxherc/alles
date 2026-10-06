@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v302';   // Keep transaction entry drafts through Finance edits.
+const VERSION = 'v303';   // Keep transaction entry drafts through Finance edits.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '454';   // keep in sync with index.html ?v= / const _v
+const STAMP = '455';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
