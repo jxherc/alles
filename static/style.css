@@ -4995,6 +4995,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .txn { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.2rem; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
 :where(#money-view) .txn-edit { flex-wrap: wrap; gap: 0.4rem; }
 :where(#money-view) .txn-edit > * { height: 32px; box-sizing: border-box; }
+#money-view .txn-edit > h3 { flex: 0 0 100%; height: auto; margin: 0; overflow-wrap: anywhere; }
 :where(#money-view) .txn [data-edit-txn] { cursor: text; }
 :where(#money-view) .txn:hover [data-edit-txn] { color: var(--text); }
 :where(#money-view) .txn:last-child { border-bottom: none; }
@@ -5209,7 +5210,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   :where(#money-view) .txn .tx-del { grid-column: 2; grid-row: 5; justify-self: end; }
 
 #money-view .money-entry-action { min-height: 44px; }
-#money-view :is(#money-entry-fields, #money-summary-toggle, .ms-card)[hidden] { display: none; }
+#money-view :is(#money-entry-fields, #money-entry-action, #money-summary-toggle, .ms-card)[hidden] { display: none; }
 @media (max-width: 720px) {
   #money-view .money-summary { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-1, 4px); margin-bottom: var(--k-space-1, 4px); }
   #money-view .ms-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: baseline; gap: var(--k-space-2, 8px); border: 0; background: transparent; padding: var(--k-space-2, 8px) 0; }
