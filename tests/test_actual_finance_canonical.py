@@ -5825,7 +5825,7 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         self.assertEqual(response.json()["cleared_balance"], 50.0)
         self.assertTrue(response.json()["reconciled"])
 
-    def test_reviewed_import_apply_and_undo_are_actual_only_and_receipt_owned(self):
+    def test_reviewed_actual_import_undo_refuses_after_projection_and_authority_change(self):
         actual_rows = []
 
         def create(_db, values, **kwargs):
@@ -5913,9 +5913,8 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             )
             self.assertEqual(edited.status_code, 200, edited.text)
             self.assertEqual(edited.json()["counts"]["conflicts"], 1)
-            # An interrupted idempotent delete can remove the row before its
-            # receipt state is finalized. Undo must resume the deletion intent
-            # even when the current projection no longer includes the row.
+            # A missing projection and later authority change do not make the
+            # stored Actual receipt eligible for conditional deletion.
             actual_rows.clear()
             state_db = self.db()
             state = state_db.get(FinanceLedgerState, "primary")
@@ -5923,21 +5922,24 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             state.legacy_read_only = False
             state_db.commit()
             state_db.close()
-            undone = self.client.post(f"/api/finance/imports/{batch_id}/undo")
-            self.assertEqual(undone.status_code, 200, undone.text)
-            self.assertEqual(undone.json()["counts"]["undone"], 1)
+            saved_receipt = self.client.get(f"/api/finance/imports/{batch_id}").json()
+            self.assertEqual(saved_receipt["receipt"]["ledger_backend"], "actual")
+            with patch("routes.finance_imports.actual_finance.transactions") as reads:
+                undone = self.client.post(f"/api/finance/imports/{batch_id}/undo")
+            reads.assert_not_called()
+            self.assertEqual(undone.status_code, 409, undone.text)
+            self.assertIn("undo is unavailable for Actual", undone.text)
+            self.assertEqual(
+                self.client.get(f"/api/finance/imports/{batch_id}").json(), saved_receipt
+            )
         create_mock.assert_called_once()
-        delete_mock.assert_called_once()
-        self.assertEqual(
-            delete_mock.call_args.args[1],
-            created_transaction_id,
-        )
+        delete_mock.assert_not_called()
         self.assertTrue(created_transaction_id.startswith(f"finance-import:{batch_id}:"))
         db = self.db()
         self.assertEqual(db.query(Transaction).count(), 0)
         db.close()
 
-    def test_canonical_import_undo_preflights_every_row_before_deleting_any(self):
+    def test_canonical_import_undo_refuses_before_reading_or_deleting_any_row(self):
         actual_rows = []
 
         def create(_db, values, **kwargs):
@@ -5998,10 +6000,16 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             self.assertEqual(applied.json()["counts"]["applied"], 2)
 
             actual_rows[1]["cleared"] = True
-            undone = self.client.post(f"/api/finance/imports/{batch_id}/undo")
+            saved_receipt = self.client.get(f"/api/finance/imports/{batch_id}").json()
+            with patch("routes.finance_imports.actual_finance.transactions") as reads:
+                undone = self.client.post(f"/api/finance/imports/{batch_id}/undo")
+            reads.assert_not_called()
+            self.assertEqual(
+                self.client.get(f"/api/finance/imports/{batch_id}").json(), saved_receipt
+            )
 
         self.assertEqual(undone.status_code, 409, undone.text)
-        self.assertIn("changed after apply", undone.text)
+        self.assertIn("undo is unavailable for Actual", undone.text)
         delete_mock.assert_not_called()
         db = self.db()
         self.assertEqual(
@@ -6576,12 +6584,13 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             "import_batch_id": payload["id"],
             "import_source": "finance_import:cibc-csv",
         }
+        saved_receipt = self.client.get(f"/api/finance/imports/{payload['id']}").json()
         deleted = []
         with (
             patch(
                 "routes.finance_imports.actual_finance.transactions",
                 return_value=[projected],
-            ),
+            ) as reads,
             patch(
                 "routes.finance_imports.actual_finance.delete_transaction",
                 side_effect=lambda _db, transaction_id: deleted.append(transaction_id),
@@ -6589,11 +6598,15 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
         ):
             undone = self.client.post(f"/api/finance/imports/{payload['id']}/undo")
 
-        self.assertEqual(undone.status_code, 200, undone.text)
-        self.assertEqual(undone.json()["status"], "undone")
-        self.assertEqual(deleted, [source_id])
+        self.assertEqual(undone.status_code, 409, undone.text)
+        self.assertIn("undo is unavailable for Actual", undone.text)
+        reads.assert_not_called()
+        self.assertEqual(deleted, [])
+        self.assertEqual(
+            self.client.get(f"/api/finance/imports/{payload['id']}").json(), saved_receipt
+        )
 
-    def test_owner_can_delete_a_conflicted_claim_and_undo_the_partial_receipt(self):
+    def test_owner_deleted_conflict_keeps_partial_receipt_when_actual_undo_is_unavailable(self):
         reason = "incomplete Actual write no longer matches this receipt"
         db = self.db()
         batch = FinanceImportBatch(
@@ -6648,14 +6661,18 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             patch(
                 "routes.finance_imports.actual_finance.transactions",
                 side_effect=lambda _db: list(actual_rows),
-            ),
+            ) as reads,
             patch("routes.finance_imports.actual_finance.delete_transaction", side_effect=remove),
         ):
             resolved = self.client.post(
                 f"/api/finance/imports/{batch_id}/rows/{second_id}/resolve-recovery",
                 json={"decision": "delete"},
             )
+            saved_receipt = self.client.get(f"/api/finance/imports/{batch_id}").json()
+            self.assertEqual(saved_receipt["receipt"]["ledger_backend"], "actual")
+            reads.reset_mock()
             undone = self.client.post(f"/api/finance/imports/{batch_id}/undo")
+            reads.assert_not_called()
 
         self.assertEqual(resolved.status_code, 200, resolved.text)
         self.assertEqual([row["status"] for row in resolved.json()["rows"]], ["applied", "pending"])
@@ -6670,10 +6687,53 @@ class ActualFinanceRouteAuthorityTests(ApiTest):
             finance_import_routes._owner_approved_deleted_reimport(recovered_batch, recovered_row)
         )
         db.close()
-        self.assertEqual(undone.status_code, 200, undone.text)
-        self.assertEqual(undone.json()["status"], "undone")
-        self.assertEqual([row["status"] for row in undone.json()["rows"]], ["undone", "undone"])
-        self.assertEqual(deleted, ["conflicted-public", f"finance-import:{batch_id}:1"])
+        self.assertEqual(undone.status_code, 409, undone.text)
+        self.assertIn("undo is unavailable for Actual", undone.text)
+        self.assertEqual(self.client.get(f"/api/finance/imports/{batch_id}").json(), saved_receipt)
+        self.assertEqual([row["status"] for row in saved_receipt["rows"]], ["applied", "pending"])
+        self.assertEqual(deleted, ["conflicted-public"])
+
+    def test_already_undone_actual_import_receipt_remains_readable_without_provider_calls(self):
+        with self.db() as db:
+            batch = FinanceImportBatch(
+                account_id="legacy-account",
+                profile="cibc-csv",
+                source_name="already-undone.csv",
+                source_sha256="f" * 64,
+                original_currency_code="CAD",
+                status="undone",
+                receipt_json=json.dumps({"ledger_backend": "actual", "account_name": "saved"}),
+            )
+            db.add(batch)
+            db.flush()
+            row = FinanceImportRow(
+                batch_id=batch.id,
+                row_number=1,
+                stable_identity="already-undone",
+                raw_json="{}",
+                parsed_json="{}",
+                status="undone",
+                created_transaction_id=f"finance-import:{batch.id}:1",
+            )
+            db.add(row)
+            db.commit()
+            batch_id, stored_receipt = batch.id, batch.receipt_json
+        with (
+            patch("routes.finance_imports.actual_finance.transactions") as reads,
+            patch("routes.finance_imports.actual_finance.delete_transaction") as deletes,
+        ):
+            saved = self.client.get(f"/api/finance/imports/{batch_id}")
+            self.assertEqual(saved.status_code, 200, saved.text)
+            for _ in range(2):
+                result = self.client.post(f"/api/finance/imports/{batch_id}/undo")
+                self.assertEqual(result.status_code, 200, result.text)
+                self.assertEqual(result.json(), saved.json())
+            reads.assert_not_called()
+            deletes.assert_not_called()
+        self.assertEqual(saved.json()["status"], "undone")
+        self.assertEqual(saved.json()["counts"]["undone"], 1)
+        with self.db() as db:
+            self.assertEqual(db.get(FinanceImportBatch, batch_id).receipt_json, stored_receipt)
 
 
 if __name__ == "__main__":

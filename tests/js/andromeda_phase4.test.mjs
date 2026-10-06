@@ -441,7 +441,7 @@ test('result explanation uses the opaque Aide handoff instead of a query payload
   assert.doesNotMatch(explain, /location\.href\s*=/);
   assert.match(app, /projectId \|\| window\._currentSession\?\.project_id/);
   assert.match(app, /withProjectContext\([\s\S]*target\.toString\(\)/);
-  assert.match(app, /window\._currentSession\?\.project_id !== projectId\) newChat\(\{ projectId \}\)/);
+  assert.match(app, /if \(projectId && window\._currentSession\?\.project_id !== projectId\) \{\s*if \(newChat\(\{ projectId \}\) === false\) return false;\s*\}/);
 });
 
 test('provider choices refresh after credentials and managed SearXNG lifecycle changes', () => {

@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -234,6 +235,9 @@ with sync_playwright() as pw:
                     state.update(busy=False, hold=inactive)
                     retry.press("Enter")
                     if inactive:
+                        deadline = time.monotonic() + 5
+                        while not held and time.monotonic() < deadline:
+                            page.wait_for_timeout(10)
                         page.wait_for_timeout(100)
                         assert len(held) == 1
                         switch(other)
@@ -256,6 +260,9 @@ with sync_playwright() as pw:
                     state.update(busy=False, hold=False, hold_creation=True)
                     field.fill("ordinary pending task")
                     field.press("Enter")
+                    deadline = time.monotonic() + 5
+                    while not creations and time.monotonic() < deadline:
+                        page.wait_for_timeout(10)
                     page.wait_for_timeout(100)
                     assert len(creations) == 1
                     page.locator("#file-input-hidden").set_input_files(
@@ -285,11 +292,17 @@ with sync_playwright() as pw:
                 question = "same text with a newer selection"
                 draft(question, scopes[0])
                 field.press("Enter")
+                deadline = time.monotonic() + 5
+                while not creations and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(creations) == 1
                 draft(question, scopes[1])
                 state["hold_creation"] = False
                 creations[0][0].fulfill(response=creations[0][1])
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(held) == 1
                 created = requests[-1]["session_id"]
@@ -314,6 +327,9 @@ with sync_playwright() as pw:
                         page.evaluate("""() => {
                             void import('/static/js/chat.js').then(module => module.sendMessage('programmatic scoped question'));
                         }""")
+                        deadline = time.monotonic() + 5
+                        while not held and time.monotonic() < deadline:
+                            page.wait_for_timeout(10)
                         page.wait_for_timeout(100)
                         assert len(held) == 1
                         assert requests[-1]["message"] == "programmatic scoped question"
@@ -366,6 +382,9 @@ with sync_playwright() as pw:
                 state.update(busy=False, hold=True)
                 draft("accepted after switching", scopes[0])
                 field.press("Enter")
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(held) == 1
                 switch(other)
@@ -383,6 +402,9 @@ with sync_playwright() as pw:
                 state.update(busy=True, hold=True)
                 draft("older pending question", scopes[0])
                 field.press("Enter")
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(held) == 1
                 draft("newer exact question", scopes[1])
@@ -402,6 +424,9 @@ with sync_playwright() as pw:
                 state.update(busy=False, hold=True)
                 draft("public request before privacy switch", scopes[0])
                 field.press("Enter")
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(held) == 1
                 page.locator("#incognito-btn").click()

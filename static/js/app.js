@@ -866,7 +866,7 @@ window._openRecord = openHomeRecord;
 
 async function showPrivateDayDraft(prompt) {
   if (!(await navigateTo('chat'))) return false;
-  saveDraft();
+  if (saveDraft() === false) return false;
   await discardAttachments();
   setIncognitoMode(true);
   newChat({ skipDraft: true });
@@ -941,7 +941,7 @@ window._askInChat = async (
         projectId || window._currentSession?.project_id,
       );
       if (scopedProjectId && window._currentSession?.project_id !== scopedProjectId) {
-        newChat({ projectId: scopedProjectId });
+        if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
       const module = await import('./andromeda.js?v=248');
@@ -962,7 +962,9 @@ window._askInChat = async (
   if (ta && canOpenAideInline) {   // on aide (or one-host installs) — run it inline
     if (!canSendMessage()) { toast('wait for the current answer or stop it first', 'error'); return false; }
     if (!(await navigateTo('chat'))) return false;
-    if (projectId && window._currentSession?.project_id !== projectId) newChat({ projectId });
+    if (projectId && window._currentSession?.project_id !== projectId) {
+      if (newChat({ projectId }) === false) return false;
+    }
     window._setAideDocumentScope?.(documentScope);
     ta.value = q; ta.dispatchEvent(new Event('input', { bubbles: true }));
     await sendMessage(q);
@@ -1626,7 +1628,7 @@ function bindEvents() {
   // incognito lives in the topbar (next to settings) → enter a fresh incognito chat;
   // the × in the incognito header is the way back out.
   document.getElementById('incognito-btn')?.addEventListener('click', async () => {
-    saveDraft();
+    if (saveDraft() === false) return false;
     await discardAttachments();
     setIncognitoMode(true);
     newChat();

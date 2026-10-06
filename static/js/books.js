@@ -443,7 +443,7 @@ function _wire(body) {
     card.querySelectorAll('.book-star').forEach(s => s.addEventListener('click', async () => {
       const before = Object.values(_data.shelves).flat().find(book => book.id === id)?.rating;
       const scope = _createScopes[0];
-      await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rating: +s.dataset.rate }) }, result => result?.id === id && result.rating === +s.dataset.rate, 'rating saved', result => _rememberBookEdit(id, 'rating', before, result.rating, scope));
+      await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rating: +s.dataset.rate, expected_rating: before, recovery_scope: scope }) }, result => result?.id === id && result.rating === +s.dataset.rate, 'rating saved', result => _rememberBookEdit(id, 'rating', before, result.rating, scope));
     }));
     card.querySelectorAll('[data-undo]').forEach(button => button.addEventListener('click', async () => {
       const field = button.dataset.undo;
@@ -472,7 +472,7 @@ function _wire(body) {
         _savingNotes.add(id);
         _render();
         try {
-          await _bookRequest(`/api/books/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ notes: v }) }, result => result?.id === id && result.notes === v);
+          await _bookRequest(`/api/books/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ notes: v, expected_notes: before, recovery_scope: scope }) }, result => result?.id === id && result.notes === v);
           _rememberBookEdit(id, 'notes', before, v, scope);
           _noteDrafts.delete(id);
           if (_editingNotes === id) _editingNotes = null;
@@ -480,6 +480,7 @@ function _wire(body) {
           await loadBooks();
         } catch (error) {
           _noteErrors.set(id, error instanceof TypeError ? 'Could not connect. Check your connection and try again.' : (error.message || 'Notes could not be saved. Try again.'));
+          if (error.status === 409) await loadBooks();
         } finally {
           _savingNotes.delete(id);
           _render();

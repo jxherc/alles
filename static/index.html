@@ -28,8 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=468">
-  <link rel="stylesheet" href="/static/kokuen.css?v=29">
+<link rel="stylesheet" href="/static/style.css?v=479">
+  <link rel="stylesheet" href="/static/kokuen.css?v=36">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#090909">
@@ -1325,8 +1325,8 @@
           <button type="button" data-type="video">videos</button>
         </div>
         <div class="settings-input photos-filt-cam custom-select" id="photos-filt-camera" data-value="" data-options="|any camera" aria-label="camera"></div>
-        <label class="photos-filt-date">from <input type="date" id="photos-filt-from" class="settings-input"></label>
-        <label class="photos-filt-date">to <input type="date" id="photos-filt-to" class="settings-input"></label>
+        <div class="photos-filt-date">from <div class="date-input" id="photos-filt-from" data-type="date" data-ph="any date" aria-label="photos from date"></div></div>
+        <div class="photos-filt-date">to <div class="date-input" id="photos-filt-to" data-type="date" data-ph="any date" aria-label="photos to date"></div></div>
         <button type="button" class="btn photos-filt-clear" id="photos-filt-clear">clear</button>
       </div>
       <div class="photos-layout">
@@ -2920,7 +2920,7 @@
 </div>
 
 <script type="module">
-const _v = '468';
+const _v = '479';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

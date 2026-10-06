@@ -5,6 +5,7 @@ import { confirm as confirmDialog } from './dialog.js';
 import { calendarDateKey, formatDateParts, formatDateTime, formatNumber, t } from './i18n.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
+import { recordTarget } from './recordlinks.js';
 
 export function mailboxAddress(value) {
   const raw = String(value || '').trim();
@@ -79,6 +80,7 @@ const ROUTES = Object.freeze({
 
 const _states = new Map();
 const _legacyHomes = new Map();
+let _planAgendaReturn = null;
 export const SPECIALIST_SIDEBAR_STORAGE_KEY = 'alles-specialist-sidebar-hidden';
 
 function _storedSidebarCollapsed() {
@@ -288,11 +290,13 @@ export function planCommitments(events, tasks, reminders) {
   const rows = [];
   for (const item of events || []) {
     const when = String(item.start_dt || item.start || item.date || '');
+    const date = _dateKey(when);
     rows.push({
-      id: `event:${item.id || when}:${item.title || ''}`,
+      id: `event:${item.id || ''}:${date}`,
+      target: date ? recordTarget('calendar', item.id, date) : null,
       type: 'event',
       title: item.title || 'untitled event',
-      date: _dateKey(when),
+      date,
       time: _timeKey(when),
       meta: item.location || item.calendar || 'calendar',
       sort: _commitmentSortKey(when),
@@ -303,7 +307,8 @@ export function planCommitments(events, tasks, reminders) {
     if (item.done === true || ['done', 'completed', 'cancelled', 'canceled'].includes(terminal)) continue;
     const when = String(item.due_date || item.due_at || '');
     rows.push({
-      id: `task:${item.id || item.title || ''}`,
+      id: `task:${item.id || ''}`,
+      target: recordTarget('tasks', item.id),
       type: 'task',
       title: item.title || 'untitled task',
       date: _dateKey(when),
@@ -327,14 +332,23 @@ export function planCommitments(events, tasks, reminders) {
   return rows.sort((left, right) => left.sort.localeCompare(right.sort) || left.title.localeCompare(right.title));
 }
 
-function _agendaRows(target, rows, emptyCopy) {
+function _agendaRows(target, rows, emptyCopy, openRecord) {
   target.replaceChildren();
   if (!rows.length) {
     target.append(_el('p', 'specialist-workbench-empty', emptyCopy));
     return;
   }
   for (const row of rows) {
-    const item = _el('div', 'specialist-record-row');
+    const interactive = row.type === 'task' || row.type === 'event';
+    const item = _el(interactive ? 'button' : 'div', 'specialist-record-row');
+    if (interactive) {
+      // Reuse the existing record button's layout, hover and focus treatment.
+      item.className += ' specialist-library-row';
+      item.type = 'button';
+      item.dataset.planAgendaRecord = row.id;
+      item.setAttribute('aria-label', `open ${row.type}: ${row.title}${row.date ? ` · ${row.date}` : ''}${row.time ? ` ${row.time}` : ''}`);
+      item.addEventListener('click', () => openRecord(row, item));
+    }
     item.append(
       _el('span', 'specialist-record-time', row.time || row.date || '--'),
       _el('strong', 'specialist-record-title', row.title),
@@ -345,6 +359,7 @@ function _agendaRows(target, rows, emptyCopy) {
 }
 
 async function _renderPlan(target, request, section = 'overview') {
+  const renderNonce = _states.get('plan')?.renderNonce;
   disposePlanBoard();
   if (section === 'board') {
     return renderPlanBoard(target, request, () => _refresh('plan'));
@@ -422,13 +437,48 @@ async function _renderPlan(target, request, section = 'overview') {
 
   const today = _todayKey();
   const sevenDayEndKey = addDateKeyDays(today, 7);
-  let windowName = 'today';
+  const returnTo = _planAgendaReturn?.section === section && _planAgendaReturn.url === location.href
+    ? _planAgendaReturn : null;
+  let windowName = returnTo?.windowName || (section === 'week' ? 'seven' : 'today');
   const agenda = _el('section', 'specialist-workbench-main');
   const agendaHead = _el('div', 'specialist-workbench-head');
   agendaHead.append(_el('h2', '', 'agenda'), _el('span', '', today));
   const agendaList = _el('div', 'specialist-record-list');
+  const openStatus = _el('p', 'specialist-group-note plan-agenda-status');
+  openStatus.setAttribute('role', 'status');
+  openStatus.hidden = true;
+  const openRecord = async (row, control) => {
+    const url = location.href;
+    const isCurrent = () => _states.get('plan')?.renderNonce === renderNonce
+      && location.href === url && control.isConnected && control.getClientRects().length > 0;
+    if (control.disabled || !isCurrent()) return;
+    const report = message => {
+      openStatus.textContent = message;
+      openStatus.hidden = false;
+      control.focus();
+    };
+    if (!row.target) {
+      report('this item is unavailable; refresh plan to check its current record');
+      return;
+    }
+    openStatus.hidden = true;
+    const origin = { section, windowName, id: row.id, url };
+    _planAgendaReturn = origin;
+    _setAsyncControlBusy(control, true);
+    let navigated = false;
+    try {
+      // The router owns loading the current editor, navigation guards and stale replies.
+      navigated = await window._openRecord?.(row.target.view, row.target.id, row.target.occurrence);
+    } catch { /* Keep the originating row available for another attempt. */ }
+    finally { _setAsyncControlBusy(control, false); }
+    if (!navigated && _planAgendaReturn === origin && isCurrent()) {
+      _planAgendaReturn = null;
+      report('could not open this item; try again');
+    }
+  };
   const renderWindow = value => {
     windowName = value;
+    openStatus.hidden = true;
     let rows = commitments;
     let empty = commitmentsEmpty;
     if (value === 'today') rows = commitments.filter(item => item.date === today);
@@ -440,7 +490,7 @@ async function _renderPlan(target, request, section = 'overview') {
       empty = unscheduledEmpty;
     }
     agendaHead.querySelector('span').textContent = value === 'today' ? today : value === 'seven' ? 'next seven days' : 'no date';
-    _agendaRows(agendaList, rows, empty);
+    _agendaRows(agendaList, rows, empty, openRecord);
   };
   const choices = _choiceButtons('Plan time window', [
     { value: 'today', label: `today · ${commitments.filter(item => item.date === today).length}` },
@@ -448,14 +498,30 @@ async function _renderPlan(target, request, section = 'overview') {
     { value: 'unscheduled', label: `unscheduled · ${commitments.filter(item => item.type === 'task' && !item.date).length}` },
   ], windowName, renderWindow);
   rail.append(choices);
-  agenda.append(agendaHead, agendaList);
+  agenda.append(agendaHead, openStatus, agendaList);
   const aside = _el('aside', 'specialist-workbench-detail');
   aside.append(capture);
   workbench.append(aside, rail, agenda);
   const partial = _partialAvailability(failures);
   if (partial) target.append(partial);
   target.append(workbench);
-  renderWindow(section === 'week' ? 'seven' : 'today');
+  renderWindow(windowName);
+}
+
+function _restorePlanAgendaFocus(overview, section) {
+  const origin = _planAgendaReturn;
+  if (!origin || origin.section !== section || origin.url !== location.href || !overview.getClientRects().length) return;
+  _planAgendaReturn = null;
+  const record = [...overview.querySelectorAll('[data-plan-agenda-record]')]
+    .find(item => item.dataset.planAgendaRecord === origin.id);
+  const destination = record || overview.querySelector('.specialist-choice-group')?.querySelector('[aria-pressed="true"]');
+  if (!record) {
+    const status = overview.querySelector('.plan-agenda-status');
+    status.textContent = 'the opened item is no longer in this agenda window; refresh plan or choose another window to check';
+    status.hidden = false;
+  }
+  destination?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  destination?.focus({ preventScroll: true });
 }
 
 async function _renderInbox(target, request) {
@@ -1358,7 +1424,9 @@ function _renderImportReceipt(target, receipt, request, refresh) {
   }
   const unresolvedClaim = receipt.rows.some(row => row.status === 'applying'
     || (row.status === 'conflict' && row.created_transaction_id));
-  if (['applied', 'preview'].includes(receipt.status) && receipt.counts.applied > 0 && !unresolvedClaim) {
+  if (['applied', 'preview'].includes(receipt.status) && receipt.counts.applied > 0 && receipt.receipt?.ledger_backend === 'actual') {
+    actions.append(_el('p', 'specialist-group-note', 'undo is unavailable for Actual imports. review the imported transactions in the ledger before deleting.'));
+  } else if (['applied', 'preview'].includes(receipt.status) && receipt.counts.applied > 0 && !unresolvedClaim) {
     const undo = _el(
       'button',
       'finance-import-undo',
@@ -1666,6 +1734,7 @@ async function _renderCurrentOverview(group, section, overview, request, renderN
   const current = _states.get(group);
   if (!current || current.renderNonce !== renderNonce || current.section !== section) return;
   overview.replaceChildren(...staged.childNodes);
+  if (group === 'plan' && (section === 'overview' || section === 'week')) _restorePlanAgendaFocus(overview, section);
 }
 
 export function releaseSpecialistLegacyView(group, section) {

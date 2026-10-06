@@ -94,7 +94,8 @@ async function writeHabit(change) {
   }
   finally {
     _saving = false; setBusy();
-    if (navigation === _navigation && $('habits-body')?.offsetParent) {
+    if (navigation === _navigation && $('habits-body')?.offsetParent
+      && (document.activeElement === focus || document.activeElement === document.body)) {
       const card = cardId ? $('habits-body').querySelector(`[data-id="${CSS.escape(cardId)}"]`) : null;
       const target = focus?.isConnected && !focus.disabled ? focus : (day ? card?.querySelector(`[data-toggle="${CSS.escape(day)}"]`) : card?.querySelector('[data-act="edit"], [data-act="restore"]'));
       const draftAction = action && _adding ? $('habits-body').querySelector(`.habit-add [data-act="${CSS.escape(action)}"]:not(:disabled)`) : null;

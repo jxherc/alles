@@ -361,30 +361,6 @@ body:is(
   letter-spacing: -0.02em;
 }
 
-.specialist-home-action {
-  min-width: 44px;
-  min-height: var(--k-control, 44px);
-  margin-left: auto;
-  padding: 0 var(--k-space-2, 8px);
-  border: 0;
-  border-radius: var(--k-radius-control, 3px);
-  color: var(--k-soft, var(--text));
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.specialist-home-action:hover {
-  color: var(--k-text, var(--text));
-  background: var(--k-hover, var(--panel));
-}
-
-.specialist-home-action:focus-visible {
-  outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
-}
-
 .specialist-mobile-back {
   display: none;
   min-width: 44px;
@@ -1146,6 +1122,11 @@ body:is(
 .server-workbench-status:empty { display: none; }
 .server-workbench-status.is-error { color: var(--k-danger, var(--error)); }
 
+#server-workbench-view .server-workbench-card:has(> .server-workbench-switch-row) > .server-workbench-status {
+  display: block;
+  min-height: 1lh;
+}
+
 .server-workbench-fact,
 .server-workbench-service {
   min-height: 46px;
@@ -1171,7 +1152,7 @@ body:is(
 
 .server-workbench-service { justify-content: space-between; padding: var(--k-space-2, 8px) 0; }
 .server-workbench-service > div:first-child { min-width: 0; display: grid; gap: var(--k-space-1, 4px); }
-.server-workbench-service strong { color: var(--k-text, var(--text)); font-size: 13px; font-weight: 560; overflow-wrap: anywhere; }
+.server-workbench-service strong { color: var(--k-text, var(--text)); font-size: 14px; font-weight: 560; overflow-wrap: anywhere; }
 
 .server-workbench-actions {
   display: flex;
@@ -1281,6 +1262,7 @@ body:is(
 
 .server-workbench-log :where(time, strong) { overflow-wrap: anywhere; }
 .server-workbench-log strong { color: var(--k-text, var(--text)); font-weight: 520; }
+.server-workbench-log > span { font-size: 14px; }
 
 .server-companion-form {
   margin-top: var(--k-space-5, 24px);
@@ -1313,7 +1295,7 @@ body:is(
 .server-managed-section h3 {
   margin: 0 0 var(--k-space-2, 8px);
   color: var(--k-text, var(--text));
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 580;
 }
 .server-managed-row {
@@ -1326,6 +1308,10 @@ body:is(
   color: var(--k-muted, var(--muted));
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+.server-managed-row.is-readonly,
+.server-managed-row > span {
+  font-size: 14px;
 }
 .server-managed-row button,
 .server-managed-form > button {
@@ -1948,7 +1934,6 @@ body:is(
     display: contents;
   }
   .specialist-app-brand { grid-column: 1; grid-row: 1; border-right: 0; }
-  .specialist-home-action { min-height: var(--k-control); }
   #files-workbench-view[data-section="gallery"] .specialist-mobile-back:not([hidden]) { display: inline-flex; align-items: center; }
   #files-workbench-view[data-section="gallery"] .specialist-app-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
   .specialist-group-tabs {
@@ -2163,14 +2148,14 @@ html[data-theme="light"] :where(
   font-weight: 400;
 }
 
-#today-view[data-kokuen-surface="home"] :where(.today-settings, .today-ask, .today-destinations button) {
+#today-view[data-kokuen-surface="home"] :where(.today-settings, .today-ask) {
   min-height: var(--k-control-dense);
   color: var(--k-muted);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
 }
 
-#today-view[data-kokuen-surface="home"] :where(.today-settings, .today-ask, .today-destinations button):hover {
+#today-view[data-kokuen-surface="home"] :where(.today-settings, .today-ask):hover {
   color: var(--k-text);
 }
 
@@ -2260,6 +2245,10 @@ html[data-theme="light"] :where(
 #today-view[data-kokuen-surface="home"] :where(.today-empty, .today-brief) {
   color: var(--k-muted);
   font-size: 12px;
+}
+
+#today-view[data-kokuen-surface="home"] .today-brief > p {
+  font-size: 14px;
 }
 
 #today-view[data-kokuen-surface="home"] .today-capture {
@@ -2634,6 +2623,23 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
   outline-offset: 2px;
 }
 
+/* These controls meet pane/viewport edges; keep the ring inside their targets. */
+#files-workbench-view .specialist-mobile-back:focus-visible,
+#server-workbench-view .server-workbench-switch-row > button:focus-visible,
+#today-view .today-section-edit:focus-visible,
+#wiki-view :is(.wiki-file, .wiki-dir-head):focus-visible,
+#wiki-view[data-kokuen-surface="docs"] .docs-reader-actions > button:focus-visible,
+#settings-modal :is(
+  .locale-choice-option,
+  .locale-segmented > button,
+  .credits-tabs > button,
+  .home-settings-density > button
+):focus-visible,
+body[data-app="files"] #files-view :is(button.crumb, .files-location-button):focus-visible,
+body[data-app="files"] #files-view :is(.file-row, .file-row > .files-check):focus-visible {
+  outline-offset: -3px;
+}
+
 html[data-kokuen-version="5"] [data-kokuen-state="disabled"],
 html[data-kokuen-version="5"] [data-kokuen-primitive][aria-disabled="true"] {
   cursor: not-allowed;
@@ -2900,6 +2906,10 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   box-shadow: none;
 }
 
+#wiki-view[data-kokuen-surface="docs"] #wiki-ask-btn {
+  border-radius: 0;
+}
+
 #wiki-view[data-kokuen-surface="docs"] .docs-nav-search {
   height: var(--k-control);
   min-height: var(--k-control);
@@ -2974,6 +2984,10 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 #wiki-view[data-kokuen-surface="docs"] .docs-dialog-body {
   color: var(--k-muted);
   font-size: 13px;
+}
+
+#wiki-view[data-kokuen-surface="docs"] .docs-dialog-body > p {
+  font-size: 14px;
 }
 
 #wiki-view[data-kokuen-surface="docs"] .docs-context-panel {
@@ -4066,6 +4080,12 @@ html[dir="rtl"] :where(
   background: var(--k-raised);
 }
 
+.server-workbench-switch-row .home-settings-switch::before {
+  box-sizing: border-box;
+  left: var(--k-space-1);
+  width: calc(var(--k-control) - (2 * var(--k-space-1)));
+}
+
 #settings-modal[data-kokuen-surface="settings"] .home-settings-switch::after,
 .server-workbench-switch-row .home-settings-switch::after {
   content: "";
@@ -4136,6 +4156,7 @@ html[dir="rtl"] :where(
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-radius: 0;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density button {
@@ -4150,6 +4171,11 @@ html[dir="rtl"] :where(
   color: var(--k-muted);
   text-align: left;
   cursor: pointer;
+}
+
+#settings-modal[data-kokuen-surface="settings"] .home-settings-density > button {
+  scroll-margin-block: var(--k-space-1);
+  border-radius: 0;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density button:last-child {
@@ -4499,12 +4525,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-head h1 {
 
 body.afterlife-aide-projects[data-space="aide"] :where(
   .aide-scheduled-head p,
-  .aide-tool-empty,
   .aide-scheduled-empty,
-  .aide-scheduled-meta
+  .aide-scheduled-empty p
 ) {
   color: var(--k-muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* Scheduled News: approved KOKUEN source workbench, real data and no native choices. */
@@ -4902,7 +4927,7 @@ body.afterlife-aide-projects[data-space="aide"] .news-digest-cluster h3 {
 body.afterlife-aide-projects[data-space="aide"] .news-digest-cluster p {
   margin-top: var(--k-space-2);
   color: var(--k-muted);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -5092,14 +5117,6 @@ body[data-app="files"] .app-crumb {
   font-weight: 540;
 }
 
-body[data-app="files"] #files-view > .page-view-head {
-  min-height: var(--k-app-header);
-  padding: 0 var(--k-space-4);
-  gap: var(--k-space-3);
-  flex-wrap: nowrap;
-  border-bottom: 1px solid var(--k-line);
-}
-
 body[data-app="files"] #files-view .page-view-title {
   flex: 0 0 auto;
   color: var(--k-text);
@@ -5168,14 +5185,6 @@ body[data-app="files"] #files-view #files-search::placeholder {
 
 body[data-app="files"] #files-view #files-search:focus {
   border-color: var(--k-focus);
-}
-
-body[data-app="files"] #files-view .files-subhead {
-  min-height: 48px;
-  padding: var(--k-space-2) var(--k-space-4);
-  gap: var(--k-space-3);
-  border-bottom: 1px solid var(--k-line);
-  background: var(--k-page);
 }
 
 body[data-app="files"] #files-view .files-breadcrumb {
@@ -5264,13 +5273,6 @@ body[data-app="files"] :where(.files-preview-pre) {
 }
 
 @media (max-width: 760px) {
-  body[data-app="files"] #files-view > .page-view-head {
-    min-height: auto;
-    align-items: flex-start;
-    padding: var(--k-space-3);
-    flex-wrap: wrap;
-  }
-
   body[data-app="files"] #files-view .files-actions {
     flex-basis: 100%;
     justify-content: flex-start;
@@ -5285,12 +5287,6 @@ body[data-app="files"] :where(.files-preview-pre) {
     order: -1;
     width: 100%;
     min-height: var(--k-control);
-  }
-
-  body[data-app="files"] #files-view .files-subhead {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    padding: var(--k-space-2) var(--k-space-3);
   }
 
   body[data-app="files"] #files-view :where(.files-breadcrumb) {
@@ -5443,6 +5439,8 @@ body[data-app="files"] :where(.files-preview-pre) {
 /* Phase 7 Files: approved multi-location workbench with its own KOKUEN app header. */
 body[data-app="files"] #files-view {
   --files-operation-clearance: 0px;
+  --files-header-clearance: 0px;
+  scroll-padding-top: var(--files-header-clearance);
   scroll-padding-bottom: var(--files-operation-clearance);
   min-width: 0;
   min-height: 0;
@@ -5474,7 +5472,6 @@ body[data-app="files"] #files-view :where(
 
 body[data-app="files"] #files-view .files-phase7-app-brand {
   gap: var(--k-space-3);
-  border-right: 1px solid var(--k-line);
 }
 
 body[data-app="files"] #files-view .files-phase7-wordmark {
@@ -5546,6 +5543,10 @@ body[data-app="files"] #files-view :where(.files-phase7-panel-head, .files-phase
   color: var(--k-muted);
   font-size: 12px;
   font-weight: 500;
+}
+
+body[data-app="files"] #files-view :where(.files-phase7-panel-head, .files-phase7-detail-head, .files-phase7-operation-head) > span {
+  font-size: 14px;
 }
 
 body[data-app="files"] #files-view .files-phase7-location-list {
@@ -5643,6 +5644,7 @@ body[data-app="files"] #files-view .files-location-settings {
 
 body[data-app="files"] #files-view #files-current-location-name {
   color: var(--k-text);
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -5901,7 +5903,7 @@ body[data-app="files"] #files-view :where(.file-size, .file-changed) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--k-quiet);
+  color: var(--k-muted);
   font-size: 12px;
 }
 
@@ -6008,7 +6010,7 @@ body[data-app="files"] #files-view .files-detail-meta {
   gap: var(--k-space-2);
   padding: var(--k-space-3) var(--k-space-2);
   border-top: 1px solid var(--k-line);
-  color: var(--k-quiet);
+  color: var(--k-muted);
   font-size: 12px;
 }
 
@@ -6061,7 +6063,7 @@ body[data-app="files"] #files-view .files-operation-copy small {
 
 body[data-app="files"] #files-view .files-operation-copy strong {
   color: var(--k-text);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -6478,6 +6480,18 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
   body[data-app="files"]:has(#files-operation-dock:not([hidden])) .toast-container {
     right: var(--k-space-2);
     bottom: 256px;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 600px) {
+  body[data-app="files"] #files-view .files-phase7-operation-dock {
+    position: static;
+    flex: 0 0 auto;
+    margin: var(--k-space-2);
+  }
+
+  body[data-app="files"]:has(#files-operation-dock:not([hidden])) .toast-container {
+    bottom: var(--k-space-2);
   }
 }
 

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { harness, deferred, tick } from './helpers/mail_workflows_recovery.mjs';
 
 const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
 const reminders = readFileSync(new URL('../../static/js/reminders.js', import.meta.url), 'utf8');
@@ -291,12 +292,24 @@ test('boot-time Aide handoffs preserve a validated selected project', () => {
   assert.match(app, /projectId \|\| window\._currentSession\?\.project_id/);
 });
 
-test('mail polling settings cannot block the specialist state from settling', () => {
-  assert.match(
-    specialistSources.mail,
-    /export async function loadMail\(fetcher = fetch\)[\s\S]{0,100}startMailPoll\(fetcher\)\.catch/,
-  );
-  assert.doesNotMatch(specialistSources.mail, /await startMailPoll\(fetcher\)/);
+test('mail polling settings cannot block the specialist state from settling', async () => {
+  const h = harness(), polling = deferred(), errors = [];
+  let renders = 0, settled = false, pollingFetcher;
+  h.context.console = { error: error => errors.push(error) };
+  h.context.startMailPoll = fetcher => { pollingFetcher = fetcher; return polling.promise; };
+  h.context._reloadCurrent = async () => { renders += 1; };
+  h.context.fixtureFetcher = async () => { throw new Error('unexpected synthetic fetch'); };
+  const loading = h.run('loadMail(fixtureFetcher)').then(() => { settled = true; });
+  await tick();
+  assert.equal(pollingFetcher, h.context.fixtureFetcher);
+  assert.equal(renders, 1);
+  assert.equal(settled, true, 'Mail must settle while polling settings are still pending');
+  await loading;
+  const failure = new Error('synthetic polling settings failure');
+  polling.reject(failure);
+  await tick();
+  assert.deepEqual(errors, [failure], 'polling failure must be handled independently');
+  assert.equal(renders, 1);
 });
 
 test('Activity waits for its summary request before specialist state settles', () => {

@@ -528,7 +528,7 @@ function _attachReadingPlace(body, item) {
     retry.hidden = !error;
     retry.disabled = pending;
     retry.textContent = blocked ? 'reopen article' : 'retry';
-    retry.onclick = () => blocked ? openReadItem(item.id) : place.flush();
+    retry.onclick = () => blocked ? openReadItem(item.id, undefined, item.sourceHash || '') : place.flush();
     if (hadFocus && retry.hidden) notice.focus({ preventScroll: true });
   });
   let attached = true;
@@ -725,16 +725,21 @@ async function _save(checkOnly = false) {
 
 let _openGeneration = 0;
 export async function openReadItem(id, isCurrent = () => Boolean($('read-body')?.getClientRects().length), expectedHash = '') {
+  const previous = _places.get(id)?.place;
+  const previousValue = previous?.value;
+  const wasBlocked = previous?.blocked;
   const run = ++_openGeneration;
   try {
     const item = await _json(_fetcher, `/api/read/${encodeURIComponent(id)}`);
     if (run !== _openGeneration || !isCurrent()) return false;
+    if (item?.id !== id) throw new Error('could not confirm the article');
     _open = item;
     if (!_textState(item).busy) { _textState(item).error = ''; _textState(item).message = ''; }
     _open.sourceHash = expectedHash;
     _open.sourceChanged = !!expectedHash && expectedHash !== item.content_hash;
-    const previous = _places.get(id)?.place;
-    if (previous && !previous.unsaved && !previous.pending) _places.delete(id);
+    // Reopen accepts fresh state only for the unchanged draft that requested it.
+    if (previous && _places.get(id)?.place === previous && previous.value === previousValue && !previous.pending
+      && (!previous.unsaved || (wasBlocked && previous.blocked))) _places.delete(id);
     _returnItem = id;
     _render();
     $('read-back')?.focus();

@@ -758,7 +758,7 @@ test('Files location tests ignore responses after the selected location changes'
 
 test('Files closes stale details before changing storage location identity', () => {
   const events = files.match(/function bindEvents\(\)[\s\S]*?\n}\n\nexport function initFiles/)[0];
-  const locationChange = events.match(/\$\('files-location-list'\)[\s\S]*?\n  \}\);/)[0];
+  const locationChange = events.match(/\$\('files-location-list'\)\?\.addEventListener\('click',[\s\S]*?\n  \}\);/)[0];
   assert.match(locationChange, /closeDetails\(\)/);
   assert.ok(locationChange.indexOf('closeDetails()') < locationChange.indexOf('state.locationId ='));
 });
@@ -850,4 +850,167 @@ test('Escape closes the preview before the underlying details panel', () => {
   const details = keyboard.indexOf("files-detail-panel");
   assert.ok(preview >= 0, 'preview branch is present');
   assert.ok(details > preview, 'preview is handled before details');
+});
+
+function filesViewportHarness(options = {}) {
+  const box = options.box || { top: 160, bottom: 204 };
+  const selectedBox = options.selectedBox || box;
+  const writes = new Map();
+  const bar = { hidden: true };
+  const count = { textContent: '' };
+  const header = { getBoundingClientRect: () => ({ bottom: 150, height: 53 }) };
+  const dock = {
+    hidden: false,
+    getBoundingClientRect: () => ({ height: 239.2 }),
+  };
+  const styles = new Map([
+    [header, { position: options.headerPosition || 'sticky' }],
+    [dock, { position: 'fixed', bottom: '8.5px' }],
+  ]);
+  const view = {
+    scrollTop: 40, scrollLeft: 13, clientTop: 0, clientHeight: 353,
+    getBoundingClientRect: () => ({ top: 97, bottom: 450 }),
+    contains: () => options.foreign !== true,
+    style: { setProperty: (name, value) => writes.set(name, value) },
+  };
+  let focusCalls = 0;
+  const item = {
+    getBoundingClientRect: () => {
+      const current = bar.hidden ? box : selectedBox;
+      const scrollDelta = view.scrollTop - 40;
+      return { top: current.top - scrollDelta, bottom: current.bottom - scrollDelta };
+    },
+    focus: () => { focusCalls += 1; },
+  };
+  const target = {
+    closest: () => options.unrelated ? null : item,
+    matches: () => options.keyboard !== false,
+    focus: () => { focusCalls += 1; },
+  };
+  const document = { activeElement: target };
+  const selected = new Map([['owned.txt', { path: 'owned.txt' }]]);
+  let writeStateCalls = 0;
+  const nodes = {
+    'files-view': view, 'files-app-header': header, 'files-operation-dock': dock,
+    'files-selection-bar': bar, 'files-selection-count': count,
+  };
+  const source = ['revealFileControl', 'updateOperationClearance', 'renderSelection']
+    .map(name => {
+      const body = files.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}`))?.[0];
+      assert.ok(body, `actual ${name} function is present`);
+      return body;
+    }).join('\n');
+  const context = vm.createContext({
+    $: id => nodes[id], document, state: { selected },
+    innerHeight: options.innerHeight || 450,
+    getComputedStyle: element => styles.get(element),
+    applyWriteState: () => { writeStateCalls += 1; },
+  });
+  vm.runInContext(source + '\nglobalThis.actions = { revealFileControl, updateOperationClearance, renderSelection };', context);
+  return {
+    ...context.actions, view, header, dock, styles, writes, nodes, target, document,
+    bar, count, selected, focusCalls: () => focusCalls, writeStateCalls: () => writeStateCalls,
+  };
+}
+
+test('Files vertical reveal moves only enough to expose a row below the sticky header or above the viewport bottom', () => {
+  const top = filesViewportHarness({ box: { top: 140, bottom: 184 } });
+  top.revealFileControl(top.target);
+  assert.equal(top.view.scrollTop, 30);
+  assert.equal(top.view.scrollLeft, 13);
+  assert.equal(top.document.activeElement, top.target);
+  assert.equal(top.focusCalls(), 0);
+
+  const bottom = filesViewportHarness({ box: { top: 420, bottom: 464 } });
+  bottom.revealFileControl(bottom.target);
+  assert.equal(bottom.view.scrollTop, 54);
+  bottom.revealFileControl(bottom.target);
+  assert.equal(bottom.view.scrollTop, 54, 'already revealed control does not keep scrolling');
+
+  const shorterRoot = filesViewportHarness({ box: { top: 369, bottom: 413 } });
+  shorterRoot.view.clientHeight = 300;
+  shorterRoot.revealFileControl(shorterRoot.target);
+  assert.equal(shorterRoot.view.scrollTop, 56, 'use the Files scrollport bottom397, not window bottom450');
+
+  const shorterWindow = filesViewportHarness({ box: { top: 396, bottom: 440 }, innerHeight: 430 });
+  shorterWindow.revealFileControl(shorterWindow.target);
+  assert.equal(shorterWindow.view.scrollTop, 50, 'use the visible viewport when it ends before the root');
+});
+
+test('Files vertical reveal preserves visible controls and leaves a control spanning both bounds unresolved', () => {
+  for (const box of [
+    { top: 160, bottom: 204 }, { top: 150, bottom: 194 },
+    { top: 406, bottom: 450 }, { top: 140, bottom: 460 },
+  ]) {
+    const h = filesViewportHarness({ box });
+    h.revealFileControl(h.target);
+    assert.equal(h.view.scrollTop, 40, JSON.stringify(box));
+    assert.equal(h.view.scrollLeft, 13);
+    assert.equal(h.focusCalls(), 0);
+  }
+});
+
+test('Files vertical reveal ignores nonsticky layouts and controls outside its scope', () => {
+  for (const options of [{ headerPosition: 'static' }, { foreign: true }, { unrelated: true }]) {
+    const h = filesViewportHarness({ ...options, box: { top: 140, bottom: 184 } });
+    h.revealFileControl(h.target);
+    h.revealFileControl(null);
+    assert.equal(h.view.scrollTop, 40);
+    assert.equal(h.view.scrollLeft, 13);
+    assert.equal(h.document.activeElement, h.target);
+    assert.equal(h.focusCalls(), 0);
+  }
+});
+
+test('Files operation clearance follows floating versus in-flow and hidden docks, without stale header clearance', () => {
+  const h = filesViewportHarness();
+  h.updateOperationClearance();
+  assert.equal(h.writes.get('--files-operation-clearance'), '256px');
+  assert.equal(h.writes.get('--files-header-clearance'), '53px');
+
+  h.styles.set(h.dock, { position: 'absolute', bottom: '16px' });
+  h.dock.getBoundingClientRect = () => ({ height: 100 });
+  h.updateOperationClearance();
+  assert.equal(h.writes.get('--files-operation-clearance'), '124px');
+
+  for (const position of ['static', 'relative']) {
+    h.styles.set(h.dock, { position, bottom: '16px' });
+    h.updateOperationClearance();
+    assert.equal(h.writes.get('--files-operation-clearance'), '0px');
+  }
+  h.styles.set(h.dock, { position: 'fixed', bottom: 'auto' });
+  h.updateOperationClearance();
+  assert.equal(h.writes.get('--files-operation-clearance'), '108px');
+  h.dock.hidden = true;
+  h.styles.set(h.header, { position: 'static' });
+  h.updateOperationClearance();
+  assert.equal(h.writes.get('--files-operation-clearance'), '0px');
+  assert.equal(h.writes.get('--files-header-clearance'), '0px');
+  assert.equal(h.view.scrollTop, 40);
+  assert.equal(h.view.scrollLeft, 13);
+});
+
+test('Files selection reveal follows the changed layout without stealing keyboard or pointer focus', () => {
+  for (const keyboard of [true, false]) {
+    const h = filesViewportHarness({ keyboard, box: { top: 350, bottom: 396 }, selectedBox: { top: 420, bottom: 466 } });
+    const selectedItem = h.selected.get('owned.txt');
+    h.renderSelection();
+    assert.equal(h.bar.hidden, false);
+    assert.equal(h.count.textContent, '1 selected');
+    assert.equal(h.view.scrollTop, 56, 'reveal after the selection bar changes layout');
+    assert.equal(h.view.scrollLeft, 13);
+    assert.equal(h.selected.get('owned.txt'), selectedItem);
+    assert.equal(h.document.activeElement, h.target);
+    assert.equal(h.focusCalls(), 0);
+    assert.equal(h.writeStateCalls(), 1);
+
+    h.selected.clear();
+    h.renderSelection();
+    assert.equal(h.bar.hidden, true);
+    assert.equal(h.count.textContent, '0 selected');
+    assert.equal(h.view.scrollTop, 56, 'clearing selection leaves the now-visible row in place');
+    assert.equal(h.document.activeElement, h.target);
+    assert.equal(h.focusCalls(), 0);
+    assert.equal(h.writeStateCalls(), 2);
+  }
 });

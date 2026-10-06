@@ -1094,7 +1094,10 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
   typeSel.setAttribute('aria-labelledby', 'vf-type-label');
   const initial = editing ? _typeForEntry(entry) : 'login';
   populateDropdown(typeSel, _allTypes().map(t => ({ value: t.key, label: t.label })), initial);
-  typeSel.addEventListener('change', () => _renderFields(_currentFields(), _editVals()));
+  typeSel.addEventListener('change', () => {
+    if (ov._saving || ov._acting || ov._openingSaved) return;
+    _renderFields(_currentFields(), _editVals());
+  });
 
   ov.querySelector('#vf-name').value = editing ? (entry.name || '') : '';
   _renderFields(_currentFields(), _editVals());
@@ -1236,7 +1239,7 @@ function _formError(ov, message) {
 }
 
 function _formBusy(ov, busy) {
-  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-save, #vf-open-saved, #vf-del, #vf-share, #vf-share-revoke');
+  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-type, #vf-save, #vf-open-saved, #vf-del, #vf-share, #vf-share-revoke');
   if (busy) {
     ov._disabledBefore ||= new Map();
     controls.forEach(control => {
@@ -1277,6 +1280,13 @@ async function _openSavedEntry(ov) {
   if (ov._saving || ov._openingSaved || !ov._requestId) return;
   const token = _token;
   if (!_sameForm(ov, token)) return;
+  const focusSource = ov.querySelector('#vf-open-saved');
+  let ownsFocus = document.activeElement === focusSource;
+  let focusDialog = null;
+  const trackFocus = event => {
+    if (event.target !== focusSource && event.target !== document.body && !focusDialog?.contains(event.target)) ownsFocus = false;
+  };
+  document.addEventListener('focusin', trackFocus, true);
   ov._openingSaved = true;
   _formBusy(ov, true);
   try {
@@ -1292,15 +1302,21 @@ async function _openSavedEntry(ov) {
       if ([404, 410].includes(response.status)) ov._conflict = false;
       throw new Error(typeof entry.detail === 'string' ? entry.detail : 'could not open the saved entry');
     }
-    if (!await confirm('discard this draft and open the saved entry?') || !_sameForm(ov, token)) return;
+    document.removeEventListener('focusin', trackFocus, true);
+    const decision = confirm('discard this draft and open the saved entry?');
+    focusDialog = document.activeElement?.closest('.dialog-overlay');
+    document.addEventListener('focusin', trackFocus, true);
+    if (!await decision || !_sameForm(ov, token)) return;
     openVaultForm(entry);
   } catch (error) {
     if (_sameForm(ov, token)) _formError(ov, `${error.message || 'could not open the saved entry'}. your input is kept.`);
   } finally {
+    document.removeEventListener('focusin', trackFocus, true);
     ov._openingSaved = false;
     if (_sameForm(ov, token)) {
+      const restoreFocus = ownsFocus && [focusSource, document.body].includes(document.activeElement);
       _formBusy(ov, false);
-      (ov.querySelector('#vf-open-saved:not([hidden])') || ov.querySelector('#vf-save'))?.focus();
+      if (restoreFocus) (ov.querySelector('#vf-open-saved:not([hidden])') || ov.querySelector('#vf-save'))?.focus();
     }
   }
 }
@@ -1540,6 +1556,12 @@ async function _saveForm(editing) {
     if (_unlocked && _token === token && _vaultId === ov._vaultId) await _loadEntries();
   };
   const earlierUncertainty = ov._createUncertain;
+  const focusSource = ov.querySelector('#vf-save');
+  let ownsFocus = document.activeElement === focusSource;
+  const trackFocus = event => {
+    if (event.target !== focusSource && event.target !== document.body) ownsFocus = false;
+  };
+  document.addEventListener('focusin', trackFocus, true);
   ov._saving = true;
   _formBusy(ov, true);
   _formError(ov, '');
@@ -1575,10 +1597,12 @@ async function _saveForm(editing) {
     if (_sameForm(ov, token)) _formError(ov, `${error.message || 'could not save; try again'}. your input is kept.`);
     else await refreshDismissedForm();
   } finally {
+    document.removeEventListener('focusin', trackFocus, true);
     ov._saving = false;
     if (_sameForm(ov, token)) {
+      const restoreFocus = ownsFocus && [focusSource, document.body].includes(document.activeElement);
       _formBusy(ov, false);
-      ov.querySelector('#vf-save')?.focus();
+      if (restoreFocus) focusSource?.focus();
     }
   }
 }

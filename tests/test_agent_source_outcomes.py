@@ -52,6 +52,44 @@ class SourceOutcomesTest(unittest.TestCase):
             sources["sources"],
         )
 
+    def test_legacy_note_json_is_content_not_source_metadata(self):
+        self.run.pop("source_tracking")
+        note_contents = json.dumps(
+            {"path": "Notes/not-read.md", "hash": "b" * 64, "content": "Synthetic note text."}
+        )
+        step = {
+            "call_id": "legacy-note",
+            "name": "note_read",
+            "args": {"name": "one"},
+            "output": note_contents,
+            "error": False,
+        }
+        state.update_run(
+            self.rid, tool_steps=[step], events=[{"type": "tool_result", "data": step}]
+        )
+        sources = self.reload()
+        self.assertEqual(sources["files"], [])
+        self.assertEqual(
+            sources["sources"],
+            [{"kind": "tool", "tool": "note_read", "label": "one"}],
+        )
+        self.assertEqual(sources["outcomes"]["succeeded"], 1)
+        self.assertFalse(sources["history_complete"])
+        self.assertEqual(state.get_run(self.rid)["tool_steps"][0]["output"], note_contents)
+
+    def test_explicit_document_source_survives_an_unversioned_run(self):
+        self.run.pop("source_tracking")
+        source = {"kind": "document", "path": "Notes/one.md", "hash": "a" * 64}
+        self.completed(
+            "note_read",
+            {"name": "one"},
+            json.dumps({"path": "Notes/one.md", "hash": "a" * 64, "content": "Synthetic note."}),
+            source=source,
+        )
+        sources = self.reload()
+        self.assertEqual(sources["files"], ["Notes/one.md"])
+        self.assertEqual(sources["sources"], [{**source, "tool": "note_read"}])
+
     def test_failed_and_unfinished_calls_are_not_sources(self):
         self.completed("read_file", {"path": "missing.txt"}, "not found", error=True)
         state.record_event(

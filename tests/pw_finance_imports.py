@@ -560,6 +560,7 @@ def run():
                 )
                 passed(record)
             except Exception as error:
+                record["status"] = "failed"
                 record["error"] = str(error)
                 checkpoint()
                 capture("failed")

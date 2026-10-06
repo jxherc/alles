@@ -39,7 +39,10 @@ def run():
         for profile in ("desktop", "phone"):
             theme = "light" if profile == "phone" else "dark"
             context = browser.new_context(
-                viewport={"width": 390 if profile == "phone" else 1440, "height": 900},
+                viewport={
+                    "width": 390 if profile == "phone" else 1440,
+                    "height": 844 if profile == "phone" else 900,
+                },
                 is_mobile=profile == "phone",
                 has_touch=profile == "phone",
                 service_workers="block",
@@ -344,7 +347,10 @@ def run():
                 retry_payee = f"{profile} retry after lost acknowledgment fixture"
                 response = create_transaction(retry_payee, "23.45")
                 assert response.status == 503
-                expect(page.locator(".toast.error").last).to_have_text("couldn't add transaction")
+                expect(page.locator("#tx-save-status")).to_have_text(
+                    "save not confirmed. your input is kept. retry without changing it to check the same transaction."
+                )
+                expect(page.locator("#tx-add")).to_be_enabled()
                 expect(page.locator("#tx-amt")).to_have_value("23.45")
                 assert (
                     len([t for t in api("/api/money/transactions") if t["payee"] == retry_payee])
