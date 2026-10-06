@@ -159,10 +159,8 @@ function holdDocumentDraft(sessionId, draft, attachmentIds, privateReply, { owns
       const sameAttachments = !hasPendingAttachments() && JSON.stringify(getAttachments()) === JSON.stringify(attachmentIds);
       clearAttachments(attachmentIds);
       if (retiredDraft && !privateReply) consumeDraft(null, retiredDraft, ownsText ? '' : draft.text);
-      if (getActiveId() !== sessionId || isIncognitoMode() !== privateReply) {
-        if (!privateReply) consumeDraft(sessionId, submittedRecord, ownsText ? '' : draft.text);
-        return;
-      }
+      if (!privateReply) consumeDraft(sessionId, submittedRecord, ownsText ? '' : draft.text);
+      if (getActiveId() !== sessionId || isIncognitoMode() !== privateReply) return;
       if (!composer || composer.value !== draft.text
         || JSON.stringify(normalizeDocumentScope(window._pendingDocumentScope)) !== JSON.stringify(draft.document_scope)
         || !sameAttachments) return;

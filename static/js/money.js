@@ -343,6 +343,10 @@ export function initMoneyPanel(fetcher = fetch) {
       }));
     } catch {}
     _moneySavedCurrent = _moneySaved.at(-1)?.id;
+    try {
+      const pending = JSON.parse(sessionStorage.getItem(_createRequestKey('transaction')) || 'null');
+      if (pending?.request_id) transactionSaveStatus('an earlier transaction may already be saved. check the list before adding it again. retrying the exact entry checks the same save.');
+    } catch {}
     window.matchMedia('(max-width: 720px)').addEventListener('change', syncMoneyLayout);
     $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(fetch, true, false); });
     $('money-next')?.addEventListener('click', () => { _month = _shiftMonth(_month, 1); load(fetch, true, false); });
@@ -722,6 +726,7 @@ function wireSavedTransactions() {
     const item = _moneySaved.find(receipt => receipt.id === button.dataset.dismissSaved);
     if (!item || item.busy || item.state === 'uncertain') return;
     _moneySaved = _moneySaved.filter(item => item.id !== button.dataset.dismissSaved);
+    _completeCreateRequest('transaction', item.request_id);
     persistSavedTransactions();
     renderSavedTransactions();
     savedResultFocusTarget()?.focus();
@@ -782,6 +787,7 @@ async function undoSavedTransaction(button) {
     toast("couldn't save undo recovery in this browser. this attempt wasn't sent. try again.", 'error');
     return;
   }
+  _completeCreateRequest('transaction', item.request_id);
   const focusVersion = _moneyFocusChange;
   _moneySavedAction = ++_moneySavedActionSequence;
   item.busy = true;
@@ -1859,18 +1865,27 @@ async function addTxn() {
     transactionSaveStatus('saving transaction…');
     transactionPayload.request_id = requestId;
     const saved = await api('/api/money/transactions', { method: 'POST', body: transactionPayload });
+    const restoreFocus = action === _moneySavedAction && ownedEntryFocus && document.activeElement === focusAtSubmit;
+    if (saved?.id && !_moneySaved.some(item => item.id === saved.id)) {
+      _moneySaved.push({ id: saved.id, request_id: requestId, saved, state: saved.undo ? 'ready' : _canonicalLedger ? 'unsupported' : 'blocked' });
+    }
+    if (saved?.id && action === _moneySavedAction) _moneySavedCurrent = saved.id;
+    if (!persistSavedTransactions()) {
+      _releaseCreateRequest('transaction', requestId);
+      if (requestId === _transactionSaveRequestId) {
+        _transactionSaveRequestId = '';
+        _transactionUncertainSnapshot = null;
+        transactionSaveStatus('transaction saved. could not keep undo for reload. keep this tab open; free browser storage before undoing it.');
+      }
+      await load(fetch, true);
+      return;
+    }
     _completeCreateRequest('transaction', requestId);
     if (requestId === _transactionSaveRequestId) {
       _transactionSaveRequestId = '';
       _transactionUncertainSnapshot = null;
       transactionSaveStatus('');
     }
-    const restoreFocus = action === _moneySavedAction && ownedEntryFocus && document.activeElement === focusAtSubmit;
-    if (saved?.id && !_moneySaved.some(item => item.id === saved.id)) {
-      _moneySaved.push({ id: saved.id, request_id: requestId, saved, state: saved.undo ? 'ready' : _canonicalLedger ? 'unsupported' : 'blocked' });
-    }
-    if (saved?.id && action === _moneySavedAction) _moneySavedCurrent = saved.id;
-    persistSavedTransactions();
     if (entryVersion === _moneyEntryChange && entrySnapshot === transactionEntrySnapshot()) {
       for (const id of ['tx-payee', 'tx-cat', 'tx-amt', 'tx-tags']) if ($(id)) $(id).value = '';
       if (!$('tr-amt')?.value.trim() && (restoreFocus || !$('money-entry-fields')?.contains(document.activeElement))) {
@@ -2059,7 +2074,13 @@ async function saveTxn(id) {
   }
   const focused = document.activeElement, focusVersion = _moneyFocusChange;
   try {
-    await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: payload });
+    const saved = await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: payload });
+    for (const transactions of [_txns, _searchResults]) {
+      const baseline = transactions?.find(transaction => transaction.id === id);
+      if (baseline) Object.assign(baseline, saved);
+    }
+    row.dataset.originalAccount = saved.account_id;
+    row.dataset.originalAmount = String(saved.amount);
     if (_editTxn === id) _editTxn = null;
     await load(fetch, true);
     if (row.contains(focused) && focusVersion === _moneyFocusChange && document.activeElement === document.body) {
