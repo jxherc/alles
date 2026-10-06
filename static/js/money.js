@@ -1436,7 +1436,7 @@ function wire() {
   syncMoneyLayout();
   $('tx-add')?.addEventListener('click', addTxn);
   $('tx-amt')?.addEventListener('input', () => transactionAmountError(''));
-  $('tx-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') addTxn(); });
+  $('tx-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTxn(); } });
   $('money-add-acct')?.addEventListener('click', () => {
     const wrap = $('money-acct-form-wrap');
     if (wrap.innerHTML) { wrap.innerHTML = ''; return; }
@@ -1829,6 +1829,7 @@ function transactionAmountError(message) {
     field?.setAttribute?.('aria-invalid', 'true');
     field?.setAttribute?.('aria-describedby', 'tx-amt-error');
     field?.focus?.();
+    error?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
   } else {
     field?.removeAttribute?.('aria-invalid');
     field?.removeAttribute?.('aria-describedby');
@@ -1852,13 +1853,12 @@ function updateTransactionSaveStatus() {
 
 async function addTxn() {
   const amtRaw = _decimal($('tx-amt')?.value);
-  if (!_validAmounts(amtRaw)) {
+  if (!Number.isFinite(amtRaw)) {
     transactionAmountError('use a decimal point, e.g. 1234.56');
     return;
   }
   if (!amtRaw || amtRaw <= 0) {
     transactionAmountError('enter an amount greater than zero');
-    toast('enter an amount', 'error');
     return;
   }
   transactionAmountError('');

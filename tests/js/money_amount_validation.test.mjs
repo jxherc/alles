@@ -150,7 +150,10 @@ for (const malformed of ['1,234.56', '12.34garbage', 'Infinity', '1e309', '0x10'
       const h = harness({ ...valid, [id]: malformed });
       await action(h);
       assert.equal(h.requests.length, 0, id);
-      assert.match(h.notices[0]?.[0] || '', /decimal point/, id);
+      if (id === 'tx-amt') {
+        assert.match(h.get('tx-amt-error').textContent, /decimal point/, id);
+        assert.deepEqual(h.notices, [], 'transaction validation stays with its amount field');
+      } else assert.match(h.notices[0]?.[0] || '', /decimal point/, id);
       assert.equal(h.get(id).value, malformed, id);
     }
     const h = harness(valid);
