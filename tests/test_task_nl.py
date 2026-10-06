@@ -12,6 +12,32 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(p["due_date"], "2026-06-15")
         self.assertEqual(p["title"], "call mom")
 
+    def test_possessive_dates_keep_the_title_and_suggest_the_same_due_date(self):
+        for phrase, due in (
+            ("today", "2026-06-14"),
+            ("tomorrow", "2026-06-15"),
+            ("Friday", "2026-06-19"),
+            ("next Monday", "2026-06-15"),
+        ):
+            for apostrophe in ("'", "’"):
+                with self.subTest(phrase=phrase, apostrophe=apostrophe):
+                    title = f"prepare {phrase}{apostrophe}s reading"
+                    parsed = parse_task(title, T)
+                    self.assertEqual(parsed["title"], title)
+                    self.assertEqual(parsed["due_date"], due)
+
+    def test_plain_date_instructions_still_leave_only_the_task_title(self):
+        for phrase, due in (
+            ("today", "2026-06-14"),
+            ("tomorrow", "2026-06-15"),
+            ("Friday", "2026-06-19"),
+            ("next Monday", "2026-06-15"),
+        ):
+            with self.subTest(phrase=phrase):
+                parsed = parse_task(f"prepare reading {phrase}", T)
+                self.assertEqual(parsed["title"], "prepare reading")
+                self.assertEqual(parsed["due_date"], due)
+
     def test_priority_and_tags(self):
         p = parse_task("submit report #work !", T)
         self.assertEqual(p["priority"], 2)  # single ! = med on the 0-3 scale

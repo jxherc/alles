@@ -6,6 +6,40 @@ from tests._client import ApiTest
 
 
 class HomeCapturePreviewTests(ApiTest):
+    def test_possessive_title_survives_preview_acceptance_and_readback(self):
+        for apostrophe in ("'", "’"):
+            with self.subTest(apostrophe=apostrophe):
+                text = f"prepare tomorrow{apostrophe}s reading"
+                response = self.client.post(
+                    "/api/tasks/quick",
+                    json={"text": text, "preview": True, "today": "2032-12-31"},
+                )
+                self.assertEqual(response.status_code, 200, response.text)
+                proposal = response.json()
+                self.assertEqual(proposal["candidate"]["title"], text)
+                self.assertEqual(proposal["candidate"]["due_date"], "2033-01-01")
+                self.assertEqual(proposal["source"]["excerpt"], text)
+                with self.db() as db:
+                    self.assertEqual(db.query(Task).count(), 0)
+                saved = self.client.post(
+                    "/api/tasks",
+                    json={
+                        **proposal["candidate"],
+                        "source": proposal["source"],
+                        "request_id": str(uuid.uuid4()),
+                    },
+                )
+                self.assertEqual(saved.status_code, 200, saved.text)
+                records = self.client.get("/api/tasks")
+                self.assertEqual(records.status_code, 200, records.text)
+                record = next(row for row in records.json() if row["id"] == saved.json()["id"])
+                self.assertEqual(record["title"], text)
+                self.assertEqual(record["due_date"], "2033-01-01")
+                self.assertEqual(record["source"]["excerpt"], text)
+                self.assertEqual(
+                    self.client.delete("/api/tasks/" + saved.json()["id"]).status_code, 200
+                )
+
     def test_preview_resolves_relative_dates_against_the_displayed_home_day(self):
         response = self.client.post(
             "/api/tasks/quick",

@@ -154,6 +154,9 @@ def _month_name_date(t: str, today: date):
 
 def _extract_date(t: str, today: date):
     def strip(span):
+        # A possessive date is part of the title even when it also suggests a due date.
+        if re.match(r"['’]s\b", t[span[1] :], re.I):
+            return t
         return t[: span[0]] + " " + t[span[1] :]
 
     # ISO date — only accept a real calendar date, else it crashes
