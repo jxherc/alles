@@ -713,6 +713,7 @@ def run():
                     (out / "scenarios.json").write_text(json.dumps(records, indent=2))
         browser.close()
         api.dispose()
+    assert records, "no mail editor scenarios matched the requested filters"
     raise SystemExit(any(r["status"] != "passed" for r in records))
 
 

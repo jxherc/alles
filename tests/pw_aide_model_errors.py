@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 from urllib.parse import urlparse
@@ -150,6 +151,9 @@ with sync_playwright() as pw:
                 field.fill(question)
                 page.locator("#send-btn").click()
                 expect(page.locator("#send-btn")).to_be_disabled()
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 page.wait_for_timeout(50)
                 assert len(held) == 1
                 newer = "newer unsent draft stays exactly here"

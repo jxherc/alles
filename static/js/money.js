@@ -48,6 +48,7 @@ let _searchSequence = 0;
 let _amountRangeOpen = false;
 let _cur = '$';
 let _currencyCodes = [];
+let _currencyReadSequence = 0;
 let _inited = false;
 const _expandedMoneySections = new Set();
 let _moneyEntryOpen = null;
@@ -464,6 +465,7 @@ async function openBankConnections() {
 
 async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = preserveDrafts) {
   const sequence = ++_moneyLoadSequence;
+  const currencyRead = ++_currencyReadSequence;
   const month = _month;
   const request = (path, options = {}) => api(path, options, fetcher);
   const lbl = $('money-month-label'); if (lbl) lbl.textContent = _monthLabel(_month);
@@ -498,7 +500,9 @@ async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = p
     const goals = (await request('/api/money/goals').catch(() => null))?.goals || [];
     if (sequence !== _moneyLoadSequence || month !== _month) return false;
     if (preserveDrafts && recurring === null && _recurringEdit) throw new Error('schedule refresh unavailable');
-    [_accounts, _txns, _budgets, _sum, _rules, _envelope, _aom, _forecast, _nwhist, _holdings, _alerts, _currencyCodes] = results;
+    const currencyCodes = results.pop();
+    [_accounts, _txns, _budgets, _sum, _rules, _envelope, _aom, _forecast, _nwhist, _holdings, _alerts] = results;
+    if (currencyRead === _currencyReadSequence) _currencyCodes = currencyCodes;
     _recurring = recurring || [];
     _recurringError = recurring === null;
     _recurringStatus = '';
@@ -654,6 +658,13 @@ function restoreMoneyDrafts(body, retained) {
     replacement.replaceWith(node);
     if (node.classList.contains('rc-panel')) node.querySelector('.rc-out')?.replaceChildren();
     if (node.classList.contains('nw-base')) node.querySelector('#nw-base-out')?.replaceChildren();
+  }
+  // Retain the draft control, but refresh choices from the latest successful read.
+  const currency = body.querySelector('#af-currency');
+  if (currency && _currencyCodes.length) {
+    populateDropdown(currency,
+      [{ value: '', label: 'choose currency' }, ..._currencyCodes.map(value => ({ value, label: value }))],
+      getDropdownValue(currency));
   }
   const create = $('recurring-create');
   if (create) create.hidden = !!recurringCreateUnavailable();
@@ -1383,20 +1394,26 @@ function _wireAccountForm() {
 async function retryCurrencyChoices() {
   const control = $('af-currency'), button = $('af-currency-retry');
   if (!control || !button) return;
+  const currencyRead = ++_currencyReadSequence;
+  const focusVersion = _moneyFocusChange;
   const ownedFocus = document.activeElement === button;
   button.disabled = true;
   try {
     const result = await api('/api/money/currencies');
-    if (control !== $('af-currency')) return;
+    if (currencyRead !== _currencyReadSequence || control !== $('af-currency')) return;
     _currencyCodes = result.codes || [];
     if (!_currencyCodes.length) throw new Error('currency choices unavailable');
     populateDropdown(control, [{ value: '', label: 'choose currency' }, ..._currencyCodes.map(value => ({ value, label: value }))], '');
     control.removeAttribute('aria-invalid');
     $('af-currency-error').textContent = '';
-    button.remove();
-    if (ownedFocus && (document.activeElement === button || document.activeElement === document.body)) control.focus();
+    const currentButton = $('af-currency-retry');
+    const focused = document.activeElement;
+    const ownsFocus = ownedFocus && (focused === button || focused === currentButton
+      || (focused === document.body && focusVersion === _moneyFocusChange));
+    currentButton?.remove();
+    if (ownsFocus) control.focus();
   } catch {
-    if (control === $('af-currency')) $('af-currency-error').textContent = 'currency choices could not be loaded. retry.';
+    if (currencyRead === _currencyReadSequence && control === $('af-currency')) $('af-currency-error').textContent = 'currency choices could not be loaded. retry.';
   } finally { button.disabled = false; }
 }
 function wire() {

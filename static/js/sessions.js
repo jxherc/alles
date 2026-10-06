@@ -208,8 +208,8 @@ function clearStoredDraft(owner) {
 }
 
 export function newChat(options = {}) {
+  if (!options.skipDraft && saveDraft() === false) return false;
   ++_composerGeneration;
-  if (!options.skipDraft) saveDraft(); // keep whatever was half-typed in the outgoing convo
   document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
   _activeId = null;
   window._currentSession = null;
@@ -422,8 +422,8 @@ export function focusSessionMessage(messageId) {
 
 export async function selectSession(id, messageId = '', options = {}) {
   if (messageId && !/^[a-zA-Z0-9_-]{1,160}$/.test(messageId)) return false;
+  if (id !== _activeId && !options.skipDraft && saveDraft() === false) return false;
   ++_composerGeneration;
-  if (id !== _activeId && !options.skipDraft) saveDraft();   // stash the outgoing convo's unsent text
   document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
   _activeId = id;
   location.hash = id;

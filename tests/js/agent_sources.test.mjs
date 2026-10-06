@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { sourcesHtml } from '../../static/js/runs.js';
+import { readRecordTarget } from '../../static/js/recordlinks.js';
 
 const render = patch => sourcesHtml({ sources: [], actions: [], outcomes: {}, history_complete: true, ...patch });
 
@@ -46,4 +47,51 @@ test('recall links use exact Docs and saved-reader destinations', () => {
   ] }] });
   assert.match(html, /doc=Research%2Fone.md/);
   assert.match(html, /record_view=read&amp;record=article-1/);
+});
+
+test('recorded reading versions survive confirmed-read and recall source links', () => {
+  const hash = 'a'.repeat(64);
+  const item = { kind: 'read', ref: 'article-1', label: 'saved article', hash };
+  for (const sources of [[item], [{ kind: 'search', tool: 'recall', query: 'owned', results: [item] }]]) {
+    const html = render({ sources });
+    const href = html.match(/href="([^"]+)"/)[1].replaceAll('&amp;', '&');
+    const url = new URL(href, 'http://synthetic.invalid/');
+    assert.deepEqual(readRecordTarget(url), { view: 'read', id: item.ref, occurrence: '', hash });
+    assert.equal(url.searchParams.get('app'), 'read');
+    assert.equal(url.searchParams.has('doc_hash'), false);
+    assert.match(html, /read version/);
+  }
+});
+
+test('unversioned and invalid-hash reading links still open the live article', () => {
+  for (const hash of [undefined, null, '', 'a'.repeat(63), 'a'.repeat(65), 'A'.repeat(64), 'g'.repeat(64), ' a'.repeat(32)]) {
+    const html = render({ sources: [{ kind: 'read', ref: 'article-1', hash }] });
+    const href = html.match(/href="([^"]+)"/)[1].replaceAll('&amp;', '&');
+    assert.equal(href, '/?app=read&record_view=read&record=article-1');
+    assert.deepEqual(readRecordTarget(new URL(href, 'http://synthetic.invalid/')), {
+      view: 'read', id: 'article-1', occurrence: '',
+    });
+    assert.doesNotMatch(html, /record_hash|doc_hash|read version/);
+  }
+});
+
+test('a valid source hash cannot make an invalid reading identity navigable', () => {
+  for (const ref of ['', '../article', 'article?extra', 'a'.repeat(161)]) {
+    const html = render({ sources: [{ kind: 'read', ref, hash: 'b'.repeat(64) }] });
+    assert.doesNotMatch(html, /<a |record_hash/);
+    assert.match(html, /<span class="run-src-item">/);
+  }
+});
+
+test('ordinary document and web source links keep their existing destinations', () => {
+  const hash = 'b'.repeat(64);
+  const html = render({ sources: [
+    { kind: 'doc', ref: 'notes/one.md', hash },
+    { kind: 'document', path: 'notes/two.md' },
+    { kind: 'url', url: 'https://example.invalid/article?edition=2', hash },
+  ] });
+  assert.match(html, /href="\/\?app=docs&amp;doc=notes%2Fone.md&amp;doc_hash=b{64}"/);
+  assert.match(html, /href="\/\?app=docs&amp;doc=notes%2Ftwo.md"/);
+  assert.match(html, /href="https:\/\/example.invalid\/article\?edition=2" target="_blank" rel="noopener noreferrer"/);
+  assert.doesNotMatch(html, /record_hash/);
 });

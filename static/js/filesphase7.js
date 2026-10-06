@@ -606,6 +606,7 @@ function renderSelection() {
   bar.hidden = count === 0;
   $('files-selection-count').textContent = `${count} selected`;
   applyWriteState();
+  revealFileControl(document.activeElement);
 }
 
 function selectAll() {
@@ -1181,9 +1182,15 @@ function updateOperationClearance() {
   const view = $('files-view');
   const dock = $('files-operation-dock');
   if (!view || !dock) return;
-  const clearance = dock.hidden ? 0 : Math.ceil(dock.getBoundingClientRect().height
-    + (parseFloat(getComputedStyle(dock).bottom) || 0) + 8);
+  const dockStyle = getComputedStyle(dock);
+  const floating = ['absolute', 'fixed'].includes(dockStyle.position);
+  const clearance = dock.hidden || !floating ? 0 : Math.ceil(dock.getBoundingClientRect().height
+    + (parseFloat(dockStyle.bottom) || 0) + 8);
   view.style.setProperty('--files-operation-clearance', `${clearance}px`);
+  const header = $('files-app-header');
+  const headerClearance = header && getComputedStyle(header).position === 'sticky'
+    ? header.getBoundingClientRect().height : 0;
+  view.style.setProperty('--files-header-clearance', `${headerClearance}px`);
 }
 
 function renderOperations() {
@@ -1754,7 +1761,47 @@ function wireChoiceGroup(host, onChange) {
   });
 }
 
+function revealFileControl(target) {
+  const view = $('files-view');
+  const header = $('files-app-header');
+  const item = target?.closest('.files-location-button, .file-row');
+  if (!view || !header || !item || !view.contains(item)
+    || getComputedStyle(header).position !== 'sticky') return;
+  const bounds = view.getBoundingClientRect();
+  const top = Math.max(bounds.top + view.clientTop, header.getBoundingClientRect().bottom);
+  const bottom = Math.min(innerHeight, bounds.top + view.clientTop + view.clientHeight);
+  const rect = item.getBoundingClientRect();
+  const topDelta = rect.top - top;
+  const bottomDelta = rect.bottom - bottom;
+  if (topDelta < 0 && bottomDelta < 0) {
+    view.scrollTop += Math.max(topDelta, bottomDelta);
+  } else if (topDelta > 0 && bottomDelta > 0) {
+    view.scrollTop += Math.min(topDelta, bottomDelta);
+  }
+}
+
+function revealHorizontalFileControl(event) {
+  const button = event.target.closest('button.crumb, button.files-location-button');
+  if (!button || !button.matches(':focus-visible')) return;
+  const scroller = button.closest('#files-breadcrumb, .files-phase7-location-panel');
+  if (!scroller || !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowX)) return;
+  const bounds = scroller.getBoundingClientRect();
+  const rect = button.getBoundingClientRect();
+  const left = bounds.left + scroller.clientLeft;
+  const right = left + scroller.clientWidth;
+  const leftDelta = rect.left - left;
+  const rightDelta = rect.right - right;
+  if (leftDelta < 0 && rightDelta < 0) {
+    scroller.scrollLeft += Math.max(leftDelta, rightDelta);
+  } else if (leftDelta > 0 && rightDelta > 0) {
+    scroller.scrollLeft += Math.min(leftDelta, rightDelta);
+  }
+}
+
 function bindEvents() {
+  $('files-view')?.addEventListener('focusin', event => revealFileControl(event.target));
+  $('files-breadcrumb')?.addEventListener('focusin', revealHorizontalFileControl);
+  $('files-location-list')?.addEventListener('focusin', revealHorizontalFileControl);
   $('files-settings-btn')?.addEventListener('click', () => {
     renderLocationStatus();
     openFilesDialog('settings', '[data-files-dialog-close]');
@@ -1977,6 +2024,8 @@ export function initFiles(fetcher = fetch) {
   const dock = $('files-operation-dock');
   const dockObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(updateOperationClearance) : null;
   if (dock) dockObserver?.observe(dock);
+  const header = $('files-app-header');
+  if (header) dockObserver?.observe(header);
   window.addEventListener('resize', updateOperationClearance);
   const initialOperations = loadOperations(fetcher);
   operationPoll = window.setInterval(pollOperations, 4000);

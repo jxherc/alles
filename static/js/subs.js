@@ -418,7 +418,10 @@ function closeHistory() {
 
 async function showHistory(id) {
   const state = { id, loading: true, pays: [], error: '' };
+  const historyFocus = document.activeElement?.closest('.sub-hist-pop');
+  const retainFocus = historyFocus?.closest('.sub-item')?.dataset.id === id;
   _history = state; renderHistory();
+  if (retainFocus && $('subs-view')?.offsetParent) document.querySelector('.sub-hist-pop [data-history-close]')?.focus();
   try {
     const pays = await api(`/api/subscriptions/${id}/payments`);
     if (!Array.isArray(pays)) throw new Error('invalid history response');

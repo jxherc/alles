@@ -274,7 +274,7 @@ test('Finance Actual status exposes only safe actions for each authority state',
   assert.doesNotMatch(specialistSource, /base_currency_code:\s*ledger\.base_currency_code\s*\|\|\s*['"]CAD['"]/);
 });
 
-function financeHarness() {
+function financeHarness(extraContext = {}) {
   let focused = null;
   class Element {
     constructor(tag) { this.tagName = tag; this.children = []; this.attributes = {}; this.events = {}; this.dataset = {}; this.className = ''; this.textContent = ''; }
@@ -296,9 +296,10 @@ function financeHarness() {
     document: { createElement: tag => new Element(tag) },
     window: {},
     formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),
+    ...extraContext,
   });
   vm.runInContext(specialistSource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') + `
-    globalThis.financeSubject = { render: _renderFinance, status: _renderActualStatus };
+    globalThis.financeSubject = { render: _renderFinance, status: _renderActualStatus, receipt: _renderImportReceipt };
   `, context);
   return { ...context.financeSubject, target: new Element('div'), focused: () => focused };
 }
@@ -452,7 +453,7 @@ test('ambiguous statement matches expose explicit duplicate and import-new decis
   assert.match(source, /resolutionButtons\.forEach\(button => _setAsyncControlBusy\(button, true\)\)/);
 });
 
-test('interrupted Actual imports expose explicit keep, delete, and partial undo recovery', () => {
+test('interrupted imports expose recovery actions and reserve undo for local receipts', () => {
   const source = readFileSync(
     new URL('../../static/js/specialist_groups.js', import.meta.url),
     'utf8',
@@ -461,6 +462,7 @@ test('interrupted Actual imports expose explicit keep, delete, and partial undo 
   assert.match(source, /accept edited Actual transaction as replacement/);
   assert.match(source, /delete it and retry/);
   assert.match(source, /undo applied rows/);
+  assert.match(source, /undo is unavailable for Actual imports/);
   assert.match(source, /confirmDialog/);
   assert.match(source, /if \(recoveryBusy\) return/);
   assert.match(source, /if \(receiptMutationBusy\) return/);
@@ -597,4 +599,71 @@ test('Plan quick capture reports create and refresh failures without losing a re
   assert.match(capture, /task saved; plan could not refresh/);
   assert.match(capture, /input\.value = ''/);
   assert.match(capture, /input\.focus\(\)/);
+});
+
+
+function importReceipt(backend, status = 'applied') {
+  const receipt = {
+    id: 'synthetic-import', source_name: 'synthetic.csv', account_id: 'chosen-account', status,
+    receipt: { ledger_backend: backend, account_name: 'chosen account' },
+    counts: { rows: 1, pending: 0, duplicates: 0, conflicts: 0, applying: 0, applied: status === 'undone' ? 0 : 1, undone: status === 'undone' ? 1 : 0 },
+    rows: [{ id: 'row-1', row_number: 1, status: status === 'undone' ? 'undone' : 'applied', created_transaction_id: backend === 'actual' ? 'finance-import:synthetic-import:1' : 'local-transaction', parsed: { payee: 'synthetic payee' } }],
+  };
+  if (status === 'preview') {
+    receipt.rows.push({ id: 'row-2', row_number: 2, status: 'pending', parsed: {} });
+    receipt.counts.rows++; receipt.counts.pending++;
+  }
+  return receipt;
+}
+
+for (const status of ['applied', 'preview']) test(`Actual ${status} import explains unavailable undo without offering it`, () => {
+  const h = financeHarness();
+  const receipt = importReceipt('actual', status), before = JSON.stringify(receipt);
+  h.receipt(h.target, receipt, () => assert.fail('render must not request provider data'), () => assert.fail('render must not mutate a receipt'));
+  assert.equal(h.target.querySelector('.finance-import-undo'), null);
+  assert.equal(h.target.querySelector('.specialist-group-note').textContent, 'undo is unavailable for Actual imports. review the imported transactions in the ledger before deleting.');
+  assert.equal(JSON.stringify(receipt), before);
+});
+
+for (const status of ['applied', 'preview']) test(`local ${status} import retains its confirmed undo action`, async () => {
+  const confirmations = [], requests = [];
+  const h = financeHarness({
+    confirmDialog: async text => { confirmations.push(text); return true; },
+    requestWithRecentOwner: (request, url, options) => request(url, options),
+  });
+  const receipt = importReceipt('alles', status);
+  let latest = receipt;
+  const saved = { ...receipt, status: 'undone', counts: { ...receipt.counts, applied: 0, pending: 0, undone: receipt.counts.rows }, rows: receipt.rows.map(row => ({ ...row, status: 'undone' })) };
+  const request = async (url, options) => { requests.push({ url, method: options.method }); return { ok: true, json: async () => saved }; };
+  const refresh = next => { latest = next; h.receipt(h.target, next, request, refresh); };
+  h.receipt(h.target, receipt, request, refresh);
+  const undo = h.target.querySelector('.finance-import-undo');
+  assert.ok(undo);
+  assert.equal(undo.textContent, status === 'applied' ? 'undo this import' : 'undo applied rows');
+  assert.equal(h.target.querySelector('.specialist-group-note'), null);
+  await undo.events.click();
+  assert.equal(confirmations.length, 1);
+  assert.match(confirmations[0], /only transactions created by this receipt/);
+  assert.deepEqual(requests, [{ url: '/api/finance/imports/synthetic-import/undo', method: 'POST' }]);
+  assert.equal(latest, saved);
+  assert.equal(h.target.querySelector('.finance-import-undo'), null);
+});
+
+test('an already-undone Actual receipt stays visible without a new undo or unsupported message', () => {
+  const h = financeHarness(), receipt = importReceipt('actual', 'undone');
+  h.receipt(h.target, receipt, () => assert.fail('historical receipt must not request provider data'), () => {});
+  assert.equal(h.target.querySelector('.finance-import-receipt-head').children[0].textContent, 'synthetic.csv');
+  assert.equal(h.target.querySelector('.finance-import-row-status').textContent, 'undone');
+  assert.equal(h.target.querySelector('.finance-import-undo'), null);
+  assert.equal(h.target.querySelector('.specialist-group-note'), null);
+});
+
+for (const backend of ['actual', 'alles']) test(`${backend} unresolved import claims do not expose undo`, () => {
+  const h = financeHarness(), receipt = importReceipt(backend, 'preview');
+  receipt.rows[1].status = 'conflict';
+  receipt.rows[1].created_transaction_id = 'claimed-transaction';
+  receipt.counts.pending = 0; receipt.counts.conflicts = 1;
+  h.receipt(h.target, receipt, () => assert.fail('render must not send a request'), () => {});
+  assert.equal(h.target.querySelector('.finance-import-undo'), null);
+  assert.equal(Boolean(h.target.querySelector('.specialist-group-note')), backend === 'actual');
 });

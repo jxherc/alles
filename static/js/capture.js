@@ -18,13 +18,13 @@ async function pendingStore() {
   const { scopes } = await response.json();
   if (!Array.isArray(scopes) || !scopes.length || scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('could not prepare recovery; try again');
   const keys = scopes.map(scope => PREFIX + scope);
-  let pending = null;
+  let pending = null, pendingKey = null, pendingRaw = null;
   for (const key of keys) {
     const raw = sessionStorage.getItem(key);
     if (!raw) continue;
     const value = JSON.parse(raw);
     if (!['task', 'event'].includes(value?.kind) || typeof value.body?.request_id !== 'string') throw new Error('could not read the pending capture');
-    pending ||= value;
+    if (!pending) { pending = value; pendingKey = key; pendingRaw = raw; }
   }
   return {
     pending,
@@ -32,8 +32,11 @@ async function pendingStore() {
       const raw = JSON.stringify(value);
       sessionStorage.setItem(keys[0], raw);
       if (sessionStorage.getItem(keys[0]) !== raw) throw new Error('could not keep this acceptance for retry');
+      pendingKey = keys[0]; pendingRaw = raw;
     },
-    clear() { for (const key of keys) sessionStorage.removeItem(key); },
+    clear() {
+      if (pendingKey && sessionStorage.getItem(pendingKey) === pendingRaw) sessionStorage.removeItem(pendingKey);
+    },
   };
 }
 
@@ -59,13 +62,13 @@ export async function showPendingCapture(host, onSaved = null) {
   } catch { /* Acceptance reports a recovery error before sending any write. */ }
 }
 
-export async function openCaptureReview(proposal, trigger, onSaved = null) {
-  if (active) return false;
+export async function openCaptureReview(proposal, trigger, onSaved = null, isCurrent = () => true) {
+  if (active || !isCurrent()) return false;
   active = true;
   let store;
   try { store = await pendingStore(); }
   catch (error) { active = false; throw error; }
-  if (trigger && (!trigger.isConnected || !trigger.getClientRects().length)) { active = false; return false; }
+  if (!isCurrent() || (trigger && (!trigger.isConnected || !trigger.getClientRects().length))) { active = false; return false; }
   const recovered = store.pending;
   if (!recovered && !proposal) { active = false; return false; }
   const kind = recovered?.kind || proposal.kind;

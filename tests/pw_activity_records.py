@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -206,6 +207,9 @@ def run():
                     pattern = base + "/api/agent/runs/" + rid
                     page.route(pattern, lambda route: held.append(route))
                     open_activity(rid)
+                    deadline = time.monotonic() + 5
+                    while not held and time.monotonic() < deadline:
+                        page.wait_for_timeout(10)
                     page.wait_for_timeout(50)
                     assert len(held) == 1
                     page.evaluate("window._navigateTo('today')")

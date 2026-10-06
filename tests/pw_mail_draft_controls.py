@@ -4,6 +4,7 @@ import base64
 import json
 import os
 import sys
+import tempfile
 import traceback
 from pathlib import Path
 from urllib.parse import urlparse
@@ -24,7 +25,12 @@ def run():
     profiles = [(w, t, False) for w in (1440, 820, 390, 320) for t in ("light", "dark")]
     profiles += [(1440, t, True) for t in ("light", "dark")]
     rows = []
-    with sync_playwright() as pw:
+    with (
+        tempfile.TemporaryDirectory(
+            prefix="pw_mail_draft_controls-", dir=os.environ["ALLES_DATA"]
+        ) as profiles_root,
+        sync_playwright() as pw,
+    ):
         fixture_api = pw.request.new_context()
         account = seed_mail(fixture_api, base)
         fixture_api.dispose()
@@ -40,7 +46,7 @@ def run():
                     accept_downloads=True,
                 )
                 if zoom:
-                    profile = Path(os.environ["ALLES_DATA"]) / label
+                    profile = Path(profiles_root) / label
                     extension = profile / "extension"
                     extension.mkdir(parents=True)
                     (extension / "manifest.json").write_text(

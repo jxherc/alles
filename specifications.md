@@ -545,6 +545,8 @@ a calendar with month / week / day views and repeating events.
 - **recurring events**: daily / weekly / monthly, with a small **↻ marker** on every repeating occurrence so you never mistake one instance for a one-off
 - **import / export `.ics`**: round-trip with apple calendar, google, outlook (export everything, or import a `.ics` someone sent you)
 - **natural-language quick-add** right in the header: "lunch with sam friday 1pm" makes the timed event; "team sync tomorrow" makes an all-day one; and it now understands repeats too: "standup daily 9am", "yoga every monday 6pm", "class every week until 2026-08-01"
+- quick-add undo removes the exact saved event only while its values are unchanged. newer edits
+  remain saved; an interrupted response can be retried without deleting another event.
 - optional **two-way sync with caldav** (the open calendar-sync standard used by icloud and google) if you add your credentials
 
 <p align="center"><img src="docs/screenshots/calendar.png" width="760" alt="calendar: month view with events"></p>
@@ -617,12 +619,13 @@ imports, with an optional gated move to an alles-managed actual budget core.
   saved outcomes and the chosen result remain available after reload. edited records, splits,
   transfers and Actual transactions use their existing review and deletion paths.
 - **csv import / export**: money's import button opens the reviewed import flow. choose the
-  destination account, preview rows, then apply them with a receipt and supported undo. generic csv
+  destination account, preview rows, then apply them with a receipt. local imports offer undo;
+  Actual imports keep the receipt for review and explain that undo is unavailable. generic csv
   accepts named date and amount (or debit/credit) columns in any order, with optional
   payee/description, currency, reference, category, notes and tags. absent currency uses the selected account
   or the canonical ledger's base currency. local category/tag rules are included in the preview;
   changes to those rules after preview do not silently change the approved values. metadata survives
-  apply and retry; undo refuses to remove an imported row that was edited afterward. export all
+  apply and retry; local undo refuses to remove an imported row that was edited afterward. export all
   transactions to csv; existing direct-import api callers keep their legacy behavior.
 - **budgets**: set a monthly cap per category; a progress bar turns red when you go over
 - **charts**: spending-by-category bars and a 6-month income-vs-spent trend (plain svg, no chart library)
@@ -630,7 +633,7 @@ imports, with an optional gated move to an alles-managed actual budget core.
 - an additive currency foundation preserves exact original and base values, conversion evidence, and
   stable import identities without changing existing amounts or renewal history
 - reviewed generic csv and supported bank statement/notification profiles always preview first; repeat
-  rows are stable duplicates, changed source rows are conflicts, and undo removes only receipt-owned
+  rows are stable duplicates, changed source rows are conflicts, and local undo removes only receipt-owned
   transactions. read-only simplefin and plaid connections are available after provider setup
 - managed actual 26.7.0 stays on loopback with private alles-owned authentication, cold backups, fresh
   restore read-back, and paired app/manifest rollback

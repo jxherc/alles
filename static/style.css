@@ -2912,9 +2912,6 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
 :where(#today-view) .today-capture-mode:hover, :where(#today-view) .today-capture-send:hover { color: var(--text); }
 :where(#today-view) .today-capture input { min-width: 0; height: 47px; border: 0; outline: 0; background: transparent; color: var(--text); font: 0.9rem/1 var(--font-family, sans-serif); }
 :where(#today-view) .today-capture input::placeholder { color: var(--muted); }
-:where(#today-view) .today-destinations { display: flex; justify-content: center; gap: clamp(28px, 7vw, 84px); margin-top: 28px; }
-:where(#today-view) .today-destinations button { min-height: 36px; border: 0; background: transparent; color: var(--muted); font: 500 0.78rem/1 var(--font-family, sans-serif); cursor: pointer; }
-:where(#today-view) .today-destinations button:hover { color: var(--text); }
 
 .app-drawer-scrim { display: none !important; }
 .app-drawer {
@@ -2972,7 +2969,6 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
   :where(#today-view) .today-head h1 { font-size: 2rem; }
   :where(#today-view) .today-summary { font-size: 0.92rem; }
   :where(#today-view) .today-lower { grid-template-columns: 1fr; gap: 30px; }
-  :where(#today-view) .today-destinations { justify-content: space-between; gap: 12px; }
 }
 @media (max-width: 540px) {
   :where(#today-view) .today-inner { width: calc(100% - 36px); }
@@ -3762,12 +3758,6 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 
 /* ── files ── */
 .files-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-/* breadcrumb (left) + sort (right) share one aligned row under the header */
-.files-subhead {
-  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-  padding: 0.2rem clamp(0.9rem, 3vw, 2rem) 0.55rem;
-  flex-shrink: 0;
-}
 .files-breadcrumb {
   display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;
   font-size: 0.75rem; color: var(--muted); min-height: 1.1rem;
@@ -3795,6 +3785,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .c-red { color: var(--error); } .c-orange { color: var(--signal); } .c-green { color: var(--green); }
 .c-blue { color: color-mix(in srgb, var(--accent) 55%, var(--text)); } .c-purple { color: var(--accent); } .c-gray { color: var(--muted); }
 
+body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .files-preview-card { width: min(720px, 92vw); max-height: 86vh; display: flex; flex-direction: column; }
 .files-preview-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -4122,7 +4113,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .photos-filt-seg button.active { background: var(--panel); color: var(--text); font-weight: 560; }
 .photos-filt-cam { font-size: 0.75rem; max-width: 200px; }
 .photos-filt-date { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: var(--muted); }
-.photos-filt-date input { font-size: 0.75rem; }
+.photos-filt-date .date-input { min-width: 135px; min-height: 44px; font-size: 0.75rem; }
 .photos-filt-clear { font-size: 0.75rem; }
 #photos-filter-btn.on, #photos-smart-btn.on { color: var(--text); border-color: var(--text); }
 
@@ -6179,9 +6170,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .sys-note code { color: var(--text); }
 .g-dim { color: var(--muted); }
 
-/* neofetch header */
-.neofetch { display: flex; gap: 1.6rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem;
-  padding-bottom: 1rem; border-bottom: 1px solid var(--faint); }
+/* host identity follows the changing monitor values */
+.neofetch { display: flex; gap: 1.6rem; align-items: flex-start; flex-wrap: wrap; margin-top: 1rem;
+  padding-top: 1rem; border-top: 1px solid var(--faint); }
 /* The terminal mark uses a 1:1 stage and a 1:1 art canvas. The old broad
    shimmer and soft pulse now share one timeline, so there is only one loop. */
 .nf-logo {
@@ -7969,6 +7960,23 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   overflow-y: auto;
   background: var(--bg);
 }
+.mail-pane-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--k-space-2, 8px);
+  flex-shrink: 0;
+  padding: var(--k-space-2, 8px) var(--k-space-4, 16px);
+}
+.mail-compose .mail-pane-nav { padding: 0; }
+.mail-pane-nav button, .mail-pane-nav summary { min-height: var(--ui-control-height, 44px); }
+.mail-pane-warning { display: none; color: var(--error); overflow-wrap: anywhere; }
+.mail-pane-warning summary { cursor: pointer; align-content: center; }
+.mail-pane-warning p { margin: var(--k-space-2, 8px) 0; }
 .mail-empty {
   color: var(--muted);
   font-size: 0.76rem;
@@ -8303,6 +8311,27 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* Reading and writing need more room than the three-pane workspace can give here. */
+@media (max-width: 1100px) {
+  #mail-view:has(.mail-pane-back) .mail-sidebar,
+  #mail-view:has(.mail-pane-back) .mail-list,
+  #mail-view:has(.mail-pane-back) #mail-sidebar-toggle,
+  #mail-view:has(.mail-pane-back) #mail-search,
+  #mail-view:has(.mail-pane-back) #mail-account { display: none; }
+  #mail-view:has(.mail-pane-back) .mail-layout { overflow: hidden; }
+  #mail-view:has(.mail-pane-back) .mail-main {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  #mail-view .mail-main:empty { display: none; }
+  #mail-view:has(.mail-main:empty) .mail-list { flex: 1; max-height: none; }
+  #mail-view .mail-pane-warning:not([hidden]) { display: block; }
+  #mail-view .mail-reader { height: auto; }
+  #mail-view .mail-reader-body { overflow: visible; }
+  #mail-view .mail-reader-head #mail-reply { position: static; margin-top: 0; }
 }
 
 /* ── print ── */
