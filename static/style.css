@@ -10042,9 +10042,8 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   #wiki-view.docs-nav-open .docs-nav-panel,
   #wiki-view.no-note.docs-nav-open .docs-nav-panel { display: flex; }
   .docs-reader-head { padding: 0 0.55rem; }
-  .docs-current-path,
-  .docs-save-state { display: none; }
-  .docs-reader-head .docs-save-state.error {
+  .docs-current-path { display: none; }
+  .docs-reader-head .docs-save-state:not(:empty) {
     display: block;
     order: 1;
     flex-basis: 100%;
@@ -10058,9 +10057,8 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   #wiki-view.no-note .wiki-empty-state { grid-template-columns: 1fr; align-items: start; padding: 2rem 1.25rem 4rem; }
   .docs-home-grid { grid-template-columns: 1fr; }
   .docs-rendered-page { padding: 2rem 1.15rem 5rem; }
-  .docs-editor-hint,
-  #wiki-discard-btn { display: none; }
-  .docs-editor-bar { padding-inline: 0.45rem; }
+  .docs-editor-hint { display: none; }
+  .docs-editor-bar { padding-inline: 0.45rem; flex-wrap: wrap; }
   .docs-editor .wiki-source:not([hidden]) { padding: 1.8rem 1rem 5rem; }
   .docs-notes-head { align-items: flex-start; flex-direction: column; }
   .docs-notes-actions { width: 100%; }

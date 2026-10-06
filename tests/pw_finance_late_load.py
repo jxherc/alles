@@ -5,6 +5,7 @@ import json
 import os
 import struct
 import sys
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -15,6 +16,45 @@ sys.path.insert(0, str(Path.cwd() / "tests"))
 from browser_gate_safety import require_server_ownership
 
 from services.appearance import from_legacy
+
+ENTRY_EVENTS = r"""() => {
+  const fields = ['tx-payee', 'tx-cat', 'tx-amt', 'tx-tags', 'tx-acct', 'tx-sign', 'tx-date',
+    'tr-from', 'tr-to', 'tr-amt', 'tr-date', 'tr-notes'];
+  const rows = [];
+  const listeners = [];
+  const snapshot = () => fields.map(id => {
+    const element = document.getElementById(id);
+    return [element?.value, element?.dataset?.value];
+  });
+  const record = (event, phase) => rows.push({
+    sequence: rows.length, at: performance.now(), type: event.type, phase,
+    target: event.target.id, key: event.key || '', trusted: event.isTrusted,
+    defaultPrevented: event.defaultPrevented, focus: document.activeElement?.id,
+    snapshot: snapshot(),
+  });
+  for (const type of ['keydown', 'keyup', 'input', 'change', 'focusin', 'focusout']) {
+    for (const capture of [true, false]) {
+      const listener = event => {
+        if (!event.target.closest?.('#money-entry-fields')) return;
+        record(event, capture ? 'capture' : 'bubble');
+        if (capture && type === 'keydown' && event.key === 'Enter') {
+          queueMicrotask(() => record(event, 'after-keydown-microtask'));
+        }
+      };
+      document.addEventListener(type, listener, { capture, passive: true });
+      listeners.push({ type, listener, capture });
+    }
+  }
+  return {
+    read: () => rows.slice(),
+    stop: () => {
+      for (const { type, listener, capture } of listeners) {
+        document.removeEventListener(type, listener, capture);
+      }
+      return rows.slice();
+    },
+  };
+}"""
 
 base = "http://127.0.0.1:" + os.environ["PORT"]
 require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -70,6 +110,8 @@ with sync_playwright() as pw:
                 context = browser.new_context(**options)
             held, writes, errors, console, external, events = [], [], [], [], [], []
             hold = False
+            hold_save = False
+            held_save = []
             page = context.new_page()
             page.set_default_timeout(7000)
 
@@ -80,6 +122,10 @@ with sync_playwright() as pw:
                     return r.abort()
                 if target.path == "/api/money/transactions" and r.request.method == "POST":
                     writes.append(r.request.post_data_json)
+                    if hold_save:
+                        assert not target.query and not held_save
+                        held_save.append(r)
+                        return None
                 if hold and target.path == "/api/money/goals":
                     assert r.request.method == "GET" and not target.query and not held
                     held.append(r)
@@ -258,9 +304,150 @@ with sync_playwright() as pw:
                             "reopened": reopened,
                         }
                     )
-                assert len(writes) == 3 and not errors and not console and not external
+                enter_scenarios = (
+                    [
+                        "enter-success",
+                        "enter-pending-unchanged",
+                        "enter-pending-newer",
+                        "enter-pending-restored",
+                        "enter-pending-choice-restored",
+                        "enter-pending-focus-moved",
+                    ]
+                    if (width, theme, zoom) in [(390, "light", False), (1440, "dark", False)]
+                    else []
+                )
+                for scenario in enter_scenarios:
+                    ready()
+                    entry()
+                    recorder = page.evaluate_handle(ENTRY_EVENTS)
+                    try:
+                        wanted = {
+                            "tx-payee": "enter supplies " + label + " " + scenario,
+                            "tx-cat": "workshop",
+                            "tx-tags": "agenda",
+                            "tx-amt": "19.75",
+                        }
+                        for field, value in wanted.items():
+                            page.locator("#" + field).fill(value)
+                        expected = page.evaluate("""() => ({
+                            account_id: document.getElementById('tx-acct').dataset.value,
+                            date: document.getElementById('tx-date').dataset.value
+                        })""")
+                        expected.update(
+                            amount=-19.75,
+                            payee=wanted["tx-payee"],
+                            category="workshop",
+                            tags="agenda",
+                        )
+                        previous = {
+                            row["id"]: row
+                            for row in api.get(base + "/api/money/transactions").json()
+                        }
+                        writes_before = len(writes)
+                        hold_save = scenario != "enter-success"
+                        with page.expect_response(
+                            lambda response: (
+                                response.url == base + "/api/money/transactions"
+                                and response.request.method == "POST"
+                            )
+                        ) as result:
+                            # Keep the amount focused; tx-add would commit change before capture.
+                            page.locator("#tx-amt").press("Enter")
+                            focus_target = "#tx-amt"
+                            pending_draft = dict(wanted)
+                            if hold_save:
+                                deadline = time.monotonic() + 5
+                                while not held_save and time.monotonic() < deadline:
+                                    page.wait_for_timeout(10)
+                                assert len(held_save) == 1, "create was not held"
+                                if scenario == "enter-pending-newer":
+                                    pending_draft["tx-amt"] = "21.25"
+                                    page.locator("#tx-amt").fill(pending_draft["tx-amt"])
+                                elif scenario == "enter-pending-restored":
+                                    page.locator("#tx-amt").fill("21.25")
+                                    page.locator("#tx-amt").fill(wanted["tx-amt"])
+                                elif scenario == "enter-pending-choice-restored":
+                                    # Real custom-control change events must still protect this draft.
+                                    sign = page.locator("#tx-sign")
+                                    sign.press("ArrowDown")
+                                    sign.press("Enter")
+                                    expect(sign).to_have_attribute("data-value", "+")
+                                    sign.press("ArrowUp")
+                                    sign.press("Enter")
+                                    expect(sign).to_have_attribute("data-value", "-")
+                                    amount = page.locator("#tx-amt")
+                                    amount.tap() if width == 390 else amount.click()
+                                elif scenario == "enter-pending-focus-moved":
+                                    focus_target = "#tx-cat"
+                                    category = page.locator(focus_target)
+                                    category.tap() if width == 390 else category.click()
+                                capture(scenario + "-pending")
+                                expect(page.locator(focus_target)).to_be_focused()
+                                pending = held_save.pop()
+                                hold_save = False
+                                # Forward once to the owned backend; never manufacture success.
+                                response = pending.fetch(max_redirects=0)
+                                assert response.status == 200
+                                pending.fulfill(response=response)
+                        assert result.value.status == 200
+                        saved = result.value.json()
+                        expect(page.locator(f'[data-saved-txn="{saved["id"]}"]')).to_contain_text(
+                            "transaction saved"
+                        )
+                        # This row comes from the post-save refresh, after draft/focus restoration.
+                        expect(page.locator(f'.txn[data-id="{saved["id"]}"]')).to_have_count(1)
+                        assert len(writes) == writes_before + 1
+                        assert {key: writes[-1][key] for key in expected} == expected
+                        actual = {
+                            row["id"]: row
+                            for row in api.get(base + "/api/money/transactions").json()
+                        }
+                        assert set(actual) - set(previous) == {saved["id"]}
+                        assert all(actual[key] == value for key, value in previous.items())
+                        assert {key: actual[saved["id"]][key] for key in expected} == expected
+                        clears = scenario in ("enter-success", "enter-pending-unchanged")
+                        # Blur may commit an unchanged value as change; only focus ownership
+                        # is specified for the focus-only case, matching existing coverage.
+                        if scenario != "enter-pending-focus-moved":
+                            for field, value in pending_draft.items():
+                                expect(page.locator("#" + field)).to_have_value(
+                                    "" if clears else value
+                                )
+                        if scenario in ("enter-success", "enter-pending-unchanged"):
+                            expect(page.locator("#money-entry-fields")).to_be_hidden()
+                            expect(
+                                page.locator(f'[data-undo-saved="{saved["id"]}"]')
+                            ).to_be_focused()
+                        else:
+                            expect(page.locator("#money-entry-fields")).to_be_visible()
+                            expect(page.locator(focus_target)).to_be_focused()
+                        capture(scenario + "-terminal")
+                        rows.append(
+                            {"profile": label, "scenario": scenario, "saved": actual[saved["id"]]}
+                        )
+                    finally:
+                        (out / f"{label}-{scenario}-entry-events.json").write_text(
+                            json.dumps(recorder.evaluate("recorder => recorder.stop()"), indent=2)
+                            + "\n"
+                        )
+                        recorder.dispose()
+                    page.reload(wait_until="networkidle")
+                    ready()
+                    reopened = {
+                        row["id"]: row for row in api.get(base + "/api/money/transactions").json()
+                    }
+                    assert reopened == actual
+                assert (
+                    len(writes) == 3 + len(enter_scenarios)
+                    and not errors
+                    and not console
+                    and not external
+                )
             finally:
                 hold = False
+                hold_save = False
+                for pending in held_save:
+                    pending.abort()
                 for pending in held:
                     pending.abort()
                 (out / f"{label}-events.json").write_text(

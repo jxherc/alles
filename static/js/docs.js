@@ -1205,7 +1205,6 @@ async function saveCurrent() {
     } else {
       const message = writeErrorMessage(error, 'save failed');
       setSaveState(message, true);
-      toast(message, 'error');
     }
     return false;
   } finally { $('wiki-save-btn').disabled = false; }
