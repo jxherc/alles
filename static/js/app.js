@@ -21,7 +21,7 @@ import { loadContacts, addContact } from './contacts.js';
 import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=444';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
-import { loadPhotos, initPhotos } from './photos.js';
+import { loadPhotos, initPhotos, closeLightbox } from './photos.js';
 import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js?v=237';
 import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.js?v=238';
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
@@ -1876,6 +1876,10 @@ function bindEvents() {
       && !e.target?.closest?.('input, textarea, select, [contenteditable], [role="textbox"], [role="combobox"], [role="dialog"], [role="menu"], [role="listbox"]');
     if (e.key === 'Escape') {
       if (e.defaultPrevented) return;
+      const galleryViewer = document.getElementById('photos-lightbox');
+      if (galleryViewer?.style.display === 'flex') {
+        e.preventDefault(); closeLightbox(); return;
+      }
       const filesPreview = document.getElementById('files-preview-modal');
       if (filesPreview?.style.display !== 'none') return;
       // if a reply is streaming, Esc stops it first; otherwise it closes overlays
