@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -10,6 +11,16 @@ from tests._client import ApiTest
 
 
 class StaticCacheTests(ApiTest):
+    def test_shell_and_offline_cache_use_the_same_asset_revision(self):
+        static = Path(__file__).resolve().parents[1] / "static"
+        shell = (static / "index.html").read_text()
+        worker = (static / "sw.js").read_text()
+        shell_revision = re.search(r"const _v = '([^']+)'", shell).group(1)
+        style_revision = re.search(r"/static/style\.css\?v=([^\"]+)", shell).group(1)
+        cache_revision = re.search(r"const STAMP = '([^']+)'", worker).group(1)
+        self.assertEqual(shell_revision, style_revision)
+        self.assertEqual(shell_revision, cache_revision)
+
     def setUp(self):
         super().setUp()
         from app import NoCacheStatic

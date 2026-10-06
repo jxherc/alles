@@ -1,6 +1,6 @@
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
-import { t as tr } from './i18n.js';
+import { calendarDateKey, t as tr } from './i18n.js';
 import { createFocusBoundary, setControlState } from './kokuen.js?v=1';
 import { toast } from './util.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
@@ -184,7 +184,7 @@ export async function loadTasks(fetcher = fetch, target = null) {
   if (target?.view !== 'tasks') await recoverTaskDraft(generation);
 }
 
-function _todayISO() { return new Date().toISOString().slice(0, 10); }
+function _todayISO() { return calendarDateKey(); }
 
 function _dueBadge(d) {
   if (!d) return '';
@@ -193,7 +193,7 @@ function _dueBadge(d) {
   const label = iso === today ? tr('common.today') : (iso === _shift(today, 1) ? tr('tasks.tomorrow') : iso);
   return `<span class="${cls}">${label}</span>`;
 }
-function _shift(iso, n) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+function _shift(iso, n) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 
 function _rowHtml(t, child, progress) {
   const title = esc(t.title);
@@ -655,14 +655,13 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
   focusBoundary.activate({ focus: ov.querySelector('#te-title'), source });
 }
 
-// quick-reschedule date, computed locally to mirror services/task_nl.reschedule_date
+// Calendar-only arithmetic keeps rescheduling on Home's configured day across DST.
 function _reschedDate(w) {
-  const d = new Date(); d.setHours(0, 0, 0, 0);
-  if (w === 'tomorrow') d.setDate(d.getDate() + 1);
-  else if (w === 'next_week') d.setDate(d.getDate() + 7);
-  else if (w === 'weekend') d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7));  // next Saturday (today if Sat)
-  const z = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+  const today = _todayISO();
+  const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
+  const offset = w === 'tomorrow' ? 1 : w === 'next_week' ? 7
+    : w === 'weekend' ? (6 - weekday + 7) % 7 : 0;
+  return _shift(today, offset);
 }
 
 export async function addTask(title) {
@@ -671,7 +670,7 @@ export async function addTask(title) {
   await fetch('/api/tasks/quick', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text: title }),
+    body: JSON.stringify({ text: title, today: _todayISO() }),
   });
   if (_tab === 'done') {   // jump back to a visible list so the new task shows
     _tab = 'active';

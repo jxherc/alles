@@ -63,6 +63,7 @@ COMMANDS = {
     "reviewed-capture": ("tests/pw_reviewed_capture.py",),
     "home-reviewed-capture": ("tests/pw_home_reviewed_capture.py",),
     "task-possessive-capture": ("tests/pw_task_possessive_capture.py",),
+    "task-calendar-day": ("tests/pw_task_calendar_day.py",),
     "persistent-form-labels": ("tests/pw_persistent_form_labels.py",),
     "files-deletion-action": ("tests/pw_files_deletion_action.py",),
     "home-note-recovery": ("tests/pw_home_note_recovery.py",),
