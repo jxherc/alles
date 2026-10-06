@@ -1723,6 +1723,13 @@ body:is(
   border-radius: var(--k-radius-surface, 4px);
 }
 
+/* Keep the selected destination visible; disclose the full catalogue on demand. */
+:where(#finance-view) .finance-import-selected { display: block; overflow-wrap: anywhere; margin-bottom: var(--k-space-2); }
+:where(#finance-view) .finance-import-picker { display: grid; gap: var(--k-space-2); margin-top: var(--k-space-3); }
+:where(#finance-view) .finance-import-choice button { font-size: 0.8125rem; }
+:where(#finance-view) .finance-import-picker[hidden],
+:where(#finance-view) .finance-import-picker [hidden] { display: none; }
+
 :where(#finance-view) .finance-import-choice legend {
   padding: 0 var(--k-space-1);
   color: var(--k-ink-muted, var(--muted));
@@ -6566,4 +6573,8 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
   .skl-rail-foot {
     flex: none;
   }
+}
+
+@media (min-width: 601px) {
+  :where(#finance-view) .finance-import-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
