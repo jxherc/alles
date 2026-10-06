@@ -311,7 +311,8 @@ function syncMoneyLayout() {
   if (entry.contains(document.activeElement)) _moneyEntryOpen = true;
   const secondary = $('money-body').querySelectorAll('[data-secondary-total]');
   if ([...secondary].some(card => card.contains(document.activeElement))) _moneyTotalsOpen = true;
-  entry.hidden = _moneyEntryOpen === null ? compact : !_moneyEntryOpen;
+  entry.hidden = !!_editTxn || (_moneyEntryOpen === null ? compact : !_moneyEntryOpen);
+  action.hidden = !!_editTxn;
   action.classList.toggle('primary', entry.hidden);
   action.setAttribute('aria-expanded', String(!entry.hidden));
   action.textContent = entry.hidden ? 'add transaction' : 'close entry';
@@ -1314,15 +1315,16 @@ function splitEditorRow(t) {
 function editTxnRow(t) {
   const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const neg = (t.amount || 0) < 0;
-  return `<div class="txn txn-edit" data-id="${t.id}">
+  return `<div class="txn txn-edit" data-id="${t.id}" role="group" aria-label="edit ${esc(t.payee || 'transaction')}">
+    <h3>edit ${esc(t.payee || 'transaction')}</h3>
     ${moneyField('date', `<div class="date-input" data-f="date" data-type="date" data-value="${esc(t.date || _today())}" data-ph="date" style="width:124px"></div>`)}
     ${moneyField('account', `<div class="settings-input custom-select" data-f="account_id" data-value="${esc(t.account_id)}" data-options="${esc(acctOpts)}" style="width:120px"></div>`)}
     ${moneyField('payee', `<input type="text" class="settings-input" data-f="payee" value="${esc(t.payee || '')}" placeholder="payee" style="flex:1.4;min-width:90px">`)}
     ${moneyField('category', `<input type="text" class="settings-input" data-f="category" value="${esc(t.category || '')}" placeholder="category" style="flex:1;min-width:80px">`)}
     ${moneyField('type', `<div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|expense;+|income" style="width:100px"></div>`)}
     ${moneyField('amount', `<input type="text" class="settings-input" data-f="amount" value="${Math.abs(t.amount || 0)}" inputmode="decimal" style="width:84px">`)}
-    <button class="btn primary" data-save-txn="${t.id}">save</button>
-    <button class="btn" data-cancel-txn="${t.id}" aria-label="cancel editing ${esc(t.payee || 'transaction')}">×</button>
+    <button class="btn primary" data-save-txn="${t.id}">save changes</button>
+    <button class="btn" data-cancel-txn="${t.id}" aria-label="cancel editing ${esc(t.payee || 'transaction')}">cancel</button>
   </div>`;
 }
 
@@ -1671,9 +1673,15 @@ function _wireTxnRows() {
   root.querySelectorAll('.txn-edit .date-input').forEach(initDatePicker);
   root.querySelectorAll('[data-del-transfer]').forEach(b => b.addEventListener('click', () => delTransfer(b.dataset.delTransfer)));
   root.querySelectorAll('[data-del-txn]').forEach(b => b.addEventListener('click', () => delTxn(b.dataset.delTxn)));
-  root.querySelectorAll('[data-edit-txn]').forEach(el => el.addEventListener('click', () => { _editTxn = el.dataset.editTxn; render(); }));
+  root.querySelectorAll('[data-edit-txn]').forEach(el => el.addEventListener('click', () => {
+    _editTxn = el.dataset.editTxn; render(true);
+    $('txn-rows').querySelector(`.txn-edit[data-id="${CSS.escape(_editTxn)}"] [data-f="payee"]`)?.focus();
+  }));
   root.querySelectorAll('[data-save-txn]').forEach(b => b.addEventListener('click', () => saveTxn(b.dataset.saveTxn)));
-  root.querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => { _editTxn = null; render(); }));
+  root.querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.cancelTxn; _editTxn = null; render(true);
+    $('txn-rows').querySelector(`[data-edit-txn="${CSS.escape(id)}"]`)?.focus();
+  }));
   // 4a actions
   root.querySelectorAll('[data-clear-txn]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleCleared(b.dataset.clearTxn); }));
   root.querySelectorAll('[data-split-txn]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleSplit(b.dataset.splitTxn); }));
@@ -2039,10 +2047,14 @@ async function saveTxn(id) {
     if (payload.account_id === existing.account_id) delete payload.account_id;
     if (payload.amount === existing.amount) delete payload.amount;
   }
+  const focused = document.activeElement, focusVersion = _moneyFocusChange;
   try {
     await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: payload });
-    _editTxn = null;
-    await load();
+    if (_editTxn === id) _editTxn = null;
+    await load(fetch, true);
+    if (row.contains(focused) && focusVersion === _moneyFocusChange && document.activeElement === document.body) {
+      ($('txn-rows').querySelector(`[data-edit-txn="${CSS.escape(id)}"]`) || $('txn-search'))?.focus();
+    }
   } catch { toast('save failed', 'error'); }
 }
 

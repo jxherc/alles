@@ -456,16 +456,142 @@ with sync_playwright() as pw:
             shot("large-amounts")
             assert page.evaluate("document.documentElement.scrollWidth<=innerWidth+1")
             assert len(requests) == 3, requests
+            # Existing-entry and edit drafts have separate owners through cancellation and saves.
+            large_amounts = False
+            forecast_mode = "normal"
+            page.reload(wait_until="networkidle")
+            entry = page.locator("#money-entry-fields")
+            if entry.is_hidden():
+                page.locator("#money-entry-action").press("Enter")
+            draft_values = {
+                "tx-payee": "independent new draft 草稿 " + label,
+                "tx-cat": "new draft category",
+                "tx-tags": "draft-tag",
+                "tx-amt": "23.45",
+            }
+            for field, value in draft_values.items():
+                page.locator("#" + field).fill(value)
+            page.evaluate("window.ownedEntryNode = document.getElementById('money-entry-fields')")
+            draft_choices = page.evaluate(
+                "Object.fromEntries(['tx-date','tx-acct','tx-sign'].map(id=>[id,document.getElementById(id).dataset.value]))"
+            )
+            target_id = transaction["id"]
+            edit_action = page.locator(f'[data-edit-txn="{target_id}"]')
+            edit = page.locator(f'.txn-edit[data-id="{target_id}"]')
+
+            def check_new_draft():
+                assert page.evaluate(
+                    "document.getElementById('money-entry-fields') === window.ownedEntryNode"
+                )
+                for field, value in draft_values.items():
+                    expect(page.locator("#" + field)).to_have_value(value)
+                assert (
+                    page.evaluate(
+                        "Object.fromEntries(['tx-date','tx-acct','tx-sign'].map(id=>[id,document.getElementById(id).dataset.value]))"
+                    )
+                    == draft_choices
+                )
+
+            def stored_target():
+                response = api.get(base + "/api/money/transactions")
+                assert response.ok
+                return next(item for item in response.json() if item["id"] == target_id)
+
+            original = stored_target()
+            edit_action.press("Enter")
+            expect(
+                edit.get_by_role("heading", name="edit " + original["payee"], exact=True)
+            ).to_be_visible()
+            expect(edit.locator('[data-f="payee"]')).to_be_focused()
+            expect(entry).to_be_hidden()
+            expect(page.locator("#money-entry-action")).to_be_hidden()
+            expect(page.locator(".money-txns .btn.primary:visible")).to_have_count(1)
+            check_new_draft()
+            edit.locator('[data-f="payee"]').fill("cancelled edit 草稿")
+            shot("transaction-edit")
+            edit.locator("[data-cancel-txn]").press("Enter")
+            expect(edit).to_have_count(0)
+            expect(edit_action).to_be_focused()
+            expect(entry).to_be_visible()
+            check_new_draft()
+            assert stored_target() == original
+            edit_mode = "reject"
+            held_edits, edit_requests = [], []
+            edit_pattern = "**/api/money/transactions/" + target_id
+
+            def edit_response(route):
+                target = urlparse(route.request.url)
+                assert (target.scheme, target.netloc) == ("http", urlparse(base).netloc)
+                assert route.request.method == "PATCH"
+                edit_requests.append(route.request.post_data_json)
+                if edit_mode == "reject":
+                    route.fulfill(status=503, json={"detail": "owned edit save rejected"})
+                elif edit_mode == "hold":
+                    held_edits.append(route)
+                else:
+                    route.continue_()
+
+            page.route(edit_pattern, edit_response)
+            edit_action.press("Enter")
+            edited_payee = "saved edit 草稿 " + label
+            edit.locator('[data-f="payee"]').fill(edited_payee)
+            edit.locator("[data-save-txn]").press("Enter")
+            expect(page.get_by_text("save failed", exact=True)).to_be_visible()
+            expect(edit.locator('[data-f="payee"]')).to_have_value(edited_payee)
+            expect(edit.locator("[data-save-txn]")).to_be_focused()
+            expect(entry).to_be_hidden()
+            check_new_draft()
+            assert stored_target() == original
+            shot("transaction-edit-rejected")
+            edit_mode = "normal"
+            edit.locator("[data-save-txn]").press("Enter")
+            expect(edit).to_have_count(0)
+            expect(edit_action).to_be_focused()
+            expect(entry).to_be_visible()
+            check_new_draft()
+            changed = stored_target()
+            assert changed["payee"] == edited_payee
+            for field in ("id", "account_id", "amount", "date", "category", "tags"):
+                assert changed[field] == original[field]
+            shot("transaction-edit-saved")
+            edit_action.press("Enter")
+            final_payee = edited_payee + " final"
+            edit.locator('[data-f="payee"]').fill(final_payee)
+            edit_mode = "hold"
+            edit.locator("[data-save-txn]").press("Enter")
+            for _ in range(100):
+                if held_edits:
+                    break
+                page.wait_for_timeout(20)
+            assert len(held_edits) == 1
+            page.locator("#txn-search").click()
+            expect(page.locator("#txn-search")).to_be_focused()
+            pending = held_edits.pop()
+            result = pending.fetch(max_redirects=0)
+            assert result.ok
+            pending.fulfill(response=result)
+            expect(edit).to_have_count(0)
+            expect(page.locator("#txn-search")).to_be_focused()
+            check_new_draft()
+            assert stored_target()["payee"] == final_payee
+            assert len(edit_requests) == 3
+            page.unroute(edit_pattern, edit_response)
+            page.reload(wait_until="networkidle")
+            expect(edit_action).to_be_visible()
+            assert stored_target()["payee"] == final_payee
+            shot("transaction-edit-reload")
+            assert page.evaluate("document.documentElement.scrollWidth<=innerWidth+1")
             assert not errors and not external, (errors, external)
             assert console == [
                 "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
-            ] * (2 if compact else 5), console
+            ] * (3 if compact else 6), console
             rows.append(
                 {
                     "profile": label,
                     "compact": compact,
                     "first_transaction": first,
                     "status": "passed",
+                    "edit_recovery": "single labelled edit, same new draft node and exact fields, cancel without write and row focus, rejected save retained/retry, same record readback, newer search focus, reload",
                     "checks": "leading transaction action; optional amount filter clears without losing text query; late tag response ignored after range clear; month change clears tag; touch/keyboard; manage export and bank close/focus; no-account entry; exact saved expense, entry close/reopen/resize draft and focus preservation, held save respects newer focus, refused save/retry/no duplicate, all totals, held forecast recovery/newer focus and resize, large currency amounts, actual native zoom",
                 }
             )
@@ -479,7 +605,7 @@ with sync_playwright() as pw:
                             "profile": label,
                             "page_errors": errors,
                             "console_errors": console,
-                            "expected": f"{2 if compact else 5} synthetic503 responses",
+                            "expected": f"{3 if compact else 6} synthetic503 responses",
                         }
                     )
                     + "\n"
