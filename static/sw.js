@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v314';   // Restore saved search reading destinations.
+const VERSION = 'v315';   // Explain effort, permissions, and saved memories.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '466';   // keep in sync with index.html ?v= / const _v
+const STAMP = '467';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

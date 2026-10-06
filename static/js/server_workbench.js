@@ -868,7 +868,8 @@ async function renderLogs(target, request) {
 }
 
 async function renderPolicy(target, request) {
-  const section = card('server access policy', 'The default is owned-only. The file accepts only a control mode and exact launchd or systemd service IDs. Commands, arguments, paths, and globs are rejected.');
+  const section = card('server access policy', 'choose which services Alles may control. owned-only limits control to Alles-managed services; allowlisted_host also permits the exact host services you list. validate the change before saving.');
+  section.append(el('p', 'server-workbench-copy', 'the file accepts only a control mode and exact launchd or systemd service IDs. commands, arguments, paths, and globs are rejected.'));
   const message = statusLine();
   section.append(message);
   let current;
