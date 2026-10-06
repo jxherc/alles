@@ -95,7 +95,7 @@ function _showHelp() {
     ['new_chat', 'aide.new_task'], ['search', 'common.search'],
     ['focus_input', 'aide.message_label'], ['send', 'common.send'], ['settings', 'common.settings'],
   ].filter(([key]) => shortcuts[key]);
-  const guides = ['model', 'notes', 'task', 'save', 'recovery'];
+  const guides = ['model', 'controls', 'memory', 'notes', 'task', 'save', 'recovery'];
   const overlay = document.createElement('div');
   overlay.className = 'dialog-overlay aide-help-overlay';
   overlay.innerHTML = `<section class="dialog-card aide-help-card" id="aide-help-dialog" role="dialog" aria-labelledby="aide-help-title">
