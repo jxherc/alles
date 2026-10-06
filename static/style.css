@@ -7050,7 +7050,22 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .wiki-live .cm-bullet { color: var(--accent); padding-right: .5ch; }
 .wiki-live .cm-quote { border-left: 2px solid var(--faint); padding-left: .8rem; color: var(--muted); }
 .wiki-live .cm-task-box { display: inline-flex; vertical-align: middle; padding-right: .45ch; }
-.wiki-live .cm-task-checkbox { width: .95em; height: .95em; margin: 0; cursor: pointer; accent-color: var(--accent); }
+.wiki-live .cm-task-checkbox {
+  position: relative; display: inline-grid; place-items: center; flex-shrink: 0;
+  appearance: none; width: 44px; height: 44px; min-width: 44px; margin: 0; padding: 0;
+  border: none; border-radius: var(--k-radius-control); background: transparent; cursor: pointer;
+}
+.wiki-live .cm-task-checkbox::before {
+  content: ""; width: 20px; height: 20px; border: 1.5px solid var(--muted);
+  border-radius: 3px; background: transparent;
+}
+.wiki-live .cm-task-checkbox[aria-checked="true"]::before { background: var(--accent); border-color: var(--accent); }
+.wiki-live .cm-task-checkbox[aria-checked="true"]::after {
+  content: ""; position: absolute; left: 19px; top: 15px; width: 5px; height: 10px;
+  border: solid var(--bg); border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.wiki-live .cm-task-checkbox:hover::before { border-color: var(--accent); }
+.wiki-live .cm-task-checkbox:focus-visible { outline: 2px solid var(--k-focus, var(--focus)); outline-offset: 2px; }
 
 .wiki-live .cm-table { border-collapse: collapse; margin: .5rem 0; font-size: .92em; }
 .wiki-live .cm-table th, .wiki-live .cm-table td { border: 1px solid var(--faint); padding: .3rem .6rem; text-align: left; }

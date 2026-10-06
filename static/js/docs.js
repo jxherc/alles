@@ -293,7 +293,7 @@ function _wire() {
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       if (!$('docs-dialog')?.hidden) closeDialog({ action: 'cancel', value: '' });
-      closeMoreMenu();
+      closeMoreMenu({ restoreFocus: true });
     }
   });
   addEventListener('pagehide', persistDraftOnPageHide);
@@ -1659,9 +1659,12 @@ function toggleMoreMenu() {
   if (!menu.hidden) menu.querySelector('button')?.focus();
 }
 
-function closeMoreMenu() {
-  setHidden($('wiki-more-menu'), true);
+function closeMoreMenu({ restoreFocus = false } = {}) {
+  const menu = $('wiki-more-menu');
+  const ownedFocus = menu && !menu.hidden && menu.contains(document.activeElement);
+  setHidden(menu, true);
   $('wiki-more-btn')?.setAttribute('aria-expanded', 'false');
+  if (restoreFocus && ownedFocus) $('wiki-more-btn')?.focus();
 }
 
 function promptText(title, label, value) {
