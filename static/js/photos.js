@@ -899,7 +899,7 @@ function _showCurrent() {
   const lat = ex.lat, lon = ex.lon;
   delete ex.lat; delete ex.lon;   // shown as a map link, not raw rows
   const dims = (p.width && p.height) ? `${p.width} × ${p.height}` : '';
-  const rows = [['taken', p.taken_at ? formatDateTime(p.taken_at) : ''], ['size', dims], ...Object.entries(ex)];
+  const rows = [['file', p.original_name || 'photo'], ['taken', p.taken_at ? formatDateTime(p.taken_at) : ''], ['size', dims], ...Object.entries(ex)];
   let html = rows.filter(r => r[1]).map(([k, v]) =>
     `<div class="photos-exif-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
   if (lat != null && lon != null) {

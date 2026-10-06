@@ -477,9 +477,33 @@ def run():
                 begin("caption-rejected-and-malformed-draft-retention")
                 open_photo(names[2])
                 page.get_by_role("button", name="info", exact=True).click()
+
+                def check_info_context():
+                    image = page.locator("#photos-lightbox-img")
+                    expect(image).to_be_visible()
+                    page.wait_for_function(
+                        "document.getElementById('photos-lightbox-img').complete && document.getElementById('photos-lightbox-img').naturalWidth > 0"
+                    )
+                    bounds = image.bounding_box()
+                    assert bounds and bounds["width"] >= 96 and bounds["height"] >= 60, bounds
+                    expect(page.locator("#photos-exif")).to_contain_text(names[2])
+                    expect(page.locator('label[for="photos-caption"]')).to_be_visible()
+                    expect(page.locator('label[for="photos-keywords"]')).to_be_visible()
+                    expect(page.get_by_role("textbox", name="caption", exact=True)).to_be_visible()
+                    expect(
+                        page.get_by_role("textbox", name="keywords", exact=True)
+                    ).to_have_attribute("aria-describedby", "photos-keywords-help")
+                    expect(page.locator("#photos-keywords-help")).to_be_visible()
+                    assert page.locator(".photos-lb-body").evaluate(
+                        "e => e.scrollWidth <= e.clientWidth + 1"
+                    )
+
+                check_info_context()
                 draft = profile + " caption retained 秋季"
                 page.locator("#photos-caption").fill(draft)
                 page.locator("#photos-keywords").fill("Study, Autumn, study")
+                check_info_context()
+                shot("caption-info-context-filled")
                 rule = reject("/api/photos/" + photos[2]["id"], method="PATCH")
                 page.get_by_role("button", name="save caption & keywords", exact=True).click()
                 expect(page.locator("#photos-meta-status")).to_contain_text("save failed")
@@ -564,6 +588,8 @@ def run():
                     page.get_by_role("button", name="info", exact=True).click()
                 expect(page.locator("#photos-caption")).to_be_visible()
                 expect(page.locator("#photos-caption")).to_have_value(draft)
+                check_info_context()
+                shot("caption-info-context-reopened")
                 page.get_by_role("button", name="close", exact=True).click()
                 assert not page.locator(".app").evaluate("e=>e.inert")
                 expect(
