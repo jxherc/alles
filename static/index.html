@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=458">
+<link rel="stylesheet" href="/static/style.css?v=461">
   <link rel="stylesheet" href="/static/kokuen.css?v=28">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -75,11 +75,11 @@
 
     <div class="search-wrap">
       <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-      <input class="search-input" id="session-search" type="text" placeholder="search tasks…" aria-label="search tasks" data-i18n-placeholder="aide.search_tasks" data-i18n-aria-label="aide.search_tasks">
+      <input class="search-input" id="session-search" type="text" placeholder="search aide tasks…" aria-label="search aide tasks" data-i18n-placeholder="aide.search_tasks" data-i18n-aria-label="aide.search_tasks">
     </div>
 
     <nav class="sidebar-nav">
-      <button class="new-btn aide-tool-link" id="new-chat-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19h5l9-9a3 3 0 0 0-5-5l-9 9v5Z"/><path d="m13 6 5 5"/></svg><span data-i18n="aide.new_task">new task</span></button>
+      <button class="new-btn aide-tool-link" id="new-chat-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19h5l9-9a3 3 0 0 0-5-5l-9 9v5Z"/><path d="m13 6 5 5"/></svg><span data-i18n="aide.new_task">new aide task</span></button>
       <button class="aide-tool-link" id="aide-scheduled-link" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg><span data-i18n="aide.scheduled">scheduled</span></button>
       <button class="nav-item aide-tool-link" data-view="brain" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M9 5.5A3.5 3.5 0 0 0 5.5 9c0 .7.2 1.4.6 2A3.5 3.5 0 0 0 8 17.5V19h3V5.5H9Z"/><path d="M15 5.5A3.5 3.5 0 0 1 18.5 9c0 .7-.2 1.4-.6 2a3.5 3.5 0 0 1-1.9 6.5V19h-3V5.5h2Z"/></svg><span data-i18n="aide.brain">brain</span></button>
       <button class="nav-item aide-tool-link" data-view="skills" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m14 4 6 6-9 9H5v-6Z"/><path d="m12 6 6 6M4 20h16"/></svg><span data-i18n="aide.skills">skills</span></button>
@@ -88,8 +88,8 @@
     </nav>
 
     <div class="session-list-state" id="session-list-state">
-      <p id="session-list-message" role="status">loading tasks…</p>
-      <button type="button" class="btn" id="session-list-retry" hidden>retry tasks</button>
+      <p id="session-list-message" role="status">loading aide tasks…</p>
+      <button type="button" class="btn" id="session-list-retry" hidden>retry aide tasks</button>
     </div>
     <div class="session-list" id="session-list" aria-busy="true"></div>
 
@@ -110,13 +110,13 @@
       <div class="topbar-left">
         <button class="icon-btn" id="sidebar-toggle-btn" type="button" title="toggle sidebar (Ctrl+B)" aria-labelledby="aide-sidebar-toggle-label" aria-controls="aide-sidebar" aria-expanded="true" data-i18n-title="aide.toggle_sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M9 4v16"/></svg>
-          <span class="aide-toggle-label" id="aide-sidebar-toggle-label" data-i18n="tasks.title">tasks</span>
+          <span class="aide-toggle-label" id="aide-sidebar-toggle-label" data-i18n="aide.tasks">aide tasks</span>
         </button>
         <div class="app-crumb" id="app-crumb">alles</div>
         <div class="aide-current-context" id="aide-current-context" hidden>
           <span class="aide-mobile-name">aide</span>
           <svg class="aide-context-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 8V6.5h6l2-2h5l2 3H21"/><path d="M3 9h18l-2 10H5Z"/></svg>
-          <span id="aide-conversation-name" data-i18n="aide.new_task">new task</span>
+          <span id="aide-conversation-name" data-i18n="aide.new_task">new aide task</span>
           <small id="aide-project-name"></small>
         </div>
         <div class="ai-top-controls" id="ai-top-controls">
@@ -1354,10 +1354,10 @@
         <strong id="aide-document-scope-name"></strong>
         <button type="button" id="aide-document-scope-remove" data-i18n="common.remove">remove</button>
       </div>
-      <div class="aide-new-context" id="aide-new-context" role="group" aria-label="new task context" data-i18n-aria-label="aide.new_task_context" hidden>
+      <div class="aide-new-context" id="aide-new-context" role="group" aria-label="new aide task context" data-i18n-aria-label="aide.new_task_context" hidden>
         <button class="aide-new-context-item aide-project-context" id="aide-project-context" type="button" aria-haspopup="menu" aria-expanded="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg>
-          <span id="aide-project-context-label" data-i18n="tasks.title">tasks</span>
+          <span id="aide-project-context-label" data-i18n="aide.tasks">aide tasks</span>
         </button>
         <button class="aide-new-context-item aide-branch-context" id="aide-branch-context" type="button" aria-haspopup="menu" aria-expanded="false" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="5" r="2"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="12" r="2"/><path d="M7 7v10M9 7c5 0 3 5 6 5"/></svg>
@@ -2502,7 +2502,7 @@
               <div class="s-field"><label>search</label><input class="settings-input shortcut-input" data-shortcut="search" style="width:160px"></div>
               <div class="s-field"><label>sidebar</label><input class="settings-input shortcut-input" data-shortcut="sidebar" style="width:160px"></div>
               <div class="s-field"><label>settings</label><input class="settings-input shortcut-input" data-shortcut="settings" style="width:160px"></div>
-              <div class="s-field"><label for="shortcut-new-task">new task</label><input id="shortcut-new-task" class="settings-input shortcut-input" data-shortcut="new_chat" style="width:160px"></div>
+              <div class="s-field"><label for="shortcut-new-task">new aide task</label><input id="shortcut-new-task" class="settings-input shortcut-input" data-shortcut="new_chat" style="width:160px"></div>
               <div class="s-field"><label>send</label><input class="settings-input shortcut-input" data-shortcut="send" style="width:160px"></div>
               <div class="s-field"><label>focus input</label><input class="settings-input shortcut-input" data-shortcut="focus_input" style="width:160px"></div>
               <div class="s-field"><label>stop generating</label><input class="settings-input shortcut-input" data-shortcut="stop" style="width:160px"></div>
@@ -2920,7 +2920,7 @@
 </div>
 
 <script type="module">
-const _v = '458';
+const _v = '461';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

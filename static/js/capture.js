@@ -78,7 +78,7 @@ export async function openCaptureReview(proposal, trigger, onSaved = null) {
   const ov = document.createElement('div');
   ov.className = 'capture-overlay';
   ov.innerHTML = `<section class="capture-review" role="dialog" aria-modal="true" aria-labelledby="capture-heading">
-    <h2 id="capture-heading">review ${kind === 'task' ? 'task' : 'event'}</h2>
+    <h2 id="capture-heading">review ${kind === 'task' ? 'task' : 'event'} for plan</h2>
     <p>edit the details, then add it to plan.</p>
     ${source?.kind === 'aide' && source.private ? '<p>adding this task saves a copy of the reply in plan, outside this private conversation.</p>' : ''}
     ${source ? `<details class="capture-source"><summary>${esc(source.label || 'original message')}</summary><pre>${esc(source.excerpt)}</pre></details>` : ''}
