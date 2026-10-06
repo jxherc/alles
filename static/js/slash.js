@@ -36,7 +36,7 @@ const BUILTINS = [
   { name: 'search',    cat: 'navigate', help: 'open search',             args: '[query]' },
   // system
   { name: 'system',    cat: 'system',   help: 'set session system prompt', args: '<prompt>' },
-  { name: 'backup',    cat: 'system',   help: 'download backup zip' },
+  { name: 'backup',    cat: 'system',   help: 'download encrypted .alles-backup; get its recovery key from settings → backup & restore' },
   { name: 'compact',   cat: 'system',   help: 'compact context now' },
   { name: 'help',      cat: 'system',   help: 'list all slash commands' },
   // scheduling

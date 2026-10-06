@@ -19,7 +19,7 @@ Machine-readable values live in `tokens/`. This document explains how to use the
 | focus | `#3a3a3a` | `#bbb4ac` | visible neutral keyboard boundary |
 | active | `#9298ff` | `#5960c7` | meaningful active state only |
 | permission | `#d5a265` | `#906323` | full-access or authority state |
-| danger | `#df7474` | `#b54d4d` | failure or destructive action |
+| danger | `#df7474` | `#a64242` | failure or destructive action |
 | success | `#7ea98b` | `#437650` | confirmed success only |
 
 The server system monitor holds a scoped palette exception for its meter and glyph colors; see `decisions/0010-server-monitor-aesthetic.md`.

@@ -33,7 +33,7 @@
   --line-strong: #bbb4ac;
   --accent: #5960c7;
   --signal: #906323;
-  --error: #b54d4d;
+  --error: #a64242;
   --green: #437650;
   /* more ink than the dark mix so the ring clears WCAG 2.4.11 (3:1) on --bg */
   --focus:  color-mix(in srgb, var(--faint) 45%, var(--text) 55%);
