@@ -361,7 +361,7 @@ export function initMoneyPanel(fetcher = fetch) {
       window._navigateSpecialistSection?.('finance', 'imports');
     });
   }
-  return load(fetcher);
+  return load(fetcher, !!$('money-body')?.childElementCount, false);
 }
 
 async function _ownerFetch(path, options = {}) {
