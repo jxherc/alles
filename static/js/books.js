@@ -221,8 +221,12 @@ function _addForm() {
       ${_lookupMessage ? `<p class="book-lookup-notice ${_lookupFailed ? 'book-notes-error' : 'specialist-group-note'}" role="${_lookupFailed ? 'alert' : 'status'}">${esc(_lookupMessage)}</p>` : ''}
       ${_lookup.length ? `<div class="book-lookup">${_lookup.map((r, i) => `<button class="book-lookup-item" data-pick="${i}" ${locked}>${r.cover ? `<img src="${esc(r.cover)}" alt="" loading="lazy">` : '<span class="book-lk-ph"></span>'}<span><b>${esc(r.title)}</b><i>${esc(r.author)}${r.year ? ` · ${r.year}` : ''}</i></span></button>`).join('')}</div>` : ''}
       <div class="book-add-row">
-        <input type="text" id="book-title" class="settings-input" aria-label="book title" placeholder="title" value="${esc(draft.title)}" ${locked}>
-        <input type="text" id="book-author" class="settings-input" aria-label="book author" placeholder="author" value="${esc(draft.author)}" ${locked}>
+        <label class="book-field" for="book-title">book title
+          <input type="text" id="book-title" class="settings-input" aria-label="book title" placeholder="title" value="${esc(draft.title)}" ${locked}>
+        </label>
+        <label class="book-field" for="book-author">book author
+          <input type="text" id="book-author" class="settings-input" aria-label="book author" placeholder="author" value="${esc(draft.author)}" ${locked}>
+        </label>
       </div>
       <div class="book-add-row">
         <div class="te-seg" id="book-status" role="radiogroup" aria-label="book shelf">${SHELVES.map(([k]) => `<button type="button" role="radio" aria-checked="${draft.status === k}" class="te-seg-opt${draft.status === k ? ' active' : ''}" data-val="${k}" ${locked}>${k === 'done' ? 'read' : k === 'reading' ? 'reading' : 'want'}</button>`).join('')}</div>
