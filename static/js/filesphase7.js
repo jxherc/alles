@@ -166,6 +166,7 @@ async function loadLocations(fetcher = fetch) {
 function renderLocations() {
   const host = $('files-location-list');
   if (!host) return;
+  const focusedId = host.contains(document.activeElement) ? document.activeElement.dataset.locationId : null;
   host.hidden = state.locations.length < 2;
   if ($('files-locations-label')) $('files-locations-label').hidden = host.hidden;
   host.innerHTML = state.locations.map(location => `
@@ -178,6 +179,10 @@ function renderLocations() {
       </span>
       <span class="files-location-access">${location.access === 'managed' ? 'managed' : 'read only'}</span>
     </button>`).join('');
+  if (focusedId && !host.hidden) {
+    [...host.querySelectorAll('[data-location-id]')]
+      .find(button => button.dataset.locationId === focusedId)?.focus({ preventScroll: true });
+  }
 }
 
 function renderAppStatus(location, index) {
