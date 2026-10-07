@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v344';   // Preserve document keyboard focus through saving and discard.
+const VERSION = 'v345';   // Show keyboard focus when returning to a document preview.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '496';   // keep in sync with index.html ?v= / const _v
+const STAMP = '497';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
