@@ -34,7 +34,7 @@ function harness() {
     wire = () => {};
     globalThis.subject = { render, addTxnRow, transferRow, editTxnRow, splitEditorRow,
       _accountForm, _budgetForm, _recurringForm, goalsCard, holdingsCard, reportsCard,
-      moneyField, moneySection, toggleMoneySection, fmt, summaryAmount, addTxn, transactionAmountError,
+      moneyField, moneySection, toggleMoneySection, toggleTransactionDetails, fmt, summaryAmount, addTxn, transactionAmountError,
       _renderTxnMain, accountsList, summaryCards, catChart, trendChart, envelopeCard, networthCard, alertsStrip,
       setCurrency: (accounts, summary, canonical = false) => { _accounts = accounts; _sum = summary; _canonicalLedger = canonical; _cur = summary.currency; },
       setTask: id => { _moneyPlanTask = id; },
@@ -54,6 +54,24 @@ test('Money puts transaction entry before dashboard panels and exposes a direct 
   assert.ok(html.indexOf('money-txns') < html.indexOf('money-grid'));
   assert.match(html, /id="tx-add">add transaction/);
   assert.match(html, /filter transactions/);
+  assert.ok(html.indexOf('id="money-entry-fields"') < html.indexOf('class="money-summary"'));
+  assert.ok(html.indexOf('id="money-entry-fields"') < html.indexOf('money-txns'));
+});
+
+test('optional transaction details disclose without changing the draft', () => {
+  const h = harness();
+  h.get('tx-cat').value = 'workshop';
+  h.get('tx-tags').value = 'agenda';
+  assert.match(h.addTxnRow(), /id="tx-details" hidden/);
+  h.toggleTransactionDetails();
+  assert.equal(h.get('tx-details').hidden, false);
+  assert.equal(h.get('tx-details-toggle').attributes['aria-expanded'], 'true');
+  assert.doesNotMatch(h.addTxnRow(), /id="tx-details" hidden/);
+  h.toggleTransactionDetails();
+  assert.equal(h.get('tx-details').hidden, true);
+  assert.equal(h.get('tx-details-toggle').attributes['aria-expanded'], 'false');
+  assert.equal(h.get('tx-cat').value, 'workshop');
+  assert.equal(h.get('tx-tags').value, 'agenda');
 });
 
 test('Money custom choices retain a purpose distinct from their selected value', () => {
