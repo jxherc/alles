@@ -5615,6 +5615,25 @@ body[data-app="files"] #files-view .files-location-copy strong {
   font-weight: 500;
 }
 
+@media (min-width: 761px) {
+  body[data-app="files"] #files-view .files-location-button:is(:hover, :focus) {
+    flex-shrink: 0;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: start;
+    padding-block: var(--k-space-2);
+  }
+
+  body[data-app="files"] #files-view .files-location-button:is(:hover, :focus) .files-location-copy strong {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  body[data-app="files"] #files-view .files-location-button:is(:hover, :focus) .files-location-access {
+    grid-column: 2;
+  }
+}
+
 body[data-app="files"] #files-view .files-location-copy small,
 body[data-app="files"] #files-view .files-location-access {
   color: var(--k-muted);
