@@ -248,6 +248,12 @@ function _wire() {
   $('wiki-obsidian-btn')?.addEventListener('click', () => openInObsidian(_cur));
   $('wiki-empty-obsidian')?.addEventListener('click', () => openInObsidian(''));
   $('wiki-tree-toggle')?.addEventListener('click', toggleNavigation);
+  $('wiki-nav-close')?.addEventListener('click', () => closeNavigation(true));
+  document.addEventListener('focusin', event => {
+    if (!$('docs-nav-panel')?.contains(event.target) && !$('docs-dialog')?.contains(event.target)) {
+      closeNavigation();
+    }
+  });
   matchMedia('(max-width: 760px)').addEventListener?.('change', syncNavigationToggle);
   $('wiki-more-btn')?.addEventListener('click', toggleMoreMenu);
 
@@ -293,6 +299,7 @@ function _wire() {
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       if (!$('docs-dialog')?.hidden) closeDialog({ action: 'cancel', value: '' });
+      else if (closeNavigation(true)) event.preventDefault();
       closeMoreMenu({ restoreFocus: true });
     }
   });
@@ -342,9 +349,21 @@ function toggleNavigation() {
   const view = $('wiki-view');
   if (!view) return;
   const mobile = matchMedia('(max-width: 760px)').matches;
-  if (mobile) view.classList.toggle('docs-nav-open');
-  else view.classList.toggle('docs-nav-hidden');
+  if (mobile) {
+    if (closeNavigation(true)) return;
+    view.classList.add('docs-nav-open');
+    $('wiki-nav-close')?.focus();
+  } else view.classList.toggle('docs-nav-hidden');
   syncNavigationToggle();
+}
+
+function closeNavigation(restoreFocus = false) {
+  const view = $('wiki-view');
+  if (!view?.classList.contains('docs-nav-open')) return false;
+  view.classList.remove('docs-nav-open');
+  syncNavigationToggle();
+  if (restoreFocus) $('wiki-tree-toggle')?.focus();
+  return true;
 }
 
 function syncNavigationToggle() {
