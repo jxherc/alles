@@ -4928,7 +4928,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .money-monthnav { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; font-size: 0.78rem; color: var(--text); }
 :where(#money-view) .money-monthnav .icon-btn { font-size: 1.1rem; line-height: 1; padding: 0 0.3rem; }
 #money-month-label { min-width: 110px; text-align: center; }
-#money-body { padding-bottom: 2rem; }
+#money-body { padding-bottom: 2rem; scroll-padding-block: var(--k-space-4, 16px); }
 #money-view :where(button, a.btn) {
   min-width: 44px;
   min-height: 44px;
