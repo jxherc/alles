@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v361';   // Keep document focus after choosing the disk copy.
+const VERSION = 'v362';   // Keep Home settings focus outlines inside the scroll area.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '511';   // keep in sync with index.html ?v= / const _v
+const STAMP = '512';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

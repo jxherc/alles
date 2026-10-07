@@ -2647,7 +2647,7 @@ body[data-app="finance"] #money-entry-fields :focus-visible,
   .locale-choice-option,
   .locale-segmented > button,
   .credits-tabs > button,
-  .home-settings-density > button
+  .home-settings-workbench button
 ):focus-visible,
 body[data-app="files"] #files-view :is(button.crumb, .files-location-button):focus-visible,
 body[data-app="files"] #files-view :is(.file-row, .file-row > .files-check):focus-visible {
