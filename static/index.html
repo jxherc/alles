@@ -28,8 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=497">
-  <link rel="stylesheet" href="/static/kokuen.css?v=42">
+<link rel="stylesheet" href="/static/style.css?v=498">
+  <link rel="stylesheet" href="/static/kokuen.css?v=43">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#090909">
@@ -1683,21 +1683,17 @@
 
         <div class="s-pane home-settings-pane" id="s-pane-home">
           <header class="home-settings-intro">
-            <div>
-              <h2>home</h2>
-              <p>Choose what appears after the greeting. Needs you always stays visible so approvals and recovery prompts cannot disappear.</p>
-            </div>
             <span id="home-settings-load-state" role="status" aria-live="polite">loading preferences…</span>
           </header>
 
           <div class="home-settings-workbench" id="home-settings-workbench" aria-busy="true">
             <div class="home-settings-controls">
               <section class="home-settings-section" aria-labelledby="home-settings-structure-title">
-                <h3 id="home-settings-structure-title">structure</h3>
-                <p>Move sections into the order you scan them. Hide anything that is not useful every day.</p>
+                <h3 id="home-settings-structure-title">sections</h3>
+                <p>Choose what to show. Use the arrows to change the order.</p>
                 <div class="home-settings-list" id="home-settings-sections">
                   <div class="home-settings-row" data-home-section="needs_you" data-enabled="true">
-                    <div class="home-settings-copy"><strong>needs you</strong><small>approvals, failed work, and delivery prompts · always visible</small></div>
+                    <div class="home-settings-copy"><strong>needs you</strong><small>approvals and recovery · always visible</small></div>
                     <button class="home-settings-switch" type="button" role="switch" aria-label="show needs you on Home" aria-checked="true" disabled></button>
                     <div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move needs you up">↑</button><button type="button" data-home-move="down" aria-label="move needs you down">↓</button></div>
                   </div>
@@ -1726,7 +1722,7 @@
 
               <section class="home-settings-section" aria-labelledby="home-settings-density-title">
                 <h3 id="home-settings-density-title">density</h3>
-                <p>This changes vertical spacing only. It never removes details.</p>
+                <p>Change spacing without hiding details.</p>
                 <div class="home-settings-density" role="radiogroup" aria-labelledby="home-settings-density-title">
                   <button type="button" role="radio" aria-checked="true" tabindex="0" data-home-density="comfortable"><span>comfortable</span><small>more room between sections</small></button>
                   <button type="button" role="radio" aria-checked="false" tabindex="-1" data-home-density="compact"><span>compact</span><small>more of the day at once</small></button>
@@ -1735,7 +1731,7 @@
 
               <section class="home-settings-section" aria-labelledby="home-settings-shortcuts-title">
                 <h3 id="home-settings-shortcuts-title">pinned apps</h3>
-                <p>Choose and order the app destinations shown on Home.</p>
+                <p>Choose your Home shortcuts.</p>
                 <div class="home-settings-list" id="home-settings-shortcuts">
                   <div class="home-settings-row" data-home-shortcut="plan" data-enabled="true"><div class="home-settings-copy"><strong>plan</strong><small>agenda, board, calendar, tasks, and reminders</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Plan pinned app" aria-checked="true" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Plan pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Plan pinned app down">↓</button></div></div>
                   <div class="home-settings-row" data-home-shortcut="inbox" data-enabled="false"><div class="home-settings-copy"><strong>inbox</strong><small>mail and contacts</small></div><button class="home-settings-switch" type="button" role="switch" aria-label="show Inbox pinned app" aria-checked="false" data-home-shortcut-switch></button><div class="home-settings-move"><button type="button" data-home-move="up" aria-label="move Inbox pinned app up">↑</button><button type="button" data-home-move="down" aria-label="move Inbox pinned app down">↓</button></div></div>
@@ -1764,7 +1760,7 @@
           </div>
 
           <footer class="home-settings-save">
-            <div><span id="home-settings-save-state" role="status" aria-live="polite">no unsaved changes</span><small>Saving updates Home for every browser using this Alles server.</small></div>
+            <div><span id="home-settings-save-state" role="status" aria-live="polite">no unsaved changes</span><small>Applies to all your browsers.</small></div>
             <div><button class="btn" id="home-settings-reset" type="button">reset defaults</button><button class="btn primary" id="home-settings-save" type="button">save home</button></div>
           </footer>
         </div>
@@ -2924,7 +2920,7 @@
 </div>
 
 <script type="module">
-const _v = '497';
+const _v = '498';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
