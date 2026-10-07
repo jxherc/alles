@@ -5169,7 +5169,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .rc-toggle { font-size: 0.75rem; padding: 0.1rem 0.4rem; min-height: 44px; }
 :where(#money-view) .rc-delete { min-height: 44px; }
 :where(#money-view) .money-recurring-note { color: var(--muted); font-size: 0.8rem; margin: var(--k-space-2, 8px) 0 0; }
+:where(#money-view) #money-save-results { padding: var(--k-space-2, 8px); }
 :where(#money-view) #money-save-results:empty { display: none; }
+:where(#money-view) #money-save-results:focus-visible { outline-offset: -3px; }
 :where(#money-view) .money-saved-result { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) 0; border-bottom: 1px solid var(--border); margin-bottom: var(--k-space-1, 4px); }
 :where(#money-view) .money-saved-result p { flex: 1 1 140px; margin: 0; overflow-wrap: anywhere; }
 :where(#money-view) .money-saved-result p span { display: block; color: var(--muted); font-size: 0.8rem; margin-top: var(--k-space-1, 4px); }

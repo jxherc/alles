@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v341';   // Identify the book and consequences in its removal confirmation.
+const VERSION = 'v342';   // Keep the saved transaction result focus ring inside its scrolling pane.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '493';   // keep in sync with index.html ?v= / const _v
+const STAMP = '494';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
