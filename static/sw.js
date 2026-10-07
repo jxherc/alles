@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v349';   // Keep Home save feedback beside the controls without covering them.
+const VERSION = 'v351';   // Give transaction fields room in the desktop layout.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '501';   // keep in sync with index.html ?v= / const _v
+const STAMP = '503';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
