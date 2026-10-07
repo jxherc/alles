@@ -11,7 +11,7 @@ const source = readFileSync(new URL('../../static/js/docs.js', import.meta.url),
 const links = readFileSync(new URL('../../static/js/recordlinks.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
 
-function harness() {
+function harness({ mobile = false } = {}) {
   const elements = new Map();
   const loads = [];
   const disk = new Map();
@@ -19,23 +19,41 @@ function harness() {
   const writes = [];
   const mounted = [];
   let document;
+  const documentEvents = new Map();
   function element(id = '') {
     const attrs = new Map();
+    const classes = new Set();
+    const events = new Map();
     return {
       id, value: '', textContent: '', hidden: false, disabled: false, style: {}, dataset: {},
-      classList: { toggle() {}, remove() {}, add() {}, contains() { return false; } },
+      classList: {
+        toggle(name, enabled = !classes.has(name)) { if (enabled) classes.add(name); else classes.delete(name); },
+        remove: (...names) => names.forEach(name => classes.delete(name)),
+        add: (...names) => names.forEach(name => classes.add(name)), contains: name => classes.has(name),
+      },
       setAttribute: (name, value) => attrs.set(name, value),
       getAttribute: name => attrs.get(name), removeAttribute() {},
       querySelectorAll: () => [], replaceChildren() {}, appendChild() {},
       insertBefore(node) { elements.set(node.id, node); },
-      focus() { document.activeElement = this; }, addEventListener() {},
+      contains(target) {
+        return target === this || (id === 'docs-nav-panel' && ['wiki-nav-close', 'wiki-new-btn', 'wiki-folder-btn', 'wiki-search'].includes(target?.id))
+          || (id === 'docs-dialog' && target?.id === 'docs-dialog-input');
+      },
+      focus() { document.activeElement = this; documentEvents.get('focusin')?.({ target: this }); },
+      addEventListener(name, listener) { events.set(name, listener); },
+      click() { events.get('click')?.({ target: this }); },
     };
   }
   function get(id) {
     if (!elements.has(id)) elements.set(id, element(id));
     return elements.get(id);
   }
-  document = { getElementById: get, createElement: () => element(), querySelectorAll: () => [], activeElement: get('wiki-edit-btn') };
+  document = {
+    getElementById: get, createElement: () => element(), querySelectorAll: () => [], activeElement: get('wiki-edit-btn'),
+    addEventListener(name, listener) { documentEvents.set(name, listener); },
+  };
+  get('docs-dialog').hidden = true;
+  get('wiki-more-menu').hidden = true;
   const factory = (_host, options) => {
     let value = options.doc;
     const editor = {
@@ -73,12 +91,13 @@ function harness() {
       routeLocation.search = route.search;
       routeLocation.hash = route.hash;
     },
-    matchMedia: () => ({ matches: false }), mdToHtml: value => value, enhanceMarkdown() {}, toast() {},
+    matchMedia: () => ({ matches: mobile }), addEventListener() {}, mdToHtml: value => value, enhanceMarkdown() {}, toast() {},
     __loadEditor: () => new Promise((resolve, reject) => loads.push({ resolve: () => resolve({ createDocEditor: factory }), reject })),
   });
   vm.runInContext(links, context);
   vm.runInContext(source + `
     globalThis.subject = {
+      wire: _wire,
       open: openNote, enter: enterEdit, done: exitEdit, save: saveCurrent, view: setEditView,
       discard: async () => { openDialog = async () => ({ action: 'discard' }); return discardDraft(); },
       type: value => { $('wiki-source').value = value; sourceChanged(); },
@@ -87,9 +106,52 @@ function harness() {
   `, context);
   return {
     ...context.subject, get, loads, mounted, disk, writes, storage, document,
+    escape() { documentEvents.get('keydown')?.({ key: 'Escape', preventDefault() {} }); },
     seed(path, content) { disk.set(path, { path, content, hash: path + '-base', exists: true, editable: true }); },
   };
 }
+
+test('mobile document navigation moves focus inside and close returns to browse', () => {
+  const h = harness({ mobile: true }); h.wire();
+  h.get('wiki-tree-toggle').focus(); h.get('wiki-tree-toggle').click();
+  assert.equal(h.document.activeElement, h.get('wiki-nav-close'));
+  assert.equal(h.get('wiki-tree-toggle').getAttribute('aria-expanded'), 'true');
+  h.get('wiki-nav-close').click();
+  assert.equal(h.document.activeElement, h.get('wiki-tree-toggle'));
+  assert.equal(h.get('wiki-tree-toggle').getAttribute('aria-expanded'), 'false');
+});
+
+test('escape closes mobile document navigation and restores its trigger', () => {
+  const h = harness({ mobile: true }); h.wire();
+  h.get('wiki-tree-toggle').click(); h.get('wiki-search').focus(); h.escape();
+  assert.equal(h.document.activeElement, h.get('wiki-tree-toggle'));
+  assert.equal(h.get('wiki-view').classList.contains('docs-nav-open'), false);
+});
+
+test('moving focus outside mobile navigation dismisses it without stealing focus', () => {
+  const h = harness({ mobile: true }); h.wire();
+  h.get('wiki-tree-toggle').click(); h.get('wiki-empty-new').focus();
+  assert.equal(h.document.activeElement, h.get('wiki-empty-new'));
+  assert.equal(h.get('wiki-view').classList.contains('docs-nav-open'), false);
+});
+
+test('a document dialog keeps its navigation available for focus restoration', () => {
+  const h = harness({ mobile: true }); h.wire();
+  h.get('wiki-tree-toggle').click(); h.get('wiki-new-btn').focus();
+  h.get('docs-dialog-input').focus();
+  assert.equal(h.get('wiki-view').classList.contains('docs-nav-open'), true);
+  h.get('wiki-new-btn').focus();
+  assert.equal(h.get('wiki-view').classList.contains('docs-nav-open'), true);
+});
+
+test('desktop navigation retains its trigger focus and ordinary collapse behavior', () => {
+  const h = harness(); h.wire(); h.get('wiki-tree-toggle').focus();
+  h.get('wiki-tree-toggle').click();
+  assert.equal(h.document.activeElement, h.get('wiki-tree-toggle'));
+  assert.equal(h.get('wiki-view').classList.contains('docs-nav-hidden'), true);
+  h.get('wiki-tree-toggle').click();
+  assert.equal(h.get('wiki-view').classList.contains('docs-nav-hidden'), false);
+});
 
 async function opened(content = 'original') {
   const h = harness(); h.seed('proof.md', content); await h.open('proof.md'); return h;
