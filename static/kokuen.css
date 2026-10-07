@@ -2635,7 +2635,7 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
 /* These controls meet pane/viewport edges; keep the ring inside their targets. */
 html[data-kokuen-version="5"] .shell-navigation-toggle:focus-visible,
 html[data-kokuen-version="5"] #app-drawer .app-drawer-item:focus-visible,
-#money-view #money-entry-fields :focus-visible,
+body[data-app="finance"] #money-entry-fields :focus-visible,
 #files-workbench-view .specialist-mobile-back:focus-visible,
 #server-workbench-view .server-workbench-switch-row > button:focus-visible,
 #today-view :is(.today-section-edit, .today-settings):focus-visible,
