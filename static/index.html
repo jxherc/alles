@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=495">
+<link rel="stylesheet" href="/static/style.css?v=496">
   <link rel="stylesheet" href="/static/kokuen.css?v=41">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -882,7 +882,7 @@
             </div>
             <button type="button" id="docs-import-btn" class="btn docs-import-trigger">import</button>
             <span id="wiki-stats" class="wiki-stats"></span>
-            <span id="wiki-save-state" class="docs-save-state" role="status" aria-live="polite"></span>
+            <span id="wiki-save-state" class="docs-save-state" role="status" aria-live="polite" tabindex="-1"></span>
             <div class="docs-reader-actions">
               <button type="button" id="wiki-edit-btn">edit</button>
               <button type="button" id="wiki-ask-btn">ask Aide</button>
@@ -972,6 +972,7 @@
                   <button class="docs-save-button" type="button" id="wiki-save-btn">save</button>
                 </div>
               </div>
+              <p id="wiki-keyboard-hint" class="docs-editor-keyboard-hint">press Esc, then Tab to leave the visual editor.</p>
               <div class="wiki-live" id="wiki-live"></div>
               <textarea class="wiki-source" id="wiki-source" spellcheck="true" aria-label="Markdown source"></textarea>
             </div>
@@ -2923,7 +2924,7 @@
 </div>
 
 <script type="module">
-const _v = '495';
+const _v = '496';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

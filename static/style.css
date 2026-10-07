@@ -9607,7 +9607,8 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   white-space: nowrap;
 }
 .wiki-stats { margin-left: auto; padding-left: 0.5rem; color: var(--muted); font-size: 0.75rem; }
-.docs-save-state { color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
+.docs-save-state { color: var(--muted); font-size: 0.75rem; white-space: nowrap; padding: var(--k-space-1, 4px); }
+.docs-save-state:focus-visible { outline-offset: -3px; }
 .docs-save-state.error { color: var(--error); }
 
 .docs-reader-actions { position: relative; display: flex; align-items: center; gap: 0.25rem; }
@@ -9817,6 +9818,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   white-space: nowrap;
 }
 .docs-editor-actions { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; flex: 0 0 auto; }
+.docs-editor-keyboard-hint { margin: 0; padding: var(--k-space-2, 8px) var(--k-space-4, 16px); color: var(--muted); font-size: 0.75rem; }
 #wiki-discard-btn { border: 0; }
 #wiki-done-btn { padding: 0 0.65rem; }
 .docs-editor-bar .docs-save-button { padding: 0 0.65rem; border-color: var(--accent); color: var(--accent); }
