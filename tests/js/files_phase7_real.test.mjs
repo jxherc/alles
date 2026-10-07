@@ -10,6 +10,66 @@ const dialog = readFileSync(new URL('../../static/js/dialog.js', import.meta.url
 const css = readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8');
 const serviceWorker = readFileSync(new URL('../../static/sw.js', import.meta.url), 'utf8');
 
+function locationFocusHarness() {
+  const document = { body: {}, activeElement: null };
+  const state = {
+    locationId: 'first',
+    locations: ['first', 'second'].map(id => ({ id, name: id, kind: 'local', access: 'managed' })),
+  };
+  const focused = [];
+  const host = {
+    children: [], hidden: false,
+    contains(node) { return this.children.includes(node); },
+    querySelectorAll() { return this.children; },
+    set innerHTML(value) {
+      if (this.contains(document.activeElement)) document.activeElement = document.body;
+      this.children = [...value.matchAll(/data-location-id="([^"]+)"/g)].map(([, id]) => ({
+        dataset: { locationId: id },
+        focus(options) { document.activeElement = this; focused.push({ id, ...options }); },
+      }));
+    },
+  };
+  const source = files.match(/function renderLocations\(\) \{[\s\S]*?\n\}/)[0];
+  const context = vm.createContext({
+    document, state, $: id => id === 'files-location-list' ? host : null,
+    esc: value => String(value), locationIcon: () => '',
+  });
+  vm.runInContext(source + '\nglobalThis.render = renderLocations;', context);
+  context.render();
+  return { ...context, host, focused };
+}
+
+test('changing Files location preserves the focused location through the list redraw', () => {
+  const h = locationFocusHarness();
+  const original = h.host.children[1];
+  h.document.activeElement = original;
+  h.state.locationId = 'second';
+  h.render();
+  assert.notEqual(h.document.activeElement, original);
+  assert.equal(h.document.activeElement, h.host.children[1]);
+  assert.deepEqual(h.focused, [{ id: 'second', preventScroll: true }]);
+});
+
+test('refreshing Files locations does not take focus from another control', () => {
+  const h = locationFocusHarness();
+  const search = { dataset: { locationId: 'second' } };
+  h.document.activeElement = search;
+  h.render();
+  assert.equal(h.document.activeElement, search);
+  assert.deepEqual(h.focused, []);
+});
+
+test('a removed or hidden Files location is not chosen as a focus destination', () => {
+  for (const locations of [['first'], ['first', 'third']]) {
+    const h = locationFocusHarness();
+    h.document.activeElement = h.host.children[1];
+    h.state.locations = locations.map(id => ({ id, name: id, kind: 'local' }));
+    h.render();
+    assert.equal(h.document.activeElement, h.document.body);
+    assert.deepEqual(h.focused, []);
+  }
+});
+
 test('durable Files and storage-location mutations stay out of offline replay', () => {
   const noqueueLiteral = serviceWorker.match(/const NOQUEUE = (\[[^;]+\]);/)?.[1] || '[]';
   const noqueue = Function(`return ${noqueueLiteral}`)();
@@ -226,7 +286,7 @@ test('the real Files screen uses the Phase 7 multi-location workbench', () => {
   ]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
   }
-  assert.match(app, /from '\.\/filesphase7\.js\?v=444'/);
+  assert.match(app, /from '\.\/filesphase7\.js\?v=485'/);
   assert.doesNotMatch(html.match(/id="files-view"[\s\S]*?<\/div>\s*\n\s*<!-- ── mail view/)[0], /<select\b|type="(?:checkbox|radio)"/i);
 });
 
