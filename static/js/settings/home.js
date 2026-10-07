@@ -231,7 +231,6 @@ async function _saveHomeSettings() {
     _setHomeSettingsStatus('saved just now');
     if (loadState) loadState.textContent = 'saved on this Alles server';
     window.dispatchEvent(new CustomEvent('alles:home-preferences-changed', { detail: value }));
-    toast('Home updated', 'success');
   } catch (error) {
     _setHomeSettingsStatus(error.message || 'Home settings could not save');
     toast(error.message || 'Home settings could not save', 'error');
