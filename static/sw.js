@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v340';   // Include document import in the inset toolbar focus treatment.
+const VERSION = 'v341';   // Identify the book and consequences in its removal confirmation.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '492';   // keep in sync with index.html ?v= / const _v
+const STAMP = '493';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
