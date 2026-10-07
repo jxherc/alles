@@ -808,8 +808,8 @@ async function renderBackups(target, request, completed = null) {
       fact('last backup', value.last_backup_at || 'never'),
       fact('last verified', value.last_verified_at || 'never'),
     );
-    if (value.error) section.append(statusLine(value.error, 'error'));
-    const message = statusLine(completed?.type === type ? completed.message : '');
+    const finished = completed?.type === type;
+    const message = statusLine(finished ? completed.message : value.error || '', !finished && value.error ? 'error' : '');
     section.append(message);
     const button = action('run encrypted backup', async () => {
       message.classList.remove('is-error');
