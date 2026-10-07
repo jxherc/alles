@@ -1311,8 +1311,8 @@ const HOME_PINNABLE_APPS = [
 const SHELL_GROUPS = Object.freeze([
   ['primary spaces', [
     { view: 'today', name: 'home', desc: 'current work and quick capture', icon: 'home' },
-    { view: 'chat', name: 'aide', desc: 'conversation and local execution', icon: 'chat' },
-    { view: 'andromeda', name: 'andromeda', desc: 'search and grounded answers', icon: 'andromeda' },
+    { view: 'chat', name: 'aide', desc: 'chat and run tasks', icon: 'chat' },
+    { view: 'andromeda', name: 'andromeda', desc: 'search and answers with sources', icon: 'andromeda' },
   ]],
   ['everyday', [
     { view: 'plan', name: 'plan', desc: 'calendar, tasks, and reminders', icon: 'calendar' },

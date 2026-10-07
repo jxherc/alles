@@ -6376,7 +6376,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 #money-view #money-management { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); justify-content: flex-end; }
 #money-view #money-entry-slot:empty { display: none; }
 #money-view .page-view-head .btn { white-space: nowrap; }
-@media (max-width: 720px) {
+@media (max-width: 620px) {
   #money-view #money-entry-slot { grid-column: 1; grid-row: 1; }
   #money-view #money-manage-toggle { grid-row: 1; }
   #money-view .money-monthnav { grid-column: 1 / -1; grid-row: 2; }
