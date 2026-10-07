@@ -5007,11 +5007,11 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 /* unify every control in the money forms: same boxed look + same height, so the
    text inputs match the custom dropdowns / date picker instead of being underlines */
 :where(#money-view) .txn-add > *, :where(#money-view) .acct-form > *, :where(#money-view) .budget-form > * { height: 32px; box-sizing: border-box; }
-:where(#money-view) .txn-add input.settings-input, :where(#money-view) .acct-form input.settings-input, :where(#money-view) .budget-form input.settings-input {
+:where(#money-view) .txn-add input.settings-input, :where(#money-view) .money-entry-details input.settings-input, :where(#money-view) .acct-form input.settings-input, :where(#money-view) .budget-form input.settings-input {
   background: var(--panel); border: 1px solid var(--faint); border-radius: 3px;
   padding: 0 0.55rem; font-size: 0.75rem;
 }
-:where(#money-view) .txn-add input.settings-input:focus, :where(#money-view) .acct-form input.settings-input:focus, :where(#money-view) .budget-form input.settings-input:focus { border-color: var(--muted); }
+:where(#money-view) .txn-add input.settings-input:focus, :where(#money-view) .money-entry-details input.settings-input:focus, :where(#money-view) .acct-form input.settings-input:focus, :where(#money-view) .budget-form input.settings-input:focus { border-color: var(--muted); }
 :where(#money-view) .txn-add .btn, :where(#money-view) .acct-form .btn, :where(#money-view) .budget-form .btn { display: inline-flex; align-items: center; }
 :where(#money-view) .txns { display: flex; flex-direction: column; }
 :where(#money-view) .txn { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.2rem; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
