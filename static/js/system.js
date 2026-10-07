@@ -261,7 +261,7 @@ function group(header, headerVal, rows) {
 // the page doesn't flash every tick; update() only rewrites the dynamic guts.
 function buildShell(s) {
   const note = s.live ? '' :
-    `<div class="sys-note">live cpu% + processes + net need <code>psutil</code> (<code>pip install psutil</code>); ram + disk shown from the static readout.</div>`;
+    `<div class="sys-note">live cpu, process and network readings need the server monitoring package (psutil). reinstall the Alles server dependencies, then restart Alles. memory and disk totals remain available.</div>`;
   const logoKey = logoPlatform(s.host.platform);
   const logoLabel = { darwin: 'macOS', windows: 'Windows', linux: 'Linux', generic: 'operating system' }[logoKey];
   const logoGridSize = logoGrid(s.host.platform);
@@ -279,7 +279,7 @@ function buildShell(s) {
             <div class="btop-box" id="box-net"><div id="net-head"></div><canvas class="graph-canvas" id="net-dn-graph"></canvas><div id="net-mid"></div><canvas class="graph-canvas" id="net-up-graph"></canvas></div>
             <div class="btop-box" id="box-disk"><div id="disk-body"></div><canvas class="graph-canvas" id="disk-graph"></canvas></div>
           </div>
-          <div class="btop-box span2" id="box-proc"><div id="proc-body"></div></div>
+          <div class="btop-box span2" id="box-proc"><div id="proc-body" role="region" aria-label="process details" tabindex="0"></div></div>
         </div>
       </div>
       <div class="neofetch">
@@ -381,7 +381,7 @@ function render(s, fetcher = fetch) {
 
   const hostEl = $('system-host');
   if (hostEl) {
-    hostEl.textContent = s.live ? `live · ${s.proc_count || 0} procs` : 'static (no psutil)';
+    hostEl.textContent = s.live ? `live · ${s.proc_count || 0} processes` : 'live monitoring unavailable';
     hostEl.dataset.state = s.live ? 'live' : 'static';
   }
 
@@ -430,7 +430,7 @@ function render(s, fetcher = fetch) {
   // proc — btop-style table: pid · program · threads · user · mem · cpu(bar+%)
   $('box-proc').dataset.label = `processes  (top ${(s.procs || []).length} of ${s.proc_count || 0})`;
   $('proc-body').innerHTML =
-    `<div class="proc-row proc-head"><span>pid</span><span>program</span><span>thr</span><span>user</span><span>mem</span><span>cpu%</span></div>` +
+    `<div class="proc-row proc-head"><span>pid</span><span>program</span><span>threads</span><span>user</span><span>mem</span><span>cpu%</span></div>` +
     ((s.procs || []).map(p => `<div class="proc-row">
       <span class="p-pid">${p.pid}</span>
       <span class="p-name">${esc(p.name)}</span>
@@ -438,7 +438,9 @@ function render(s, fetcher = fetch) {
       <span class="p-user">${esc(p.user || '')}</span>
       <span class="p-mem">${memMB(p.rss)}</span>
       <span class="p-cpu"><span class="p-cpubar">${cpuBar(p.cpu)}</span><b style="color:${heat(p.cpu)}">${procCpuLabel(p.cpu)}</b></span>
-    </div>`).join('') || '<span class="g-dim">no process data: needs psutil</span>');
+    </div>`).join('') || `<p class="g-dim">${s.live
+      ? 'no process details are available. check that Alles has permission to read processes on this server.'
+      : 'process details need the server monitoring package (psutil). reinstall the Alles server dependencies, then restart Alles.'}</p>`);
 }
 
 function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }

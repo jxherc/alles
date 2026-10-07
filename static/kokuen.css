@@ -2159,6 +2159,10 @@ html[data-theme="light"] :where(
   color: var(--k-text);
 }
 
+#today-view[data-kokuen-surface="home"] .today-settings {
+  padding-inline: var(--k-space-1);
+}
+
 #today-view[data-kokuen-surface="home"] .today-section-edit {
   min-width: var(--k-control-dense);
   min-height: var(--k-control-dense);
