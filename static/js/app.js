@@ -399,7 +399,7 @@ async function _boot({ reachable = true } = {}) {
   window._reloadPhotos = loadPhotos;
   window._reloadCalendar = () => loadCalendar();
   window._reloadMail = startMailPoll;
-  window._reloadSystem = () => import('./system.js?v=261').then(m => m.initSystem());
+  window._reloadSystem = () => import('./system.js?v=263').then(m => m.initSystem());
   applySubdomainScope(initialRoute);
   const sourceMessage = new URLSearchParams(location.search).get('message');
   if (sourceMessage && document.body.classList.contains('is-aide') && !focusSessionMessage(sourceMessage)) {
@@ -1014,7 +1014,7 @@ const showMoneyView      = () => showView('money-view',     'money',     (track,
 const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=2'), module => module.initDaysPanel(request)));
 const showJournalView    = () => showWikiView('journal');
 const showActivityView   = () => showView('activity-view',  'activity',  (track, request) => trackedImport(track, request, () => import('./activity.js'), module => module.initActivity(request)));
-const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=261'), module => module.initSystem(request)));
+const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=263'), module => module.initSystem(request)));
 const showWatchView      = () => showView('watch-view',     'watch',     (track, request) => trackedImport(track, request, () => import('./watch.js'), module => module.initWatch(request)));
 const showHabitsView     = () => showView('habits-view',    'habits',    (track, request) => trackedImport(track, request, () => import('./habits.js'), module => module.initHabits(request)));
 const showReadView       = () => showView('read-view',      'read',      (track, request) => trackedImport(track, request, () => import('./read.js'), module => module.initRead(request)));
@@ -1057,7 +1057,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
-  if (group === 'server' && section === 'overview') return import('./system.js?v=262').then(module => module.initSystem(request));
+  if (group === 'server' && section === 'overview') return import('./system.js?v=263').then(module => module.initSystem(request));
   if (group === 'server' && section === 'activity') return import('./activity.js').then(module => module.initActivity(request));
   if (group === 'server' && section === 'watch') return import('./watch.js').then(module => module.initWatch(request));
 }
