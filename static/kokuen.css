@@ -2267,6 +2267,16 @@ html[data-theme="light"] :where(
   font-size: 15px;
 }
 
+@media (max-height: 600px) {
+  #today-view[data-kokuen-surface="home"] .today-head { padding-top: var(--k-space-2); }
+  #today-view[data-kokuen-surface="home"] .today-kicker { margin-bottom: var(--k-space-1); }
+  #today-view[data-kokuen-surface="home"] .today-summary { margin-top: var(--k-space-1); }
+  #today-view[data-kokuen-surface="home"] .today-ask { margin-top: 0; }
+  #today-view[data-kokuen-surface="home"] .today-capture { margin-top: var(--k-space-2); }
+  #today-view[data-kokuen-surface="home"] .today-sections { margin-top: var(--k-space-4); gap: var(--k-space-4); }
+  #today-view[data-kokuen-surface="home"] .today-section > header { margin-bottom: var(--k-space-2); }
+}
+
 @media (max-width: 700px) {
   #today-view[data-kokuen-surface="home"] .today-section-edit {
     min-width: var(--k-control);

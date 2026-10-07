@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v351';   // Give transaction fields room in the desktop layout.
+const VERSION = 'v352';   // Keep more of the day visible in short Home windows.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '503';   // keep in sync with index.html ?v= / const _v
+const STAMP = '504';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
