@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import vm from 'node:vm';
 
 const read = relative => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const html = read('static/index.html');
@@ -205,4 +206,107 @@ test('model option buttons reset native chrome and retain a full hit target', ()
   assert.match(modelRowRule, /appearance:\s*none/);
   assert.match(modelRowRule, /background:\s*transparent/);
   assert.match(modelRowRule, /font:\s*inherit/);
+});
+
+function focusDialog() {
+  const document = { activeElement: null };
+  const element = (attributes = {}, parent = null) => ({
+    attributes: new Map(Object.entries(attributes)), parent, isConnected: true,
+    get hidden() { return this.attributes.has('hidden'); },
+    getAttribute(name) { return this.attributes.get(name) ?? null; },
+    hasAttribute(name) { return this.attributes.has(name); },
+    setAttribute(name, value) { this.attributes.set(name, String(value)); },
+    closest(selector) {
+      const names = [...selector.matchAll(/\[([\w-]+)\]/g)].map(match => match[1]);
+      for (let node = this; node; node = node.parent) {
+        if (names.some(name => node.hasAttribute(name))) return node;
+      }
+      return null;
+    },
+    focus() {
+      if (!this.closest('[inert], [hidden]')) document.activeElement = this;
+    },
+  });
+  const dialog = element();
+  const controls = [], listeners = new Map();
+  dialog.querySelectorAll = () => controls;
+  dialog.addEventListener = (name, listener) => listeners.set(name, listener);
+  dialog.removeEventListener = name => listeners.delete(name);
+  const context = vm.createContext({ document });
+  vm.runInContext(runtime.replace(/^export /gm, ''), context);
+  const create = vm.runInContext('createFocusBoundary', context);
+  const add = (attributes = {}, parent = dialog) => {
+    const control = element(attributes, parent);
+    controls.push(control);
+    return control;
+  };
+  const key = (key, shiftKey = false) => {
+    const event = { key, shiftKey, prevented: false, stopped: false,
+      preventDefault() { this.prevented = true; },
+      stopPropagation() { this.stopped = true; } };
+    listeners.get('keydown')?.(event);
+    return event;
+  };
+  return { document, dialog, element, add, key, create: options => create(dialog, options) };
+}
+
+test('a saved dialog wraps between its live actions instead of its inert fields', () => {
+  const h = focusDialog();
+  const fields = h.element({ inert: '' }, h.dialog);
+  h.add({}, fields);
+  const close = h.add(), open = h.add();
+  h.add({}, fields);
+  h.create().activate({ focus: open });
+  assert.equal(h.key('Tab').prevented, true);
+  assert.equal(h.document.activeElement, close);
+  assert.equal(h.key('Tab', true).prevented, true);
+  assert.equal(h.document.activeElement, open);
+});
+
+test('dialog activation and subsequent wrapping respect changing inert state', () => {
+  const h = focusDialog();
+  const first = h.add({ inert: '' }), last = h.add();
+  h.create().activate();
+  assert.equal(h.document.activeElement, last);
+  first.attributes.delete('inert');
+  assert.equal(h.key('Tab').prevented, true);
+  assert.equal(h.document.activeElement, first);
+  first.setAttribute('inert', '');
+  last.focus();
+  assert.equal(h.key('Tab', true).prevented, true);
+  assert.equal(h.document.activeElement, last);
+});
+
+test('a dialog with only inert fields keeps focus on the dialog itself', () => {
+  const h = focusDialog();
+  h.add({}, h.element({ inert: '' }, h.dialog));
+  const boundary = h.create();
+  boundary.activate();
+  assert.equal(h.document.activeElement, h.dialog);
+  assert.equal(h.dialog.tabIndex, -1);
+  assert.equal(h.key('Tab').prevented, true);
+  assert.equal(h.document.activeElement, h.dialog);
+});
+
+test('ordinary dialog wrapping, hidden fields, escape and trigger return still work', () => {
+  const h = focusDialog();
+  h.add({}, h.element({ hidden: '' }, h.dialog));
+  const first = h.add(), last = h.add(), trigger = h.element();
+  let escaped = 0;
+  const boundary = h.create({ trigger, onEscape: () => escaped++ });
+  boundary.activate();
+  assert.equal(h.document.activeElement, first);
+  assert.equal(h.key('Tab').prevented, false);
+  last.focus();
+  assert.equal(h.key('Tab').prevented, true);
+  assert.equal(h.document.activeElement, first);
+  assert.equal(h.key('Tab', true).prevented, true);
+  assert.equal(h.document.activeElement, last);
+  const escape = h.key('Escape');
+  assert.equal(escaped, 1);
+  assert.equal(escape.prevented && escape.stopped, true);
+  boundary.deactivate();
+  assert.equal(h.document.activeElement, trigger);
+  assert.equal(h.key('Tab').prevented, false);
+  boundary.destroy();
 });

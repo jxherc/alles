@@ -205,7 +205,7 @@ export function createFocusBoundary(dialog, { trigger = null, onEscape = null } 
   let active = false;
 
   const focusable = () => [...dialog.querySelectorAll(FOCUSABLE_SELECTOR)]
-    .filter(element => visible(element) && !element.closest('[hidden]'));
+    .filter(element => visible(element) && !element.closest('[hidden], [inert]'));
 
   const onKeydown = event => {
     if (!active) return;
