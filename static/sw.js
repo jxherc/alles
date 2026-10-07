@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v346';   // Keep Home preferences compact and saving within reach.
+const VERSION = 'v348';   // Preserve room for complete location names while choosing a folder.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '498';   // keep in sync with index.html ?v= / const _v
+const STAMP = '500';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
