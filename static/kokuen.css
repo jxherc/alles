@@ -3079,6 +3079,12 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   opacity: 1;
 }
 
+@media (max-height: 600px) {
+  #settings-modal[data-kokuen-surface="settings"] {
+    padding-top: var(--k-space-2);
+  }
+}
+
 #settings-modal[data-kokuen-surface="settings"] [hidden] {
   display: none;
 }
