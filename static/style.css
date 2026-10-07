@@ -9306,6 +9306,8 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-home-link:hover,
 .docs-nav-text-action:hover { color: var(--text); }
 
+.docs-nav-close { display: none; align-self: flex-end; }
+
 .docs-nav-create {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -10040,8 +10042,11 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
     display: none;
     width: min(82vw, 280px);
     min-width: 0;
+    overflow-y: auto;
     box-shadow: 16px 0 36px color-mix(in srgb, var(--bg) 76%, transparent);
   }
+  #wiki-view .docs-nav-panel > * { flex-shrink: 0; }
+  #wiki-view .docs-nav-close { display: block; }
   #wiki-view.no-note .docs-nav-panel { display: none; }
   #wiki-view.docs-nav-open .docs-nav-panel,
   #wiki-view.no-note.docs-nav-open .docs-nav-panel { display: flex; }

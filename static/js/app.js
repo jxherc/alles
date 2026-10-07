@@ -825,7 +825,7 @@ window._openSearchResult = async (type, value, messageId = '') => {
   }
   if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat'))) return false;
   if (type === 'chat') return selectSession(value, messageId);
-  const { openNote } = await import('./docs.js?v=257');
+  const { openNote } = await import('./docs.js?v=258');
   return openNote(value);
 };
 
@@ -1000,7 +1000,7 @@ const showCompareView  = () => showView('compare-view',  'compare',  () => { ini
 const showWikiView     = (section = 'docs') => showView(
   'wiki-view',
   section === 'journal' ? 'journal' : 'wiki',
-  (track, request) => trackedImport(track, request, () => import('./docs.js?v=257'), module => module.initDocs(section, request)),
+  (track, request) => trackedImport(track, request, () => import('./docs.js?v=258'), module => module.initDocs(section, request)),
   section === 'journal' ? 'docs-journal-section' : '',
 );
 const showVaultView      = () => showView('vault-view',      'vault',     (_track, request) => loadVaultView(request));
@@ -1053,7 +1053,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'habits') return import('./habits.js').then(module => module.initHabits(request));
   if (section === 'money') return import('./money.js').then(module => module.initMoneyPanel(request));
   if (section === 'subs') return import('./subs.js').then(module => module.initSubsPanel(request));
-  if (group === 'docs') return import('./docs.js?v=257').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
+  if (group === 'docs') return import('./docs.js?v=258').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
