@@ -86,3 +86,101 @@ test('receipt quota retains exact input and recovery identity until a durable re
   assert.equal(h.snapshot().saved.length,1);
   assert.equal(h.get('tx-payee').value,'');
 });
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
+function refreshHarness() {
+  const frames = [], summaries = [], elements = new Map();
+  const get = id => {
+    if (!elements.has(id)) elements.set(id, { value: '', textContent: '' });
+    return elements.get(id);
+  };
+  const context = vm.createContext({
+    document: { getElementById: get, activeElement: null },
+    calendarDateKey: () => '2026-10-07', formatCalendarDate: () => 'october 2026',
+    formatNumber: (number, options) => new Intl.NumberFormat('en-CA', options).format(number),
+    location: { search: '' }, URLSearchParams, clearTimeout, fetch() {},
+    sessionStorage: { setItem() {} }, frames,
+    api: async path => {
+      if (path.startsWith('/api/money/summary?')) {
+        const pending = deferred();
+        summaries.push(pending);
+        return pending.promise;
+      }
+      if (path === '/api/money/currencies') return { codes: ['CAD'] };
+      if (path === '/api/money/goals') return { goals: [] };
+      return [];
+    },
+  });
+  vm.runInContext(source + `
+    _cur = 'CAD';
+    _moneySaved = [{ id: 'synthetic', request_id: 'local', state: 'ready',
+      saved: { payee: 'supplies', amount: -19.75, date: '2026-10-07' } }];
+    _setMonthUrl = () => {};
+    renderSavedTransactions = () => frames.push(savedTransactions());
+    render = () => frames.push(savedTransactions());
+    renderTxns = () => {};
+    globalThis.subject = { load: () => load(fetch, true), html: savedTransactions };
+  `, context);
+  return { ...context.subject, frames, summaries };
+}
+
+const summary = { currency: 'CAD', currency_status: 'single', totals_by_currency: [] };
+
+async function reachSummary(h, count = 1) {
+  // load first awaits the schedule read; keep the controlled response pending.
+  for (let turn = 0; turn < 10 && h.summaries.length < count; turn++) await Promise.resolve();
+  assert.equal(h.summaries.length, count);
+}
+
+test('an acknowledged transaction keeps Undo while its list and balances refresh', async () => {
+  const h = refreshHarness();
+  const pending = h.load();
+  assert.match(h.frames.at(-1) || '', /updating the list and balances/);
+  assert.match(h.html(), /transaction saved/);
+  assert.match(h.html(), /data-undo-saved="synthetic"/);
+  await reachSummary(h);
+  h.summaries[0].resolve(summary);
+  assert.equal(await pending, true);
+  assert.doesNotMatch(h.frames.at(-1), /updating the list and balances|could not be refreshed/);
+  assert.match(h.frames.at(-1), /transaction saved/);
+});
+
+test('a failed refresh preserves the saved result and retry replaces the old failure with progress', async () => {
+  const h = refreshHarness();
+  const first = h.load();
+  await reachSummary(h);
+  h.summaries[0].reject(new Error('synthetic read failure'));
+  assert.equal(await first, false);
+  assert.match(h.html(), /could not be refreshed/);
+  assert.doesNotMatch(h.html(), /updating the list and balances/);
+  assert.match(h.html(), /data-undo-saved="synthetic"/);
+  const retry = h.load();
+  assert.match(h.frames.at(-1), /updating the list and balances/);
+  assert.doesNotMatch(h.frames.at(-1), /could not be refreshed/);
+  await reachSummary(h, 2);
+  h.summaries[1].resolve(summary);
+  assert.equal(await retry, true);
+  assert.doesNotMatch(h.html(), /updating the list and balances|could not be refreshed/);
+});
+
+for (const outcome of ['resolve', 'reject']) {
+  test(`a superseded ${outcome} cannot clear a newer refresh indicator`, async () => {
+    const h = refreshHarness();
+    const earlier = h.load();
+    await reachSummary(h);
+    const current = h.load();
+    await reachSummary(h, 2);
+    h.summaries[0][outcome](outcome === 'resolve' ? summary : new Error('old failure'));
+    assert.equal(await earlier, false);
+    assert.match(h.html(), /updating the list and balances/);
+    assert.doesNotMatch(h.html(), /could not be refreshed/);
+    h.summaries[1].resolve(summary);
+    assert.equal(await current, true);
+    assert.doesNotMatch(h.html(), /updating the list and balances/);
+  });
+}

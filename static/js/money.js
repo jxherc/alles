@@ -61,6 +61,7 @@ let _transactionUncertainSnapshot = null;
 let _transactionSaveRequestId = '';
 let _moneyLoadSequence = 0;
 let _moneyRefreshFailed = false;
+let _moneyRefreshing = false;
 let _moneySaved = [];
 let _moneySavedExpanded = false;
 let _moneySavedCurrent = null;
@@ -467,6 +468,9 @@ async function openBankConnections() {
 async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = preserveDrafts) {
   const sequence = ++_moneyLoadSequence;
   const currencyRead = ++_currencyReadSequence;
+  _moneyRefreshing = true;
+  _moneyRefreshFailed = false;
+  renderSavedTransactions();
   const month = _month;
   const request = (path, options = {}) => api(path, options, fetcher);
   const lbl = $('money-month-label'); if (lbl) lbl.textContent = _monthLabel(_month);
@@ -514,6 +518,7 @@ async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = p
       || _sum?.currency || (_accounts[0]?.currency) || '$';
   } catch {
     if (sequence !== _moneyLoadSequence) return false;
+    _moneyRefreshing = false;
     if (preserveDrafts) {
       _moneyRefreshFailed = true;
       renderSavedTransactions();
@@ -527,6 +532,7 @@ async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = p
   }
   await hydrateSavedTransactions(request);
   if (sequence !== _moneyLoadSequence || month !== _month) return false;
+  _moneyRefreshing = false;
   _moneyRefreshFailed = false;
   render(preserveDrafts);
   if (preserveDrafts) {
@@ -724,7 +730,7 @@ function savedTransactions() {
   const receipts = _moneySaved.filter(recent).map(receipt).join('');
   const earlier = _moneySaved.filter(item => !recent(item));
   const history = earlier.length ? `<button type="button" class="btn" id="money-saved-history" aria-controls="money-earlier-saved" aria-expanded="${_moneySavedExpanded}">${_moneySavedExpanded ? 'hide' : 'show'} earlier saved transactions (${earlier.length})</button><div id="money-earlier-saved"${_moneySavedExpanded ? '' : ' hidden'}>${earlier.map(receipt).join('')}</div>` : '';
-  return `<div id="money-save-results" tabindex="-1" role="region" aria-label="saved transactions">${receipts}${history}${_moneyRefreshFailed ? '<p role="status">the list and balances could not be refreshed. your drafts and saved outcomes are retained.</p><button type="button" class="btn" id="money-result-retry">retry balances</button>' : ''}</div>`;
+  return `<div id="money-save-results" tabindex="-1" role="region" aria-label="saved transactions">${receipts}${history}${_moneyRefreshing ? '<p role="status">updating the list and balances…</p>' : _moneyRefreshFailed ? '<p role="status">the list and balances could not be refreshed. your drafts and saved outcomes are retained.</p><button type="button" class="btn" id="money-result-retry">retry balances</button>' : ''}</div>`;
 }
 
 function wireSavedTransactions() {

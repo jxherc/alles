@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v358';   // Leave space around focused transaction fields when scrolling.
+const VERSION = 'v359';   // Show pending balance refreshes beside saved transactions.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '508';   // keep in sync with index.html ?v= / const _v
+const STAMP = '509';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
