@@ -2627,6 +2627,8 @@ html[data-kokuen-version="5"] .shell-navigation-toggle:focus-visible,
 #files-workbench-view .specialist-mobile-back:focus-visible,
 #server-workbench-view .server-workbench-switch-row > button:focus-visible,
 #today-view :is(.today-section-edit, .today-settings):focus-visible,
+#docs-tabs [role="tab"]:focus-visible,
+#wiki-view .docs-sidebar-button:focus-visible,
 #wiki-view :is(.wiki-file, .wiki-dir-head):focus-visible,
 #wiki-view[data-kokuen-surface="docs"] .docs-reader-actions > button:focus-visible,
 #settings-modal :is(
