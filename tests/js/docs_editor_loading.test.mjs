@@ -101,6 +101,7 @@ function harness({ mobile = false } = {}) {
     globalThis.subject = {
       wire: _wire,
       open: openNote, enter: enterEdit, done: exitEdit, save: saveCurrent, view: setEditView,
+      useDisk: useExternalCopy,
       discard: async () => { openDialog = async () => ({ action: 'discard' }); return discardDraft(); },
       type: value => { $('wiki-source').value = value; sourceChanged(); },
       state: () => ({ content: currentContent(), mode: _mode, view: _editView, revision: _editRevision, dirty: _dirty }),
@@ -184,6 +185,35 @@ test('document loading does not take focus from a newer user action', async () =
   h.get('wiki-search').focus();
   await opening;
   assert.equal(h.document.activeElement, h.get('wiki-search'));
+});
+
+test('choosing the disk copy moves focus to the recovered document', async () => {
+  const h = await opened();
+  h.seed('proof.md', 'changed on disk');
+  h.get('use-disk-choice').focus();
+  await h.useDisk();
+  assert.equal(h.state().content, 'changed on disk');
+  assert.equal(h.state().mode, 'view');
+  assert.equal(h.document.activeElement, h.get('wiki-preview'));
+});
+
+test('choosing the disk copy preserves a newer user focus during recovery', async () => {
+  const h = await opened();
+  h.seed('proof.md', 'changed on disk');
+  h.get('use-disk-choice').focus();
+  const recovering = h.useDisk();
+  h.get('wiki-search').focus();
+  await recovering;
+  assert.equal(h.state().content, 'changed on disk');
+  assert.equal(h.document.activeElement, h.get('wiki-search'));
+});
+
+test('a failed disk-copy load does not move focus to the old preview', async () => {
+  const h = await opened();
+  h.disk.delete('proof.md');
+  h.get('use-disk-choice').focus();
+  await h.useDisk();
+  assert.equal(h.document.activeElement, h.get('use-disk-choice'));
 });
 
 test('source is initialized before visual loading and late completion preserves text, mode, focus and revision', async () => {
