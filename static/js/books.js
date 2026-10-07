@@ -491,7 +491,9 @@ function _wire(body) {
         return;
       }
       if (act === 'del') {
-        if (!await dlgConfirm('remove this book?')) return;
+        const book = Object.values(_data.shelves).flat().find(book => book.id === id);
+        if (!book) return;
+        if (!await dlgConfirm(`remove “${book.title}” from your library? its notes and rating will also be deleted.`, { confirmLabel: 'remove book' })) return;
         await _changeBook(card, { method: 'DELETE' }, result => result?.ok === true, 'removed'); return;
       }
     }));
