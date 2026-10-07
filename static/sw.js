@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v339';   // Keep Docs tab and toolbar focus rings within their controls.
+const VERSION = 'v340';   // Include document import in the inset toolbar focus treatment.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '491';   // keep in sync with index.html ?v= / const _v
+const STAMP = '492';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
