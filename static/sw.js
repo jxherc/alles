@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v352';   // Keep more of the day visible in short Home windows.
+const VERSION = 'v354';   // Put transaction entry first and disclose optional details.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '504';   // keep in sync with index.html ?v= / const _v
+const STAMP = '506';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

@@ -52,6 +52,7 @@ let _currencyReadSequence = 0;
 let _inited = false;
 const _expandedMoneySections = new Set();
 let _moneyEntryOpen = null;
+let _moneyEntryDetailsOpen = false;
 let _moneyPlanTask = 'accounts';
 let _moneyFocusChange = 0;
 let _moneyEntryChange = 0;
@@ -569,12 +570,14 @@ function render(preserveDrafts = false, preserveFilters = preserveDrafts) {
     return;
   }
   b.innerHTML =
-    savedTransactions() + summaryCards() +
+    savedTransactions() +
+    `<section class="money-card money-entry-card" id="money-entry-fields">
+      <h2>new transaction</h2>${addTxnRow()}${transferRow()}
+    </section>` + summaryCards() +
     `<button type="button" class="money-section-toggle" id="money-summary-toggle" aria-controls="money-income money-net money-projection">more totals</button>` +
     `<div id="money-alerts-content" role="status" tabindex="-1">${alertsStrip()}</div>` +
     `<section class="money-card money-txns">
       <h2>transactions · ${_monthLabel(_month)}</h2>
-      <div id="money-entry-fields">${addTxnRow()}${transferRow()}</div>
       <div class="txn-search-wrap" role="group" aria-label="filter transactions">
         ${moneyField('search transactions', '<input type="text" id="txn-search" class="settings-input" placeholder="payee, category or notes" autocomplete="off">')}
         <button type="button" class="btn" id="txn-range-toggle" aria-expanded="false" aria-controls="txn-amount-range">amount range</button>
@@ -1248,15 +1251,28 @@ function addTxnRow() {
   return `<div class="txn-add">
     ${moneyField('date', `<div class="date-input" id="tx-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>`)}
     ${moneyField('account', `<div class="settings-input custom-select" id="tx-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>`)}
-    ${moneyField('payee', `<input type="text" id="tx-payee" class="settings-input" placeholder="payee / what" style="flex:1.4;min-width:120px">`)}
-    ${moneyField('category', `<input type="text" id="tx-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">`)}
-    ${moneyField('tags (comma separated)', `<input type="text" id="tx-tags" class="settings-input" placeholder="tags (comma)" style="flex:1;min-width:90px">`)}
     ${moneyField('type', `<div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|expense;+|income" style="width:106px"></div>`)}
     ${moneyField('amount', `<input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
+    ${moneyField('payee', `<input type="text" id="tx-payee" class="settings-input" placeholder="payee / what" style="flex:1.4;min-width:120px;grid-column:1 / -1">`)}
+  </div><p id="tx-amt-error" class="money-field-error" role="status"></p>
+  <button type="button" class="money-section-toggle money-entry-details-toggle" id="tx-details-toggle" aria-expanded="${_moneyEntryDetailsOpen}" aria-controls="tx-details">category and tags (optional)</button>
+  <div class="money-entry-details" id="tx-details"${_moneyEntryDetailsOpen ? '' : ' hidden'}>
+    ${moneyField('category', '<input type="text" id="tx-cat" class="settings-input" placeholder="category">')}
+    ${moneyField('tags (comma separated)', '<input type="text" id="tx-tags" class="settings-input" placeholder="tags (comma)">')}
+  </div>
+  <div class="money-entry-actions">
     <button class="btn primary" id="tx-add">add transaction</button>
     ${_accounts.length >= 2 ? '<button class="btn" id="tx-transfer-toggle" title="move money between accounts">⇄ transfer</button>' : ''}
-  </div><p id="tx-amt-error" class="money-field-error" role="status"></p>
+  </div>
   <p id="tx-save-status" class="money-field-error" role="status" ${_transactionSaveStatus ? '' : 'hidden'}>${esc(_transactionSaveStatus)}</p>`;
+}
+
+function toggleTransactionDetails() {
+  const details = $('tx-details'), toggle = $('tx-details-toggle');
+  if (!details || !toggle) return;
+  _moneyEntryDetailsOpen = !_moneyEntryDetailsOpen;
+  details.hidden = !_moneyEntryDetailsOpen;
+  toggle.setAttribute('aria-expanded', String(_moneyEntryDetailsOpen));
 }
 
 function transferRow() {
@@ -1434,6 +1450,7 @@ function wire() {
     syncMoneyLayout();
   });
   syncMoneyLayout();
+  $('tx-details-toggle')?.addEventListener('click', toggleTransactionDetails);
   $('tx-add')?.addEventListener('click', addTxn);
   $('tx-amt')?.addEventListener('input', () => transactionAmountError(''));
   $('tx-amt')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTxn(); } });
