@@ -1292,12 +1292,18 @@ async function compareExternal() {
 
 async function useExternalCopy() {
   if (!_cur) return;
+  const path = _cur;
+  const returnFocus = document.activeElement;
   try {
     await deleteDraftSafely(_cur);
     _draft = null;
     _dirty = false;
     clearEmergencyDraft(_cur);
-    await openNote(_cur, { quiet: true });
+    const opened = await openNote(_cur, { quiet: true });
+    if (opened && _cur === path &&
+        (document.activeElement === returnFocus || document.activeElement === document.body)) {
+      $('wiki-preview')?.focus();
+    }
   } catch (error) { toast(error.message, 'error'); }
 }
 
