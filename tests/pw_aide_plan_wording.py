@@ -230,7 +230,7 @@ def run():
                 page.locator("#capture-title").fill(title)
                 page.locator("#capture-notes").fill(notes)
                 page.locator("#capture-accept").press("Enter")
-                expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+                expect(page.locator(".capture-status")).to_contain_text("will not add a duplicate")
                 expect(page.locator("#capture-accept")).to_have_text("retry confirmation")
                 assert {t["id"] for t in tasks()} == before
                 capture("retry")

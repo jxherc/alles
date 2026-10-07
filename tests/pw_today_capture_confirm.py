@@ -65,7 +65,7 @@ def run() -> None:
                 page.locator("#capture-accept").click()
             expect(form).not_to_have_attribute("aria-busy", "true")
             expect(capture).to_have_value("task with unknown result")
-            expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+            expect(page.locator(".capture-status")).to_contain_text("will not add a duplicate")
             expect(page.locator("#capture-accept")).to_be_focused()
             page.unroute("**/api/tasks")
 
@@ -89,7 +89,7 @@ def run() -> None:
                 page.locator("#capture-accept").click()
             expect(form).not_to_have_attribute("aria-busy", "true")
             expect(capture).to_have_value("task with unknown result")
-            expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+            expect(page.locator(".capture-status")).to_contain_text("will not add a duplicate")
             assert queued.value.request.post_data_json == unknown.value.request.post_data_json
             page.unroute("**/api/tasks")
             with page.expect_response(

@@ -10156,6 +10156,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .capture-fields textarea { min-height: 80px; resize: vertical; }
 .capture-actions, .capture-resume { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .capture-actions { justify-content: flex-end; }
+.capture-actions .btn { scroll-margin-block: var(--k-space-2); }
 .capture-review .btn, .capture-review .date-input, .capture-review .custom-select, .capture-review summary { min-height: 44px; }
 .capture-source summary { cursor: pointer; display: flex; align-items: center; overflow-wrap: anywhere; }
 .capture-source pre, .mail-source-error pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow-y: auto; font: inherit; }
