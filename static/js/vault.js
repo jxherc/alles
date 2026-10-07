@@ -214,7 +214,13 @@ export async function loadVaultView(fetcher = fetch) {
   if ($('vault-bio-add-btn')) $('vault-bio-add-btn').style.display =
     (_unlocked && window.PublicKeyCredential) ? '' : 'none';
   if (_unlocked) { await _loadCustomTypes(fetcher); await _loadEntries(fetcher); await _loadVaults(fetcher); }
-  else { _unlockError(''); await Promise.all([_refreshVaultSetup(fetcher), _refreshBioUnlock(fetcher)]); }
+  else {
+    _unlockError('');
+    const [, biometricReady] = await Promise.all([_refreshVaultSetup(fetcher), _refreshBioUnlock(fetcher)]);
+    if (biometricReady === false && _setupState) {
+      return { partialMessage: 'biometric unlock could not be checked', retryLabel: 'retry vault checks' };
+    }
+  }
 }
 
 async function _refreshVaultSetup(fetcher = fetch) {
@@ -974,9 +980,12 @@ async function _refreshBioUnlock(fetcher = fetch) {
   if (!btn) return;
   if (!window.PublicKeyCredential) { btn.style.display = 'none'; return; }
   try {
-    const d = await fetcher('/api/vault/webauthn/challenge?vault_id=default').then(r => r.json());
+    const response = await fetcher('/api/vault/webauthn/challenge?vault_id=default');
+    if (!response.ok) throw new Error('biometric availability check failed');
+    const d = await response.json();
     btn.style.display = (d.credentials && d.credentials.length) ? '' : 'none';
-  } catch { btn.style.display = 'none'; }
+    return true;
+  } catch { btn.style.display = 'none'; return false; }
 }
 
 async function _bioUnlock() {

@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v337';   // Refresh document navigation focus and dismissal.
+const VERSION = 'v338';   // Identify unavailable biometric checks in the Vault status.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '489';   // keep in sync with index.html ?v= / const _v
+const STAMP = '490';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
