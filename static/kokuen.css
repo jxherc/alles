@@ -2370,11 +2370,6 @@ html[data-kokuen-version="5"] .shell-navigation-toggle:is(:hover, [aria-expanded
   background: var(--k-hover, var(--panel));
 }
 
-html[data-kokuen-version="5"] .shell-navigation-toggle:focus-visible {
-  outline: 2px solid var(--k-focus, var(--focus));
-  outline-offset: -2px;
-}
-
 html[data-kokuen-version="5"] .shell-trigger-host :is(.today-wordmark, .sidebar-brand, .aide-mobile-name) {
   display: none;
 }
@@ -2624,9 +2619,10 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
 }
 
 /* These controls meet pane/viewport edges; keep the ring inside their targets. */
+html[data-kokuen-version="5"] .shell-navigation-toggle:focus-visible,
 #files-workbench-view .specialist-mobile-back:focus-visible,
 #server-workbench-view .server-workbench-switch-row > button:focus-visible,
-#today-view .today-section-edit:focus-visible,
+#today-view :is(.today-section-edit, .today-settings):focus-visible,
 #wiki-view :is(.wiki-file, .wiki-dir-head):focus-visible,
 #wiki-view[data-kokuen-surface="docs"] .docs-reader-actions > button:focus-visible,
 #settings-modal :is(
