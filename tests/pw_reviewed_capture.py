@@ -194,7 +194,9 @@ def run():
 
                         page.route(base + endpoint, lose_response)
                         page.locator("#capture-accept").click()
-                        expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+                        expect(page.locator(".capture-status")).to_contain_text(
+                            "will not add a duplicate"
+                        )
                         expect(page.locator(".capture-fields")).to_have_attribute("inert", "")
                         assert len(sent) == 1
                         saved = sent[0]["saved"]
@@ -358,7 +360,9 @@ def run():
                         sent.clear()
                         page.route(base + endpoint, lose_response)
                         page.locator("#capture-accept").click()
-                        expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+                        expect(page.locator(".capture-status")).to_contain_text(
+                            "will not add a duplicate"
+                        )
                         page.unroute(base + endpoint, lose_response)
                         removed = sent[0]["saved"]["id"]
                         assert api.delete(endpoint + "/" + removed).ok
@@ -485,7 +489,7 @@ def run():
                                 open_mail()
                                 page.locator(button).click()
                                 expect(page.locator(".capture-status")).to_contain_text(
-                                    "previous acceptance"
+                                    "save has not been confirmed"
                                 )
                                 with page.expect_response(
                                     lambda r: (

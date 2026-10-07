@@ -313,7 +313,7 @@ def run(context_factory=None, cases=None):
                                 held.pop().continue_()
                             if case in ("retry", "reload"):
                                 expect(page.locator(".capture-status")).to_contain_text(
-                                    "same acceptance"
+                                    "will not add a duplicate"
                                 )
                                 if case == "reload":
                                     page.reload(wait_until="networkidle")
@@ -364,6 +364,14 @@ def run(context_factory=None, cases=None):
                                 page.locator("#aide-task-saved").get_by_role(
                                     "button", name="open in plan", exact=True
                                 ).click()
+                            elif case == "reload":
+                                page.locator("#capture-cancel").click()
+                                saved_action = page.locator("#aide-task-saved").get_by_role(
+                                    "button", name="open in plan", exact=True
+                                )
+                                expect(saved_action).to_be_focused()
+                                expect(page.locator("[data-capture-recovery]")).to_have_count(0)
+                                saved_action.press("Enter")
                             else:
                                 page.locator("#capture-open").press("Enter")
                             expect(page.locator("#te-title")).to_have_value(title)

@@ -77,7 +77,7 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
   const dates = kind === 'event' ? editorDates(candidate) : null;
   const initialTimes = dates && { start: candidate.all_day ? '09:00' : dates.start.slice(11) || '09:00', end: candidate.all_day ? '10:00' : dates.end.slice(11) || '10:00' };
   let frozen = recovered?.body || null;
-  let busy = false, saved = null, confirming = false;
+  let busy = false, saved = null, savedFocus = null, confirming = false;
   const ov = document.createElement('div');
   ov.className = 'capture-overlay';
   ov.innerHTML = `<section class="capture-review" role="dialog" aria-modal="true" aria-labelledby="capture-heading">
@@ -152,6 +152,7 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
     }
     focus.deactivate({ restoreFocus }); focus.destroy(); ov.remove(); active = false;
     if (cleared) document.querySelectorAll('.capture-resume[data-capture-recovery]').forEach(node => node.remove());
+    if (restoreFocus && !trigger?.isConnected && savedFocus?.isConnected && savedFocus.getClientRects().length) savedFocus.focus();
     return true;
   }
   cancel.onclick = () => close();
@@ -197,11 +198,12 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
       status.textContent = `saved in plan: ${data.title}${data.done ? ' (completed)' : ''}`;
       try { store.clear(); }
       catch { status.textContent += '; its browser retry copy could not be cleared'; }
-    } catch (error) { status.textContent = frozen ? `${error.message}. retry uses the same acceptance and cannot add a second item.` : error.message; }
+    } catch (error) { status.textContent = frozen ? `could not confirm whether this ${kind} was saved. retry checks the same ${kind} and will not add a duplicate.` : error.message; }
     finally { busy = false; lock(); if (attemptedSave && dialog.contains(document.activeElement)) (saved ? open : accept).focus(); }
-    if (saved) onSaved?.(saved, kind);
+    if (saved) savedFocus = onSaved?.(saved, kind);
   };
-  if (frozen) status.textContent = 'the previous acceptance was not confirmed. retry to check the same item.';
+  if (frozen) status.textContent = `this ${kind}'s save has not been confirmed. retry checks the same ${kind} and will not add a duplicate.`;
   lock(); focus.activate({ focus: frozen ? accept : el('title'), source: trigger });
+  if (frozen) dialog.scrollTop = dialog.scrollHeight;
   return true;
 }
