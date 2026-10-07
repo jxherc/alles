@@ -2976,6 +2976,11 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   color: var(--k-danger);
 }
 
+#wiki-view #wiki-preview:focus-visible {
+  outline: 2px solid var(--k-focus);
+  outline-offset: -3px;
+}
+
 #wiki-view[data-kokuen-surface="docs"] :where(.docs-action-menu, .docs-dialog-card) {
   border-color: var(--k-line-strong);
   border-radius: var(--k-radius-surface);
