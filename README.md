@@ -75,6 +75,10 @@ if you want alles to run as a service on macos or linux, run `bash alles install
 
 it's built with fastapi, sqlite, vanilla javascript, and css. there's no frontend build step. the technical details are in [specifications.md](specifications.md).
 
+## release history
+
+[davinci](docs/releases/davinci.md) records the completed daily-workflows milestone.
+
 ## credits and license
 
 aide was inspired by [odysseus](https://github.com/pewdiepie-archdaemon/odysseus). alles is an independent implementation; [acknowledgments.md](ACKNOWLEDGMENTS.md) credits that project and the other work it uses. third-party licenses are in [third-party notices](THIRD_PARTY_NOTICES.md).
