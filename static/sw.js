@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v362';   // Keep Home settings focus outlines inside the scroll area.
+const VERSION = 'v363';   // Clarify the personal context settings group.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '512';   // keep in sync with index.html ?v= / const _v
+const STAMP = '513';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

@@ -21,7 +21,7 @@ test('settings is one accessible home reached from the universal shell', () => {
     'general &amp; appearance',
     'aide &amp; chat behavior',
     'models &amp; providers',
-    'memory &amp; instructions',
+    'personal context',
     'connections &amp; mcp',
     'privacy &amp; security',
     'notifications &amp; language',
