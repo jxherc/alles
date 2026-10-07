@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v332';   // Refresh the scrollable vault form.
+const VERSION = 'v333';   // Refresh Files location focus retention.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '484';   // keep in sync with index.html ?v= / const _v
+const STAMP = '485';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

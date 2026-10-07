@@ -18,7 +18,7 @@ import { openSearch, closeSearch, initSearch } from './search.js';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
 import { loadVaultView, initVault } from './vault.js?v=282';
 import { loadContacts, addContact } from './contacts.js';
-import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=444';
+import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=485';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos, closeLightbox } from './photos.js';
