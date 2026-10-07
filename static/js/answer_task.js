@@ -1,13 +1,16 @@
 import { openCaptureReview, showPendingCapture } from './capture.js';
 import { reconcileSourceReply } from './answer_note.js';
 import { t } from './i18n.js';
+import { refreshScrollFollow } from './scrollfollow.js';
 
 const identity = /^[a-zA-Z0-9_-]{1,160}$/;
 let preparation = 0;
 
 function taskSaved(saved, kind, focus = false) {
-  const host = document.getElementById('aide-task-recovery');
+  const host = document.getElementById('aide-task-saved');
   if (!host) return;
+  document.getElementById('aide-task-recovery')
+    ?.querySelectorAll(':scope > [role="status"]').forEach(node => node.remove());
   const status = document.createElement('p'); status.setAttribute('role', 'status');
   status.textContent = `saved in plan: ${saved.title}`;
   const open = document.createElement('button');
@@ -18,6 +21,7 @@ function taskSaved(saved, kind, focus = false) {
     }
   };
   host.replaceChildren(status, open);
+  refreshScrollFollow();
   if (focus && host.getClientRects().length) open.focus();
 }
 
