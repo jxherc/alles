@@ -4451,6 +4451,23 @@ body.afterlife-aide-projects[data-space="aide"] .composer-ta:focus-visible {
   outline: none;
 }
 
+body.afterlife-aide-projects[data-space="aide"] .aide-task-saved {
+  flex: 0 0 auto;
+  width: min(820px, 100%);
+  margin-inline: auto;
+  padding: var(--k-space-2) var(--k-space-5);
+  padding-inline-start: calc(var(--k-control) + var(--k-space-4));
+  overflow-wrap: anywhere;
+}
+
+body.afterlife-aide-projects[data-space="aide"] .aide-task-saved:empty {
+  display: none;
+}
+
+body.afterlife-aide-projects[data-space="aide"] .aide-task-saved button {
+  scroll-margin-block: var(--k-space-2);
+}
+
 body.afterlife-aide-projects[data-space="aide"] :where(
   .attach-chip,
   .aide-schedule-form,
@@ -6396,6 +6413,26 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
   body[data-app="files"] #files-view .files-location-copy small,
   body[data-app="files"] #files-view .files-location-access {
     display: none;
+  }
+
+  body[data-app="files"] #files-view .files-location-button {
+    display: flex;
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: var(--k-control);
+    max-width: calc(100vw - 2 * var(--k-space-2));
+    min-height: var(--k-control);
+    padding-block: var(--k-space-2);
+  }
+
+  body[data-app="files"] #files-view .files-location-button svg {
+    flex: 0 0 16px;
+  }
+
+  body[data-app="files"] #files-view .files-location-copy strong {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   body[data-app="files"] #files-view .files-phase7-browser {
