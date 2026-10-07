@@ -16,7 +16,7 @@ import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=253
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
-import { loadVaultView, initVault } from './vault.js?v=282';
+import { loadVaultView, initVault } from './vault.js?v=283';
 import { loadContacts, addContact } from './contacts.js';
 import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=485';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
@@ -691,7 +691,7 @@ async function _trackSpecialistRequest(run, ...args) {
   }
 }
 
-function _paintSpecialistState(root, state, retry) {
+function _paintSpecialistState(root, state, retry, details = null) {
   if (!root || (!root.dataset.specialistApp && !root.classList.contains('aide-tool-view'))) return;
   let line = root.querySelector(':scope > .specialist-state');
   if (!line) {
@@ -710,18 +710,19 @@ function _paintSpecialistState(root, state, retry) {
   }
   line.hidden = false;
   const label = root.dataset.stateLabel || root.dataset.specialistApp || 'page';
+  const partialMessage = typeof details?.partialMessage === 'string' ? details.partialMessage : '';
   const copy = document.createElement('span');
   copy.textContent = state === 'loading'
     ? `loading ${label}…`
     : state === 'partial'
-      ? `some ${label} data is unavailable`
+      ? partialMessage || `some ${label} data is unavailable`
       : `couldn’t load ${label}`;
   line.replaceChildren(copy);
   if (state !== 'loading' && retry) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'specialist-state-retry';
-    button.textContent = 'retry';
+    button.textContent = state === 'partial' && partialMessage ? details.retryLabel || 'retry' : 'retry';
     button.addEventListener('click', retry, { once: true });
     line.append(button);
   }
@@ -758,14 +759,14 @@ function showView(viewId, navKey, onShow, stateRootId = '') {
     _paintSpecialistState(stateRoot, 'error', retry);
     return;
   }
-  return Promise.resolve(result).then(() => {
+  return Promise.resolve(result).then(details => {
     if (stateRoot.dataset.specialistRun !== run.id) return;
     const state = run.failures && !run.successes
       ? 'error'
       : run.failures
         ? 'partial'
         : 'ready';
-    _paintSpecialistState(stateRoot, state, retry);
+    _paintSpecialistState(stateRoot, state, retry, details);
     const target = readRecordTarget(location.href);
     const route = target && groupRouteFor(target.view);
     if ((state === 'ready' || (state === 'partial' && ['calendar', 'mail'].includes(target?.view))) && route && GROUP_DEFINITIONS[route.group].rootId === stateRoot.id) {
