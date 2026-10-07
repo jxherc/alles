@@ -164,7 +164,7 @@ def run() -> None:
                 page.locator("#capture-accept").click()
             expect(page.locator("#today-capture")).not_to_have_attribute("aria-busy", "true")
             expect(capture).to_have_value(f"queued task {width}")
-            expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+            expect(page.locator(".capture-status")).to_contain_text("will not add a duplicate")
             page.unroute("**/api/tasks")
             with page.expect_response(
                 lambda response: (

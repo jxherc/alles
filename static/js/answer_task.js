@@ -23,6 +23,7 @@ function taskSaved(saved, kind, focus = false) {
   host.replaceChildren(status, open);
   refreshScrollFollow();
   if (focus && host.getClientRects().length) open.focus();
+  return open;
 }
 
 export async function loadAnswerTaskRecovery() {
@@ -63,7 +64,7 @@ export async function saveAnswerTask(button) {
         wrap.savedTask = saved;
         button.textContent = t('aide.saved_plan_task');
       }
-      taskSaved(saved, kind);
+      return taskSaved(saved, kind);
     });
   } catch (error) {
     if (!current()) return;

@@ -90,7 +90,7 @@ def run():
 
                 page.route(base + "/api/tasks", lose)
                 page.locator("#capture-accept").click()
-                expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+                expect(page.locator(".capture-status")).to_contain_text("will not add a duplicate")
                 expect(entry).to_have_value(original)
                 page.unroute(base + "/api/tasks", lose)
                 assert len(sent) == 1
@@ -101,7 +101,9 @@ def run():
                 assert len(api.get("/api/tasks").json()) == before + 1
                 page.reload(wait_until="networkidle")
                 page.locator("#today-capture-recovery .capture-resume button").click()
-                expect(page.locator(".capture-status")).to_contain_text("previous acceptance")
+                expect(page.locator(".capture-status")).to_contain_text(
+                    "save has not been confirmed"
+                )
                 with page.expect_response(
                     lambda r: r.url == base + "/api/tasks" and r.request.method == "POST"
                 ) as retry:
@@ -165,7 +167,7 @@ def run():
                 sent.clear()
                 page.route(base + "/api/tasks", lose)
                 page.locator("#capture-accept").click()
-                expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+                expect(page.locator(".capture-status")).to_contain_text("will not add a duplicate")
                 page.unroute(base + "/api/tasks", lose)
                 page.reload(wait_until="networkidle")
                 entry.fill("fresh accepted capture")
@@ -197,7 +199,9 @@ def run():
                     sent.clear()
                     page.route(base + "/api/tasks", lose)
                     page.locator("#capture-accept").click()
-                    expect(page.locator(".capture-status")).to_contain_text("same acceptance")
+                    expect(page.locator(".capture-status")).to_contain_text(
+                        "will not add a duplicate"
+                    )
                     page.unroute(base + "/api/tasks", lose)
                     page.reload(wait_until="networkidle")
                     entry.fill(original)
