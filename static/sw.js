@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v343';   // Keep dialog tab navigation out of locked fields.
+const VERSION = 'v344';   // Preserve document keyboard focus through saving and discard.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '495';   // keep in sync with index.html ?v= / const _v
+const STAMP = '496';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

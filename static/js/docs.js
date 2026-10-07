@@ -999,6 +999,7 @@ function setEditView(view, { focus = true } = {}) {
   const source = _editView === 'source';
   setHidden($('wiki-live'), source);
   setHidden($('wiki-source'), !source);
+  setHidden($('wiki-keyboard-hint'), source);
   $('wiki-visual-btn')?.setAttribute('aria-pressed', String(!source));
   $('wiki-source-btn')?.setAttribute('aria-pressed', String(source));
   if (focus) {
@@ -1188,8 +1189,12 @@ async function saveCurrent() {
   const content = currentContent();
   const revision = _editRevision;
   const expectedHash = _editBaseHash || _doc.hash;
-  $('wiki-save-btn').disabled = true;
+  const saveButton = $('wiki-save-btn');
+  const saveState = $('wiki-save-state');
+  const restoreSaveFocus = document.activeElement === saveButton;
   setSaveState('saving…');
+  if (restoreSaveFocus) saveState?.focus();
+  saveButton.disabled = true;
   try {
     const result = await queueDocumentWrite(() => api(
       '/api/vault-md/safety/save',
@@ -1226,11 +1231,16 @@ async function saveCurrent() {
       setSaveState(message, true);
     }
     return false;
-  } finally { $('wiki-save-btn').disabled = false; }
+  } finally {
+    saveButton.disabled = false;
+    if (restoreSaveFocus && _cur === path && _mode === 'edit' && document.activeElement === saveState) saveButton.focus();
+  }
 }
 
 async function discardDraft() {
   if (!_cur) return;
+  const path = _cur;
+  const returnFocus = document.activeElement;
   const choice = await openDialog({
     title: 'discard local draft?',
     body: '<p>The Markdown file on disk will stay unchanged.</p>',
@@ -1251,6 +1261,7 @@ async function discardDraft() {
   renderPreview(_doc.content || '');
   hideInlineState();
   renderShell();
+  if (_cur === path && (document.activeElement === returnFocus || document.activeElement === document.body)) $('wiki-preview')?.focus();
 }
 
 async function compareExternal() {

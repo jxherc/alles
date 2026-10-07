@@ -18,6 +18,7 @@ function harness({ mobile = false } = {}) {
   const storage = new Map();
   const writes = [];
   const mounted = [];
+  let saveBarrier = null;
   let document;
   const documentEvents = new Map();
   function element(id = '') {
@@ -73,6 +74,7 @@ function harness({ mobile = false } = {}) {
     else if (url.startsWith('/api/vault-md/backlinks')) response = { backlinks: [] };
     else if (url.startsWith('/api/vault-md/safety/draft')) response = { draft: null };
     else if (url === '/api/vault-md/safety/save') {
+      if (saveBarrier) await saveBarrier;
       assert.equal(body.expected_hash, disk.get(body.path).hash);
       response = { ...disk.get(body.path), content: body.content, hash: `saved-${writes.length}` };
       disk.set(body.path, response);
@@ -106,6 +108,13 @@ function harness({ mobile = false } = {}) {
   `, context);
   return {
     ...context.subject, get, loads, mounted, disk, writes, storage, document,
+    holdSave() {
+      let finish;
+      saveBarrier = new Promise((resolve, reject) => {
+        finish = failure => failure ? reject(new Error('synthetic save interruption')) : resolve();
+      });
+      return finish;
+    },
     escape() { documentEvents.get('keydown')?.({ key: 'Escape', preventDefault() {} }); },
     seed(path, content) { disk.set(path, { path, content, hash: path + '-base', exists: true, editable: true }); },
   };
@@ -246,4 +255,62 @@ test('a failed obsolete import cannot replace a newer editor or its focus', asyn
   h.loads[0].reject(new Error('obsolete load')); await oldEntry;
   assert.equal(h.state().content, 'latest'); assert.equal(h.get('wiki-editor-load-state').hidden, true);
   assert.equal(h.get('wiki-visual-btn').disabled, false); assert.equal(h.document.activeElement, h.get('wiki-source'));
+});
+
+async function editingDraft() {
+  const h = await opened();
+  const entering = h.enter(); h.loads[0].resolve(); await entering;
+  h.view('source'); h.type('updated draft');
+  return h;
+}
+
+for (const failure of [false, true]) {
+  test(`focused save keeps a useful keyboard position through ${failure ? 'rejection' : 'success'}`, async () => {
+    const h = await editingDraft();
+    const finish = h.holdSave(); h.get('wiki-save-btn').focus();
+    const saving = h.save();
+    assert.equal(h.get('wiki-save-btn').disabled, true);
+    assert.equal(h.document.activeElement, h.get('wiki-save-state'));
+    finish(failure); assert.equal(await saving, !failure);
+    assert.equal(h.document.activeElement, h.get('wiki-save-btn'));
+    assert.equal(h.get('wiki-save-btn').disabled, false);
+    assert.equal(h.state().content, 'updated draft');
+    assert.equal(h.disk.get('proof.md').content, failure ? 'original' : 'updated draft');
+  });
+}
+
+test('finishing a save does not take focus back from a chosen control', async () => {
+  const h = await editingDraft(); const finish = h.holdSave();
+  h.get('wiki-save-btn').focus(); const saving = h.save();
+  h.get('wiki-search').focus(); finish(true); await saving;
+  assert.equal(h.document.activeElement, h.get('wiki-search'));
+});
+
+test('saving from outside the save button preserves that keyboard position', async () => {
+  const h = await editingDraft(); const finish = h.holdSave();
+  const saving = h.save();
+  assert.equal(h.document.activeElement, h.get('wiki-source'));
+  finish(false); await saving;
+  assert.equal(h.document.activeElement, h.get('wiki-source'));
+});
+
+test('discarding returns keyboard focus to the unchanged document', async () => {
+  const h = await editingDraft(); h.get('wiki-discard-btn').focus();
+  await h.discard();
+  assert.equal(h.document.activeElement, h.get('wiki-preview'));
+  assert.equal(h.state().mode, 'view');
+  assert.equal(h.disk.get('proof.md').content, 'original');
+});
+
+test('discard completion preserves a different chosen focus target', async () => {
+  const h = await editingDraft(); h.get('wiki-discard-btn').focus();
+  const discarding = h.discard(); h.get('wiki-search').focus(); await discarding;
+  assert.equal(h.document.activeElement, h.get('wiki-search'));
+});
+
+test('the visual editor keyboard hint is hidden in source mode', async () => {
+  const h = await editingDraft();
+  assert.equal(h.get('wiki-keyboard-hint').hidden, true);
+  h.view('visual'); assert.equal(h.get('wiki-keyboard-hint').hidden, false);
+  h.view('source'); assert.equal(h.get('wiki-keyboard-hint').hidden, true);
 });
