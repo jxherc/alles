@@ -1781,14 +1781,16 @@ function revealFileControl(target) {
 }
 
 function revealHorizontalFileControl(event) {
-  const button = event.target.closest('button.crumb, button.files-location-button');
+  const button = event.target.closest('button');
   if (!button || !button.matches(':focus-visible')) return;
   const scroller = button.closest('#files-breadcrumb, .files-phase7-location-panel');
   if (!scroller || !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowX)) return;
   const bounds = scroller.getBoundingClientRect();
   const rect = button.getBoundingClientRect();
-  const left = bounds.left + scroller.clientLeft;
-  const right = left + scroller.clientWidth;
+  const style = getComputedStyle(button);
+  const inset = Math.max(0, (parseFloat(style.outlineWidth) || 0) + (parseFloat(style.outlineOffset) || 0));
+  const left = bounds.left + scroller.clientLeft + inset;
+  const right = left + scroller.clientWidth - 2 * inset;
   const leftDelta = rect.left - left;
   const rightDelta = rect.right - right;
   if (leftDelta < 0 && rightDelta < 0) {
@@ -1801,7 +1803,7 @@ function revealHorizontalFileControl(event) {
 function bindEvents() {
   $('files-view')?.addEventListener('focusin', event => revealFileControl(event.target));
   $('files-breadcrumb')?.addEventListener('focusin', revealHorizontalFileControl);
-  $('files-location-list')?.addEventListener('focusin', revealHorizontalFileControl);
+  document.querySelector('.files-phase7-location-panel')?.addEventListener('focusin', revealHorizontalFileControl);
   $('files-settings-btn')?.addEventListener('click', () => {
     renderLocationStatus();
     openFilesDialog('settings', '[data-files-dialog-close]');

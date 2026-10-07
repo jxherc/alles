@@ -358,10 +358,10 @@ def run(context_factory=None, cases=None):
                                     "button => !button.hasAttribute('aria-disabled')",
                                     arg=old_button,
                                 )
-                                expect(page.locator("#aide-task-recovery")).to_contain_text(
+                                expect(page.locator("#aide-task-saved")).to_contain_text(
                                     "saved in plan: " + title
                                 )
-                                page.locator("#aide-task-recovery").get_by_role(
+                                page.locator("#aide-task-saved").get_by_role(
                                     "button", name="open in plan", exact=True
                                 ).click()
                             else:
