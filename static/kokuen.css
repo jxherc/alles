@@ -3950,28 +3950,16 @@ html[dir="rtl"] :where(
   margin-inline: auto;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-intro {
+#settings-modal[data-kokuen-surface="settings"] .home-settings-pane.active {
+  height: 100%;
+  min-height: 0;
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--k-space-5);
-  margin-bottom: var(--k-space-5);
+  flex-direction: column;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .home-settings-intro h2 {
-  margin: 0;
-  color: var(--k-text);
-  font-size: 24px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .home-settings-intro p {
-  max-width: 560px;
-  margin: var(--k-space-2) 0 0;
-  color: var(--k-muted);
-  font-size: 13px;
-  line-height: 1.55;
+#settings-modal[data-kokuen-surface="settings"] .home-settings-intro {
+  flex-shrink: 0;
+  margin-bottom: var(--k-space-3);
 }
 
 #settings-modal[data-kokuen-surface="settings"] #home-settings-load-state {
@@ -3981,10 +3969,14 @@ html[dir="rtl"] :where(
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-workbench {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 190px;
   align-items: start;
   gap: var(--k-space-5);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-workbench[aria-busy="true"] {
@@ -4263,12 +4255,13 @@ html[dir="rtl"] :where(
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-save {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--k-space-4);
-  margin-top: var(--k-space-5);
-  padding-top: var(--k-space-4);
+  gap: var(--k-space-3);
+  margin-top: var(--k-space-3);
+  padding-top: var(--k-space-3);
   border-top: 1px solid var(--k-line);
 }
 
@@ -4305,20 +4298,7 @@ html[dir="rtl"] :where(
 
 @media (max-width: 540px) {
   #settings-modal[data-kokuen-surface="settings"] .home-settings-intro {
-    align-items: flex-start;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] #home-settings-load-state {
     display: none;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-row {
-    grid-template-columns: minmax(0, 1fr) var(--k-control);
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-move {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .home-settings-density {
