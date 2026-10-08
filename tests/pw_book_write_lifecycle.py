@@ -120,7 +120,7 @@ with sync_playwright() as pw:
                     page.route(base + "/api/books/" + bid, lambda route: deletes.append(route))
                     with page.expect_request(base + "/api/books/" + bid):
                         page.get_by_role("alertdialog").get_by_role(
-                            "button", name="confirm", exact=True
+                            "button", name="remove book", exact=True
                         ).click()
                     expect(card.locator('[data-rate="4"]')).to_be_disabled()
                     expect(card.locator('[data-act="notes"]')).to_be_disabled()

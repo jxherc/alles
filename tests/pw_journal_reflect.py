@@ -194,6 +194,11 @@ def run(context_factory=None):
                             expect(editor).to_have_value("entry " + second)
                         elif case == "locked":
                             page.locator("#jrnl-lock").click()
+                            menu = page.locator(".jrnl-lockmenu")
+                            bounds = menu.bounding_box()
+                            assert bounds["y"] >= 0 and bounds["y"] + bounds[
+                                "height"
+                            ] <= page.evaluate("innerHeight"), bounds
                             page.locator('.jrnl-lockmenu [data-a="lock"]').click()
                             expect(page.locator("#jl-old")).to_be_visible()
                         else:

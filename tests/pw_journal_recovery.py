@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import traceback
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -149,7 +150,7 @@ def run(context_factory=None):
                             expect(saved).to_have_text("unsaved changes")
                             assert stored(first) == "earlier local edit"
                             page.clock.fast_forward(1500)
-                            expect(saved).to_contain_text("saved ")
+                            expect(saved).to_have_text(re.compile(r"^saved "))
                             assert stored(first) == "newer local edit"
                         elif case == "lock-during-load":
                             page.locator("#jrnl-lock").click()
@@ -211,7 +212,7 @@ def run(context_factory=None):
                             assert stored(first) == content[first]
                             page.unroute(url(first))
                             page.locator("#jrnl-save").click()
-                            expect(saved).to_contain_text("saved ")
+                            expect(saved).to_have_text(re.compile(r"^saved "))
                             assert stored(first) == draft
                             page.locator("#jrnl-next").click()
                             assert_day(second)

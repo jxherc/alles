@@ -75,7 +75,12 @@ with sync_playwright() as pw:
                 len(rows()) == 1 and rows()[0]["due_date"] == "2032-02-29" and len(rows(True)) == 1
             )
             page.unroute(endpoint, lose)
-            button.click()
+            with page.expect_response(
+                lambda r: r.url == endpoint and r.request.method == "PATCH"
+            ) as retry:
+                button.click()
+            assert retry.value.status == 409, retry.value.text()
+            assert retry.value.json()["detail"]["code"] == "task_conflict"
             expect(page.locator(f'.task-item[data-id="{original["id"]}"]')).to_have_count(0)
             assert len(rows()) == 1 and len(rows(True)) == 1
             successor = rows()[0]
@@ -104,7 +109,10 @@ with sync_playwright() as pw:
             expect(page.locator(f'.task-item[data-id="{successor["id"]}"]')).to_have_count(0)
             assert len(rows()) == 1 and rows()[0]["due_date"] == "2032-03-31"
             result["steps"].append("reload/complete February/preserve January anchor at March31")
-            assert not errors and all("503" in item for item in console), (errors, console)
+            assert not errors and all("503" in item or "409" in item for item in console), (
+                errors,
+                console,
+            )
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             result["status"] = "passed"
         except Exception as error:

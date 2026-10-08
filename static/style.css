@@ -4758,7 +4758,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 /* 7c — lock action menu is an anchored dropdown, not buried in the reflection panel */
 .jrnl-lockmenu { position: fixed; z-index: 200; display: flex; flex-direction: column; gap: 0.3rem;
   background: var(--panel); border: 1px solid var(--faint); border-radius: 4px; padding: 0.4rem; min-width: 150px; }
-.jrnl-lockmenu .btn { text-align: left; }
+.jrnl-lockmenu .btn { min-height: var(--k-control, 44px); text-align: left; }
 .jrnl-lock { display: flex; justify-content: center; padding: 3rem 1rem; }
 .jrnl-lock-card { display: flex; flex-direction: column; align-items: center; gap: 0.7rem; width: 260px; padding: 1.6rem 1.4rem; border: 1px solid var(--faint); border-radius: 3px; background: var(--panel); }
 .jrnl-lock-icon { color: var(--muted); }
@@ -5243,6 +5243,11 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   #money-view .ms-card[data-forecast] { min-height: 0; }
   #money-view .ms-unavailable { text-align: right; }
   #money-view .ms-retry { grid-column: 2; justify-self: end; }
+}
+@container money-summary (max-width: 15rem) {
+  #money-view .ms-card { grid-template-columns: minmax(0, 1fr); }
+  #money-view :is(.ms-val, .ms-unavailable) { text-align: left; }
+  #money-view .ms-retry { grid-column: 1; justify-self: start; }
 }
 #money-view .money-section-toggle { display: flex; align-items: center; width: 100%; min-height: 44px; margin-bottom: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) 0; border: 0; background: transparent; color: var(--k-ink, var(--text)); font: inherit; font-size: 0.85rem; text-align: left; cursor: pointer; }
 #money-view .money-section-toggle::before { content: '+'; flex: 0 0 20px; color: var(--k-ink-muted, var(--muted)); }

@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v363';   // Clarify the personal context settings group.
+const VERSION = 'v364';   // Refresh repaired capture, record links and compact layouts.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '513';   // keep in sync with index.html ?v= / const _v
+const STAMP = '514';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

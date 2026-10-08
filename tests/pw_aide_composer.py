@@ -357,7 +357,9 @@ def run():
                                     snapshot("01-empty")
                                     key = f"{label}-early-stop"
                                     state.plan(key)
-                                    first = f"Respond with fixture text for {key}"
+                                    first = f"Respond with fixture text for {key}\n" + "\n".join(
+                                        f"Owned scroll fixture line {index}." for index in range(40)
+                                    )
                                     page.locator("#composer-ta").click()
                                     page.locator("#composer-ta").fill(first)
                                     send = page.get_by_role("button", name="send", exact=True)
@@ -428,6 +430,9 @@ def run():
                                     second = f"Respond with fixture text for {key}"
                                     page.locator("#composer-ta").click()
                                     page.locator("#composer-ta").fill(second)
+                                    assert page.locator("#chat").evaluate(
+                                        "e => e.scrollHeight > e.clientHeight + 200"
+                                    ), "the jump-to-latest scenario needs scrollable history"
                                     page.locator("#chat").hover()
                                     page.mouse.wheel(0, -200)
                                     jump = page.get_by_role(
@@ -512,6 +517,9 @@ def run():
                                     ), events
                                     draft = f"{second} unsent draft"
                                     page.locator("#composer-ta").fill(draft)
+                                    assert page.locator("#chat").evaluate(
+                                        "e => e.scrollHeight > e.clientHeight + 200"
+                                    ), "the jump-to-latest scenario needs scrollable history"
                                     page.locator("#chat").hover()
                                     page.mouse.wheel(0, -200)
                                     expect(jump).to_be_visible()
@@ -525,6 +533,9 @@ def run():
                                     page.locator('.app-drawer-item[data-view="chat"]').click()
                                     expect(page.locator("#composer-ta")).to_be_visible()
                                     expect(page.locator("#composer-ta")).to_have_value(draft)
+                                    assert page.locator("#chat").evaluate(
+                                        "e => e.scrollHeight > e.clientHeight + 200"
+                                    ), "the jump-to-latest scenario needs scrollable history"
                                     page.locator("#chat").hover()
                                     page.mouse.wheel(0, -200)
                                     expect(jump).to_be_visible()

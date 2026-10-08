@@ -5,10 +5,9 @@ completed on october 7, 2026.
 davinci brings the everyday apps together with clearer navigation, reliable local
 save and recovery paths, and more usable keyboard controls in short windows.
 
-the product milestone is commit
-`c9d1075e53dee021a3c745ce01c1c5d961c083a0`, marked by the annotated
-`history/davinci` tag. this document records that milestone; it does not introduce
-a new product version or change the tagged code.
+the original daily-workflows milestone is commit
+`502ef7f814815469a90b50d188a9763b5f4d7df6`. this document records that milestone; it does not
+introduce a new product version.
 
 ## what changed
 

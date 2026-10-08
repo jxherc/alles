@@ -429,7 +429,14 @@ def write_report(path: Path, report: dict) -> None:
 
 def scenario_evidence(result: dict) -> list[dict]:
     rows = []
-    for scenario in result.get("scenarios", []):
+    scenarios = result.get("scenarios", [])
+    if isinstance(scenarios, dict):
+        scenarios = scenarios["scenarios"]
+    if not isinstance(scenarios, list):
+        raise ValueError("scenario evidence must contain a list")
+    for scenario in scenarios:
+        if not isinstance(scenario, dict):
+            raise ValueError("scenario evidence entries must be objects")
         if not scenario.get("scenario_id"):
             continue
         row = {**scenario, "gate": result["gate"], "artifacts": result["artifacts"]}

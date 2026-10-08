@@ -153,14 +153,14 @@ with sync_playwright() as pw:
             page.route(url, lose)
             card.locator('[data-act="del"]').click()
             page.get_by_role("alertdialog").get_by_role(
-                "button", name="confirm", exact=True
+                "button", name="remove book", exact=True
             ).click()
             expect(card.get_by_role("alert")).to_contain_text("synthetic lost delete")
             assert current() is None
             page.unroute(url)
             card.locator('[data-act="del"]').click()
             page.get_by_role("alertdialog").get_by_role(
-                "button", name="confirm", exact=True
+                "button", name="remove book", exact=True
             ).click()
             expect(card).to_have_count(0)
             assert current() is None

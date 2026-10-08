@@ -5,9 +5,11 @@ import os
 import re
 import sys
 import time
+import traceback
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -125,7 +127,8 @@ with sync_playwright() as pw:
                     expect(page.locator("#mc-save")).to_have_attribute("aria-disabled", "false")
 
             def open_row(row):
-                page.get_by_role("button", name="drafts", exact=True).click()
+                with split_mail_panes(page):
+                    page.get_by_role("button", name="drafts", exact=True).click()
                 page.locator(f'.mail-draft-row[data-id="{row["id"]}"] .mail-open').click()
                 expect(body).to_be_visible()
 
@@ -164,7 +167,8 @@ with sync_playwright() as pw:
                         open_row(original)
                         body.fill("pending update")
                     else:
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name="drafts", exact=True).click()
                         page.wait_for_load_state("networkidle")
                         compose("pending create")
                     held = []
@@ -669,7 +673,8 @@ with sync_playwright() as pw:
                         assert len(writes) == 1
                         page.unroute(metadata)
                         page.unroute(endpoint, lose)
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name="drafts", exact=True).click()
                         saved()
                         assert len(rows()) == 1
                     elif case == "deleted-pending-create":
@@ -734,7 +739,10 @@ with sync_playwright() as pw:
                             endpoint, data={**initial, "body": "newer saved version"}
                         ).json()
                         if case == "stale-delete":
-                            page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
+                            with split_mail_panes(page):
+                                page.get_by_role(
+                                    "button", name=re.compile(r"^delete draft: ")
+                                ).click()
                             expect(
                                 page.get_by_text(
                                     "this draft has changed; refresh before deleting it", exact=True
@@ -801,7 +809,8 @@ with sync_playwright() as pw:
                                 json={"drafts": [], "recovery_scopes": ["f" * 64]}
                             ),
                         )
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name="drafts", exact=True).click()
                         expect(page.locator("#mc-status")).to_contain_text("different mail store")
                         page.get_by_role("button", name="compose", exact=True).click()
                         page.get_by_role("alertdialog").get_by_role(
@@ -822,7 +831,8 @@ with sync_playwright() as pw:
                             == 1
                         )
                     else:
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name="drafts", exact=True).click()
                         expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
                         if case in {"confirmed-new-save-old-ack", "confirmed-new-save-old-error"}:
                             expect(page.locator("#mc-save")).to_have_attribute(
@@ -886,7 +896,12 @@ with sync_playwright() as pw:
                     assert box["width"] >= 43.5 and box["height"] >= 43.5, box
                 result["status"] = "passed"
             except Exception as error:
-                result.update(error=str(error), page_errors=errors, console=console)
+                result.update(
+                    error=str(error),
+                    traceback=traceback.format_exc(),
+                    page_errors=errors,
+                    console=console,
+                )
             finally:
                 page.screenshot(path=str(out / f"{width}-{case}.png"), full_page=True)
                 context.close()

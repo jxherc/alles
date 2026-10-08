@@ -897,8 +897,8 @@ def run():
                         field.focus()
                         route, response = held.pop()
                         route.fulfill(response=response)
-                        page.unroute(endpoint, hold_save)
                         expect(status).to_have_text("search saved")
+                        page.unroute(endpoint, hold_save)
                         expect(field).to_be_focused()
                         expect(field).to_have_value("Receipt")
                         assert [row["query"] for row in searches()] == ["Project"]

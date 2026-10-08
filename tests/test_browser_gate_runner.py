@@ -23,6 +23,25 @@ SPEC.loader.exec_module(runner)
 
 
 class BrowserGateRunnerTest(unittest.TestCase):
+    def test_scenario_collector_preserves_list_and_wrapped_reports(self):
+        scenario = {
+            "scenario_id": "knowledge.markdown-attributes",
+            "profile": "390",
+            "status": "passed",
+        }
+        common = {"gate": "markdown-attributes", "artifacts": "/tmp/evidence"}
+        expected = [{**scenario, **common, "profiles": ["390"]}]
+        for evidence in ([scenario], {"scenarios": [scenario]}):
+            with self.subTest(evidence=evidence):
+                self.assertEqual(
+                    runner.scenario_evidence({**common, "scenarios": evidence}), expected
+                )
+
+    def test_scenario_collector_rejects_malformed_report_entries(self):
+        for evidence in ("invalid", ["invalid"], {"scenarios": "invalid"}):
+            with self.subTest(evidence=evidence), self.assertRaises(ValueError):
+                runner.scenario_evidence({"scenarios": evidence})
+
     def test_child_environment_cannot_inherit_owner_database_or_credentials(self):
         with patch.dict(
             os.environ,

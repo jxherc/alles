@@ -348,7 +348,7 @@ def run():
             expect(recurring_retry).to_be_visible()
             expect(recurring_card).to_contain_text("couldn't load schedules")
             expect(recurring_card).not_to_contain_text("nothing recurring")
-            expect(recurring_card.locator("#rc-add")).to_have_count(0)
+            expect(recurring_card.locator("#rc-add")).to_be_hidden()
             assert recurring_retry.bounding_box()["height"] >= 44
             recurring_card.scroll_into_view_if_needed()
             page.screenshot(path=str(artifacts / f"finance-recurring-unavailable-{profile}.png"))

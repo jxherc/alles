@@ -191,14 +191,16 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
       if (!response.ok) {
         // A rejected retry says nothing about whether an earlier attempt committed.
         if (!retrying && [400, 401, 403, 422].includes(response.status)) { store.clear(); frozen = null; }
-        throw new Error(typeof data.detail === 'string' ? data.detail : 'could not confirm this item; your details are still here');
+        const error = new Error(typeof data.detail === 'string' ? data.detail : 'could not confirm this item; your details are still here');
+        error.status = response.status;
+        throw error;
       }
       if (!recordTarget(kind === 'task' ? 'tasks' : 'calendar', data?.id) || typeof data.title !== 'string' || (source && data.source?.fingerprint !== source.fingerprint)) throw new Error('plan did not confirm the item; retry confirmation');
       saved = data;
       status.textContent = `saved in plan: ${data.title}${data.done ? ' (completed)' : ''}`;
       try { store.clear(); }
       catch { status.textContent += '; its browser retry copy could not be cleared'; }
-    } catch (error) { status.textContent = frozen ? `could not confirm whether this ${kind} was saved. retry checks the same ${kind} and will not add a duplicate.` : error.message; }
+    } catch (error) { status.textContent = frozen && error.status !== 410 ? `could not confirm whether this ${kind} was saved. retry checks the same ${kind} and will not add a duplicate.` : error.message; }
     finally { busy = false; lock(); if (attemptedSave && dialog.contains(document.activeElement)) (saved ? open : accept).focus(); }
     if (saved) savedFocus = onSaved?.(saved, kind);
   };
