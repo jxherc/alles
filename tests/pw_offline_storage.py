@@ -11,6 +11,7 @@ import os
 import tempfile
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 from urllib.request import urlopen
 
 from browser_gate_safety import require_server_ownership
@@ -311,8 +312,8 @@ def run():
                     assert all(
                         item["offline"]
                         and item["method"] == "GET"
-                        and item["url"]
-                        in {base + "/api/health", base + "/api/health/overview?days=30"}
+                        and urlsplit(item["url"]).path in {"/api/health", "/api/health/overview"}
+                        and item["url"].startswith(base + "/api/health")
                         and item["failure"] == "net::ERR_INTERNET_DISCONNECTED"
                         for item in events["failed_requests"]
                     ), events

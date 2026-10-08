@@ -278,7 +278,7 @@ def run():
                 expect(page.locator("#te-prio")).to_have_attribute("aria-disabled", "false")
                 expect(page.locator("#te-cancel")).to_be_enabled()
                 assert saved()["notes"] == "new edit after completed save"
-                expect(page.locator(".toast.error")).to_contain_text("request failed")
+                expect(page.locator(".task-recovery-message")).to_contain_text("save not confirmed")
                 shot("failed-save")
                 page.unroute(endpoint, fail_edit)
                 page.locator("#te-save").press("Enter")

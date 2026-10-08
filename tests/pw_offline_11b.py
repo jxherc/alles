@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -140,13 +141,16 @@ def run() -> None:
             style_href = page.locator('link[href^="/static/style.css"]').get_attribute("href")
             assert style_href
             app_href = style_href.replace("/static/style.css", "/static/js/app.js")
-            assert cached["names"] == ["alles-v291"], cached["names"]
+            worker_source = (Path(__file__).resolve().parents[1] / "static/sw.js").read_text()
+            version = re.search(r"const VERSION = '(v[0-9]+)'", worker_source).group(1)
+            assert cached["names"] == ["alles-" + version], cached["names"]
             for retired in ("files.js", "research.js", "ragquery.js", "aidebehavior.js"):
                 assert not any(f"/static/js/{retired}" in url for url in cached["urls"])
             assert any(url.endswith("/") for url in cached["urls"])
             assert any(url.endswith(style_href) for url in cached["urls"])
             assert any(url.endswith(app_href) for url in cached["urls"])
-            assert any("/static/kokuen.css?v=25" in url for url in cached["urls"])
+            kokuen_href = page.locator('link[href^="/static/kokuen.css"]').get_attribute("href")
+            assert kokuen_href and any(url.endswith(kokuen_href) for url in cached["urls"])
             assert sum("/static/js/" in url for url in cached["urls"]) >= 20
             page.screenshot(path=str(OUTPUT / "pwa-plan-online-mobile.png"), full_page=True)
 
@@ -169,7 +173,7 @@ def run() -> None:
                         return match ? { status: match.status, size: (await match.clone().text()).length } : null;
                       })(),
                       appModuleKeys: await (async () => {
-                        const cache = await caches.open('alles-v291');
+                        const cache = await caches.open((await caches.keys())[0]);
                         return (await cache.keys())
                           .map(request => request.url)
                           .filter(url => url.includes('/static/js/app.js'));

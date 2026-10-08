@@ -3,6 +3,7 @@
 import base64
 import json
 import os
+import re
 import sys
 import tempfile
 import traceback
@@ -148,7 +149,7 @@ def run():
                     expect(mood).to_have_attribute("aria-pressed", "true")
                     page.locator("#jrnl-tags").fill("walk, local")
                     page.locator("#jrnl-save").press("Enter")
-                    expect(page.locator("#jrnl-saved")).to_contain_text("saved ")
+                    expect(page.locator("#jrnl-saved")).to_have_text(re.compile(r"^saved "))
                     saved = api.get(base + "/api/journal/" + day).json()
                     assert (saved["content"], saved["mood"], saved["tags"]) == (
                         entry,
@@ -164,7 +165,7 @@ def run():
                     expect(editor).to_have_value(entry)
                     mood.press("Space")
                     expect(mood).to_have_attribute("aria-pressed", "false")
-                    expect(page.locator("#jrnl-saved")).to_contain_text("saved ")
+                    expect(page.locator("#jrnl-saved")).to_have_text(re.compile(r"^saved "))
                     assert api.get(base + "/api/journal/" + day).json()["mood"] == ""
                     search = page.get_by_role("textbox", name="search entries", exact=True)
                     search.fill(earlier)

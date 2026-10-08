@@ -258,9 +258,7 @@ def run(context_factory=None, cases=None):
                             old_button = button.element_handle()
                             expect(button).to_have_attribute("aria-disabled", "true")
                             if not page.locator("#new-chat-btn").is_visible():
-                                page.get_by_role(
-                                    "button", name="toggle Aide sidebar", exact=True
-                                ).click()
+                                page.locator("#sidebar-toggle-btn").click()
                             page.locator("#new-chat-btn").click()
                             if page.locator("#aide-document-scope-remove").is_visible():
                                 page.locator("#aide-document-scope-remove").click()
@@ -416,9 +414,7 @@ def run(context_factory=None, cases=None):
                                         full_page=True,
                                     )
                                     if not page.locator("#new-chat-btn").is_visible():
-                                        page.get_by_role(
-                                            "button", name="toggle Aide sidebar", exact=True
-                                        ).click()
+                                        page.locator("#sidebar-toggle-btn").click()
                                     page.locator("#new-chat-btn").click()
                                     assert "message" not in parse_qs(urlparse(page.url).query)
                                     assert not urlparse(page.url).fragment

@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import traceback
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -149,7 +150,7 @@ def run(context_factory=None):
                         assert parse_qs(urlparse(page.url).query)["d"] == [second]
                         editor.fill("edited after finding exact day")
                         page.clock.fast_forward(1250)
-                        expect(page.locator("#jrnl-saved")).to_contain_text("saved ")
+                        expect(page.locator("#jrnl-saved")).to_have_text(re.compile(r"^saved "))
                         download_current("edited after finding exact day")
                         page.reload(wait_until="networkidle")
                         expect(editor).to_have_value("edited after finding exact day")

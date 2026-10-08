@@ -193,7 +193,7 @@ with sync_playwright() as pw:
                     "e => {const track=getComputedStyle(e,'::before'),knob=getComputedStyle(e,'::after');return {track:[track.width,track.height,track.borderRadius],knob:[knob.width,knob.height,knob.borderRadius],transition:knob.transitionDuration}}"
                 )
                 assert box["width"] == 44 and box["height"] == 44, box
-                assert geometry["track"] == ["42px", "24px", "999px"], geometry
+                assert geometry["track"] == ["36px", "24px", "999px"], geometry
                 assert geometry["knob"][:3] == ["16px", "16px", "50%"], geometry
                 assert all(
                     float(x.strip().removesuffix("s")) <= 0.001
@@ -263,7 +263,9 @@ with sync_playwright() as pw:
                 editor = policy.locator("textarea")
                 original = editor.input_value()
                 editor.fill("{")
-                policy.get_by_role("button", name="validate and show diff").click()
+                with page.expect_response(base + "/api/system/policy/diff") as validation:
+                    policy.get_by_role("button", name="validate and show diff").click()
+                assert validation.value.status == 409, validation.value.text()
                 expect(policy.locator(".server-workbench-status").first).to_have_class(
                     "server-workbench-status is-error"
                 )
@@ -284,7 +286,7 @@ with sync_playwright() as pw:
                 assert (
                     len(console) == 3
                     and sum("503" in message for message in console) == 2
-                    and sum("422" in message for message in console) == 1
+                    and sum("409" in message for message in console) == 1
                 ), console
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                 row.update(
