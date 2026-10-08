@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import return_to_mail_list
 from playwright.sync_api import expect, sync_playwright
 from pw_settings_helpers import choose_settings_section
 
@@ -481,6 +482,7 @@ def run():
                 expect(opener).to_be_focused()
                 page.keyboard.press("Enter")
                 expect(page.locator("#mail-main")).to_contain_text("Connection refused")
+                return_to_mail_list(page)
                 page.get_by_role("button", name="add a label", exact=True).first.press("Tab")
                 assert page.locator(":focus").evaluate("e => getComputedStyle(e).opacity === '1'")
                 for sender in page.locator(".mail-from").all():
@@ -508,7 +510,7 @@ def run():
                 assert saved_response.value.ok
                 expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
                 draft = next(d for d in drafts() if d["subject"] == subject)
-                page.get_by_role("button", name="close", exact=True).click()
+                page.locator("#mc-close").click()
                 expect(page.get_by_role("alertdialog")).to_have_count(0)
                 inbox("mail", reload=True)
                 page.get_by_role("button", name="drafts", exact=True).click()
@@ -539,7 +541,7 @@ def run():
                         expect(
                             page.get_by_text("save unconfirmed", exact=True).last
                         ).to_be_visible()
-                    page.get_by_role("button", name="close", exact=True).click()
+                    page.locator("#mc-close").click()
                     expect(page.get_by_role("alertdialog")).to_contain_text(
                         "discard unsaved draft changes?"
                     )
@@ -584,7 +586,7 @@ def run():
                 page.get_by_role("textbox", name="message", exact=True).fill(
                     "Explicitly discarded change"
                 )
-                page.get_by_role("button", name="close", exact=True).click()
+                page.locator("#mc-close").click()
                 page.get_by_role("alertdialog").get_by_role(
                     "button", name="confirm", exact=True
                 ).click()
@@ -615,7 +617,7 @@ def run():
                 ):
                     pending_drafts[0].continue_()
                 page.unroute(base + "/api/mail/drafts", hold_draft)
-                page.get_by_role("button", name="close", exact=True).click()
+                page.locator("#mc-close").click()
                 expect(page.get_by_role("alertdialog")).to_be_visible()
                 page.get_by_role("alertdialog").get_by_role(
                     "button", name="cancel", exact=True
@@ -633,7 +635,7 @@ def run():
                     page.get_by_role("button", name="save draft", exact=True).click()
                 expect(page.locator("#mc-save")).to_have_attribute("aria-disabled", "false")
                 expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
-                page.get_by_role("button", name="close", exact=True).click()
+                page.locator("#mc-close").click()
                 expect(page.get_by_role("alertdialog")).to_have_count(0)
                 inbox("mail", reload=True)
                 page.get_by_role("button", name="drafts", exact=True).click()
@@ -641,7 +643,7 @@ def run():
                 expect(page.get_by_role("textbox", name="message", exact=True)).to_have_text(
                     "Newer body while save is pending"
                 )
-                page.get_by_role("button", name="close", exact=True).click()
+                page.locator("#mc-close").click()
                 passed()
 
                 begin("inbox.mail-draft-list-retry-delete")
@@ -659,7 +661,7 @@ def run():
                 page.unroute(base + "/api/mail/drafts?*", handler)
                 page.get_by_role("button", name="retry", exact=True).press("Enter")
                 expect(page.get_by_role("button", name=subject, exact=True)).to_be_visible()
-                page.get_by_role("button", name="delete draft", exact=True).click()
+                page.get_by_role("button", name="delete draft: " + subject, exact=True).click()
                 expect(page.get_by_text("no drafts", exact=True)).to_be_visible()
                 inbox("mail", reload=True)
                 page.get_by_role("button", name="drafts", exact=True).click()

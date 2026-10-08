@@ -118,7 +118,7 @@ with sync_playwright() as pw:
                 expect(close).to_be_focused()
                 expect(help_button).to_have_attribute("aria-expanded", "true")
                 expect(dialog).to_contain_text("Alt+N")
-                expect(dialog).to_contain_text("start a new task")
+                expect(dialog).to_contain_text("start a new aide task")
                 expect(dialog).to_contain_text("add a task to Plan")
                 expect(field).to_have_value("owned unsent question")
                 assert "start a new chat" not in dialog.inner_text()
@@ -148,7 +148,7 @@ with sync_playwright() as pw:
                 binding = page.locator('.shortcut-input[data-shortcut="new_chat"]')
                 expect(binding).to_be_visible()
                 expect(binding).to_be_focused()
-                expect(page.get_by_label("new task", exact=True)).to_have_count(1)
+                expect(page.get_by_label("new aide task", exact=True)).to_have_count(1)
                 binding.press("Alt+j")
                 expect(binding).to_have_value("Alt+J")
                 page.locator("#settings-modal-close").click()
@@ -161,7 +161,7 @@ with sync_playwright() as pw:
                 expect(field).to_have_value("owned unsent question")
                 context.set_offline(True)
                 help_button.press("Enter")
-                expect(dialog).to_contain_text("start a new task")
+                expect(dialog).to_contain_text("start a new aide task")
                 close.press("Enter")
                 context.set_offline(False)
                 expect(help_button).to_be_focused()
@@ -171,7 +171,7 @@ with sync_playwright() as pw:
                 field.press("Tab")
                 field.press("Enter")
                 expect(page.locator("#messages")).to_contain_text("slash commands")
-                expect(page.locator("#messages")).to_contain_text("start a new task")
+                expect(page.locator("#messages")).to_contain_text("start a new aide task")
                 assert "start a new chat" not in page.locator("#messages").inner_text()
                 session = context.request.post(base + "/api/sessions", data={"name": "new chat"})
                 assert session.ok
@@ -180,7 +180,7 @@ with sync_playwright() as pw:
                 page.reload(wait_until="networkidle")
                 expect(page.locator("#aide-conversation-name")).to_have_text("new chat")
                 page.keyboard.press("Alt+j")
-                expect(page.locator("#aide-conversation-name")).to_have_text("new task")
+                expect(page.locator("#aide-conversation-name")).to_have_text("new aide task")
                 assert (
                     context.request.get(base + "/api/sessions/" + session_id + "/history").json()[
                         "session"

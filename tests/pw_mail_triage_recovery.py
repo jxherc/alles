@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import return_to_mail_list
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -182,7 +183,16 @@ with sync_playwright() as pw:
                     row().locator(".mail-open").click()
                     expect(page.locator("#mail-unread")).to_be_visible()
                     page.wait_for_load_state("networkidle")
-                expect(row()).to_be_visible()
+                    # The automatic read must settle before the deliberate triage
+                    # action. Network idleness alone does not prove pane readiness.
+                    expect(page.locator("#mail-" + action)).to_have_attribute(
+                        "aria-disabled", "false"
+                    )
+                if width <= 1100 and action in {"unread", "vip"}:
+                    expect(row()).to_be_hidden()
+                    expect(row()).to_have_count(1)
+                else:
+                    expect(row()).to_be_visible()
                 expect(page.locator("#mail-list")).to_have_attribute("aria-busy", "false")
                 if mode != "offline":
                     page.route(endpoint + "*", write)
@@ -203,6 +213,7 @@ with sync_playwright() as pw:
                         else row().locator("[data-" + action + "]")
                     )
                     btn.focus()
+                    expect(btn).to_be_focused()
                     page.keyboard.press("Enter")
                 if mode in {"late", "double"}:
                     deadline = time.monotonic() + 5
@@ -210,6 +221,7 @@ with sync_playwright() as pw:
                         page.wait_for_timeout(30)
                     assert len(held) == 1
                     if mode == "late":
+                        return_to_mail_list(page)
                         page.locator('.mail-row[data-uid="702"] .mail-open').click()
                         expect(page.locator(".mail-reader-subject")).to_have_text("read 702")
                         page.wait_for_timeout(100)
@@ -234,7 +246,11 @@ with sync_playwright() as pw:
                         "until": "",
                         "labels": "",
                     }
-                    expect(row()).to_be_visible()
+                    if width <= 1100 and action in {"unread", "vip"}:
+                        expect(row()).to_be_hidden()
+                        expect(row()).to_have_count(1)
+                    else:
+                        expect(row()).to_be_visible()
                     if action == "flag":
                         assert (
                             not row()
@@ -308,6 +324,9 @@ with sync_playwright() as pw:
                         expect(row()).to_have_class(re.compile(r".*\bunread\b.*"))
                     elif mode != "lost":
                         expect(page.locator("#mail-vip")).to_have_class("btn on")
+                if width <= 1100 and action in {"unread", "vip"}:
+                    return_to_mail_list(page)
+                    expect(row()).to_be_visible()
                 assert not errors, errors
                 assert not [
                     line

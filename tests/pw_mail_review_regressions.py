@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path.cwd() / "tests"))
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -131,7 +132,8 @@ with sync_playwright() as pw:
                     with page.expect_response(
                         lambda r: r.request.method == "DELETE" and "/api/mail/drafts/" in r.url
                     ) as deletion:
-                        drow.locator(".mail-draft-del").click()
+                        with split_mail_panes(page):
+                            drow.locator(".mail-draft-del").click()
                     result["delete_status"] = deletion.value.status
                     result["stored_after_delete"] = api.get(endpoint).status
                     if case == "delete-external-change":
@@ -158,6 +160,11 @@ with sync_playwright() as pw:
                     if case == "reader-return":
                         page.get_by_role("tab", name="overview", exact=True).click()
                         page.get_by_role("tab", name="mail", exact=True).click()
+                        # Accepted departure retires the reader; reopen the same
+                        # persisted message through the visible list.
+                        expect(page.locator(".mail-reader-subject")).to_have_count(0)
+                        expect(row()).to_be_visible()
+                        row().locator(".mail-open").click()
                         expect(page.locator(".mail-reader-subject")).to_have_text(
                             "owned message 702"
                         )

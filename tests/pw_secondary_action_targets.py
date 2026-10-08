@@ -176,6 +176,8 @@ with sync_playwright() as pw:
                 page.keyboard.press("Enter")
                 expect(page.locator("#photos-lightbox")).to_have_class(re.compile("drawer-open"))
                 page.locator("#photos-info-btn").click()
+                page.locator("#photos-viewer-more-btn").press("Enter")
+                expect(page.locator("#photos-viewer-more-menu")).to_be_visible()
                 page.locator("#photos-edit-btn").focus()
                 page.keyboard.press("Enter")
                 expect(page.locator("#imgeditor-modal")).to_be_visible()

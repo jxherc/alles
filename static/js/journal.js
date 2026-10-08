@@ -600,7 +600,7 @@ function pickLockAction() {
       <button class="btn danger" data-a="disable">disable lock</button>`;
     document.body.appendChild(menu);
     const r = btn.getBoundingClientRect();
-    menu.style.top = (r.bottom + 4) + 'px';
+    menu.style.top = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)) + 'px';
     menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
     const done = v => { menu.remove(); document.removeEventListener('mousedown', out); resolve(v); };
     const out = e => { if (!menu.contains(e.target) && e.target !== btn) done(''); };

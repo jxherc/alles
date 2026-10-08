@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 import traceback
 from pathlib import Path
@@ -78,7 +79,7 @@ def run():
                         expect(editor).to_be_visible()
                         editor.fill(entry)
                         page.locator("#jrnl-save").click()
-                        expect(page.locator("#jrnl-saved")).to_contain_text("saved ")
+                        expect(page.locator("#jrnl-saved")).to_have_text(re.compile(r"^saved "))
                         assert api.get(base + "/api/journal/" + day).json()["content"] == entry
                         before_reload = page.url
                         page.screenshot(path=str(output / f"{label}-before-reload.png"))

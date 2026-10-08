@@ -117,7 +117,9 @@ def run():
                         body.evaluate(
                             "body => body.scrollTop = 0.6 * (body.scrollHeight - body.clientHeight)"
                         )
-                        expect(status).to_contain_text("saved text changed or was removed")
+                        expect(status).to_contain_text(
+                            "saved text changed, reading place changed or article was removed"
+                        )
                         back.click()
                         expect(page.locator("#read-q")).to_be_visible()
                         expect(page.locator(f'[data-open="{item["id"]}"]')).to_have_count(0)

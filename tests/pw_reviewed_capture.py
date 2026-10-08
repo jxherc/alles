@@ -215,9 +215,12 @@ def run():
                                     route.continue_()
 
                             page.route(base + endpoint, reject_retry)
-                            page.locator("#capture-accept").click()
+                            with page.expect_response(base + endpoint) as rejected:
+                                page.locator("#capture-accept").click()
+                            assert rejected.value.status == rejected_status
+                            assert rejected.value.request.post_data_json == sent[0]["body"]
                             expect(page.locator(".capture-status")).to_contain_text(
-                                "synthetic retry rejection"
+                                "will not add a duplicate"
                             )
                             expect(page.locator("#capture-accept")).to_have_text(
                                 "retry confirmation"

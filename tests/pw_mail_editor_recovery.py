@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import retain_fixture_send_delay, seed_mail
 
@@ -137,7 +138,8 @@ def run():
                         page.route(base + "/api/settings", hold_settings)
                         page.get_by_role("button", name="compose", exact=True).click()
                         held_one(settings)
-                        page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
                         expect(page.locator(".mail-draft-row")).to_have_count(0)
                         route, response = settings.pop()
                         route.fulfill(response=response)
@@ -249,7 +251,8 @@ def run():
                         if case == "delete-pending-read":
                             page.get_by_role("button", name="owned deletion", exact=True).click()
                             held_one(reads)
-                        page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
                         held_one(held)
                         if case == "delete-reopen":
                             page.locator(".mail-draft-row .mail-from").click()
@@ -402,12 +405,14 @@ def run():
                             ),
                         )
                         target = page.locator('.mail-row[data-uid="702"] .mail-open')
-                        target.click()
+                        with split_mail_panes(page):
+                            target.click()
                         dialog = page.get_by_role("alertdialog")
                         expect(dialog).to_be_visible()
                         dialog.get_by_role("button", name="cancel", exact=True).click()
                         expect(body).to_have_text("owned unsaved reply")
-                        target.click()
+                        with split_mail_panes(page):
+                            target.click()
                         page.get_by_role("alertdialog").get_by_role(
                             "button", name="confirm", exact=True
                         ).click()
@@ -457,7 +462,8 @@ def run():
                             held.append((route, response))
 
                         page.route(base + "/api/mail/drafts/" + draft["id"] + "?*", hold_delete)
-                        page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
                         held_one(held)
                         body.fill("later unsaved edit")
                         route, response = held.pop()
@@ -523,7 +529,8 @@ def run():
                         expect(body).to_be_in_viewport()
                         expect(body).to_have_text("owned unsaved reply")
                         page.locator("#mc-close").click()
-                        page.get_by_role("button", name="primary", exact=True).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name="primary", exact=True).click()
                         expect(
                             page.get_by_role("button", name="compose", exact=True)
                         ).to_be_visible()
@@ -678,7 +685,8 @@ def run():
                         page.evaluate(
                             "() => { const real = window.fetch; window.__draftDeleteReturned = false; window.fetch = async (...args) => { const response = await real(...args); if (args[1]?.method === 'DELETE' && String(args[0]).includes('/api/mail/drafts/')) setTimeout(() => { window.__draftDeleteReturned = true; }, 0); return response; }; }"
                         )
-                        page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name=re.compile(r"^delete draft: ")).click()
                         dialog = page.get_by_role("alertdialog")
                         if dialog.is_visible():
                             dialog.get_by_role("button", name="confirm", exact=True).click()
@@ -688,7 +696,8 @@ def run():
                         assert api.get("/api/mail/drafts/" + draft["id"]).ok
                     else:
                         compose()
-                        page.get_by_role("button", name="primary", exact=True).click()
+                        with split_mail_panes(page):
+                            page.get_by_role("button", name="primary", exact=True).click()
                         dialog = page.get_by_role("alertdialog")
                         if dialog.is_visible():
                             dialog.get_by_role("button", name="cancel", exact=True).click()

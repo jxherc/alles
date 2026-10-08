@@ -72,9 +72,13 @@ with sync_playwright() as pw:
             }
             results.append(result)
 
-            def open_rules():
+            def open_rules(discard=False):
                 page.get_by_role("button", name="mail settings", exact=True).click()
                 page.get_by_role("button", name="rules & vacation responder", exact=True).click()
+                if discard:
+                    dialog = page.get_by_role("alertdialog")
+                    expect(dialog).to_contain_text("discard unsaved rules or vacation changes?")
+                    dialog.get_by_role("button", name="confirm", exact=True).click()
 
             def intercept(route):
                 method = route.request.method
@@ -145,6 +149,11 @@ with sync_playwright() as pw:
                                 page.wait_for_timeout(20)
                             assert held
                             page.locator("#mail-compose-btn").click()
+                            dialog = page.get_by_role("alertdialog")
+                            expect(dialog).to_contain_text(
+                                "discard unsaved rules or vacation changes?"
+                            )
+                            dialog.get_by_role("button", name="confirm", exact=True).click()
                             page.locator("#mc-subj").fill("keep new composer")
                             page.unroute(base + "/api/mail/rules/run/*", run_intercept)
                             route, response = held.pop()
@@ -225,7 +234,7 @@ with sync_playwright() as pw:
                                     "empty": case == "reread-empty",
                                 },
                             )
-                            open_rules()
+                            open_rules(discard=True)
                             expect(page.locator("#mr-status")).to_contain_text("could not read")
                             if case == "reread-newer":
                                 page.locator("#mr-value").fill("newer local text")
@@ -262,7 +271,7 @@ with sync_playwright() as pw:
                             '(scope)=>sessionStorage.setItem("alles-mail-rule:"+scope,"broken")',
                             scope,
                         )
-                        open_rules()
+                        open_rules(discard=True)
                         expect(page.locator("#mr-status")).to_contain_text("could not read")
                         expect(page.locator("#mr-add")).to_have_attribute("aria-disabled", "true")
                         page.locator("#mr-clear").click()
@@ -314,6 +323,11 @@ with sync_playwright() as pw:
                                 page.locator("#mr-value").fill("newer unsaved rule")
                             else:
                                 page.locator("#mail-compose-btn").click()
+                                dialog = page.get_by_role("alertdialog")
+                                expect(dialog).to_contain_text(
+                                    "discard unsaved rules or vacation changes?"
+                                )
+                                dialog.get_by_role("button", name="confirm", exact=True).click()
                                 page.locator("#mc-subj").fill("keep new composer")
                             route, response = held.pop()
                             route.fulfill(response=response)
@@ -368,7 +382,7 @@ with sync_playwright() as pw:
                                 assert all(value is (uid == target) for uid, value in seen), seen
                             page.locator(".mail-rule-del").click()
                             expect(page.locator("#mail-rules-list")).to_contain_text("no rules yet")
-                            open_rules()
+                            open_rules(discard=True)
                             expect(page.locator("#mail-rules-list")).to_contain_text("no rules yet")
                     if case not in {
                         "run-late",

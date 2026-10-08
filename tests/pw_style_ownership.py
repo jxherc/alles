@@ -137,6 +137,9 @@ def run():
                     page.evaluate(
                         "zoom => document.documentElement.style.zoom = String(zoom)", zoom
                     )
+                    totals = page.locator("#money-summary-toggle")
+                    if totals.is_visible() and totals.get_attribute("aria-expanded") == "false":
+                        totals.click()
                     page.locator(".money-summary").scroll_into_view_if_needed()
                     measured = page.locator(".money-summary").evaluate("""summary => {
                         const bounds = summary.getBoundingClientRect();
@@ -185,9 +188,9 @@ def run():
                 page.route("**/api/finance/actual**", actual_route)
                 page.get_by_role("tab", name="overview", exact=True).click()
                 page.get_by_role("button", name="show ledger setup", exact=True).click()
-                review = page.get_by_role("button", name="review cutover", exact=True)
+                review = page.get_by_role("button", name="review ledger switch", exact=True)
                 review.click()
-                cancel = page.get_by_role("button", name="keep current authority", exact=True)
+                cancel = page.get_by_role("button", name="keep current ledger", exact=True)
                 expect(cancel).to_be_focused()
                 page.keyboard.press("Escape")
                 expect(review).to_be_focused()

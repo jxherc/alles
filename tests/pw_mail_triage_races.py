@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import return_to_mail_list
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -140,6 +141,7 @@ with sync_playwright() as pw:
                     while not held and time.monotonic() < until:
                         page.wait_for_timeout(20)
                     assert len(held) == 1
+                    return_to_mail_list(page)
                     row("702").locator(".mail-open").click()
                     expect(page.locator(".mail-reader-subject")).to_have_text("read 702")
                     page.wait_for_timeout(150)
@@ -211,6 +213,7 @@ with sync_playwright() as pw:
                     page.locator("#mail-unread").click()
                     expect(page.get_by_text("marked unread", exact=True)).to_be_visible()
                     assert not state()["seen"]
+                    return_to_mail_list(page)
                     expect(row()).to_be_visible()
                 else:
                     page.route(base + "/api/mail/flag/*", hold)

@@ -63,6 +63,7 @@ def run():
                 page.set_default_timeout(4000)
                 accepted, posts, errors, console, held = [scope, other], [], [], [], []
                 hold = [False]
+                scope_rejections = []
                 page.on("pageerror", lambda e: errors.append(str(e)))
                 page.on("console", lambda m: console.append(m.text) if m.type == "error" else None)
                 page.on(
@@ -97,7 +98,21 @@ def run():
 
                 def refresh():
                     radio = page.locator(f'.book-card[data-id="{book_id}"] [data-rate="4"]')
-                    radio.click()
+                    with page.expect_response(
+                        lambda response: (
+                            response.url == endpoint + "/" + book_id
+                            and response.request.method == "PATCH"
+                        )
+                    ) as write:
+                        radio.click()
+                    if write.value.status == 409:
+                        assert write.value.json() == {
+                            "detail": "book storage changed; reopen books"
+                        }
+                        assert write.value.request.post_data_json["recovery_scope"] == other
+                        scope_rejections.append(write.value.status)
+                    else:
+                        assert write.value.ok, write.value.text()
                     if not hold[0]:
                         expect(radio).to_be_enabled()
 
@@ -172,11 +187,13 @@ def run():
                         assert len(storage()) == 1
                         page.locator("#book-create-check").click()
                         expect(page.locator("#book-create-check")).to_have_count(0)
-                    assert not storage() and not posts and not errors and not console, (
-                        posts,
-                        errors,
-                        console,
+                    assert not storage() and not posts and not errors, (posts, errors)
+                    assert len(scope_rejections) == (
+                        1 if mode in ("focused-draft", "retired-scope") else 0
                     )
+                    assert len(console) == len(scope_rejections) and all(
+                        "409" in message for message in console
+                    ), console
                     assert page.evaluate("document.documentElement.scrollWidth<=innerWidth+1")
                     rows.append(
                         {

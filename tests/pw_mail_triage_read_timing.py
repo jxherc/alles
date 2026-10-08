@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import return_to_mail_list, split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -105,7 +106,8 @@ with sync_playwright() as pw:
                 row().locator(".mail-open").click()
                 if case.startswith("label"):
                     wait_one(body)
-                    row().locator("[data-label]").click()
+                    with split_mail_panes(page):
+                        row().locator("[data-label]").click()
                     dlg = page.get_by_role("dialog")
                     dlg.locator("input").fill("work")
                     page.route(base + "/api/mail/read/*", lambda route: pending.append(route))
@@ -134,13 +136,15 @@ with sync_playwright() as pw:
                     expect(page.get_by_text("labeled", exact=True)).to_be_visible()
                     assert state()["labels"] == "work"
                     assert len(writes) == 1
+                    return_to_mail_list(page)
                     page.locator('.mail-nav-item[data-filter="inbox"]').click()
                     expect(row().get_by_role("button", name="work", exact=True)).to_be_visible()
                 else:
                     expect(page.locator("#mail-unread")).to_have_attribute("aria-disabled", "false")
                     expect(row()).not_to_have_class(re.compile(r".*\bunread\b.*"))
                     page.route(base + "/api/mail/flag/*", lambda route: pending.append(route))
-                    row().locator("[data-flag]").click()
+                    with split_mail_panes(page):
+                        row().locator("[data-flag]").click()
                     wait_one(pending)
                     expect(page.locator("#mail-unread")).to_have_attribute("aria-disabled", "true")
                     page.locator("#mail-unread").focus()

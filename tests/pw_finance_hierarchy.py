@@ -182,6 +182,8 @@ with sync_playwright() as pw:
             action.press("Enter")
             expect(page.locator("#tx-payee")).to_have_value(payee)
             expect(page.locator("#tx-payee")).to_be_focused()
+            if page.locator("#tx-details").is_hidden():
+                page.locator("#tx-details-toggle").click()
             page.locator("#tx-cat").fill("garden")
             tag = "garden-" + label
             page.locator("#tx-tags").fill(tag)
@@ -253,6 +255,12 @@ with sync_playwright() as pw:
             assert len(api.get(base + "/api/money/transactions").json()) == len(before) + 2
             page.reload(wait_until="networkidle")
             expect(row).to_contain_text(payee)
+            # Saved outcomes intentionally survive reload. Dismiss their notices
+            # before measuring the ordinary ledger, without changing its records.
+            for _ in range(2):
+                page.locator("#money-save-results [data-dismiss-saved]:visible").click()
+            expect(page.locator("#money-save-results [data-saved-txn]")).to_have_count(0)
+            assert len(api.get(base + "/api/money/transactions").json()) == len(before) + 2
             page.locator("#money-body").evaluate(
                 "e=>{for(let p=e;p;p=p.parentElement)p.scrollTop=0}"
             )
@@ -469,6 +477,8 @@ with sync_playwright() as pw:
                 "tx-tags": "draft-tag",
                 "tx-amt": "23.45",
             }
+            if page.locator("#tx-details").is_hidden():
+                page.locator("#tx-details-toggle").click()
             for field, value in draft_values.items():
                 page.locator("#" + field).fill(value)
             page.evaluate("window.ownedEntryNode = document.getElementById('money-entry-fields')")

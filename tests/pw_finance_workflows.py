@@ -194,6 +194,8 @@ def run():
                 if page.locator("#money-entry-fields").is_hidden():
                     page.locator("#money-entry-action").click()
                 page.locator("#tx-payee").fill(payee)
+                if page.locator("#tx-details").is_hidden():
+                    page.locator("#tx-details-toggle").click()
                 page.locator("#tx-cat").fill(category)
                 page.locator("#tx-tags").fill("fixture,测试")
                 page.locator("#tx-amt").fill(amount)

@@ -283,14 +283,14 @@ def run():
                     dialog = page.get_by_role("dialog", name="aide help", exact=True)
                     expect(dialog).to_be_visible()
                     expect(dialog.locator("[data-help-close]")).to_be_focused()
-                    expect(dialog.locator("[data-help-guide]")).to_have_count(5)
+                    expect(dialog.locator("[data-help-guide]")).to_have_count(7)
                     search = dialog.get_by_role("searchbox", name="search help", exact=True)
                     status = dialog.locator(".aide-help-status")
                     assert status.evaluate(
                         "e=>getComputedStyle(e).display!=='none' && !e.closest('[hidden]')"
                     )
                     capture("guides")
-                    search.fill("+task")
+                    search.fill("+plan task")
                     expect(dialog.locator('[data-help-guide="task"]')).to_be_visible()
                     expect(dialog.locator("[data-help-entry]:visible")).to_have_count(1)
                     expect(dialog).to_contain_text("add to plan")

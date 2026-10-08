@@ -235,6 +235,8 @@ with sync_playwright() as pw:
                         "tx-tags": "local-test",
                         "tx-amt": "19.75 extra" if scenario == "late-invalid" else "19.75",
                     }
+                    if page.locator("#tx-details").is_hidden():
+                        page.locator("#tx-details-toggle").click()
                     for field, value in wanted.items():
                         page.locator("#" + field).fill(value)
                     if scenario == "late-invalid":
@@ -253,6 +255,8 @@ with sync_playwright() as pw:
                             pending.continue_()
                         ready()
                         capture(scenario + "-after")
+                        if page.locator("#tx-details").is_hidden():
+                            page.locator("#tx-details-toggle").click()
                         for field, value in wanted.items():
                             expect(page.locator("#" + field)).to_have_value(value)
                         assert node.evaluate(
@@ -327,6 +331,8 @@ with sync_playwright() as pw:
                             "tx-tags": "agenda",
                             "tx-amt": "19.75",
                         }
+                        if page.locator("#tx-details").is_hidden():
+                            page.locator("#tx-details-toggle").click()
                         for field, value in wanted.items():
                             page.locator("#" + field).fill(value)
                         expected = page.evaluate("""() => ({

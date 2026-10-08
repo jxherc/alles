@@ -70,7 +70,12 @@ def run():
                 )
                 observations.append({"label": label, **state})
                 assert state["dockVisible"]
-                assert state["clear"] and state["row"]["bottom"] <= state["dock"]["y"], state
+                # The phone transfer region now scrolls before the file list; desktop
+                # retains the lower dock. Both layouts must keep the control unobscured.
+                assert state["clear"] and (
+                    state["row"]["bottom"] <= state["dock"]["y"]
+                    or state["dock"]["bottom"] <= state["row"]["y"]
+                ), state
 
             def lower_row(case):
                 page.mouse.move(width - 70, min(height - 310, 450))

@@ -82,7 +82,7 @@ with sync_playwright() as pw:
                 card.locator('[data-act="del"]').click()
                 with page.expect_response(endpoint):
                     page.get_by_role("alertdialog").get_by_role(
-                        "button", name="confirm", exact=True
+                        "button", name="remove book", exact=True
                     ).click()
             page.wait_for_timeout(100)
             success = page.locator(".toast.success").all_text_contents()

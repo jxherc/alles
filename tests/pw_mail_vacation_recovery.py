@@ -180,6 +180,9 @@ with sync_playwright() as pw:
                         page.get_by_role(
                             "button", name="rules & vacation responder", exact=True
                         ).click()
+                        dialog = page.get_by_role("alertdialog")
+                        expect(dialog).to_contain_text("discard unsaved rules or vacation changes?")
+                        dialog.get_by_role("button", name="confirm", exact=True).click()
                         expect(page.locator("#mail-main").get_by_role("status")).to_have_text(
                             "loading rules…"
                         )
@@ -202,6 +205,11 @@ with sync_playwright() as pw:
                             page.locator("#mv-body").fill("newer unsaved text")
                         else:
                             page.locator("#mail-compose-btn").click()
+                            dialog = page.get_by_role("alertdialog")
+                            expect(dialog).to_contain_text(
+                                "discard unsaved rules or vacation changes?"
+                            )
+                            dialog.get_by_role("button", name="confirm", exact=True).click()
                             expect(page.locator("#mc-html")).to_be_visible()
                             page.locator("#mc-subj").fill("keep new composer")
                         route, response = held.pop()

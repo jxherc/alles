@@ -820,15 +820,6 @@
   },
   {
     "rule": "small-type",
-    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-intro p",
-    "css_block_sha256": "15c08099448c8446f170888fc1f9abb5faf7e13bff9d550e0a3ef52eac21ac54",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-intro p",
-    "job": "secondary-metadata",
-    "reason": "Home settings introduction explains the section-visibility controls below its heading."
-  },
-  {
-    "rule": "small-type",
     "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] #home-settings-load-state",
     "css_block_sha256": "20b5b287d8e5d3943c1a33ac12b525515625134d7252998ff7c1da58467cdf1a",
     "path": "static/kokuen.css",
@@ -947,7 +938,7 @@
   {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-save; check for nested bezels",
-    "css_block_sha256": "d3a9d4b5921bd31ca2586e70590d61fb76cf1196530c6d444fd2685ed06fd0bf",
+    "css_block_sha256": "2f11d4ea354786c533233a58eaeb8c7ad09aa3635dad3221ffceff9945647857",
     "path": "static/kokuen.css",
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-save",
     "job": "distinct-region",

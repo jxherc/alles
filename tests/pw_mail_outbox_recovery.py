@@ -662,6 +662,8 @@ with sync_playwright() as pw:
                         page.unroute(cancel_url, fail)
                         page.locator("#mail-outbox-cancel").click()
                     expect(status).to_contain_text("delivery canceled")
+                    if case in {"cancel-failed-reload", "send-undo-failure"}:
+                        page.locator("#mail-outbox-open").click()
                     expect(body).to_have_text("exact future message 中文")
                     assert rows() == []
                 elif case == "cancel-claimed-delivery":
@@ -735,6 +737,8 @@ with sync_playwright() as pw:
                     identity = writes[0]["request_id"]
                     page.locator("#mail-outbox-cancel").click()
                     expect(status).to_contain_text("delivery canceled")
+                    if case in {"cancel-failed-reload", "send-undo-failure"}:
+                        page.locator("#mail-outbox-open").click()
                     expect(body).to_have_text("exact future message 中文")
                     route, _ = held.pop()
                     response = route.fetch()
@@ -765,6 +769,8 @@ with sync_playwright() as pw:
                         page.unroute(url, handler)
                         page.locator("#mail-outbox-cancel").click()
                     expect(status).to_contain_text("delivery canceled")
+                    if case in {"cancel-failed-reload", "send-undo-failure"}:
+                        page.locator("#mail-outbox-open").click()
                     expect(body).to_have_text("exact future message 中文")
                     assert rows() == []
                 elif case == "late-queue-new-text":
