@@ -17,6 +17,25 @@ class MoneyApiTest(ApiTest):
         self.assertEqual(b["spent"], 24.0)  # was 0.0 with a blank label
         self.assertEqual(b["category"], "coffee")
 
+    def test_age_of_money_never_negative(self):
+        # regression: FIFO used to match an expense to income dated AFTER it, giving a
+        # negative "age of money" (you can't spend money you haven't earned yet).
+        a = self.client.post("/api/money/accounts", json={"name": "chk"}).json()["id"]
+
+        def mk(day, amount):
+            return self.client.post(
+                "/api/money/transactions",
+                json={"account_id": a, "date": day, "amount": amount},
+            )
+
+        mk("2026-01-05", -50.0)  # spend BEFORE any income (unfunded → excluded)
+        mk("2026-01-10", 200.0)  # income arrives later
+        mk("2026-01-20", -80.0)  # funded by the 01-10 income → age = 10 days
+        r = self.client.get("/api/money/age-of-money").json()
+        self.assertIsNotNone(r["age"])
+        self.assertGreaterEqual(r["age"], 0)  # never negative
+        self.assertEqual(r["age"], 10)  # only the funded 01-20 spend counts
+
     def test_account_balance_reflects_transactions(self):
         a = self.client.post(
             "/api/money/accounts", json={"name": "checking", "opening": 100.0}
@@ -61,9 +80,7 @@ class MoneyApiTest(ApiTest):
             "/api/money/transactions",
             json={"account_id": a["id"], "date": "2026-06-01", "amount": -5.0},
         ).json()
-        r = self.client.patch(
-            f"/api/money/transactions/{t['id']}", json={"account_id": "ghost"}
-        )
+        r = self.client.patch(f"/api/money/transactions/{t['id']}", json={"account_id": "ghost"})
         self.assertEqual(r.status_code, 400)
 
     def test_summary_and_delete(self):
@@ -88,8 +105,10 @@ class MoneyApiTest(ApiTest):
         self.assertEqual(r.json()["name"], "new")
 
     def test_transfer_creates_two_linked_legs(self):
-        a = self.client.post("/api/money/accounts", json={"name": "src", "opening": 500.0}).json()
-        b = self.client.post("/api/money/accounts", json={"name": "dst"}).json()
+        a = self.client.post(
+            "/api/money/accounts", json={"name": "src", "currency": "CAD", "opening": 500.0}
+        ).json()
+        b = self.client.post("/api/money/accounts", json={"name": "dst", "currency": "CAD"}).json()
         r = self.client.post(
             "/api/money/transfer",
             json={

@@ -5,27 +5,39 @@ let _editing = null;
 let _q = '';
 let _tag = '';      // active tag filter, '' = all
 let _searchWired = false;
+let _deepLinked = false;
+let _fetcher = fetch;
 
-export async function loadNotes() {
+export async function loadNotes(fetcher = _fetcher) {
+  _fetcher = fetcher;
   _wireSearch();
   const qs = new URLSearchParams();
   if (_q) qs.set('q', _q);
   if (_tag) qs.set('tag', _tag);
-  const r = await fetch('/api/notes' + (qs.toString() ? `?${qs}` : ''));
+  const r = await _fetcher('/api/notes' + (qs.toString() ? `?${qs}` : ''));
   _notes = await r.json();
   renderNotes();
   _renderTagbar();
+  // recall links here as /?app=notes#<stem> — open that note once
+  if (!_deepLinked && location.hash.length > 1) {
+    _deepLinked = true;
+    const want = decodeURIComponent(location.hash.slice(1));
+    const hit = _notes.find(n => n.id === want);
+    if (hit) openEditor(hit);
+  }
 }
 
 function _wireSearch() {
   if (_searchWired) return;
   const inp = document.getElementById('note-search');
-  if (!inp) return;
+  const newBtn = document.getElementById('note-new-btn');
+  if (!inp && !newBtn) return;
   let t;
-  inp.addEventListener('input', e => {
+  inp?.addEventListener('input', e => {
     clearTimeout(t);
     t = setTimeout(() => { _q = e.target.value.trim(); loadNotes(); }, 200);
   });
+  newBtn?.addEventListener('click', newNote);
   _searchWired = true;
 }
 
@@ -33,7 +45,7 @@ async function _renderTagbar() {
   const bar = document.getElementById('note-tagbar');
   if (!bar) return;
   let tags = [];
-  try { tags = await fetch('/api/notes/tags').then(r => r.json()); } catch {}
+  try { tags = await _fetcher('/api/notes/tags').then(r => r.json()); } catch {}
   if (!tags.length) { bar.innerHTML = ''; return; }
   bar.innerHTML =
     `<button class="note-tag-chip${_tag ? '' : ' on'}" data-tag="">all</button>` +
@@ -45,18 +57,20 @@ async function _renderTagbar() {
 
 function renderNotes() {
   const list = document.getElementById('notes-list');
-  if (!list) return;
+  // Vault events refresh the backing list after note writes. Keep the active
+  // editor and its unsaved input mounted until the owner explicitly goes back.
+  if (!list || _editing) return;
 
   if (!_notes.length) {
     const filtered = _q || _tag;
     const title = filtered ? 'no notes match that' : 'no notes yet';
-    const sub = filtered ? 'try a different search or tag.' : 'jot a thought, a list, anything — hit + new note.';
+    const sub = filtered ? 'try a different search or tag.' : 'jot a thought, a list, anything. hit + new note.';
     list.innerHTML = `<div class="notes-empty"><div class="notes-empty-title">${title}</div><div class="notes-empty-sub">${sub}</div></div>`;
     return;
   }
 
   list.innerHTML = _notes.map(n => `
-    <div class="note-card${n.pinned ? ' pinned' : ''}" data-id="${n.id}">
+    <div class="note-card${n.pinned ? ' pinned' : ''}" data-id="${esc(n.id)}">
       <div class="note-title">${esc(n.title || 'untitled')}</div>
       <div class="note-preview">${esc(n.content.slice(0, 200)) || '—'}</div>
       ${(n.due || n.items?.length) ? `<div class="note-meta-row">
@@ -65,9 +79,9 @@ function renderNotes() {
       </div>` : ''}
       ${n.tags?.length ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       <div class="note-actions">
-        <button class="act-btn note-pin-btn" data-id="${n.id}" data-pinned="${n.pinned}">${n.pinned ? 'unpin' : 'pin'}</button>
-        <button class="act-btn note-archive-btn" data-id="${n.id}">archive</button>
-        <button class="act-btn note-del-btn" data-id="${n.id}">delete</button>
+        <button class="act-btn note-pin-btn" data-id="${esc(n.id)}" data-pinned="${n.pinned}">${n.pinned ? 'unpin' : 'pin'}</button>
+        <button class="act-btn note-archive-btn" data-id="${esc(n.id)}">archive</button>
+        <button class="act-btn note-del-btn" data-id="${esc(n.id)}">delete</button>
       </div>
     </div>`).join('');
 
@@ -81,7 +95,7 @@ function renderNotes() {
   list.querySelectorAll('.note-del-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/notes/${btn.dataset.id}`, { method: 'DELETE' });
+      await _fetcher(`/api/notes/${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
       await loadNotes();
     });
   });
@@ -89,7 +103,7 @@ function renderNotes() {
   list.querySelectorAll('.note-archive-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/notes/${btn.dataset.id}/archive`, {
+      await _fetcher(`/api/notes/${encodeURIComponent(btn.dataset.id)}/archive`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ archived: true }),
       });
@@ -101,7 +115,7 @@ function renderNotes() {
   list.querySelectorAll('.note-pin-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`/api/notes/${btn.dataset.id}`, {
+      await _fetcher(`/api/notes/${encodeURIComponent(btn.dataset.id)}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ pinned: btn.dataset.pinned === 'false' }),
@@ -127,6 +141,7 @@ function openEditor(note) {
         <input type="date" class="note-editor-title" id="note-edit-due" value="${esc(note.due || '')}" style="font-size:0.78rem;width:auto" title="due date">
       </div>
       <div style="display:flex;gap:0.4rem;justify-content:flex-end">
+        <button class="btn" id="note-obsidian-btn" title="open this note in Obsidian">obsidian</button>
         <button class="btn" id="note-back-btn">← back</button>
         <button class="btn primary" id="note-save-btn">save</button>
       </div>
@@ -135,13 +150,25 @@ function openEditor(note) {
   (note.items || []).forEach(it => _addChecklistRow(it.text, it.done));
   document.getElementById('note-add-item').addEventListener('click', () => _addChecklistRow('', false, true));
 
+  document.getElementById('note-obsidian-btn')?.addEventListener('click', async () => {
+    if (!_editing) return;
+    const rel = 'Notes/' + _editing.id + '.md';
+    const r = await _fetcher('/api/vault-location?path=' + encodeURIComponent(rel)).then(r => r.json()).catch(() => null);
+    if (r?.obsidian) location.href = r.obsidian;
+  });
+
   document.getElementById('note-back-btn').addEventListener('click', async () => {
-    await saveCurrentNote();
-    await loadNotes();
+    const saved = await saveCurrentNote();
+    if (saved) await loadNotes();
   });
 
   document.getElementById('note-save-btn').addEventListener('click', async () => {
-    await saveCurrentNote();
+    const prevId = _editing?.id;
+    const updated = await saveCurrentNote();
+    // a retitle renamed the file (new id) → rebuild the editor on the fresh note so further
+    // edits hit the right file; otherwise just keep editing the same one
+    if (updated && updated.id !== prevId) openEditor(updated);
+    else if (updated) _editing = updated;
     toast('saved', 'success');
   });
 }
@@ -152,9 +179,13 @@ function _addChecklistRow(text = '', done = false, focus = false) {
   const row = document.createElement('div');
   row.className = 'note-cl-row';
   row.innerHTML = `
-    <input type="checkbox" class="note-cl-done" ${done ? 'checked' : ''}>
+    <button type="button" class="note-cl-done chk" role="checkbox" aria-checked="${done ? 'true' : 'false'}" aria-label="mark item done"></button>
     <input type="text" class="note-cl-text" value="${esc(text)}" placeholder="item…">
     <button class="act-btn note-cl-del" title="remove">✕</button>`;
+  row.querySelector('.note-cl-done').addEventListener('click', event => {
+    const button = event.currentTarget;
+    button.setAttribute('aria-checked', button.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+  });
   row.querySelector('.note-cl-del').addEventListener('click', () => row.remove());
   box.appendChild(row);
   if (focus) row.querySelector('.note-cl-text').focus();
@@ -162,7 +193,10 @@ function _addChecklistRow(text = '', done = false, focus = false) {
 
 function _gatherItems() {
   return [...document.querySelectorAll('#note-checklist .note-cl-row')]
-    .map(r => ({ text: r.querySelector('.note-cl-text').value.trim(), done: r.querySelector('.note-cl-done').checked }))
+    .map(r => ({
+      text: r.querySelector('.note-cl-text').value.trim(),
+      done: r.querySelector('.note-cl-done').getAttribute('aria-checked') === 'true',
+    }))
     .filter(i => i.text);
 }
 
@@ -174,23 +208,38 @@ function _isOverdue(due) {
 
 
 export async function saveCurrentNote() {
-  if (!_editing) return;
+  if (!_editing) return null;
   const title = document.getElementById('note-edit-title')?.value || '';
   const content = document.getElementById('note-edit-body')?.value || '';
   const tags = (document.getElementById('note-edit-tags')?.value || '').split(',').map(t => t.trim()).filter(Boolean);
   const due = document.getElementById('note-edit-due')?.value || '';
   const items = _gatherItems();
-  await fetch(`/api/notes/${_editing.id}`, {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title, content, tags, items, due }),
-  });
+  // the id is the filename stem — retitling renames the file, so the response can carry a NEW id
+  let updated = null;
+  try {
+    const r = await _fetcher(`/api/notes/${encodeURIComponent(_editing.id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title, content, tags, items, due, expected_hash: _editing.hash || '' }),
+    });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      if (data.code === 'document_conflict') {
+        toast('this note changed outside Alles. reload it before saving', 'error');
+        return null;
+      }
+      throw new Error(data.detail || 'note could not be saved');
+    }
+    updated = await r.json();
+  } catch (error) { toast(error.message || 'note could not be saved', 'error'); }
+  if (!updated) return null;
   _editing = null;
+  return updated;
 }
 
 
 export async function newNote() {
-  const r = await fetch('/api/notes', {
+  const r = await _fetcher('/api/notes', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ title: '', content: '' }),
@@ -204,3 +253,6 @@ export async function newNote() {
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// let settings "apply" + the vault file-watcher refresh the list
+if (typeof window !== 'undefined') window._reloadNotes = loadNotes;

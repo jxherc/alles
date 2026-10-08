@@ -7,6 +7,10 @@ const DESTRUCTIVE = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_
   'git_commit', 'git_push', 'revert_file', 'delete_file', 'mail_send',
   'computer_click', 'computer_type', 'computer_key', 'computer_scroll']);
 
+export function canRevertTool(name) {
+  return ['write_file', 'edit_file', 'apply_patch'].includes(name);
+}
+
 function esc(s = '') {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -48,8 +52,9 @@ export function renderDiff(diff = '') {
   }).join('\n');
 }
 
-export function renderAgentSteps(steps, open = false) {
+export function renderAgentSteps(steps, open = false, agentRunId = '') {
   if (!Array.isArray(steps) || !steps.length) return '';
+  open = open || steps.some(step => step?.error || step?.completed === false);
   let edits = 0;
   const rows = steps.map(s => {
     const name = s.name || s.tool || 'tool';
@@ -70,10 +75,76 @@ export function renderAgentSteps(steps, open = false) {
         <span class="agent-step-dot"></span>
         <span class="agent-step-name">${esc(name)}</span>
         <span class="agent-step-summary">${esc(summary(name, s.args))}</span>
+        ${s.completed === false ? '<span class="agent-step-summary">no final result</span>' : ''}
         ${badge}
       </div>${argsBlock}${out}${diff}
     </div>`;
   }).join('');
-  const label = `agent steps · ${steps.length}${edits ? ` · ${edits} edit${edits > 1 ? 's' : ''}` : ''}`;
-  return `<details class="agent-steps"${open ? ' open' : ''}><summary>${label}</summary><div class="agent-step-list">${rows}</div></details>`;
+  const detail = `${steps.length} step${steps.length === 1 ? '' : 's'}${edits ? ` · ${edits} edit${edits > 1 ? 's' : ''}` : ''}`;
+  const runId = String(agentRunId || '').trim();
+  const reversible = steps.some(step => step.diff && canRevertTool(step.name || step.tool));
+  const controls = runId ? `<span class="agent-run-controls">
+    <button type="button" class="agent-sources-btn" data-agent-sources="${esc(runId)}" aria-expanded="false" title="confirmed reads, search results and tool outcomes">sources</button>
+    ${reversible ? `<button type="button" class="agent-revert-btn" data-agent-revert="${esc(runId)}" title="restore every file this run changed">revert edits</button>` : ''}
+  </span>` : '';
+  return `<details class="agent-steps"${open ? ' open' : ''}><summary>run details · ${detail}${controls}</summary><div class="agent-step-list">${rows}</div></details>`;
+}
+
+export function wireAgentRunControls(root) {
+  root?.querySelectorAll?.('[data-agent-sources]').forEach(button => {
+    if (button.dataset.wired) return;
+    button.dataset.wired = '1';
+    let panel = null;
+    button.addEventListener('click', async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (button.getAttribute('aria-disabled') === 'true') return;
+      if (panel && !panel.hidden) { panel.hidden = true; button.setAttribute('aria-expanded', 'false'); return; }
+      button.setAttribute('aria-disabled', 'true');
+      button.textContent = 'loading sources…';
+      try {
+        const response = await fetch(`/api/agent/runs/${encodeURIComponent(button.dataset.agentSources)}/sources`);
+        if (!response.ok) throw new Error('sources unavailable');
+        const { sourcesHtml } = await import('./runs.js');
+        const sources = await response.json();
+        if (!Array.isArray(sources?.sources) || !sources.outcomes) throw new Error('sources unavailable');
+        if (!button.isConnected) return;
+        panel ||= document.createElement('div');
+        panel.className = 'agent-sources';
+        panel.innerHTML = sourcesHtml(sources);
+        panel.hidden = false;
+        const details = button.closest('.agent-steps');
+        if (details) {
+          details.open = true;
+          details.appendChild(panel);
+        }
+        button.textContent = 'sources';
+        button.setAttribute('aria-expanded', 'true');
+      } catch {
+        button.textContent = 'retry sources';
+        button.setAttribute('aria-expanded', 'false');
+      } finally {
+        button.removeAttribute('aria-disabled');
+      }
+    });
+  });
+  root?.querySelectorAll?.('[data-agent-revert]').forEach(button => {
+    if (button.dataset.wired) return;
+    button.dataset.wired = '1';
+    button.addEventListener('click', async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      button.disabled = true;
+      button.textContent = 'reverting…';
+      try {
+        const response = await fetch(`/api/agent/runs/${encodeURIComponent(button.dataset.agentRevert)}/revert`, { method: 'POST' });
+        if (!response.ok) throw new Error('revert failed');
+        const result = await response.json();
+        button.textContent = `reverted ${result.restored || 0}`;
+      } catch {
+        button.textContent = 'revert failed';
+        button.disabled = false;
+      }
+    });
+  });
 }

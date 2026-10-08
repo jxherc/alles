@@ -3,8 +3,9 @@
 // summary aide already tracks. hand-drawn SVG sparklines, no chart lib. distinct from
 // the `system` app (which watches this machine).
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js';
+import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm } from './dialog.js';
+import { formatNumber } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -15,10 +16,11 @@ let _editing = null;
 let _adding = false;
 let _poll = null;
 
-export function initWatch() {
-  loadWatch();
+export function initWatch(fetcher = fetch) {
+  const loading = loadWatch(fetcher);
   _startPoll();
   document.addEventListener('visibilitychange', _onVis);
+  return loading;
 }
 
 function _onVis() {
@@ -28,15 +30,15 @@ function _onVis() {
 function _startPoll() { _stopPoll(); _poll = setInterval(() => { if (document.hidden || document.getElementById('watch-view')?.style.display === 'none') return; _refreshQuiet(); }, 15000); }
 function _stopPoll() { if (_poll) { clearInterval(_poll); _poll = null; } }
 
-export async function loadWatch() {
+export async function loadWatch(fetcher = fetch) {
   try {
-    _mons = (await fetch('/api/watch/overview').then(r => r.json())).monitors || [];
+    _mons = (await fetcher('/api/watch/overview').then(r => r.json())).monitors || [];
   } catch { _mons = []; }
   try {
-    _ai = await fetch('/api/usage/summary').then(r => r.json());
+    _ai = await fetcher('/api/usage/summary').then(r => r.json());
   } catch { _ai = null; }
   try {
-    _statusCfg = await fetch('/api/status/config').then(r => r.json());
+    _statusCfg = await fetcher('/api/status/config').then(r => r.json());
   } catch { _statusCfg = { enabled: false }; }
   _render();
 }
@@ -108,7 +110,7 @@ function _render() {
   const cards = _mons.map(m => m.id === _editing ? _editCard(m) : _card(m)).join('');
   const grid = _mons.length
     ? `<div class="watch-grid">${cards}</div>`
-    : (_adding ? '' : `<div class="watch-empty">nothing watched yet — add a site, a <code>/health</code> endpoint, or a cert to keep an eye on. add one below.</div>`);
+    : (_adding ? '' : `<div class="watch-empty">nothing watched yet: add a site, a <code>/health</code> endpoint, or a cert to keep an eye on. add one below.</div>`);
 
   body.innerHTML = `
     <div class="watch-bar">
@@ -139,9 +141,9 @@ function _aiCard() {
       <div class="watch-ai-stats">
         <div class="watch-ai-stat"><b>${fmt(_ai.total_tokens || 0)}</b><span>total tokens</span></div>
         <div class="watch-ai-stat"><b>${fmt(thisMonth ? thisMonth.total : 0)}</b><span>this month</span></div>
-        <div class="watch-ai-stat"><b>${(_ai.total_messages || 0).toLocaleString()}</b><span>messages</span></div>
+        <div class="watch-ai-stat"><b>${formatNumber(_ai.total_messages || 0)}</b><span>messages</span></div>
       </div>
-      ${top.length ? `<div class="watch-ai-models">${top.map(m => `<span title="${esc(m.name)}: ${m.total.toLocaleString()} tok">${esc(m.name)} · ${fmt(m.total)}</span>`).join('')}</div>` : ''}
+      ${top.length ? `<div class="watch-ai-models">${top.map(m => `<span title="${esc(m.name)}: ${formatNumber(m.total)} tok">${esc(m.name)} · ${fmt(m.total)}</span>`).join('')}</div>` : ''}
     </div>`;
 }
 

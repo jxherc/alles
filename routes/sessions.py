@@ -1,20 +1,24 @@
 import html as _html
 import json as _json
 import re as _re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Message, ModelEndpoint, Session, get_db
-from services import lifecycle
+from core.api_errors import ApiError
+from core.auth import require_recent_owner
+from core.database import Message, ModelEndpoint, Project, Session, get_db
+from services import incognito, lifecycle
+from services.project_environment import canonical_folder, session_environment
+from services.project_git import ProjectGitError, branch_state, switch_branch
 
 
 async def _fire(event: str, data: dict):
     try:
-        from routes.webhooks import fire
+        from services.webhook_delivery import fire
 
         await fire(event, data)
     except Exception:
@@ -23,24 +27,46 @@ async def _fire(event: str, data: dict):
 
 router = APIRouter(prefix="/api")
 
+_AIDE_MODES = {"chat", "jarvis"}
+_CHAT_BEHAVIORS = {"", "automatic_tools", "answer_only"}
+
+
+def _aide_mode(value: str) -> str:
+    value = str(value or "chat").strip().lower()
+    if value == "agent":
+        return "jarvis"
+    if value not in _AIDE_MODES:
+        raise ValueError("mode must be chat or jarvis")
+    return value
+
+
+def _chat_behavior(value: str) -> str:
+    value = str(value or "").strip().lower()
+    if value not in _CHAT_BEHAVIORS:
+        raise ValueError("chat behavior must follow settings, use automatic tools, or answer only")
+    return value
+
 
 def _session_or_404(session_id: str, db: DbSession):
-    s = db.get(Session, session_id)
+    s = incognito.get_session(session_id) or db.get(Session, session_id)
     if not s or s.archived:
         raise HTTPException(404, "session not found")
     return s
 
 
 def _fmt_session(s: Session) -> dict:
+    environment = session_environment(s)
     return {
         "id": s.id,
         "name": s.name,
         "model": s.model,
         "endpoint_id": s.endpoint_id,
-        "mode": s.mode,
+        "mode": _aide_mode(s.mode),
+        "chat_behavior": _chat_behavior(getattr(s, "chat_behavior", "")),
         "persona_id": s.persona_id,
         "project_id": getattr(s, "project_id", None),
         "working_dir": getattr(s, "working_dir", "") or "",
+        "environment": environment,
         "starred": s.starred,
         "incognito": bool(getattr(s, "incognito", False)),
         "message_count": s.message_count,
@@ -59,7 +85,7 @@ def list_sessions(db: DbSession = Depends(get_db)):
         .order_by(Session.last_message_at.desc())
         .all()
     )
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
     today = now.date()
     yesterday = (now - timedelta(days=1)).date()
 
@@ -80,6 +106,7 @@ class CreateSession(BaseModel):
     endpoint_id: str = ""
     name: str = "new chat"
     mode: str = "chat"
+    chat_behavior: str = ""
     incognito: bool = False
     working_dir: str = ""
     persona_id: str = ""
@@ -88,29 +115,66 @@ class CreateSession(BaseModel):
 
 # POST /api/sessions
 @router.post("/sessions")
-async def create_session(body: CreateSession, bg: BackgroundTasks, db: DbSession = Depends(get_db)):
+async def create_session(
+    body: CreateSession,
+    bg: BackgroundTasks,
+    response: Response,
+    db: DbSession = Depends(get_db),
+):
+    try:
+        mode = _aide_mode(body.mode)
+        chat_behavior = _chat_behavior(body.chat_behavior)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    project = None
+    if body.project_id:
+        project = db.get(Project, body.project_id)
+        if not project:
+            raise HTTPException(404, "project not found")
+    working_dir = ""
+    if not project and body.working_dir.strip():
+        try:
+            working_dir = canonical_folder(body.working_dir, must_exist=True)
+        except ValueError as exc:
+            raise ApiError(400, str(exc), str(exc).replace("_", " ")) from exc
+    if body.incognito:
+        response.headers["Cache-Control"] = "no-store"
+        session = incognito.create_session(
+            name=body.name,
+            model=body.model,
+            endpoint_id=body.endpoint_id or None,
+            mode=mode,
+            chat_behavior=chat_behavior,
+            working_dir=working_dir,
+            persona_id=body.persona_id or None,
+            project_id=body.project_id or None,
+            project=project,
+        )
+        return _fmt_session(session)
     s = Session(
         name=body.name,
         model=body.model,
         endpoint_id=body.endpoint_id or None,
-        mode=body.mode,
+        mode=mode,
+        chat_behavior=chat_behavior,
         incognito=body.incognito,
-        working_dir=body.working_dir,
+        working_dir=working_dir,
         persona_id=body.persona_id or None,
         project_id=body.project_id or None,
     )
     db.add(s)
     db.commit()
     db.refresh(s)
-    if not body.incognito:
-        bg.add_task(_fire, "session_created", {"session_id": s.id, "name": s.name})
+    bg.add_task(_fire, "session_created", {"session_id": s.id, "name": s.name})
     return _fmt_session(s)
 
 
 # GET /api/sessions/{id}/history
 @router.get("/sessions/{session_id}/history")
-def get_history(session_id: str, db: DbSession = Depends(get_db)):
+def get_history(session_id: str, response: Response, db: DbSession = Depends(get_db)):
     s = _session_or_404(session_id, db)
+    if getattr(s, "incognito", False):
+        response.headers["Cache-Control"] = "no-store"
     msgs = []
     for m in s.messages:
         msgs.append(
@@ -130,9 +194,11 @@ class PatchSession(BaseModel):
     model: str | None = None
     endpoint_id: str | None = None
     mode: str | None = None
+    chat_behavior: str | None = None
     starred: bool | None = None
     persona_id: str | None = None
     working_dir: str | None = None
+    project_id: str | None = None
 
 
 # PATCH /api/sessions/{id}
@@ -149,22 +215,85 @@ async def patch_session(
     if body.endpoint_id is not None:
         s.endpoint_id = body.endpoint_id or None
     if body.mode is not None:
-        s.mode = body.mode
+        try:
+            s.mode = _aide_mode(body.mode)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+    if body.chat_behavior is not None:
+        try:
+            s.chat_behavior = _chat_behavior(body.chat_behavior)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
     if body.starred is not None:
         s.starred = body.starred
     if body.persona_id is not None:
         s.persona_id = body.persona_id or None
+    if body.project_id is not None:
+        if body.project_id:
+            project = db.get(Project, body.project_id)
+            if not project:
+                raise HTTPException(404, "project not found")
+            s.project_id = project.id
+            s.project = project
+            s.working_dir = ""
+        else:
+            s.project_id = None
+            s.project = None
     if body.working_dir is not None:
-        s.working_dir = body.working_dir
-    db.commit()
-    if renamed:
+        if body.working_dir.strip():
+            try:
+                s.working_dir = canonical_folder(body.working_dir, must_exist=True)
+            except ValueError as exc:
+                raise ApiError(400, str(exc), str(exc).replace("_", " ")) from exc
+            s.project_id = None
+            s.project = None
+        else:
+            s.working_dir = ""
+    ephemeral = incognito.get_session(session_id) is s
+    if not ephemeral:
+        db.commit()
+    if renamed and not ephemeral:
         bg.add_task(_fire, "session_renamed", {"session_id": s.id, "name": s.name})
     return _fmt_session(s)
+
+
+class SwitchSessionBranch(BaseModel):
+    branch: str
+
+
+@router.get("/sessions/{session_id}/git/branches")
+def session_git_branches(session_id: str, db: DbSession = Depends(get_db)):
+    session = _session_or_404(session_id, db)
+    environment = session_environment(session)
+    cwd = environment.get("cwd") or ""
+    if not cwd:
+        return {"repository": False, "current": "", "branches": [], "dirty": False}
+    return branch_state(cwd)
+
+
+@router.post("/sessions/{session_id}/git/branches")
+def switch_session_branch(
+    session_id: str,
+    body: SwitchSessionBranch,
+    request: Request,
+    db: DbSession = Depends(get_db),
+):
+    require_recent_owner(request)
+    session = _session_or_404(session_id, db)
+    cwd = session_environment(session).get("cwd") or ""
+    if not cwd:
+        raise ApiError(409, "session_folder_unavailable", "choose a working folder first")
+    try:
+        return switch_branch(cwd, body.branch.strip())
+    except ProjectGitError as exc:
+        raise ApiError(409, "session_git_switch_failed", str(exc)) from exc
 
 
 # POST /api/sessions/{id}/archive
 @router.post("/sessions/{session_id}/archive")
 def archive_session(session_id: str, db: DbSession = Depends(get_db)):
+    if incognito.delete_session(session_id):
+        return {"ok": True}
     s = db.get(Session, session_id)
     if not s:
         raise HTTPException(404)
@@ -176,6 +305,8 @@ def archive_session(session_id: str, db: DbSession = Depends(get_db)):
 # DELETE /api/sessions/{id}
 @router.delete("/sessions/{session_id}")
 def delete_session(session_id: str, db: DbSession = Depends(get_db)):
+    if incognito.delete_session(session_id):
+        return {"ok": True}
     s = db.get(Session, session_id)
     if not s:
         raise HTTPException(404)

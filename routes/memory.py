@@ -1,10 +1,18 @@
+import json
+import re
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 
+from core.api_errors import ApiError
+from core.auth import require_recent_owner
 from services.memory_store import (
+    MemoryPolicyError,
+    accept_memory,
     add_memory,
+    clear_memories,
     debug_search,
     delete_memory,
     get_all_memories,
@@ -37,6 +45,10 @@ def list_distilled():
                 "provenance": m.provenance,
                 "vetoed": m.vetoed,
                 "pinned": m.pinned,
+                "scope": m.scope or "global",
+                "project_id": m.project_id,
+                "status": m.status or "active",
+                "trust": m.trust or "derived",
             }
             for m in rows
         ]
@@ -82,6 +94,8 @@ class AddMemory(BaseModel):
     text: str
     category: str = ""
     pinned: bool = False
+    scope: str = "global"
+    project_id: str = ""
 
 
 # POST /api/memories
@@ -89,19 +103,43 @@ class AddMemory(BaseModel):
 def create_memory(body: AddMemory):
     if not body.text.strip():
         raise HTTPException(400, "text required")
-    return add_memory(body.text, category=body.category, pinned=body.pinned)
+    try:
+        return add_memory(
+            body.text,
+            category=body.category,
+            pinned=body.pinned,
+            scope=body.scope,
+            project_id=body.project_id,
+            provenance=json.dumps({"kind": "owner_request"}),
+        )
+    except MemoryPolicyError as exc:
+        raise ApiError(409, "memory_disabled", str(exc)) from exc
+    except ValueError as exc:
+        raise ApiError(400, "invalid_memory_scope", str(exc)) from exc
 
 
 class PatchMemory(BaseModel):
     text: Optional[str] = None
     category: Optional[str] = None
     pinned: Optional[bool] = None
+    scope: Optional[str] = None
+    project_id: Optional[str] = None
 
 
 # PATCH /api/memories/{id}
 @router.patch("/memories/{mid}")
 def patch_memory(mid: str, body: PatchMemory):
-    m = update_memory(mid, text=body.text or "", pinned=body.pinned, category=body.category or "")
+    try:
+        m = update_memory(
+            mid,
+            text=body.text or "",
+            pinned=body.pinned,
+            category=body.category or "",
+            scope=body.scope or "",
+            project_id=body.project_id,
+        )
+    except ValueError as exc:
+        raise ApiError(400, "invalid_memory_scope", str(exc)) from exc
     if not m:
         raise HTTPException(404)
     return m
@@ -113,6 +151,32 @@ def remove_memory(mid: str):
     if not delete_memory(mid):
         raise HTTPException(404)
     return {"ok": True}
+
+
+@router.post("/memories/{mid}/accept")
+def approve_memory(mid: str):
+    try:
+        memory = accept_memory(mid)
+    except MemoryPolicyError as exc:
+        raise ApiError(409, "memory_disabled", str(exc)) from exc
+    if not memory:
+        raise ApiError(404, "memory_not_found", "memory not found")
+    return memory
+
+
+@router.delete("/memories", dependencies=[Depends(require_recent_owner)])
+def clear_all_memories():
+    return {"ok": True, "deleted": clear_memories()}
+
+
+@router.get("/memories/export", dependencies=[Depends(require_recent_owner)])
+def export_memories():
+    payload = json.dumps(get_all_memories(), ensure_ascii=False, indent=2)
+    return Response(
+        content=payload,
+        media_type="application/json",
+        headers={"Content-Disposition": 'attachment; filename="alles-memories.json"'},
+    )
 
 
 class SearchQuery(BaseModel):
@@ -144,6 +208,16 @@ class ExtractRequest(BaseModel):
 async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
     from core.database import SessionLocal
     from services.llm import simple_complete
+    from services.memory_store import memory_policy
+
+    policy = memory_policy()
+    if policy == "off":
+        raise ApiError(409, "memory_disabled", "memory is off")
+
+    from services import incognito
+
+    if incognito.get_session(body.session_id):
+        raise ApiError(409, "incognito_memory_forbidden", "incognito does not use memory")
 
     db = SessionLocal()
     try:
@@ -152,27 +226,28 @@ async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
         s = db.get(Session, body.session_id)
         if not s:
             raise HTTPException(404, "session not found")
-        msgs = list(s.messages)[-40:]  # last 40 msgs
+        msgs = [message for message in list(s.messages)[-40:] if message.role == "user"]
         if not msgs:
             return {"extracted": 0}
 
-        convo = "\n".join(f"{m.role.upper()}: {m.content[:400]}" for m in msgs)
+        owner_texts = [message.content[:400] for message in msgs]
+        convo = "\n".join(f"USER: {text}" for text in owner_texts)
+        project_id = s.project_id or ""
     finally:
         db.close()
 
     # find a working endpoint
-    from core.database import ModelEndpoint
     from core.database import SessionLocal as SL
+    from services.model_resolver import ModelResolutionError, resolve_model
 
     db2 = SL()
     try:
-        ep = db2.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).first()
-        if not ep:
-            raise HTTPException(400, "no endpoint available for extraction")
+        try:
+            selected = resolve_model(db2, "aide_chat")
+        except ModelResolutionError as exc:
+            raise ApiError(400, exc.code, str(exc)) from exc
+        ep, model = selected.endpoint, selected.model
         base_url, api_key = ep.base_url, ep.api_key
-        model = ep.models_list()[0] if ep.models_list() else ""
-        if not model:
-            raise HTTPException(400, "no model available")
     finally:
         db2.close()
 
@@ -192,15 +267,60 @@ async def extract_from_session(body: ExtractRequest, bg: BackgroundTasks):
     raw = await simple_complete(prompt, base_url, api_key, model, max_tokens=512)
 
     # parse lines starting with "- " or "1. " etc
-    import re
-
     lines = [re.sub(r"^[-*\d.]+\s*", "", l).strip() for l in raw.splitlines()]
     lines = [l for l in lines if len(l) > 10]
 
-    n = max(0, body.max_memories)  # negative would slice off the newest extracted line instead of capping
-    count = 0
+    n = max(
+        0, body.max_memories
+    )  # negative would slice off the newest extracted line instead of capping
+    created = []
+    if policy == "auto":
+        for preference in _direct_preferences(owner_texts)[:n]:
+            created.append(
+                add_memory(
+                    preference,
+                    source="auto_owner",
+                    session_id=body.session_id,
+                    scope="project" if project_id else "global",
+                    project_id=project_id,
+                    provenance=json.dumps(
+                        {"kind": "direct_owner_statement", "session_id": body.session_id}
+                    ),
+                )
+            )
     for line in lines[:n]:
-        add_memory(line, source="extracted", session_id=body.session_id)
-        count += 1
+        created.append(
+            add_memory(
+                line,
+                source="extracted",
+                session_id=body.session_id,
+                scope="project" if project_id else "global",
+                project_id=project_id,
+                status="suggested",
+                provenance=json.dumps(
+                    {"kind": "model_suggestion", "session_id": body.session_id, "roles": ["user"]}
+                ),
+            )
+        )
 
-    return {"extracted": count, "memories": lines[:n]}
+    return {"extracted": len(created), "memories": created}
+
+
+_LOW_RISK_PREFERENCE = re.compile(
+    r"\bI\s+(?:like|love|prefer|enjoy|use)\b[^.!?\n]{1,240}[.!?]?",
+    re.IGNORECASE,
+)
+_SENSITIVE_PREFERENCE = re.compile(
+    r"\b(?:password|secret|token|api key|address|phone|email|diagnos|medical|bank|account|card)\b",
+    re.IGNORECASE,
+)
+
+
+def _direct_preferences(owner_texts: list[str]) -> list[str]:
+    result = []
+    for text in owner_texts:
+        for match in _LOW_RISK_PREFERENCE.finditer(text):
+            value = " ".join(match.group(0).split()).strip()
+            if value and not _SENSITIVE_PREFERENCE.search(value) and value not in result:
+                result.append(value)
+    return result

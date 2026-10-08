@@ -2,9 +2,19 @@
 being refactored onto services.signals. ids are random uuids so we compare the
 stable fields (titles, times, order, counts, in_days)."""
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from unittest.mock import patch
 
-from core.database import CalendarEvent, DayEvent, Reminder, Subscription, Task
+from core.database import (
+    Account,
+    CalendarEvent,
+    DayEvent,
+    Reminder,
+    Subscription,
+    Task,
+    Transaction,
+)
+from services import finance_currency
 from tests._client import ApiTest
 
 
@@ -16,8 +26,14 @@ class TodayGoldenTests(ApiTest):
     def _seed(self):
         d = self.db()
         # events: a recurring weekly (occurs today), a timed one, an all-day one
-        d.add(CalendarEvent(title="weekly sync", start_dt=_iso(-7) + "T09:00",
-                            all_day=False, recurrence="weekly"))
+        d.add(
+            CalendarEvent(
+                title="weekly sync",
+                start_dt=_iso(-7) + "T09:00",
+                all_day=False,
+                recurrence="weekly",
+            )
+        )
         d.add(CalendarEvent(title="lunch", start_dt=_iso(0) + "T12:00", all_day=False))
         d.add(CalendarEvent(title="holiday", start_dt=_iso(0), all_day=True))
         # tasks: overdue, due-today, future, no-due (last two only bump open_count)
@@ -26,12 +42,23 @@ class TodayGoldenTests(ApiTest):
         d.add(Task(title="later", done=False, due_date=_iso(5)))
         d.add(Task(title="someday", done=False))
         # reminder unfired for now
-        d.add(Reminder(text="call", trigger_at=datetime.utcnow(), fired=False))
+        d.add(Reminder(text="call", trigger_at=datetime.now(UTC).replace(tzinfo=None), fired=False))
         # subs: one within 7d, one far out (excluded)
-        d.add(Subscription(name="netflix", price=9.0, currency="$", cycle="monthly",
-                           active=True, next_due=_iso(3)))
-        d.add(Subscription(name="far", price=1.0, currency="$", cycle="yearly",
-                           active=True, next_due=_iso(20)))
+        d.add(
+            Subscription(
+                name="netflix",
+                price=9.0,
+                currency="$",
+                cycle="monthly",
+                active=True,
+                next_due=_iso(3),
+            )
+        )
+        d.add(
+            Subscription(
+                name="far", price=1.0, currency="$", cycle="yearly", active=True, next_due=_iso(20)
+            )
+        )
         # day-events: one within 3d, one far out (excluded)
         d.add(DayEvent(name="trip", date=_iso(2), repeat="none"))
         d.add(DayEvent(name="far day", date=_iso(10), repeat="none"))
@@ -46,11 +73,14 @@ class TodayGoldenTests(ApiTest):
 
         # events: timed sorted by time, all-day last
         evs = [(e["title"], e["time"], e["all_day"]) for e in r["events"]]
-        self.assertEqual(evs, [
-            ("weekly sync", "09:00", False),
-            ("lunch", "12:00", False),
-            ("holiday", "", True),
-        ])
+        self.assertEqual(
+            evs,
+            [
+                ("weekly sync", "09:00", False),
+                ("lunch", "12:00", False),
+                ("holiday", "", True),
+            ],
+        )
 
         # tasks
         self.assertEqual([t["title"] for t in r["tasks"]["overdue"]], ["rent"])
@@ -71,3 +101,166 @@ class TodayGoldenTests(ApiTest):
         # keys present
         for k in ("date", "events", "tasks", "reminders", "renewing", "day_events", "recent_docs"):
             self.assertIn(k, r)
+
+    def test_today_posts_overdue_linked_subscription_once(self):
+        d = self.db()
+        acct = Account(name="Checking", opening=100, currency="CAD")
+        finance_currency.prepare_account(acct)
+        d.add(acct)
+        d.commit()
+        due = _iso(-1)
+        sub = Subscription(
+            name="backup",
+            price=7.5,
+            currency="CAD",
+            cycle="monthly",
+            active=True,
+            next_due=due,
+            account_id=acct.id,
+        )
+        finance_currency.prepare_subscription(sub)
+        d.add(sub)
+        d.commit()
+        sid, aid = sub.id, acct.id
+        d.close()
+
+        self.client.get("/api/today", params={"date": date.today().isoformat()})
+        self.client.get("/api/today", params={"date": date.today().isoformat()})
+
+        d = self.db()
+        try:
+            txns = d.query(Transaction).filter(Transaction.account_id == aid).all()
+            self.assertEqual(len(txns), 1)
+            self.assertEqual(txns[0].date, due)
+            self.assertEqual(txns[0].amount, -7.5)
+            self.assertEqual(txns[0].payee, "backup")
+            sub = d.get(Subscription, sid)
+            self.assertEqual(sub.last_posted_due, due)
+            self.assertGreater(date.fromisoformat(sub.next_due), date.today())
+        finally:
+            d.close()
+
+    def test_today_posts_every_overdue_subscription_on_first_load(self):
+        d = self.db()
+        account = Account(name="Checking", opening=100, currency="CAD")
+        finance_currency.prepare_account(account)
+        d.add(account)
+        d.commit()
+        due = _iso(-1)
+        subscriptions = []
+        for name, price in (("backup", 7.5), ("music", 4.0)):
+            sub = Subscription(
+                name=name,
+                price=price,
+                currency="CAD",
+                cycle="monthly",
+                active=True,
+                next_due=due,
+                account_id=account.id,
+            )
+            finance_currency.prepare_subscription(sub)
+            d.add(sub)
+            subscriptions.append(sub)
+        unreviewed = Subscription(
+            name="unreviewed",
+            price=9.0,
+            currency="CAD",
+            cycle="monthly",
+            active=True,
+            next_due=due,
+            account_id=account.id,
+        )
+        finance_currency.prepare_subscription(unreviewed)
+        unreviewed.currency = "$"
+        unreviewed.original_currency_code = "XXX"
+        unreviewed.base_price_text = ""
+        unreviewed.base_currency_code = ""
+        unreviewed.fx_rate_text = ""
+        d.add(unreviewed)
+        d.commit()
+        ids = [sub.id for sub in subscriptions]
+        unreviewed_id = unreviewed.id
+        account_id = account.id
+        d.close()
+
+        response = self.client.get("/api/today", params={"date": date.today().isoformat()})
+        self.assertEqual(response.status_code, 200, response.text)
+
+        d = self.db()
+        try:
+            transactions = d.query(Transaction).filter(Transaction.account_id == account_id).all()
+            self.assertEqual({txn.payee for txn in transactions}, {"backup", "music"})
+            self.assertEqual(len(transactions), 2)
+            for sid in ids:
+                sub = d.get(Subscription, sid)
+                self.assertEqual(sub.last_posted_due, due)
+                self.assertGreater(date.fromisoformat(sub.next_due), date.today())
+            self.assertEqual(d.get(Subscription, unreviewed_id).next_due, due)
+        finally:
+            d.close()
+
+        self.client.get("/api/today", params={"date": date.today().isoformat()})
+        d = self.db()
+        try:
+            self.assertEqual(d.query(Transaction).count(), 2)
+        finally:
+            d.close()
+
+    def test_future_date_preview_does_not_post_subscription_charges(self):
+        d = self.db()
+        account = Account(name="Checking", opening=100, currency="CAD")
+        finance_currency.prepare_account(account)
+        d.add(account)
+        d.commit()
+        due = _iso(-1)
+        sub = Subscription(
+            name="backup",
+            price=7.5,
+            currency="CAD",
+            cycle="monthly",
+            active=True,
+            next_due=due,
+            account_id=account.id,
+        )
+        finance_currency.prepare_subscription(sub)
+        d.add(sub)
+        d.commit()
+        sid = sub.id
+        d.close()
+
+        future = (date.today() + timedelta(days=65)).isoformat()
+        response = self.client.get("/api/today", params={"date": future})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["date"], future)
+
+        d = self.db()
+        try:
+            self.assertEqual(d.get(Subscription, sid).next_due, due)
+            self.assertEqual(d.query(Transaction).count(), 0)
+        finally:
+            d.close()
+
+    def test_viewer_timezone_does_not_post_a_renewal_early(self):
+        today = date.today().isoformat()
+        viewer_day = (date.today() + timedelta(days=1)).isoformat()
+        d = self.db()
+        sub = Subscription(
+            name="backup", price=7.5, currency="CAD", cycle="monthly", active=True, next_due=today
+        )
+        d.add(sub)
+        d.commit()
+        sid = sub.id
+        d.close()
+
+        with patch(
+            "routes.today.signals.calendar_today", return_value=date.fromisoformat(viewer_day)
+        ):
+            response = self.client.get(
+                "/api/today", params={"date": viewer_day, "timezone": "Pacific/Kiritimati"}
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        d = self.db()
+        try:
+            self.assertEqual(d.get(Subscription, sid).next_due, today)
+        finally:
+            d.close()

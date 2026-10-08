@@ -67,7 +67,9 @@ class MemoryStoreTest(unittest.TestCase):
             self.assertIn("boost", r)
         # the relevant one outscores the irrelevant one among the non-pinned
         rest = {r["text"]: r["score"] for r in out["results"] if not r["pinned"]}
-        self.assertGreater(rest["I love hiking in the mountains"], rest["the weather is cold today"])
+        self.assertGreater(
+            rest["I love hiking in the mountains"], rest["the weather is cold today"]
+        )
 
     def test_debug_search_empty(self):
         self.assertEqual(ms.debug_search("anything")["results"], [])

@@ -65,6 +65,11 @@ export function matchesShortcut(e, shortcut) {
   return eventToShortcut(e).toLowerCase() === shortcut.toLowerCase();
 }
 
+export function matchesSettingsShortcut(e, shortcut) {
+  if (matchesShortcut(e, shortcut)) return true;
+  return e.key === ',' && !e.altKey && !e.shiftKey && (e.ctrlKey || e.metaKey);
+}
+
 function _keyName(key) {
   if (!key || ['Control', 'Alt', 'Shift', 'Meta'].includes(key)) return '';
   if (key === ' ') return 'Space';

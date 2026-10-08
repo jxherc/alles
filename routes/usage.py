@@ -6,10 +6,11 @@ no new tracking — it reads the meta that chat.py has been writing all along.
 
 import json
 from collections import defaultdict
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, Message
+from core.database import Message, get_db
 
 router = APIRouter(prefix="/api")
 

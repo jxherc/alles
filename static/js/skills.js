@@ -2,17 +2,23 @@
 // discover + load. category rail on the left, a card grid in the middle, and the
 // editor in a right slide-over drawer. library is just a mode of the same surface.
 import { toast } from './util.js';
+import { createFocusBoundary } from './kokuen.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 
 let _built = false;
 let _cur = null;            // slug open in the drawer, or null for a new one
+let _drawerBoundary = null;
+let _drawerSource = null;
+let _drawerRead = 0;
 let _matchSeq = 0;          // bumps per match call so stale responses don't clobber newer ones
+let _listRead = 0;
+const _pinning = new Set();
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const $ = id => document.getElementById(id);
 
-async function _api(url, opts) {
-  const r = await fetch(url, opts);
+async function _api(url, opts, fetcher = fetch) {
+  const r = await fetcher(url, opts);
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status);
   return r.json();
 }
@@ -35,13 +41,20 @@ const _CAT_ORDER = [
   'custom',
 ];
 const _catOf = s => (s.category && _CAT_LABEL[s.category]) ? s.category : 'custom';
+const _STARTING_SKILLS = ['plan-my-day', 'break-down-project', 'email-draft', 'explain-simply', 'compare-options', 'proofread-polish'];
+function _startingSkills(rows) {
+  const personal = rows.filter(s => s.pinned || _catOf(s) === 'custom');
+  const chosen = new Set(personal.map(s => s.slug));
+  return personal.concat(_STARTING_SKILLS.map(slug => rows.find(s => s.slug === slug))
+    .filter(s => s && !chosen.has(s.slug)));
+}
 
 // ── view state ────────────────────────────────────────────────────────────────
-let _state = { mode: 'installed', cat: 'all', q: '', source: null, libCat: 'all' };
+let _state = { mode: 'installed', cat: 'start', q: '', source: null, libCat: 'all' };
 let _data = [];
 let _sources = [];
 
-export function initSkills() {
+export function initSkills(fetcher = fetch) {
   const body = $('skills-body');
   if (!body) return;
   if (!_built) {
@@ -77,21 +90,30 @@ export function initSkills() {
     });
     _built = true;
   }
-  _state = { mode: 'installed', cat: 'all', q: '', source: null, libCat: 'all' };
-  _refresh();
+  _state = { mode: 'installed', cat: 'start', q: '', source: null, libCat: 'all' };
+  return _refresh(fetcher);
 }
 
-async function _refresh() {
+async function _refresh(fetcher = fetch, { keepGrid = false } = {}) {
   if (_state.mode === 'library') return _browseSource(_state.source || 'builtin');
+  const read = ++_listRead;
   const grid = $('skl-grid');
-  if (grid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
-  try { _data = await _api('/api/skills' + (_state.q ? `?q=${encodeURIComponent(_state.q)}` : '')); }
-  catch { if (grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>'; return; }
+  if (grid && !keepGrid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
+  try {
+    const data = await _api('/api/skills', undefined, fetcher);
+    if (read !== _listRead) return;
+    _data = data;
+  }
+  catch (error) {
+    if (read !== _listRead) return;
+    if (grid && !keepGrid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>';
+    throw error;
+  }
   _render();
 }
 
 function _catCounts(rows) {
-  const c = { all: rows.length, pinned: 0 };
+  const c = { all: rows.length, start: _startingSkills(rows).length, pinned: 0 };
   for (const s of rows) {
     if (s.pinned) c.pinned++;
     const k = _catOf(s);
@@ -109,6 +131,7 @@ function _visible() {
     if (!ql) return rows;
     return rows.filter(s => (`${s.name || ''} ${s.description || ''} ${s.when_to_use || ''} ${s.path || ''} ${s.dir || ''}`).toLowerCase().includes(ql));
   }
+  if (!ql && _state.cat === 'start') return _startingSkills(_data);
   return _data.filter(s => {
     if (ql) return (`${s.name} ${s.description} ${s.when_to_use || ''}`).toLowerCase().includes(ql);
     if (_state.cat === 'pinned') return !!s.pinned;
@@ -125,6 +148,9 @@ function _render() {
 function _renderRail() {
   const rail = $('skl-rail');
   if (!rail) return;
+  const focused = rail.contains(document.activeElement) ? document.activeElement.closest('button') : null;
+  const focusKey = focused && ['cat', 'libcat', 'src', 'act'].find(key => key in focused.dataset);
+  const focusValue = focusKey ? focused.dataset[focusKey] : null;
   let html = '';
   if (_state.mode === 'library') {
     for (const s of _sources) {
@@ -147,14 +173,17 @@ function _renderRail() {
     }
   } else {
     const counts = _catCounts(_data);
-    const row = (key, label) => counts[key]
-      ? `<button class="skl-rail-cat${_state.cat === key ? ' active' : ''}" data-cat="${key}">
+    const row = (key, label) => counts[key] || key === 'start'
+      ? `<button class="skl-rail-cat${!_state.q && _state.cat === key ? ' active' : ''}" data-cat="${key}" aria-pressed="${!_state.q && _state.cat === key}">
            <span class="skl-rail-label">${esc(label)}</span><span class="skl-rail-count">${counts[key]}</span>
          </button>` : '';
     if (_state.q) html += `<div class="skl-rail-results">results · ${_visible().length}</div>`;
+    html += row('start', 'start here');
     if (counts.pinned) html += row('pinned', 'pinned');
     html += row('all', 'all');
-    for (const k of _CAT_ORDER) if (k !== 'custom') html += row(k, _CAT_LABEL[k]);
+    if (!['start', 'pinned', 'custom'].includes(_state.cat)) {
+      for (const k of _CAT_ORDER) if (k !== 'custom') html += row(k, _CAT_LABEL[k]);
+    }
     html += row('custom', 'custom');
   }
   html += `<div class="skl-rail-foot">
@@ -164,22 +193,35 @@ function _renderRail() {
     </div>
     <input type="file" id="skl-file" accept=".md,.markdown,.txt" multiple style="display:none">`;
   rail.innerHTML = html;
+  if (focusKey && !focused.isConnected && document.activeElement === document.body) {
+    rail.querySelector(`[data-${focusKey}="${CSS.escape(focusValue)}"]`)?.focus();
+  }
   const f = $('skl-file'); if (f) f.onchange = _uploadFiles;
 }
 
 function _renderGrid(list) {
   const grid = $('skl-grid');
   if (!grid) return;
-  if (!list.length) { grid.innerHTML = `<div class="skl-empty">${_state.q ? 'no matches' : 'nothing here'}</div>`; return; }
-  if (_state.mode === 'library') {
+  const focused = grid.contains(document.activeElement) ? document.activeElement.closest('button') : null;
+  const card = focused?.closest('.skl-card');
+  const key = card?.dataset.slug ? 'slug' : 'path';
+  const value = card?.dataset[key];
+  const action = focused?.dataset.act;
+  if (!list.length) {
+    grid.innerHTML = `<div class="skl-empty">${_state.q ? 'no matches' : _state.mode === 'installed' && _state.cat === 'start' ? 'no starting skills here. choose all, search, or create a skill.' : 'nothing here'}</div>`;
+  } else if (_state.mode === 'library') {
     grid.innerHTML = list.map(_state.source === 'builtin' ? _libCard : _srcCard).join('');
   } else {
     const sorted = [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
     // explain the order, but only on the plain installed grid (not while searching)
-    const hint = _state.q ? '' : '<div class="skl-rankhint">ranked by usefulness - pinned first, then most-used, then recent</div>';
+    const hint = _state.q ? '' : `<div class="skl-rankhint">${_state.cat === 'start' ? 'common tasks, plus your pinned and custom skills. search covers all skills.' : 'ranked by usefulness - pinned first, then most-used, then recent'}</div>`;
     grid.innerHTML = hint + sorted.map(_card).join('');
   }
   _bindCards(grid);
+  if (focused && !focused.isConnected && document.activeElement === document.body) {
+    const replacement = value && grid.querySelector(`.skl-card[data-${key}="${CSS.escape(value)}"] ${action ? `[data-act="${CSS.escape(action)}"]` : '.skl-card-name'}`);
+    (replacement || document.querySelector('.skl-rail-cat.active') || $('skl-search'))?.focus();
+  }
 }
 
 // short relative time from epoch SECONDS. '' if never used
@@ -202,13 +244,13 @@ function _card(s) {
     s.source ? '<span class="skl-badge git" title="git-backed">git</span>' : '',
   ].join('');
   const acts = `<div class="skl-card-acts">
-         <button class="skl-pin${s.pinned ? ' on' : ''}" data-act="pin" title="${s.pinned ? 'unpin' : 'pin to top'}">${s.pinned ? '★' : '☆'}</button>
-         <button class="skl-del-q" data-act="del" title="delete">🗑</button>
+         <button class="skl-pin${s.pinned ? ' on' : ''}" data-act="pin" aria-label="pin ${esc(s.name)}" aria-pressed="${!!s.pinned}" aria-disabled="${_pinning.has(s.slug)}"${_pinning.has(s.slug) ? ' aria-busy="true"' : ''} title="${s.pinned ? 'unpin' : 'pin to top'}">pin</button>
+         <button class="skl-del-q" data-act="del" aria-label="delete skill ${esc(s.name)}" title="delete">delete</button>
        </div>`;
   return `
     <div class="skl-card${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
       <div class="skl-card-top">
-        <span class="skl-card-name">${esc(s.name)}</span>
+        <button type="button" class="skl-card-name" aria-label="open ${esc(s.name)}">${esc(s.name)}</button>
         ${badges}
       </div>
       <div class="skl-card-desc">${esc(s.description) || '<em>no description</em>'}</div>
@@ -222,23 +264,35 @@ function _bindCards(root) {
       const act = e.target.closest('[data-act]')?.dataset.act;
       if (_state.mode === 'library') {
         if (act === 'add') { e.stopPropagation(); _addFromLibrary(c); return; }
-        _previewLibrary(c);
+        _previewLibrary(c, c.querySelector('.skl-card-name'));
         return;
       }
-      if (act === 'pin') { e.stopPropagation(); _togglePin(c.dataset.slug, !e.target.classList.contains('on')); }
+      if (act === 'pin') { e.stopPropagation(); const pin = e.target.closest('[data-act="pin"]'); _togglePin(c.dataset.slug, !pin.classList.contains('on'), pin); }
       else if (act === 'del') { e.stopPropagation(); _deleteCard(c.dataset.slug); }
-      else _openDrawer(c.dataset.slug);
+      else _openDrawer(c.dataset.slug, c.querySelector('.skl-card-name'));
     };
   });
 }
 
-async function _togglePin(slug, pinned) {
+async function _togglePin(slug, pinned, trigger) {
+  if (_pinning.has(slug)) return;
+  _pinning.add(slug);
+  trigger.setAttribute('aria-disabled', 'true');
+  trigger.setAttribute('aria-busy', 'true');
+  let saved = false;
   try {
     await _api(`/api/skills/${encodeURIComponent(slug)}/pin`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pinned }),
     });
-    await _refresh();
-  } catch { toast('pin failed', 'error'); }
+    saved = true;
+    if (_state.mode === 'installed') await _refresh(fetch, { keepGrid: true });
+  } catch { toast(saved ? 'pin saved, but the list could not refresh. reopen skills.' : 'pin not confirmed. try again.', 'error'); }
+  finally {
+    _pinning.delete(slug);
+    const current = document.querySelector(`.skl-card[data-slug="${CSS.escape(slug)}"] .skl-pin`);
+    current?.setAttribute('aria-disabled', 'false');
+    current?.removeAttribute('aria-busy');
+  }
 }
 
 async function _deleteCard(slug) {
@@ -246,7 +300,7 @@ async function _deleteCard(slug) {
   try {
     await _api(`/api/skills/${encodeURIComponent(slug)}`, { method: 'DELETE' });
     toast('skill deleted', 'success');
-    if (_cur === slug) _closeDrawer();
+    if (_cur === slug) _closeDrawer(true);
     await _refresh();
   } catch { toast('delete failed', 'error'); }
 }
@@ -258,6 +312,7 @@ async function _toggleLibrary() {
     if ($('skl-search')) $('skl-search').value = '';
     _refresh(); return;
   }
+  ++_listRead;
   _state.mode = 'library'; _state.q = '';
   if ($('skl-search')) $('skl-search').value = '';
   try { _sources = await _api('/api/skills/sources'); }
@@ -266,6 +321,7 @@ async function _toggleLibrary() {
 }
 
 async function _browseSource(id) {
+  const read = ++_listRead;
   _state.source = id;
   _state.libCat = 'all';   // switching sources / re-entering library clears the sub-filter
   _renderRail();
@@ -273,21 +329,22 @@ async function _browseSource(id) {
   if (grid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
   let data;
   try { data = await _api(`/api/skills/sources/${encodeURIComponent(id)}/browse`); }
-  catch { if (grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">couldn\'t reach this source</div>'; return; }
+  catch { if (read === _listRead && grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">couldn\'t reach this source</div>'; return; }
+  if (read !== _listRead) return;
   _data = data.skills || [];
   _render();
 }
 
 const _libCard = s => `
   <div class="skl-card" data-slug="${esc(s.slug)}" data-kind="builtin">
-    <div class="skl-card-top"><span class="skl-card-name">${esc(s.name)}</span></div>
+    <div class="skl-card-top"><button type="button" class="skl-card-name" aria-label="open ${esc(s.name)}">${esc(s.name)}</button></div>
     <div class="skl-card-desc">${esc(s.description) || ''}</div>
     ${s.installed ? '<span class="skl-added">✓ added</span>' : '<button class="skl-add" data-act="add">+ add</button>'}
   </div>`;
 
 const _srcCard = s => `
   <div class="skl-card" data-path="${esc(s.path)}" data-url="${esc(s.import_url)}" data-kind="github">
-    <div class="skl-card-top"><span class="skl-card-name">${esc(s.name)}</span></div>
+    <div class="skl-card-top"><button type="button" class="skl-card-name" aria-label="open ${esc(s.name)}">${esc(s.name)}</button></div>
     ${s.dir ? `<div class="skl-card-desc skl-card-dir">${esc(s.dir)}</div>` : ''}
     ${s.installed ? '<span class="skl-added">✓ added</span>' : '<button class="skl-add" data-act="add">+ add</button>'}
   </div>`;
@@ -301,18 +358,25 @@ async function _addFromLibrary(c) {
   } catch { toast('add failed', 'error'); }
 }
 
-function _previewLibrary(c) {
+function _previewLibrary(c, source) {
+  const read = ++_drawerRead;
+  source?.focus();
   if (c.dataset.kind === 'builtin') {
     const s = _data.find(x => x.slug === c.dataset.slug);
-    if (s) _openPreview(s, { builtin: true, slug: s.slug, installed: !!s.installed });
+    if (s) _openPreview(s, { builtin: true, slug: s.slug, installed: !!s.installed }, source);
     return;
   }
   _api(`/api/skills/sources/${encodeURIComponent(_state.source)}/preview?path=${encodeURIComponent(c.dataset.path)}`)
-    .then(s => _openPreview(s, { builtin: false, url: c.dataset.url }))
+    .then(s => {
+      if (read === _drawerRead && source?.isConnected && document.activeElement === source) {
+        _openPreview(s, { builtin: false, url: c.dataset.url }, source);
+      }
+    })
     .catch(() => toast("couldn't fetch skill", 'error'));
 }
 
-function _openPreview(s, opts) {
+function _openPreview(s, opts, source) {
+  _drawerRead++;
   const host = $('skl-drawer-host');
   if (!host) return;
   const addCtl = opts.installed
@@ -321,8 +385,8 @@ function _openPreview(s, opts) {
   const srcLink = (s.source_url && /^https?:\/\//i.test(s.source_url)) ? `<a class="skl-pv-src" href="${esc(s.source_url)}" target="_blank" rel="noopener">view source</a>` : '';
   host.innerHTML = `
     <div class="skl-drawer-backdrop open" id="skl-drawer-bd"></div>
-    <aside class="skl-drawer open" id="skl-drawer">
-      <div class="skl-drawer-head"><span>${esc(s.name)}</span><button class="skl-drawer-x" id="skl-d-close">✕</button></div>
+    <aside class="skl-drawer open" id="skl-drawer" role="dialog" aria-labelledby="skl-d-heading">
+      <div class="skl-drawer-head"><span id="skl-d-heading">${esc(s.name)}</span><button class="skl-drawer-x" id="skl-d-close" aria-label="close">✕</button></div>
       <div class="skl-drawer-body">
         ${s.when_to_use ? `<div class="skl-pv-when"><b>when:</b> ${esc(s.when_to_use)}</div>` : ''}
         ${s.description ? `<div class="skl-pv-desc">${esc(s.description)}</div>` : ''}
@@ -332,8 +396,8 @@ function _openPreview(s, opts) {
     </aside>`;
   $('skl-d-close').onclick = _closeDrawer;
   $('skl-drawer-bd').onclick = _closeDrawer;
-  document.removeEventListener('keydown', _drawerEsc);
-  document.addEventListener('keydown', _drawerEsc);
+
+  _activateDrawer(source);
   const add = $('skl-pv-add');
   if (add) add.onclick = async () => {
     add.disabled = true;
@@ -350,13 +414,15 @@ function _openPreview(s, opts) {
 // "what aide picks" - read-only preview of the agent's auto-pick for a task.
 // reuses the same drawer shell/close pattern as _openPreview.
 function _openMatch() {
+  const source = document.activeElement;
+  _drawerRead++;
   const host = $('skl-drawer-host');
   if (!host) return;
   _matchSeq++;  // ignore any late response from a previously-open drawer
   host.innerHTML = `
     <div class="skl-drawer-backdrop open" id="skl-drawer-bd"></div>
-    <aside class="skl-drawer open" id="skl-drawer">
-      <div class="skl-drawer-head"><span>what would aide load?</span><button class="skl-drawer-x" id="skl-d-close">✕</button></div>
+    <aside class="skl-drawer open" id="skl-drawer" role="dialog" aria-labelledby="skl-d-heading">
+      <div class="skl-drawer-head"><span id="skl-d-heading">what would aide load?</span><button class="skl-drawer-x" id="skl-d-close" aria-label="close">✕</button></div>
       <div class="skl-drawer-body">
         <input id="skl-match-q" class="settings-input" placeholder="describe a task…">
         <div id="skl-match-results" class="skl-match-results"><div class="skl-match-hint">type a task to see which skills rank</div></div>
@@ -364,14 +430,13 @@ function _openMatch() {
     </aside>`;
   $('skl-d-close').onclick = _closeDrawer;
   $('skl-drawer-bd').onclick = _closeDrawer;
-  document.removeEventListener('keydown', _drawerEsc);
-  document.addEventListener('keydown', _drawerEsc);
+
   const inp = $('skl-match-q');
   let t;
   const go = () => _runMatch(inp.value.trim());
   inp.oninput = () => { clearTimeout(t); t = setTimeout(go, 250); };
   inp.onkeydown = e => { if (e.key === 'Enter') { clearTimeout(t); go(); } };
-  inp.focus();
+  _activateDrawer(source, inp);
 }
 
 async function _runMatch(q) {
@@ -439,29 +504,31 @@ async function _uploadFiles(e) {
 function _drawerHtml() {
   return `
     <div class="skl-drawer-backdrop" id="skl-drawer-bd"></div>
-    <aside class="skl-drawer" id="skl-drawer">
+    <aside class="skl-drawer" id="skl-drawer" role="dialog" aria-labelledby="skl-d-heading" hidden inert>
       <div class="skl-drawer-head">
         <span id="skl-d-heading">new skill</span>
         <button class="skl-drawer-x" id="skl-d-close" title="close">✕</button>
       </div>
       <div class="skl-drawer-body">
-        <div class="s-field"><label>name</label><input id="skl-d-name" class="settings-input" placeholder="e.g. PDF form filler"></div>
-        <div class="s-field"><label>description</label><input id="skl-d-desc" class="settings-input" placeholder="one line — what it does"></div>
-        <div class="s-field"><label>when to use</label><input id="skl-d-when" class="settings-input" placeholder="the trigger"></div>
-        <div class="s-field"><label>procedure (markdown)</label><textarea id="skl-d-body" class="settings-textarea" rows="14"></textarea></div>
+        <div class="s-field"><label for="skl-d-name">name</label><input id="skl-d-name" class="settings-input" placeholder="e.g. PDF form filler"></div>
+        <div class="s-field"><label for="skl-d-desc">description</label><input id="skl-d-desc" class="settings-input" placeholder="one line: what it does"></div>
+        <div class="s-field"><label for="skl-d-when">when to use</label><input id="skl-d-when" class="settings-input" placeholder="the trigger"></div>
+        <div class="s-field"><label for="skl-d-body">procedure (markdown)</label><textarea id="skl-d-body" class="settings-textarea" rows="14"></textarea></div>
         <div class="skl-drawer-acts">
           <button class="btn primary" id="skl-d-save">save</button>
-          <button class="btn" id="skl-d-export" style="display:none">export</button>
-          <button class="btn" id="skl-d-update" style="display:none">update</button>
-          <button class="btn danger" id="skl-d-del" style="display:none">delete</button>
+          <button class="btn" id="skl-d-export" hidden>export</button>
+          <button class="btn" id="skl-d-update" hidden>update</button>
+          <button class="btn danger" id="skl-d-del" hidden>delete</button>
           <span id="skl-d-status" class="skl-status"></span>
         </div>
-        <div id="skl-d-source" class="skl-source" style="display:none"></div>
+        <div id="skl-d-source" class="skl-source" hidden></div>
       </div>
     </aside>`;
 }
 
-async function _openDrawer(slug) {
+async function _openDrawer(slug, source = document.activeElement) {
+  const read = ++_drawerRead;
+  source?.focus();
   const host = $('skl-drawer-host');
   if (!host) return;
   host.innerHTML = _drawerHtml();
@@ -471,13 +538,13 @@ async function _openDrawer(slug) {
   $('skl-d-export').onclick = _export;
   $('skl-d-update').onclick = _update;
   $('skl-d-del').onclick = _delete;
-  document.removeEventListener('keydown', _drawerEsc);
-  document.addEventListener('keydown', _drawerEsc);
+
   let s = { name: '', description: '', when_to_use: '', body: '', source: '' };
   if (slug) {
     try { s = await _api(`/api/skills/${encodeURIComponent(slug)}`); }
     catch { toast('failed to open skill', 'error'); return; }
   }
+  if (read !== _drawerRead || !source?.isConnected || document.activeElement !== source) return;
   _cur = slug || null;
   $('skl-d-heading').textContent = slug ? 'edit skill' : 'new skill';
   $('skl-d-name').value = s.name || '';
@@ -485,25 +552,49 @@ async function _openDrawer(slug) {
   $('skl-d-when').value = s.when_to_use || '';
   $('skl-d-body').value = s.body || '';
   $('skl-d-status').textContent = '';
-  $('skl-d-del').style.display = slug ? '' : 'none';
-  $('skl-d-export').style.display = slug ? '' : 'none';
+  $('skl-d-del').hidden = !slug;
+  $('skl-d-export').hidden = !slug;
   if (s.source) {
-    $('skl-d-update').style.display = ''; $('skl-d-source').style.display = '';
+    $('skl-d-update').hidden = false; $('skl-d-source').hidden = false;
     $('skl-d-source').innerHTML = `git-backed · <a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.source)}</a>`;
-  } else { $('skl-d-update').style.display = 'none'; $('skl-d-source').style.display = 'none'; }
+  } else { $('skl-d-update').hidden = true; $('skl-d-source').hidden = true; }
   $('skl-drawer').classList.add('open');
   $('skl-drawer-bd').classList.add('open');
   document.querySelectorAll('.skl-card').forEach(c => c.classList.toggle('active', c.dataset.slug === slug));
-  $('skl-d-name').focus();
+  _activateDrawer(source, $('skl-d-name'));
 }
 
-function _closeDrawer() {
-  $('skl-drawer')?.classList.remove('open');
+function _activateDrawer(source, focus = $('skl-d-close')) {
+  _drawerBoundary?.destroy();
+  _drawerSource = source;
+  const drawer = $('skl-drawer');
+  drawer.hidden = false;
+  drawer.inert = false;
+  _drawerBoundary = createFocusBoundary(drawer, { onEscape: _closeDrawer });
+  _drawerBoundary.activate({ source, focus });
+}
+
+function _closeDrawer(returnToNew = false) {
+  _drawerRead++;
+  _matchSeq++;
+  const drawer = $('skl-drawer');
+  const ownedFocus = drawer?.contains(document.activeElement);
+  _drawerBoundary?.deactivate({ restoreFocus: false });
+  _drawerBoundary?.destroy();
+  _drawerBoundary = null;
+  if (drawer) { drawer.classList.remove('open'); drawer.hidden = true; drawer.inert = true; }
   $('skl-drawer-bd')?.classList.remove('open');
+  const originalCard = _drawerSource?.closest('.skl-card');
+  const replacement = [...document.querySelectorAll('.skl-card')].find(card =>
+    (_cur && card.dataset.slug === _cur) || (originalCard &&
+      (originalCard.dataset.slug ? card.dataset.slug === originalCard.dataset.slug : card.dataset.path === originalCard.dataset.path)));
+  const target = returnToNew === true ? $('skl-new')
+    : _drawerSource?.isConnected ? _drawerSource : replacement?.querySelector('.skl-card-name') || $('skl-new');
+  if (ownedFocus && target?.getClientRects().length) target.focus();
+  _drawerSource = null;
   _cur = null;
   document.querySelectorAll('.skl-card.active').forEach(c => c.classList.remove('active'));
 }
-function _drawerEsc(e) { if (e.key === 'Escape' && $('skl-drawer')?.classList.contains('open')) _closeDrawer(); }
 
 async function _save() {
   const name = $('skl-d-name').value.trim();
@@ -514,7 +605,7 @@ async function _save() {
       ? await _api(`/api/skills/${encodeURIComponent(_cur)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
       : await _api('/api/skills', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
     _cur = res.slug;
-    $('skl-d-del').style.display = ''; $('skl-d-export').style.display = '';
+    $('skl-d-del').hidden = false; $('skl-d-export').hidden = false;
     $('skl-d-heading').textContent = 'edit skill';
     $('skl-d-status').textContent = 'saved';
     setTimeout(() => { if ($('skl-d-status')) $('skl-d-status').textContent = ''; }, 1500);
@@ -529,7 +620,7 @@ async function _delete() {
   try {
     await _api(`/api/skills/${encodeURIComponent(_cur)}`, { method: 'DELETE' });
     toast('skill deleted', 'success');
-    _closeDrawer();
+    _closeDrawer(true);
     await _refresh();
   } catch { toast('delete failed', 'error'); }
 }

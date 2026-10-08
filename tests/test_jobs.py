@@ -1,5 +1,7 @@
 import asyncio
+import threading
 import unittest
+from unittest import mock
 
 from services import jobs
 
@@ -81,6 +83,41 @@ class JobRegistryTests(unittest.TestCase):
         self.assertEqual(j.interval, 60)
         self.assertTrue(j.enabled)
 
+    def test_dynamic_interval_refreshes_before_due_check(self):
+        async def go():
+            hits = []
+            every = {"seconds": 30}
+
+            async def fn():
+                hits.append(1)
+
+            jobs.register(
+                "dyn",
+                fn,
+                every["seconds"],
+                run_at_start=False,
+                interval_fn=lambda: every["seconds"],
+            )
+            jobs._jobs["dyn"].last_run = 0
+            every["seconds"] = 5
+
+            self.assertEqual(await jobs.run_due(now=6), 1)
+            self.assertEqual(hits, [1])
+            self.assertEqual(jobs._jobs["dyn"].interval, 5)
+
+        asyncio.run(go())
+
+    def test_proactive_job_refreshes_interval_from_settings(self):
+        import app as appmod
+
+        try:
+            appmod._register_jobs()
+            job = jobs._jobs["proactive"]
+            self.assertIsNotNone(job.interval_fn)
+        finally:
+            for j in jobs.all_jobs():
+                jobs.unregister(j.name)
+
     def test_unregister_removes_job(self):
         jobs.register("d", _noop, 5)
         jobs.unregister("d")
@@ -107,6 +144,32 @@ class JobRegistryTests(unittest.TestCase):
             jobs._jobs["off"].enabled = False
             await jobs.run_due(now=0)
             self.assertEqual(hits, [])
+
+        asyncio.run(go())
+
+    def test_photo_watch_job_runs_off_loop(self):
+        async def go():
+            import app as appmod
+            from services import photo_sync
+
+            appmod._register_jobs()
+            job = jobs._jobs["photo_watch"]
+            loop_tid = threading.get_ident()
+            seen = {}
+
+            def fake_run_watch():
+                seen["tid"] = threading.get_ident()
+                return {"imported": 0}
+
+            try:
+                with mock.patch.object(photo_sync, "run_watch", fake_run_watch):
+                    await job.fn()
+            finally:
+                for j in jobs.all_jobs():
+                    jobs.unregister(j.name)
+
+            self.assertIn("tid", seen)
+            self.assertNotEqual(seen["tid"], loop_tid)
 
         asyncio.run(go())
 

@@ -1,4 +1,5 @@
 import json
+
 from tests._client import ApiTest
 
 
@@ -94,16 +95,35 @@ class PersonasApiTest(ApiTest):
 
         plain = "tell me a joke"
         doish = "what's on my calendar today"
-        # agent persona always runs tools (and gates on approval)
-        self.assertEqual(_decide_mode("chat", "agent", plain, False, True), ("agent", True))
+        # Answer only is a conversation-level boundary, so a persona cannot silently
+        # promote the turn to Agent/Jarvis.
+        self.assertEqual(
+            _decide_mode("chat", "agent", plain, False, "answer_only"), ("chat", False)
+        )
+        # With Automatic tools, the persona default still promotes and asks first.
+        self.assertEqual(
+            _decide_mode("chat", "agent", plain, False, "automatic_tools"), ("agent", True)
+        )
         # chat-only persona never auto-promotes, even on a do-something message
-        self.assertEqual(_decide_mode("chat", "chat", doish, False, True), ("chat", False))
+        self.assertEqual(
+            _decide_mode("chat", "chat", doish, False, "automatic_tools"), ("chat", False)
+        )
         # no persona default → intent-based: plain stays chat, do-ish promotes
-        self.assertEqual(_decide_mode("chat", "", plain, False, True), ("chat", False))
-        self.assertEqual(_decide_mode("chat", "", doish, False, True)[0], "agent")
-        # explicit agent turn or simple-chat short-circuit
-        self.assertEqual(_decide_mode("agent", "chat", plain, False, True), ("agent", False))
-        self.assertEqual(_decide_mode("chat", "agent", plain, True, True), ("chat", False))
+        self.assertEqual(_decide_mode("chat", "", plain, False, "automatic_tools"), ("chat", False))
+        self.assertEqual(_decide_mode("chat", "", doish, False, "automatic_tools")[0], "agent")
+        # Answer only disables automatic promotion.
+        self.assertEqual(_decide_mode("chat", "", doish, False, "answer_only"), ("chat", False))
+        # An explicit Agent/Jarvis turn still wins, even when the conversation is Answer only.
+        self.assertEqual(
+            _decide_mode("agent", "chat", plain, False, "answer_only"), ("agent", False)
+        )
+        self.assertEqual(
+            _decide_mode("jarvis", "agent", plain, False, "answer_only"), ("agent", False)
+        )
+        # simple-chat short-circuit
+        self.assertEqual(
+            _decide_mode("chat", "agent", plain, True, "automatic_tools"), ("chat", False)
+        )
 
     def test_accent_roundtrip(self):
         pid = self.client.post("/api/personas", json={"name": "amber", "accent": "#fbbf24"}).json()[
@@ -136,8 +156,10 @@ class PersonasApiTest(ApiTest):
         self.assertEqual(self.client.post("/api/personas/nope/duplicate").status_code, 404)
 
     def test_seed_default_personas(self):
-        import tempfile, os
+        import os
+        import tempfile
         from pathlib import Path
+
         from routes import personas as pmod
 
         orig = pmod._SEED_SENTINEL
@@ -150,7 +172,7 @@ class PersonasApiTest(ApiTest):
             self.assertEqual(n, len(pmod._STARTERS))
             rows = self.client.get("/api/personas").json()
             self.assertIn("coder", [p["name"] for p in rows])
-            self.assertEqual(len([p for p in rows if p["is_default"]]), 1)
+            self.assertEqual(len([p for p in rows if p["is_default"]]), 0)
             self.assertEqual(pmod.seed_default_personas(), 0)  # sentinel → no-op
         finally:
             pmod._SEED_SENTINEL = orig
@@ -158,8 +180,8 @@ class PersonasApiTest(ApiTest):
                 tmp.unlink()
 
     def test_persona_pins_model_and_switches_endpoint(self):
+        from core.database import ModelEndpoint, Persona, Session
         from routes.chat import _apply_persona_model
-        from core.database import ModelEndpoint, Session, Persona
 
         db = self.db()
         ep1 = ModelEndpoint(
@@ -192,4 +214,48 @@ class PersonasApiTest(ApiTest):
         db.commit()
         same_ep, same_model = _apply_persona_model(s, ep1, "m1", db)
         self.assertEqual((same_ep.id, same_model), (ep1.id, "m1"))
+        db.close()
+
+    def test_none_persona_never_falls_back_to_legacy_default(self):
+        from core.database import Persona, Session
+        from routes.chat import _resolve_persona
+
+        db = self.db()
+        legacy_default = Persona(name="legacy default", system_prompt="extra", is_default=True)
+        explicit = Persona(name="explicit", system_prompt="chosen")
+        db.add_all([legacy_default, explicit])
+        db.commit()
+        session = Session(name="none")
+        db.add(session)
+        db.commit()
+        self.assertIsNone(_resolve_persona(session, db))
+        session.persona_id = explicit.id
+        db.commit()
+        self.assertEqual(_resolve_persona(session, db).id, explicit.id)
+        db.close()
+
+    def test_persona_pinned_missing_model_is_rejected(self):
+        from fastapi import HTTPException
+
+        from core.database import ModelEndpoint, Persona, Session
+        from routes.chat import _apply_persona_model
+
+        db = self.db()
+        ep = ModelEndpoint(
+            name="e1",
+            base_url="http://x",
+            api_key="",
+            enabled=True,
+            cached_models=json.dumps(["m1"]),
+        )
+        p = Persona(name="coder", model="missing-model")
+        db.add_all([ep, p])
+        db.commit()
+        s = Session(name="t", persona_id=p.id, endpoint_id=ep.id)
+        db.add(s)
+        db.commit()
+        with self.assertRaises(HTTPException) as err:
+            _apply_persona_model(s, ep, "m1", db)
+        self.assertEqual(err.exception.status_code, 400)
+        self.assertIn("persona model unavailable", err.exception.detail)
         db.close()

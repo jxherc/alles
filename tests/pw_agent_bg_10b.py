@@ -7,7 +7,7 @@ import json
 import sys
 import urllib.request
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -31,7 +31,7 @@ def _post(path, body):
 
 def _seed_run(session_id, status="running", text="drafting the answer to your question"):
     rid = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).replace(tzinfo=None).isoformat()
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     (RUNS_DIR / f"{rid}.json").write_text(
         json.dumps(
@@ -105,7 +105,7 @@ def main():
                     {
                         **json.loads((RUNS_DIR / f"{rid}.json").read_text("utf-8")),
                         "status": "done",
-                        "finished_at": datetime.utcnow().isoformat(),
+                        "finished_at": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                     }
                 ),
                 "utf-8",

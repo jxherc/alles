@@ -89,10 +89,10 @@ def main():
         pg.eval_on_selector("#cal-book-add", "el => el.click()")
         pg.wait_for_selector("#_di", timeout=5000)
         pg.fill("#_di", "Office hours")
-        pg.eval_on_selector("#_dy", "el => el.click()")
+        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
         pg.wait_for_selector("#_di", timeout=5000)
         pg.fill("#_di", "30")
-        pg.eval_on_selector("#_dy", "el => el.click()")
+        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
         pg.wait_for_selector(".cal-bookings .cal-feed-row", timeout=8000)
         r["booking_page_create"] = pg.query_selector(".cal-bookings .cal-feed-name") is not None
 

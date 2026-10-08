@@ -1,4 +1,7 @@
-from core.database import CachedMessage, MailAccount
+import json
+from unittest import mock
+
+from core.database import CachedMessage, MailAccount, ModelEndpoint
 from services import mail_rules
 from tests._client import ApiTest
 
@@ -114,3 +117,42 @@ class RuleApiTests(ApiTest):
         d = self.client.post("/api/mail/smart-reply", json={"text": "Can we meet tomorrow?"}).json()
         self.assertFalse(d["enabled"])
         self.assertEqual(d["suggestions"], [])
+
+    def test_smart_reply_uses_the_cached_model_catalog(self):
+        db = self.db()
+        db.add(
+            ModelEndpoint(
+                name="local",
+                base_url="http://127.0.0.1:11434/v1",
+                cached_models=json.dumps(["catalog-model"]),
+                enabled=True,
+            )
+        )
+        db.commit()
+        db.close()
+        used_models = []
+
+        async def stream(_messages, _base_url, _api_key, model):
+            used_models.append(model)
+            yield {"delta": "yes\nno\nmaybe"}
+
+        with mock.patch("services.llm.stream_chat", side_effect=stream):
+            response = self.client.post("/api/mail/smart-reply", json={"text": "Can we meet?"})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(used_models, ["catalog-model"])
+        self.assertEqual(response.json()["suggestions"], ["yes", "no", "maybe"])
+
+    def test_partial_account_patch_preserves_omitted_fields(self):
+        response = self.client.patch(f"/api/mail/accounts/{self.aid}", json={"name": "renamed"})
+        self.assertEqual(response.status_code, 200, response.text)
+        db = self.db()
+        try:
+            account = db.get(MailAccount, self.aid)
+            self.assertEqual(account.name, "renamed")
+            self.assertEqual(account.email, "me@x.com")
+            self.assertEqual(account.imap_host, "i")
+            self.assertEqual(account.smtp_host, "s")
+            self.assertEqual(account.username, "me")
+            self.assertEqual(account.password, "p")
+        finally:
+            db.close()

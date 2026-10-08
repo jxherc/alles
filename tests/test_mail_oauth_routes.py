@@ -41,19 +41,24 @@ class MailOAuthRouteTests(ApiTest):
         self.assertIn("accounts.google.com", r.headers["location"])
 
     def test_callback_badstate(self):
-        r = self.client.get("/api/mail/oauth/google/callback?code=x&state=nope",
-                            follow_redirects=False)
+        r = self.client.get(
+            "/api/mail/oauth/google/callback?code=x&state=nope", follow_redirects=False
+        )
         self.assertEqual(r.status_code, 307)
         self.assertIn("mailoauth=badstate", r.headers["location"])
 
     def test_callback_creates_oauth_account(self):
         cfg.save_settings({"mail_oauth_client_id": "cid", "mail_oauth_client_secret": "sec"})
-        mail_oauth.exchange_code = lambda code: {"access_token": "at", "refresh_token": "rt",
-                                                 "expires_in": 3600}
+        mail_oauth.exchange_code = lambda code: {
+            "access_token": "at",
+            "refresh_token": "rt",
+            "expires_in": 3600,
+        }
         mail_oauth.fetch_email = lambda at: "me@gmail.com"
         st = mail_oauth.make_state()
-        r = self.client.get(f"/api/mail/oauth/google/callback?code=abc&state={st}",
-                            follow_redirects=False)
+        r = self.client.get(
+            f"/api/mail/oauth/google/callback?code=abc&state={st}", follow_redirects=False
+        )
         self.assertEqual(r.status_code, 307)
         self.assertIn("mailoauth=ok", r.headers["location"])
         d = self.db()

@@ -1,13 +1,22 @@
 import { toast } from './util.js';
 import { confirm } from './dialog.js';
-import { populateDropdown } from './dropdown.js';
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
+import { formatDateTime, formatNumber } from './i18n.js';
+import { createFocusBoundary } from './kokuen.js?v=1';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 let _unlocked = false;
 let _token = null;     // the unlock token; sent back on every vault request
 let _entries = [];     // last loaded list, so a row click can open the editor
+let _entriesGeneration = 0;
+let _revealGeneration = 0;
+let _setupState = null;
+let _setupGeneration = 0;
+let _unlocking = false;
+let _unlockGeneration = 0;
 let _modalEl = null;   // the open add/edit overlay, if any
+let _modalFocusBoundary = null;
 let _totpTimer = null;  // live TOTP countdown interval
 let _vaultId = 'default';  // 9c — which vault is currently unlocked
 let _vaults = [];          // 9c — known vaults for the switcher
@@ -45,7 +54,7 @@ const FIELD_DEFS = {
   cardholder:     { label: 'cardholder name',   kind: 'text' },
   number:         { label: 'card number',       kind: 'secret', placeholder: '4242 4242 4242 4242' },
   expiry:         { label: 'expiry',            kind: 'text', placeholder: 'MM/YY', half: true },
-  cvv:            { label: 'cvv',               kind: 'text', placeholder: '123', half: true },
+  cvv:            { label: 'cvv',               kind: 'secret', placeholder: '123', half: true },
   address:        { label: 'billing address',   kind: 'textarea' },
   apikey:         { label: 'API key / token',   kind: 'secret', placeholder: 'sk-…' },
   endpoint:       { label: 'endpoint',          kind: 'text', placeholder: 'https://api.…' },
@@ -57,7 +66,7 @@ const FIELD_DEFS = {
   bank_name:      { label: 'bank',              kind: 'text' },
   account_number: { label: 'account number',    kind: 'secret' },
   routing:        { label: 'routing / sort code', kind: 'text' },
-  private_key:    { label: 'private key',       kind: 'textarea' },
+  private_key:    { label: 'private key',       kind: 'secretarea' },
   public_key:     { label: 'public key',        kind: 'textarea' },
   passphrase:     { label: 'passphrase',        kind: 'secret' },
   license_key:    { label: 'license key',       kind: 'text' },
@@ -90,10 +99,11 @@ function _typeForEntry(entry) {
   const t = entry.type;
   if (TYPE_BY_KEY[t]) return t;
   if (_customTypes[t]) return t;   // 8e — a user-defined type
+  if (t === 'api_key') return 'apikey';
   if (t === 'password') return 'login';
   if (t === 'card') return 'card';
   if (t === 'note') return 'note';
-  const f = Object.keys(entry.fields || {});
+  const f = Object.keys(_entryFields(entry));
   if (f.includes('number') || f.includes('cardholder')) return 'card';
   if (f.includes('apikey')) return 'apikey';
   if (f.includes('private_key')) return 'ssh';
@@ -102,15 +112,94 @@ function _typeForEntry(entry) {
 }
 function _typeLabel(entry) { return _typeDef(_typeForEntry(entry))?.label || 'item'; }
 
-// fetch wrapper that attaches this session's unlock token so the server can
-// bind the request to our unlock (not just "someone unlocked recently")
-function _vfetch(url, opts = {}) {
-  const headers = { ...(opts.headers || {}) };
-  if (_token) headers['X-Vault-Token'] = _token;
-  return fetch(url, { ...opts, headers });
+function _entryFields(entry) {
+  const fields = { ...(entry?.fields || {}) };
+  if (fields.apikey == null && fields.api_key != null) fields.apikey = fields.api_key;
+  delete fields.api_key;
+  return fields;
 }
 
-export async function loadVaultView() {
+// fetch wrapper that attaches this session's unlock token so the server can
+// bind the request to our unlock (not just "someone unlocked recently")
+function _vfetch(url, opts = {}, fetcher = fetch) {
+  const headers = { ...(opts.headers || {}) };
+  if (_token) headers['X-Vault-Token'] = _token;
+  return fetcher(url, { ...opts, headers });
+}
+
+async function _checkedVault(url, opts = {}) {
+  const response = await _vfetch(url, opts);
+  if (!response.ok) throw Object.assign(new Error('vault request failed'), { status: response.status });
+  return response;
+}
+
+function _sameVault(token, vaultId) {
+  return _unlocked && _token === token && _vaultId === vaultId;
+}
+
+async function _formAction(ov, work, failure) {
+  const token = _token;
+  if (!ov || ov._acting || ov._saving || ov._openingSaved || !_sameForm(ov, token)) return;
+  ov._acting = true; _formError(ov, ''); _formBusy(ov, true);
+  const current = () => _sameForm(ov, token);
+  try { await work(current); }
+  catch (error) {
+    if (!current()) return;
+    if (error.status === 403) {
+      await _doLock(); toast('vault access expired. unlock and check the entry again.', 'error');
+    } else _formError(ov, failure);
+  } finally {
+    ov._acting = false;
+    if (current()) _formBusy(ov, false);
+  }
+}
+
+function _activateManagedModal(overlay, source, initialFocus) {
+  const dialog = overlay.querySelector('[role="dialog"], [role="alertdialog"]');
+  if (!dialog) return;
+  _modalFocusBoundary = createFocusBoundary(dialog, {
+    trigger: source,
+    onEscape: _requestCloseModal,
+  });
+  _modalFocusBoundary.activate({ source, focus: initialFocus });
+}
+
+function _activateTemporaryModal(overlay, source, initialFocus, close) {
+  const dialog = overlay.querySelector('[role="dialog"], [role="alertdialog"]');
+  const boundary = createFocusBoundary(dialog, { trigger: source, onEscape: () => close(null) });
+  boundary.activate({ source, focus: initialFocus });
+  return boundary;
+}
+
+async function _confirmRecentOwner() {
+  const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
+  if (me?.enabled === false) return true;
+  const password = await _promptPw('confirm Alles password', {
+    placeholder: 'Alles password',
+    action: 'confirm',
+  });
+  if (password == null) return false;
+  const response = await fetch('/api/auth/reauth', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  if (!response.ok) toast('password confirmation failed', 'error');
+  return response.ok;
+}
+
+async function _vfetchRecentOwner(url, opts = {}) {
+  if (Object.prototype.hasOwnProperty.call(opts, 'body')) {
+    throw new TypeError('recent-owner retry only supports bodyless requests');
+  }
+  let response = await _vfetch(url, opts);
+  if (response.status !== 403) return response;
+  const payload = await response.clone().json().catch(() => ({}));
+  if (payload.code !== 'recent_auth_required' || !await _confirmRecentOwner()) return response;
+  return _vfetch(url, opts);
+}
+
+export async function loadVaultView(fetcher = fetch) {
   const locked   = $('vault-locked');
   const unlocked = $('vault-unlocked');
   if (!locked || !unlocked) return;
@@ -124,12 +213,57 @@ export async function loadVaultView() {
   }
   if ($('vault-bio-add-btn')) $('vault-bio-add-btn').style.display =
     (_unlocked && window.PublicKeyCredential) ? '' : 'none';
-  if (_unlocked) { await _loadCustomTypes(); await _loadEntries(); await _loadVaults(); }
-  else _refreshBioUnlock();
+  if (_unlocked) { await _loadCustomTypes(fetcher); await _loadEntries(fetcher); await _loadVaults(fetcher); }
+  else {
+    _unlockError('');
+    const [, biometricReady] = await Promise.all([_refreshVaultSetup(fetcher), _refreshBioUnlock(fetcher)]);
+    if (biometricReady === false && _setupState) {
+      return { partialMessage: 'biometric unlock could not be checked', retryLabel: 'retry vault checks' };
+    }
+  }
 }
 
-async function _loadCustomTypes() {
-  try { _customTypes = (await _vfetch('/api/vault/custom-types').then(r => r.json())).types || {}; }
+async function _refreshVaultSetup(fetcher = fetch) {
+  const generation = ++_setupGeneration;
+  const button = $('vault-unlock-btn');
+  const retry = $('vault-setup-retry');
+  if (!button) return;
+  _setupState = null;
+  button.textContent = 'checking…';
+  button.disabled = true;
+  if (retry) retry.hidden = true;
+  try {
+    const response = await fetcher('/api/vault/setup');
+    if (!response.ok) throw new Error('setup status unavailable');
+    const status = await response.json();
+    if (_unlocked || generation !== _setupGeneration) return;
+    if (!['setup', 'locked', 'recovery'].includes(status.state)) throw new Error('invalid setup status');
+    _setupState = status.state;
+    const creating = _setupState === 'setup';
+    $('vault-password-label').textContent = creating ? 'create a master password' : 'master password';
+    $('vault-pw-input').autocomplete = 'current-password';
+    if (creating) $('vault-pw-input').autocomplete = 'new-password';
+    $('vault-confirm-field').hidden = !creating;
+    if (!creating) $('vault-pw-confirm').value = '';
+    button.textContent = creating ? 'create vault' : 'unlock';
+    button.disabled = _unlocking || _setupState === 'recovery';
+    $('vault-lock-help').textContent = _setupState === 'recovery'
+      ? 'this vault is missing its password verification data. restore a valid backup before unlocking; creating a new password cannot recover these entries.'
+      : 'your vault password is separate from your alles sign-in. alles cannot reset it to recover your secrets. keep the password safe; use an enrolled biometric unlock or a backup whose vault password you still know if needed.';
+  } catch {
+    if (_unlocked || generation !== _setupGeneration) return;
+    _unlockError('could not check vault setup. retry to continue.');
+    if (retry) retry.hidden = false;
+  }
+}
+
+function _unlockError(message) {
+  const error = $('vault-unlock-error');
+  if (error) { error.textContent = message; error.hidden = !message; }
+}
+
+async function _loadCustomTypes(fetcher = fetch) {
+  try { _customTypes = (await _vfetch('/api/vault/custom-types', {}, fetcher).then(r => r.json())).types || {}; }
   catch { _customTypes = {}; }
 }
 
@@ -156,6 +290,7 @@ function _defOf(key, typeKey) {
 
 export function initVault() {
   $('vault-unlock-btn')?.addEventListener('click', _doUnlock);
+  $('vault-setup-retry')?.addEventListener('click', () => { _unlockError(''); _refreshVaultSetup(); });
   $('vault-lock-btn')?.addEventListener('click', _doLock);
   $('vault-new-btn')?.addEventListener('click', () => openVaultForm());
   $('vault-watchtower-btn')?.addEventListener('click', showWatchtower);
@@ -165,6 +300,7 @@ export function initVault() {
   $('vault-bio-add-btn')?.addEventListener('click', _enableBiometric);
   $('vault-bio-unlock-btn')?.addEventListener('click', _bioUnlock);
   $('vault-pw-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
+  $('vault-pw-confirm')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
   // 8a — unified icons on the toolbar (settings is now rightmost)
   const dec = (id, name, label) => { const b = $(id); if (b) b.innerHTML = `${_si(name)} ${label}`; };
   dec('vault-manage-btn', 'gear', 'settings');
@@ -174,10 +310,10 @@ export function initVault() {
 }
 
 // 9c — multiple vaults, Travel Mode, biometric ──────────────────────────────
-async function _loadVaults() {
+async function _loadVaults(fetcher = fetch) {
   try {
-    _vaults = await _vfetch('/api/vault/vaults').then(r => r.json());
-    const tm = await fetch('/api/vault/travel-mode').then(r => r.json()).catch(() => ({}));
+    _vaults = await _vfetch('/api/vault/vaults', {}, fetcher).then(r => r.json());
+    const tm = await fetcher('/api/vault/travel-mode').then(r => r.json()).catch(() => ({}));
     _travel = !!tm.on;
   } catch { _vaults = []; }
   _renderSwitcher();
@@ -214,22 +350,23 @@ async function _switchVault(id) {
 }
 
 function _createVaultForm() {
+  const returnFocus = document.activeElement;
   _closeModal();
   const ov = document.createElement('div');
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
-    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true">
-      <div class="modal-head"><span class="modal-title">new vault</span>
-        <button class="modal-close" id="nv-x" aria-label="close">✕</button></div>
+    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="nv-title">
+      <div class="modal-head"><span class="modal-title" id="nv-title">new vault</span>
+        <button type="button" class="modal-close" id="nv-x" aria-label="close">✕</button></div>
       <div class="vault-form">
-        <div class="vform-field"><label>name</label>
+        <div class="vform-field"><label for="nv-name">name</label>
           <input id="nv-name" class="settings-input vform-input" placeholder="e.g. Work"></div>
-        <div class="vform-field"><label>master password</label>
-          <input id="nv-pw" type="password" class="settings-input vform-input" placeholder="a password for this vault"></div>
+        <div class="vform-field"><label for="nv-pw">master password</label>
+          <input id="nv-pw" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="12" placeholder="12 or more characters"></div>
       </div>
       <div class="vault-form-actions">
-        <button class="btn" id="nv-cancel">cancel</button>
-        <button class="btn primary" id="nv-create">create</button>
+        <button type="button" class="btn" id="nv-cancel">cancel</button>
+        <button type="button" class="btn primary" id="nv-create">create</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -240,7 +377,7 @@ function _createVaultForm() {
   ov.querySelector('#nv-create').onclick = async () => {
     const name = ov.querySelector('#nv-name').value.trim();
     const pw = ov.querySelector('#nv-pw').value;
-    if (!name || !pw) { toast('name + password required', 'error'); return; }
+    if (!name || pw.length < 12) { toast('name + a 12-character password required', 'error'); return; }
     const r = await _vfetch('/api/vault/vaults', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name, password: pw }),
@@ -257,7 +394,7 @@ function _createVaultForm() {
     await _loadEntries(); await _loadVaults();
     toast('vault created', 'success');
   };
-  ov.querySelector('#nv-name').focus();
+  _activateManagedModal(ov, returnFocus, ov.querySelector('#nv-name'));
 }
 
 async function _toggleTravel() {
@@ -268,18 +405,19 @@ async function _toggleTravel() {
     }).then(x => x.json());
     _travel = !!r.on;
     await _loadVaults();
-    toast(_travel ? 'travel mode on — only travel-safe vaults shown' : 'travel mode off', 'success');
+    toast(_travel ? 'travel mode on: only travel-safe vaults shown' : 'travel mode off', 'success');
   } catch { toast('could not toggle travel mode', 'error'); }
 }
 
 async function _manageVaults() {
+  const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   _closeModal();
   const ov = document.createElement('div');
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
-    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true">
-      <div class="modal-head"><span class="modal-title">vaults</span>
-        <button class="modal-close" id="mv-x" aria-label="close">✕</button></div>
+    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="mv-title">
+      <div class="modal-head"><span class="modal-title" id="mv-title">vaults</span>
+        <button type="button" class="modal-close" id="mv-x" aria-label="close">✕</button></div>
       <div class="mv-scroll">
         <div class="vault-form" id="mv-list"></div>
         <div class="vform-divider"></div>
@@ -287,7 +425,7 @@ async function _manageVaults() {
         <div class="vform-divider"></div>
         <div class="vault-form" id="mv-types"></div>
       </div>
-      <div class="vault-form-actions"><button class="btn" id="mv-close">done</button></div>
+      <div class="vault-form-actions"><button type="button" class="btn" id="mv-close">done</button></div>
     </div>`;
   document.body.appendChild(ov);
   _modalEl = ov;
@@ -298,6 +436,7 @@ async function _manageVaults() {
   await _renderManageExtra();
   await _loadCustomTypes();
   _renderTypeEditor();
+  _activateManagedModal(ov, returnFocus, ov.querySelector('#mv-x'));
 }
 
 // 8e — visual editor for user-defined entry types
@@ -309,7 +448,7 @@ function _renderTypeEditor() {
   const types = Object.entries(_customTypes);
   box.innerHTML = `
     <div class="mv-2fa-head">custom entry types</div>
-    <p class="mv-2fa-explain">define your own item types — name them, add fields, and set each field's width. they appear in the type picker when you add a secret.</p>
+    <p class="mv-2fa-explain">define your own item types: name them, add fields, and set each field's width. they appear in the type picker when you add a secret.</p>
     <div class="vt-list">
       ${types.length ? types.map(([k, t]) => `
         <div class="vt-row" data-k="${k}">
@@ -413,12 +552,113 @@ async function _saveType() {
   toast('type saved', 'success');
 }
 
-// the "this vault" extras: hardware-key 2FA + the autofill extension pointer
+function _browserSeen(value) {
+  if (!value) return 'not used yet';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'used before' : `last used ${formatDateTime(date)}`;
+}
+
+function _browserCreated(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'paired before' : `paired ${formatDateTime(date)}`;
+}
+
+function _browserExpiry(seconds) {
+  const minutes = Math.max(1, Math.ceil(Number(seconds || 0) / 60));
+  return `expires in ${minutes} min`;
+}
+
+function _browserAccessMarkup(state, failed) {
+  if (failed) return '<p class="mv-browser-empty" role="alert">browser access could not be loaded. refresh to try again.</p>';
+  const pairings = state.pairings || [];
+  const unlocks = state.unlock_requests || [];
+  const connections = state.connections || [];
+  const requests = [
+    ...pairings.map(item => `
+      <div class="mv-browser-row request" role="listitem">
+        <div class="mv-browser-copy"><strong>${_esc(item.name)}</strong><small>pairing code <span class="mv-browser-code">${_esc(item.code)}</span> · ${_esc(_browserExpiry(item.expires_in))}</small></div>
+        <button class="act-btn" type="button" data-browser-pair="${_esc(item.id)}" aria-label="approve pairing for ${_esc(item.name)}">approve</button>
+        <button class="act-btn danger" type="button" data-browser-pair-deny="${_esc(item.id)}" aria-label="deny pairing for ${_esc(item.name)}">deny</button>
+      </div>`),
+    ...unlocks.map(item => `
+      <div class="mv-browser-row request" role="listitem">
+        <div class="mv-browser-copy"><strong>${_esc(item.name)}</strong><small>access code <span class="mv-browser-code">${_esc(item.code)}</span> · ${_esc(_browserExpiry(item.expires_in))}</small></div>
+        <button class="act-btn" type="button" data-browser-unlock="${_esc(item.id)}" aria-label="approve access for ${_esc(item.name)}">approve</button>
+        <button class="act-btn danger" type="button" data-browser-unlock-deny="${_esc(item.id)}" aria-label="deny access for ${_esc(item.name)}">deny</button>
+      </div>`),
+  ];
+  return `
+    ${requests.length ? `<div class="mv-browser-group"><div class="mv-browser-label">waiting for you</div><div role="list">${requests.join('')}</div></div>` : ''}
+    <div class="mv-browser-group">
+      <div class="mv-browser-label">connected to this vault</div>
+      <div role="list">
+        ${connections.length ? connections.map(item => `
+          <div class="mv-browser-row" role="listitem">
+            <div class="mv-browser-copy"><strong>${_esc(item.name)}</strong><small>${_esc(_browserCreated(item.created_at))} · ${_esc(_browserSeen(item.last_seen_at))}</small></div>
+            <span class="mv-browser-state${item.locked ? '' : ' active'}">${item.locked ? 'locked' : 'access active'}</span>
+            <button class="act-btn" type="button" data-browser-lock="${_esc(item.id)}" ${item.locked ? 'disabled' : ''}>lock</button>
+            <button class="act-btn danger" type="button" data-browser-revoke="${_esc(item.id)}" data-browser-name="${_esc(item.name)}">revoke</button>
+          </div>`).join('') : '<p class="mv-browser-empty">no browsers connected to this vault.</p>'}
+      </div>
+    </div>`;
+}
+
+async function _browserOwnerMutation(url, opts, success) {
+  try {
+    const response = await _vfetchRecentOwner(url, opts);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      toast(payload.message || payload.detail || 'browser access could not be changed', 'error');
+      return false;
+    }
+    toast(success, 'success');
+    await _renderManageExtra();
+    return true;
+  } catch {
+    toast('browser access could not be changed', 'error');
+    return false;
+  }
+}
+
+async function _downloadBrowserExtension(button) {
+  button.disabled = true;
+  try {
+    const response = await _vfetchRecentOwner('/api/vault/browsers/extension');
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.message || payload.detail || 'extension download failed');
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'alles-passwords-extension.zip';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast('extension downloaded', 'success');
+  } catch (error) {
+    toast(error.message || 'extension download failed', 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// the "this vault" extras: hardware-key 2FA + exact-site browser access
 async function _renderManageExtra() {
   const box = _modalEl?.querySelector('#mv-extra');
   if (!box) return;
   let st = { on: false, totp: false, credentials: [] };
-  try { st = await _vfetch('/api/vault/2fa').then(r => r.json()); } catch {}
+  let browsers = { connections: [], pairings: [], unlock_requests: [] };
+  let browserLoadFailed = false;
+  const [factorResult, browserResult] = await Promise.allSettled([
+    _vfetch('/api/vault/2fa').then(response => response.ok ? response.json() : Promise.reject()),
+    _vfetch('/api/vault/browsers').then(response => response.ok ? response.json() : Promise.reject()),
+  ]);
+  if (factorResult.status === 'fulfilled') st = factorResult.value;
+  if (browserResult.status === 'fulfilled') browsers = browserResult.value;
+  else browserLoadFailed = true;
+  if (!box.isConnected) return;
   const cur = _vaults.find(v => v.id === _vaultId);
   const keyCount = (st.credentials || []).length;
   box.innerHTML = `
@@ -439,16 +679,23 @@ async function _renderManageExtra() {
     <div class="mv-row">
       <span class="mv-name">require a second factor to unlock</span>
       <span class="vault-entry-grow"></span>
-      <button class="chip-toggle ${st.on ? 'on' : ''}" id="mv-2fa" role="switch" aria-checked="${st.on}">${st.on ? 'on' : 'off'}</button>
+      <button class="home-settings-switch" type="button" id="mv-2fa" role="switch" aria-label="require a second factor to unlock" aria-checked="${st.on}"></button>
     </div>
     <p class="mv-2fa-note"><b>biometric unlock</b> (Touch ID / Windows Hello) is different: it stores your
-    master password on this device so you can unlock <i>without typing it</i> — it replaces the password,
+    master password on this device so you can unlock <i>without typing it</i>. it replaces the password;
     it isn't a second factor. A <b>passkey 2FA</b> is an extra check on top of the password and may ask
     for the same device's biometrics to release the key.</p>
-    <div class="mv-autofill" id="vault-autofill-info">
-      <span class="mv-autofill-text">Browser autofill: load the <code>extension/</code> folder as an unpacked extension, paste an unlock token, and it fills logins from this vault on matching sites.</span>
-      <a class="mv-autofill-link ic-btn-lbl" href="https://developer.chrome.com/docs/extensions/get-started" id="vault-ext-link" target="_blank" rel="noopener">how to load it ${_si('external')}</a>
-    </div>`;
+    <section class="mv-browser" id="vault-browser-access" aria-labelledby="mv-browser-title">
+      <div class="mv-browser-head">
+        <div><h3 id="mv-browser-title">connected browsers</h3><p>approve each browser here. access lasts five minutes and only releases the login you choose for the page's exact origin.</p></div>
+        <button class="act-btn" type="button" id="mv-browser-refresh">refresh</button>
+      </div>
+      <div id="mv-browser-content" aria-live="polite">${_browserAccessMarkup(browsers, browserLoadFailed)}</div>
+      <div class="mv-browser-install">
+        <p>download and unzip the extension, open <code>chrome://extensions</code>, enable developer mode, then choose <b>load unpacked</b>. the extension asks for only the Alles host you enter.</p>
+        <button class="act-btn" type="button" id="mv-browser-download">download extension</button>
+      </div>
+    </section>`;
   box.querySelector('#mv-2fa').onclick = async () => {
     try {
       const r = await _vfetch('/api/vault/2fa', {
@@ -467,6 +714,25 @@ async function _renderManageExtra() {
     await _renderManageExtra();
     toast('authenticator app removed', 'success');
   });
+  box.querySelector('#mv-browser-refresh').onclick = async event => {
+    event.currentTarget.disabled = true;
+    await _renderManageExtra();
+  };
+  box.querySelector('#mv-browser-download').onclick = event => _downloadBrowserExtension(event.currentTarget);
+  box.querySelectorAll('[data-browser-pair]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/pairings/${button.dataset.browserPair}/approve`, { method: 'POST' }, 'browser paired'));
+  box.querySelectorAll('[data-browser-pair-deny]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/pairings/${button.dataset.browserPairDeny}`, { method: 'DELETE' }, 'pairing denied'));
+  box.querySelectorAll('[data-browser-unlock]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/unlock-requests/${button.dataset.browserUnlock}/approve`, { method: 'POST' }, 'short browser access approved'));
+  box.querySelectorAll('[data-browser-unlock-deny]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/unlock-requests/${button.dataset.browserUnlockDeny}`, { method: 'DELETE' }, 'browser access denied'));
+  box.querySelectorAll('[data-browser-lock]').forEach(button => button.onclick = () =>
+    _browserOwnerMutation(`/api/vault/browsers/${button.dataset.browserLock}/lock`, { method: 'POST' }, 'browser locked'));
+  box.querySelectorAll('[data-browser-revoke]').forEach(button => button.onclick = async () => {
+    if (!await confirm(`revoke ${button.dataset.browserName || 'this browser'}? it will need to pair again.`)) return;
+    await _browserOwnerMutation(`/api/vault/browsers/${button.dataset.browserRevoke}`, { method: 'DELETE' }, 'browser revoked');
+  });
 }
 
 // 8c — enrol an authenticator app: fetch a secret, show it + a confirm-code box
@@ -475,10 +741,11 @@ async function _setupTotp() {
   try { d = await _vfetch('/api/vault/2fa/totp/setup', { method: 'POST' }).then(r => r.json()); }
   catch { toast('could not start setup', 'error'); return; }
   const ov = document.createElement('div');
+  const returnFocus = document.activeElement;
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
-    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:380px">
-      <div class="modal-head"><span class="modal-title">add authenticator app</span></div>
+    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="totp-title" style="max-width:380px">
+      <div class="modal-head"><span class="modal-title" id="totp-title">add authenticator app</span></div>
       <div class="vault-form">
         <p class="mv-2fa-explain">scan this in Google Authenticator / Authy / 1Password, or type the secret manually, then enter the 6-digit code to confirm.</p>
         <div class="totp-secret" id="totp-secret">${_esc(d.secret)}</div>
@@ -490,7 +757,12 @@ async function _setupTotp() {
         <button class="btn primary" id="totp-ok">confirm</button></div>
     </div>`;
   document.body.appendChild(ov);
-  const close = () => ov.remove();
+  let focusBoundary = null;
+  const close = () => {
+    focusBoundary?.deactivate();
+    focusBoundary?.destroy();
+    ov.remove();
+  };
   ov.querySelector('#totp-cancel').onclick = close;
   ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
   const go = async () => {
@@ -499,14 +771,14 @@ async function _setupTotp() {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ secret: d.secret, code }),
     });
-    if (!r.ok) { ov.querySelector('#totp-err').textContent = "code didn't match — try the current one"; return; }
+    if (!r.ok) { ov.querySelector('#totp-err').textContent = "code didn't match: try the current one"; return; }
     close();
     await _renderManageExtra();
     toast('authenticator app enrolled', 'success');
   };
   ov.querySelector('#totp-ok').onclick = go;
   ov.querySelector('#totp-code').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
-  ov.querySelector('#totp-code').focus();
+  focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#totp-code'), close);
 }
 
 async function _registerSecurityKey() {
@@ -546,7 +818,7 @@ function _renderManage() {
       <button class="chip ic-btn-lbl ${v.travel_safe ? 'on' : ''}" data-travel="${v.id}" title="reachable while travelling">${_si('plane')} safe</button>
       ${v.id === 'default' ? '' : `<button class="act-btn danger" data-del="${v.id}">delete</button>`}
     </div>`).join('')
-    + `<div class="mv-help">the <b>main</b> vault opens with your master password. other vaults each have their own password — change a vault's password from its row while it's unlocked.</div>`;
+    + `<div class="mv-help">the <b>main</b> vault opens with your master password. other vaults each have their own password. change a vault's password from its row while it's unlocked.</div>`;
   box.querySelectorAll('[data-rename]').forEach(s => s.onclick = () => _inlineRename(s));
   box.querySelectorAll('[data-chpw]').forEach(b => b.onclick = () => _changeVaultPw());
   box.querySelectorAll('[data-travel]').forEach(b => b.onclick = async () => {
@@ -607,51 +879,66 @@ async function _changeVaultPw() {
 }
 
 // a tiny password prompt that resolves to the entered string (or null on cancel)
-function _promptPw(title) {
+function _promptPw(title, { placeholder = 'master password', action = 'unlock' } = {}) {
   return new Promise(resolve => {
+    const returnFocus = document.activeElement;
     const ov = document.createElement('div');
     ov.className = 'modal-overlay vault-modal';
     ov.innerHTML = `
-      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:340px">
-        <div class="modal-head"><span class="modal-title">${_esc(title)}</span></div>
+      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="pp-title" style="max-width:340px">
+        <div class="modal-head"><span class="modal-title" id="pp-title">${_esc(title)}</span></div>
         <div class="vault-form"><div class="vform-field">
-          <input id="pp-pw" type="password" class="settings-input vform-input" placeholder="master password"></div></div>
+          <label for="pp-pw">password</label>
+          <input id="pp-pw" type="password" autocomplete="current-password" class="settings-input vform-input" placeholder="${_esc(placeholder)}"></div></div>
         <div class="vault-form-actions">
-          <button class="btn" id="pp-cancel">cancel</button>
-          <button class="btn primary" id="pp-ok">unlock</button></div>
+          <button type="button" class="btn" id="pp-cancel">cancel</button>
+          <button type="button" class="btn primary" id="pp-ok">${_esc(action)}</button></div>
       </div>`;
     document.body.appendChild(ov);
-    const done = val => { ov.remove(); resolve(val); };
+    let focusBoundary = null;
+    const done = val => {
+      focusBoundary?.deactivate();
+      focusBoundary?.destroy();
+      ov.remove();
+      resolve(val);
+    };
     ov.querySelector('#pp-cancel').onclick = () => done(null);
     ov.querySelector('#pp-ok').onclick = () => done(ov.querySelector('#pp-pw').value);
     ov.querySelector('#pp-pw').addEventListener('keydown', e => { if (e.key === 'Enter') done(ov.querySelector('#pp-pw').value); });
     ov.addEventListener('mousedown', e => { if (e.target === ov) done(null); });
-    ov.querySelector('#pp-pw').focus();
+    focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#pp-pw'), done);
   });
 }
 
 // new-password prompt with confirm (8b change-password); resolves to the password or null
 function _promptNewPw() {
   return new Promise(resolve => {
+    const returnFocus = document.activeElement;
     const ov = document.createElement('div');
     ov.className = 'modal-overlay vault-modal';
     ov.innerHTML = `
-      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:340px">
-        <div class="modal-head"><span class="modal-title">change password</span></div>
+      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="np-title" style="max-width:340px">
+        <div class="modal-head"><span class="modal-title" id="np-title">change password</span></div>
         <div class="vault-form">
-          <div class="vform-field"><input id="np-1" type="password" class="settings-input vform-input" placeholder="new password"></div>
-          <div class="vform-field"><input id="np-2" type="password" class="settings-input vform-input" placeholder="confirm new password"></div>
+          <div class="vform-field"><label for="np-1">new password</label><input id="np-1" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="12" placeholder="12 or more characters"></div>
+          <div class="vform-field"><label for="np-2">confirm new password</label><input id="np-2" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="12" placeholder="repeat new password"></div>
           <div class="np-err" id="np-err"></div>
         </div>
         <div class="vault-form-actions">
-          <button class="btn" id="np-cancel">cancel</button>
-          <button class="btn primary" id="np-ok">change</button></div>
+          <button type="button" class="btn" id="np-cancel">cancel</button>
+          <button type="button" class="btn primary" id="np-ok">change</button></div>
       </div>`;
     document.body.appendChild(ov);
-    const done = val => { ov.remove(); resolve(val); };
+    let focusBoundary = null;
+    const done = val => {
+      focusBoundary?.deactivate();
+      focusBoundary?.destroy();
+      ov.remove();
+      resolve(val);
+    };
     const go = () => {
       const a = ov.querySelector('#np-1').value, b = ov.querySelector('#np-2').value;
-      if (a.length < 4) { ov.querySelector('#np-err').textContent = 'use at least 4 characters'; return; }
+      if (a.length < 12) { ov.querySelector('#np-err').textContent = 'use at least 12 characters'; return; }
       if (a !== b) { ov.querySelector('#np-err').textContent = "passwords don't match"; return; }
       done(a);
     };
@@ -659,7 +946,7 @@ function _promptNewPw() {
     ov.querySelector('#np-ok').onclick = go;
     ov.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }));
     ov.addEventListener('mousedown', e => { if (e.target === ov) done(null); });
-    ov.querySelector('#np-1').focus();
+    focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#np-1'), done);
   });
 }
 
@@ -672,7 +959,7 @@ async function _enableBiometric() {
       rp: { name: 'alles vault' },
       user: { id: new TextEncoder().encode('vault:' + _vaultId), name: 'vault:' + _vaultId, displayName: 'vault' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }],  // ES256
-      authenticatorSelection: { userVerification: 'preferred' },
+      authenticatorSelection: { userVerification: 'required' },
       timeout: 60000,
     }});
     const pub = cred.response.getPublicKey();  // SPKI DER
@@ -688,14 +975,17 @@ async function _enableBiometric() {
 }
 
 // show the lock-screen biometric button only if the default vault has a credential
-async function _refreshBioUnlock() {
+async function _refreshBioUnlock(fetcher = fetch) {
   const btn = $('vault-bio-unlock-btn');
   if (!btn) return;
   if (!window.PublicKeyCredential) { btn.style.display = 'none'; return; }
   try {
-    const d = await fetch('/api/vault/webauthn/challenge?vault_id=default').then(r => r.json());
+    const response = await fetcher('/api/vault/webauthn/challenge?vault_id=default');
+    if (!response.ok) throw new Error('biometric availability check failed');
+    const d = await response.json();
     btn.style.display = (d.credentials && d.credentials.length) ? '' : 'none';
-  } catch { btn.style.display = 'none'; }
+    return true;
+  } catch { btn.style.display = 'none'; return false; }
 }
 
 async function _bioUnlock() {
@@ -705,7 +995,7 @@ async function _bioUnlock() {
     const assertion = await navigator.credentials.get({ publicKey: {
       challenge: _b64ToBuf(d.challenge),
       timeout: 60000,
-      userVerification: 'preferred',
+      userVerification: 'required',
       allowCredentials: d.credentials.map(c => ({ type: 'public-key', id: _b64ToBuf(c) })),
     }});
     const r = await fetch('/api/vault/webauthn/unlock', {
@@ -753,9 +1043,9 @@ async function showWatchtower() {
     <div class="vault-wt" id="vault-wt">
       <div class="wt-bar">
         <button class="btn ic-btn-lbl" id="wt-back">${_si('chevron-left')} back to vault</button>
-        <span class="wt-intro">Watchtower scans your saved passwords for problems — known data-breach exposure, the same password reused across logins, and weak/short passwords.</span>
+        <span class="wt-intro">Watchtower scans your saved passwords for problems: known data-breach exposure, the same password reused across logins, and weak/short passwords.</span>
       </div>
-      ${sec('breached', 'passwords found in known data breaches — change these first.', (d.breached || []).map(x => `${_esc(x.name)} <span class="wt-meta">seen ${x.count.toLocaleString()}×</span>`), 'bad')}
+      ${sec('breached', 'passwords found in known data breaches - change these first.', (d.breached || []).map(x => `${_esc(x.name)} <span class="wt-meta">seen ${formatNumber(x.count)}×</span>`), 'bad')}
       ${sec('reused', 'the same password used on more than one login.', (d.reused || []).map(g => _esc(g.names.join(', '))), 'warn')}
       ${sec('weak', 'short or low-entropy passwords that are easy to guess.', (d.weak || []).map(x => _esc(x.name)), 'warn')}
     </div>`;
@@ -764,109 +1054,295 @@ async function showWatchtower() {
 
 // ── add / edit modal ───────────────────────────────────────────────────────
 
-function openVaultForm(entry = null) {
+function openVaultForm(entry = null, returnFocus = document.activeElement) {
   _closeModal();
   const editing = !!entry;
   const ov = document.createElement('div');
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
-    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true">
+    <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="vf-title">
       <div class="modal-head">
-        <span class="modal-title">${editing ? 'edit secret' : 'new secret'}</span>
-        <button class="modal-close" id="vf-x" aria-label="close">✕</button>
+        <span class="modal-title" id="vf-title">${editing ? 'edit secret' : 'new secret'}</span>
+        <button type="button" class="modal-close" id="vf-x" aria-label="close">✕</button>
       </div>
       <div class="vault-form">
-        <div class="vform-field"><label>name</label>
+        <div class="vform-field"><label for="vf-name">name</label>
           <input id="vf-name" class="settings-input vform-input" placeholder="e.g. Chase Visa"></div>
-        <div class="vform-field"><label>type</label>
+        <div class="vform-field"><label id="vf-type-label">type</label>
           <div class="custom-select" id="vf-type" style="width:100%"></div></div>
         <div class="vform-divider"></div>
         <div id="vf-fields"></div>
         ${editing ? `<div class="vform-divider"></div>
         <div class="vform-field"><label>attachments</label><div id="vf-attach"></div>
           <input type="file" id="vf-attach-input" hidden>
-          <button type="button" class="btn" id="vf-attach-btn" style="font-size:0.68rem">+ attach file</button></div>` : ''}
+          <button type="button" class="btn" id="vf-attach-btn">+ attach file</button>
+          <button type="button" class="btn" id="vf-attach-clear" hidden>discard upload retry</button>
+          <div id="vf-upload-status" role="status" hidden></div></div>
+        <div class="vform-field" id="vf-share-result" hidden>
+          <label for="vf-share-url">share link</label>
+          <input id="vf-share-url" class="settings-input vform-input" readonly>
+          <small>anyone with this link can read the saved entry. revoking it stops future access.</small>
+          <button type="button" class="btn" id="vf-share-copy">copy link</button>
+        </div>` : ''}
       </div>
+      <p id="vf-error" class="vault-form-error" role="alert" hidden></p>
+      <button type="button" class="btn" id="vf-open-saved" hidden>open saved entry</button>
       <div class="vault-form-actions">
-        ${editing ? '<button class="btn danger" id="vf-del" style="margin-right:auto">delete</button>' : ''}
-        ${editing ? '<button class="btn" id="vf-share" title="share this item via a one-off link">🔗 share</button>' : ''}
-        <button class="btn" id="vf-cancel">cancel</button>
-        <button class="btn primary" id="vf-save">${editing ? 'save' : 'add'}</button>
+        ${editing ? '<button type="button" class="btn danger" id="vf-del" style="margin-right:auto">delete</button>' : ''}
+        ${editing ? '<button type="button" class="btn" id="vf-share" title="share the saved entry via a one-off link">share</button><button type="button" class="btn" id="vf-share-revoke" title="revoke any existing share link for this entry">revoke link</button>' : ''}
+        <button type="button" class="btn" id="vf-cancel">cancel</button>
+        <button type="button" class="btn primary" id="vf-save">${editing ? 'save' : 'add'}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
   _modalEl = ov;
   ov._entry = entry;
+  ov._vaultId = _vaultId;
 
   const typeSel = ov.querySelector('#vf-type');
+  typeSel.setAttribute('aria-labelledby', 'vf-type-label');
   const initial = editing ? _typeForEntry(entry) : 'login';
   populateDropdown(typeSel, _allTypes().map(t => ({ value: t.key, label: t.label })), initial);
-  typeSel.addEventListener('change', () => _renderFields(_currentFields(), _editVals()));
+  typeSel.addEventListener('change', () => {
+    if (ov._saving || ov._acting || ov._openingSaved) return;
+    _renderFields(_currentFields(), _editVals());
+  });
 
   ov.querySelector('#vf-name').value = editing ? (entry.name || '') : '';
   _renderFields(_currentFields(), _editVals());
 
-  ov.querySelector('#vf-x').onclick = _closeModal;
-  ov.querySelector('#vf-cancel').onclick = _closeModal;
+  ov.querySelector('#vf-x').onclick = _requestCloseModal;
+  ov.querySelector('#vf-cancel').onclick = _requestCloseModal;
   ov.querySelector('#vf-save').onclick = () => _saveForm(editing);
+  ov.querySelector('#vf-open-saved').onclick = () => _openSavedEntry(ov);
   ov.querySelector('#vf-del')?.addEventListener('click', () => _delFromForm(entry.id));
   if (editing) {
-    _renderAttachments(entry.id);
-    ov.querySelector('#vf-attach-btn')?.addEventListener('click', () => ov.querySelector('#vf-attach-input').click());
-    ov.querySelector('#vf-attach-input')?.addEventListener('change', async e => {
-      const f = e.target.files[0]; if (!f) return;
-      const fd = new FormData(); fd.append('file', f);
-      await _vfetch(`/api/vault/${entry.id}/attachments`, { method: 'POST', body: fd });
-      e.target.value = ''; _renderAttachments(entry.id);
-    });
-    ov.querySelector('#vf-share')?.addEventListener('click', () => _shareItem(entry.id));
+    _renderAttachments(entry.id, ov);
+    ov.querySelector('#vf-attach-btn').onclick = () => ov._upload ? _uploadAttachment(ov) : ov.querySelector('#vf-attach-input').click();
+    ov.querySelector('#vf-attach-input').onchange = e => {
+      const file = e.target.files[0]; if (!file || ov._upload) return;
+      ov._upload = { file, id: _createRequestId(), uncertain: false };
+      _uploadAttachment(ov);
+    };
+    ov.querySelector('#vf-attach-clear').onclick = async () => {
+      const token = _token;
+      if (ov._acting || !await confirm('this file may already be attached. discard the retry and check attachments?') || !_sameForm(ov, token)) return;
+      ov._upload = null; ov.querySelector('#vf-attach-input').value = ''; _uploadStatus(ov);
+      await _renderAttachments(entry.id, ov);
+    };
+    ov.querySelector('#vf-share').onclick = () => _shareItem(entry.id, ov);
+    ov.querySelector('#vf-share-copy').onclick = () => _copyShare(ov);
+    ov.querySelector('#vf-share-revoke').onclick = () => _formAction(ov, async current => {
+      await _checkedVault(`/api/vault/${entry.id}/share`, { method: 'DELETE' });
+      if (!current()) return;
+      ov.querySelector('#vf-share-url').value = ''; ov.querySelector('#vf-share-result').hidden = true;
+      toast('share link revoked', 'success');
+    }, 'could not confirm revocation. retry to revoke the link.');
   }
-  ov.addEventListener('mousedown', e => { if (e.target === ov) _closeModal(); });
-  document.addEventListener('keydown', _escClose);
-  ov.querySelector('#vf-name').focus();
+  ov.addEventListener('mousedown', e => { if (e.target === ov) _requestCloseModal(); });
+  _activateManagedModal(ov, returnFocus, ov.querySelector('#vf-name'));
 }
 
-// 9b — encrypted attachments on an entry
-async function _renderAttachments(eid) {
-  const box = _modalEl?.querySelector('#vf-attach');
-  if (!box) return;
-  const list = await _vfetch(`/api/vault/${eid}/attachments`).then(r => r.json()).catch(() => []);
-  if (!list.length) { box.innerHTML = '<div class="vf-attach-empty">none</div>'; return; }
-  box.innerHTML = list.map(a => `
-    <div class="vf-attach-row" data-id="${a.id}">
-      <span class="vf-attach-name">📎 ${_esc(a.filename)}</span>
-      <span class="vf-attach-size">${Math.max(1, Math.round(a.size / 1024))} KB</span>
-      <button type="button" class="act-btn" data-dl="${a.id}" data-name="${_esc(a.filename)}">download</button>
-      <button type="button" class="act-btn danger" data-rm="${a.id}">remove</button>
-    </div>`).join('');
-  box.querySelectorAll('[data-dl]').forEach(b => b.onclick = async () => {
-    const r = await _vfetch(`/api/vault/attachments/${b.dataset.dl}`);
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = b.dataset.name; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
-  box.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
-    await _vfetch(`/api/vault/attachments/${b.dataset.rm}`, { method: 'DELETE' });
-    _renderAttachments(eid);
-  });
+function _uploadStatus(ov) {
+  const pending = ov._upload;
+  ov.querySelector('#vf-attach-btn').textContent = pending ? 'retry upload' : '+ attach file';
+  ov.querySelector('#vf-attach-clear').hidden = !pending;
+  const status = ov.querySelector('#vf-upload-status');
+  status.hidden = !pending;
+  status.textContent = pending ? `${pending.file.name}: ${ov._acting ? 'uploading…' : 'the file is kept here. retry this upload or discard the retry.'}` : '';
 }
 
-async function _shareItem(eid) {
+async function _uploadAttachment(ov) {
+  if (!ov._upload) return;
+  await _formAction(ov, async current => {
+    const pending = ov._upload;
+    pending.uncertain = true; _uploadStatus(ov);
+    const body = new FormData(); body.append('file', pending.file); body.append('request_id', pending.id);
+    const response = await _checkedVault(`/api/vault/${ov._entry.id}/attachments`, { method: 'POST', body });
+    const saved = await response.json();
+    if (!current()) return;
+    if (!saved.id || typeof saved.filename !== 'string' || saved.size !== pending.file.size) throw new Error('invalid upload acknowledgment');
+    ov._upload = null; ov.querySelector('#vf-attach-input').value = ''; _uploadStatus(ov);
+    await _renderAttachments(ov._entry.id, ov);
+  }, 'could not confirm the upload. retry the same file safely, or check attachments after closing.');
+  if (_modalEl === ov && ov._upload) _uploadStatus(ov);
+}
+
+async function _renderAttachments(eid, ov = _modalEl) {
+  const box = ov?.querySelector('#vf-attach'), token = _token;
+  if (!box || !_sameForm(ov, token)) return;
+  const generation = ov._attachmentGeneration = (ov._attachmentGeneration || 0) + 1;
+  const current = () => _sameForm(ov, token) && ov._attachmentGeneration === generation;
+  box.innerHTML = '<div role="status">loading attachments…</div>';
   try {
-    const d = await _vfetch(`/api/vault/${eid}/share`, { method: 'POST' }).then(r => r.json());
-    const url = location.origin + d.url;  // includes #key in the fragment
-    try { await navigator.clipboard.writeText(url); toast('share link copied (anyone with it can read this item)', 'success'); }
-    catch { toast(url, ''); }
-  } catch { toast('share failed', 'error'); }
+    const response = await _checkedVault(`/api/vault/${eid}/attachments`);
+    const list = await response.json();
+    if (!current()) return;
+    if (!Array.isArray(list)) throw new Error('invalid attachment list');
+    box.innerHTML = list.length ? list.map(a => `
+      <div class="vf-attach-row" data-id="${_esc(a.id)}">
+        <span class="vf-attach-name">${_esc(a.filename)}</span>
+        <span class="vf-attach-size">${Math.max(1, Math.round(a.size / 1024))} KB</span>
+        <button type="button" class="act-btn" data-dl="${_esc(a.id)}" data-name="${_esc(a.filename)}">download</button>
+        <button type="button" class="act-btn danger" data-rm="${_esc(a.id)}">remove</button>
+      </div>`).join('') : '<div class="vf-attach-empty">none</div>';
+    box.querySelectorAll('[data-dl]').forEach(button => button.onclick = () => _formAction(ov, async active => {
+      const response = await _checkedVault(`/api/vault/attachments/${button.dataset.dl}`);
+      const blob = await response.blob();
+      if (!active()) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = button.dataset.name; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, 'could not download this attachment. retry the download.'));
+    box.querySelectorAll('[data-rm]').forEach(button => button.onclick = async () => {
+      if (ov._acting || !await confirm(`remove ${button.closest('.vf-attach-row').querySelector('.vf-attach-name').textContent}?`) || !current()) return;
+      await _formAction(ov, async active => {
+        const response = await _vfetch(`/api/vault/attachments/${button.dataset.rm}`, { method: 'DELETE' });
+        if (!response.ok && response.status !== 404) throw Object.assign(new Error('delete failed'), { status: response.status });
+        if (active()) await _renderAttachments(eid, ov);
+      }, 'could not confirm removal. retry safely or reopen the entry to check attachments.');
+    });
+    if (ov._acting || ov._saving) _formBusy(ov, true);
+  } catch (error) {
+    if (!current()) return;
+    if (error.status === 403) { await _doLock(); toast('vault access expired. unlock and open the entry again.', 'error'); return; }
+    box.innerHTML = '<div role="alert">could not load attachments.</div><button type="button" class="btn" data-attach-retry>retry attachments</button>';
+    box.querySelector('[data-attach-retry]').onclick = () => _renderAttachments(eid, ov);
+    if (ov._acting || ov._saving) _formBusy(ov, true);
+  }
 }
 
-function _escClose(e) { if (e.key === 'Escape') _closeModal(); }
+async function _copyShare(ov) {
+  const token = _token, value = ov.querySelector('#vf-share-url').value;
+  if (!_sameForm(ov, token) || !value) return;
+  try {
+    await navigator.clipboard.writeText(value);
+    if (_sameForm(ov, token)) toast('share link copied', 'success');
+  } catch {
+    if (_sameForm(ov, token)) _formError(ov, 'clipboard unavailable. select the share link and copy it manually.');
+  }
+}
+
+async function _shareItem(eid, ov = _modalEl) {
+  await _formAction(ov, async current => {
+    ov.querySelector('#vf-share-url').value = ''; ov.querySelector('#vf-share-result').hidden = true;
+    const response = await _checkedVault(`/api/vault/${eid}/share`, { method: 'POST' });
+    const result = await response.json();
+    if (!current()) return;
+    if (typeof result.url !== 'string' || !/^\/sv\/[^/#?]+#[^#]+$/.test(result.url)) throw new Error('invalid share acknowledgment');
+    ov.querySelector('#vf-share-url').value = location.origin + result.url;
+    ov.querySelector('#vf-share-result').hidden = false;
+    await _copyShare(ov);
+  }, 'could not create a share link. retry to create a new link.');
+}
+
+function _sameForm(ov, token) {
+  return _modalEl === ov && _unlocked && _token === token && ov._vaultId === _vaultId;
+}
+
+function _formError(ov, message) {
+  const error = ov.querySelector('#vf-error');
+  if (error) { error.textContent = message; error.hidden = !message; }
+  const open = ov.querySelector('#vf-open-saved');
+  if (open) open.hidden = !ov._conflict;
+}
+
+function _formBusy(ov, busy) {
+  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-type, #vf-save, #vf-open-saved, #vf-del, #vf-share, #vf-share-revoke');
+  if (busy) {
+    ov._disabledBefore ||= new Map();
+    controls.forEach(control => {
+      if (!ov._disabledBefore.has(control)) ov._disabledBefore.set(control, control.disabled);
+      control.disabled = true;
+    });
+  } else if (!busy && ov._disabledBefore) {
+    ov._disabledBefore.forEach((disabled, control) => { control.disabled = disabled; });
+    ov._disabledBefore = null;
+  }
+  const save = ov.querySelector('#vf-save');
+  if (save) save.textContent = ov._saving ? 'saving…' : ov._entry ? 'save' : 'add';
+  const open = ov.querySelector('#vf-open-saved');
+  if (open) open.textContent = ov._openingSaved ? 'opening saved entry…' : 'open saved entry';
+}
+
+async function _requestCloseModal() {
+  const ov = _modalEl;
+  if (!ov) return;
+  if (ov._createUncertain && !await confirm('this entry may already be saved. close this draft and check saved entries?')) return;
+  if (ov._upload?.uncertain && !await confirm('this file may already be attached. close and check attachments when you reopen the entry?')) return;
+  if (_modalEl !== ov) return;
+  _closeModal();
+  if (ov._createUncertain && _unlocked && ov._vaultId === _vaultId) await _loadEntries();
+}
+
+function _createRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+async function _openSavedEntry(ov) {
+  if (ov._saving || ov._openingSaved || !ov._requestId) return;
+  const token = _token;
+  if (!_sameForm(ov, token)) return;
+  const focusSource = ov.querySelector('#vf-open-saved');
+  let ownsFocus = document.activeElement === focusSource;
+  let focusDialog = null;
+  const trackFocus = event => {
+    if (event.target !== focusSource && event.target !== document.body && !focusDialog?.contains(event.target)) ownsFocus = false;
+  };
+  document.addEventListener('focusin', trackFocus, true);
+  ov._openingSaved = true;
+  _formBusy(ov, true);
+  try {
+    const response = await _vfetch(`/api/vault/requests/${encodeURIComponent(ov._requestId)}`);
+    const entry = await response.json().catch(() => ({}));
+    if (!_sameForm(ov, token)) return;
+    if (!response.ok) {
+      if (response.status === 403) {
+        await _doLock();
+        toast('vault access expired. unlock and check saved entries.', 'error');
+        return;
+      }
+      if ([404, 410].includes(response.status)) ov._conflict = false;
+      throw new Error(typeof entry.detail === 'string' ? entry.detail : 'could not open the saved entry');
+    }
+    document.removeEventListener('focusin', trackFocus, true);
+    const decision = confirm('discard this draft and open the saved entry?');
+    focusDialog = document.activeElement?.closest('.dialog-overlay');
+    document.addEventListener('focusin', trackFocus, true);
+    if (!await decision || !_sameForm(ov, token)) return;
+    openVaultForm(entry);
+  } catch (error) {
+    if (_sameForm(ov, token)) _formError(ov, `${error.message || 'could not open the saved entry'}. your input is kept.`);
+  } finally {
+    document.removeEventListener('focusin', trackFocus, true);
+    ov._openingSaved = false;
+    if (_sameForm(ov, token)) {
+      const restoreFocus = ownsFocus && [focusSource, document.body].includes(document.activeElement);
+      _formBusy(ov, false);
+      if (restoreFocus) (ov.querySelector('#vf-open-saved:not([hidden])') || ov.querySelector('#vf-save'))?.focus();
+    }
+  }
+}
 
 function _closeModal() {
+  _revealGeneration++;
   if (_totpTimer) { clearInterval(_totpTimer); _totpTimer = null; }
-  if (_modalEl) { _modalEl.remove(); _modalEl = null; }
-  document.removeEventListener('keydown', _escClose);
+  _modalFocusBoundary?.deactivate();
+  _modalFocusBoundary?.destroy();
+  _modalFocusBoundary = null;
+  if (_modalEl) {
+    _modalEl.querySelectorAll('input, textarea').forEach(input => { input.value = ''; });
+    _modalEl._entry = null;
+    _modalEl._upload = null;
+    _modalEl.remove();
+    _modalEl = null;
+  }
 }
 
 // 9a — live TOTP code + countdown for an entry that stores a totp secret
@@ -903,18 +1379,18 @@ function _startTotp() {
 function _editVals() {
   const e = _modalEl?._entry;
   if (!e) return {};
-  return { ...(e.fields || {}), username: e.username || '' };
+  return { ..._entryFields(e), username: e.username || '' };
 }
 
 // fields for the currently-selected type, plus any extra keys an edited entry
 // already carries (so nothing it stored gets hidden)
 function _currentFields() {
-  const tk = _modalEl.querySelector('#vf-type').value;
+  const tk = getDropdownValue(_modalEl.querySelector('#vf-type'));
   const t = _typeDef(tk);
   let keys = t?.custom ? (t.fields || []).map(f => f.key) : (t?.fields || ['notes']).slice();
   const e = _modalEl._entry;
   // keep any extra fields already stored on the entry (built-in or custom)
-  if (e?.fields) for (const k of Object.keys(e.fields)) if (!keys.includes(k)) keys.push(k);
+  if (e?.fields) for (const k of Object.keys(_entryFields(e))) if (!keys.includes(k)) keys.push(k);
   return keys.map(k => _defOf(k, tk));
 }
 
@@ -922,23 +1398,32 @@ function _fieldHtml(def) {
   const id = 'vf-f-' + def.key;
   const ph = def.placeholder || '';
   if (def.kind === 'textarea')
-    return `<div class="vform-field"><label>${_esc(def.label)}</label>
+    return `<div class="vform-field"><label for="${id}">${_esc(def.label)}</label>
       <textarea id="${id}" class="settings-input vform-input" rows="2" placeholder="${_esc(ph)}"></textarea></div>`;
+  if (def.kind === 'secretarea')
+    return `<div class="vform-field"><label for="${id}">${_esc(def.label)}</label>
+      <div class="vform-secretarea">
+        <textarea id="${id}" class="settings-input vform-input" rows="5" autocomplete="off" spellcheck="false" placeholder="${_esc(ph)}"></textarea>
+        <div class="vform-secret-actions">
+          <button type="button" class="act-btn" data-reveal="${id}">show</button>
+          <button type="button" class="act-btn" data-copy="${id}">copy</button>
+        </div>
+      </div></div>`;
   if (def.kind === 'password' || def.kind === 'secret') {
     const gen = def.kind === 'password' ? `<button type="button" class="btn ic-btn-lbl" id="vf-gen">${_si('refresh')} gen</button>` : '';
     const strength = def.kind === 'password'
       ? `<div class="vault-strength" id="vf-strength" style="display:none">
           <span class="vault-strength-bar"><span class="vault-strength-fill"></span></span>
           <span class="vault-strength-label"></span></div>` : '';
-    return `<div class="vform-field"><label>${_esc(def.label)}</label>
+    return `<div class="vform-field${def.half ? ' half' : ''}"><label for="${id}">${_esc(def.label)}</label>
       <div class="vform-pw">
-        <input id="${id}" type="password" class="settings-input vform-input" placeholder="${_esc(ph)}">
+        <input id="${id}" type="password" autocomplete="off" class="settings-input vform-input" placeholder="${_esc(ph)}">
         <button type="button" class="act-btn" data-reveal="${id}">show</button>
         <button type="button" class="act-btn" data-copy="${id}">copy</button>
         ${gen}
       </div>${strength}</div>`;
   }
-  return `<div class="vform-field${def.half ? ' half' : ''}"><label>${_esc(def.label)}</label>
+  return `<div class="vform-field${def.half ? ' half' : ''}"><label for="${id}">${_esc(def.label)}</label>
     <input id="${id}" type="text" class="settings-input vform-input" placeholder="${_esc(ph)}"></div>`;
 }
 
@@ -956,18 +1441,35 @@ function _renderFields(defs, values = {}) {
 
   for (const def of defs) {
     const el = box.querySelector('#vf-f-' + def.key);
-    if (el && values[def.key] != null) el.value = values[def.key];
+    if (el && values[def.key] != null) {
+      el.value = values[def.key];
+      // Text controls normalize line endings; retain unchanged stored bytes on edit.
+      el._vaultOriginal = { value: String(values[def.key]), rendered: el.value };
+    }
   }
   box.querySelector('#vf-gen')?.addEventListener('click', _genFormPw);
   box.querySelectorAll('[data-reveal]').forEach(b => b.onclick = () => {
     const inp = box.querySelector('#' + b.dataset.reveal);
-    const show = inp.type === 'password';
-    inp.type = show ? 'text' : 'password';
+    const secretArea = inp.tagName === 'TEXTAREA';
+    const show = secretArea ? !inp.classList.contains('is-revealed') : inp.type === 'password';
+    if (secretArea) inp.classList.toggle('is-revealed', show);
+    else inp.type = show ? 'text' : 'password';
     b.textContent = show ? 'hide' : 'show';
   });
   box.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
-    await navigator.clipboard.writeText(box.querySelector('#' + b.dataset.copy).value);
-    toast('copied', 'success');
+    const ov = _modalEl, token = _token;
+    if (!ov || !_sameForm(ov, token)) return;
+    const input = box.querySelector('#' + b.dataset.copy);
+    const value = input.value === input._vaultOriginal?.rendered ? input._vaultOriginal.value : input.value;
+    try {
+      await navigator.clipboard.writeText(value);
+      if (_sameForm(ov, token)) toast('copied', 'success');
+    } catch {
+      if (_sameForm(ov, token)) {
+        _formError(ov, 'clipboard unavailable. show the field and copy it manually.');
+        toast('clipboard unavailable. copy the field manually.', 'error');
+      }
+    }
   });
   box.querySelector('#vf-f-password')?.addEventListener('input', _checkStrength);
   _startTotp();
@@ -981,7 +1483,7 @@ async function _genFormPw() {
     const showBtn = _modalEl.querySelector('[data-reveal="vf-f-password"]');
     if (showBtn) showBtn.textContent = 'hide';
     _showStrength(d.strength);
-  } catch { toast("couldn't generate a password — try again", 'error'); }
+  } catch { toast("couldn't generate a password: try again", 'error'); }
 }
 
 let _stTimer;
@@ -1009,13 +1511,15 @@ function _showStrength(s) {
   const colors = ['var(--error)', 'var(--error)', '#d8a24a', 'var(--green)', 'var(--green)'];
   box.querySelector('.vault-strength-fill').style.width = ((s.score + 1) * 20) + '%';
   box.querySelector('.vault-strength-fill').style.background = colors[s.score] || 'var(--muted)';
-  box.querySelector('.vault-strength-label').textContent = s.label + (s.warning ? ' — ' + s.warning : '');
+  box.querySelector('.vault-strength-label').textContent = s.label + (s.warning ? ': ' + s.warning : '');
 }
 
 async function _saveForm(editing) {
   const ov = _modalEl;
+  if (!ov || ov._saving || ov._openingSaved || ov._acting || !_sameForm(ov, _token)) return;
+  if (ov._upload) { _formError(ov, 'retry or discard the pending upload before saving this entry.'); return; }
   const name = ov.querySelector('#vf-name').value.trim();
-  const typeKey = ov.querySelector('#vf-type').value;
+  const typeKey = getDropdownValue(ov.querySelector('#vf-type'));
 
   // passkeys are minted server-side (keypair never leaves the box)
   if (typeKey === 'passkey' && !editing) {
@@ -1026,7 +1530,7 @@ async function _saveForm(editing) {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ rp_id: rp, username: user }),
     });
-    if (!r.ok) { toast('passkey create failed — is the vault unlocked?', 'error'); return; }
+    if (!r.ok) { toast('passkey create failed: is the vault unlocked?', 'error'); return; }
     toast('passkey created', 'success');
     _closeModal();
     await _loadEntries();
@@ -1039,7 +1543,7 @@ async function _saveForm(editing) {
   for (const def of schema) {
     const key = def.key;
     const el = ov.querySelector('#vf-f-' + key);
-    const val = el ? el.value.trim() : '';
+    const val = el ? (el.value === el._vaultOriginal?.rendered ? el._vaultOriginal.value : el.value) : '';
     if (key === 'username') { username = val; continue; }
     if (val) fields[key] = val;
   }
@@ -1051,47 +1555,122 @@ async function _saveForm(editing) {
   }
   if (!name) { toast('name required', 'error'); return; }
   if (!username && !Object.keys(fields).length) { toast('fill in at least one field', 'error'); return; }
-  const body = JSON.stringify({
+  const payload = {
     name, type: typeKey, fields, username,
     category: TYPE_BY_KEY[typeKey]?.label || typeKey,
-  });
+  };
   const id = editing ? ov._entry.id : null;
-  const r = await _vfetch(editing ? `/api/vault/${id}` : '/api/vault', {
-    method: editing ? 'PATCH' : 'POST',
-    headers: { 'content-type': 'application/json' }, body,
-  });
-  if (!r.ok) { toast('save failed — is the vault still unlocked?', 'error'); return; }
-  toast(editing ? 'saved' : 'entry added', 'success');
-  _closeModal();
-  await _loadEntries();
+  const token = _token;
+  const refreshDismissedForm = async () => {
+    if (_unlocked && _token === token && _vaultId === ov._vaultId) await _loadEntries();
+  };
+  const earlierUncertainty = ov._createUncertain;
+  const focusSource = ov.querySelector('#vf-save');
+  let ownsFocus = document.activeElement === focusSource;
+  const trackFocus = event => {
+    if (event.target !== focusSource && event.target !== document.body) ownsFocus = false;
+  };
+  document.addEventListener('focusin', trackFocus, true);
+  ov._saving = true;
+  _formBusy(ov, true);
+  _formError(ov, '');
+  try {
+    if (!editing) {
+      payload.request_id = ov._requestId ||= _createRequestId();
+      ov._createUncertain = true;
+    }
+    const response = await _vfetch(editing ? `/api/vault/${id}` : '/api/vault', {
+      method: editing ? 'PATCH' : 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    if (!_sameForm(ov, token)) { await refreshDismissedForm(); return; }
+    if (!response.ok) {
+      const detail = (await response.json().catch(() => ({}))).detail;
+      if (!_sameForm(ov, token)) { await refreshDismissedForm(); return; }
+      if (response.status === 403) {
+        await _doLock();
+        toast('vault access expired. unlock and check saved entries before adding again.', 'error');
+        return;
+      }
+      if (!editing && [400, 422].includes(response.status)) ov._createUncertain = earlierUncertainty;
+      if (!editing && response.status === 409 && detail?.entry_id) ov._conflict = true;
+      if (response.status === 410) ov._conflict = false;
+      const reason = typeof detail === 'string' ? detail : detail?.message;
+      throw new Error(response.status < 500 && reason ? reason : `save failed (${response.status}); try again`);
+    }
+    ov._createUncertain = false;
+    toast(editing ? 'saved' : 'entry added', 'success');
+    _closeModal();
+    await _loadEntries();
+  } catch (error) {
+    if (_sameForm(ov, token)) _formError(ov, `${error.message || 'could not save; try again'}. your input is kept.`);
+    else await refreshDismissedForm();
+  } finally {
+    document.removeEventListener('focusin', trackFocus, true);
+    ov._saving = false;
+    if (_sameForm(ov, token)) {
+      const restoreFocus = ownsFocus && [focusSource, document.body].includes(document.activeElement);
+      _formBusy(ov, false);
+      if (restoreFocus) focusSource?.focus();
+    }
+  }
 }
 
 async function _delFromForm(id) {
-  if (!await confirm('delete this entry?')) return;
-  await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
-  _closeModal();
-  await _loadEntries();
+  const ov = _modalEl, token = _token;
+  if (!ov || ov._acting || !await confirm('delete this entry?') || !_sameForm(ov, token)) return;
+  await _formAction(ov, async current => {
+    const response = await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) throw Object.assign(new Error('delete failed'), { status: response.status });
+    if (!current()) return;
+    _closeModal(); await _loadEntries();
+  }, 'could not confirm deletion. your input is kept. retry safely or close and check the list.');
 }
 
 // ── unlock / lock ────────────────────────────────────────────────────────────
 
 async function _doUnlock() {
+  if (_unlocking || !['setup', 'locked'].includes(_setupState)) return;
   const pw = $('vault-pw-input')?.value;
-  if (!pw) { toast('enter master password', 'error'); return; }
+  if (!pw) { _unlockError('enter master password'); return; }
+  if (_setupState === 'setup') {
+    if (pw.length < 12) { _unlockError('use at least 12 characters'); return; }
+    if (pw !== $('vault-pw-confirm')?.value) { _unlockError("passwords don't match"); return; }
+  }
+  const generation = ++_unlockGeneration;
+  _unlocking = true;
+  $('vault-unlock-btn').disabled = true;
+  _unlockError('');
   try {
     const r = await fetch('/api/vault/unlock', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ password: pw }),
     });
-    if (!r.ok) { toast('wrong password', 'error'); return; }
+    if (generation !== _unlockGeneration) return;
+    if (!r.ok) {
+      const detail = (await r.json().catch(() => ({}))).detail;
+      if (generation !== _unlockGeneration) return;
+      _unlockError(typeof detail === 'string' ? detail : 'unlock failed. try again.');
+      await _refreshVaultSetup();
+      return;
+    }
     const j = await r.json();
+    if (generation !== _unlockGeneration) return;
     if (j.requires_2fa) { await _do2fa(pw, j); return; }   // 8c — second factor needed
     _token = j.token; _vaultId = j.vault_id || 'default';
     _unlocked = true;
     $('vault-pw-input').value = '';
+    $('vault-pw-confirm').value = '';
     await loadVaultView();
   } catch {
-    toast('unlock failed', 'error');
+    if (generation !== _unlockGeneration) return;
+    _unlockError('unlock failed. try again.');
+    await _refreshVaultSetup();
+  } finally {
+    if (generation === _unlockGeneration) {
+      _unlocking = false;
+      $('vault-unlock-btn').disabled = !['setup', 'locked'].includes(_setupState);
+    }
   }
 }
 
@@ -1153,66 +1732,123 @@ async function _do2faPasskey(pw, j, vid) {
 // a tiny numeric-code prompt → resolves to the string or null
 function _promptCode(title) {
   return new Promise(resolve => {
+    const returnFocus = document.activeElement;
     const ov = document.createElement('div');
     ov.className = 'modal-overlay vault-modal';
     ov.innerHTML = `
-      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" style="max-width:320px">
-        <div class="modal-head"><span class="modal-title">${_esc(title)}</span></div>
+      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="cc-title" style="max-width:320px">
+        <div class="modal-head"><span class="modal-title" id="cc-title">${_esc(title)}</span></div>
         <div class="vault-form"><div class="vform-field">
-          <input id="cc-code" class="settings-input vform-input" inputmode="numeric" maxlength="6" placeholder="6-digit code"></div></div>
+          <label for="cc-code">verification code</label>
+          <input id="cc-code" class="settings-input vform-input" inputmode="numeric" maxlength="6" placeholder="6 digits"></div></div>
         <div class="vault-form-actions">
-          <button class="btn" id="cc-cancel">cancel</button>
-          <button class="btn primary" id="cc-ok">unlock</button></div>
+          <button type="button" class="btn" id="cc-cancel">cancel</button>
+          <button type="button" class="btn primary" id="cc-ok">unlock</button></div>
       </div>`;
     document.body.appendChild(ov);
-    const done = v => { ov.remove(); resolve(v); };
+    let focusBoundary = null;
+    const done = v => {
+      focusBoundary?.deactivate();
+      focusBoundary?.destroy();
+      ov.remove();
+      resolve(v);
+    };
     ov.querySelector('#cc-cancel').onclick = () => done(null);
     ov.querySelector('#cc-ok').onclick = () => done(ov.querySelector('#cc-code').value.trim());
     ov.querySelector('#cc-code').addEventListener('keydown', e => { if (e.key === 'Enter') done(ov.querySelector('#cc-code').value.trim()); });
     ov.addEventListener('mousedown', e => { if (e.target === ov) done(null); });
-    ov.querySelector('#cc-code').focus();
+    focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#cc-code'), done);
   });
 }
 
 async function _doLock() {
-  await fetch('/api/vault/lock', { method: 'POST' }).catch(() => {});
+  _unlockGeneration++;
+  _unlocking = false;
+  $('vault-pw-input').value = '';
+  $('vault-pw-confirm').value = '';
+  _unlockError('');
+  const locking = fetch('/api/vault/lock', { method: 'POST', headers: _token ? { 'X-Vault-Token': _token } : {} }).catch(() => {});
   _token = null;
+  _entries = [];
+  $('vault-entry-list')?.replaceChildren();
   _unlocked = false;
   _vaultId = 'default';
   _wtOpen = false;
   $('vault-watchtower-btn')?.classList.remove('active');
   _closeModal();
-  loadVaultView();
+  await loadVaultView();
+  await locking;
 }
 
 // ── list ──────────────────────────────────────────────────────────────────────
 
-async function _loadEntries() {
+async function _loadEntries(fetcher = fetch) {
   const list = $('vault-entry-list');
   if (!list) return;
+  const token = _token, vaultId = _vaultId;
+  const generation = ++_entriesGeneration;
+  const current = () => generation === _entriesGeneration && _unlocked && _token === token && _vaultId === vaultId;
   try {
-    _entries = await _vfetch('/api/vault').then(r => r.json());
-    if (!_entries.length) { list.innerHTML = '<div class="page-empty">no entries — hit “+ new”</div>'; return; }
+    const response = await _vfetch('/api/vault', {}, fetcher);
+    if (!response.ok) throw new Error(response.status === 403 ? 'vault access expired' : `request failed (${response.status})`);
+    const entries = await response.json();
+    if (!current()) return;
+    _entries = entries;
+    if (!_entries.length) { list.innerHTML = '<div class="page-empty">no entries: hit “+ new”</div>'; return; }
     list.innerHTML = _entries.map(e => `
-      <div class="vault-entry" data-id="${e.id}" onclick="window._vaultOpen('${e.id}')" title="open">
-        <span class="vault-entry-name">${_esc(e.name)}${e.username ? ` <span class="vault-entry-user">${_esc(e.username)}</span>` : ''}</span>
-        <span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>
-        <span class="vault-entry-grow"></span>
-        <button class="act-btn" onclick="event.stopPropagation();window._vaultCopy('${e.id}')">copy</button>
-        <button class="act-btn danger" onclick="event.stopPropagation();window._vaultDel('${e.id}')">del</button>
+      <div class="vault-entry" data-id="${e.id}">
+        <button type="button" class="vault-entry-main" data-vault-open="${e.id}" aria-label="open ${_esc(e.name)}">
+          <span class="vault-entry-name">${_esc(e.name)}${e.username ? ` <span class="vault-entry-user">${_esc(e.username)}</span>` : ''}</span>
+          <span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>
+          <span class="vault-entry-grow"></span>
+        </button>
+        <button type="button" class="act-btn" data-vault-copy="${e.id}" aria-label="copy ${_esc(e.name)} secret">copy</button>
+        <button type="button" class="act-btn danger" data-vault-delete="${e.id}" aria-label="delete ${_esc(e.name)}">del</button>
       </div>`).join('');
-  } catch {
-    toast('load failed — vault may be locked', 'error');
-    _unlocked = false;
-    loadVaultView();
+    list.querySelectorAll('[data-vault-open]').forEach(button => {
+      button.addEventListener('click', () => window._vaultOpen(button.dataset.vaultOpen));
+    });
+    list.querySelectorAll('[data-vault-copy]').forEach(button => {
+      button.addEventListener('click', () => window._vaultCopy(button.dataset.vaultCopy));
+    });
+    list.querySelectorAll('[data-vault-delete]').forEach(button => {
+      button.addEventListener('click', () => window._vaultDel(button.dataset.vaultDelete));
+    });
+  } catch (error) {
+    if (!current()) return;
+    const state = document.createElement('div');
+    state.className = 'vault-load-error';
+    state.setAttribute('role', 'alert');
+    const copy = document.createElement('p');
+    copy.textContent = globalThis.navigator?.onLine === false
+      ? 'vault entries are unavailable while offline. Your unlocked session is unchanged.'
+      : `${error?.message || 'vault entries could not be loaded'}. Your unlocked session is unchanged.`;
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'btn';
+    retry.textContent = 'retry loading entries';
+    retry.addEventListener('click', async () => {
+      if (retry.disabled) return;
+      retry.disabled = true;
+      retry.setAttribute('aria-busy', 'true');
+      await _loadEntries(fetcher);
+    });
+    const lock = document.createElement('button');
+    lock.type = 'button';
+    lock.className = 'btn';
+    lock.textContent = 'lock vault';
+    lock.addEventListener('click', _doLock);
+    state.append(copy, retry, lock);
+    list.replaceChildren(state);
   }
 }
 
 // which field to copy when you hit "copy" on a row
 function _primarySecret(d) {
-  const f = d.fields || {};
+  const f = _entryFields(d);
   let tk = TYPE_BY_KEY[d.type] ? d.type
     : d.type === 'password' ? 'login'
+    : d.type === 'api_key' ? 'apikey'
     : d.type === 'card' ? 'card'
     : d.type === 'note' ? 'note'
     : f.number ? 'card' : f.apikey ? 'apikey' : 'login';
@@ -1220,27 +1856,66 @@ function _primarySecret(d) {
   return (k && f[k]) || f.password || d.value || Object.values(f).find(Boolean) || '';
 }
 
+export const _vaultInternals = { _entryFields, _typeForEntry, _primarySecret };
+
 window._vaultOpen = async id => {
   const row = _entries.find(e => e.id === id);
   if (!row) return;
+  const returnFocus = document.activeElement;
+  const token = _token, vaultId = _vaultId, modal = _modalEl;
+  const generation = ++_revealGeneration;
+  const current = () => generation === _revealGeneration && _unlocked && _token === token && _vaultId === vaultId && _modalEl === modal
+    && $('vault-entry-list')?.getClientRects().length;
   try {
-    const d = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
-    openVaultForm({ id, name: row.name, category: row.category, username: row.username, type: row.type, fields: d.fields || {} });
-  } catch { toast('reveal failed — vault may be locked', 'error'); }
+    const response = await _vfetch(`/api/vault/${id}/reveal`);
+    if (!current()) return;
+    if (!response.ok) {
+      if (response.status === 403) {
+        await _doLock();
+        toast('vault access expired. unlock and open the entry again.', 'error');
+        return;
+      }
+      throw new Error('reveal failed');
+    }
+    const d = await response.json();
+    if (!current()) return;
+    if (!d.fields || typeof d.fields !== 'object' || Array.isArray(d.fields)) throw new Error('invalid entry');
+    openVaultForm({ id, name: row.name, category: row.category, username: row.username, type: row.type, fields: d.fields || {} }, returnFocus);
+  } catch { if (current()) toast('could not open the entry. try again.', 'error'); }
 };
 
 window._vaultCopy = async id => {
+  const token = _token, vaultId = _vaultId, modal = _modalEl;
+  const generation = ++_revealGeneration;
+  const current = () => _sameVault(token, vaultId) && generation === _revealGeneration && _modalEl === modal && $('vault-view')?.offsetParent;
   try {
-    const d = await _vfetch(`/api/vault/${id}/reveal`).then(r => r.json());
-    await navigator.clipboard.writeText(_primarySecret(d));
-    toast('copied', 'success');
-  } catch { toast('copy failed', 'error'); }
+    const response = await _checkedVault(`/api/vault/${id}/reveal`);
+    const data = await response.json();
+    if (!current()) return;
+    if (!data.fields || typeof data.fields !== 'object' || Array.isArray(data.fields)) throw new Error('invalid reveal');
+    const value = _primarySecret(data);
+    if (typeof value !== 'string') throw new Error('invalid value');
+    await navigator.clipboard.writeText(value);
+    if (current()) toast('copied', 'success');
+  } catch (error) {
+    if (!current()) return;
+    if (error.status === 403) await _doLock();
+    toast('could not copy. unlock if needed, then open the entry to copy manually or retry.', 'error');
+  }
 };
 
 window._vaultDel = async id => {
-  if (!await confirm('delete this entry?')) return;
-  await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
-  await _loadEntries();
+  const token = _token, vaultId = _vaultId;
+  if (!await confirm('delete this entry?') || !_sameVault(token, vaultId)) return;
+  try {
+    const response = await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) throw Object.assign(new Error('delete failed'), { status: response.status });
+    if (_sameVault(token, vaultId)) await _loadEntries();
+  } catch (error) {
+    if (!_sameVault(token, vaultId)) return;
+    if (error.status === 403) await _doLock();
+    toast('could not confirm deletion. retry safely or refresh the list to check.', 'error');
+  }
 };
 
 function _esc(s = '') {

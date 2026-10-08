@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from core.database import CachedMessage, MailAccount, ScheduledMail
 from services import mail_cache, mail_outbox
@@ -87,8 +87,8 @@ class MailOutboxTests(ApiTest):
         sent = mail_outbox.process_due(self.db(), send_fn=lambda a, m: None)
         self.assertEqual(sent, 0)
 
-    def test_process_due_failed_send_stays_scheduled(self):
-        # a send failure must NOT mark the mail sent — otherwise it vanishes with no retry
+    def test_process_due_failed_send_becomes_uncertain(self):
+        # SMTP errors can arrive after delivery, so retrying them can duplicate mail.
         s = self._schedule("2020-01-01T00:00:00")
 
         def boom(a, m):
@@ -97,8 +97,10 @@ class MailOutboxTests(ApiTest):
         sent = mail_outbox.process_due(self.db(), send_fn=boom)
         self.assertEqual(sent, 0)
         db = self.db()
-        self.assertEqual(db.get(ScheduledMail, s["id"]).status, "scheduled")  # still queued
+        self.assertEqual(db.get(ScheduledMail, s["id"]).status, "uncertain")
         db.close()
+        listed = self.client.get("/api/mail/scheduled").json()["scheduled"]
+        self.assertEqual([row["status"] for row in listed if row["id"] == s["id"]], ["uncertain"])
 
     def test_crash_mid_batch_keeps_earlier_send_committed(self):
         # send #1, then a crash (BaseException escapes) before the batch would commit.
@@ -119,6 +121,26 @@ class MailOutboxTests(ApiTest):
         sess.close()
         db = self.db()
         self.assertEqual(db.get(ScheduledMail, calls[0]).status, "sent")
+        db.close()
+
+    def test_crash_after_delivery_is_not_automatically_retried(self):
+        s = self._schedule("2020-01-01T00:00:00")
+        calls = []
+
+        def crash_after_delivery(a, m):
+            calls.append(m.id)
+            raise KeyboardInterrupt("simulated crash after SMTP accepted the mail")
+
+        sess = self.db()
+        with self.assertRaises(KeyboardInterrupt):
+            mail_outbox.process_due(sess, send_fn=crash_after_delivery)
+        sess.close()
+
+        sent = mail_outbox.process_due(self.db(), send_fn=lambda a, m: calls.append(m.id))
+        self.assertEqual(sent, 0)
+        self.assertEqual(calls, [s["id"]])
+        db = self.db()
+        self.assertEqual(db.get(ScheduledMail, s["id"]).status, "uncertain")
         db.close()
 
     def test_process_due_missing_account_stays_scheduled(self):
@@ -148,8 +170,20 @@ class MailOutboxTests(ApiTest):
         orig = mailsvc.send_mail
         mailsvc.send_mail = lambda ad, *a, **k: cap.update(ad)
         try:
-            m = type("M", (), {"to": "b@x.com", "subject": "s", "body": "b", "cc": "",
-                               "bcc": "", "in_reply_to": "", "references": "", "html": ""})()
+            m = type(
+                "M",
+                (),
+                {
+                    "to": "b@x.com",
+                    "subject": "s",
+                    "body": "b",
+                    "cc": "",
+                    "bcc": "",
+                    "in_reply_to": "",
+                    "references": "",
+                    "html": "",
+                },
+            )()
             mail_outbox._default_send(acct, m)
         finally:
             mailsvc.send_mail = orig
@@ -166,7 +200,9 @@ class MailOutboxTests(ApiTest):
         orig = mailsvc.move_message
         mailsvc.move_message = lambda ad, *a, **k: seen.update(is_dict=isinstance(ad, dict))
         try:
-            self.client.post(f"/api/mail/archive/{self.aid}", json={"uid": "555", "folder": "INBOX"})
+            self.client.post(
+                f"/api/mail/archive/{self.aid}", json={"uid": "555", "folder": "INBOX"}
+            )
         finally:
             mailsvc.move_message = orig
         self.assertTrue(seen.get("is_dict"))
@@ -178,38 +214,45 @@ class MailOutboxTests(ApiTest):
         ).json()
         self.assertTrue(d["id"])
         # send_at should be in the (near) future so the undo window is open
-        self.assertGreater(d["send_at"], datetime.utcnow().isoformat())
+        self.assertGreater(d["send_at"], datetime.now(UTC).replace(tzinfo=None).isoformat())
         listed = self.client.get("/api/mail/scheduled").json()["scheduled"]
         self.assertTrue(any(x["id"] == d["id"] for x in listed))
 
     # ---- snooze ----
     def test_snooze_hides_until_future(self):
         self._msg(1)
-        future = _iso(datetime.utcnow() + timedelta(days=1))
+        future = _iso(datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1))
         self.client.post(f"/api/mail/snooze/{self.aid}", json={"uid": "1", "until": future})
         self.assertEqual(mail_cache.get(self.db(), self.aid), [])
 
     def test_snooze_past_visible(self):
-        self._msg(1, snoozed_until=_iso(datetime.utcnow() - timedelta(days=1)))
+        self._msg(
+            1,
+            snoozed_until=_iso(datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)),
+        )
         self.assertEqual(len(mail_cache.get(self.db(), self.aid)), 1)
 
     def test_snoozed_reappears_after_time(self):
         # snoozed to a time already in the past → back in the inbox
-        past = _iso(datetime.utcnow() - timedelta(minutes=5))
+        past = _iso(datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=5))
         self._msg(1, snoozed_until=past)
         uids = [m["uid"] for m in mail_cache.get(self.db(), self.aid)]
         self.assertIn("1", uids)
 
     def test_snoozed_list(self):
         self._msg(1)
-        future = _iso(datetime.utcnow() + timedelta(days=1))
+        future = _iso(datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1))
         self.client.post(f"/api/mail/snooze/{self.aid}", json={"uid": "1", "until": future})
         d = self.client.get(f"/api/mail/snoozed/{self.aid}").json()
         self.assertTrue(any(m["uid"] == "1" for m in d["snoozed"]))
 
     def test_unified_excludes_snoozed(self):
         self._msg(1, subject="now")
-        self._msg(2, subject="later", snoozed_until=_iso(datetime.utcnow() + timedelta(days=1)))
+        self._msg(
+            2,
+            subject="later",
+            snoozed_until=_iso(datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)),
+        )
         subs = [m["subject"] for m in mail_cache.get_unified(self.db())]
         self.assertIn("now", subs)
         self.assertNotIn("later", subs)

@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = (ROOT / "static" / "js" / "app.js").read_text(encoding="utf-8")
+MODELS = (ROOT / "static" / "js" / "models.js").read_text(encoding="utf-8")
 INDEX = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
 
 
@@ -44,8 +45,9 @@ class BootStateTests(unittest.TestCase):
         self.assertIn("_showNotRunning()", APP)
 
     def test_no_model_copy_simplified(self):
-        self.assertNotIn("add one in settings", APP)
-        self.assertIn("'no model'", APP)
+        self.assertNotIn("add one in settings", MODELS)
+        self.assertIn("label.textContent = 'no model'", MODELS)
+        self.assertIn('data-i18n="aide.no_model">no model', INDEX)
 
     def test_notrunning_screen_markup_present(self):
         self.assertIn('id="notrunning-screen"', INDEX)

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, SessionLocal, Calendar, CalendarEvent
+from core.database import Calendar, CalendarEvent, get_db
+from services.calendar_events import seed_default_calendar
 
 router = APIRouter(prefix="/api")
 
@@ -16,23 +17,6 @@ def _fmt(c: Calendar) -> dict:
         "is_default": bool(c.is_default),
         "sort_order": c.sort_order,
     }
-
-
-def seed_default_calendar():
-    """first boot: make a 'Personal' calendar and adopt any pre-existing events."""
-    db = SessionLocal()
-    try:
-        if db.query(Calendar).count() == 0:
-            cal = Calendar(name="Personal", color="accent", is_default=True, sort_order=0)
-            db.add(cal)
-            db.commit()
-            # adopt orphan events (from before calendars existed)
-            db.query(CalendarEvent).filter(
-                (CalendarEvent.calendar_id == "") | (CalendarEvent.calendar_id.is_(None))
-            ).update({"calendar_id": cal.id})
-            db.commit()
-    finally:
-        db.close()
 
 
 def _default_id(db) -> str:

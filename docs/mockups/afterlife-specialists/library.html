@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone fake-data KOKUEN Library starter for Afterlife Phase 8.">
+  <title>Alles Library - Phase 8 KOKUEN starter</title>
+  <link rel="stylesheet" href="starter.css">
+</head>
+<body data-density="comfortable" data-demo-state="ready">
+  <a class="skip-link" href="#main">skip to library</a>
+  <div class="app-shell">
+    <header class="product-bar">
+      <div class="brand-block"><span class="kokuen-mark" aria-hidden="true"></span><span class="wordmark">alles</span></div>
+      <div class="product-title"><span>specialists</span><span class="path-separator">/</span><strong>library</strong><span class="path-separator">/</span><span>queue</span></div>
+      <div class="bar-actions">
+        <button class="small-action" type="button" data-open-modal>save item</button>
+        <button class="state-trigger" type="button" data-state-trigger aria-expanded="false" aria-controls="state-menu">preview state</button>
+        <button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="use light theme" data-switch="theme"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button>
+        <div class="state-menu" id="state-menu" role="listbox" aria-label="preview state" hidden><button class="state-option" type="button" role="option" aria-selected="true" data-state="ready">ready</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="loading">loading</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="empty">empty</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="partial">partial data</button><button class="state-option" type="button" role="option" aria-selected="false" data-state="error">refresh error</button></div>
+      </div>
+    </header>
+    <nav class="group-strip" aria-label="Phase 8 specialist starters"><a class="group-link" href="plan.html"><span class="group-index">01</span>plan</a><a class="group-link" href="inbox.html"><span class="group-index">02</span>inbox</a><a class="group-link" href="library.html" aria-current="page"><span class="group-index">03</span>library</a><a class="group-link" href="health.html"><span class="group-index">04</span>health</a><a class="group-link" href="finance.html"><span class="group-index">05</span>finance</a></nav>
+
+    <main class="workbench" id="main">
+      <aside class="side-rail" aria-label="Library filters">
+        <section class="rail-section"><h2 class="rail-heading">reading state</h2><ul class="rail-list"><li><button class="rail-action" type="button" aria-current="page"><span class="rail-mark">QU</span><span class="rail-name">queue</span><span class="rail-count">11</span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">NW</span><span class="rail-name">in progress</span><span class="rail-count">3</span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">DN</span><span class="rail-name">finished</span><span class="rail-count">48</span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">FV</span><span class="rail-name">favorites</span><span class="rail-count">9</span></button></li></ul></section>
+        <section class="rail-section"><h2 class="rail-heading">material</h2><ul class="rail-list"><li><button class="rail-action" type="button"><span class="rail-mark">AR</span><span class="rail-name">articles</span><span class="rail-count">17</span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">NE</span><span class="rail-name">saved news</span><span class="rail-count">4</span></button></li><li><button class="rail-action" type="button"><span class="rail-mark">BK</span><span class="rail-name">books</span><span class="rail-count">26</span></button></li></ul></section>
+      </aside>
+
+      <section class="main-pane" aria-labelledby="library-heading">
+        <header class="pane-header"><div class="pane-heading"><h1 id="library-heading">reading queue</h1><p>articles, books, and news you explicitly saved</p></div><div class="pane-spacer"></div><div class="search-field"><label for="library-search" hidden>search Library</label><input id="library-search" type="search" placeholder="search titles, authors, tags"></div><button class="primary-action" type="button" data-open-modal>save item</button></header>
+        <div class="tabs" role="tablist" aria-label="Library view"><button class="tab" id="library-queue-tab" type="button" role="tab" aria-selected="true" aria-controls="library-queue">mixed queue</button><button class="tab" id="library-books-tab" type="button" role="tab" aria-selected="false" aria-controls="library-books" tabindex="-1">books</button><button class="tab" id="library-news-tab" type="button" role="tab" aria-selected="false" aria-controls="library-news" tabindex="-1">saved news</button></div>
+        <div class="demo-state" id="demo-state" role="status" hidden></div>
+        <div class="empty-state"><div><h2>queue clear</h2><p>Nothing is waiting in this fake view. Search results and feeds never enter Library until you choose Save.</p><button class="primary-action" type="button" data-open-modal>save a link</button></div></div>
+        <div class="data-content">
+          <div id="library-queue" role="tabpanel" aria-labelledby="library-queue-tab"><ul class="record-list">
+            <li class="record-row" aria-selected="true"><span class="type-mark">AR</span><div class="record-copy"><div class="record-title">SQLite on the edge: failure modes that matter</div><div class="record-meta">lobste.rs · 12 min · databases, recovery</div></div><span class="record-value">unread</span></li>
+            <li class="record-row"><span class="type-mark">NE</span><div class="record-copy"><div class="record-title">Canada publishes consumer-driven banking framework update</div><div class="record-meta">saved from Andromeda News · official source · 6 min</div></div><span class="record-value">saved 09:08</span></li>
+            <li class="record-row"><span class="type-mark">BK</span><div class="record-copy"><div class="record-title">The Left Hand of Darkness</div><div class="record-meta">Ursula K. Le Guin · reading · page 112</div></div><span class="record-value">34%</span></li>
+            <li class="record-row"><span class="type-mark">AR</span><div class="record-copy"><div class="record-title">Actual Budget sync protocol notes</div><div class="record-meta">actualbudget.org · 18 min · finance</div></div><span class="record-value">favorite</span></li>
+            <li class="record-row"><span class="type-mark">BK</span><div class="record-copy"><div class="record-title">The Memory Police</div><div class="record-meta">Yoko Ogawa · want to read</div></div><span class="record-value">queued</span></li>
+          </ul></div>
+          <div id="library-books" role="tabpanel" aria-labelledby="library-books-tab" hidden><section class="section-block"><div class="section-title"><h2>books</h2><p>26 total · 3 reading</p></div><div class="metric-line"><span>want to read</span><strong>14</strong></div><div class="metric-line"><span>reading</span><strong>3</strong></div><div class="metric-line"><span>finished this year</span><strong>9</strong></div></section></div>
+          <div id="library-news" role="tabpanel" aria-labelledby="library-news-tab" hidden><section class="section-block"><div class="section-title"><h2>explicitly saved news</h2><p>feed appearance alone never saves</p></div><ul class="record-list"><li class="record-row"><span class="type-mark">NE</span><div class="record-copy"><div class="record-title">Canada publishes consumer-driven banking framework update</div><div class="record-meta">saved from Andromeda · source URL retained</div></div><span class="record-value">6 min</span></li><li class="record-row"><span class="type-mark">NE</span><div class="record-copy"><div class="record-title">Taipei adds two late-night train services</div><div class="record-meta">saved yesterday · transport</div></div><span class="record-value">3 min</span></li></ul></section></div>
+        </div>
+      </section>
+
+      <aside class="detail-pane" aria-label="Selected Library item">
+        <h2 class="detail-heading">selected item</h2><div style="padding:0 8px 15px"><p style="font-size:.92rem;font-weight:620;line-height:1.35">SQLite on the edge: failure modes that matter</p><p style="margin-top:6px;color:var(--muted);font-size:.75rem">lobste.rs · saved july 17 · 12 minute read</p><p style="margin-top:17px;color:var(--soft);font-size:.875rem;line-height:1.6">A practical review of journaling, fsync boundaries, and what an application must verify before claiming a durable write.</p><div style="display:flex;gap:8px;margin-top:15px"><button class="primary-action" type="button" data-toast="starter only: opened reader">read</button><button class="quiet-action" type="button" data-toast="starter only: marked favorite">favorite</button></div></div>
+        <section class="rail-section"><h2 class="detail-heading">source and state</h2><dl class="meta-stack" style="padding:0 8px"><div class="meta-pair"><dt>kind</dt><dd>article</dd></div><div class="meta-pair"><dt>source</dt><dd>lobste.rs</dd></div><div class="meta-pair"><dt>tags</dt><dd>databases, recovery</dd></div><div class="meta-pair"><dt>offline text</dt><dd>available</dd></div></dl></section>
+        <section class="rail-section"><h2 class="detail-heading">behavior</h2><div class="metric-line"><span>compact rows</span><button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="compact rows" data-switch="density" data-status="compact rows"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div><div class="metric-line"><span>feed auto-save</span><button class="switch-control" type="button" role="switch" aria-checked="false" aria-disabled="true" aria-label="feed auto-save unavailable" data-switch="feed"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button></div><p style="padding:8px;color:var(--quiet);font-size:.75rem;line-height:1.5">Disabled by design: news enters Library only after an explicit save.</p></section>
+      </aside>
+    </main>
+    <footer class="status-footer"><span>fake data only · no feed refreshed</span><span class="footer-right">books + read items remain existing records</span></footer>
+  </div>
+  <div class="modal-backdrop" id="starter-modal" role="presentation" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="save-title"><header class="modal-header"><h2 id="save-title">save to Library</h2></header><div class="modal-body"><div class="text-field"><label for="save-url">url</label><input id="save-url" type="url" value="https://example.test/article"></div><div class="text-field" style="margin-top:12px"><label for="save-library-title">title</label><input id="save-library-title" value="A careful article worth keeping"></div><p style="margin-top:12px;color:var(--muted);font-size:.75rem">Starter only. This does not fetch or save the URL.</p></div><footer class="modal-actions"><button class="quiet-action" type="button" data-close-modal>cancel</button><button class="primary-action" type="button" data-close-modal data-toast="starter only: item saved to queue">save</button></footer></section></div>
+  <div class="toast" id="starter-toast" role="status" aria-live="polite" hidden></div><script src="starter.js"></script>
+</body>
+</html>

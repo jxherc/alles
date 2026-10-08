@@ -47,7 +47,8 @@ async def send(text: str) -> dict:
                 r = await c.post(t["discord"], json={"content": text[:1900]})
                 out["discord"] = r.status_code < 300
             except Exception as e:
-                log.warning(f"discord notify failed: {e}")
+                # Request errors can include the secret webhook URL.
+                log.warning("discord notify failed: %s", type(e).__name__)
                 out["discord"] = False
         if t["tg_token"] and t["tg_chat"]:
             try:

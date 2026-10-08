@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone fake-data KOKUEN Plan task-board starter.">
+  <title>Alles Plan task board - KOKUEN starter</title>
+  <link rel="stylesheet" href="starter.css">
+  <link rel="stylesheet" href="remaining.css">
+</head>
+<body data-demo-state="ready" data-mobile-stage="doing" data-starter="plan-board">
+  <a class="skip-link" href="#main">skip to task board</a>
+  <div class="app-shell remaining-shell">
+    <header class="app-owned-header">
+      <div class="app-identity"><strong class="app-name">plan</strong><button class="home-action" type="button" data-toast="starter only: returned to Home">home</button></div>
+      <div class="app-context"><strong>task board</strong><span class="app-context-separator">/</span><span>existing tasks</span></div>
+      <div class="app-actions">
+        <button class="header-action" type="button" data-state-trigger aria-expanded="false" aria-controls="state-menu">preview state</button>
+        <button class="switch-control" type="button" role="switch" aria-checked="false" aria-label="use light preview theme" data-switch="theme"><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></button>
+        <div class="state-menu" id="state-menu" role="listbox" aria-label="preview state" hidden>
+          <button class="state-option" type="button" role="option" aria-selected="true" data-state="ready">ready</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="loading">loading</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="empty">empty</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="partial">partial data</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="error">move error</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="offline">offline</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="disabled">disabled</button>
+          <button class="state-option" type="button" role="option" aria-selected="false" data-state="interrupted">interrupted</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="view-strip" role="tablist" aria-label="Plan views">
+      <button class="view-tab" id="agenda-tab" type="button" role="tab" aria-selected="false" aria-controls="agenda-panel" tabindex="-1">agenda</button>
+      <button class="view-tab" id="week-tab" type="button" role="tab" aria-selected="false" aria-controls="week-panel" tabindex="-1">week</button>
+      <button class="view-tab" id="board-tab" type="button" role="tab" aria-selected="true" aria-controls="plan-board-panel">task board</button>
+    </div>
+
+    <main class="remaining-main" id="main">
+      <section class="starter-placeholder" id="agenda-panel" role="tabpanel" aria-labelledby="agenda-tab" hidden>
+        <div><strong>agenda stays as approved</strong><p>This starter changes only the task-board view. Open the earlier Plan starter to inspect the existing Agenda treatment.</p></div>
+      </section>
+      <section class="starter-placeholder" id="week-panel" role="tabpanel" aria-labelledby="week-tab" hidden>
+        <div><strong>week stays as approved</strong><p>The board uses the same Task records. It does not replace the seven-day calendar and reminder composition.</p></div>
+      </section>
+
+      <section id="plan-board-panel" role="tabpanel" aria-labelledby="board-tab">
+        <div class="board-surface">
+          <div class="board-toolbar" aria-label="Task board tools">
+            <label class="board-capture"><span class="sr-only">new task title</span><input id="board-quick-title" type="text" autocomplete="off" placeholder="add a task to inbox"></label>
+            <button class="toolbar-action toolbar-primary" id="board-quick-add" type="button">add</button>
+            <label class="board-search"><span class="sr-only">search tasks</span><input id="board-search" type="search" autocomplete="off" placeholder="search tasks"></label>
+            <button class="toolbar-action" id="board-filter-trigger" type="button" aria-expanded="false" aria-controls="board-filter-menu">project: all</button>
+            <button class="toolbar-action" type="button" data-open-modal>completed</button>
+            <div class="custom-popover board-filter-menu" id="board-filter-menu" role="menu" aria-label="filter tasks by project" hidden>
+              <button class="custom-menu-item" type="button" role="menuitemradio" aria-checked="true" data-project-filter="all">all projects</button>
+              <button class="custom-menu-item" type="button" role="menuitemradio" aria-checked="false" data-project-filter="afterlife">afterlife</button>
+              <button class="custom-menu-item" type="button" role="menuitemradio" aria-checked="false" data-project-filter="personal">personal</button>
+              <button class="custom-menu-item" type="button" role="menuitemradio" aria-checked="false" data-project-filter="site">jxherc.com</button>
+            </div>
+          </div>
+
+          <div class="mobile-stage-strip" role="radiogroup" aria-label="visible task stage">
+            <button class="mobile-stage-tab" type="button" role="radio" aria-checked="false" data-mobile-stage-choice="backlog" tabindex="-1">inbox · <span data-count-for="backlog">3</span></button>
+            <button class="mobile-stage-tab" type="button" role="radio" aria-checked="false" data-mobile-stage-choice="next" tabindex="-1">planned · <span data-count-for="next">3</span></button>
+            <button class="mobile-stage-tab" type="button" role="radio" aria-checked="true" data-mobile-stage-choice="doing">in progress · <span data-count-for="doing">2</span></button>
+            <button class="mobile-stage-tab" type="button" role="radio" aria-checked="false" data-mobile-stage-choice="waiting" tabindex="-1">blocked · <span data-count-for="waiting">2</span></button>
+          </div>
+
+          <div class="demo-state" id="demo-state" role="status" aria-live="polite" hidden></div>
+          <div class="board-empty"><div><strong>no active tasks</strong><p>Add one to Inbox. Completed work remains available in history.</p></div></div>
+
+          <div class="board-layout">
+            <div class="board-columns" aria-label="Active task stages">
+              <section class="board-column" data-stage="backlog" aria-labelledby="backlog-title">
+                <header class="column-head"><h2 id="backlog-title">inbox</h2><span class="column-count" data-count-for="backlog">3</span></header>
+                <ol class="column-list" data-drop-stage="backlog">
+                  <li class="board-card" data-task-id="train" data-project="personal" data-stage="backlog" data-title="book the 08:11 train to Taichung" data-due="no date" data-notes="Check the quiet-car seat before paying.">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag book the train"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">book the 08:11 train to Taichung</span><span class="board-card-meta"><span>personal</span><span>no date</span></span></button>
+                  </li>
+                  <li class="board-card" data-task-id="receipt" data-project="afterlife" data-stage="backlog" data-title="label the Actual recovery receipt" data-due="today" data-notes="Keep the restore receipt beside the Phase 11 evidence.">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag label the Actual recovery receipt"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">label the Actual recovery receipt</span><span class="board-card-meta"><span class="priority-mark high" aria-label="high priority"></span><span>afterlife</span><span class="due-warning">today</span></span></button>
+                  </li>
+                  <li class="board-card" data-task-id="library" data-project="personal" data-stage="backlog" data-title="renew the library card" data-due="no date" data-notes="Bring ARC and the old card.">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag renew the library card"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">renew the library card</span><span class="board-card-meta"><span>personal</span><span>no date</span></span></button>
+                  </li>
+                </ol>
+                <form class="inline-add" data-inline-add="backlog"><input type="text" aria-label="add task to inbox" placeholder="quick add"><button type="submit" aria-label="add to inbox">+</button></form>
+              </section>
+
+              <section class="board-column" data-stage="next" aria-labelledby="next-title">
+                <header class="column-head"><h2 id="next-title">planned</h2><span class="column-count" data-count-for="next">3</span></header>
+                <ol class="column-list" data-drop-stage="next">
+                  <li class="board-card" data-task-id="sources" data-project="afterlife" data-stage="next" data-title="review the starter News sources" data-due="tomorrow" data-notes="Check language, category, priority, and safe health copy.">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag review the starter News sources"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">review the starter News sources</span><span class="board-card-meta"><span>afterlife</span><span>tomorrow</span></span></button>
+                  </li>
+                  <li class="board-card" data-task-id="invoice" data-project="personal" data-stage="next" data-title="send the July hosting invoice" data-due="fri 24" data-notes="Attach the verified receipt and use the saved recipient.">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag send the July hosting invoice"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">send the July hosting invoice</span><span class="board-card-meta"><span>personal</span><span>fri 24</span></span></button>
+                  </li>
+                  <li class="board-card" data-task-id="portfolio" data-project="site" data-stage="next" data-title="write the project evidence captions" data-due="sun 26" data-notes="Use real Alles and CFFEX evidence. No fabricated metrics.">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag write the project evidence captions"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">write the project evidence captions</span><span class="board-card-meta"><span>jxherc.com</span><span>sun 26</span></span></button>
+                  </li>
+                </ol>
+                <form class="inline-add" data-inline-add="next"><input type="text" aria-label="add task to planned" placeholder="quick add"><button type="submit" aria-label="add to planned">+</button></form>
+              </section>
+
+              <section class="board-column" data-stage="doing" aria-labelledby="doing-title">
+                <header class="column-head"><h2 id="doing-title">in progress</h2><span class="column-count" data-count-for="doing">2</span></header>
+                <ol class="column-list" data-drop-stage="doing">
+                  <li class="board-card" data-task-id="kanban" data-project="afterlife" data-stage="doing" data-title="test the Plan board at phone width" data-due="today" data-notes="Confirm one-stage reflow, keyboard moves, and no page overflow." aria-selected="true">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag test the Plan board at phone width"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">test the Plan board at phone width</span><span class="board-card-meta"><span class="priority-mark high" aria-label="high priority"></span><span>afterlife</span><span class="due-warning">today</span></span></button>
+                  </li>
+                  <li class="board-card" data-task-id="copy" data-project="site" data-stage="doing" data-title="tighten the work-index copy" data-due="today" data-notes="Keep the graphite voice and remove generic portfolio language.">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag tighten the work-index copy"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">tighten the work-index copy</span><span class="board-card-meta"><span>jxherc.com</span><span>today</span></span></button>
+                  </li>
+                </ol>
+                <form class="inline-add" data-inline-add="doing"><input type="text" aria-label="add task to in progress" placeholder="quick add"><button type="submit" aria-label="add to in progress">+</button></form>
+              </section>
+
+              <section class="board-column" data-stage="waiting" aria-labelledby="waiting-title">
+                <header class="column-head"><h2 id="waiting-title">blocked</h2><span class="column-count" data-count-for="waiting">2</span></header>
+                <ol class="column-list" data-drop-stage="waiting">
+                  <li class="board-card" data-task-id="token" data-project="afterlife" data-stage="waiting" data-title="owner visual check for the token mark" data-due="needs you" data-notes="The focused browser regression is green. Waiting only for the owner's visual decision.">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag owner visual check for the token mark"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">owner visual check for the token mark</span><span class="board-card-meta"><span>afterlife</span><span class="due-warning">needs you</span></span></button>
+                  </li>
+                  <li class="board-card" data-task-id="domain" data-project="site" data-stage="waiting" data-title="confirm the DNS cutover window" data-due="waiting on reply" data-notes="Do not change DNS until the host confirms the rollback window.">
+                    <button class="drag-handle" type="button" draggable="true" aria-label="drag confirm the DNS cutover window"></button>
+                    <button class="board-card-button" type="button"><span class="board-card-title">confirm the DNS cutover window</span><span class="board-card-meta"><span>jxherc.com</span><span>waiting on reply</span></span></button>
+                  </li>
+                </ol>
+                <form class="inline-add" data-inline-add="waiting"><input type="text" aria-label="add task to blocked" placeholder="quick add"><button type="submit" aria-label="add to blocked">+</button></form>
+              </section>
+            </div>
+
+            <aside class="task-detail" aria-labelledby="task-detail-title">
+              <span class="detail-kicker" id="task-detail-stage">in progress</span>
+              <h2 id="task-detail-title">test the Plan board at phone width</h2>
+              <dl class="detail-meta">
+                <div><dt>project</dt><dd id="task-detail-project">afterlife</dd></div>
+                <div><dt>due</dt><dd id="task-detail-due">today</dd></div>
+                <div><dt>record</dt><dd>existing Task</dd></div>
+              </dl>
+              <p class="detail-copy" id="task-detail-notes">Confirm one-stage reflow, keyboard moves, and no page overflow.</p>
+              <div class="detail-actions">
+                <button id="task-move-back" type="button">move back</button>
+                <button id="task-move-forward" type="button">move forward</button>
+                <button class="complete-action" id="task-complete" type="button">mark complete</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="status-footer"><span>fake data only · no Alles API calls</span><span class="footer-right" id="board-live-status" role="status" aria-live="polite">10 active tasks · existing Task stages</span></footer>
+  </div>
+
+  <div class="modal-backdrop" id="starter-modal" role="presentation" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="completed-title">
+      <header class="modal-header"><h2 id="completed-title">completed tasks</h2></header>
+      <div class="modal-body">
+        <ul class="completed-list" id="completed-list">
+          <li><div><strong>verify Phase 11 recovery evidence</strong><span>completed today · afterlife</span></div><button type="button" data-restore-title="verify Phase 11 recovery evidence" data-restore-project="afterlife">restore to inbox</button></li>
+          <li><div><strong>send Sunday dinner time</strong><span>completed yesterday · personal</span></div><button type="button" data-restore-title="send Sunday dinner time" data-restore-project="personal">restore to inbox</button></li>
+        </ul>
+      </div>
+      <footer class="modal-actions"><button class="quiet-action" type="button" data-close-modal>close</button></footer>
+    </section>
+  </div>
+  <div class="toast" id="starter-toast" role="status" aria-live="polite" hidden></div>
+  <script src="starter.js"></script>
+  <script src="remaining.js"></script>
+</body>
+</html>

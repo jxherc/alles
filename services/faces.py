@@ -7,7 +7,7 @@ available() so the app runs fine with the feature off."""
 
 import io
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -17,10 +17,10 @@ DIM = 512
 _app = None  # cached insightface FaceAnalysis
 
 # cosine thresholds for clustering normed ArcFace vectors
-JOIN_T = 0.40   # attach a loose face to an existing person's centroid
-NEW_T = 0.46    # group leftover faces into a brand-new person (stricter, avoids merging two people)
-DET_T = 0.50    # min detector confidence to keep a face
-MIN_SIZE = 2    # a new cluster needs at least this many faces to become a Person
+JOIN_T = 0.40  # attach a loose face to an existing person's centroid
+NEW_T = 0.46  # group leftover faces into a brand-new person (stricter, avoids merging two people)
+DET_T = 0.50  # min detector confidence to keep a face
+MIN_SIZE = 2  # a new cluster needs at least this many faces to become a Person
 
 
 def model_dir() -> Path:
@@ -76,8 +76,13 @@ def detect_embed(data: bytes):
     out = []
     for f in app.get(arr):
         x1, y1, x2, y2 = (int(v) for v in f.bbox)
-        out.append({"bbox": (x1, y1, x2, y2), "score": float(f.det_score),
-                    "emb": np.asarray(f.normed_embedding, dtype=np.float32)})
+        out.append(
+            {
+                "bbox": (x1, y1, x2, y2),
+                "score": float(f.det_score),
+                "emb": np.asarray(f.normed_embedding, dtype=np.float32),
+            }
+        )
     return out
 
 
@@ -106,16 +111,18 @@ def index_pending(db, limit=20) -> int:
             for f in detect_embed(data):
                 if f["score"] < DET_T:
                     continue
-                db.add(Face(
-                    photo_id=p.id,
-                    bbox=",".join(str(v) for v in f["bbox"]),
-                    det_score=f["score"],
-                    embedding=to_blob(f["emb"]),
-                ))
+                db.add(
+                    Face(
+                        photo_id=p.id,
+                        bbox=",".join(str(v) for v in f["bbox"]),
+                        det_score=f["score"],
+                        embedding=to_blob(f["emb"]),
+                    )
+                )
                 n += 1
         except Exception:
             pass  # unreadable / non-image — still mark scanned below
-        p.faces_at = datetime.utcnow()
+        p.faces_at = datetime.now(UTC).replace(tzinfo=None)
     if rows:
         db.commit()
     return n
@@ -146,7 +153,11 @@ def cluster(db, join_t=JOIN_T, new_t=NEW_T, min_size=MIN_SIZE) -> int:
         return 0
 
     cids = list(by_person)
-    cmat = np.vstack([_centroid([vecs[x.id] for x in by_person[c] if x.id in vecs]) for c in cids]) if cids else None
+    cmat = (
+        np.vstack([_centroid([vecs[x.id] for x in by_person[c] if x.id in vecs]) for c in cids])
+        if cids
+        else None
+    )
 
     changed = 0
     still = []

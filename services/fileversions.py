@@ -11,7 +11,13 @@ import shutil
 import uuid
 from pathlib import Path
 
-from core.database import FileVersion
+from sqlalchemy import and_, or_
+
+from core.database import (
+    DEFAULT_LOCAL_STORAGE_LOCATION_ID,
+    FileVersion,
+    normalize_file_identity_path,
+)
 from core.settings import data_dir
 
 CAP_BYTES = 25 * 1024 * 1024  # don't version files larger than this (storage runaway)
@@ -28,33 +34,91 @@ def _sha(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
 
-def snapshot(db, rel, abspath: Path) -> FileVersion | None:
+def _identity_filter(rel: str, location_id: str):
+    normalized = normalize_file_identity_path(rel)
+    return and_(
+        FileVersion.location_id == location_id,
+        or_(
+            FileVersion.normalized_path == normalized,
+            and_(
+                or_(
+                    FileVersion.normalized_path.is_(None),
+                    FileVersion.normalized_path == "",
+                ),
+                FileVersion.path == rel,
+            ),
+        ),
+    )
+
+
+def snapshot(
+    db,
+    rel,
+    abspath: Path,
+    location_id: str = DEFAULT_LOCAL_STORAGE_LOCATION_ID,
+    *,
+    required: bool = False,
+) -> FileVersion | None:
     """save the current bytes of `abspath` as a version of `rel`. returns None when
     skipped (missing / too big / unchanged since the latest version)."""
-    if not abspath.is_file():
+    from services.files_store import file_identity
+
+    def unavailable(message):
+        if required:
+            raise ValueError(message)
         return None
+
+    if not abspath.is_file():
+        return unavailable("file is no longer available to keep a recovery version")
+    identity = file_identity(abspath)
     size = abspath.stat().st_size
     if size > CAP_BYTES:
-        return None
-    data = abspath.read_bytes()
+        return unavailable("file is too large to keep a recovery version")
+    with abspath.open("rb") as handle:
+        data = handle.read(CAP_BYTES + 1)
+    if len(data) > CAP_BYTES or file_identity(abspath) != identity:
+        return unavailable("file changed while keeping a recovery version")
     sha = _sha(data)
+    normalized = normalize_file_identity_path(rel)
     latest = (
-        db.query(FileVersion).filter_by(path=rel).order_by(FileVersion.created_at.desc()).first()
+        db.query(FileVersion)
+        .filter(_identity_filter(rel, location_id))
+        .order_by(FileVersion.created_at.desc())
+        .first()
     )
     if latest and latest.sha == sha:
-        return None  # dedup — no change
+        if not required:
+            return None  # dedup — no change
+        stored = versions_dir() / latest.stored
+        if stored.is_file() and stored.stat().st_size == len(data):
+            with stored.open("rb") as handle:
+                if _sha(handle.read(CAP_BYTES + 1)) == sha:
+                    return latest
+        # A missing or damaged blob is not a recoverable snapshot.
     stored = uuid.uuid4().hex
     (versions_dir() / stored).write_bytes(data)
-    v = FileVersion(path=rel, sha=sha, size=size, stored=stored)
+    v = FileVersion(
+        path=normalized,
+        location_id=location_id,
+        normalized_path=normalized,
+        sha=sha,
+        size=size,
+        stored=stored,
+    )
     db.add(v)
     db.commit()
     db.refresh(v)
-    _prune(db, rel)
+    _prune(db, normalized, location_id)
     return v
 
 
-def _prune(db, rel):
-    rows = db.query(FileVersion).filter_by(path=rel).order_by(FileVersion.created_at.desc()).all()
+def _prune(db, rel, location_id=DEFAULT_LOCAL_STORAGE_LOCATION_ID):
+    rows = (
+        db.query(FileVersion)
+        .filter(_identity_filter(rel, location_id))
+        .order_by(FileVersion.created_at.desc())
+        .all()
+    )
     for old in rows[KEEP:]:
         try:
             p = versions_dir() / old.stored
@@ -67,12 +131,61 @@ def _prune(db, rel):
         db.commit()
 
 
-def list_versions(db, rel) -> list[FileVersion]:
-    return db.query(FileVersion).filter_by(path=rel).order_by(FileVersion.created_at.desc()).all()
+def list_versions(db, rel, location_id=DEFAULT_LOCAL_STORAGE_LOCATION_ID) -> list[FileVersion]:
+    return (
+        db.query(FileVersion)
+        .filter(_identity_filter(rel, location_id))
+        .order_by(FileVersion.created_at.desc())
+        .all()
+    )
+
+
+def delete_for_path(db, rel, location_id=DEFAULT_LOCAL_STORAGE_LOCATION_ID) -> int:
+    normalized = normalize_file_identity_path(rel)
+    pre = normalized.rstrip("/") + "/"
+    rows = (
+        db.query(FileVersion)
+        .filter(
+            FileVersion.location_id == location_id,
+            or_(
+                FileVersion.normalized_path == normalized,
+                FileVersion.normalized_path.startswith(pre),
+                and_(
+                    or_(
+                        FileVersion.normalized_path.is_(None),
+                        FileVersion.normalized_path == "",
+                    ),
+                    or_(FileVersion.path == rel, FileVersion.path.startswith(pre)),
+                ),
+            ),
+        )
+        .all()
+    )
+    stored = {r.stored for r in rows if r.stored}
+    for r in rows:
+        db.delete(r)
+    db.commit()
+    for name in stored:
+        if db.query(FileVersion).filter_by(stored=name).first():
+            continue
+        try:
+            (versions_dir() / name).unlink(missing_ok=True)
+        except OSError:
+            pass
+    return len(rows)
 
 
 def get(db, vid) -> FileVersion | None:
     return db.get(FileVersion, vid)
+
+
+def content(version: FileVersion) -> bytes:
+    """Read one bounded, verified version before any mutation or history pruning."""
+    with (versions_dir() / version.stored).open("rb") as handle:
+        data = handle.read(CAP_BYTES + 1)
+    if len(data) > CAP_BYTES or len(data) != version.size or _sha(data) != version.sha:
+        raise ValueError("recovery version is unavailable or damaged")
+    return data
 
 
 def restore(db, vid, dest: Path) -> FileVersion | None:

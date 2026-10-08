@@ -63,7 +63,9 @@ class PhotosPerfTests(ApiTest):
         n = photos_store.backfill_perf(db)
         db.close()
         self.assertGreaterEqual(n, 1)
-        d2 = next(i for i in _items(self.client.get("/api/photos/list").json()) if i["id"] == d["id"])
+        d2 = next(
+            i for i in _items(self.client.get("/api/photos/list").json()) if i["id"] == d["id"]
+        )
         self.assertTrue(d2["preview"].startswith("data:image/jpeg;base64,"))
         self.assertAlmostEqual(d2["aspect_ratio"], 1200 / 800, places=2)
 

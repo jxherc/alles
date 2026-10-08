@@ -63,6 +63,28 @@ class HelperTests(unittest.TestCase):
         avg = forecast.category_averages(self.s, months=3, as_of=TODAY)
         self.assertAlmostEqual(avg["groceries"], 20.0)  # only the 60, /3 months
 
+    def test_category_averages_from_canonical_rows_excludes_transfers_and_closed_accounts(self):
+        accounts = [
+            {"id": "open", "archived": False},
+            {"id": "closed", "archived": True},
+        ]
+        transactions = [
+            {"account_id": "open", "date": "2026-05-10", "amount": -30, "category": "food"},
+            {
+                "account_id": "open",
+                "date": "2026-05-11",
+                "amount": -50,
+                "category": "food",
+                "transfer_id": "transfer",
+            },
+            {"account_id": "closed", "date": "2026-05-12", "amount": -90, "category": "food"},
+            {"account_id": "open", "date": "2026-05-13", "amount": 200, "category": "salary"},
+        ]
+        self.assertEqual(
+            forecast.category_averages_from_rows(accounts, transactions, as_of=TODAY),
+            {"food": 10.0},
+        )
+
     def test_scenario_skip_removes_occurrence(self):
         occ = [
             {"date": "2026-06-25", "amount": -15.0, "payee": "netflix"},
@@ -112,7 +134,7 @@ class EndpointTests(unittest.TestCase):
         db.engine = self._orig
         self.eng.dispose()
 
-    def _recurring(self, payee, amount, next_date):
+    def _recurring(self, payee, amount, next_date, anchor_day=None):
         self.s.add(
             db.RecurringTxn(
                 account_id=self.a.id,
@@ -120,6 +142,7 @@ class EndpointTests(unittest.TestCase):
                 amount=amount,
                 cycle="monthly",
                 next_date=next_date,
+                anchor_day=anchor_day,
                 active=True,
             )
         )
@@ -154,6 +177,14 @@ class EndpointTests(unittest.TestCase):
             r = self.c.get(f"/api/money/forecast?month={bad}")
             self.assertEqual(r.status_code, 200, bad)
             self.assertIn("projected", r.json())
+
+    def test_forecast_recurring_uses_anchor_day(self):
+        self._recurring("rent", -50.0, "2026-01-31", anchor_day=31)
+        r = self.c.get("/api/money/forecast?month=2026-03&as_of=2026-02-01").json()
+        dates = [x["date"] for x in r["recurring"]]
+        self.assertIn("2026-02-28", dates)
+        self.assertIn("2026-03-31", dates)
+        self.assertNotIn("2026-03-28", dates)
 
     def test_networth_history_bad_as_of_no_crash(self):
         for bad in ("2026", "garbage", "2026-99"):

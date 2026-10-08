@@ -59,12 +59,14 @@ class ContactFieldApiTests(ApiTest):
                 "address": "1 Rd",
                 "birthday": "1988-03-03",
                 "website": "https://dee.dev",
+                "tags": ["friend", "work"],
             },
         )
         self.assertEqual(r.status_code, 200)
         d = r.json()
         self.assertEqual(d["company"], "Globex")
         self.assertEqual(d["birthday"], "1988-03-03")
+        self.assertEqual(d["tags"], ["friend", "work"])
 
     def test_fmt_includes_new_fields(self):
         self.client.post("/api/contacts", json={"name": "Ed"})

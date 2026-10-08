@@ -1,14 +1,19 @@
+import hashlib
 import json
-from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends
+import logging
+from datetime import UTC, datetime
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import get_db, ModelEndpoint, Photo, Session, Message, Note
-from services import photos_store as ps
-from routes.photos import _fmt
+from core.database import Message, ModelEndpoint, Photo, Session, get_db
+from services.photo_records import format_photo, generated_photo_batch
 
 router = APIRouter(prefix="/api/images")
+log = logging.getLogger("alles.images")
 
 
 def _alt(s: str) -> str:
@@ -47,28 +52,13 @@ async def generate_image(body: GenBody, db: DbSession = Depends(get_db)):
             502, "the endpoint returned no image (does it support image generation?)"
         )
 
-    saved = []
-    for i, raw in enumerate(imgs):
-        try:
-            info = ps.import_image(raw, f"generated-{i + 1}.png")
-        except ValueError:
-            continue
-        p = Photo(
-            filename=info["filename"],
-            thumb=info["thumb"],
-            original_name=(body.prompt[:60] or "generated") + ".png",
-            width=info["width"],
-            height=info["height"],
-            taken_at=info["taken_at"],
-            exif=info["exif"],
-        )
-        db.add(p)
-        db.commit()
-        db.refresh(p)
-        saved.append(_fmt(p))
-    if not saved:
-        raise HTTPException(502, "generated image couldn't be saved")
-    return {"images": saved}
+    try:
+        with generated_photo_batch(db, imgs, body.prompt) as photos:
+            if not photos:
+                raise HTTPException(502, "generated image couldn't be saved")
+    except OSError as exc:
+        raise HTTPException(503, "generated image couldn't be saved; please retry") from exc
+    return {"images": [format_photo(photo) for photo in photos]}
 
 
 class ChatImageBody(BaseModel):
@@ -78,18 +68,64 @@ class ChatImageBody(BaseModel):
     endpoint_id: str = ""
     size: str = "1024x1024"
     n: int = 1
+    request_id: str = ""
+
+
+def _image_request(body: ChatImageBody) -> tuple[str, str] | tuple[None, None]:
+    if not body.request_id:
+        return None, None
+    try:
+        identity = str(UUID(body.request_id))
+        if body.request_id.lower() != identity:
+            raise ValueError
+    except ValueError as exc:
+        raise HTTPException(400, "request_id must be a canonical UUID") from exc
+    payload = json.dumps(
+        body.model_dump(exclude={"request_id"}), sort_keys=True, separators=(",", ":")
+    )
+    return f"image-request:{identity}", hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _saved_chat_image(db: DbSession, key: str, fingerprint: str, title: str) -> dict | None:
+    assistant = db.get(Message, key)
+    if assistant is None:
+        return None
+    meta = assistant.meta_dict()
+    if assistant.role != "assistant" or meta.get("image_request_hash") != fingerprint:
+        raise HTTPException(409, "this request_id was already used with different values")
+    photo_ids = meta.get("photo_ids")
+    if not isinstance(photo_ids, list) or not photo_ids:
+        raise HTTPException(409, "this image request has no recoverable result")
+    if any(
+        (photo := db.get(Photo, pid)) is None or photo.deleted_at is not None for pid in photo_ids
+    ):
+        raise HTTPException(410, "the image from this request was deleted")
+    return {
+        "content": assistant.content,
+        "doc_id": meta.get("note_id"),
+        "doc_title": title,
+        "images": [{"id": pid, "original": f"/api/photos/original/{pid}"} for pid in photo_ids],
+    }
 
 
 # POST /api/images/chat — generate from inside a chat thread. drops the image into
-# the conversation, saves it to the gallery AND files it as a document, and persists
+# the conversation, saves it to Photos, tries to file it in Docs, and persists
 # the turn so it survives a reload. returns the assistant markdown the UI renders.
 @router.post("/chat")
 async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db)):
     if not body.prompt.strip():
         raise HTTPException(400, "empty prompt")
-    s = db.get(Session, body.session_id)
+    from services import incognito
+
+    s = incognito.get_session(body.session_id) or db.get(Session, body.session_id)
     if not s:
         raise HTTPException(404, "session not found")
+    request_key, fingerprint = _image_request(body) if not s.incognito else (None, None)
+    title = body.prompt.strip()[:60] or "generated image"
+    if request_key:
+        replay = _saved_chat_image(db, request_key, fingerprint, title)
+        if replay is not None:
+            return replay
     ep = (
         db.get(ModelEndpoint, body.endpoint_id)
         if body.endpoint_id
@@ -110,7 +146,6 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
         )
 
     alt = _alt(body.prompt)
-    title = body.prompt.strip()[:60] or "generated image"
 
     # incognito → leave no trace anywhere: don't touch the gallery/documents/history,
     # just inline the image as a data-uri so it shows in the (ephemeral) thread.
@@ -122,63 +157,79 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
         )
         return {"content": md, "doc_id": None, "doc_title": title, "images": []}
 
-    saved = []
-    for i, raw in enumerate(imgs):
-        try:
-            info = ps.import_image(raw, f"generated-{i + 1}.png")
-        except Exception:
-            continue  # provider handed back junk/non-image bytes for this one — skip it
-        saved.append(
-            Photo(
-                filename=info["filename"],
-                thumb=info["thumb"],
-                original_name=(body.prompt[:60] or "generated") + ".png",
-                width=info["width"],
-                height=info["height"],
-                taken_at=info["taken_at"],
-                exif=info["exif"],
+    try:
+        with generated_photo_batch(db, imgs, body.prompt) as saved:
+            if not saved:
+                raise HTTPException(502, "generated image couldn't be saved")
+            img_md = "\n\n".join(f"![{alt}](/api/photos/original/{p.id})" for p in saved)
+            assistant_meta = {
+                "model": body.model,
+                "image": True,
+                "note_id": None,
+                "photo_ids": [p.id for p in saved],
+            }
+            if request_key:
+                assistant_meta["image_request_hash"] = fingerprint
+            assistant = Message(
+                session_id=s.id,
+                role="assistant",
+                content=f"{img_md}\n\n`image generated` · {title}",
+                meta=json.dumps(assistant_meta),
             )
+            if request_key:
+                assistant.id = request_key
+            db.add(Message(session_id=s.id, role="user", content=body.prompt))
+            db.add(assistant)
+            if not s.name or s.name == "new chat":
+                s.name = title
+            s.message_count = (s.message_count or 0) + 2
+            s.last_message_at = datetime.now(UTC).replace(tzinfo=None)
+    except IntegrityError as exc:
+        # The photo batch has rolled back and removed this request's imported files.
+        if request_key:
+            replay = _saved_chat_image(db, request_key, fingerprint, title)
+            if replay is not None:
+                return replay
+        raise HTTPException(503, "generated image couldn't be saved; please retry") from exc
+    except (OSError, SQLAlchemyError) as exc:
+        raise HTTPException(503, "generated image couldn't be saved; please retry") from exc
+
+    image_links = [{"id": p.id, "original": f"/api/photos/original/{p.id}"} for p in saved]
+
+    # Docs is an extra copy, filed only after the Photo and chat turn are durable.
+    from services import notes_vault
+
+    try:
+        note = notes_vault.create(
+            title=title,
+            content=f"# {title}\n\n*image · {body.model or ep.name}*\n\n{img_md}\n",
+            tags=["image"],
         )
-    if not saved:
-        raise HTTPException(502, "generated image couldn't be saved")
-    for p in saved:
-        db.add(p)
-    db.commit()
-    for p in saved:
-        db.refresh(p)
+    except OSError:
+        note = None
+    note_id = note["id"] if note else None
+    note_status = "✓ saved to notes" if note else "couldn't save to notes"
+    assistant_md = f"{img_md}\n\n`{note_status}` · {title}"
+    try:
+        assistant.content = assistant_md
+        assistant_meta["note_id"] = note_id
+        assistant.meta = json.dumps(assistant_meta)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        log.warning("could not record generated image note status: %s", type(exc).__name__)
 
-    img_md = "\n\n".join(f"![{alt}](/api/photos/original/{p.id})" for p in saved)
+    if note:
+        try:
+            from services import personal_index
 
-    # file it in docs (notes — the live docs app) too so it's easy to find later
-    note = Note(
-        title=title,
-        content=f"# {title}\n\n*image · {body.model or ep.name}*\n\n{img_md}\n",
-        tags="image",
-    )
-    db.add(note)
-    db.commit()
-    db.refresh(note)
-
-    assistant_md = f"{img_md}\n\n`✓ saved to notes` · {title}"
-
-    db.add(Message(session_id=s.id, role="user", content=body.prompt))
-    db.add(
-        Message(
-            session_id=s.id,
-            role="assistant",
-            content=assistant_md,
-            meta=json.dumps({"model": body.model, "image": True, "note_id": note.id}),
-        )
-    )
-    if not s.name or s.name == "new chat":
-        s.name = title
-    s.message_count = (s.message_count or 0) + 2  # we added BOTH a user + an assistant message
-    s.last_message_at = datetime.utcnow()
-    db.commit()
+            personal_index.index_record(db, "note", note_id)
+        except Exception:
+            pass
 
     return {
         "content": assistant_md,
-        "doc_id": note.id,  # frontend uses this as a "saved" flag + to rename the chat
+        "doc_id": note_id,  # frontend uses this as a "saved" flag + to rename the chat
         "doc_title": title,
-        "images": [{"id": p.id, "original": f"/api/photos/original/{p.id}"} for p in saved],
+        "images": image_links,
     }

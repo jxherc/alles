@@ -1,7 +1,16 @@
+import { _setSwitch, _bindSwitch, _patchSettings, _patchSetting, _esc, _escAttr, _fetchWithRecentOwner } from './settings/shared.js';
+import { homePane } from './settings/home.js';
+import { languagePane } from './settings/language.js';
+import { creditsPane } from './settings/credits.js';
+import { createBackupPane } from './settings/backups.js';
+import { providersPane, _endpointJson } from './settings/providers.js';
+import { connectionsPane } from './settings/connections.js';
+export { _mergeHomeShortcutOrder } from './settings/home.js';
+export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFromResponse, normalizeS3BackupConfig, s3BackupConfigPayload, s3BackupsFromResponse } from './settings/backups.js';
+export { loadMcpServers, loadConnections, loadDiscordConnection } from './settings/connections.js';
 import { toast } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
-import { loadModels, addEndpoint, renderModelList } from './models.js';
-import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js';
+import { initCustomDropdowns, closeCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=212';
 import { initMemoryPanel } from './memory.js';
 import {
   sensitiveBlurEnabled, textOnlyEmojisEnabled, welcomeEnabled,
@@ -9,6 +18,9 @@ import {
 } from './privacy.js';
 import { loadShortcuts, saveShortcuts, eventToShortcut, isReservedShortcut } from './shortcuts.js';
 import { setAccent as _themeSetAccent, resetToDefault as _resetToDefault, getAppearance as _getAppearance, renderThemeEditorInto, isBasePreset } from './theme.js';
+import {
+  formatDate,
+} from './i18n.js';
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -39,45 +51,80 @@ function _applyFontSize(sz) {
   document.documentElement.dataset.fontSize = sz || 'md';
 }
 
-// ── switch helpers ────────────────────────────────────────────────────────────
-function _setSwitch(el, on) {
-  el.classList.toggle('on', !!on);
-}
-
-function _bindSwitch(el, getter, setter) {
-  _setSwitch(el, getter());
-  el.addEventListener('click', () => {
-    const next = !el.classList.contains('on');
-    _setSwitch(el, next);
-    setter(next);
-  });
-}
-
 // ── pane navigation ───────────────────────────────────────────────────────────
-let _activePane = 'models';
+let _activePane = 'general';
+let _developerOpening = 0;
+const _ownedPanes = {
+  home: homePane,
+  notifications: languagePane,
+  credits: creditsPane,
+  models: providersPane,
+  tools: connectionsPane,
+  backup: createBackupPane(closeSettings),
+};
+
+function _closeSectionPicker(returnFocus = false) {
+  const trigger = document.getElementById('settings-section-trigger');
+  const wasOpen = trigger?.getAttribute('aria-expanded') === 'true';
+  trigger?.setAttribute('aria-expanded', 'false');
+  document.querySelector('.s-navigation')?.classList.remove('is-open');
+  const list = document.getElementById('settings-section-list');
+  if (list) list.style.maxHeight = '';
+  if (returnFocus && wasOpen && trigger?.offsetParent !== null) trigger?.focus();
+}
+
+function _openSectionPicker() {
+  const trigger = document.getElementById('settings-section-trigger');
+  const list = document.getElementById('settings-section-list');
+  if (!trigger || !list) return;
+  document.querySelector('.s-navigation')?.classList.add('is-open');
+  trigger.setAttribute('aria-expanded', 'true');
+  const rect = trigger.getBoundingClientRect();
+  const modalBottom = document.querySelector('#settings-modal .s-modal')?.getBoundingClientRect().bottom || innerHeight;
+  list.style.maxHeight = `${Math.max(44, Math.min(innerHeight, modalBottom) - rect.bottom - 8)}px`;
+  list.querySelector('.active')?.focus();
+}
 
 function _switchPane(name) {
+  const pickerWasOpen = document.getElementById('settings-section-trigger')?.getAttribute('aria-expanded') === 'true';
+  _closeSectionPicker(pickerWasOpen);
+  closeCustomDropdowns(document.getElementById('settings-modal'));
+  _ownedPanes[_activePane]?.dispose();
+  _invalidateRetainedReads(_activePane);
   // unknown pane key (e.g. a stale 'appearance') would leave every pane inactive →
-  // a blank modal. fall back to 'general', which exists in both scopes.
+  // a blank modal. fall back to the consolidated General pane.
   if (!document.getElementById(`s-pane-${name}`)) name = 'general';
+  const paneChanged = name !== _activePane;
   _activePane = name;
+  const selected = document.querySelector(`.s-nav-item[data-pane="${CSS.escape(name)}"]`);
+  const context = document.getElementById('settings-pane-title');
+  if (context) context.textContent = selected?.textContent.trim() || '';
+  const sectionTrigger = document.getElementById('settings-section-trigger');
+  if (sectionTrigger) {
+    const label = selected?.textContent.trim() || '';
+    sectionTrigger.firstElementChild.textContent = label;
+    sectionTrigger.setAttribute('aria-label', `settings section: ${label}`);
+  }
   document.querySelectorAll('.s-nav-item').forEach(n =>
     n.classList.toggle('active', n.dataset.pane === name));
+  document.querySelectorAll('.s-nav-item').forEach(n =>
+    n.setAttribute('aria-current', n.dataset.pane === name ? 'page' : 'false'));
   document.querySelectorAll('.s-pane').forEach(p =>
     p.classList.toggle('active', p.id === `s-pane-${name}`));
+  const content = document.querySelector('#settings-modal .s-content');
+  if (paneChanged && content) content.scrollTop = 0;
   _onPaneOpen(name);
 }
 
 function _onPaneOpen(name) {
-  if (name === 'models')     { loadEpList(); loadLocalModels(); }
+  _ownedPanes[name]?.load();
   if (name === 'ai')         loadAiPane();
-  if (name === 'memory')     initMemoryPanel();
+  if (name === 'memory')     { initMemoryPanel(); loadOwnerInstructions(); }
   if (name === 'search')     loadSearchPane();
   if (name === 'general' || name === 'security' || name === 'themes') loadAppearancePane();
   if (name === 'themes')     loadThemesPane();
   if (name === 'voice')      loadVoicePane();
   if (name === 'personas')   { loadPersonas(); loadCookbook(); }
-  if (name === 'tools')      { loadAgentStatus(); loadMcpServers(); loadConnections(); loadPermRules(); loadMacosStatus(); }
   if (name === 'developer')  { loadTokens(); loadWebhooks(); loadShortcutSettings(); }
   if (name === 'rules')      loadRulesPane();
   if (name === 'recall')     loadRecallPane();
@@ -87,30 +134,55 @@ function _onPaneOpen(name) {
 
 // ── open / close ──────────────────────────────────────────────────────────────
 let _bound = false;
+let _settingsReturnFocus = null;
+let _settingsReturnFocusId = '';
 
-export function openSettings(pane, allesOnly = false) {
+export function openSettings(pane, _allesOnly = false) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
+  const wasClosed = modal.style.display === 'none';
+  if (wasClosed && document.activeElement instanceof HTMLElement) {
+    _settingsReturnFocus = document.activeElement;
+    _settingsReturnFocusId = document.activeElement.id;
+  }
   modal.style.display = 'flex';
-  // hub/home settings = alles-wide only (appearance + backup); aide keeps the full set
-  modal.classList.toggle('alles-scope', allesOnly);
+  // Phase 3 has one settings home. Keep the second argument only for old callers.
+  modal.classList.remove('alles-scope');
   const title = document.querySelector('#settings-modal .s-title');
-  if (title) title.textContent = allesOnly ? 'alles settings' : 'settings';
-  if (!pane) pane = allesOnly ? 'general' : 'models';
+  if (title) title.textContent = 'alles settings';
+  if (!pane) pane = 'general';
   if (!_bound) { _initSettings(); _bound = true; }
   // update compat url labels
-  const port = location.port || '8000';
+  const port = location.port || '6769';
   const base = `${location.protocol}//${location.hostname}:${port}/v1`;
   document.getElementById('s-compat-url')?.setAttribute('data-val', base);
   document.getElementById('s-compat-url')?.replaceChildren(document.createTextNode(base));
   document.getElementById('s-compat-url2')?.replaceChildren(document.createTextNode(base));
 
   _switchPane(pane);
+  requestAnimationFrame(() => {
+    const picker = document.getElementById('settings-section-trigger');
+    const target = (picker?.offsetParent !== null ? picker : null)
+      || document.querySelector(`.s-nav-item[data-pane="${CSS.escape(_activePane)}"]`)
+      || document.getElementById('settings-modal-close');
+    target?.focus();
+  });
 }
 
 export function closeSettings() {
   const modal = document.getElementById('settings-modal');
-  if (modal) modal.style.display = 'none';
+  if (!modal || modal.style.display === 'none') return;
+  closeCustomDropdowns(document.getElementById('settings-modal'));
+  _closeSectionPicker(false);
+  _ownedPanes[_activePane]?.dispose();
+  _invalidateRetainedReads(_activePane);
+  modal.style.display = 'none';
+  const target = _settingsReturnFocus?.isConnected
+    ? _settingsReturnFocus
+    : (_settingsReturnFocusId ? document.getElementById(_settingsReturnFocusId) : null);
+  _settingsReturnFocus = null;
+  _settingsReturnFocusId = '';
+  target?.focus();
 }
 
 // expose for playwright tests + external callers
@@ -119,58 +191,87 @@ window._openSettings = openSettings;
 // ── init (runs once) ──────────────────────────────────────────────────────────
 function _initSettings() {
   initCustomDropdowns(document.getElementById('settings-modal') || document);
+  document.getElementById('general-setup-btn')?.addEventListener('click', () => {
+    closeSettings();
+    window._openSetupWizard?.({ resume: true });
+  });
+
+  const sectionTrigger = document.getElementById('settings-section-trigger');
+  sectionTrigger?.addEventListener('click', () => {
+    if (sectionTrigger.getAttribute('aria-expanded') === 'true') _closeSectionPicker(true);
+    else _openSectionPicker();
+  });
+  sectionTrigger?.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    _openSectionPicker();
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!event.target.closest('.s-navigation')) _closeSectionPicker(false);
+  });
+  window.addEventListener('resize', () => _closeSectionPicker(true));
+  document.querySelector('.s-navigation')?.addEventListener('focusout', event => {
+    if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) _closeSectionPicker(false);
+  });
 
   // nav clicks
   document.querySelectorAll('.s-nav-item').forEach(n => {
+    n.setAttribute('role', 'button');
+    n.tabIndex = 0;
     n.addEventListener('click', () => _switchPane(n.dataset.pane));
+    n.addEventListener('keydown', event => {
+      if (sectionTrigger?.offsetParent !== null && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        const items = [...document.querySelectorAll('.s-nav-item')];
+        const index = items.indexOf(n);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+          : (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+        items[next]?.focus();
+        return;
+      }
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      _switchPane(n.dataset.pane);
+    });
   });
 
   // overlay close
   const modal = document.getElementById('settings-modal');
   modal.addEventListener('click', e => { if (e.target === modal) closeSettings(); });
+  modal.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (sectionTrigger?.getAttribute('aria-expanded') === 'true') _closeSectionPicker(true);
+      else closeSettings();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusable = [...modal.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), details > summary, [tabindex]:not([tabindex="-1"])',
+    )].filter(el => !el.hidden && el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
   document.getElementById('settings-modal-close')?.addEventListener('click', closeSettings);
 
-  // ── models pane ──
-  document.querySelectorAll('.s-preset-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.getElementById('s-ep-url').value = btn.dataset.url;
-      document.getElementById('s-ep-name').value = btn.dataset.name;
-      document.getElementById('s-ep-key').focus();
-    });
-  });
-  document.getElementById('s-ep-add-btn')?.addEventListener('click', async () => {
-    const name = document.getElementById('s-ep-name').value.trim();
-    const url  = document.getElementById('s-ep-url').value.trim();
-    const key  = document.getElementById('s-ep-key').value.trim();
-    if (!name || !url) { toast('name and url required', 'error'); return; }
-    const btn = document.getElementById('s-ep-add-btn');
-    btn.textContent = 'probing…'; btn.disabled = true;
-    try {
-      const ep = await addEndpoint(name, url, key);
-      const visionRaw = document.getElementById('s-ep-vision')?.value.trim() || '';
-      if (visionRaw && ep?.id) {
-        const visionList = visionRaw.split(',').map(s => s.trim()).filter(Boolean);
-        await fetch(`/api/models/endpoint/${ep.id}`, {
-          method: 'PATCH', headers: {'content-type':'application/json'},
-          body: JSON.stringify({ vision_models: JSON.stringify(visionList) }),
-        });
-      }
-      ['s-ep-name','s-ep-url','s-ep-key','s-ep-vision'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-      document.getElementById('s-ep-add-details').open = false;
-      toast('endpoint added', 'success');
-      loadEpList();
-      loadModels();
-      renderModelList();
-    } catch (e) { toast(`failed: ${e.message}`, 'error'); }
-    btn.textContent = 'add + probe models'; btn.disabled = false;
-  });
-
   // ── ai pane ──
-  document.getElementById('s-local-refresh-btn')?.addEventListener('click', loadLocalModels);
-  document.getElementById('s-local-pull-btn')?.addEventListener('click', pullCustomLocalModel);
-  document.getElementById('s-local-start-btn')?.addEventListener('click', startLocalOllama);
-
   document.getElementById('settings-save-btn')?.addEventListener('click', saveAiDefaults);
+  document.querySelectorAll('[data-chat-behavior]').forEach(button => {
+    button.addEventListener('click', () => saveDefaultChatBehavior(button.dataset.chatBehavior));
+  });
+  document.getElementById('s-owner-instructions-save')?.addEventListener('click', saveOwnerInstructions);
+  document.getElementById('settings-owner-instructions')?.addEventListener('input', event => {
+    event.currentTarget.dataset.dirty = '1';
+  });
 
   // ── search pane ──
   document.getElementById('s-search-provider')?.addEventListener('change', () => {
@@ -182,6 +283,31 @@ function _initSettings() {
     document.getElementById(id)?.addEventListener('blur', saveSearchSettings));
   document.getElementById('s-search-count')?.addEventListener('change', saveSearchSettings);
   document.getElementById('s-search-test-btn')?.addEventListener('click', testSearch);
+  document.getElementById('s-andromeda-results')?.addEventListener('click', event => {
+    const next = !event.currentTarget.classList.contains('on');
+    _setSwitch(event.currentTarget, next);
+    _patchSetting('andromeda_normal_results', next);
+  });
+  document.getElementById('s-andromeda-overview')?.addEventListener('click', event => {
+    const next = !event.currentTarget.classList.contains('on');
+    _setSwitch(event.currentTarget, next);
+    _patchSetting('andromeda_overview', next);
+  });
+  document.getElementById('s-andromeda-verification')?.addEventListener('click', event => {
+    const next = !event.currentTarget.classList.contains('on');
+    _setSwitch(event.currentTarget, next);
+    _patchSetting('andromeda_verification_enabled', next);
+  });
+  document.getElementById('s-andromeda-verifier-mode')?.addEventListener('change', event => {
+    _patchSetting('andromeda_verifier_mode', getDropdownValue(event.currentTarget));
+  });
+  document.getElementById('s-andromeda-band')?.addEventListener('change', event => {
+    _patchSetting('andromeda_model_band', event.currentTarget.value);
+  });
+  document.querySelectorAll('.s-andromeda-model').forEach(select => {
+    select.addEventListener('change', saveAndromedaModelBands);
+  });
+  document.getElementById('s-andromeda-qualify')?.addEventListener('click', qualifyAndromedaAutoModel);
 
   // ── voice pane ──
   document.getElementById('s-voice-save-btn')?.addEventListener('click', saveVoiceSettings);
@@ -223,28 +349,15 @@ function _initSettings() {
   document.getElementById('cookbook-add-btn')?.addEventListener('click', addCookbookEntry);
 
   // ── tools (mcp) ──
-  document.getElementById('mcp-add-btn')?.addEventListener('click', addMcpServer);
   document.getElementById('persona-doc-add')?.addEventListener('click', _addPersonaDoc);
   document.getElementById('persona-share-btn')?.addEventListener('click', _sharePersona);
-  document.getElementById('agent-status-refresh-btn')?.addEventListener('click', loadAgentStatus);
 
   // ── developer ──
   document.getElementById('token-add-btn')?.addEventListener('click', generateToken);
+  document.querySelectorAll('[data-token-scope]').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('active'));
+  });
   document.getElementById('wh-add-btn')?.addEventListener('click', addWebhook);
-
-  // ── backup ──
-  document.getElementById('backup-export-btn')?.addEventListener('click', () => {
-    window.location = '/api/backup';
-  });
-  document.getElementById('backup-restore-input')?.addEventListener('change', async e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const fd = new FormData(); fd.append('file', file);
-    const r = await fetch('/api/backup/restore', { method: 'POST', body: fd });
-    if (r.ok) { toast('restore complete — reloading…', 'success'); setTimeout(() => location.reload(), 1500); }
-    else toast('restore failed', 'error');
-    e.target.value = '';
-  });
 
   document.querySelectorAll('.shortcut-input').forEach(inp => {
     inp.addEventListener('keydown', e => {
@@ -259,7 +372,7 @@ function _initSettings() {
       }
       const combo = eventToShortcut(e);
       if (!combo) return;
-      if (isReservedShortcut(combo)) { toast(`${combo} is a system/browser shortcut — pick another`, 'error'); return; }
+      if (isReservedShortcut(combo)) { toast(`${combo} is a system/browser shortcut: pick another`, 'error'); return; }
       inp.value = combo;
       saveShortcuts({ [inp.dataset.shortcut]: combo });
       toast('shortcut saved', 'success');
@@ -267,242 +380,11 @@ function _initSettings() {
   });
 }
 
-// ── models pane ───────────────────────────────────────────────────────────────
-async function loadLocalModels() {
-  const ollamaEl = document.getElementById('s-local-ollama');
-  const hwEl = document.getElementById('s-local-hw');
-  const listEl = document.getElementById('s-local-presets');
-  if (!ollamaEl || !hwEl || !listEl) return;
-  ollamaEl.textContent = 'checking Ollama...';
-  try {
-    const data = await _localJson('/api/local-models/status');
-    const o = data.ollama || {};
-    const hw = data.hardware || {};
-    const gpu = (hw.gpus || []).map(g => `${g.name} (${g.vram_gb} GB)`).join(', ') || 'no NVIDIA GPU detected';
-    const state = o.running ? 'running' : (o.installed ? 'installed, stopped' : 'not installed');
-    ollamaEl.textContent = `Ollama: ${state} - ${o.base_url || 'http://localhost:11434'}`;
-    hwEl.textContent = `Hardware: ${hw.ram_gb || '?'} GB RAM - ${gpu}`;
-    renderLocalPresets(data.presets || []);
-  } catch (e) {
-    ollamaEl.textContent = e.message || 'local model status failed';
-    hwEl.textContent = '';
-    listEl.innerHTML = '';
-  }
-}
-
-function renderLocalPresets(presets) {
-  const listEl = document.getElementById('s-local-presets');
-  if (!listEl) return;
-  if (!presets.length) {
-    listEl.innerHTML = '<div style="font-size:0.72rem;color:var(--muted)">no local presets available</div>';
-    return;
-  }
-  listEl.innerHTML = presets.map(p => {
-    const badge = p.fit === 'fits_gpu' ? 'gpu fit' : (p.fit === 'fits_cpu' ? 'cpu fit' : 'large');
-    const installed = p.installed ? 'installed' : 'download first';
-    const serveDisabled = p.installed ? '' : 'disabled title="download first"';
-    return `<div class="settings-list-row" style="align-items:flex-start;gap:0.55rem">
-      <span class="status-dot" style="margin-top:0.35rem;background:${p.installed ? 'var(--green)' : 'var(--faint)'}"></span>
-      <div style="min-width:0;flex:1">
-        <div class="row-name">${_esc(p.label)} <span style="color:var(--muted);font-weight:400">${_esc(p.model)}</span></div>
-        <div class="row-meta">${badge} - ${installed} - ${_esc(p.fit_reason || '')}</div>
-      </div>
-      ${p.installed
-        ? `<button class="btn" data-local-remove="${_escAttr(p.model)}">remove</button>`
-        : `<button class="btn" data-local-download="${_escAttr(p.model)}">download</button>`}
-      <button class="btn primary" data-local-serve="${_escAttr(p.model)}" ${serveDisabled}>serve</button>
-    </div>`;
-  }).join('');
-
-  listEl.querySelectorAll('[data-local-download]').forEach(btn => {
-    btn.addEventListener('click', () => downloadLocalModel(btn.dataset.localDownload, btn));
-  });
-  listEl.querySelectorAll('[data-local-serve]').forEach(btn => {
-    btn.addEventListener('click', () => serveLocalModel(btn.dataset.localServe, btn));
-  });
-  listEl.querySelectorAll('[data-local-remove]').forEach(btn => {
-    btn.addEventListener('click', () => deleteLocalModel(btn.dataset.localRemove, btn));
-  });
-}
-
-async function startLocalOllama() {
-  const btn = document.getElementById('s-local-start-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'starting...'; }
-  try {
-    const data = await _localJson('/api/local-models/start', { method: 'POST' });
-    if (data.ok) toast(data.started ? 'Ollama started' : 'Ollama already starting', 'success');
-    else toast(data.error || 'Ollama start failed', 'error');
-  } catch (e) {
-    toast(e.message || 'Ollama start failed', 'error');
-  }
-  if (btn) { btn.disabled = false; btn.textContent = 'start Ollama'; }
-  setTimeout(loadLocalModels, 700);
-}
-
-async function downloadLocalModel(model, btn) {
-  if (!model) return;
-  btn.disabled = true;
-  btn.textContent = 'queued';
-  try {
-    const job = await _localJson('/api/local-models/download_model', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model }),
-    });
-    pollLocalJob(job.id, btn);
-  } catch (e) {
-    btn.disabled = false;
-    btn.textContent = 'download';
-    toast(e.message || 'download failed to start', 'error');
-  }
-}
-
-async function pollLocalJob(jobId, btn) {
-  if (!jobId) return;
-  try {
-    const job = await _localJson(`/api/local-models/jobs/${jobId}`);
-    if (job.status === 'done') {
-      btn.textContent = 'downloaded';
-      toast(`${job.model} downloaded`, 'success');
-      loadLocalModels();
-      loadModels();
-      return;
-    }
-    if (job.status === 'error') {
-      btn.disabled = false;
-      btn.textContent = 'download';
-      toast(job.error || 'download failed', 'error');
-      return;
-    }
-    btn.textContent = job.status === 'running' ? 'pulling...' : 'queued';
-    setTimeout(() => pollLocalJob(jobId, btn), 1800);
-  } catch {
-    btn.disabled = false;
-    btn.textContent = 'download';
-  }
-}
-
-async function pullCustomLocalModel() {
-  const inp = document.getElementById('s-local-custom');
-  const btn = document.getElementById('s-local-pull-btn');
-  const model = (inp?.value || '').trim();
-  if (!model) { toast('enter a model name', 'error'); return; }
-  btn.disabled = true; btn.textContent = 'queued';
-  try {
-    const job = await _localJson('/api/local-models/download_model', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model }),
-    });
-    pollLocalJob(job.id, btn);
-    inp.value = '';
-  } catch (e) {
-    btn.disabled = false; btn.textContent = 'pull';
-    toast(e.message || 'pull failed to start', 'error');
-  }
-}
-
-async function deleteLocalModel(model, btn) {
-  if (!model) return;
-  if (!await _dlgConfirm(`remove ${model} from disk?`)) return;
-  btn.disabled = true; btn.textContent = 'removing...';
-  try {
-    await _localJson('/api/local-models/delete', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model }),
-    });
-    toast(`${model} removed`, 'success');
-  } catch (e) {
-    toast(e.message || 'remove failed', 'error');
-  }
-  loadLocalModels();
-  loadModels();
-}
-
-async function serveLocalModel(model, btn) {
-  if (!model) return;
-  btn.disabled = true;
-  btn.textContent = 'serving...';
-  try {
-    const data = await _localJson('/api/local-models/serve', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, autostart: true, set_default: true }),
-    });
-    toast(`${data.model || model} selected`, 'success');
-    loadEpList();
-    loadModels();
-    renderModelList();
-  } catch (e) {
-    toast(e.message || 'serve failed', 'error');
-  }
-  btn.disabled = false;
-  btn.textContent = 'serve';
-  loadLocalModels();
-}
-
-async function _localJson(url, options = {}) {
-  const r = await fetch(url, options);
-  let data = {};
-  try { data = await r.json(); } catch {}
-  if (!r.ok) {
-    const detail = data.detail || data;
-    if (typeof detail === 'string') throw new Error(detail);
-    throw new Error(detail.error || data.error || `request failed (${r.status})`);
-  }
-  return data;
-}
-
-async function loadEpList() {
-  const el = document.getElementById('s-ep-list');
-  if (!el) return;
-  try {
-    const eps = await fetch('/api/models').then(r => r.json());
-    if (!eps.length) {
-      el.innerHTML = '<div style="font-size:0.75rem;color:var(--muted);padding:0.3rem 0">no endpoints — add one below</div>';
-      return;
-    }
-    el.innerHTML = eps.map(ep => `
-      <div class="s-ep-card" data-id="${ep.id}">
-        <div class="s-ep-dot ${ep.models?.length ? 'ok' : ''}"></div>
-        <div class="s-ep-info">
-          <div class="s-ep-name">${_esc(ep.name)}</div>
-          <div class="s-ep-meta">${_esc(ep.base_url)} · ${ep.models?.length || 0} models</div>
-        </div>
-        <div class="s-ep-actions">
-          <button class="btn" data-probe="${ep.id}">probe</button>
-          <button class="btn danger" data-del="${ep.id}">×</button>
-        </div>
-      </div>`).join('');
-
-    el.querySelectorAll('[data-probe]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        btn.textContent = '…'; btn.disabled = true;
-        try {
-          const r = await fetch(`/api/models/endpoint/${btn.dataset.probe}/probe`, { method: 'POST' });
-          const d = await r.json();
-          toast(`${d.models?.length || 0} models found`, 'success');
-          loadEpList(); loadModels(); renderModelList();
-        } catch { toast('probe failed', 'error'); }
-        btn.textContent = 'probe'; btn.disabled = false;
-      });
-    });
-
-    el.querySelectorAll('[data-del]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!await _dlgConfirm('remove this endpoint?')) return;
-        await fetch(`/api/models/endpoint/${btn.dataset.del}`, { method: 'DELETE' });
-        toast('endpoint removed', 'success');
-        loadEpList(); loadModels(); renderModelList();
-      });
-    });
-  } catch { el.innerHTML = '<div style="font-size:0.75rem;color:var(--error)">failed to load</div>'; }
-}
-
 // ── ai pane ───────────────────────────────────────────────────────────────────
 async function loadAiPane() {
   try {
     const s = await fetch('/api/settings').then(r => r.json());
-    document.getElementById('settings-system-prompt').value = s.system_prompt || '';
+    _renderChatBehavior(s.default_chat_behavior || 'automatic_tools');
     document.getElementById('settings-context-limit').value = s.context_limit ?? 40;
     _bindSwitch(document.getElementById('s-thinking-toggle'),
       () => s.stream_thinking !== false,
@@ -518,11 +400,75 @@ async function loadAiPane() {
 
 async function saveAiDefaults() {
   const patch = {
-    system_prompt: document.getElementById('settings-system-prompt').value,
     context_limit: parseInt(document.getElementById('settings-context-limit').value) || 40,
   };
   await _patchSettings(patch);
-  toast('saved', 'success');
+}
+
+function _renderChatBehavior(value) {
+  const selected = value === 'answer_only' ? 'answer_only' : 'automatic_tools';
+  document.querySelectorAll('[data-chat-behavior]').forEach(button => {
+    const active = button.dataset.chatBehavior === selected;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-checked', String(active));
+  });
+}
+
+async function saveDefaultChatBehavior(value) {
+  const previous = document.querySelector('[data-chat-behavior][aria-checked="true"]')?.dataset.chatBehavior || 'automatic_tools';
+  _renderChatBehavior(value);
+  try {
+    const response = await fetch('/api/settings', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ default_chat_behavior: value }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'chat behavior could not be saved');
+    _renderChatBehavior(data.default_chat_behavior || value);
+    toast('default chat behavior saved', 'success');
+  } catch (error) {
+    _renderChatBehavior(previous);
+    toast(error.message || 'chat behavior could not be saved', 'error');
+  }
+}
+
+let _ownerInstructionsRead = 0;
+async function loadOwnerInstructions() {
+  const textarea = document.getElementById('settings-owner-instructions');
+  if (!textarea) return;
+  const read = ++_ownerInstructionsRead;
+  try {
+    const settings = await _endpointJson(await fetch('/api/settings'));
+    if (typeof settings.owner_instructions !== 'string') throw new Error('could not load owner instructions; reopen this section to retry');
+    if (read === _ownerInstructionsRead && textarea.dataset.dirty !== '1') textarea.value = settings.owner_instructions;
+  } catch (error) {
+    if (read === _ownerInstructionsRead) toast(error.message || 'could not load owner instructions; reopen this section to retry', 'error');
+  }
+}
+
+async function saveOwnerInstructions() {
+  const button = document.getElementById('s-owner-instructions-save');
+  const textarea = document.getElementById('settings-owner-instructions');
+  if (!button || !textarea || button.disabled) return;
+  const value = textarea.value;
+  ++_ownerInstructionsRead;
+  button.disabled = true;
+  button.textContent = 'saving…';
+  try {
+    const settings = await _endpointJson(await fetch('/api/settings', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ owner_instructions: value }),
+    }));
+    if (settings.owner_instructions !== value.trim()) throw new Error('save could not be verified; your instructions are still here. try saving again.');
+    if (textarea.value === value) textarea.dataset.dirty = '0';
+    toast(textarea.value === value ? 'owner instructions saved' : 'earlier instructions saved; your latest edits still need saving', 'success');
+  } catch (error) {
+    toast(error.message || 'owner instructions could not be saved', 'error');
+  } finally {
+    ++_ownerInstructionsRead;
+    button.disabled = false;
+    button.textContent = 'save instructions';
+  }
 }
 
 // ── search pane ───────────────────────────────────────────────────────────────
@@ -547,10 +493,76 @@ async function loadSearchPane() {
     if (s.google_pse_cx)   document.getElementById('s-gpse-cx').value     = s.google_pse_cx;
     if (s.serper_api_key)  document.getElementById('s-serper-key').value  = s.serper_api_key;
     const sel = document.getElementById('s-search-count');
-    if (sel) setDropdownValue(sel, String(s.search_result_count || 5));
+    if (sel) setDropdownValue(sel, String(s.search_result_count || 8));
     _updateSearchKeyRow();
     _updateSearchStatus(s);
+    await loadAndromedaSearchSettings(s);
   } catch {}
+}
+
+let _andromedaModelChoices = new Map();
+let _andromedaModelBands = {};
+
+async function loadAndromedaSearchSettings(settings) {
+  _setSwitch(document.getElementById('s-andromeda-results'), settings.andromeda_normal_results !== false);
+  _setSwitch(document.getElementById('s-andromeda-overview'), settings.andromeda_overview !== false);
+  _setSwitch(document.getElementById('s-andromeda-verification'), settings.andromeda_verification_enabled !== false);
+  const verifierMode = document.getElementById('s-andromeda-verifier-mode');
+  if (verifierMode) setDropdownValue(verifierMode, settings.andromeda_verifier_mode || 'freshness-sensitive');
+  const band = document.getElementById('s-andromeda-band');
+  if (band) setDropdownValue(band, settings.andromeda_model_band || 'standard');
+  _andromedaModelBands = settings.andromeda_model_bands || {};
+  let endpoints = [];
+  try { endpoints = await _endpointJson(await fetch('/api/models')); } catch {}
+  _andromedaModelChoices = new Map();
+  let index = 0;
+  document.querySelectorAll('.s-andromeda-model').forEach(select => {
+    const options = [{ value: '', label: select.dataset.band === 'standard' ? 'use answer role' : 'not configured' }];
+    let selected = '';
+    for (const endpoint of endpoints) {
+      for (const model of endpoint.models || []) {
+        const key = String(++index);
+        _andromedaModelChoices.set(`${select.dataset.band}:${key}`, { endpoint_id: endpoint.id, model });
+        options.push({ value: key, label: `${model} · ${endpoint.name}` });
+        const current = _andromedaModelBands[select.dataset.band] || {};
+        if (current.endpoint_id === endpoint.id && current.model === model) selected = key;
+      }
+    }
+    populateDropdown(select, options, selected);
+  });
+}
+
+async function saveAndromedaModelBands() {
+  const choices = {};
+  document.querySelectorAll('.s-andromeda-model').forEach(select => {
+    const choice = _andromedaModelChoices.get(`${select.dataset.band}:${getDropdownValue(select)}`);
+    if (choice) choices[select.dataset.band] = choice;
+  });
+  _andromedaModelBands = choices;
+  try {
+    if (!await _patchSettings({ andromeda_model_bands: choices })) return;
+    const status = document.getElementById('s-andromeda-model-status');
+    if (status) status.textContent = 'exact choices saved';
+  } catch (error) { toast(error.message || 'model choices could not be saved', 'error'); }
+}
+
+async function qualifyAndromedaAutoModel() {
+  const select = document.getElementById('s-andromeda-model-auto');
+  const choice = _andromedaModelChoices.get(`auto:${getDropdownValue(select)}`);
+  const status = document.getElementById('s-andromeda-model-status');
+  if (!choice) { if (status) status.textContent = 'choose an exact local Auto model first'; return; }
+  const button = document.getElementById('s-andromeda-qualify');
+  if (button) button.disabled = true;
+  if (status) status.textContent = 'running the citation fixture locally…';
+  try {
+    const result = await _endpointJson(await fetch('/api/andromeda/models/qualify', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(choice),
+    }));
+    if (status) status.textContent = result.passed
+      ? `passed · ${result.supported_claims}/${result.required_claims} supported claims`
+      : `not qualified · ${result.supported_claims}/${result.required_claims} supported claims`;
+  } catch (error) { if (status) status.textContent = error.message || 'fixture failed'; }
+  if (button) button.disabled = false;
 }
 
 function _updateSearchKeyRow() {
@@ -572,21 +584,27 @@ function _updateSearchStatus(s) {
   const el = document.getElementById('s-search-status');
   if (!el) return;
   const prov  = s.search_provider || 'duckduckgo';
-  const count = s.search_result_count || 5;
+  const count = s.search_result_count || 8;
   const labels = { duckduckgo:'DuckDuckGo', tavily:'Tavily', brave:'Brave', searxng:'SearXNG', google_pse:'Google PSE', serper:'Serper', disabled:'disabled' };
   const needsKey = { tavily:'tavily_api_key', brave:'brave_api_key', google_pse:'google_pse_api_key', serper:'serper_api_key' };
   const needsUrl = { searxng:'searxng_url' };
   const keyField = needsKey[prov]; const urlField = needsUrl[prov];
-  const missing  = (keyField && !s[keyField]) || (urlField && !s[urlField]);
+  const hasKey = keyField ? (s[keyField] || s[`${keyField}_configured`]) : true;
+  const missing  = (keyField && !hasKey) || (urlField && !s[urlField]);
   el.textContent = `active: ${labels[prov]||prov} · ${count} results${missing?' · missing credentials':''}`;
   el.style.color  = missing ? 'var(--error)' : 'var(--muted)';
 }
 
 async function saveSearchSettings() {
   const prov  = getDropdownValue(document.getElementById('s-search-provider'));
-  const count = parseInt(getDropdownValue(document.getElementById('s-search-count'))) || 5;
+  const count = parseInt(getDropdownValue(document.getElementById('s-search-count'))) || 8;
   const fall  = getDropdownValue(document.getElementById('s-search-fallback')) || 'duckduckgo';
-  const patch = { search_provider: prov, search_result_count: count, search_fallback: fall };
+  const patch = {
+    search_provider: prov,
+    search_result_count: count,
+    search_fallback: fall,
+    search_fallback_chain: fall === 'none' ? [] : [fall],
+  };
   const fields = {
     s_tavily_key: 'tavily_api_key', s_brave_key: 'brave_api_key',
     s_searxng_url: 'searxng_url', s_gpse_key: 'google_pse_api_key',
@@ -596,8 +614,7 @@ async function saveSearchSettings() {
     const val = document.getElementById(htmlId.replace(/_/g, '-'))?.value.trim();
     if (val) patch[settingKey] = val;
   }
-  await _patchSettings(patch);
-  _updateSearchStatus({ search_provider: prov, search_result_count: count, ...patch });
+  if (await _patchSettings(patch)) _updateSearchStatus({ search_provider: prov, search_result_count: count, ...patch });
 }
 
 async function testSearch() {
@@ -626,17 +643,10 @@ function loadAppearancePane() {
     const key = sw.dataset.visKey;
     _setSwitch(sw, key in v ? v[key] : true);
   });
-  _bindSwitchOnce(document.getElementById('s-sensitive-blur-toggle'), sensitiveBlurEnabled, setSensitiveBlur);
-  _bindSwitchOnce(document.getElementById('s-text-emoji-toggle'), textOnlyEmojisEnabled, setTextOnlyEmojis);
-  _bindSwitchOnce(document.getElementById('s-welcome-toggle'), welcomeEnabled, setWelcomeEnabled);
-  // memory inject loaded async — fetch setting first
-  fetch('/api/settings').then(r => r.json()).then(s => {
-    _bindSwitchOnce(document.getElementById('s-memory-inject-toggle'),
-      () => s.memory_auto_inject !== false,
-      on => _patchSettings({ memory_auto_inject: on })
-    );
-  }).catch(() => {});
-  _bindSwitchOnce(document.getElementById('s-ui-compact-toggle'),
+  _bindSwitch(document.getElementById('s-sensitive-blur-toggle'), sensitiveBlurEnabled, setSensitiveBlur);
+  _bindSwitch(document.getElementById('s-text-emoji-toggle'), textOnlyEmojisEnabled, setTextOnlyEmojis);
+  _bindSwitch(document.getElementById('s-welcome-toggle'), welcomeEnabled, setWelcomeEnabled);
+  _bindSwitch(document.getElementById('s-ui-compact-toggle'),
     () => document.body.classList.contains('compact'),
     on => {
       document.body.classList.toggle('compact', on);
@@ -671,6 +681,11 @@ function loadThemesPane() {
   _refreshThemeLock();
 }
 
+function _syncInlineThemeEditor() {
+  const host = document.getElementById('theme-editor-inline');
+  if (host && _inlineEditorBuilt) renderThemeEditorInto(host, { onChange: _refreshThemeLock });
+}
+
 // when a fancy preset is active, the default-theme mode + accent are dictated by it — lock
 // those controls (visually + functionally) and say so; picking 'default' in the editor (or
 // a mode button, which always drops to default) unlocks them.
@@ -683,7 +698,7 @@ function _refreshThemeLock() {
   if (dt) dt.classList.toggle('locked', locked);
   if (note) {
     note.style.display = locked ? '' : 'none';
-    note.textContent = locked ? `mode + accent are set by the "${preset}" theme — pick "default" below to customize them` : '';
+    note.textContent = locked ? `mode + accent are set by the "${preset}" theme: pick "default" below to customize them` : '';
   }
   _markAccent();
   _markMode();
@@ -695,7 +710,7 @@ const ACCENT_PRESETS = [
   ['#34d399', 'emerald'], ['#4ade80', 'green'], ['#facc15', 'yellow'], ['#fb923c', 'orange'],
   ['#f87171', 'red'], ['#f472b6', 'pink'], ['#e879f9', 'fuchsia'], ['#e8e6e3', 'mono'],
 ];
-const DEFAULT_ACCENT = '#818cf8';
+const DEFAULT_ACCENT = '#9298ff';
 // accent + mode now live in the unified appearance object (theme.js), so they survive reload
 // and stop fighting presets. these read/write through that, not the old aide-* localStorage.
 const _curAccent = () => {
@@ -705,19 +720,19 @@ const _curAccent = () => {
 
 function applyAccent(hex) {
   _themeSetAccent(hex || '');                 // writes colors.accent into the appearance object
+  _syncInlineThemeEditor();
   _markAccent();
   window._updateFavicon?.();
-  _patchSettings({ accent: hex || '' });      // legacy mirror so other subdomains stay in sync
 }
 function applyThemeMode(mode) {
   // "default theme" = a clean slate: reset every fancy extra (frosted/pattern/density/font/
   // effect) to default for the chosen base, same as the default preset tile. leaving a fancy
   // preset also drops its accent tint back to default; a plain base keeps the accent you set.
   _resetToDefault(mode === 'light' ? 'light' : 'dark');
+  _syncInlineThemeEditor();
   _markMode();
   _markAccent();   // the tint may have reset — re-mark the active swatch
   window._updateFavicon?.();
-  _patchSettings({ theme: mode === 'light' ? 'light' : '' });
   _refreshThemeLock();                        // switching to default unlocks the controls
 }
 function _markAccent() {
@@ -728,7 +743,11 @@ function _markAccent() {
 }
 function _markMode() {
   const cur = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
-  document.querySelectorAll('.theme-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.themeMode === cur));
+  document.querySelectorAll('.theme-mode-btn').forEach(b => {
+    const selected = b.dataset.themeMode === cur;
+    b.classList.toggle('active', selected);
+    b.setAttribute('aria-pressed', String(selected));
+  });
 }
 function _loadThemeColorControls() {
   // theme mode buttons
@@ -741,7 +760,7 @@ function _loadThemeColorControls() {
   if (box && !box.dataset.built) {
     box.dataset.built = '1';
     box.innerHTML = ACCENT_PRESETS.map(([hex, name]) =>
-      `<button class="accent-swatch" data-hex="${hex}" title="${name}" style="background:${hex}"></button>`).join('');
+      `<button type="button" class="accent-swatch" data-hex="${hex}" title="${name}" aria-label="${name} accent" style="background:${hex}"></button>`).join('');
     box.querySelectorAll('.accent-swatch').forEach(s => s.addEventListener('click', () => applyAccent(s.dataset.hex)));
   }
   const hexInp = document.getElementById('s-accent-hex');
@@ -772,7 +791,7 @@ function _loadThemeColorControls() {
       const oldp = document.getElementById('s-pw-old').value;
       const newp = document.getElementById('s-pw-new').value;
       const conf = document.getElementById('s-pw-new2')?.value ?? '';
-      if (newp.length < 4) { toast('new password must be at least 4 characters', 'error'); return; }
+      if (newp.length < 12) { toast('new password must be at least 12 characters', 'error'); return; }
       if (newp !== conf) { toast("passwords don't match", 'error'); return; }
       try {
         const r = await fetch('/api/auth/change-password', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ old_password: oldp, new_password: newp }) });
@@ -807,18 +826,6 @@ function _loadThemeColorControls() {
 
 // (end loadAppearancePane helper)
 
-function _bindSwitchOnce(el, getter, setter) {
-  if (!el) return;
-  _setSwitch(el, getter());
-  if (el.dataset.bound === '1') return;
-  el.dataset.bound = '1';
-  el.addEventListener('click', () => {
-    const next = !el.classList.contains('on');
-    _setSwitch(el, next);
-    setter(next);
-  });
-}
-
 function loadShortcutSettings() {
   const shortcuts = loadShortcuts();
   document.querySelectorAll('.shortcut-input').forEach(inp => {
@@ -842,9 +849,9 @@ async function loadVoicePane() {
     const langEl = document.getElementById('s-stt-language');
     if (langEl && s.stt_language) langEl.value = s.stt_language;
     setDropdownValue(document.getElementById('s-tts-speed'), String(s.tts_speed ?? 1));
-    _bindSwitchOnce(document.getElementById('s-tts-enabled-toggle'),
+    _bindSwitch(document.getElementById('s-tts-enabled-toggle'),
       () => !!(s.tts_auto_play),
-      async on => { await _patchSettings({ tts_auto_play: on }); }
+      on => _patchSettings({ tts_auto_play: on })
     );
     _updateTtsVoiceRow();
   } catch {}
@@ -891,13 +898,56 @@ async function saveVoiceSettings() {
   };
   const key = document.getElementById('settings-openai-key')?.value.trim();
   if (key) patch.openai_api_key = key;
-  await _patchSettings(patch);
-  toast('voice settings saved', 'success');
+  if (await _patchSettings(patch)) toast('voice settings saved', 'success');
 }
 
 // ── personas ──────────────────────────────────────────────────────────────────
 let _personaCache = [];
 let _editingPersona = null;
+let _personaSavePending = false;
+let _personaSavingId = null;
+let _personaDocSavingId = null;
+let _personaReadGeneration = 0;
+let _personaDocsReadGeneration = 0;
+const _personaDeletes = new Set();
+const _personaDocDeletes = new Set();
+const _personaDuplicates = new Set();
+
+function _isSettingsPaneOpen(name) {
+  const modal = document.getElementById('settings-modal');
+  return _activePane === name && !!modal && modal.style.display !== 'none';
+}
+
+function _invalidateRetainedReads(name) {
+  if (name === 'memory') {
+    ++_ownerInstructionsRead;
+  } else if (name === 'personas') {
+    ++_personaReadGeneration;
+    ++_personaDocsReadGeneration;
+    ++_cookbookReadGeneration;
+  } else if (name === 'developer') {
+    ++_developerOpening;
+    ++_tokenReadGeneration;
+    ++_webhookReadGeneration;
+  }
+}
+
+function _personaRemovalPending(id) {
+  return _personaDeletes.has(id) || _personaSavingId === id || _personaDocSavingId === id;
+}
+
+function _refreshPersonaPendingControls() {
+  const save = document.getElementById('persona-add-btn');
+  if (save) save.disabled = _personaSavePending || _personaDeletes.has(_editingPersona);
+  const addDoc = document.getElementById('persona-doc-add');
+  if (addDoc) addDoc.disabled = !!_personaDocSavingId || _personaDeletes.has(_editingPersona);
+  document.querySelectorAll('#persona-list [data-persona-remove]').forEach(button => {
+    button.disabled = _personaRemovalPending(button.dataset.id);
+  });
+  document.querySelectorAll('#persona-list [data-persona-duplicate]').forEach(button => {
+    button.disabled = _personaDuplicates.has(button.dataset.id);
+  });
+}
 
 // ── temperature: btop-style block meter (null = auto/provider default) ──
 // 0..2 in hard 0.1 steps. each lit cell is coloured by its POSITION on the scale,
@@ -983,13 +1033,13 @@ function _buildPersonaAccents() {
   if (!box || box.dataset.built) return;
   box.dataset.built = '1';
   box.innerHTML =
-    '<button type="button" class="pa-swatch pa-none" data-hex="" title="no override — use your theme accent">default</button>' +
+    '<button type="button" class="pa-swatch pa-none" data-hex="" title="no override: use your theme accent">default</button>' +
     PERSONA_ACCENTS.map(([hex, name]) =>
       `<button type="button" class="pa-swatch" data-hex="${hex}" title="${name}" style="background:${hex}"></button>`).join('');
   box.querySelectorAll('.pa-swatch').forEach(s => s.addEventListener('click', () => {
     _setPersonaAccent(s.dataset.hex);
     // live preview the re-theme as you pick (reset/save restores the real active accent)
-    document.documentElement.style.setProperty('--accent', s.dataset.hex || ((JSON.parse(localStorage.getItem('alles-appearance')||'{}').colors||{}).accent || '#818cf8'));
+    document.documentElement.style.setProperty('--accent', s.dataset.hex || ((JSON.parse(localStorage.getItem('alles-appearance')||'{}').colors||{}).accent || '#9298ff'));
   }));
 }
 
@@ -1009,7 +1059,7 @@ function _fillPersonaModels(selected = '') {
   const sel = document.getElementById('persona-model');
   if (!sel) return;
   const eps = window._endpoints || [];
-  const opts = [{ value: '', label: "— use chat's model" }];
+  const opts = [{ value: '', label: "use chat's model (default)" }];
   for (const ep of eps) {
     for (const m of (ep.models || [])) opts.push({ value: m, label: m });
   }
@@ -1024,7 +1074,20 @@ export async function loadPersonas() {
   if (!el) return;
   _fillPersonaModels(document.getElementById('persona-model')?.value || '');
   _buildPersonaAccents();
-  _personaCache = await fetch('/api/personas').then(r => r.json()).catch(() => []);
+  const read = ++_personaReadGeneration;
+  let personas;
+  try {
+    const response = await fetch('/api/personas');
+    if (!response.ok) throw new Error('personas read failed');
+    personas = await response.json();
+    if (!Array.isArray(personas)) throw new Error('invalid personas response');
+  } catch {
+    if (read === _personaReadGeneration && _isSettingsPaneOpen('personas'))
+      toast('personas could not be loaded', 'error');
+    return;
+  }
+  if (read !== _personaReadGeneration || !_isSettingsPaneOpen('personas')) return;
+  _personaCache = personas;
   if (!_personaCache.length) { el.innerHTML = '<div class="settings-row-empty">no personas yet</div>'; return; }
   el.innerHTML = _personaCache.map(p => {
     const prev = (p.system_prompt || '').replace(/\s+/g, ' ').trim();
@@ -1032,8 +1095,8 @@ export async function loadPersonas() {
     <div class="settings-list-row persona-row${_editingPersona === p.id ? ' editing' : ''}" data-id="${p.id}" onclick="window._editPersona('${p.id}')">
       <span class="row-name">${_esc(p.name)}${p.is_default ? ' <span class="row-tag">default</span>' : ''}</span>
       <span class="row-meta">${_esc(prev.slice(0, 60))}${prev.length > 60 ? '…' : ''}</span>
-      <button class="act-btn" data-id="${p.id}" onclick="event.stopPropagation();window._dupPersona('${p.id}')">duplicate</button>
-      <button class="act-btn" data-id="${p.id}" onclick="event.stopPropagation();window._rmPersona(this)">remove</button>
+      <button class="act-btn" data-id="${p.id}" data-persona-duplicate ${_personaDuplicates.has(p.id) ? 'disabled' : ''} onclick="event.stopPropagation();window._dupPersona('${p.id}')">duplicate</button>
+      <button class="act-btn" data-id="${p.id}" data-persona-remove ${_personaRemovalPending(p.id) ? 'disabled' : ''} onclick="event.stopPropagation();window._rmPersona(this)">remove</button>
     </div>`;
   }).join('');
 }
@@ -1041,6 +1104,8 @@ export async function loadPersonas() {
 window._editPersona = id => {
   const p = _personaCache.find(x => x.id === id);
   if (!p) return;
+  ++_personaDocsReadGeneration;
+  if (_editingPersona !== id) document.getElementById('persona-docs')?.replaceChildren();
   _editingPersona = id;
   document.getElementById('persona-name').value   = p.name || '';
   document.getElementById('persona-prompt').value = p.system_prompt || '';
@@ -1058,6 +1123,7 @@ window._editPersona = id => {
   if (extra) extra.hidden = false;   // 10d — knowledge files + share for a saved persona
   _loadPersonaDocs(id);
   loadPersonas();   // re-render so the active row highlights
+  _refreshPersonaPendingControls();
   document.getElementById('persona-prompt').focus();
 };
 
@@ -1065,38 +1131,78 @@ window._editPersona = id => {
 async function _loadPersonaDocs(pid) {
   const box = document.getElementById('persona-docs');
   if (!box) return;
+  const read = ++_personaDocsReadGeneration;
   let docs;
-  try { docs = await fetch(`/api/personas/${pid}/docs`).then(r => r.json()); }
-  catch { box.innerHTML = ''; return; }
+  try {
+    const response = await fetch(`/api/personas/${pid}/docs`);
+    if (!response.ok) throw new Error('knowledge files read failed');
+    docs = await response.json();
+    if (!Array.isArray(docs)) throw new Error('invalid knowledge files response');
+  } catch {
+    if (read === _personaDocsReadGeneration && _editingPersona === pid && _isSettingsPaneOpen('personas'))
+      toast('knowledge files could not be loaded', 'error');
+    return;
+  }
+  if (read !== _personaDocsReadGeneration || _editingPersona !== pid || !_isSettingsPaneOpen('personas')) return;
   box.innerHTML = docs.length
     ? docs.map(d => `<div class="persona-doc-row"><span>📄 ${_esc(d.title)}</span>` +
-        `<button class="act-btn" data-id="${_escAttr(d.id)}">remove</button></div>`).join('')
+        `<button class="act-btn" data-id="${_escAttr(d.id)}" data-persona-doc-remove ${_personaDocDeletes.has(`${pid}/${d.id}`) ? 'disabled' : ''}>remove</button></div>`).join('')
     : '<div class="settings-row-empty">no knowledge files yet</div>';
   box.querySelectorAll('.act-btn').forEach(b => b.onclick = async () => {
-    await fetch(`/api/personas/${pid}/docs/${b.dataset.id}`, { method: 'DELETE' });
-    _loadPersonaDocs(pid);
+    const id = b.dataset.id;
+    const key = `${pid}/${id}`;
+    if (_personaDocDeletes.has(key)) return;
+    _personaDocDeletes.add(key);
+    ++_personaDocsReadGeneration;
+    b.disabled = true;
+    try {
+      const response = await fetch(`/api/personas/${pid}/docs/${id}`, { method: 'DELETE' });
+      if (!response.ok) { toast('knowledge file could not be removed', 'error'); return; }
+      if (_editingPersona === pid) _loadPersonaDocs(pid);
+    } catch { toast('knowledge file could not be removed', 'error'); }
+    finally {
+      _personaDocDeletes.delete(key);
+      b.disabled = false;
+      box.querySelectorAll('[data-persona-doc-remove]').forEach(button => {
+        if (button.dataset.id === id) button.disabled = false;
+      });
+    }
   });
 }
 
 async function _addPersonaDoc() {
-  if (!_editingPersona) return;
-  const title = document.getElementById('persona-doc-title').value.trim();
-  const content = document.getElementById('persona-doc-content').value.trim();
+  const pid = _editingPersona;
+  if (!pid || _personaDocSavingId || _personaDeletes.has(pid)) return;
+  const fields = ['persona-doc-title', 'persona-doc-content'];
+  const submitted = fields.map(id => document.getElementById(id).value);
+  const [title, content] = submitted.map(value => value.trim());
   if (!content) { toast('paste some text first', 'error'); return; }
-  await fetch(`/api/personas/${_editingPersona}/docs`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title: title || 'untitled', content }),
-  });
-  document.getElementById('persona-doc-title').value = '';
-  document.getElementById('persona-doc-content').value = '';
-  toast('knowledge file added', 'success');
-  _loadPersonaDocs(_editingPersona);
+  _personaDocSavingId = pid;
+  ++_personaDocsReadGeneration;
+  _refreshPersonaPendingControls();
+  try {
+    const response = await fetch(`/api/personas/${pid}/docs`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: title || 'untitled', content }),
+    });
+    if (!response.ok) { toast('knowledge file could not be added', 'error'); return; }
+    if (_editingPersona === pid) {
+      if (fields.every((id, index) => document.getElementById(id).value === submitted[index]))
+        fields.forEach(id => { document.getElementById(id).value = ''; });
+      _loadPersonaDocs(pid);
+    }
+    toast('knowledge file added', 'success');
+  } catch { toast('knowledge file could not be added', 'error'); }
+  finally { _personaDocSavingId = null; _refreshPersonaPendingControls(); }
 }
 
 async function _sharePersona() {
   if (!_editingPersona) return;
   try {
-    const r = await fetch(`/api/personas/${_editingPersona}/share`, { method: 'POST' }).then(x => x.json());
+    const response = await fetch(`/api/personas/${_editingPersona}/share`, { method: 'POST' });
+    if (!response.ok) { toast('share failed', 'error'); return; }
+    const r = await response.json();
+    if (typeof r.url !== 'string' || !r.url) { toast('share failed', 'error'); return; }
     const url = location.origin + r.url;
     try { await navigator.clipboard.writeText(url); toast('share link copied', 'success'); }
     catch { toast(url, ''); }
@@ -1104,6 +1210,7 @@ async function _sharePersona() {
 }
 
 function _resetPersonaForm() {
+  ++_personaDocsReadGeneration;
   _editingPersona = null;
   ['persona-name','persona-prompt','persona-initial'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   _fillPersonaModels('');
@@ -1116,317 +1223,295 @@ function _resetPersonaForm() {
   document.getElementById('persona-add-btn').textContent = 'add persona';
   document.getElementById('persona-cancel-btn').hidden = true;
   const extra = document.getElementById('persona-extra'); if (extra) extra.hidden = true;
+  _refreshPersonaPendingControls();
   loadPersonas();
 }
 
 window._rmPersona = async btn => {
-  await fetch(`/api/personas/${btn.dataset.id}`, { method: 'DELETE' });
-  if (_editingPersona === btn.dataset.id) _resetPersonaForm();
-  else loadPersonas();
-  window._refreshPersonaBtn?.();
+  const id = btn.dataset.id;
+  if (_personaRemovalPending(id)) return;
+  _personaDeletes.add(id);
+  ++_personaReadGeneration;
+  if (_editingPersona === id) ++_personaDocsReadGeneration;
+  _refreshPersonaPendingControls();
+  try {
+    const response = await fetch(`/api/personas/${id}`, { method: 'DELETE' });
+    if (!response.ok) { toast('persona could not be removed', 'error'); return; }
+    if (_editingPersona === id) _resetPersonaForm();
+    else loadPersonas();
+    window._refreshPersonaBtn?.();
+  } catch { toast('persona could not be removed', 'error'); }
+  finally {
+    _personaDeletes.delete(id);
+    btn.disabled = false;
+    _refreshPersonaPendingControls();
+  }
 };
 
 window._dupPersona = async id => {
-  const r = await fetch(`/api/personas/${id}/duplicate`, { method: 'POST' });
-  if (r.ok) { toast('duplicated', 'success'); loadPersonas(); window._refreshPersonaBtn?.(); }
+  if (_personaDuplicates.has(id)) return;
+  _personaDuplicates.add(id);
+  ++_personaReadGeneration;
+  _refreshPersonaPendingControls();
+  try {
+    const response = await fetch(`/api/personas/${id}/duplicate`, { method: 'POST' });
+    if (!response.ok) { toast('persona could not be duplicated', 'error'); return; }
+    toast('duplicated', 'success'); loadPersonas(); window._refreshPersonaBtn?.();
+  } catch { toast('persona could not be duplicated', 'error'); }
+  finally { _personaDuplicates.delete(id); _refreshPersonaPendingControls(); }
 };
 
+function _personaDraft() {
+  return {
+    editing: _editingPersona,
+    fields: {
+      name: document.getElementById('persona-name').value,
+      system_prompt: document.getElementById('persona-prompt').value,
+      initial_message: document.getElementById('persona-initial')?.value || '',
+      model: document.getElementById('persona-model')?.value || '',
+      temperature: _tempOn ? _tempVal : null,
+      is_default: !!document.getElementById('persona-default')?.classList.contains('on'),
+      default_mode: _getPersonaMode(),
+      accent: _getPersonaAccent(),
+    },
+    docTitle: document.getElementById('persona-doc-title')?.value || '',
+    docContent: document.getElementById('persona-doc-content')?.value || '',
+  };
+}
+
 async function addPersona() {
-  const name   = document.getElementById('persona-name').value.trim();
-  const prompt = document.getElementById('persona-prompt').value.trim();
-  const initial_message = document.getElementById('persona-initial')?.value.trim() || '';
-  const model  = document.getElementById('persona-model')?.value || '';
-  const temperature = _tempOn ? _tempVal : null;
-  const is_default = !!document.getElementById('persona-default')?.classList.contains('on');
-  const default_mode = _getPersonaMode();
-  const accent = _getPersonaAccent();
-  if (!name) { toast('name required', 'error'); return; }
-  const payload = { name, system_prompt: prompt, initial_message, model, temperature, default_mode, accent, is_default };
-  if (_editingPersona) {
-    await fetch(`/api/personas/${_editingPersona}`, { method: 'PATCH', headers: {'content-type':'application/json'},
-      body: JSON.stringify(payload) });
-    toast('persona updated', 'success');
-  } else {
-    await fetch('/api/personas', { method: 'POST', headers: {'content-type':'application/json'},
-      body: JSON.stringify(payload) });
-    toast('persona added', 'success');
-  }
-  _resetPersonaForm();
-  window._refreshPersonaBtn?.();
+  if (_personaSavePending || _personaDeletes.has(_editingPersona)) return;
+  const submitted = _personaDraft();
+  const payload = { ...submitted.fields, name: submitted.fields.name.trim(),
+    system_prompt: submitted.fields.system_prompt.trim(),
+    initial_message: submitted.fields.initial_message.trim() };
+  if (!payload.name) { toast('name required', 'error'); return; }
+  _personaSavePending = true;
+  _personaSavingId = submitted.editing;
+  ++_personaReadGeneration;
+  _refreshPersonaPendingControls();
+  try {
+    const response = await fetch(submitted.editing ? `/api/personas/${submitted.editing}` : '/api/personas', {
+      method: submitted.editing ? 'PATCH' : 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) { toast('persona could not be saved', 'error'); return; }
+    toast(submitted.editing ? 'persona updated' : 'persona added', 'success');
+    if (JSON.stringify(_personaDraft()) === JSON.stringify(submitted)) _resetPersonaForm();
+    else loadPersonas();
+    window._refreshPersonaBtn?.();
+  } catch { toast('persona could not be saved', 'error'); }
+  finally { _personaSavePending = false; _personaSavingId = null; _refreshPersonaPendingControls(); }
 }
 
 // ── cookbook ──────────────────────────────────────────────────────────────────
+let _cookbookSavePending = false;
+let _cookbookReadGeneration = 0;
+const _cookbookDeletes = new Set();
+
 export async function loadCookbook() {
   const el = document.getElementById('cookbook-list');
   if (!el) return;
-  const entries = await fetch('/api/cookbook').then(r => r.json()).catch(() => []);
-  if (!entries.length) { el.innerHTML = '<div class="settings-row-empty">no commands — type / in chat to use</div>'; return; }
+  const read = ++_cookbookReadGeneration;
+  let entries;
+  try {
+    const response = await fetch('/api/cookbook');
+    if (!response.ok) throw new Error('commands read failed');
+    entries = await response.json();
+    if (!Array.isArray(entries)) throw new Error('invalid commands response');
+  } catch {
+    if (read === _cookbookReadGeneration && _isSettingsPaneOpen('personas'))
+      toast('commands could not be loaded', 'error');
+    return;
+  }
+  if (read !== _cookbookReadGeneration || !_isSettingsPaneOpen('personas')) return;
+  if (!entries.length) { el.innerHTML = '<div class="settings-row-empty">no commands: type / in chat to use</div>'; return; }
   el.innerHTML = entries.map(e => `
     <div class="settings-list-row">
       <span class="row-name" style="color:var(--accent)">/${_esc(e.name)}</span>
       <span class="row-meta">${_esc(e.description || e.prompt.slice(0,40))}</span>
-      <button class="act-btn" data-id="${e.id}" onclick="window._rmCookbook(this)">remove</button>
+      <button class="act-btn" data-id="${e.id}" data-cookbook-remove ${_cookbookDeletes.has(e.id) ? 'disabled' : ''} onclick="window._rmCookbook(this)">remove</button>
     </div>`).join('');
 }
 
 window._rmCookbook = async btn => {
-  await fetch(`/api/cookbook/${btn.dataset.id}`, { method: 'DELETE' });
-  loadCookbook();
+  const id = btn.dataset.id;
+  if (_cookbookDeletes.has(id)) return;
+  _cookbookDeletes.add(id);
+  ++_cookbookReadGeneration;
+  btn.disabled = true;
+  try {
+    const response = await fetch(`/api/cookbook/${id}`, { method: 'DELETE' });
+    if (!response.ok) { toast('command could not be removed', 'error'); return; }
+    loadCookbook();
+  } catch { toast('command could not be removed', 'error'); }
+  finally {
+    _cookbookDeletes.delete(id);
+    btn.disabled = false;
+    document.querySelectorAll('#cookbook-list [data-cookbook-remove]').forEach(button => {
+      if (button.dataset.id === id) button.disabled = false;
+    });
+  }
 };
 
 async function addCookbookEntry() {
-  const name   = document.getElementById('cookbook-name').value.trim();
-  const desc   = document.getElementById('cookbook-desc').value.trim();
-  const prompt = document.getElementById('cookbook-prompt').value.trim();
+  if (_cookbookSavePending) return;
+  const fields = ['cookbook-name','cookbook-desc','cookbook-prompt'];
+  const submitted = fields.map(id => document.getElementById(id).value);
+  const [name, description, prompt] = submitted.map(value => value.trim());
   if (!name || !prompt) { toast('name + prompt required', 'error'); return; }
-  await fetch('/api/cookbook', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, description: desc, prompt }) });
-  ['cookbook-name','cookbook-desc','cookbook-prompt'].forEach(id => document.getElementById(id).value = '');
-  toast('added', 'success');
-  loadCookbook();
+  const button = document.getElementById('cookbook-add-btn');
+  _cookbookSavePending = true;
+  ++_cookbookReadGeneration;
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/cookbook', { method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ name, description, prompt }) });
+    if (!response.ok) { toast('command could not be saved', 'error'); return; }
+    if (fields.every((id, index) => document.getElementById(id).value === submitted[index]))
+      fields.forEach(id => document.getElementById(id).value = '');
+    toast('added', 'success');
+    loadCookbook();
+  } catch { toast('command could not be saved', 'error'); }
+  finally { _cookbookSavePending = false; button.disabled = false; }
 }
 
 // (session templates were merged into personas — a persona's "starter message" now
 //  does what a template's initial message did; see openPersonaPicker in app.js)
 
-// ── agent + mcp servers ───────────────────────────────────────────────────────
-async function loadAgentStatus() {
-  const grid = document.getElementById('agent-status-grid');
-  const list = document.getElementById('agent-tool-list');
-  const runsEl = document.getElementById('agent-run-list');
-  if (!grid || !list) return;
-  try {
-    const [s, runs] = await Promise.all([
-      fetch('/api/agent/status').then(r => r.json()),
-      fetch('/api/agent/runs?limit=5').then(r => r.json()).catch(() => []),
-    ]);
-    const opencode = s.opencode?.installed
-      ? 'installed'
-      : (s.opencode?.npx_fallback ? 'npx fallback' : 'missing');
-    grid.innerHTML = `
-      <div><span>tools</span><strong>${s.tool_count || 0}</strong></div>
-      <div><span>opencode</span><strong>${_esc(opencode)}</strong></div>
-      <div><span>mcp</span><strong>${s.mcp?.connected_tool_count || 0}</strong></div>
-      <div><span>skills</span><strong>${s.skills?.count || 0}</strong></div>
-      <div><span>docker</span><strong>${s.sandbox?.docker ? 'yes' : 'no'}</strong></div>
-      <div><span>pyautogui</span><strong>${s.computer_use?.pyautogui ? 'yes' : 'no'}</strong></div>
-      <div><span>connections</span><strong>${(s.connections || []).join(', ') || 'none'}</strong></div>
-    `;
-    list.innerHTML = (s.tools || []).map(t => `<span>${_esc(t)}</span>`).join('');
-
-    // capability toggles (backend settings)
-    const cfg = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
-    _bindSwitchOnce(document.getElementById('s-agent-ctx-toggle'),
-      () => cfg.agent_context_files !== false, v => _patchSetting('agent_context_files', v));
-    _bindSwitchOnce(document.getElementById('s-agent-sandbox-toggle'),
-      () => !!cfg.agent_sandbox, v => _patchSetting('agent_sandbox', v));
-    _bindSwitchOnce(document.getElementById('s-agent-computer-toggle'),
-      () => !!cfg.agent_computer_use, v => _patchSetting('agent_computer_use', v));
-    _bindSwitchOnce(document.getElementById('s-agent-subagents-toggle'),
-      () => cfg.agent_subagents !== false, v => _patchSetting('agent_subagents', v));
-
-    if (runsEl) {
-      runsEl.innerHTML = Array.isArray(runs) && runs.length
-        ? runs.map(r => `
-          <div class="agent-run-row">
-            <span>${_esc(r.status || 'unknown')}</span>
-            <strong>${_esc((r.model || '').split('/').pop() || 'agent')}</strong>
-            <em>${_esc((r.updated_at || '').replace('T', ' ').slice(0, 19))}</em>
-          </div>
-        `).join('')
-        : '<div class="settings-row-empty">no agent runs yet</div>';
-    }
-  } catch {
-    grid.innerHTML = '<div class="settings-row-empty">agent status unavailable</div>';
-    list.innerHTML = '';
-    if (runsEl) runsEl.innerHTML = '';
-  }
-}
-
-export async function loadMcpServers() {
-  const el = document.getElementById('mcp-server-list');
-  if (!el) return;
-  _loadMcpPresets();  // 10d — render presets regardless of how many servers exist
-  try {
-    const servers = await fetch('/api/mcp/servers').then(r => r.json());
-    if (!servers.length) { el.innerHTML = '<div class="settings-row-empty">no servers</div>'; return; }
-    el.innerHTML = servers.map(s => `
-      <div class="settings-list-row">
-        <span class="status-dot" style="background:${s.connected ? 'var(--green)' : 'var(--faint)'}"></span>
-        <span class="row-name">${_esc(s.name)}</span>
-        <span class="row-meta">${s.tools.length} tools</span>
-        <button class="act-btn" data-id="${s.id}" onclick="window._rmMcp(this)">remove</button>
-      </div>`).join('');
-  } catch { el.innerHTML = '<div class="settings-row-empty">failed to load</div>'; }
-}
-
-// 11a — macOS native integration status (available only on the Mac mini)
-async function loadMacosStatus() {
-  const box = document.getElementById('macos-status');
-  if (!box) return;
-  let cap;
-  try { cap = await fetch('/api/macos/status').then(r => r.json()); }
-  catch { box.innerHTML = '<div class="settings-row-empty">status unavailable</div>'; return; }
-  const dot = ok => `<span class="status-dot" style="background:${ok ? 'var(--green)' : 'var(--faint)'}"></span>`;
-  const row = (label, ok) => `<div class="macos-row">${dot(ok)}<span>${label}</span></div>`;
-  if (!cap.available) {
-    box.innerHTML = `<div class="settings-row-empty">unavailable on ${_esc(cap.platform)} — `
-      + 'macOS native integration runs on the Mac mini.</div>';
-    return;
-  }
-  box.innerHTML = '<div class="macos-avail">✓ available</div>'
-    + row('Keychain', cap.keychain)
-    + row('Calendar / Reminders (EventKit)', cap.eventkit)
-    + row('Photos (PhotoKit)', cap.photokit)
-    + row('iCloud Drive', cap.icloud);
-}
-
-// 10d — one-click connector presets
-async function _loadMcpPresets() {
-  const box = document.getElementById('mcp-presets');
-  if (!box) return;
-  let presets;
-  try { presets = await fetch('/api/mcp/presets').then(r => r.json()); }
-  catch { box.innerHTML = ''; return; }
-  box.innerHTML = presets.map(p =>
-    `<button class="btn mcp-preset" data-id="${_escAttr(p.id)}" title="${_escAttr(p.description)}">+ ${_esc(p.name)}</button>`
-  ).join('');
-  box.querySelectorAll('.mcp-preset').forEach(b => b.onclick = () => _addMcpPreset(b.dataset.id));
-}
-
-async function _addMcpPreset(id) {
-  toast('adding connector…');
-  try {
-    const r = await fetch(`/api/mcp/presets/${encodeURIComponent(id)}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ params: {} }),
-    });
-    if (!r.ok) throw new Error(r.status);
-    toast('connector added — edit its args if it needs a path/key', 'success');
-    loadMcpServers();
-  } catch { toast('could not add connector', 'error'); }
-}
-
-window._rmMcp = async btn => {
-  await fetch(`/api/mcp/servers/${btn.dataset.id}`, { method: 'DELETE' });
-  loadMcpServers();
-};
-
-// ── connections (github etc) ────────────────────────────────────────────────
-export async function loadConnections() {
-  const el = document.getElementById('conn-list');
-  if (!el) return;
-  // custom-service field toggle (bind once)
-  const sel = document.getElementById('conn-service');
-  if (sel && !sel.dataset.bound) {
-    sel.dataset.bound = '1';
-    sel.addEventListener('change', () => {
-      document.getElementById('conn-custom-row').style.display = sel.value === 'custom' ? '' : 'none';
-    });
-    document.getElementById('conn-add-btn')?.addEventListener('click', addConnection);
-  }
-  try {
-    const conns = await fetch('/api/connections').then(r => r.json());
-    if (!conns.length) { el.innerHTML = '<div class="settings-row-empty">nothing connected</div>'; return; }
-    el.innerHTML = conns.map(c => `
-      <div class="settings-list-row">
-        <span class="status-dot" style="background:${c.connected ? 'var(--green)' : 'var(--faint)'}"></span>
-        <span class="row-name">${_esc(c.service)}</span>
-        <span class="row-meta">${_esc(c.token_masked || '')}</span>
-        <button class="act-btn" data-svc="${_esc(c.service)}" onclick="window._testConn(this)">test</button>
-        <button class="act-btn" data-id="${c.id}" onclick="window._rmConn(this)">remove</button>
-      </div>`).join('');
-  } catch { el.innerHTML = '<div class="settings-row-empty">failed to load</div>'; }
-}
-
-async function addConnection() {
-  const sel = document.getElementById('conn-service');
-  let service = sel.value;
-  if (service === 'custom') service = document.getElementById('conn-custom').value.trim();
-  const token = document.getElementById('conn-token').value.trim();
-  if (!service) { toast('pick a service', 'error'); return; }
-  if (!token) { toast('token required', 'error'); return; }
-  const r = await fetch('/api/connections', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ service, token }),
-  });
-  if (r.ok) { toast(`${service} connected`, 'success'); document.getElementById('conn-token').value = ''; loadConnections(); }
-  else toast('connect failed', 'error');
-}
-
-window._rmConn = async btn => {
-  await fetch(`/api/connections/${btn.dataset.id}`, { method: 'DELETE' });
-  loadConnections();
-};
-
-window._testConn = async btn => {
-  btn.textContent = '…';
-  try {
-    const r = await fetch(`/api/connections/${btn.dataset.svc}/test`).then(x => x.json());
-    if (r.ok) toast(`${btn.dataset.svc} ok${r.user ? ' — ' + r.user : ''}`, 'success');
-    else toast(r.error || 'test failed', 'error');
-  } catch { toast('test failed', 'error'); }
-  btn.textContent = 'test';
-};
-
-async function addMcpServer() {
-  const name    = document.getElementById('mcp-name').value.trim();
-  const command = document.getElementById('mcp-command').value.trim();
-  if (!name || !command) { toast('name + command required', 'error'); return; }
-  const parts = command.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
-  const cmd = parts[0], args = parts.slice(1).map(a => a.replace(/^"|"$/g,''));
-  await fetch('/api/mcp/servers', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, transport: 'stdio', command: cmd, args }) });
-  document.getElementById('mcp-name').value = '';
-  document.getElementById('mcp-command').value = '';
-  toast('mcp server added', 'success');
-  loadMcpServers();
-}
-
 // ── api tokens ────────────────────────────────────────────────────────────────
+let _tokenCreatePending = false;
+let _tokenReadGeneration = 0;
+const _tokenRevokes = new Set();
 async function loadTokens() {
   const el = document.getElementById('token-list');
   if (!el) return;
-  const tokens = await fetch('/api/tokens').then(r => r.json()).catch(() => []);
+  const read = ++_tokenReadGeneration;
+  let tokens;
+  try {
+    const response = await fetch('/api/tokens');
+    if (!response.ok) throw new Error('tokens read failed');
+    tokens = await response.json();
+    if (!Array.isArray(tokens)) throw new Error('invalid tokens response');
+  } catch {
+    if (read === _tokenReadGeneration && _isSettingsPaneOpen('developer'))
+      toast('tokens could not be loaded', 'error');
+    return;
+  }
+  if (read !== _tokenReadGeneration || !_isSettingsPaneOpen('developer')) return;
   if (!tokens.length) { el.innerHTML = '<div class="settings-row-empty">no tokens</div>'; return; }
   el.innerHTML = tokens.map(t => `
     <div class="settings-list-row">
-      <span class="row-name" style="font-family:monospace;font-size:0.72rem">${t.prefix}…</span>
+      <span class="row-name" style="font-family:monospace;font-size:0.75rem">${t.prefix}…</span>
       <span class="row-meta">${_esc(t.name)}</span>
-      <span class="row-meta">${t.last_used_at ? 'used ' + new Date(t.last_used_at).toLocaleDateString() : 'never used'}</span>
-      <button class="act-btn" data-id="${t.id}" onclick="window._rmToken(this)">revoke</button>
+      <span class="row-meta">${(t.scopes || []).map(_esc).join(', ') || 'no access'}</span>
+      <span class="row-meta">${t.last_used_at ? 'used ' + formatDate(t.last_used_at) : 'never used'}</span>
+      <button class="act-btn" data-id="${t.id}" data-token-revoke ${_tokenRevokes.has(t.id) ? 'disabled' : ''} onclick="window._rmToken(this)">revoke</button>
     </div>`).join('');
 }
 
 window._rmToken = async btn => {
-  await fetch(`/api/tokens/${btn.dataset.id}`, { method: 'DELETE' });
-  loadTokens();
+  const id = btn.dataset.id;
+  if (_tokenRevokes.has(id)) return;
+  const restoreFocus = document.activeElement === btn;
+  const opening = _developerOpening;
+  _tokenRevokes.add(id);
+  ++_tokenReadGeneration;
+  btn.disabled = true;
+  try {
+    const response = await _fetchWithRecentOwner(`/api/tokens/${id}`, { method: 'DELETE' });
+    if (!response.ok) { toast('token could not be revoked', 'error'); return; }
+    loadTokens();
+  } catch { toast('token could not be revoked', 'error'); }
+  finally {
+    _tokenRevokes.delete(id);
+    btn.disabled = false;
+    let currentButton = btn;
+    document.querySelectorAll('#token-list [data-token-revoke]').forEach(button => {
+      if (button.dataset.id === id) { button.disabled = false; currentButton = button; }
+    });
+    if (restoreFocus && opening === _developerOpening && _isSettingsPaneOpen('developer') &&
+        document.activeElement === document.body && currentButton.isConnected && !currentButton.disabled)
+      currentButton.focus({ preventScroll: true });
+  }
 };
 
 async function generateToken() {
-  const name = document.getElementById('token-name').value.trim();
+  if (_tokenCreatePending) return;
+  const input = document.getElementById('token-name');
+  const submittedName = input.value;
+  const name = submittedName.trim();
   if (!name) { toast('name required', 'error'); return; }
-  const r = await fetch('/api/tokens', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name }) });
-  const data = await r.json();
-  document.getElementById('token-name').value = '';
-  const reveal = document.getElementById('token-reveal');
-  reveal.style.display = 'block';
-  reveal.textContent = data.token;
-  reveal.title = 'click to copy';
-  reveal.onclick = () => {
-    navigator.clipboard.writeText(data.token).then(() => toast('token copied', 'success'));
-  };
-  toast('token generated — copy it now, shown once', 'success');
-  loadTokens();
+  const scopes = [...document.querySelectorAll('[data-token-scope].active')]
+    .map(btn => btn.dataset.tokenScope);
+  if (!scopes.length) { toast('choose at least one permission', 'error'); return; }
+  const button = document.getElementById('token-add-btn');
+  const restoreFocus = document.activeElement === button;
+  const opening = _developerOpening;
+  _tokenCreatePending = true;
+  ++_tokenReadGeneration;
+  button.disabled = true;
+  try {
+    const r = await _fetchWithRecentOwner('/api/tokens', {
+      method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ name, scopes }),
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.detail || 'token could not be created', 'error'); return; }
+    const currentScopes = [...document.querySelectorAll('[data-token-scope].active')]
+      .map(btn => btn.dataset.tokenScope);
+    if (input.value === submittedName && JSON.stringify(currentScopes) === JSON.stringify(scopes)) input.value = '';
+    const reveal = document.getElementById('token-reveal');
+    reveal.style.display = 'block';
+    reveal.textContent = data.token;
+    reveal.title = 'click to copy';
+    reveal.onclick = () => {
+      navigator.clipboard.writeText(data.token).then(() => toast('token copied', 'success'));
+    };
+    toast('token generated: copy it now, shown once', 'success');
+    loadTokens();
+  } catch { toast('token could not be created', 'error'); }
+  finally {
+    _tokenCreatePending = false;
+    button.disabled = false;
+    if (restoreFocus && opening === _developerOpening && _isSettingsPaneOpen('developer') &&
+        document.activeElement === document.body && button.isConnected &&
+        document.getElementById('token-add-btn') === button)
+      button.focus({ preventScroll: true });
+  }
 }
 
 // ── webhooks ──────────────────────────────────────────────────────────────────
+let _webhookSavePending = false;
+let _webhookReadGeneration = 0;
+const _webhookDeletes = new Set();
+const _webhookTests = new Set();
+function _refreshWebhookPendingControls() {
+  document.querySelectorAll('#webhook-list [data-webhook-test], #webhook-list [data-webhook-remove]').forEach(button => {
+    const id = button.dataset.id;
+    button.disabled = _webhookTests.has(id) || _webhookDeletes.has(id);
+    if (button.hasAttribute('data-webhook-test')) button.textContent = _webhookTests.has(id) ? '…' : 'test';
+  });
+}
 async function loadWebhooks() {
   const el = document.getElementById('webhook-list');
   if (!el) return;
-  const hooks = await fetch('/api/webhooks').then(r => r.json()).catch(() => []);
+  const read = ++_webhookReadGeneration;
+  let hooks;
+  try {
+    const response = await fetch('/api/webhooks');
+    if (!response.ok) throw new Error('webhooks read failed');
+    hooks = await response.json();
+    if (!Array.isArray(hooks)) throw new Error('invalid webhooks response');
+  } catch {
+    if (read === _webhookReadGeneration && _isSettingsPaneOpen('developer'))
+      toast('webhooks could not be loaded', 'error');
+    return;
+  }
+  if (read !== _webhookReadGeneration || !_isSettingsPaneOpen('developer')) return;
   if (!hooks.length) { el.innerHTML = '<div class="settings-row-empty">no webhooks</div>'; return; }
   el.innerHTML = hooks.map(h => {
+    const pending = _webhookTests.has(h.id) || _webhookDeletes.has(h.id);
     const st = h.last_status === 'ok' ? ' · ✓ ok'
       : h.last_status ? ` · ✕ ${_esc(h.last_error || h.last_status)}` : '';
     return `
@@ -1434,37 +1519,73 @@ async function loadWebhooks() {
       <span class="status-dot" style="background:${h.enabled ? 'var(--green)' : 'var(--faint)'}"></span>
       <span class="row-name">${_esc(h.name)}</span>
       <span class="row-meta">${h.events.join(', ')}${st}</span>
-      ${h.secret ? `<code class="wh-secret" title="HMAC-SHA256 signing key — verify the X-Alles-Signature header with this" onclick="navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()" style="font-size:0.6rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${_esc(h.secret)}</code>` : ''}
-      <button class="act-btn" data-id="${h.id}" onclick="window._testWebhook(this)">test</button>
-      <button class="act-btn" data-id="${h.id}" onclick="window._rmWebhook(this)">remove</button>
+      ${h.secret ? `<code class="wh-secret" title="HMAC-SHA256 signing key: verify the X-Alles-Signature header with this" onclick="navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()" style="font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${_esc(h.secret)}</code>` : ''}
+      <button class="act-btn" data-id="${h.id}" data-webhook-test ${pending ? 'disabled' : ''} onclick="window._testWebhook(this)">${_webhookTests.has(h.id) ? '…' : 'test'}</button>
+      <button class="act-btn" data-id="${h.id}" data-webhook-remove ${pending ? 'disabled' : ''} onclick="window._rmWebhook(this)">remove</button>
     </div>`;
   }).join('');
 }
 
 window._testWebhook = async btn => {
+  const id = btn.dataset.id;
+  if (_webhookTests.has(id) || _webhookDeletes.has(id)) return;
+  _webhookTests.add(id);
+  ++_webhookReadGeneration;
   btn.disabled = true; const old = btn.textContent; btn.textContent = '…';
+  _refreshWebhookPendingControls();
   try {
-    const r = await fetch(`/api/webhooks/${btn.dataset.id}/test`, { method: 'POST' }).then(r => r.json());
+    const response = await fetch(`/api/webhooks/${id}/test`, { method: 'POST' });
+    if (!response.ok) throw new Error('webhook test failed');
+    const r = await response.json();
     toast(r.status === 'ok' ? 'webhook delivered ✓' : `failed: ${r.error || r.status}`, r.status === 'ok' ? 'success' : 'error');
   } catch { toast('test failed', 'error'); }
-  btn.disabled = false; btn.textContent = old;
+  finally {
+    _webhookTests.delete(id);
+    btn.disabled = false; btn.textContent = old;
+    _refreshWebhookPendingControls();
+  }
   loadWebhooks();
 };
 
 window._rmWebhook = async btn => {
-  await fetch(`/api/webhooks/${btn.dataset.id}`, { method: 'DELETE' });
-  loadWebhooks();
+  const id = btn.dataset.id;
+  if (_webhookDeletes.has(id) || _webhookTests.has(id)) return;
+  _webhookDeletes.add(id);
+  ++_webhookReadGeneration;
+  btn.disabled = true;
+  _refreshWebhookPendingControls();
+  try {
+    const response = await fetch(`/api/webhooks/${id}`, { method: 'DELETE' });
+    if (!response.ok) { toast('webhook could not be removed', 'error'); return; }
+    loadWebhooks();
+  } catch { toast('webhook could not be removed', 'error'); }
+  finally {
+    _webhookDeletes.delete(id);
+    btn.disabled = false;
+    _refreshWebhookPendingControls();
+  }
 };
 
 async function addWebhook() {
-  const name = document.getElementById('wh-name').value.trim();
-  const url  = document.getElementById('wh-url').value.trim();
+  if (_webhookSavePending) return;
+  const fields = ['wh-name','wh-url'];
+  const submitted = fields.map(id => document.getElementById(id).value);
+  const [name, url] = submitted.map(value => value.trim());
   if (!name || !url) { toast('name + url required', 'error'); return; }
-  await fetch('/api/webhooks', { method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ name, url, events: ['message'] }) });
-  ['wh-name','wh-url'].forEach(id => document.getElementById(id).value = '');
-  toast('webhook added', 'success');
-  loadWebhooks();
+  const button = document.getElementById('wh-add-btn');
+  _webhookSavePending = true;
+  ++_webhookReadGeneration;
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/webhooks', { method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ name, url, events: ['message'] }) });
+    if (!response.ok) { toast('webhook could not be saved', 'error'); return; }
+    if (fields.every((id, index) => document.getElementById(id).value === submitted[index]))
+      fields.forEach(id => document.getElementById(id).value = '');
+    toast('webhook added', 'success');
+    loadWebhooks();
+  } catch { toast('webhook could not be saved', 'error'); }
+  finally { _webhookSavePending = false; button.disabled = false; }
 }
 
 // ── recall pane ───────────────────────────────────────────────────────────────
@@ -1612,69 +1733,6 @@ async function loadIntelligencePane() {
   runBtn('s-intel-distill-run', '/api/memory/distill/run', 'fact(s)');
 }
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-async function _patchSettings(patch) {
-  await fetch('/api/settings', {
-    method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(patch),
-  });
-}
-
-async function _patchSetting(key, val) {
-  await _patchSettings({ [key]: val });
-}
-
-function _esc(s = '') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function _escAttr(s = '') {
-  return _esc(s).replace(/"/g,'&quot;');
-}
-
-// ── permission rules: per-tool/path allow|ask|deny, layered over the agent mode ──
-let _permRules = [];
-let _permWired = false;
-async function loadPermRules() {
-  try { _permRules = (await fetch('/api/settings').then(r => r.json())).permission_rules || []; }
-  catch { _permRules = []; }
-  const el = document.getElementById('perm-rules-list');
-  if (el) {
-    el.innerHTML = _permRules.length
-      ? _permRules.map((r, i) => `
-        <div class="perm-rule-row">
-          <span class="perm-rule-act perm-${_esc(r.action)}">${_esc(r.action)}</span>
-          <span class="perm-rule-tool">${_esc(r.tool || '*')}</span>
-          ${r.path ? `<span class="perm-rule-path">${_esc(r.path)}</span>` : ''}
-          <button class="perm-rule-del" data-i="${i}" title="remove">✕</button>
-        </div>`).join('')
-      : '<div style="font-size:0.72rem;color:var(--muted)">no rules — the agent follows the mode for everything</div>';
-    el.querySelectorAll('.perm-rule-del').forEach(b => b.onclick = () => _delPermRule(+b.dataset.i));
-  }
-  if (!_permWired) {
-    _permWired = true;
-    document.getElementById('perm-rule-add-btn')?.addEventListener('click', _addPermRule);
-  }
-}
-async function _addPermRule() {
-  const tool = document.getElementById('perm-rule-tool').value.trim();
-  const path = document.getElementById('perm-rule-path').value.trim();
-  const action = getDropdownValue(document.getElementById('perm-rule-action')) || 'ask';
-  if (!tool) { toast('tool pattern required (use * for any)', 'error'); return; }
-  _permRules.push({ tool, path, action });
-  await _patchSettings({ permission_rules: _permRules });
-  document.getElementById('perm-rule-tool').value = '';
-  document.getElementById('perm-rule-path').value = '';
-  toast('rule added', 'success');
-  loadPermRules();
-}
-async function _delPermRule(i) {
-  _permRules.splice(i, 1);
-  await _patchSettings({ permission_rules: _permRules });
-  loadPermRules();
-}
-
 // ── rules pane: personal automations ──────────────────────────────────────────
 let _ruleOpts = null;
 let _rulesWired = false;
@@ -1684,7 +1742,7 @@ let _editingRule = null;   // rule id being edited (null = adding a new one)
 const _RULE_PRESETS = [
   { label: '☀ morning digest', trigger: 'daily_at', trigger_arg: '08:00', action: 'push_digest', action_arg: '', name: 'morning digest' },
   { label: '✈ briefing → discord/telegram', trigger: 'daily_at', trigger_arg: '08:00', action: 'notify_digest', action_arg: '', name: 'morning briefing' },
-  { label: '📥 important email → task', trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: '{subject} — from {from}', name: '' },
+  { label: '📥 important email → task', trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: '{subject}: from {from}', name: '' },
   { label: '💳 renewal heads-up', trigger: 'sub_renewing', trigger_arg: '3', action: 'push', action_arg: '{name} renews in 3 days', name: 'renewal reminder' },
   { label: '📅 upcoming day', trigger: 'day_event_near', trigger_arg: '7', action: 'push', action_arg: '{name} is in a week', name: '' },
 ];
@@ -1771,7 +1829,7 @@ async function _renderRules() {
   let rules = [];
   try { rules = await fetch('/api/automations').then(r => r.json()); } catch {}
   if (!rules.length) {
-    el.innerHTML = '<div class="settings-row-empty">no rules yet — your first automation is one form away</div>';
+    el.innerHTML = '<div class="settings-row-empty">no rules yet: your first automation is one form away</div>';
     return;
   }
   const label = (list, v) => list.find(x => x.value === v)?.label || v;
@@ -1780,6 +1838,7 @@ async function _renderRules() {
       <div class="rule-row-main">
         <span class="rule-row-name">${_esc(r.name)}</span>
         <span class="rule-row-desc">${_esc(label(_ruleOpts.triggers, r.trigger))} <b>${_esc(r.trigger_arg)}</b> → ${_esc(label(_ruleOpts.actions, r.action))}${r.action_arg ? `: <i>${_esc(r.action_arg.slice(0, 60))}</i>` : ''}</span>
+        ${r.last_attempt && r.last_attempt.status !== 'succeeded' ? `<span class="rule-row-desc" title="${_esc(r.last_attempt.error || '')}">last attempt: <b>${_esc(r.last_attempt.status)}</b></span>` : ''}
       </div>
       <button class="btn" data-act="test" title="run once with sample data">test</button>
       <button class="btn" data-act="toggle">${r.enabled ? 'pause' : 'resume'}</button>
@@ -1807,7 +1866,7 @@ async function _renderRules() {
       if (b.dataset.act === 'test') {
         b.disabled = true;
         const r = await fetch(`/api/automations/${id}/test`, { method: 'POST' });
-        toast(r.ok ? 'rule fired with sample data — check the result' : 'test failed', r.ok ? 'success' : 'error');
+        toast(r.ok ? 'rule fired with sample data: check the result' : 'test failed', r.ok ? 'success' : 'error');
         b.disabled = false;
       }
     }));
@@ -1829,6 +1888,6 @@ async function _addRule() {
   });
   if (!r.ok) { toast((await r.json().catch(() => ({}))).detail || 'failed to save rule', 'error'); return; }
   _resetRuleForm();
-  toast(editing ? 'rule updated' : 'rule added — it runs automatically from now on', 'success');
+  toast(editing ? 'rule updated' : 'rule added: it runs automatically from now on', 'success');
   _renderRules();
 }

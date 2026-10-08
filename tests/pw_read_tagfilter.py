@@ -1,13 +1,17 @@
 """4 - verify clicking a tag filters the read list and 'clear' restores it.
 
-seeds into the running server DB - set the SAME data dir:
-  ALLES_DATA=.tmp_rt AUTH_ENABLED=false PORT=8077 python app.py
-  ALLES_DATA=.tmp_rt PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/pw_read_tagfilter.py
+seeds into the running server DB - set the SAME owned throwaway data dir:
+  ALLES_DATA=/tmp/alles-read-test ALLES_TEST_DATA=1 AUTH_ENABLED=false PORT=8077 python app.py
+  ALLES_DATA=/tmp/alles-read-test ALLES_TEST_DATA=1 PYTHONPATH=. PYTHONIOENCODING=utf-8 python tests/pw_read_tagfilter.py
 """
+
 import os
 
-os.environ["ALLES_DATA"] = ".tmp_relverify_data"
-os.environ["AUTH_ENABLED"] = "false"
+if os.environ.get("ALLES_TEST_DATA", "").strip().lower() not in {"1", "true", "yes"}:
+    raise RuntimeError("set ALLES_TEST_DATA=1 for the isolated Read browser gate")
+if not os.environ.get("ALLES_DATA", "").strip():
+    raise RuntimeError("set ALLES_DATA to the server's owned throwaway data directory")
+os.environ.setdefault("AUTH_ENABLED", "false")
 
 from playwright.sync_api import sync_playwright  # noqa: E402
 
@@ -18,15 +22,41 @@ BASE = "http://read.localhost:8077"
 
 def seed():
     s = SessionLocal()
-    s.add(ReadItem(url="a", title="Python article", text="x", excerpt="e", tags="python, ml", read_minutes=5))
-    s.add(ReadItem(url="b", title="Cooking article", text="x", excerpt="e", tags="cooking", read_minutes=5))
-    s.add(ReadItem(url="c", title="ML paper", text="x", excerpt="e", tags="python", read_minutes=5))
+    urls = ["alles-e2e-read-python", "alles-e2e-read-cooking", "alles-e2e-read-ml"]
+    s.query(ReadItem).filter(ReadItem.url.in_(urls)).delete(synchronize_session=False)
+    s.add(
+        ReadItem(
+            url=urls[0],
+            title="Python article",
+            text="x",
+            excerpt="e",
+            tags="python, ml",
+            read_minutes=5,
+        )
+    )
+    s.add(
+        ReadItem(
+            url=urls[1],
+            title="Cooking article",
+            text="x",
+            excerpt="e",
+            tags="cooking",
+            read_minutes=5,
+        )
+    )
+    s.add(
+        ReadItem(
+            url=urls[2], title="ML paper", text="x", excerpt="e", tags="python", read_minutes=5
+        )
+    )
     s.commit()
     s.close()
 
 
 def titles(pg):
-    return pg.evaluate("() => [...document.querySelectorAll('.read-card-title')].map(t => t.textContent.trim())")
+    return pg.evaluate(
+        "() => [...document.querySelectorAll('.read-card-title')].map(t => t.textContent.trim())"
+    )
 
 
 def main():
@@ -38,7 +68,9 @@ def main():
         pg.wait_for_timeout(900)
         assert len(titles(pg)) == 3, titles(pg)
         # click a 'python' tag on a card
-        pg.evaluate("""() => [...document.querySelectorAll('.read-tag')].find(t => t.textContent.includes('python')).click()""")
+        pg.evaluate(
+            """() => [...document.querySelectorAll('.read-tag')].find(t => t.textContent.includes('python')).click()"""
+        )
         pg.wait_for_timeout(700)
         ts = titles(pg)
         print("after #python:", ts)

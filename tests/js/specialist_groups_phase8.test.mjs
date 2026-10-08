@@ -1,0 +1,669 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+import {
+  GROUP_DEFINITIONS,
+  addDateKeyDays,
+  financeActualPresentation,
+  groupIdentifierFor,
+  groupRouteFor,
+  mailboxAddress,
+  normalizeGroupSection,
+  planCommitments,
+  releaseSpecialistLegacyView,
+} from '../../static/js/specialist_groups.js';
+import { viewToSub } from '../../static/js/subdomain.js';
+import { configureLocalization } from '../../static/js/i18n.js';
+
+const specialistSource = readFileSync(
+  new URL('../../static/js/specialist_groups.js', import.meta.url),
+  'utf8',
+);
+const specialistHtml = readFileSync(
+  new URL('../../static/index.html', import.meta.url),
+  'utf8',
+);
+const kokuenCss = readFileSync(
+  new URL('../../static/kokuen.css', import.meta.url),
+  'utf8',
+);
+const appSource = readFileSync(
+  new URL('../../static/js/app.js', import.meta.url),
+  'utf8',
+);
+
+test('Inbox contact matching extracts mailbox addresses from display names', () => {
+  assert.equal(mailboxAddress('Alice Example <ALICE@example.com>'), 'alice@example.com');
+  assert.equal(mailboxAddress('plain@example.com'), 'plain@example.com');
+  assert.doesNotMatch(specialistSource, /toLocaleLowerCase/);
+  assert.doesNotMatch(kokuenCss, /content:\s*["']selected["']/);
+});
+
+test('Phase 12 defines exactly the nine approved specialist workbenches', () => {
+  assert.deepEqual(Object.keys(GROUP_DEFINITIONS), [
+    'plan', 'inbox', 'library', 'health', 'finance', 'docs', 'files', 'vault', 'server',
+  ]);
+  assert.deepEqual(GROUP_DEFINITIONS.plan.sections, ['overview', 'week', 'board', 'calendar', 'tasks', 'reminders', 'days']);
+  assert.deepEqual(GROUP_DEFINITIONS.inbox.sections, ['overview', 'mail', 'contacts']);
+  assert.deepEqual(GROUP_DEFINITIONS.library.sections, ['overview', 'books', 'read']);
+  assert.deepEqual(GROUP_DEFINITIONS.health.sections, ['overview', 'health', 'habits']);
+  assert.deepEqual(GROUP_DEFINITIONS.finance.sections, ['overview', 'money', 'subs', 'imports']);
+  assert.deepEqual(GROUP_DEFINITIONS.docs.sections, ['notes', 'journal']);
+  assert.deepEqual(GROUP_DEFINITIONS.files.sections, ['files', 'gallery']);
+  assert.deepEqual(GROUP_DEFINITIONS.vault.sections, ['items']);
+  assert.deepEqual(GROUP_DEFINITIONS.server.sections, ['overview', 'services', 'search', 'backups', 'updates', 'logs', 'activity', 'watch', 'policy']);
+});
+
+test('Plan seven-day boundaries use date-only UTC arithmetic', () => {
+  assert.equal(addDateKeyDays('2026-12-28', 7), '2027-01-04');
+  assert.equal(addDateKeyDays('2026-03-07', 7), '2026-03-14');
+  assert.equal(addDateKeyDays('2026-02-30', 7), '');
+  assert.match(specialistSource, /const sevenDayEndKey = addDateKeyDays\(today, 7\)/);
+  assert.doesNotMatch(specialistSource, /new Date\(`\$\{today\}T12:00:00`\)/);
+});
+
+test('Plan preserves timezone-less commitment wall dates and times', () => {
+  configureLocalization({ language: 'en', region: 'TW', timezone: 'America/New_York' });
+  try {
+    const [commitment] = planCommitments([
+      { id: 'event-1', title: 'morning review', start_dt: '2026-07-23T09:00' },
+    ], [], []);
+    assert.equal(commitment.date, '2026-07-23');
+    assert.equal(commitment.time, '09:00');
+  } finally {
+    configureLocalization({ language: 'en', region: 'TW', timezone: '' });
+  }
+});
+
+test('specialist workbenches show one app name and use the universal shell', () => {
+  const headings = {
+    'plan-title': 'plan',
+    'inbox-title': 'inbox',
+    'library-title': 'library',
+    'health-group-title': 'health',
+    'finance-title': 'finance',
+    'docs-workbench-title': 'docs',
+    'files-workbench-title': 'files',
+    'vault-workbench-title': 'vault',
+    'server-workbench-title': 'server',
+  };
+  for (const [id, label] of Object.entries(headings)) {
+    assert.match(
+      specialistHtml,
+      new RegExp(`<h1 class="specialist-app-name" id="${id}"[^>]*>${label}</h1>`),
+      id,
+    );
+  }
+  assert.equal((specialistHtml.match(/class="specialist-app-head"/g) || []).length, 9);
+  assert.equal((specialistHtml.match(/class="specialist-app-name"/g) || []).length, 9);
+  assert.doesNotMatch(specialistHtml, /specialist-group-head/);
+  assert.equal((specialistHtml.match(/data-specialist-home/g) || []).length, 0);
+  assert.equal((specialistHtml.match(/data-kokuen-surface="specialist"/g) || []).length, 9);
+  assert.match(kokuenCss, /body:is\(\s*\[data-app="plan"\][^]*?\.main > \.topbar[^]*?display: none !important/);
+  assert.doesNotMatch(appSource, /querySelectorAll\('\[data-specialist-home\]'\)/);
+  assert.match(appSource, /const SHELL_GROUPS = Object\.freeze/);
+});
+
+test('all nine specialist workbenches share one persistent accessible views toggle', () => {
+  const toggles = [...specialistHtml.matchAll(/<button class="specialist-sidebar-toggle"[^>]+>/g)]
+    .map(match => match[0]);
+  assert.equal(toggles.length, 9);
+  for (const toggle of toggles) {
+    assert.match(toggle, /data-specialist-sidebar-toggle/);
+    assert.match(toggle, /aria-expanded="true"/);
+    assert.match(toggle, /aria-controls="[^"]+-tabs"/);
+    assert.match(toggle, /aria-label="hide [^"]+ views"/);
+  }
+  assert.equal(new Set(toggles.map(toggle => toggle.match(/aria-controls="([^"]+)"/)?.[1])).size, 9);
+  assert.match(specialistSource, /SPECIALIST_SIDEBAR_STORAGE_KEY = 'alles-specialist-sidebar-hidden'/);
+  assert.match(specialistSource, /window\.localStorage\.setItem\(SPECIALIST_SIDEBAR_STORAGE_KEY/);
+  assert.match(specialistSource, /root\.dataset\.sidebarCollapsed/);
+  assert.match(kokuenCss, /\[data-sidebar-collapsed="true"\]/);
+});
+
+test('specialist tabs expose horizontal orientation, panels, and every directional key', () => {
+  assert.match(specialistSource, /setAttribute\('aria-orientation', 'horizontal'\)/);
+  assert.match(specialistSource, /setAttribute\('role', 'tabpanel'\)/);
+  assert.match(specialistSource, /setAttribute\('aria-controls'/);
+  assert.match(specialistSource, /setAttribute\('aria-labelledby'/);
+  for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']) {
+    assert.match(specialistSource, new RegExp(`'${key}'`), key);
+  }
+});
+
+test('Finance privileged mutations recover recent-owner expiry and expose busy state', () => {
+  assert.match(specialistSource, /requestWithRecentOwner\(request, url, options\)/);
+  assert.match(specialistSource, /function _setAsyncControlBusy/);
+  assert.match(specialistSource, /control\.setAttribute\('aria-busy', 'true'\)/);
+  assert.match(specialistSource, /panel\.setAttribute\('aria-busy', busy \? 'true' : 'false'\)/);
+  assert.match(specialistSource, /undo this import\? only transactions created by this receipt will be removed/);
+});
+
+test('hiding the views strip does not hide task filters, documents or file locations', () => {
+  for (const selector of ['specialist-workbench-rail', 'docs-nav-panel', 'files-phase7-location-panel']) {
+    assert.doesNotMatch(kokuenCss, new RegExp(`\\[data-sidebar-collapsed="true"\\][^{]*\\.${selector}\\s*\\{\\s*display: none;`));
+  }
+});
+
+test('specialist workbenches collapse before their fixed tracks can overflow', () => {
+  assert.match(
+    kokuenCss,
+    /@media \(max-width: 824px\) \{\s*\.specialist-workbench \{ grid-template-columns: minmax\(0, 1fr\); \}/,
+  );
+  assert.match(specialistSource, /activeTab\?\.scrollIntoView\?\.\(\{ block: 'nearest', inline: 'nearest' \}\)/);
+  assert.match(
+    kokuenCss,
+    /@media \(max-width: 760px\) \{\s*#plan-view\[data-kokuen-surface="specialist"\][^]*?\.specialist-group \{\s*grid-template-columns: minmax\(0, 1fr\);\s*grid-template-rows: var\(--k-app-header\) auto minmax\(0, 1fr\);/,
+  );
+  assert.match(
+    kokuenCss,
+    /\.specialist-group-tabs \{[^}]*display: flex;[^}]*flex-direction: row;[^}]*overflow-x: auto;/,
+  );
+  assert.match(kokuenCss, /\.specialist-group-tabs \[role="tab"\] \{[^}]*flex: 0 0 auto;[^}]*white-space: nowrap;/);
+});
+
+test('legacy app identifiers resolve to a group without losing their subsection', () => {
+  const expected = {
+    plan: ['plan', 'overview'], 'plan-week': ['plan', 'week'], 'plan-board': ['plan', 'board'], calendar: ['plan', 'calendar'], tasks: ['plan', 'tasks'], reminders: ['plan', 'reminders'],
+    inbox: ['inbox', 'overview'], mail: ['inbox', 'mail'], contacts: ['inbox', 'contacts'],
+    library: ['library', 'overview'], books: ['library', 'books'], read: ['library', 'read'],
+    health: ['health', 'overview'], 'health-overview': ['health', 'overview'],
+    'health-log': ['health', 'health'], habits: ['health', 'habits'],
+    finance: ['finance', 'overview'], 'finance-overview': ['finance', 'overview'],
+    money: ['finance', 'money'], subs: ['finance', 'subs'], imports: ['finance', 'imports'],
+    docs: ['docs', 'notes'], wiki: ['docs', 'notes'], journal: ['docs', 'journal'],
+    files: ['files', 'files'], photos: ['files', 'gallery'], 'files-gallery': ['files', 'gallery'],
+    vault: ['vault', 'items'], secrets: ['vault', 'items'],
+    server: ['server', 'overview'], system: ['server', 'overview'], activity: ['server', 'activity'], watch: ['server', 'watch'], days: ['plan', 'days'],
+  };
+  for (const [view, [group, section]] of Object.entries(expected)) {
+    assert.deepEqual(groupRouteFor(view), { group, section }, view);
+  }
+  assert.deepEqual(groupRouteFor('days'), { group: 'plan', section: 'days' });
+});
+
+test('Aide reminders has a routable identifier while legacy reminders stay with Plan', () => {
+  const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
+  assert.match(app, /const grouped = groupRouteFor\(v\)/);
+  assert.match(app, /host: viewToSub\(groupedIdentifier\) \|\| viewToSub\(grouped\.group\)/);
+  assert.match(app, /const dest = groupedRoute\?\.host \?\? viewToSub\(v\)/);
+  assert.match(app, /AIDE_TOOL_VIEWS = new Set\(\[[^]*?'aide-reminders'/);
+  assert.match(app, /v === 'aide-reminders'\) showRemindersView\(\)/);
+  assert.match(app, /function renderLocalRoute\(route\) \{[^]*?return renderLocalView\(route\.view, route\)/);
+  assert.match(app, /if \(route\.section \|\| singleHost\(\) \|\| !groupRouteFor\(identifier\)\) url\.searchParams\.set\('view', identifier\)/);
+  assert.doesNotMatch(app, /const aideReminder =/);
+  assert.match(app, /releaseSpecialistLegacyView\('plan', 'reminders'\)/);
+  assert.equal(typeof releaseSpecialistLegacyView, 'function');
+  assert.deepEqual(groupRouteFor('reminders'), { group: 'plan', section: 'reminders' });
+});
+
+test('combined inbox account IDs use one stable string identity', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /account_id: String\(accounts\[index\]\?\.id \?\? ''\)/);
+  assert.match(source, /value: String\(account\.id \?\? ''\)/);
+});
+
+test('grouped overview identifiers resolve to a non-empty canonical host', () => {
+  for (const [group, host] of [['health', 'health'], ['finance', 'finance'], ['vault', 'passwords']]) {
+    const identifier = groupIdentifierFor(group, 'overview');
+    assert.equal(viewToSub(identifier) || viewToSub(group), host, identifier);
+  }
+});
+
+test('new group overview links do not collide with legacy app identifiers', () => {
+  assert.equal(groupIdentifierFor('finance', 'overview'), 'finance-overview');
+  assert.equal(groupIdentifierFor('health', 'overview'), 'health-overview');
+  assert.equal(groupIdentifierFor('health', 'health'), 'health-log');
+  assert.equal(groupIdentifierFor('finance', 'money'), 'money');
+  assert.equal(groupIdentifierFor('plan', 'overview'), 'plan');
+  assert.equal(groupIdentifierFor('plan', 'week'), 'plan-week');
+  assert.equal(groupIdentifierFor('plan', 'board'), 'plan-board');
+  assert.equal(groupIdentifierFor('docs', 'notes'), 'docs');
+  assert.equal(groupIdentifierFor('files', 'gallery'), 'files-gallery');
+  assert.equal(groupIdentifierFor('server', 'services'), 'server-services');
+  assert.equal(groupIdentifierFor('server', 'activity'), 'activity');
+  assert.equal(groupIdentifierFor('vault', 'items'), 'vault');
+});
+
+test('invalid or unavailable group subsections safely return to overview', () => {
+  assert.equal(normalizeGroupSection('plan', 'tasks'), 'tasks');
+  assert.equal(normalizeGroupSection('plan', ''), 'overview');
+  assert.equal(normalizeGroupSection('plan', 'money'), 'overview');
+  assert.equal(normalizeGroupSection('made-up', 'tasks'), 'overview');
+  assert.equal(normalizeGroupSection('docs', ''), 'notes');
+  assert.equal(normalizeGroupSection('files', 'unknown'), 'files');
+});
+
+test('Finance Actual status exposes only safe actions for each authority state', () => {
+  const base = {
+    service: { available: true, installed: true, running: true, healthy: true, version: '26.7.0' },
+    ledger: { mode: 'alles', base_currency_code: 'CAD', run: null },
+  };
+  assert.deepEqual(financeActualPresentation({
+    service: { available: true, installed: false, node_version: '22.17.0' },
+    ledger: base.ledger,
+  }).actions, ['install']);
+  assert.deepEqual(financeActualPresentation(base).actions, ['stage', 'backup', 'stop']);
+  assert.deepEqual(financeActualPresentation({
+    ...base, ledger: { ...base.ledger, base_currency_code: '' },
+  }).actions, ['backup', 'stop']);
+  assert.deepEqual(financeActualPresentation({
+    ...base, ledger: { ...base.ledger, run: { id: 'run-1', status: 'ready', links: 12 } },
+  }).actions, ['cutover', 'backup', 'stop']);
+  assert.deepEqual(financeActualPresentation({
+    ...base, ledger: { ...base.ledger, mode: 'actual', legacy_read_only: true },
+  }).actions, ['backup', 'rollback-ledger']);
+  for (const [service, expected] of [
+    [{ available: false, node_version: '18.0.0' }, ['rollback-ledger']],
+    [{ available: true, installed: false }, ['install', 'rollback-ledger']],
+    [{ available: true, installed: true, running: false, healthy: false }, ['start', 'rollback-ledger']],
+    [{ available: true, installed: true, running: true, healthy: false }, ['restart', 'rollback-ledger']],
+  ]) {
+    assert.deepEqual(financeActualPresentation({
+      service, ledger: { ...base.ledger, mode: 'actual', legacy_read_only: true },
+    }).actions, expected);
+  }
+  assert.equal(financeActualPresentation({
+    service: { available: false, node_version: '18.0.0' }, ledger: base.ledger,
+  }).actions.length, 0);
+  assert.doesNotMatch(specialistSource, /base_currency_code:\s*ledger\.base_currency_code\s*\|\|\s*['"]CAD['"]/);
+});
+
+function financeHarness(extraContext = {}) {
+  let focused = null;
+  class Element {
+    constructor(tag) { this.tagName = tag; this.children = []; this.attributes = {}; this.events = {}; this.dataset = {}; this.className = ''; this.textContent = ''; }
+    append(...children) { for (const child of children) { child.parent = this; this.children.push(child); } }
+    replaceChildren(...children) { this.children = []; this.append(...children); }
+    setAttribute(name, value) { this.attributes[name] = value; }
+    removeAttribute(name) { delete this.attributes[name]; }
+    addEventListener(name, handler) { this.events[name] = handler; }
+    focus() { focused = this; }
+    remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
+    querySelectorAll(selector) {
+      const matches = element => selector === 'button' ? element.tagName === 'button' : element.className.split(' ').includes(selector.slice(1));
+      return this.children.flatMap(child => [...(matches(child) ? [child] : []), ...child.querySelectorAll(selector)]);
+    }
+    querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
+    get classList() { return { add() {}, remove() {} }; }
+  }
+  const context = vm.createContext({
+    document: { createElement: tag => new Element(tag) },
+    window: {},
+    formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),
+    ...extraContext,
+  });
+  vm.runInContext(specialistSource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') + `
+    globalThis.financeSubject = { render: _renderFinance, status: _renderActualStatus, receipt: _renderImportReceipt };
+  `, context);
+  return { ...context.financeSubject, target: new Element('div'), focused: () => focused };
+}
+
+const healthyFinance = {
+  service: { available: true, installed: true, running: true, healthy: true },
+  ledger: { mode: 'alles', base_currency_code: 'CAD', run: { id: 'ready-run', status: 'ready' } },
+};
+
+test('Finance daily balances precede routine ledger setup and keep grouped cents', async () => {
+  const h = financeHarness();
+  await h.render(h.target, async path => ({ ok: true, json: async () => ({
+    '/api/money/accounts': [{ name: 'checking', currency_code: 'CAD', balance: 12345678.9 }],
+    '/api/subscriptions?advance=false': { subscriptions: [] },
+    '/api/finance/actual': healthyFinance,
+  })[path] }));
+  const grid = h.target.querySelector('.finance-daily');
+  const ledger = h.target.querySelector('.finance-actual-panel');
+  assert.ok(h.target.children.indexOf(grid) < h.target.children.indexOf(ledger));
+  assert.equal(grid.querySelector('.specialist-group-row').children[1].textContent, 'CAD\u00a012,345,678.90');
+  assert.equal(ledger.querySelector('.finance-actual-content').hidden, true);
+  assert.equal(ledger.querySelector('.finance-actual-head').children[1].textContent, 'ready for review');
+  assert.equal(ledger.querySelector('.finance-actual-content').children[0].textContent, 'ledgers match');
+  const toggle = ledger.querySelector('.finance-actual-toggle');
+  assert.equal(toggle.attributes['aria-expanded'], 'false');
+  assert.equal(toggle.attributes['aria-controls'], 'finance-actual-content');
+  toggle.events.click();
+  assert.equal(toggle.attributes['aria-expanded'], 'true');
+  assert.equal(ledger.querySelector('.finance-actual-content').hidden, false);
+});
+
+test('Finance overview labels live canonical balances with base and keeps native historical units separate', async () => {
+  const h = financeHarness();
+  await h.render(h.target, async path => ({ ok: true, json: async () => ({
+    '/api/money/accounts': [
+      { name: 'migrated', currency: 'CAD', currency_code: 'USD', balance: 13.5 },
+      { name: 'native', currency: 'CAD', currency_code: 'CAD', balance: 90, balance_by_currency: [{ currency: 'USD', balance: 97 }, { currency: 'XXX', balance: -7 }] },
+    ],
+    '/api/subscriptions?advance=false': { subscriptions: [] },
+    '/api/finance/actual': healthyFinance,
+  })[path] }));
+  const rows = h.target.querySelector('.finance-daily').querySelectorAll('.specialist-group-row');
+  assert.equal(rows[0].children[1].textContent, 'CAD\u00a013.50');
+  assert.equal(rows[1].children[1].textContent, 'USD\u00a097.00 · currency not set\u00a0-7.00');
+});
+
+test('Finance keeps an unhealthy authoritative ledger warning open before daily work', async () => {
+  const h = financeHarness();
+  const warning = { ...healthyFinance, service: { available: true, installed: true, running: false, healthy: false }, ledger: { mode: 'actual' } };
+  await h.render(h.target, async path => ({ ok: true, json: async () => path === '/api/finance/actual' ? warning : [] }));
+  assert.match(h.target.children[0].className, /finance-actual-canonical-unhealthy/);
+  assert.equal(h.target.children[0].querySelector('.finance-actual-toggle'), null);
+  assert.notEqual(h.target.children[0].querySelector('.finance-actual-content').hidden, true);
+});
+
+test('expanding healthy setup never switches authority and confirmation starts on the safe action', () => {
+  const h = financeHarness();
+  let requests = 0;
+  const panel = h.status(healthyFinance, async () => { requests += 1; });
+  const toggle = panel.querySelector('.finance-actual-toggle');
+  toggle.events.click();
+  assert.equal(requests, 0);
+  const review = panel.querySelectorAll('button').find(button => button.dataset.actualAction === 'cutover');
+  review.events.click();
+  assert.equal(requests, 0);
+  assert.equal(h.focused().textContent, 'keep current ledger');
+  assert.equal(toggle.disabled, true);
+  h.focused().events.click();
+  assert.equal(requests, 0);
+  assert.equal(h.focused(), review);
+  assert.equal(toggle.disabled, false);
+  assert.equal(panel.querySelector('.finance-actual-confirm'), null);
+});
+
+test('Plan composes events, tasks, and reminders into one stable ordered agenda', () => {
+  const rows = planCommitments(
+    [{ id: 'e1', title: 'dentist', start_dt: '2026-07-18T09:45:00', location: 'Zhongshan' }],
+    [
+      { id: 't1', title: 'review', due_date: '2026-07-18T08:30:00', status: 'open' },
+      { id: 't2', title: 'unscheduled', due_date: '', status: 'open' },
+      { id: 't3', title: 'already done', due_date: '2026-07-18T07:30:00', done: true },
+      { id: 't4', title: 'cancelled work', due_date: '2026-07-18T07:45:00', stage: 'cancelled' },
+      { id: 't5', title: 'completed work', due_date: '2026-07-18T08:00:00', status: 'COMPLETED' },
+    ],
+    [{ id: 'r1', text: 'passport', trigger_at: '2026-07-18T21:15:00' }],
+  );
+  assert.deepEqual(rows.map(row => row.type), ['task', 'event', 'reminder', 'task']);
+  assert.equal(rows[0].time, '08:30');
+  assert.equal(rows.at(-1).date, '');
+  assert.doesNotMatch(rows.map(row => row.title).join(' '), /already done|cancelled work|completed work/);
+});
+
+test('Plan derives offset timestamps in the local calendar rather than copying their prefix', () => {
+  const timestamp = '2026-07-18T23:30:00-04:00';
+  const local = new Date(timestamp);
+  const pad = part => String(part).padStart(2, '0');
+  const expectedDate = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}`;
+  const expectedTime = `${pad(local.getHours())}:${pad(local.getMinutes())}`;
+  const [row] = planCommitments(
+    [{ id: 'offset-event', title: 'handoff', start_dt: timestamp }],
+    [],
+    [],
+  );
+  assert.equal(row.date, expectedDate);
+  assert.equal(row.time, expectedTime);
+});
+
+test('Plan buckets timestamps in the configured Alles timezone', () => {
+  configureLocalization({ timezone: 'Asia/Tokyo' });
+  try {
+    const [row] = planCommitments(
+      [{ id: 'configured-zone', title: 'handoff', start_dt: '2026-07-18T23:30:00Z' }],
+      [],
+      [],
+    );
+    assert.equal(row.date, '2026-07-19');
+    assert.equal(row.time, '08:30');
+  } finally {
+    configureLocalization({});
+  }
+});
+
+test('Plan sorts wall times and offset timestamps in one configured timezone', () => {
+  configureLocalization({ timezone: 'Asia/Tokyo' });
+  try {
+    const rows = planCommitments([
+      { id: 'offset', title: 'later', start_dt: '2026-07-18T23:30:00Z' },
+      { id: 'wall', title: 'earlier', start_dt: '2026-07-19T07:00:00' },
+    ], [], []);
+    assert.deepEqual(rows.map(row => row.title), ['earlier', 'later']);
+  } finally {
+    configureLocalization({});
+  }
+});
+
+test('Plan loads expanded calendar occurrences for its eight-day window', () => {
+  assert.match(specialistSource, /_json\(request, '\/api\/calendar\/agenda\?days=8'\)/);
+  assert.match(specialistSource, /_asArray\(agendaPayload, 'days'\)\.flatMap\(day => _asArray\(day, 'events'\)\)/);
+});
+
+test('ambiguous statement matches expose explicit duplicate and import-new decisions', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /resolve-match/);
+  assert.match(source, /treat as duplicate/);
+  assert.match(source, /import as new/);
+  assert.match(source, /JSON\.stringify\(\{ decision \}\)/);
+  assert.match(source, /if \(resolutionBusy\) return/);
+  assert.match(source, /resolutionButtons\.forEach\(button => _setAsyncControlBusy\(button, true\)\)/);
+});
+
+test('interrupted imports expose recovery actions and reserve undo for local receipts', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /resolve-recovery/);
+  assert.match(source, /accept edited Actual transaction as replacement/);
+  assert.match(source, /delete it and retry/);
+  assert.match(source, /undo applied rows/);
+  assert.match(source, /undo is unavailable for Actual imports/);
+  assert.match(source, /confirmDialog/);
+  assert.match(source, /if \(recoveryBusy\) return/);
+  assert.match(source, /if \(receiptMutationBusy\) return/);
+  assert.match(source, /receiptMutationButtons\.forEach\(button => _setAsyncControlBusy\(button, true\)\)/);
+});
+
+test('foreign-currency import review uses an explicit accessible evidence form', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /finance-import-conversion/);
+  assert.match(source, /base_amount_text/);
+  assert.match(source, /rate_text/);
+  assert.match(source, /rate_date/);
+  assert.match(source, /conversion rate source/);
+  assert.match(source, /\/rows\/\$\{encodeURIComponent\(row\.id\)\}\/conversion/);
+  assert.match(source, /save reviewed conversion/);
+});
+
+test('specialist subsection roots stay mounted so they can be revisited', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  assert.doesNotMatch(source, /slot\.replaceChildren/);
+  assert.match(source, /legacyRoot\.parentElement !== slot/);
+  assert.match(source, /slot\.append\(legacyRoot\)/);
+});
+
+test('only the latest async specialist overview may replace live controls', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /const renderNonce = Symbol\(`\$\{group\}:\$\{selected\}`\)/);
+  assert.match(source, /current\.renderNonce !== renderNonce \|\| current\.section !== section/);
+  assert.match(source, /overview\.replaceChildren\(\.\.\.staged\.childNodes\)/);
+});
+
+test('Finance distinguishes unavailable data and gates apply until review is complete', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /subscriptions unavailable:/);
+  assert.match(source, /accounts unavailable:/);
+  assert.match(source, /receipt\.counts\.conflicts === 0/);
+  assert.match(source, /receipt\.counts\.applying === 0/);
+  assert.match(source, /import could not be applied/);
+  assert.match(source, /reported \? \(ledger\.mode === 'actual' \? 'Actual' : 'Alles'\) : 'not reported'/);
+  assert.match(source, /status unavailable/);
+  assert.match(source, /previewMessage\.textContent = error\?\.message \|\| 'import preview could not be created'/);
+  assert.match(source, /previewMessage\.setAttribute\('aria-live', 'polite'\)/);
+  assert.match(source, /Array\.isArray\(profileData\?\.profiles\)/);
+  assert.match(source, /import setup unavailable:/);
+  assert.match(source, /retry import setup/);
+  assert.match(source, /if \(!profiles\.length\)/);
+  assert.match(source, /const selectedProfile = profiles\.find/);
+  assert.match(source, /file\.size > 5 \* 1024 \* 1024/);
+  assert.match(source, /statement files must be 5 MiB or smaller/);
+  assert.match(source, /try \{ receipts = await _json\(request, '\/api\/finance\/imports'\); \}/);
+  assert.match(source, /new imports still work/);
+  assert.doesNotMatch(source, /profileData\.profiles\.find/);
+  assert.match(source, /const generation = \+\+previewGeneration/);
+  assert.match(source, /const capturedAccountId = accountId/);
+  assert.match(source, /const capturedProfileId = profileId/);
+  assert.match(source, /if \(generation !== previewGeneration\) return/);
+});
+
+test('specialist overviews keep partial failures distinct from honest empty states', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /partial data:/);
+  assert.match(source, /calendar data could not be loaded/);
+  assert.match(source, /mail accounts unavailable/);
+  assert.match(source, /contacts unavailable/);
+  assert.match(source, /saved reading could not be loaded/);
+  assert.match(source, /measurements unavailable/);
+  assert.match(source, /habit status unavailable/);
+  assert.match(source, /no items were returned by available sources/);
+});
+
+test('a committed import receipt survives an independent history refresh failure', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  const showReceipt = source.slice(
+    source.indexOf('const showReceipt = async receipt =>'),
+    source.indexOf("preview.addEventListener('click'"),
+  );
+  assert.match(showReceipt, /_renderImportReceipt\(receiptTarget, receipt/);
+  assert.match(showReceipt, /try \{/);
+  assert.match(showReceipt, /recent receipts could not be refreshed; the receipt above is current/);
+  assert.doesNotMatch(showReceipt, /throw/);
+});
+
+test('notification imports require an explicit account-suffix confirmation action', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /confirm account ending/i);
+  assert.match(source, /\/confirm-account/);
+  assert.match(source, /account_id: receipt\.account_id/);
+  assert.match(source, /account_suffix: parsed\.account_suffix \|\| ''/);
+  assert.match(source, /account suffix could not be confirmed/);
+});
+
+test('statement imports prefer the selected account currency over a profile fallback', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  const accountLookup = source.indexOf('const selectedAccount = accounts.find');
+  const accountCurrency = source.indexOf('selectedAccount?.currency_code', accountLookup);
+  const profileFallback = source.indexOf('selectedProfile?.default_currency_code', accountLookup);
+  assert.ok(accountLookup >= 0);
+  assert.ok(accountCurrency > accountLookup);
+  assert.ok(profileFallback > accountCurrency);
+});
+
+test('Plan quick capture reports create and refresh failures without losing a retry', () => {
+  const source = readFileSync(
+    new URL('../../static/js/specialist_groups.js', import.meta.url),
+    'utf8',
+  );
+  const capture = source.slice(source.indexOf("capture.addEventListener('submit'"), source.indexOf("const workbench =", source.indexOf("capture.addEventListener('submit'")));
+  assert.match(capture, /catch \(error\)/);
+  assert.match(capture, /task could not be added/);
+  assert.match(capture, /task saved; plan could not refresh/);
+  assert.match(capture, /input\.value = ''/);
+  assert.match(capture, /input\.focus\(\)/);
+});
+
+
+function importReceipt(backend, status = 'applied') {
+  const receipt = {
+    id: 'synthetic-import', source_name: 'synthetic.csv', account_id: 'chosen-account', status,
+    receipt: { ledger_backend: backend, account_name: 'chosen account' },
+    counts: { rows: 1, pending: 0, duplicates: 0, conflicts: 0, applying: 0, applied: status === 'undone' ? 0 : 1, undone: status === 'undone' ? 1 : 0 },
+    rows: [{ id: 'row-1', row_number: 1, status: status === 'undone' ? 'undone' : 'applied', created_transaction_id: backend === 'actual' ? 'finance-import:synthetic-import:1' : 'local-transaction', parsed: { payee: 'synthetic payee' } }],
+  };
+  if (status === 'preview') {
+    receipt.rows.push({ id: 'row-2', row_number: 2, status: 'pending', parsed: {} });
+    receipt.counts.rows++; receipt.counts.pending++;
+  }
+  return receipt;
+}
+
+for (const status of ['applied', 'preview']) test(`Actual ${status} import explains unavailable undo without offering it`, () => {
+  const h = financeHarness();
+  const receipt = importReceipt('actual', status), before = JSON.stringify(receipt);
+  h.receipt(h.target, receipt, () => assert.fail('render must not request provider data'), () => assert.fail('render must not mutate a receipt'));
+  assert.equal(h.target.querySelector('.finance-import-undo'), null);
+  assert.equal(h.target.querySelector('.specialist-group-note').textContent, 'undo is unavailable for Actual imports. review the imported transactions in the ledger before deleting.');
+  assert.equal(JSON.stringify(receipt), before);
+});
+
+for (const status of ['applied', 'preview']) test(`local ${status} import retains its confirmed undo action`, async () => {
+  const confirmations = [], requests = [];
+  const h = financeHarness({
+    confirmDialog: async text => { confirmations.push(text); return true; },
+    requestWithRecentOwner: (request, url, options) => request(url, options),
+  });
+  const receipt = importReceipt('alles', status);
+  let latest = receipt;
+  const saved = { ...receipt, status: 'undone', counts: { ...receipt.counts, applied: 0, pending: 0, undone: receipt.counts.rows }, rows: receipt.rows.map(row => ({ ...row, status: 'undone' })) };
+  const request = async (url, options) => { requests.push({ url, method: options.method }); return { ok: true, json: async () => saved }; };
+  const refresh = next => { latest = next; h.receipt(h.target, next, request, refresh); };
+  h.receipt(h.target, receipt, request, refresh);
+  const undo = h.target.querySelector('.finance-import-undo');
+  assert.ok(undo);
+  assert.equal(undo.textContent, status === 'applied' ? 'undo this import' : 'undo applied rows');
+  assert.equal(h.target.querySelector('.specialist-group-note'), null);
+  await undo.events.click();
+  assert.equal(confirmations.length, 1);
+  assert.match(confirmations[0], /only transactions created by this receipt/);
+  assert.deepEqual(requests, [{ url: '/api/finance/imports/synthetic-import/undo', method: 'POST' }]);
+  assert.equal(latest, saved);
+  assert.equal(h.target.querySelector('.finance-import-undo'), null);
+});
+
+test('an already-undone Actual receipt stays visible without a new undo or unsupported message', () => {
+  const h = financeHarness(), receipt = importReceipt('actual', 'undone');
+  h.receipt(h.target, receipt, () => assert.fail('historical receipt must not request provider data'), () => {});
+  assert.equal(h.target.querySelector('.finance-import-receipt-head').children[0].textContent, 'synthetic.csv');
+  assert.equal(h.target.querySelector('.finance-import-row-status').textContent, 'undone');
+  assert.equal(h.target.querySelector('.finance-import-undo'), null);
+  assert.equal(h.target.querySelector('.specialist-group-note'), null);
+});
+
+for (const backend of ['actual', 'alles']) test(`${backend} unresolved import claims do not expose undo`, () => {
+  const h = financeHarness(), receipt = importReceipt(backend, 'preview');
+  receipt.rows[1].status = 'conflict';
+  receipt.rows[1].created_transaction_id = 'claimed-transaction';
+  receipt.counts.pending = 0; receipt.counts.conflicts = 1;
+  h.receipt(h.target, receipt, () => assert.fail('render must not send a request'), () => {});
+  assert.equal(h.target.querySelector('.finance-import-undo'), null);
+  assert.equal(Boolean(h.target.querySelector('.specialist-group-note')), backend === 'actual');
+});

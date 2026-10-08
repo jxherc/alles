@@ -3,6 +3,8 @@ import os
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 from services import agent_tools as at
 
@@ -36,7 +38,32 @@ class ToolGatingTests(unittest.TestCase):
             self.assertNotIn(r, at.MUTATING_TOOLS)
 
 
+class SubAgentTurnCapTests(unittest.TestCase):
+    def tearDown(self):
+        at.set_agent_ctx({})
+
+    def test_subagent_passes_real_turn_cap(self):
+        seen = {}
+
+        async def fake_run_agent(messages, ep, model, stop, settings, acc, think, steps):
+            seen.update(settings)
+            acc.append("done")
+            yield {"agent_run": {"id": "r1", "max_turns": 999}}
+
+        at.set_agent_ctx({"agent_effort": "max", "agent_max_turns": 24}, ep=object(), model="m")
+        with mock.patch("services.agent_runtime.run_agent", fake_run_agent):
+            out = asyncio.run(at._run_subagent("check this"))
+
+        self.assertEqual(out, "done")
+        self.assertEqual(seen["agent_max_turns"], 10)
+        self.assertEqual(seen["_agent_turn_cap"], 10)
+        self.assertFalse(seen["agent_subagents"])
+
+
 class PreviewChangeTests(unittest.TestCase):
+    def setUp(self):
+        at.set_agent_ctx({"agent_cwd": tempfile.gettempdir()})
+
     def test_write_file_diff(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "a.txt")
@@ -62,45 +89,69 @@ class PreviewChangeTests(unittest.TestCase):
 
 class FileToolTests(unittest.TestCase):
     def setUp(self):
-        at.set_agent_ctx({})  # fresh ctx (resets the _reads set)
+        at.set_agent_ctx({"agent_cwd": tempfile.gettempdir()})
 
     def test_read_file_is_line_numbered(self):
         with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "a.py")
-            open(p, "w").write("import os\nx = 1\nprint(x)\n")
-            out = asyncio.run(at._read_file(p))["output"]
+            p = Path(d) / "a.py"
+            p.write_text("import os\nx = 1\nprint(x)\n")
+            out = asyncio.run(at._read_file(str(p)))["output"]
             self.assertIn("1\timport os", out)
             self.assertIn("2\tx = 1", out)
             self.assertIn("3\tprint(x)", out)
 
+    def test_listing_search_and_glob_block_unapproved_roots(self):
+        at.set_agent_ctx({"agent_cwd": str(at.ROOT)})
+        with tempfile.TemporaryDirectory() as outside:
+            for result in (
+                asyncio.run(at._list_files(outside)),
+                asyncio.run(at._glob_files("*.txt", outside)),
+                asyncio.run(at._grep_files("secret", outside)),
+            ):
+                self.assertTrue(result["error"])
+                self.assertIn("approved roots", result["output"])
+
+    def test_diff_preview_and_checkpoint_do_not_read_unapproved_files(self):
+        with tempfile.TemporaryDirectory() as project, tempfile.TemporaryDirectory() as outside:
+            target = Path(outside) / "private.txt"
+            target.write_text("do not copy")
+            at.set_agent_ctx({"agent_cwd": project})
+            self.assertEqual(
+                at.preview_change("write_file", {"path": str(target), "content": "changed"}),
+                "",
+            )
+            with mock.patch("services.agent_state.add_checkpoint") as add_checkpoint:
+                at.capture_checkpoint("run-1", "write_file", {"path": str(target)})
+            add_checkpoint.assert_not_called()
+
     def test_read_range_numbers_from_start(self):
         with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "a.txt")
-            open(p, "w").write("\n".join(f"line{i}" for i in range(1, 11)))
-            out = asyncio.run(at._read_file(p, 3, 5))["output"]
+            p = Path(d) / "a.txt"
+            p.write_text("\n".join(f"line{i}" for i in range(1, 11)))
+            out = asyncio.run(at._read_file(str(p), 3, 5))["output"]
             self.assertIn("3\tline3", out)
             self.assertIn("5\tline5", out)
             self.assertNotIn("6\tline6", out)
 
     def test_read_records_path_for_edit_guard(self):
         with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "a.txt")
-            open(p, "w").write("hello world\n")
-            asyncio.run(at._read_file(p))
-            self.assertIn(str(at._resolve(p)), at.get_agent_ctx()["_reads"])
+            p = Path(d) / "a.txt"
+            p.write_text("hello world\n")
+            asyncio.run(at._read_file(str(p)))
+            self.assertIn(str(at._resolve(str(p))), at.get_agent_ctx()["_reads"])
 
     def test_edit_unread_file_hints_to_read(self):
         with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "a.txt")
-            open(p, "w").write("hello\n")
-            r = asyncio.run(at._edit_file(p, "not-there", "x"))  # never read this run
+            p = Path(d) / "a.txt"
+            p.write_text("hello\n")
+            r = asyncio.run(at._edit_file(str(p), "not-there", "x"))  # never read this run
             self.assertTrue(r["error"])
             self.assertIn("read the file first", r["output"])
 
     def test_grep_output_modes(self):
         with tempfile.TemporaryDirectory() as d:
-            open(os.path.join(d, "a.txt"), "w").write("foo\nbar\nfoo\n")
-            open(os.path.join(d, "b.txt"), "w").write("baz\n")
+            (Path(d) / "a.txt").write_text("foo\nbar\nfoo\n")
+            (Path(d) / "b.txt").write_text("baz\n")
             content = asyncio.run(at._grep_files("foo", d, "*", "content"))["output"]
             self.assertEqual(content.count("foo"), 2)
             files = asyncio.run(at._grep_files("foo", d, "*", "files_with_matches"))["output"]
@@ -111,7 +162,7 @@ class FileToolTests(unittest.TestCase):
 
     def test_grep_context_lines(self):
         with tempfile.TemporaryDirectory() as d:
-            open(os.path.join(d, "a.txt"), "w").write("a\nMATCH\nc\n")
+            (Path(d) / "a.txt").write_text("a\nMATCH\nc\n")
             out = asyncio.run(at._grep_files("MATCH", d, "*", "content", 1))["output"]
             self.assertIn("a.txt:1- a", out)
             self.assertIn("a.txt:2: MATCH", out)
@@ -119,7 +170,7 @@ class FileToolTests(unittest.TestCase):
 
     def test_grep_ignore_case(self):
         with tempfile.TemporaryDirectory() as d:
-            open(os.path.join(d, "a.txt"), "w").write("Hello\n")
+            (Path(d) / "a.txt").write_text("Hello\n")
             self.assertIn(
                 "Hello", asyncio.run(at._grep_files("hello", d, "*", "content", 0, True))["output"]
             )
@@ -130,10 +181,52 @@ class FileToolTests(unittest.TestCase):
     def test_glob_head_limit(self):
         with tempfile.TemporaryDirectory() as d:
             for i in range(5):
-                open(os.path.join(d, f"f{i}.txt"), "w").write("x")
+                (Path(d) / f"f{i}.txt").write_text("x")
             out = asyncio.run(at._glob_files("*.txt", d, 2))["output"]
             self.assertEqual(len([l for l in out.splitlines() if l.endswith(".txt")]), 2)
             self.assertIn("more", out)
+
+    def test_file_tools_skip_heavy_dirs(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "keep.txt"), "w") as f:
+                f.write("needle\n")
+            for sub in ("node_modules", ".git", ".venv", "data"):
+                os.makedirs(os.path.join(d, sub))
+                with open(os.path.join(d, sub, "junk.txt"), "w") as f:
+                    f.write("needle\n")
+
+            listed = asyncio.run(at._list_files(d, 3))["output"]
+            self.assertIn("keep.txt", listed)
+            self.assertNotIn("node_modules", listed)
+            self.assertNotIn(".git", listed)
+            self.assertNotIn(".venv", listed)
+            self.assertNotIn("data", listed)
+
+            globbed = asyncio.run(at._glob_files("*.txt", d))["output"]
+            self.assertIn("keep.txt", globbed)
+            self.assertNotIn("junk.txt", globbed)
+
+            grepped = asyncio.run(at._grep_files("needle", d, "*", "content"))["output"]
+            self.assertIn("keep.txt:1: needle", grepped)
+            self.assertNotIn("junk.txt", grepped)
+
+            data_root = os.path.join(d, "data")
+            explicit = asyncio.run(at._grep_files("needle", data_root, "*", "content"))["output"]
+            self.assertIn("junk.txt:1: needle", explicit)
+
+    def test_grep_skips_binary_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "note.txt"), "w") as f:
+                f.write("needle\n")
+            with open(os.path.join(d, "logo.png"), "wb") as f:
+                f.write(b"\x00needle\x00")
+            with open(os.path.join(d, "blob.dat"), "wb") as f:
+                f.write(b"abc\x00needle")
+
+            out = asyncio.run(at._grep_files("needle", d, "*", "content"))["output"]
+            self.assertIn("note.txt:1: needle", out)
+            self.assertNotIn("logo.png", out)
+            self.assertNotIn("blob.dat", out)
 
 
 class InjectionGuardTests(unittest.TestCase):

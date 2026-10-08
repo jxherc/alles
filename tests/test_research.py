@@ -1,13 +1,47 @@
 import asyncio
 import unittest
+from pathlib import Path
 from unittest import mock
 
-from services.research.deep_research import DeepResearcher, current_date_context
+import httpx
+
 from services.research import research_utils as ru
 from services.research import search as rs
+from services.research.deep_research import DeepResearcher, current_date_context
 
 
 class UtilTests(unittest.TestCase):
+    def test_error_responses_are_not_saved_as_article_text(self):
+        request = httpx.Request("GET", "http://127.0.0.1:1/local-synthetic-article")
+        for status in (401, 403, 404, 503):
+            response = httpx.Response(
+                status,
+                request=request,
+                headers={"content-type": "text/html"},
+                text="<html><title>Local outage</title><p>Synthetic service error.</p></html>",
+            )
+            with (
+                self.subTest(status=status),
+                mock.patch("services.net_guard.safe_get", return_value=response) as fetch,
+            ):
+                result = rs.fetch_webpage_content(str(request.url))
+            fetch.assert_called_once()
+            self.assertEqual(result, {"success": False, "content": "", "title": "", "og_image": ""})
+
+    def test_successful_local_response_keeps_readable_article_text(self):
+        request = httpx.Request("GET", "http://127.0.0.1:1/local-synthetic-article")
+        response = httpx.Response(
+            200,
+            request=request,
+            headers={"content-type": "text/html"},
+            text="<html><title>Local article</title><article><p>Local synthetic article text for reading.</p></article></html>",
+        )
+        with mock.patch("services.net_guard.safe_get", return_value=response):
+            result = rs.fetch_webpage_content(str(request.url))
+        self.assertTrue(result["success"], result)
+        self.assertIn("Local synthetic article text", result["content"])
+        self.assertEqual(result["title"], "Local article")
+
     def test_html_to_text_strips_tags_and_chrome(self):
         html = "<nav>menu</nav><p>Hello <b>world</b></p><script>bad()</script>"
         out = rs._html_to_text(html)
@@ -103,6 +137,33 @@ def _fake_fetch(url, timeout=10):
 
 
 class FullLoopTests(unittest.TestCase):
+    def test_report_writing_receives_owner_instructions(self):
+        captured = []
+        researcher = DeepResearcher(
+            "http://x",
+            "k",
+            "m",
+            report_system_prompt=(
+                "You are Aide, the AI assistant inside Alles.\n\n"
+                "### Owner instructions\nuse short paragraphs"
+            ),
+        )
+
+        async def fake_llm(messages, **_kwargs):
+            captured.append(messages)
+            return "report"
+
+        with mock.patch.object(researcher, "_llm", side_effect=fake_llm):
+            result = asyncio.run(
+                researcher._synthesize(
+                    "question", [{"summary": "fact", "url": "https://example.test"}], ""
+                )
+            )
+
+        self.assertEqual(result, "report")
+        self.assertEqual(captured[0][0]["role"], "system")
+        self.assertIn("### Owner instructions\nuse short paragraphs", captured[0][0]["content"])
+
     def test_research_produces_report(self):
         with (
             mock.patch("services.llm.stream_chat", _fake_stream_chat),
@@ -133,6 +194,26 @@ class FullLoopTests(unittest.TestCase):
             r = DeepResearcher("http://x", "k", "m", min_rounds=3, max_rounds=3, max_empty_rounds=2)
             report = asyncio.run(r.research("anything"))
         self.assertIn("Search unavailable", report)
+
+    def test_empty_query_generation_never_returns_old_dead_end(self):
+        fixture = (
+            (Path(__file__).parent / "fixtures" / "research" / "no-information.txt")
+            .read_text("utf-8")
+            .strip()
+        )
+        r = DeepResearcher("http://x", "k", "m", max_rounds=1)
+        with (
+            mock.patch.object(r, "_create_plan", mock.AsyncMock(return_value="plan")),
+            mock.patch.object(r, "_classify_category", mock.AsyncMock(return_value="general")),
+            mock.patch.object(r, "_generate_queries", mock.AsyncMock(return_value=[])),
+        ):
+            report = asyncio.run(r.research("current software version"))
+
+        self.assertNotEqual(report, fixture)
+        self.assertNotIn(fixture, report)
+        for action in ("Retry", "Broaden search", "Edit query", "Return to normal results"):
+            self.assertIn(action, report)
+        self.assertIn("did not produce usable search queries", report)
 
 
 if __name__ == "__main__":

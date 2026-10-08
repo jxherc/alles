@@ -5,12 +5,15 @@ pure (unit-tested); the overview feeds the contribution-grid UI.
 """
 
 from datetime import date, timedelta
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Habit, HabitLog, get_db
+from core.database import Habit, HabitCreateReceipt, HabitLog, get_db
+from services import habit_logs
 
 router = APIRouter(prefix="/api")
 
@@ -59,7 +62,9 @@ def build_grid(dates: set, today: date, n: int) -> list:
 
 # ── serialization ──────────────────────────────────────────────────────────────
 def _dates_for(db, hid) -> set:
-    return {r.date for r in db.query(HabitLog).filter(HabitLog.habit_id == hid).all()}
+    return habit_logs.canonical_days(
+        r.date for r in db.query(HabitLog).filter(HabitLog.habit_id == hid).all()
+    )
 
 
 def _fmt(h: Habit, dates: set | None = None, today: date | None = None) -> dict:
@@ -89,12 +94,14 @@ def habit_risk(hid: str, window: int = 14, db: DbSession = Depends(get_db)):
 
     if not db.get(Habit, hid):
         raise HTTPException(404, "habit not found")
-    done = [r.date for r in db.query(HabitLog).filter_by(habit_id=hid).all()]
+    done = habit_logs.canonical_days(
+        r.date for r in db.query(HabitLog).filter_by(habit_id=hid).all()
+    )
     return life_stats.habit_failure_risk(done, date.today(), window=window)
 
 
 @router.get("/habits/overview")
-def overview(date_q: str = "", db: DbSession = Depends(get_db)):
+def overview(date_q: str = "", db: DbSession = Depends(get_db), archived: bool = False):
     from services import life_stats
 
     if date_q:
@@ -104,17 +111,19 @@ def overview(date_q: str = "", db: DbSession = Depends(get_db)):
             raise HTTPException(400, "date_q must be ISO (YYYY-MM-DD)")
     else:
         today = date.today()
-    habits = db.query(Habit).filter(Habit.archived == False).order_by(Habit.created_at).all()  # noqa: E712
+    habits = db.query(Habit).filter(Habit.archived == archived).order_by(Habit.created_at).all()
     # one query for all logs instead of one per habit (was H+1 round-trips on every overview load)
-    by_habit: dict[str, set] = {}
+    by_habit: dict[str, list[str]] = {}
     if habits:
-        for hid, d in db.query(HabitLog.habit_id, HabitLog.date).filter(
-            HabitLog.habit_id.in_([h.id for h in habits])
-        ).all():
-            by_habit.setdefault(hid, set()).add(d)
+        for hid, d in (
+            db.query(HabitLog.habit_id, HabitLog.date)
+            .filter(HabitLog.habit_id.in_([h.id for h in habits]))
+            .all()
+        ):
+            by_habit.setdefault(hid, []).append(d)
     out = []
     for h in habits:
-        done = by_habit.get(h.id, set())
+        done = habit_logs.canonical_days(by_habit.get(h.id, []))
         card = _fmt(h, done, today)
         risk = life_stats.habit_failure_risk(done, today)
         # only nudge once there's enough history to judge (>= a week old) and you've actually
@@ -132,6 +141,40 @@ class HabitBody(BaseModel):
     color: str = ""
     cadence: str = "daily"
     target: int = 1
+    request_id: str = ""
+
+
+def _create_identity(value: str) -> str:
+    try:
+        if str(UUID(value)) == value:
+            return value
+    except ValueError:
+        pass
+    raise HTTPException(400, "request_id must be a canonical UUID")
+
+
+def _find_receipt(db, identity):
+    return (
+        db.query(HabitCreateReceipt, Habit)
+        .outerjoin(Habit, Habit.id == HabitCreateReceipt.habit_id)
+        .filter(HabitCreateReceipt.id == identity)
+        .populate_existing()
+        .first()
+    )
+
+
+def _receipt_habit(found):
+    if found is None:
+        raise HTTPException(404, "saved habit not found")
+    if found[1] is None:
+        raise HTTPException(410, "the saved habit was deleted; close this draft to start another")
+    return found[1]
+
+
+@router.get("/habits/requests/{request_id}")
+def recover_habit(request_id: str, db: DbSession = Depends(get_db)):
+    habit = _receipt_habit(_find_receipt(db, _create_identity(request_id)))
+    return _fmt(habit, _dates_for(db, habit.id))
 
 
 @router.post("/habits")
@@ -140,15 +183,47 @@ def create_habit(body: HabitBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "name required")
     if body.cadence not in CADENCES:
         raise HTTPException(400, f"cadence must be one of {', '.join(CADENCES)}")
-    h = Habit(
-        name=body.name.strip(),
-        icon=body.icon.strip(),
-        color=body.color.strip(),
-        cadence=body.cadence,
-        target=max(1, body.target),
-    )
+    values = {
+        "name": body.name.strip(),
+        "icon": body.icon.strip(),
+        "color": body.color.strip(),
+        "cadence": body.cadence,
+        "target": max(1, body.target),
+    }
+    receipt = None
+    if body.request_id:
+        identity = _create_identity(body.request_id)
+
+        def replay(found):
+            h = _receipt_habit(found)
+            if h.archived or any(getattr(h, key) != value for key, value in values.items()):
+                raise HTTPException(
+                    409, "this request already saved a habit; open it to review changes"
+                )
+            return _fmt(h, _dates_for(db, h.id))
+
+        found = _find_receipt(db, identity)
+        if found is not None:
+            return replay(found)
+        receipt = HabitCreateReceipt(id=identity)
+        db.add(receipt)
+        try:
+            # Reserve the unique identity before creating either of two competing habits.
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            found = _find_receipt(db, identity)
+            if found is None:
+                raise
+            return replay(found)
+    h = Habit(**values)
     db.add(h)
+    if receipt is not None:
+        db.flush()
+        receipt.habit_id = h.id
     db.commit()
+    if receipt is not None:
+        return recover_habit(identity, db)
     db.refresh(h)
     return _fmt(h, set())
 
@@ -174,7 +249,9 @@ def update_habit(hid: str, body: HabitPatch, db: DbSession = Depends(get_db)):
         if v is not None:
             if isinstance(v, str) and f in ("name", "icon", "color"):
                 v = v.strip()
-            if f == "target":  # clamp like create_habit, or a 0/negative target renders "3/0 this week"
+            if (
+                f == "target"
+            ):  # clamp like create_habit, or a 0/negative target renders "3/0 this week"
                 v = max(1, int(v))
             setattr(h, f, v)
     db.commit()
@@ -187,6 +264,9 @@ def delete_habit(hid: str, db: DbSession = Depends(get_db)):
     if not h:
         raise HTTPException(404)
     db.query(HabitLog).filter(HabitLog.habit_id == hid).delete(synchronize_session=False)
+    db.query(HabitCreateReceipt).filter_by(habit_id=hid).update(
+        {"habit_id": None}, synchronize_session=False
+    )
     db.delete(h)
     db.commit()
     return {"ok": True}
@@ -194,6 +274,7 @@ def delete_habit(hid: str, db: DbSession = Depends(get_db)):
 
 class ToggleBody(BaseModel):
     date: str = ""
+    done: bool | None = None
 
 
 @router.post("/habits/{hid}/toggle")
@@ -201,16 +282,10 @@ def toggle(hid: str, body: ToggleBody, db: DbSession = Depends(get_db)):
     h = db.get(Habit, hid)
     if not h:
         raise HTTPException(404)
-    d = (body.date or date.today().isoformat())[:10]
+    raw_date = body.date or date.today().isoformat()
     try:
-        _d(d)  # don't let a junk date land in the log — it'd blow up the overview later
+        day = habit_logs.canonical_day(raw_date)
     except ValueError:
         raise HTTPException(400, "date must be ISO (YYYY-MM-DD)")
-    existing = db.query(HabitLog).filter(HabitLog.habit_id == hid, HabitLog.date == d).first()
-    if existing:
-        db.delete(existing)
-        db.commit()
-        return {"done": False, "date": d}
-    db.add(HabitLog(habit_id=hid, date=d))
-    db.commit()
-    return {"done": True, "date": d}
+    done, day = habit_logs.toggle(db, hid, day, done=body.done)
+    return {"done": done, "date": day}

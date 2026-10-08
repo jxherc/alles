@@ -3,7 +3,7 @@
   "appName": "alles",
   "webDir": "www",
   "server": {
-    "url": "http://192.168.1.10:8000",
+    "url": "http://192.168.1.10:6769",
     "cleartext": true,
     "androidScheme": "https"
   },

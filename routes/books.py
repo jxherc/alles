@@ -3,27 +3,40 @@ books — a reading list. shelves (want / reading / done), ratings, notes, and a
 optional keyless OpenLibrary lookup to autofill cover + author from a title or ISBN.
 """
 
+import hashlib
 from datetime import date
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import Book, get_db
+from core.database import DB_PATH, Book, get_db
+from services.book_items import STATUSES, BookInputError, clamp_rating, recover_book, save_book
 
 router = APIRouter(prefix="/api")
 
-STATUSES = ("want", "reading", "done")
+
+def _recovery_scopes() -> list[str]:
+    from services.recovery_consistency import recovery_consistency_lock
+    from services.secretstore import active_key_id, key_ids
+
+    with recovery_consistency_lock:
+        active = active_key_id()
+        keys = [active, *sorted(key_ids() - {active})]
+    return [
+        hashlib.sha256(f"alles-book-save:{Path(DB_PATH).resolve()}:{key}".encode()).hexdigest()
+        for key in keys
+    ]
+
+
+def _check_scope(scope: str):
+    if scope and scope not in _recovery_scopes():
+        raise HTTPException(409, "book storage changed; reopen books")
 
 
 # ── pure helpers ──────────────────────────────────────────────────────────────
-def clamp_rating(r) -> int:
-    try:
-        return max(0, min(5, int(r)))
-    except (TypeError, ValueError):
-        return 0
-
-
 def year_count(books, year: int) -> int:
     return sum(1 for b in books if b.status == "done" and str(b.finished)[:4] == str(year))
 
@@ -71,6 +84,7 @@ def overview(db: DbSession = Depends(get_db)):
         shelves.get(b.status, shelves["want"]).append(_fmt(b))
     return {
         "shelves": shelves,
+        "recovery_scopes": _recovery_scopes(),
         "this_year": year_count(books, date.today().year),
         "total": len(books),
         "goal": int(load_settings().get("reading_goal", 0) or 0),
@@ -100,10 +114,15 @@ def lookup(q: str = "", db: DbSession = Depends(get_db)):
         r = httpx.get(
             "https://openlibrary.org/search.json", params={"q": q, "limit": 6}, timeout=10
         )
-        docs = r.json().get("docs", [])
+        r.raise_for_status()
+        docs = r.json().get("docs")
+        if not isinstance(docs, list) or any(not isinstance(doc, dict) for doc in docs):
+            raise ValueError("invalid lookup response")
         return {"results": [parse_ol_doc(d) for d in docs]}
-    except Exception:
-        return {"results": []}
+    except Exception as error:
+        raise HTTPException(
+            503, "could not look up books; retry or enter the details yourself"
+        ) from error
 
 
 class BookBody(BaseModel):
@@ -115,35 +134,40 @@ class BookBody(BaseModel):
     isbn: str = ""
     notes: str = ""
     year: int = 0
+    request_id: str = ""
+    recovery_scope: str = ""
+
+
+@router.get("/books/requests/{request_id}")
+def recover_save(request_id: str, recovery_scope: str = "", db: DbSession = Depends(get_db)):
+    _check_scope(recovery_scope)
+    return _fmt(recover_book(db, request_id)) | {"request_id": request_id}
 
 
 @router.post("/books")
 def create_book(body: BookBody, db: DbSession = Depends(get_db)):
-    if not body.title.strip():
-        raise HTTPException(400, "title required")
-    if body.status not in STATUSES:
-        raise HTTPException(400, f"status must be one of {', '.join(STATUSES)}")
-    b = Book(
-        title=body.title.strip(),
-        author=body.author.strip(),
-        status=body.status,
-        rating=clamp_rating(body.rating),
-        cover=body.cover.strip(),
-        isbn=body.isbn.strip(),
-        notes=body.notes,
-        year=body.year,
-        started=date.today().isoformat() if body.status == "reading" else "",
-        finished=date.today().isoformat() if body.status == "done" else "",
-    )
-    db.add(b)
-    db.commit()
-    db.refresh(b)
+    _check_scope(body.recovery_scope)
     try:
-        from services import personal_index
-        personal_index.index_record(db, "book", b)
-    except Exception:
-        pass
-    return _fmt(b)
+        b = save_book(
+            db,
+            title=body.title,
+            author=body.author,
+            status=body.status,
+            rating=body.rating,
+            cover=body.cover,
+            isbn=body.isbn,
+            notes=body.notes,
+            year=body.year,
+            request_id=body.request_id,
+        )
+    except BookInputError as exc:
+        detail = (
+            "title required"
+            if exc.field == "title"
+            else f"status must be one of {', '.join(STATUSES)}"
+        )
+        raise HTTPException(400, detail) from exc
+    return _fmt(b) | ({"request_id": body.request_id} if body.request_id else {})
 
 
 class BookPatch(BaseModel):
@@ -156,36 +180,69 @@ class BookPatch(BaseModel):
     cover: str | None = None
     notes: str | None = None
     isbn: str | None = None
+    expected_rating: int | None = None
+    expected_notes: str | None = None
+    recovery_scope: str | None = None
 
 
 @router.patch("/books/{bid}")
 def update_book(bid: str, body: BookPatch, db: DbSession = Depends(get_db)):
+    _check_scope(body.recovery_scope or "")
     b = db.get(Book, bid)
     if not b:
         raise HTTPException(404)
-    if body.status is not None:
-        if body.status not in STATUSES:
-            raise HTTPException(400, f"status must be one of {', '.join(STATUSES)}")
-        # stamp/clear milestones when moving shelves so the dates match the shelf
-        if body.status == "reading":
-            if not b.started:
-                b.started = date.today().isoformat()
-            b.finished = ""  # (re-)reading: it's not finished anymore
-        elif body.status == "done":
-            if not b.finished:
-                b.finished = date.today().isoformat()
-        elif body.status == "want":
-            b.started = b.finished = ""  # not started yet
-        b.status = body.status
-    if body.rating is not None:
-        b.rating = clamp_rating(body.rating)
-    for f in ("title", "author", "started", "finished", "cover", "notes", "isbn"):
-        v = getattr(body, f)
-        if v is not None:
-            setattr(b, f, v.strip() if isinstance(v, str) and f in ("title", "author") else v)
-    db.commit()
+    expected = {
+        field: getattr(body, f"expected_{field}")
+        for field in ("rating", "notes")
+        if getattr(body, f"expected_{field}") is not None
+    }
+    if expected:
+        changes = body.model_dump(exclude_none=True)
+        changes.pop("recovery_scope", None)
+        if set(changes) != set(expected) | {f"expected_{field}" for field in expected}:
+            raise HTTPException(
+                422, "a restore must include only each value and its expected value"
+            )
+        values = {
+            field: clamp_rating(body.rating) if field == "rating" else body.notes
+            for field in expected
+        }
+        query = db.query(Book).filter(Book.id == bid)
+        for field, value in expected.items():
+            column = getattr(Book, field)
+            # An already-restored value permits retry after a lost response. The
+            # condition is part of the UPDATE so a newer edit cannot be overwritten.
+            query = query.filter(or_(column == value, column == values[field]))
+        if query.update(values, synchronize_session=False) != 1:
+            db.rollback()
+            raise HTTPException(409, "this book changed after your edit; newer values were kept")
+        db.commit()
+        db.refresh(b)
+    else:
+        if body.status is not None:
+            if body.status not in STATUSES:
+                raise HTTPException(400, f"status must be one of {', '.join(STATUSES)}")
+            # stamp/clear milestones when moving shelves so the dates match the shelf
+            if body.status == "reading":
+                if not b.started:
+                    b.started = date.today().isoformat()
+                b.finished = ""  # (re-)reading: it's not finished anymore
+            elif body.status == "done":
+                if not b.finished:
+                    b.finished = date.today().isoformat()
+            elif body.status == "want":
+                b.started = b.finished = ""  # not started yet
+            b.status = body.status
+        if body.rating is not None:
+            b.rating = clamp_rating(body.rating)
+        for f in ("title", "author", "started", "finished", "cover", "notes", "isbn"):
+            v = getattr(body, f)
+            if v is not None:
+                setattr(b, f, v.strip() if isinstance(v, str) and f in ("title", "author") else v)
+        db.commit()
     try:
         from services import personal_index
+
         personal_index.index_record(db, "book", b)
     except Exception:
         pass
@@ -207,30 +264,40 @@ def import_books(body: ImportBody, db: DbSession = Depends(get_db)):
     # have one, else title+author (lowercased). seed from what's already saved.
     def _key(isbn, title, author):
         i = (isbn or "").strip().lower()
-        return ("isbn", i) if i else ("ta", (title or "").strip().lower(), (author or "").strip().lower())
+        return (
+            ("isbn", i)
+            if i
+            else ("ta", (title or "").strip().lower(), (author or "").strip().lower())
+        )
 
     seen = {_key(b.isbn, b.title, b.author) for b in db.query(Book).all()}
-    n = 0
+    added = []
     for r in rows:
         k = _key(r["isbn"], r["title"], r["author"])
         if k in seen:
             continue
         seen.add(k)
-        db.add(
-            Book(
-                title=r["title"],
-                author=r["author"],
-                status=r["status"] if r["status"] in STATUSES else "want",
-                rating=clamp_rating(r["rating"]),
-                finished=r["finished"],
-                started=date.today().isoformat() if r["status"] == "reading" else "",
-                isbn=r["isbn"],
-                year=r["year"],
-            )
+        book = Book(
+            title=r["title"],
+            author=r["author"],
+            status=r["status"] if r["status"] in STATUSES else "want",
+            rating=clamp_rating(r["rating"]),
+            finished=r["finished"],
+            started=date.today().isoformat() if r["status"] == "reading" else "",
+            isbn=r["isbn"],
+            year=r["year"],
         )
-        n += 1
+        db.add(book)
+        added.append(book)
     db.commit()
-    return {"imported": n}
+    for book in added:
+        try:
+            from services import personal_index
+
+            personal_index.index_record(db, "book", book)
+        except Exception:
+            db.rollback()
+    return {"imported": len(added)}
 
 
 @router.delete("/books/{bid}")
@@ -242,6 +309,7 @@ def delete_book(bid: str, db: DbSession = Depends(get_db)):
     db.commit()
     try:
         from services import personal_index
+
         personal_index.remove_record(db, "book", bid)
     except Exception:
         pass

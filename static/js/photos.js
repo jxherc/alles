@@ -1,5 +1,10 @@
 import { toast } from './util.js';
-import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
+import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
+import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
+import { initDatePicker } from './datepick.js';
+import { formatDateTime } from './i18n.js';
+import { createMenuController } from './kokuen.js?v=1';
+import { openAppSettings } from './appsettings.js';
 
 let _view = '';      // current view: '' | __fav__ | __archive__ | __hidden__ | __map__ | __memories__ | __trash__ | <albumId>
 let _photos = [];    // flat list (for the lightbox)
@@ -22,12 +27,105 @@ let _scrubDrag = false;  // date scrubber drag state
 let _loadedGroups = [];  // accumulated date groups for the paged list view (phase 4)
 let _nextOffset = null;  // next page offset, or null when fully loaded / on a non-paged view
 let _loadingMore = false;
+let _albumCreating = false;
+let _albumChoosing = false;
+let _albumDraft = '';
+let _batchBusy = false;
+let _metaBusy = false;
+let _viewerClosing = false;
+let _viewerOpener = null;
+let _viewerBackground = [];
+let _viewerGeneration = 0;
+const _favoritePending = new Set();
+let _uploadBusy = false;
+let _uploadFailures = [];
+let _listGeneration = 0;
+const _loadErrors = {};
+let _macSyncTimer = null;
+let _macPhotosStatus = null;
+const _MAC_IMPORT_BATCH = 500;
 const _PAGE = 120;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
-const _setFavBtn = fav => { const b = $('photos-fav-btn'); if (b) b.innerHTML = fav ? `${_si('heart-fill')} favorited` : `${_si('heart')} favorite`; };
+const _setFavBtn = fav => {
+  const b = $('photos-fav-btn');
+  if (!b) return;
+  b.innerHTML = fav ? `${_si('heart-fill')} favorited` : `${_si('heart')} favorite`;
+  const pending = _favoritePending.has(_cur?.id);
+  b.setAttribute('aria-disabled', String(pending));
+  b.setAttribute('aria-busy', String(pending));
+};
+
+const _actionMenus = [];
+function _closeActionMenus(restoreFocus = false) {
+  for (const { menu, controller } of _actionMenus) {
+    if (!menu.hidden) controller.close({ restoreFocus });
+  }
+}
+
+function _initActionMenu(triggerId, menuId) {
+  const trigger = $(triggerId), menu = $(menuId);
+  if (!trigger || !menu) return;
+  const controller = createMenuController(menu, {
+    closeOnOutsidePointer: false,
+    onClose: () => trigger.setAttribute('aria-expanded', 'false'),
+  });
+  _actionMenus.push({ menu, controller });
+  const open = () => {
+    for (const item of menu.querySelectorAll('[role="menuitem"]')) item.setAttribute('aria-disabled', String(!!item.disabled));
+    _closeActionMenus();
+    trigger.setAttribute('aria-expanded', 'true');
+    menu.style.transform = '';
+    controller.open({ source: trigger });
+    const bounds = menu.getBoundingClientRect();
+    const shift = Math.max(0, -bounds.left) + Math.min(0, window.innerWidth - bounds.right);
+    menu.style.transform = `translateX(${shift}px)`;
+  };
+  trigger.addEventListener('click', () => {
+    if (menu.hidden) open();
+    else controller.close();
+  });
+  trigger.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault(); event.stopPropagation(); open();
+  });
+  // Close before the existing item handler opens a confirmation or editor.
+  menu.addEventListener('click', event => {
+    const item = event.target.closest('[role="menuitem"]');
+    if (!item || item.disabled || item.getAttribute('aria-disabled') === 'true') return;
+    controller.close();
+  }, true);
+  menu.addEventListener('keydown', event => {
+    if (event.key === 'Tab') { controller.close(); return; }
+    event.stopPropagation(); // Menu Escape and arrows belong to the menu, not the viewer.
+    if (['Enter', ' '].includes(event.key)) {
+      event.preventDefault();
+      const item = event.target.closest('[role="menuitem"]');
+      if (item && !item.disabled && item.getAttribute('aria-disabled') !== 'true') item.click();
+    }
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!menu.hidden && !menu.contains(event.target) && !trigger.contains(event.target)) {
+      controller.close({ restoreFocus: false });
+    }
+  }, true);
+  document.addEventListener('focusin', event => {
+    if (!menu.hidden && !menu.contains(event.target) && event.target !== trigger) {
+      controller.close({ restoreFocus: false });
+    }
+  });
+  window.addEventListener('resize', () => {
+    if (!menu.hidden) controller.close({ restoreFocus: menu.contains(document.activeElement) });
+  });
+}
+
+function rememberPhotoChange(photo, key, value) {
+  photo[key] = value;
+  for (const item of [..._photos, ..._lbPhotos]) if (item.id === photo.id) item[key] = value;
+  if (_cur?.id === photo.id) _cur[key] = value;
+}
 
 // justified (flickr-style) layout — pack a date bucket's photos into rows that fill the width,
 // aspect ratios preserved, no square cropping. run per bucket so a date header never sits mid-row.
@@ -54,7 +152,8 @@ function _justify(items, containerW, targetH, gap) {
 
 // one grid cell — videos (7c) get a <video> poster + a play badge instead of an <img>.
 // the cell's background is a tiny base64 preview (phase 4) so it shows a blur-up while the thumb loads.
-function _cellHtml(p, w, h) {
+function _cellHtml(p, w, h, extra = '', interactive = true) {
+  if (typeof w === 'string') { extra = w; w = h = null; }
   const bg = p.preview ? `;background-image:url(${p.preview})` : '';
   const dim = (w && h) ? ` style="width:${w}px;height:${h}px${bg}"` : (bg ? ` style="${bg.slice(1)}"` : '');
   const inner = p.is_video
@@ -63,8 +162,11 @@ function _cellHtml(p, w, h) {
   const favBadge = p.favorite ? `<span class="photos-fav-badge">${_si('heart-fill')}</span>` : '';
   const stackBadge = (p.stack_count > 1) ? `<span class="photos-stack-badge">${_si('copy')} ${p.stack_count}</span>` : '';
   const sel = _sel.has(p.id) ? ' sel' : '';
+  const name = esc(p.original_name || p.caption || 'photo');
+  const media = interactive ? `<button type="button" class="photos-open" aria-label="open ${name}">${inner}</button>` : inner;
   return `<div class="photos-cell${p.favorite ? ' fav' : ''}${p.is_video ? ' video' : ''}${sel}" data-id="${p.id}"${dim}>`
-    + `<button class="photos-check" data-id="${p.id}" aria-label="select">${_si('check')}</button>${inner}${favBadge}${stackBadge}</div>`;
+    + (interactive ? `<button type="button" class="photos-check" data-id="${p.id}" aria-label="select ${name}" aria-pressed="${_sel.has(p.id)}">${_si('check')}</button>` : '')
+    + `${media}${favBadge}${stackBadge}${extra}</div>`;
 }
 
 // paint a set of {label, items} buckets as sticky-header justified rows; remembers itself for resize
@@ -120,7 +222,10 @@ function _toggleSel(id, shift) {
 function _clearSel() { _sel.clear(); _anchor = null; _syncSelUI(); }
 
 function _syncSelUI() {
-  document.querySelectorAll('#photos-grid .photos-cell').forEach(c => c.classList.toggle('sel', _sel.has(c.dataset.id)));
+  document.querySelectorAll('#photos-grid .photos-cell').forEach(c => {
+    c.classList.toggle('sel', _sel.has(c.dataset.id));
+    c.querySelector('.photos-check')?.setAttribute('aria-pressed', String(_sel.has(c.dataset.id)));
+  });
   const n = _sel.size;
   $('photos-view')?.classList.toggle('selecting', n > 0);
   const cnt = $('photos-sel-count'); if (cnt) cnt.textContent = `${n} selected`;
@@ -134,20 +239,21 @@ function _syncSelUI() {
   }
 }
 
-async function _batch(action, extra = {}) {
-  const ids = [..._sel];
-  if (!ids.length) return;
+async function _batch(action, extra = {}, ids = [..._sel]) {
+  if (!ids.length || _batchBusy) return;
+  _batchBusy = true;
   try {
     const r = await fetch('/api/photos/batch', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ids, action, ...extra }),
     });
-    if (!r.ok) throw 0;
-    const d = await r.json();
+    const d = await _response(r);
+    if (d?.ok !== true || d.action !== action || !Number.isInteger(d.count) || d.count < 1) throw new Error('unconfirmed action');
     toast(`${d.count} updated`, 'success');
-  } catch { toast('action failed', 'error'); return; }
+  } catch { toast('action failed; your selection is kept. retry when ready.', 'error'); return; }
+  finally { _batchBusy = false; }
   _clearSel();
-  loadPhotos();
+  _reloadPhotos();
 }
 
 // small album picker for the "add to album" bulk action
@@ -156,34 +262,28 @@ function _closeAlbumMenu() {
   if (_albMenuEl) { _albMenuEl.remove(); _albMenuEl = null; }
   if (_albMenuClose) { document.removeEventListener('click', _albMenuClose, true); _albMenuClose = null; }
 }
-function _openAlbumMenu(anchor) {
-  _closeAlbumMenu();
-  const menu = document.createElement('div');
-  menu.className = 'photos-albmenu';
-  let html = '';
-  if (_view && !_view.startsWith('__')) html += `<button class="photos-albmenu-item" data-aid="">remove from album</button>`;
-  for (const a of _albums) html += `<button class="photos-albmenu-item" data-aid="${esc(a.id)}">${_si('folder')} ${esc(a.name)}</button>`;
-  html += `<button class="photos-albmenu-item" data-new="1">${_si('plus')} new album…</button>`;
-  menu.innerHTML = html;
-  document.body.appendChild(menu);
-  _albMenuEl = menu;
-  const r = anchor.getBoundingClientRect();
-  menu.style.top = (r.bottom + 5) + 'px';
-  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
-  menu.addEventListener('click', async e => {
-    const b = e.target.closest('.photos-albmenu-item'); if (!b) return;
-    let aid = b.dataset.aid || '';
-    if (b.dataset.new) {
-      const name = await dlgPrompt('album name:');
-      if (!name?.trim()) { _closeAlbumMenu(); return; }
-      try { aid = (await fetch('/api/photos/albums', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: name.trim() }) }).then(r => r.json())).id; }
-      catch { toast('failed', 'error'); _closeAlbumMenu(); return; }
+async function _openAlbumMenu() {
+  if (_albumChoosing || _albumCreating || _batchBusy) return;
+  _albumChoosing = true;
+  const ids = [..._sel];
+  const options = [];
+  if (_view && !_view.startsWith('__')) options.push({ value: '', label: 'remove from album' });
+  options.push(..._albums.map(album => ({ value: album.id, label: album.name })));
+  options.push({ value: '__new__', label: 'new album…' });
+  document.body.classList.add('photos-album-dialog');
+  try {
+    let aid = await dlgChoose('add to album', options);
+    if (aid === null) return;
+    if (aid === '__new__') {
+      const album = await _createAlbum();
+      if (!album) return;
+      aid = album.id;
     }
-    _closeAlbumMenu();
-    _batch('album', { album_id: aid });
-  });
-  _albMenuClose = ev => { if (_albMenuEl && !_albMenuEl.contains(ev.target) && ev.target !== anchor) _closeAlbumMenu(); };
-  setTimeout(() => document.addEventListener('click', _albMenuClose, true), 0);
+    await _batch('album', { album_id: aid }, ids);
+  } finally {
+    document.body.classList.remove('photos-album-dialog');
+    _albumChoosing = false;
+  }
 }
 
 function _renderMoments(d, emptyMsg) {
@@ -217,7 +317,7 @@ function _selectView(v) {
   _clearSel();
   const s = $('photos-search'); if (s) s.value = '';
   _renderSidebar();
-  loadPhotos();
+  _reloadPhotos();
 }
 
 function _updateHeadTitle() {
@@ -229,13 +329,38 @@ function _updateHeadTitle() {
   el.textContent = t;
 }
 
-async function _loadAlbums() {
-  _albums = await fetch('/api/photos/albums').then(r => r.json()).catch(() => []);
+async function _response(response) {
+  if (!response.ok) throw new Error('request failed');
+  return response.json();
+}
+
+function _reloadPhotos() {
+  return typeof window._navigateTo === 'function' ? window._navigateTo('files-gallery') : loadPhotos();
+}
+
+function _loadNotice(part, message) {
+  if (message) _loadErrors[part] = message; else delete _loadErrors[part];
+  const node = $('photos-load-status');
+  if (!node) return;
+  node.hidden = !Object.keys(_loadErrors).length;
+  node.querySelector('span').textContent = Object.values(_loadErrors).join(' ');
+}
+
+async function _loadAlbums(fetcher = fetch) {
+  try {
+    const albums = await _response(await fetcher('/api/photos/albums'));
+    if (!Array.isArray(albums)) throw new Error('invalid albums');
+    _albums = albums;
+    _loadNotice('albums', '');
+  } catch { _loadNotice('albums', 'albums could not load.'); }
   _renderSidebar();
 }
 
-export async function loadPhotos() {
-  await _loadAlbums();
+export async function loadPhotos(fetcher = fetch) {
+  _closeActionMenus();
+  const generation = ++_listGeneration;
+  await _loadAlbums(fetcher);
+  if (generation !== _listGeneration) return;
   _updateHeadTitle();
   // filters only apply to the /list-backed views (photos, favorites, albums)
   const fbtn = $('photos-filter-btn');
@@ -254,7 +379,7 @@ export async function loadPhotos() {
   _loadedGroups = [];
   _nextOffset = 0;
   _loadingMore = false;
-  await _loadListPage();
+  await _loadListPage(fetcher, generation);
 }
 
 function _listUrl() {
@@ -268,7 +393,7 @@ function _listUrl() {
 
 function _listEmpty() {
   return _view === '__fav__' ? 'no favorites yet'
-    : (_filtersActive() ? 'no photos match these filters' : 'gallery empty — upload something');
+    : (_filtersActive() ? 'no photos match these filters' : 'gallery empty: upload something');
 }
 
 // append a page's date buckets, merging into the last group when the date matches
@@ -280,16 +405,23 @@ function _mergeGroups(into, incoming) {
   }
 }
 
-async function _loadListPage() {
+async function _loadListPage(fetcher = fetch, generation = _listGeneration) {
   if (_loadingMore || _nextOffset == null) return;
   _loadingMore = true;
   const sep = _listUrl().includes('?') ? '&' : '?';
-  const d = await fetch(`${_listUrl()}${sep}offset=${_nextOffset}&limit=${_PAGE}`)
-    .then(r => r.json()).catch(() => ({ moments: [], next: null }));
-  _mergeGroups(_loadedGroups, d.moments || []);
-  _nextOffset = (d.next == null) ? null : d.next;
-  _paintGroups(_loadedGroups, _listEmpty());
-  _loadingMore = false;
+  try {
+    const d = await _response(await fetcher(`${_listUrl()}${sep}offset=${_nextOffset}&limit=${_PAGE}`));
+    if (!d || !Array.isArray(d.moments)) throw new Error('invalid photo list');
+    if (generation !== _listGeneration) return;
+    _mergeGroups(_loadedGroups, d.moments);
+    _nextOffset = d.next ?? null;
+    _paintGroups(_loadedGroups, _listEmpty());
+    _loadNotice('photos', '');
+  } catch {
+    if (generation !== _listGeneration) return;
+    _nextOffset = null;
+    _loadNotice('photos', 'photos could not load. saved images have not been removed.');
+  } finally { if (generation === _listGeneration) _loadingMore = false; }
 }
 
 // the hidden/locked album — needs a vault unlock token; prompt for the master password if locked
@@ -298,7 +430,7 @@ async function loadHidden() {
   _killMap(); _repaint = null;
   let r = await fetch('/api/photos/hidden', { headers: _vaultTok ? { 'X-Vault-Token': _vaultTok } : {} });
   if (r.status === 403) {
-    const pw = await dlgPrompt('vault master password to view the hidden album:');
+    const pw = await dlgPrompt('vault master password to view the hidden album:', '', { secret: true });
     if (!pw) { grid.innerHTML = `<div class="photos-empty">${_si('lock')} hidden album is locked</div>`; return; }
     try {
       const u = await fetch('/api/vault/unlock', {
@@ -316,7 +448,7 @@ async function loadHidden() {
 // the archive — assets kept but pushed out of the main timeline
 async function loadArchive() {
   const d = await fetch('/api/photos/archive').then(r => r.json()).catch(() => ({ moments: [] }));
-  _renderMoments(d, 'nothing archived — select photos and hit archive to tuck them away');
+  _renderMoments(d, 'nothing archived: select photos and hit archive to tuck them away');
 }
 
 // duplicate review — byte-identical sets; keep the oldest, trash the rest (phase 6)
@@ -326,14 +458,14 @@ async function loadDuplicates() {
   const grid = $('photos-grid');
   _photos = [];
   const d = await fetch('/api/photos/duplicates').then(r => r.json()).catch(() => ({ groups: [] }));
-  if (!d.groups?.length) { grid.innerHTML = '<div class="photos-empty">no duplicates — your library is clean</div>'; return; }
+  if (!d.groups?.length) { grid.innerHTML = '<div class="photos-empty">no duplicates: your library is clean</div>'; return; }
   const total = d.groups.reduce((n, g) => n + g.items.length - 1, 0);
   let html = `<div class="photos-dupbar"><span>${d.groups.length} duplicate set${d.groups.length > 1 ? 's' : ''} · ${total} extra cop${total === 1 ? 'y' : 'ies'}</span>`
-    + `<button class="btn primary" id="photos-dupes-all">resolve all — keep oldest</button></div>`;
+    + `<button class="btn primary" id="photos-dupes-all">resolve all: keep oldest</button></div>`;
   for (const g of d.groups) {
     const extras = g.items.slice(1).map(i => i.id).join(',');
     html += `<div class="photos-moment"><div class="photos-moment-label">${g.items.length} copies`
-      + ` <button class="btn photos-dup-resolve" data-ids="${extras}" style="font-size:0.62rem;margin-left:6px">${_si('trash')} trash the other ${g.items.length - 1}</button></div>`
+      + ` <button class="btn photos-dup-resolve" data-ids="${extras}" style="font-size:0.75rem;margin-left:6px">${_si('trash')} trash the other ${g.items.length - 1}</button></div>`
       + '<div class="photos-rows"><div class="photos-row">';
     g.items.forEach((p, i) => {
       _photos.push(p);
@@ -390,7 +522,7 @@ async function loadPlaces() {
   const grid = $('photos-grid');
   _photos = [];
   const d = await fetch('/api/photos/places').then(r => r.json()).catch(() => ({ places: [] }));
-  if (!d.places?.length) { grid.innerHTML = '<div class="photos-empty">no places yet — geotagged photos group by city here</div>'; return; }
+  if (!d.places?.length) { grid.innerHTML = '<div class="photos-empty">no places yet: geotagged photos group by city here</div>'; return; }
   let html = '<div class="photos-places">';
   for (const pl of d.places) {
     html += `<button class="photos-place" data-cc="${esc(pl.cc)}" data-city="${esc(pl.city)}">`
@@ -421,7 +553,7 @@ async function loadPeople() {
   _photos = [];
   const d = await fetch('/api/photos/people').then(r => r.json()).catch(() => ({ people: [] }));
   if (!d.people?.length) {
-    grid.innerHTML = '<div class="photos-empty">no people yet — faces are still being scanned, check back in a bit</div>';
+    grid.innerHTML = '<div class="photos-empty">no people yet: faces are still being scanned, check back in a bit</div>';
     return;
   }
   let html = '<div class="photos-people">';
@@ -497,8 +629,9 @@ async function _openMergeMenu(anchor, pid) {
 }
 
 // open a person's timeline straight from a face chip (keeps the back-to-people context)
-function _goPerson(pid) {
-  closeLightbox();
+async function _goPerson(pid) {
+  if (!await _discardCaption()) return;
+  await closeLightbox();
   _view = '__people__';
   _clearSel();
   _renderSidebar();
@@ -570,7 +703,7 @@ async function loadMemories() {
   _killMap(); _repaint = null;
   const d = await fetch('/api/photos/memories').then(r => r.json()).catch(() => ({ groups: [] }));
   if (!d.groups?.length) {
-    $('photos-grid').innerHTML = '<div class="photos-empty">no memories for today — check back another day</div>';
+    $('photos-grid').innerHTML = '<div class="photos-empty">no memories for today: check back another day</div>';
     _photos = []; return;
   }
   const groups = d.groups.map(g => ({
@@ -602,19 +735,123 @@ async function _initClip() {
     const b = $('photos-smart-btn');
     if (b) {
       b.hidden = !_clipAvail;
-      b.title = _clipAvail ? `smart search — ${d.indexed}/${d.total} indexed` : 'smart search';
+      b.title = _clipAvail ? `smart search: ${d.indexed}/${d.total} indexed` : 'smart search';
     }
   } catch { /* feature just stays hidden */ }
 }
 
+function _setMacPhotosButton(status = _macPhotosStatus) {
+  const btn = $('photos-macos-btn');
+  if (!btn || !status) return;
+  const onMac = status.platform === 'darwin';
+  btn.hidden = !onMac;
+  if (!onMac) return;
+  const job = status.job;
+  if (job && (job.state === 'queued' || job.state === 'running')) {
+    const progress = job.total ? ` ${job.processed || 0}/${job.total}` : '';
+    btn.innerHTML = `${_si('image')} importing${progress}`;
+    btn.disabled = true;
+    btn.setAttribute('aria-disabled', 'true');
+    return;
+  }
+  btn.innerHTML = `${_si('image')} ${status.available ? 'apple photos' : 'photos setup'}`;
+  btn.disabled = !status.available;
+  btn.setAttribute('aria-disabled', String(btn.disabled));
+  btn.title = status.reason || 'import from Apple Photos';
+}
+
+async function _loadMacPhotosStatus() {
+  try {
+    _macPhotosStatus = await fetch('/api/photos/sync/macos/status').then(async response => {
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    });
+    _setMacPhotosButton();
+    if (_macPhotosStatus.job) _pollMacPhotosJob(_macPhotosStatus.job.id);
+  } catch {
+    const btn = $('photos-macos-btn');
+    if (btn) btn.hidden = true;
+  }
+}
+
+async function _startMacPhotosSync() {
+  if (['denied', 'restricted'].includes(_macPhotosStatus?.authorization)) {
+    toast(_macPhotosStatus.reason || 'allow Apple Photos access in System Settings', 'error');
+    return;
+  }
+  const confirmed = await dlgConfirm(
+    `import up to ${_MAC_IMPORT_BATCH} visible Apple Photos items? `
+    + 'originals are copied into this gallery and may download from iCloud; hidden items stay excluded.',
+  );
+  if (!confirmed) return;
+  const btn = $('photos-macos-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.setAttribute('aria-disabled', 'true');
+    btn.innerHTML = `${_si('image')} requesting access…`;
+  }
+  try {
+    const response = await fetch(`/api/photos/sync/macos?limit=${_MAC_IMPORT_BATCH}`, { method: 'POST' });
+    const data = await response.json().catch(() => ({}));
+    if (data.queued || data.offline) {
+      throw new Error('Apple Photos import needs a live connection');
+    }
+    if (!response.ok || !data.id) {
+      throw new Error(data.detail || 'could not start Apple Photos import');
+    }
+    _macPhotosStatus = { ...(_macPhotosStatus || {}), job: data };
+    _setMacPhotosButton();
+    _pollMacPhotosJob(data.id);
+  } catch (error) {
+    toast(error.message || 'Apple Photos import failed', 'error');
+    await _loadMacPhotosStatus();
+  }
+}
+
+async function _pollMacPhotosJob(jobId) {
+  clearTimeout(_macSyncTimer);
+  try {
+    const response = await fetch('/api/photos/sync/macos/jobs/' + encodeURIComponent(jobId));
+    const job = await response.json();
+    if (!response.ok) throw new Error(job.detail || 'import status unavailable');
+    _macPhotosStatus = { ...(_macPhotosStatus || {}), job };
+    _setMacPhotosButton();
+    if (job.state === 'queued' || job.state === 'running') {
+      _macSyncTimer = setTimeout(() => _pollMacPhotosJob(jobId), 900);
+      return;
+    }
+    if (job.state === 'complete') {
+      const more = job.remaining ? ` · ${job.remaining} remain` : '';
+      const adopted = job.adopted ? `, ${job.adopted} linked` : '';
+      const failures = job.failed ? ` · ${job.failed} failed` : '';
+      toast(
+        `Apple Photos: ${job.imported || 0} imported${adopted}, ${job.updated || 0} updated${failures}${more}`,
+        job.failed ? 'error' : 'success',
+      );
+      await _reloadPhotos();
+    } else {
+      toast(job.message || 'Apple Photos import failed', 'error');
+    }
+    await _loadMacPhotosStatus();
+  } catch (error) {
+    toast(error.message || 'Apple Photos import status unavailable', 'error');
+    _macSyncTimer = setTimeout(_loadMacPhotosStatus, 2000);
+  }
+}
+
 function openLightbox(id, src) {
+  _closeActionMenus();
   _lbPhotos = src || _photos;   // a stack opens its own members; the grid opens the timeline
   _curIdx = _lbPhotos.findIndex(x => x.id === id);
   if (_curIdx < 0) return;
   const lb = $('photos-lightbox');
+  _viewerOpener = document.activeElement;
+  _viewerBackground = [...document.body.children].filter(el => el !== lb && !el.classList.contains('toast-container')).map(el => [el, el.inert]);
+  _viewerBackground.forEach(([el]) => { el.inert = true; });
   lb.classList.toggle('drawer-open', _drawerOpen);
   lb.style.display = 'flex';
   _showCurrent();
+  $('photos-close-btn')?.focus();
 }
 
 // expand a stack into the viewer — arrows step through its members, cover first
@@ -626,16 +863,22 @@ async function _openStack(coverId) {
 
 // render _lbPhotos[_curIdx] into the open lightbox — reused by prev/next stepping
 function _showCurrent() {
+  _closeActionMenus();
   const p = _lbPhotos[_curIdx];
   if (!p) return;
+  ++_viewerGeneration;
   _cur = p;
+  $('photos-lightbox').setAttribute('aria-label', p.original_name || 'photo viewer');
+  $('photos-lb-drawer').inert = !_drawerOpen;
+  $('photos-lb-drawer').setAttribute('aria-hidden', String(!_drawerOpen));
+  $('photos-meta-status').textContent = '';
   const imgEl = $('photos-lightbox-img'), vidEl = $('photos-lightbox-video');
   if (p.is_video) {
     imgEl.style.display = 'none'; imgEl.src = '';
     if (vidEl) { vidEl.style.display = ''; vidEl.src = p.original; }
   } else {
     if (vidEl) { vidEl.pause?.(); vidEl.src = ''; vidEl.style.display = 'none'; }
-    imgEl.style.display = ''; imgEl.src = p.original;
+    imgEl.style.display = ''; imgEl.src = p.original; imgEl.alt = p.caption || p.original_name || 'photo';
   }
   if ($('photos-edit-btn')) {
     $('photos-edit-btn').style.display = p.is_video ? 'none' : '';
@@ -657,7 +900,7 @@ function _showCurrent() {
   const lat = ex.lat, lon = ex.lon;
   delete ex.lat; delete ex.lon;   // shown as a map link, not raw rows
   const dims = (p.width && p.height) ? `${p.width} × ${p.height}` : '';
-  const rows = [['taken', p.taken_at ? new Date(p.taken_at).toLocaleString() : ''], ['size', dims], ...Object.entries(ex)];
+  const rows = [['file', p.original_name || 'photo'], ['taken', p.taken_at ? formatDateTime(p.taken_at) : ''], ['size', dims], ...Object.entries(ex)];
   let html = rows.filter(r => r[1]).map(([k, v]) =>
     `<div class="photos-exif-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
   if (lat != null && lon != null) {
@@ -670,7 +913,8 @@ function _showCurrent() {
   _loadFaceChips(p);
 }
 
-function _step(d) {
+async function _step(d) {
+  if (!await _discardCaption()) return;
   const n = _curIdx + d;
   if (n < 0 || n >= _lbPhotos.length) return;
   _curIdx = n;
@@ -680,6 +924,8 @@ function _step(d) {
 function _toggleDrawer(force) {
   _drawerOpen = (force != null) ? force : !_drawerOpen;
   $('photos-lightbox')?.classList.toggle('drawer-open', _drawerOpen);
+  $('photos-lb-drawer').inert = !_drawerOpen;
+  $('photos-lb-drawer').setAttribute('aria-hidden', String(!_drawerOpen));
 }
 
 function _toggleHelp(force) {
@@ -688,12 +934,36 @@ function _toggleHelp(force) {
   el.hidden = (force != null) ? !force : !el.hidden;
 }
 
-function closeLightbox() {
+function _captionDirty() {
+  return !!_cur && ($('photos-caption').value !== (_cur.caption || '')
+    || $('photos-keywords').value !== (_cur.keywords || []).join(', '));
+}
+
+async function _discardCaption() {
+  if (_metaBusy || _viewerClosing) return false;
+  if (!_captionDirty()) return true;
+  _viewerClosing = true;
+  try {
+    const discard = await dlgConfirm('discard unsaved caption and keywords?');
+    if (discard) { $('photos-caption').value = _cur.caption || ''; $('photos-keywords').value = (_cur.keywords || []).join(', '); }
+    return discard;
+  }
+  finally { _viewerClosing = false; }
+}
+
+export async function closeLightbox() {
+  if (!await _discardCaption()) return;
+  _closeActionMenus();
   const v = $('photos-lightbox-video');
   if (v) { v.pause?.(); v.src = ''; }
   _toggleHelp(false);
   $('photos-lightbox').style.display = 'none';
+  ++_viewerGeneration;
   _cur = null; _curIdx = -1; _lbPhotos = [];
+  _viewerBackground.forEach(([el, inert]) => { el.inert = inert; });
+  _viewerBackground = [];
+  const target = _viewerOpener?.isConnected ? _viewerOpener : $('photos-upload-btn');
+  target?.focus();
 }
 
 function _isListView() { return !_view.startsWith('__') || _view === '__fav__'; }
@@ -707,7 +977,7 @@ function _filterQS() {
 function _filtersActive() { return !!(_filters.type || _filters.camera || _filters.from || _filters.to); }
 function _applyFilters() {
   $('photos-filter-btn')?.classList.toggle('on', _filtersActive());
-  loadPhotos();
+  _reloadPhotos();
 }
 async function _loadFacets() {
   if (_facetsLoaded) return;
@@ -715,11 +985,10 @@ async function _loadFacets() {
   try {
     const d = await fetch('/api/photos/facets').then(r => r.json());
     const sel = $('photos-filt-camera');
-    for (const c of (d.cameras || [])) {
-      const o = document.createElement('option');
-      o.value = c; o.textContent = c;
-      sel?.appendChild(o);
-    }
+    populateDropdown(sel, [
+      { value: '', label: 'any camera' },
+      ...(d.cameras || []).map(camera => ({ value: camera, label: camera })),
+    ], _filters.camera);
   } catch { _facetsLoaded = false; }
 }
 
@@ -794,12 +1063,24 @@ let _inited = false;
 export function initPhotos() {
   if (_inited) return;
   _inited = true;
+  _initActionMenu('photos-more-btn', 'photos-more-menu');
+  _initActionMenu('photos-viewer-more-btn', 'photos-viewer-more-menu');
+  $('photos-settings-btn')?.addEventListener('click', async event => {
+    event.stopPropagation();
+    await openAppSettings('photos', $('photos-more-btn'));
+    if (document.activeElement === $('photos-more-btn')) {
+      document.querySelector('.app-settings-pop input')?.focus();
+    }
+  });
+  initCustomDropdown($('photos-filt-camera'));
+  initDatePicker($('photos-filt-from'));
+  initDatePicker($('photos-filt-to'));
   const psearch = $('photos-search');
   let _pt;
   psearch?.addEventListener('input', () => {
     clearTimeout(_pt);
     const q = psearch.value.trim();
-    if (!q) { loadPhotos(); return; }
+    if (!q) { _reloadPhotos(); return; }
     _pt = setTimeout(() => (_smart ? semanticSearch(q) : searchPhotos(q)), _smart ? 450 : 300);
   });
   // smart (CLIP) search toggle
@@ -812,8 +1093,24 @@ export function initPhotos() {
   });
   _initClip();
   _initFaces();
+  _loadMacPhotosStatus();
+  $('photos-macos-btn')?.addEventListener('click', _startMacPhotosSync);
   $('photos-upload-btn')?.addEventListener('click', () => $('photos-upload-input')?.click());
-  $('photos-upload-input')?.addEventListener('change', e => { uploadPhotos(e.target.files); e.target.value = ''; });
+  $('photos-upload-input')?.addEventListener('change', e => { const files = [...e.target.files]; e.target.value = ''; uploadPhotos(files); });
+  $('photos-rescan-btn')?.addEventListener('click', async () => {
+    try {
+      const r = await fetch('/api/photos/rescan', { method: 'POST' });
+      if (!r.ok) throw new Error(await r.text());
+      const d = await r.json();
+      toast(`scan added ${d.added || 0}`, 'success');
+      await _reloadPhotos();
+    } catch (e) {
+      toast('scan failed: ' + e.message, 'error');
+    }
+  });
+  $('photos-load-retry')?.addEventListener('click', _reloadPhotos);
+  $('photos-upload-retry')?.addEventListener('click', () => { const failed = _uploadFailures; _uploadFailures = []; uploadPhotos([], failed); });
+  $('photos-upload-dismiss')?.addEventListener('click', () => { _uploadFailures = []; _uploadStatus(); });
   $('photos-share-album-btn')?.addEventListener('click', shareAlbum);
   // selection action bar
   $('photos-sel-clear')?.addEventListener('click', _clearSel);
@@ -835,23 +1132,37 @@ export function initPhotos() {
         toast('stacked', 'success');
       } else return;
     } catch { toast('failed', 'error'); return; }
-    _clearSel(); loadPhotos();
+    _clearSel(); _reloadPhotos();
   });
   if ($('photos-sel-fav')) $('photos-sel-fav').innerHTML = `${_si('heart')} favorite`;
   if ($('photos-sel-album')) $('photos-sel-album').innerHTML = `${_si('folder')} add to album`;
   if ($('photos-sel-del')) $('photos-sel-del').innerHTML = `${_si('trash')} delete`;
   $('photos-close-btn')?.addEventListener('click', closeLightbox);
   $('photos-edit-btn')?.addEventListener('click', async () => {
-    if (!_cur) return;
+    if (!_cur || !await _discardCaption()) return;
+    const photo = _cur;
     const { openEditor } = await import('./imgeditor.js');
-    openEditor(_cur.original, {
-      name: _cur.original_name || 'photo.png',
-      onSaved: () => { closeLightbox(); loadPhotos(); },
+    await closeLightbox();
+    openEditor(photo.original, {
+      name: photo.original_name || 'photo.png',
+      sourcePhotoId: photo.id,
+      onSaved: _reloadPhotos,
     });
   });
-  $('photos-lightbox')?.addEventListener('click', e => {
-    if (['photos-lightbox', 'photos-lb-stage', 'photos-lb-media'].includes(e.target.id)) closeLightbox();
+  window.addEventListener('beforeunload', e => { if (_captionDirty() || _uploadBusy || _uploadFailures.length) { e.preventDefault(); e.returnValue = ''; } });
+  $('photos-lightbox')?.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const items = [...$('photos-lightbox').querySelectorAll('button, a[href], input, video[controls]')]
+      .filter(el => !el.disabled && !el.closest('[inert], [hidden]') && el.getClientRects().length);
+    const first = items[0], last = items.at(-1);
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
   });
+  $('photos-lightbox')?.addEventListener('click', e => {
+    if (['photos-lightbox', 'photos-lb-stage', 'photos-lb-media'].includes(e.target.id)) {
+      e.stopImmediatePropagation(); closeLightbox();
+    }
+  }, true);
   // prev/next stepping, info drawer, archive, keyboard shortcuts
   $('photos-prev-btn')?.addEventListener('click', () => _step(-1));
   $('photos-next-btn')?.addEventListener('click', () => _step(1));
@@ -859,16 +1170,23 @@ export function initPhotos() {
   if ($('photos-next-btn')) $('photos-next-btn').innerHTML = _si('chevron-right');
   $('photos-info-btn')?.addEventListener('click', () => _toggleDrawer());
   $('photos-archive-btn')?.addEventListener('click', async () => {
-    if (!_cur) return;
-    const arch = !_cur.archived;
-    await fetch('/api/photos/' + _cur.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ archived: arch }) });
-    _cur.archived = arch;
+    const photo = _cur, generation = _viewerGeneration;
+    if (!photo || !await _discardCaption() || generation !== _viewerGeneration) return;
+    const arch = !photo.archived;
+    try {
+      const saved = await _response(await fetch('/api/photos/' + photo.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ archived: arch }) }));
+      if (saved?.id !== photo.id || saved.archived !== arch) throw new Error('unconfirmed archive');
+    } catch { toast('archive state could not be saved', 'error'); return; }
+    rememberPhotoChange(photo, 'archived', arch);
+    if (_cur?.id === photo.id) $('photos-archive-btn').innerHTML = arch ? `${_si('archive')} unarchive` : `${_si('archive')} archive`;
     toast(arch ? 'archived' : 'unarchived', '');
-    closeLightbox(); loadPhotos();
+    if (generation === _viewerGeneration) await closeLightbox();
+    _reloadPhotos();
   });
-  document.addEventListener('keydown', e => {
-    if ($('photos-lightbox')?.style.display !== 'flex') return;   // only while the viewer is open
+  $('photos-lightbox')?.addEventListener('keydown', e => {
+    if ($('photos-lightbox')?.style.display !== 'flex' || !$('photos-lightbox').contains(e.target)) return;   // only while the viewer is open
     if (e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation();
       if (!$('photos-lb-help')?.hidden) { _toggleHelp(false); return; }
       closeLightbox(); return;
     }
@@ -885,48 +1203,79 @@ export function initPhotos() {
       case '?': _toggleHelp(); break;
       default: hit = false;
     }
-    if (hit) e.preventDefault();
+    if (hit) { e.preventDefault(); e.stopPropagation(); }
   });
   $('photos-fav-btn')?.addEventListener('click', async () => {
-    if (!_cur) return;
-    const fav = !_cur.favorite;
-    await fetch('/api/photos/' + _cur.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: fav }) });
-    _cur.favorite = fav;
-    _setFavBtn(fav);
-    const cell = document.querySelector(`.photos-cell[data-id="${_cur.id}"]`);
-    if (cell) {
-      cell.classList.toggle('fav', fav);
-      cell.querySelector('.photos-fav-badge')?.remove();
-      if (fav) cell.insertAdjacentHTML('beforeend', `<span class="photos-fav-badge">${_si('heart-fill')}</span>`);
+    const photo = _cur;
+    if (!photo || _favoritePending.has(photo.id)) return;
+    const fav = !photo.favorite;
+    _favoritePending.add(photo.id);
+    _setFavBtn(photo.favorite);
+    try {
+      const saved = await _response(await fetch('/api/photos/' + photo.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: fav }) }));
+      if (saved?.id !== photo.id || saved.favorite !== fav) throw new Error('unconfirmed favorite');
+      rememberPhotoChange(photo, 'favorite', fav);
+      const cell = document.querySelector(`.photos-cell[data-id="${photo.id}"]`);
+      if (cell) {
+        cell.classList.toggle('fav', fav);
+        cell.querySelector('.photos-fav-badge')?.remove();
+        if (fav) cell.insertAdjacentHTML('beforeend', `<span class="photos-fav-badge">${_si('heart-fill')}</span>`);
+      }
+    } catch { toast('favorite could not be saved', 'error'); }
+    finally {
+      _favoritePending.delete(photo.id);
+      if (_cur?.id === photo.id) _setFavBtn(_cur.favorite);
     }
   });
   $('photos-del-btn')?.addEventListener('click', async () => {
-    if (!_cur || !await dlgConfirm('delete this image?')) return;
-    await fetch('/api/photos/' + _cur.id, { method: 'DELETE' });
-    closeLightbox(); loadPhotos();
+    const photo = _cur, generation = _viewerGeneration;
+    if (!photo || !await _discardCaption() || !await dlgConfirm('delete this image?') || generation !== _viewerGeneration) return;
+    try { await _response(await fetch('/api/photos/' + photo.id, { method: 'DELETE' })); }
+    catch { toast('delete failed', 'error'); return; }
+    if (generation === _viewerGeneration) await closeLightbox();
+    _reloadPhotos();
   });
   $('photos-meta-save')?.addEventListener('click', async () => {
-    if (!_cur) return;
+    if (!_cur || _metaBusy) return;
+    const photo = _cur, generation = _viewerGeneration;
+    const focused = document.activeElement;
+    const ownedFocus = ['photos-meta-save', 'photos-caption', 'photos-keywords'].some(id => $(id) === focused);
     const caption = $('photos-caption').value;
     const keywords = $('photos-keywords').value.split(',').map(s => s.trim()).filter(Boolean);
+    _metaBusy = true;
+    ['photos-meta-save', 'photos-caption', 'photos-keywords'].forEach(id => { $(id).disabled = true; });
+    $('photos-meta-status').textContent = 'saving…';
     try {
-      const r = await fetch('/api/photos/' + _cur.id, {
+      const d = await _response(await fetch('/api/photos/' + photo.id, {
         method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ caption, keywords }),
-      });
-      const d = await r.json();
-      _cur.caption = d.caption; _cur.keywords = d.keywords;
-      const p = _photos.find(x => x.id === _cur.id); if (p) { p.caption = d.caption; p.keywords = d.keywords; }
-      toast('saved', '');
-    } catch { toast('save failed', 'error'); }
+      }));
+      if (!d || d.id !== photo.id || typeof d.caption !== 'string' || !Array.isArray(d.keywords)) throw new Error('unconfirmed save');
+      photo.caption = d.caption; photo.keywords = d.keywords;
+      const p = _photos.find(x => x.id === photo.id); if (p) { p.caption = d.caption; p.keywords = d.keywords; }
+      $('photos-caption').value = d.caption; $('photos-keywords').value = d.keywords.join(', ');
+      $('photos-meta-status').textContent = 'saved';
+    } catch { $('photos-meta-status').textContent = 'save failed. your changes are kept; retry save.'; }
+    finally {
+      _metaBusy = false;
+      ['photos-meta-save', 'photos-caption', 'photos-keywords'].forEach(id => { $(id).disabled = false; });
+      if (ownedFocus && generation === _viewerGeneration && document.activeElement === document.body
+          && $('photos-lightbox').style.display === 'flex') focused.focus();
+    }
   });
   $('photos-hide-btn')?.addEventListener('click', async () => {
-    if (!_cur) return;
-    const hide = !_cur.hidden;
-    await fetch('/api/photos/' + _cur.id, {
-      method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hidden: hide }),
-    });
-    _cur.hidden = hide;
-    closeLightbox(); loadPhotos();
+    const photo = _cur, generation = _viewerGeneration;
+    if (!photo || !await _discardCaption() || generation !== _viewerGeneration) return;
+    const hide = !photo.hidden;
+    try {
+      const saved = await _response(await fetch('/api/photos/' + photo.id, {
+        method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hidden: hide }),
+      }));
+      if (saved?.id !== photo.id || saved.hidden !== hide) throw new Error('unconfirmed hidden state');
+    } catch { toast('hidden state could not be saved', 'error'); return; }
+    rememberPhotoChange(photo, 'hidden', hide);
+    if (_cur?.id === photo.id) $('photos-hide-btn').innerHTML = hide ? `${_si('eye')} unhide` : `${_si('eye-off')} hide`;
+    if (generation === _viewerGeneration) await closeLightbox();
+    _reloadPhotos();
   });
   // filters
   if ($('photos-filter-btn')) $('photos-filter-btn').innerHTML = `${_si('filter')} filter`;
@@ -946,7 +1295,7 @@ export function initPhotos() {
   $('photos-filt-clear')?.addEventListener('click', () => {
     _filters.type = _filters.camera = _filters.from = _filters.to = '';
     $('photos-filt-type')?.querySelectorAll('button').forEach((x, i) => x.classList.toggle('active', i === 0));
-    if ($('photos-filt-camera')) $('photos-filt-camera').value = '';
+    setDropdownValue($('photos-filt-camera'), '');
     if ($('photos-filt-from')) $('photos-filt-from').value = '';
     if ($('photos-filt-to')) $('photos-filt-to').value = '';
     _applyFilters();
@@ -970,32 +1319,56 @@ async function openPhotoTrash() {
     + '<div class="photos-moment-grid">';
   if (!items.length) html += '<div class="photos-empty" style="grid-column:1/-1">trash is empty</div>';
   for (const p of items) {
-    html += `<div class="photos-cell" data-id="${p.id}" style="position:relative">`
-      + `<img loading="lazy" src="${p.thumb}" alt="">`
-      + `<button class="btn photos-restore" data-id="${p.id}" style="position:absolute;bottom:4px;left:4px;font-size:0.62rem">${_si('undo')} restore</button></div>`;
+    const restore = `<button class="btn photos-restore" data-id="${p.id}" style="position:absolute;bottom:4px;left:4px;font-size:0.75rem">${_si('undo')} restore</button>`;
+    html += _cellHtml(p, null, null, restore, false);
   }
   html += '</div></div>';
   grid.innerHTML = html;
   $('photos-trash-back')?.addEventListener('click', e => { e.preventDefault(); _selectView(''); });
   grid.querySelectorAll('.photos-restore').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
-    try { await fetch('/api/photos/' + b.dataset.id + '/restore', { method: 'POST' }); toast('restored', ''); }
-    catch { toast('restore failed', 'error'); }
-    openPhotoTrash();
+    if (b.disabled) return;
+    b.disabled = true;
+    try {
+      const d = await _response(await fetch('/api/photos/' + b.dataset.id + '/restore', { method: 'POST' }));
+      if (d?.ok !== true || d.restored !== b.dataset.id) throw new Error('unconfirmed restore');
+      toast('restored', 'success');
+      await openPhotoTrash();
+    } catch { toast('restore failed; retry or reload to check the image.', 'error'); }
+    finally { b.disabled = false; }
   }));
 }
 
-async function uploadPhotos(files) {
+function _uploadStatus() {
+  const status = $('photos-upload-status');
+  status.hidden = !_uploadBusy && !_uploadFailures.length;
+  status.querySelector('span').textContent = _uploadBusy ? 'uploading…' : `upload failed: ${_uploadFailures.map(item => item.file.name).join(', ')}. your files are kept for retry.`;
+  $('photos-upload-btn').disabled = _uploadBusy;
+  $('photos-upload-retry').disabled = _uploadBusy;
+  $('photos-upload-dismiss').disabled = _uploadBusy;
+}
+
+async function uploadPhotos(files, retry = null) {
+  if (_uploadBusy) return;
+  const album = _view && !_view.startsWith('__') ? _view : '';
+  const queue = retry || [...files].map(file => ({ file, album }));
+  if (!queue.length) return;
+  _uploadBusy = true;
+  _uploadStatus();
   let n = 0;
-  for (const f of files) {
-    const fd = new FormData();
-    // virtual filters (__fav__/__hidden__/__map__/etc) aren't real albums — only attach a real album id
-    if (_view && !_view.startsWith('__')) fd.append('album_id', _view);
-    fd.append('file', f);
-    const r = await fetch('/api/photos/upload', { method: 'POST', body: fd });
-    if (r.ok) n++; else toast('upload failed: ' + f.name, 'error');
-  }
-  if (n) { toast(`added ${n} image${n > 1 ? 's' : ''}`, 'success'); loadPhotos(); }
+  try {
+    for (const item of queue) {
+      try {
+        const fd = new FormData();
+        if (item.album) fd.append('album_id', item.album);
+        fd.append('file', item.file);
+        const d = await _response(await fetch('/api/photos/upload', { method: 'POST', body: fd }));
+        if (!d || typeof d.id !== 'string' || !d.id) throw new Error('unconfirmed upload');
+        n++;
+      } catch { _uploadFailures.push(item); }
+    }
+  } finally { _uploadBusy = false; _uploadStatus(); }
+  if (n) { toast(`added ${n} image${n > 1 ? 's' : ''}`, 'success'); await _reloadPhotos(); }
 }
 
 // share the currently-selected album as a read-only /s/{token} link (7c)
@@ -1014,9 +1387,28 @@ async function shareAlbum() {
   } catch { toast('share failed', 'error'); }
 }
 
+async function _createAlbum() {
+  if (_albumCreating) return null;
+  _albumCreating = true;
+  try {
+    while (true) {
+      const name = await dlgPrompt('album name:', _albumDraft);
+      if (name === null) return null;
+      _albumDraft = name;
+      const requestedName = name.trim();
+      if (!requestedName) { toast('enter an album name', 'error'); continue; }
+      try {
+        const album = await _response(await fetch('/api/photos/albums', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: requestedName }),
+        }));
+        if (!album || typeof album.id !== 'string' || !album.id || album.name !== requestedName) throw new Error('unconfirmed album');
+        _albumDraft = '';
+        return album;
+      } catch { toast('album could not be created. your name is kept; retry or cancel.', 'error'); }
+    }
+  } finally { _albumCreating = false; }
+}
+
 async function newAlbum() {
-  const name = await dlgPrompt('album name:');
-  if (!name?.trim()) return;
-  await fetch('/api/photos/albums', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: name.trim() }) });
-  _loadAlbums();
+  if (await _createAlbum()) await _loadAlbums();
 }

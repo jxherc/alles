@@ -1,0 +1,1631 @@
+[
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #search-modal[data-kokuen-surface=\"command\"] .search-card; check for nested bezels",
+    "css_block_sha256": "064c9043f24d2a7adf3e2245c1ed103aff1ffae4e3f33604bf4d8d812fc591f2",
+    "path": "static/kokuen.css",
+    "selector": "#search-modal[data-kokuen-surface=\"command\"] .search-card",
+    "job": "distinct-region",
+    "reason": "The command dialog perimeter separates the modal search surface from its backdrop."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #search-modal[data-kokuen-surface=\"command\"] .search-command-head; check for nested bezels",
+    "css_block_sha256": "edfc7ca19bfd69665bf6a4598a0da38169f23f64e18edf0ac450378594f3cc54",
+    "path": "static/kokuen.css",
+    "selector": "#search-modal[data-kokuen-surface=\"command\"] .search-command-head",
+    "job": "distinct-region",
+    "reason": "The bottom edge of the search header separates the query controls from the results list inside the dialog."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #search-modal[data-kokuen-surface=\"command\"] .search-result-snippet",
+    "css_block_sha256": "6c38faae873578359fee4977cb5e9305befad24ad7e943e0e0306d34f492d52e",
+    "path": "static/kokuen.css",
+    "selector": "#search-modal[data-kokuen-surface=\"command\"] .search-result-snippet",
+    "job": "secondary-metadata",
+    "reason": "Search excerpt underneath its independently styled result title."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #search-modal[data-kokuen-surface=\"command\"] .search-state",
+    "css_block_sha256": "6f5cafe8a07ad8c6226a374f0121491b35164e71c734678726b875eb37fca657",
+    "path": "static/kokuen.css",
+    "selector": "#search-modal[data-kokuen-surface=\"command\"] .search-state",
+    "job": "secondary-metadata",
+    "reason": "Search-empty instructions underneath the named query input."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .specialist-mobile-back",
+    "css_block_sha256": "fe89f45dd90119515c9b0f5aa628e7334547d31c6e27b7bd80b2cd09ef6a24b7",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-mobile-back",
+    "job": "compact-control-label",
+    "reason": "The narrow-layout return-to-Files button uses a 12px action label inside its explicit 44px target. Four applicable phone/native profile focus outcomes support the measured return state; desktop/tablet hide it."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .plan-board-add input, .plan-board-search, .plan-board-inline-add input; check for nested bezels",
+    "css_block_sha256": "4ba57ac6272cadc298de1ee5b2da52921aa83988e07f27086289e49c16cd1ff2",
+    "path": "static/kokuen.css",
+    "selector": ".plan-board-add input, .plan-board-search, .plan-board-inline-add input",
+    "job": "control-bezel",
+    "reason": "Editable add-task field outline. Editable board-filter search field outline. Editable column inline-add field outline."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .plan-board-detail-actions button, .plan-board-completed button; check for nested bezels",
+    "css_block_sha256": "f4b5c16ad9727ebdbae5def7dd2de7d6cd7168a0de23108c3ad412c9fbcd78bb",
+    "path": "static/kokuen.css",
+    "selector": ".plan-board-detail-actions button, .plan-board-completed button",
+    "job": "control-bezel",
+    "reason": "Individual task-detail action outline. Completed-task action control outline."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .plan-board-completed li; check for nested bezels",
+    "css_block_sha256": "04d3e5484869943ea4076059dfd6f93b3bf9e7b5e6b0a5ce9ff0eb9973b87e0d",
+    "path": "static/kokuen.css",
+    "selector": ".plan-board-completed li",
+    "job": "distinct-region",
+    "reason": "seam between completed task records. two completed records, not empty list"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .specialist-group-capture input; check for nested bezels",
+    "css_block_sha256": "0cfad9630e0dd31d781eb443504402b912abc90f0e518de5a028209d5d448081",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-group-capture input",
+    "job": "control-bezel",
+    "reason": "The specialist capture input has its own editable-field outline within the surrounding specialist page."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .server-workbench-copy, .server-workbench-status, .server-workbench-empty",
+    "css_block_sha256": "a26943182f691803864039fa7686b69fb5c8a8904af7f0d0e09ebe0833b4ebc3",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-copy, .server-workbench-status, .server-workbench-empty",
+    "job": "mixed-supporting-copy",
+    "reason": "Operational section introduction below its heading. Operation result/error status beneath the relevant section or action. Empty operational-list explanation within its named section."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .server-workbench-fact > span, .server-workbench-service span",
+    "css_block_sha256": "8a7bc7bc9e5c8b693a80f36e8968954a0e9f3e538facc17fc97ac958e8799301",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-fact > span, .server-workbench-service span",
+    "job": "secondary-metadata",
+    "reason": "Fact caption paired with a separately styled operational value. Service state annotation beside the service name."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button; check for nested bezels",
+    "css_block_sha256": "b1f107bbf03617ddef85803d6c9fe0caefb01784cc5412abef1b3894872b60e1",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button",
+    "job": "control-bezel",
+    "reason": "Service/workbench action button perimeter. Direct section action button perimeter, including open Files and disabled backup action. Model/connection choice button perimeter."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button",
+    "css_block_sha256": "b1f107bbf03617ddef85803d6c9fe0caefb01784cc5412abef1b3894872b60e1",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button",
+    "job": "compact-control-label",
+    "reason": "Service/workbench action label. Direct section action label, including open Files and disabled backup action. Selectable model or connection choice label."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .server-workbench-choice legend, .server-workbench-field > span",
+    "css_block_sha256": "eaecd6156ad107c3ba8f430b640e0e0ded85458301b72fbf66c27dc84621a3f2",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-choice legend, .server-workbench-field > span",
+    "job": "control-associated-label",
+    "reason": "Legend names the adjacent model/connection choice group. Caption identifies its numeric or text input."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .server-workbench-switch-row",
+    "css_block_sha256": "70e9068405ae6f8676dbbc99465acf46a76827e640142805812ff58d7558b73a",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-switch-row",
+    "job": "control-associated-label",
+    "reason": "The 13px switch-row text labels its adjacent Server toggle; it is not the log message or managed-record reading text."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .server-workbench-field :where(input, textarea); check for nested bezels",
+    "css_block_sha256": "a983a9a31d1a1ea3983affc19fa392fdd979234cc3e471a978fb60800cb781e5",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-field :where(input, textarea)",
+    "job": "control-bezel",
+    "reason": "Editable operational text/number field perimeter. Textarea perimeter around the displayed synthetic configuration JSON; no policy mutation."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .server-workbench-log",
+    "css_block_sha256": "338d1a8160d12b3f495e8eab812f7bd703f43e830b7d2670211fbd6398dadb6a",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-log",
+    "job": "mixed-log-metadata",
+    "reason": "The 12px log container supplies timestamp/category metadata. The direct event-message span is separately 14px; all 16 message observations across eight profiles support that repaired leaf."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .server-companion-checks p",
+    "css_block_sha256": "6b33ba332a0f18bb005e7b700ce0f77d274cd23d8b600427b8b5312b6863f9a3",
+    "path": "static/kokuen.css",
+    "selector": ".server-companion-checks p",
+    "job": "secondary-metadata",
+    "reason": "Synthetic preflight check result beneath companion identity; no host check performed."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .server-workbench-admin",
+    "css_block_sha256": "c1f986fa0924f093674957efa46ee73cf50fd3ef0ea8f99275db7586d830af5a",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-admin",
+    "job": "compact-control-label",
+    "reason": "Admin navigation link, measured without opening its destination."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .server-managed-row",
+    "css_block_sha256": "95cdf94264d0cd2714a4bf1e9a94925481fb492fe6fd3fa5ae98de914a1730d5",
+    "path": "static/kokuen.css",
+    "selector": ".server-managed-row",
+    "job": "mixed-record-row",
+    "reason": "The 12px managed-row container coexists with 14px editable mapping spans and readonly record rows. All 32 observations support the measured DNS/proxy/certificate leaf variants; remove-action text retains its separate role."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .server-managed-row button, .server-managed-form > button; check for nested bezels",
+    "css_block_sha256": "79688f4744671145d1704574690421393a08af30663b878abef5a62580dce6ba",
+    "path": "static/kokuen.css",
+    "selector": ".server-managed-row button, .server-managed-form > button",
+    "job": "control-bezel",
+    "reason": "Action within a managed configuration row. Submit/disconnect button belonging to a managed configuration form."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .server-managed-row button, .server-managed-form > button",
+    "css_block_sha256": "79688f4744671145d1704574690421393a08af30663b878abef5a62580dce6ba",
+    "path": "static/kokuen.css",
+    "selector": ".server-managed-row button, .server-managed-form > button",
+    "job": "compact-control-label",
+    "reason": "Managed configuration row action label. Managed configuration form action label."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in :where(#finance-view) .finance-actual-actions button, :where(#finance-view) .finance-actual-confirm-actions button; check for nested bezels",
+    "css_block_sha256": "794ed56c78a05198f88728a9a54a31f41db740e2f52e746ca0f891d1e2012a71",
+    "path": "static/kokuen.css",
+    "selector": ":where(#finance-view) .finance-actual-actions button, :where(#finance-view) .finance-actual-confirm-actions button",
+    "job": "control-bezel",
+    "reason": "Finance connection/review action perimeter. Distinct confirmation/cancel action perimeter."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in :where(#finance-view) .finance-actual-confirm; check for nested bezels",
+    "css_block_sha256": "803985cc95f74b203a668ea0308e70ce81f0af302d57826993ee33b158e5463d",
+    "path": "static/kokuen.css",
+    "selector": ":where(#finance-view) .finance-actual-confirm",
+    "job": "authority-state-region",
+    "reason": "ledger authority-change warning region, effective permission rail. open authority-switch confirmation, no final action"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in :where(#finance-view) .finance-import-choice; check for nested bezels",
+    "css_block_sha256": "1003d4ffda7ab9bc2a364a293f43b2bed37992d412cf36cb08c49f3a9312d710",
+    "path": "static/kokuen.css",
+    "selector": ":where(#finance-view) .finance-import-choice",
+    "job": "distinct-region",
+    "reason": "fieldset grouping related statement-import choices. account and parser fieldsets"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in :where(#finance-view) .finance-import-choice button, :where(#finance-view) .finance-import-file-row button, :where(#fina; check for nested bezels",
+    "css_block_sha256": "73edae7ef47ff7366161bc610c107719bc7d823cf87dbeff5ea874c7e9286fd0",
+    "path": "static/kokuen.css",
+    "selector": ":where(#finance-view) .finance-import-choice button, :where(#finance-view) .finance-import-file-row button, :where(#finance-view) .finance-import-actions button, :where(#finance-view) .finance-import-history-list button",
+    "job": "control-bezel",
+    "reason": "Import account/profile choice button perimeter. Import file/account-change action perimeter. Ready-preview action perimeter, never activated. Prior receipt selection button perimeter."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in :where(#finance-view) .finance-import-row; check for nested bezels",
+    "css_block_sha256": "d52b4ddc46a7a88f11d62bfebafc72ad5527051259ce21d2e1d0a85c4795361e",
+    "path": "static/kokuen.css",
+    "selector": ":where(#finance-view) .finance-import-row",
+    "job": "distinct-region",
+    "reason": "separator between import transaction records. multiple imported preview records"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in :where(#finance-view) .finance-import-conversion input; check for nested bezels",
+    "css_block_sha256": "5e1a9964fb501faa0ca8389e35c948602482d3eda792e2b93c8a1749bdd32dc0",
+    "path": "static/kokuen.css",
+    "selector": ":where(#finance-view) .finance-import-conversion input",
+    "job": "control-bezel",
+    "reason": "editable conversion amount, rate, date and provenance field outlines. all amount/rate/date/source conversion fields in needs_review record"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in :where(#finance-view) .finance-import-match-resolution button; check for nested bezels",
+    "css_block_sha256": "6b9064a043b6a73cba020772f64119dd47253f0ce7733ad1c7499d3cf4447bb1",
+    "path": "static/kokuen.css",
+    "selector": ":where(#finance-view) .finance-import-match-resolution button",
+    "job": "control-bezel",
+    "reason": "duplicate-resolution or incomplete-write recovery action outlines. no-reference duplicate choices AND incomplete-write conflict recovery choices"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in [data-kokuen-surface].custom-dropdown-panel .custom-dropdown-option",
+    "css_block_sha256": "392edd18c78dd581e9661c4e2cd98ea39a483bfb19214f7f595afc956605de32",
+    "path": "static/kokuen.css",
+    "selector": "[data-kokuen-surface].custom-dropdown-panel .custom-dropdown-option",
+    "job": "compact-control-label",
+    "reason": "The 13px listbox option is labelled by the custom selection control. Keyboard focus remains on the combobox using aria-activedescendant."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #today-view[data-kokuen-surface=\"home\"] .today-topbar",
+    "css_block_sha256": "144af762e11d999abb257fb5749ab362f57686d997e6714b02b4d550114b9bdb",
+    "path": "static/kokuen.css",
+    "selector": "#today-view[data-kokuen-surface=\"home\"] .today-topbar",
+    "job": "secondary-metadata",
+    "reason": "Home date/context bar; interactive descendants retain their own control styling."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #today-view[data-kokuen-surface=\"home\"] .today-section-edit",
+    "css_block_sha256": "b456ce4f280f7647ef22715c0a8fb66c0185dc70b033d9b72d3ffe440e052161",
+    "path": "static/kokuen.css",
+    "selector": "#today-view[data-kokuen-surface=\"home\"] .today-section-edit",
+    "job": "compact-control-label",
+    "reason": "Home section edit is a 12px configuration-action label in the existing control target, with supported focus observations for the captured section actions in all eight profiles."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #today-view[data-kokuen-surface=\"home\"] .today-kicker, #today-view[data-kokuen-surface=\"home\"] .today-section > header s",
+    "css_block_sha256": "46a2c4b3941fc9747c412cfb9513fafef6f26850b7c5ee69450e7ada8bdbfabc",
+    "path": "static/kokuen.css",
+    "selector": "#today-view[data-kokuen-surface=\"home\"] .today-kicker, #today-view[data-kokuen-surface=\"home\"] .today-section > header span",
+    "job": "mixed-heading-and-metadata",
+    "reason": "Date kicker above the Home greeting; headings are now a separate 14px rule. Section record counts beside separate 14px section titles."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #today-view[data-kokuen-surface=\"home\"] .today-row :where(small, em), #today-view[data-kokuen-surface=\"home\"] :where(.to",
+    "css_block_sha256": "92031461a14a26afe567f603fcbc934f4b02769a4349e3ac4958fe12d0ce0e63",
+    "path": "static/kokuen.css",
+    "selector": "#today-view[data-kokuen-surface=\"home\"] .today-row :where(small, em), #today-view[data-kokuen-surface=\"home\"] :where(.today-empty, .today-brief)",
+    "job": "mixed-supporting-copy",
+    "reason": "Home small/em annotations, row time/project/state and short empty-section explanations support separately styled primary text. The actual brief summary paragraph is separately 14px, supported by all 16 recorded summary observations."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #app-drawer[data-kokuen-surface=\"apps\"] :where(.app-drawer-home, .app-drawer-footer button)",
+    "css_block_sha256": "5bdc39e1d8bad573e2907a3cb6a1ba27cfcb282d13800cfa10d07130b1492b3f",
+    "path": "static/kokuen.css",
+    "selector": "#app-drawer[data-kokuen-surface=\"apps\"] :where(.app-drawer-home, .app-drawer-footer button)",
+    "job": "compact-control-label",
+    "reason": "Drawer Home destination button. Drawer footer/dismiss action."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #app-drawer[data-kokuen-surface=\"apps\"] .app-drawer-group h3",
+    "css_block_sha256": "3c7f09c2e7bd88c58eef473828b0cd3073c08e4ffd41ffd843c28033b0d2f86c",
+    "path": "static/kokuen.css",
+    "selector": "#app-drawer[data-kokuen-surface=\"apps\"] .app-drawer-group h3",
+    "job": "section-heading",
+    "reason": "Drawer destination-group heading; final cascade must supply the essential text floor."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #app-drawer[data-kokuen-surface=\"apps\"] .app-drawer-item small",
+    "css_block_sha256": "64a256732ffd3c7bc2652acb2e4a237030b40bc88b89b28571cc6179a84f32dd",
+    "path": "static/kokuen.css",
+    "selector": "#app-drawer[data-kokuen-surface=\"apps\"] .app-drawer-item small",
+    "job": "secondary-metadata",
+    "reason": "Destination description beneath the app name."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in html[data-kokuen-version=\"5\"] #app-drawer[data-kokuen-surface=\"apps\"]; check for nested bezels",
+    "css_block_sha256": "309a1204e5a709ba5540a139f3af6137e70bbd0b332d89c38d1a4eeca5da5a82",
+    "path": "static/kokuen.css",
+    "selector": "html[data-kokuen-version=\"5\"] #app-drawer[data-kokuen-surface=\"apps\"]",
+    "job": "distinct-region",
+    "reason": "The app sheet right edge separates the modal navigation sheet from the inert workbench."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in html[data-kokuen-version=\"5\"] #app-drawer .app-drawer-item small",
+    "css_block_sha256": "c37375ea3a4ca834f848013553f8d7511e00a9d666f4e3de21538efdb06bdadd",
+    "path": "static/kokuen.css",
+    "selector": "html[data-kokuen-version=\"5\"] #app-drawer .app-drawer-item small",
+    "job": "secondary-metadata",
+    "reason": "Later rule for the same app description beneath the app name."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #andromeda-view[data-kokuen-surface=\"andromeda\"] :where( .andromeda-result-meta, .andromeda-status, .andromeda-overview-",
+    "css_block_sha256": "3fda72cbb383dc8f0bacdf9a18e64844aee71b7e795a3c44713982eecfe3cbf7",
+    "path": "static/kokuen.css",
+    "selector": "#andromeda-view[data-kokuen-surface=\"andromeda\"] :where( .andromeda-result-meta, .andromeda-status, .andromeda-overview-state, .andromeda-view-head span, .andromeda-media-meta, .andromeda-news-date )",
+    "job": "secondary-metadata",
+    "reason": "Result source/publisher annotation below the search-result identity. Search readiness or completion status above result content. Overview unavailable/error explanation within the overview state. Current result-view annotation beside its heading. Image/video source annotation below media identity. Published date accompanying a news result."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #andromeda-view[data-kokuen-surface=\"andromeda\"] :where( .andromeda-setting-row small, .andromeda-settings-section-head ",
+    "css_block_sha256": "5a77389870bbda98fd9cb11a15aa045c6a63b80ff15c87e20ca2fe7a7f29e4de",
+    "path": "static/kokuen.css",
+    "selector": "#andromeda-view[data-kokuen-surface=\"andromeda\"] :where( .andromeda-setting-row small, .andromeda-settings-section-head p, .andromeda-setting-field, .andromeda-settings-status, .andromeda-searxng-meta, .andromeda-strength-guide p )",
+    "job": "mixed-supporting-copy",
+    "reason": "Setting explanation beneath its primary control label. Managed-search scope explanation beneath section identity. Provider credential/URL field caption; inputs remain empty and no provider action occurs. Search-settings load/save status; capture declared synthetic load failure. Managed-search engine state/platform metadata; malformed fixture text is not a semantic pass. Description of each selectable overview-strength setting."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #andromeda-view[data-kokuen-surface=\"andromeda\"] :where(.andromeda-setting-row .custom-select, .andromeda-setting-field ",
+    "css_block_sha256": "407092281dd7070ad70317d560209d084e0a6d60b25fe0bd0eb79243f817b591",
+    "path": "static/kokuen.css",
+    "selector": "#andromeda-view[data-kokuen-surface=\"andromeda\"] :where(.andromeda-setting-row .custom-select, .andromeda-setting-field input)",
+    "job": "compact-control-label",
+    "reason": "Custom choice trigger for engine/count/strength settings. Provider text/password field, empty; no credential entry or request."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-text-action",
+    "css_block_sha256": "395799188ce7dd4f5ec5f27672d73e0053bc1aa725e07faf76b58d7298f5c116",
+    "path": "static/kokuen.css",
+    "selector": "#wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-text-action",
+    "job": "compact-control-label",
+    "reason": "Docs navigation text action such as recently deleted. expanded Docs navigation including recently deleted"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] :where( .docs-nav-create button, .docs-reader-actions > button, .docs-editor-bar ",
+    "css_block_sha256": "e96fa75fc9084376d4f54b0b60b0214962fd40692cf2fe7e96dee9083d516a63",
+    "path": "static/kokuen.css",
+    "selector": "#wiki-view[data-kokuen-surface=\"docs\"] :where( .docs-nav-create button, .docs-reader-actions > button, .docs-editor-bar button, .docs-empty-actions button, .docs-notes-actions button, .docs-ask-panel button, .docs-inline-actions button )",
+    "job": "compact-control-label",
+    "reason": "This one 13px rule groups seven Docs action families. Their button labels must retain independent full targets and visible focus."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-search",
+    "css_block_sha256": "9e76da35092c17727cb541635fc66a305bb98a7cbab788095caf6c3c78510bdb",
+    "path": "static/kokuen.css",
+    "selector": "#wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-search",
+    "job": "compact-control-label",
+    "reason": "Docs navigation search field. expanded Docs navigation search"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-label",
+    "css_block_sha256": "30cc738948c0f5e8658944d44c2a9502ea090d8c0b626101ecd328f49d7898c3",
+    "path": "static/kokuen.css",
+    "selector": "#wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-label",
+    "job": "mixed-heading-and-label",
+    "reason": "Passive Docs navigation captions and interactive expandable collection labels share this class; classify each actual instance."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] :where(.docs-library-item, .docs-recent-item, .wiki-file, .wiki-dir-head)",
+    "css_block_sha256": "838319e57407309623771cff642a42eb893b0d4ae235e6adeba59ac7e7c9eb9c",
+    "path": "static/kokuen.css",
+    "selector": "#wiki-view[data-kokuen-surface=\"docs\"] :where(.docs-library-item, .docs-recent-item, .wiki-file, .wiki-dir-head)",
+    "job": "compact-control-label",
+    "reason": "The 13px Docs library/recent/file/folder text labels navigation or expansion targets. Earlier library/recent coverage is joined by all eight supported current-at-409 file and folder focus outcomes for members 51.3/51.4."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] :where( .docs-current-path, .wiki-stats, .docs-save-state, .docs-editor-hint, .do",
+    "css_block_sha256": "fa6efe7b9dddb72d5dad6d787142bd3461397eea6c94e85b5b70534ea9897993",
+    "path": "static/kokuen.css",
+    "selector": "#wiki-view[data-kokuen-surface=\"docs\"] :where( .docs-current-path, .wiki-stats, .docs-save-state, .docs-editor-hint, .docs-home-card small, .docs-file-detail span, .docs-file-detail strong, .docs-context-empty, .docs-journal-stats )",
+    "job": "secondary-metadata",
+    "reason": "Active document path above separately rendered content. Document/navigation item counts. Draft or save state. Editor-mode guidance. Home document-card annotation beneath its name. Detail caption beside document metadata. Document detail value below its independently rendered identity. Empty linked-context explanation for a document with no backlinks. Journal date/statistical context."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] .docs-dialog-body",
+    "css_block_sha256": "9c0ea5fa2aa88c2da063306498c531fe7b9e9973712497cad44750e5a61c66ef",
+    "path": "static/kokuen.css",
+    "selector": "#wiki-view[data-kokuen-surface=\"docs\"] .docs-dialog-body",
+    "job": "mixed-dialog-labels",
+    "reason": "The 13px dialog container covers input labels. The discard-draft consequence paragraph is separately 14px, with eight recorded supported measurements. Essential consequence text is not waived."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item",
+    "css_block_sha256": "775ef7ae1b90e97807b698a8d04f8c60d6aa4ddfe0a817a4dd57a07239e9dcd2",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item",
+    "job": "compact-control-label",
+    "reason": "settings pane navigation label. expanded settings navigation at every applicable viewport"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .s-nav-group",
+    "css_block_sha256": "b5e3396dc89312060ccb52011a0d9484a0d6b503a2ae478d5d3e3073fc4875b4",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-nav-group",
+    "job": "secondary-metadata",
+    "reason": "settings navigation group heading. all expanded navigation group captions"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .s-section-chevron; check for nested bezels",
+    "css_block_sha256": "d9de0fd2fcbf208b92681e6462d7282837dbeaac0a817c046d2dc95423a89328",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-section-chevron",
+    "job": "icon-strokes",
+    "reason": "The two borders draw the small downward chevron inside the section trigger; they do not enclose a subregion."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] :where(.s-field label, .s-toggle-desc, .s-card-hint, .s-role-desc, .s-ro",
+    "css_block_sha256": "20502a163b12733456d8556aa501883fa256c5e4f4926d31d9bfcc15fdd5eacf",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] :where(.s-field label, .s-toggle-desc, .s-card-hint, .s-role-desc, .s-role-status, .s-ep-meta, .s-field-note)",
+    "job": "mixed-supporting-copy",
+    "reason": "Settings field captions, associated with their adjacent controls. Explanation beneath a toggle setting name. Settings card explanation below its repaired heading. Explanation of a model role beneath its role name. Readiness of a model role. Endpoint type/auth/base-url/model-count annotations beneath endpoint name; synthetic response only. Manual-model comma-separated input hint."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .settings-pane-intro p",
+    "css_block_sha256": "f877a1e17d01da934705cd5610faf6670b376b8b3fc5c7ba3aa714e5c0c69e5b",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .settings-pane-intro p",
+    "job": "secondary-metadata",
+    "reason": "Settings pane introduction prose explains the purpose of the active settings page beneath its heading."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] :where(#locale-settings-load-state, #credits-settings-load-state)",
+    "css_block_sha256": "0e2862a5dfc284ea3bc7259fb5c599f006a7df5736de3f3525b3cf98c9aa34f6",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] :where(#locale-settings-load-state, #credits-settings-load-state)",
+    "job": "secondary-metadata",
+    "reason": "Locale settings loading/error state. Credits inventory loading/error state."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-section > p",
+    "css_block_sha256": "322d6444e93bcafb902ec8987ba587e3381073bb8aacd7b35abbbb9098985862",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-section > p",
+    "job": "secondary-metadata",
+    "reason": "Locale section explanatory paragraphs describe automatic values and overrides below section headings."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] :where(.locale-language-list, .locale-format-list, .credits-list, .credi; check for nested bezels",
+    "css_block_sha256": "93b06a3e6a52422f5f6c5352bc5f1cac2ba12d6dc5fc372a6db431d762166f1f",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] :where(.locale-language-list, .locale-format-list, .credits-list, .credits-detail)",
+    "job": "distinct-region",
+    "reason": "Language choice-list boundary groups peer selectable languages. Formatting preferences list separates setting rows from other sections. Credits entry-list boundary separates selectable dependencies from detail. Selected dependency detail boundary separates it from the entry list."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-language-choice; check for nested bezels",
+    "css_block_sha256": "c54f101347b4e75d69c38f2698f7dfa80ac8adf52c58ccfb3f026d3c05debaef",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-language-choice",
+    "job": "control-row-seam",
+    "reason": "Each language choice is a selectable row; its bottom seam separates choices inside the language list."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-language-choice small",
+    "css_block_sha256": "dc58ac25f243b33050644016300013e0701a58e2a0851c1a969aa2fe42b1bb0c",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-language-choice small",
+    "job": "secondary-metadata",
+    "reason": "The language's small secondary name disambiguates its primary native-language name."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-language-choice em",
+    "css_block_sha256": "d608e1a7466ed66b172ed07aff37ca1fa75b1e36a32b5fd9b7513c00211329bc",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-language-choice em",
+    "job": "secondary-metadata",
+    "reason": "The language-choice em reports review/translation status alongside the language name."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-format-row; check for nested bezels",
+    "css_block_sha256": "becc2be4bc153be58dccd82bfcc232442a50a5632b802b4fd206833be3755188",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-format-row",
+    "job": "distinct-region",
+    "reason": "Locale format-row bottom seams separate different formatting preferences."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-format-row strong",
+    "css_block_sha256": "6b01821412b001a84ed8d4155e680aa4a3db1cef0ba4f4c59c166146db26e917",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-format-row strong",
+    "job": "control-associated-label",
+    "reason": "Region/timezone/date/number format caption labels adjacent preference controls."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-format-row small",
+    "css_block_sha256": "1646182758aee3138d7fa480be37aee3eabf7c7852d043432d8bafae5527500b",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-format-row small",
+    "job": "secondary-metadata",
+    "reason": "Locale-format small text explains the detected setting or override behavior beneath the preference label."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-trigger; check for nested bezels",
+    "css_block_sha256": "eb0b79058a5237b51ce9f13abef5afa88a8ac7ed7b2ae03407c838363bc07799",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-trigger",
+    "job": "control-bezel",
+    "reason": "The locale-choice trigger has its own select-like button outline inside a format row."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-trigger",
+    "css_block_sha256": "eb0b79058a5237b51ce9f13abef5afa88a8ac7ed7b2ae03407c838363bc07799",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-trigger",
+    "job": "compact-control-label",
+    "reason": "The locale-choice trigger displays the selected value on a 44px button."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-menu; check for nested bezels",
+    "css_block_sha256": "14928fa743779226536fa55dcfb901b1323918ac6d7344807e234a0034e313d6",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-menu",
+    "job": "distinct-region",
+    "reason": "floating format choice menu boundary. one open choice menu per preference"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-option",
+    "css_block_sha256": "cb8f0f074c0dae47ecbb82152855277eb4b81669b11050d0cab89ec7cd719ac2",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-option",
+    "job": "compact-control-label",
+    "reason": "The 13px locale menu text labels selectable format rows."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented; check for nested bezels",
+    "css_block_sha256": "c35f3f27939417f43f535a6e1a905f2268cd2842e2fb44cb3bd4a4d3674776e7",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented",
+    "job": "distinct-region",
+    "reason": "The locale segmented group encloses mutually exclusive format choices."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button; check for nested bezels",
+    "css_block_sha256": "b63981215ec6b13eed50082c3f55de2b5e322ab4305b50696636a91cdaf68003",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button",
+    "job": "control-row-seam",
+    "reason": "The segment button's right edge separates peer choices inside the segmented group; it is not another full enclosure."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button",
+    "css_block_sha256": "b63981215ec6b13eed50082c3f55de2b5e322ab4305b50696636a91cdaf68003",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button",
+    "job": "compact-control-label",
+    "reason": "The 12px locale segment label belongs to a real format-choice button."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] #locale-settings-save-state",
+    "css_block_sha256": "9c5f87b417bff65672556135db145179167a809fededa4832a1be33c12c8d0f3",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] #locale-settings-save-state",
+    "job": "secondary-metadata",
+    "reason": "locale save result or unsaved-state message. dirty, successful save and synthetic save failure status without real settings write"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-preview; check for nested bezels",
+    "css_block_sha256": "656de8be42cae1127716580117561869b58fd81d4183047c72cbdaf8e7a46251",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-preview",
+    "job": "distinct-region",
+    "reason": "format preview grouped region. whole locale preview and containment"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] :where(#locale-preview-tag, .locale-settings-preview dt)",
+    "css_block_sha256": "38dabd77a780c83910481cc3eb9a9c86132afc7a2a64dc0039232f069b616ae6",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] :where(#locale-preview-tag, .locale-settings-preview dt)",
+    "job": "secondary-metadata",
+    "reason": "Preview locale identifier. Definition terms label the date, time, currency and number examples."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface; check for nested bezels",
+    "css_block_sha256": "a157c1b198faeae1e1cb2a5a0fb7b68bab8fad7505a632387c55d995a0208fd5",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface",
+    "job": "sample-region",
+    "reason": "sample surface region within format preview. each preview sample surface"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface > span",
+    "css_block_sha256": "1053d845f8a38a753d73f9cfb34d36aa49755b5842c9d9e78c229f4efceabf88",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface > span",
+    "job": "secondary-metadata",
+    "reason": "sample surface caption. each preview surface caption"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface :where(time, div, small, code)",
+    "css_block_sha256": "b8c6e7d4e39c3a8211fe375809ace0c30d46ef62058a886100af1b48416e259a",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface :where(time, div, small, code)",
+    "job": "secondary-metadata",
+    "reason": "Illustrative time sample in the locale preview. Illustrative item/value row in the locale preview; not an actual owned record. Illustrative status/sample annotation. Illustrative file path in the locale preview."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface div; check for nested bezels",
+    "css_block_sha256": "179807c159105bd899844d8f8ac507d570f36d1e6d3adc65c0fcd9c8a8da291e",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface div",
+    "job": "sample-row-seams",
+    "reason": "sample formatted amount or number value. localized sample div, including longer formatted value"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-preview dd",
+    "css_block_sha256": "9f68712a35d41bde3809a071ee3983207eb76d95b3f14bd16de8591e19d0a187",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-preview dd",
+    "job": "secondary-metadata",
+    "reason": "preview definition-list values. definition values for every preview field"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-tabs button",
+    "css_block_sha256": "c42ac50e594a623547a946ca0b16c77e352eba924ac67ae35b4e01dccc3f3393",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-tabs button",
+    "job": "compact-control-label",
+    "reason": "The 12px Credits tab label chooses a category and therefore requires its full action target and focus evidence."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-summary",
+    "css_block_sha256": "c038a650664d52868e8fcc52173644a16c9a3be06aace392c9dc3fd1bf2b8ed1",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-summary",
+    "job": "secondary-metadata",
+    "reason": "Credits summary reports result count and inventory coverage."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .credits-row; check for nested bezels",
+    "css_block_sha256": "ac81f30a54032af202dcf0e9ef0d3818a70346d72131cf71f58a77747b001b73",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-row",
+    "job": "control-row-seam",
+    "reason": "A credits row selects an entry; its bottom edge separates that entry from the next item."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-row small, #settings-modal[data-kokuen-surface=\"settings\"] .cre",
+    "css_block_sha256": "c056825ae87c4810109f4151771c1959c868f46d8a60d5822b0ef2829e87aaf1",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-row small, #settings-modal[data-kokuen-surface=\"settings\"] .credits-row em",
+    "job": "secondary-metadata",
+    "reason": "Dependency purpose beneath its primary name. Dependency license annotation."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-empty",
+    "css_block_sha256": "4ceca713b35b34c26175a42ba41f61a632b67829d620022d506da8e8114bb8a5",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-empty",
+    "job": "secondary-metadata",
+    "reason": "credits unavailable or no-selection instruction. credits empty selection AND synthetic unavailable state"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .credits-coverage; check for nested bezels",
+    "css_block_sha256": "e5a7592d3990dfa7f9c2b490700d4b16b01ab053871644a6ff77c463f0f01e12",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-coverage",
+    "job": "distinct-region",
+    "reason": "credit coverage disclosure region. coverage disclosure region"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-coverage",
+    "css_block_sha256": "e5a7592d3990dfa7f9c2b490700d4b16b01ab053871644a6ff77c463f0f01e12",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-coverage",
+    "job": "secondary-metadata",
+    "reason": "credit coverage disclosure prose. all disclosure prose scrolled into view"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-detail > p",
+    "css_block_sha256": "4ad870a2dc145d0431cb2d11c5e5bd38fd430d6c43b7ec0f5316270f0b922ee5",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-detail > p",
+    "job": "secondary-metadata",
+    "reason": "selected component description or license context. each selected component descriptive paragraph"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-detail dt",
+    "css_block_sha256": "f4ae79e9c19047685833d9776f9599759ba2678a698e6e9f99f5097679f45cdb",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-detail dt",
+    "job": "secondary-metadata",
+    "reason": "Credits definition terms label category, version, license and local-text metadata."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-detail dd",
+    "css_block_sha256": "03aa1af96c2b567098fb2472691870dca895cba517cef25a98ecbd44945f22e7",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-detail dd",
+    "job": "secondary-metadata",
+    "reason": "Credits definition values give the selected entry's version, category and license."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-source",
+    "css_block_sha256": "e2a987faa6bea2b548b0d5591c50a1f80e979a5dba8f970a5a9764bb2fc4445f",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-source",
+    "job": "compact-control-label",
+    "reason": "The credits source link navigates to the official source; it is a control label, not passive source metadata. No link is opened in this audit."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .credits-license; check for nested bezels",
+    "css_block_sha256": "652a10ec2049c20902bf267b9a4d944f1b8e02da3ecbd2f6db3224e7d5c34d00",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-license",
+    "job": "distinct-region",
+    "reason": "The license disclosure top seam separates full license text from entry metadata."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .credits-license summary",
+    "css_block_sha256": "2601e495f9ed8257fea4498df3fb97996a9e1cead65f7732f3b560613ee2ef57",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-license summary",
+    "job": "compact-control-label",
+    "reason": "The license summary is a disclosure control; it needs a 44px target and visible focus."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] #home-settings-load-state",
+    "css_block_sha256": "20b5b287d8e5d3943c1a33ac12b525515625134d7252998ff7c1da58467cdf1a",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] #home-settings-load-state",
+    "job": "secondary-metadata",
+    "reason": "Home settings loading or failure message. Home loading AND synthetic load failure"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-section > p",
+    "css_block_sha256": "8b9571da6ba6a980ed678221327e5c02818c34b142994f964c21ed565196337d",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-section > p",
+    "job": "secondary-metadata",
+    "reason": "Home settings section paragraphs explain ordering, density and preview behavior."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-list, #settings-modal[data-kokuen-surface=\"settings\"] .ho; check for nested bezels",
+    "css_block_sha256": "b00970bf696c375205c7d85f2b999d23768cbc289d77db0d976def9fda39404c",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-list, #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density",
+    "job": "distinct-region",
+    "reason": "Home section order/visibility list groups configurable sections. Home density group encloses peer comfortable/compact choices."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-row; check for nested bezels",
+    "css_block_sha256": "cc8a3c3283a646743d7eda94f86f1d9d5fc280d23b05bb81d0cf8c3799478a58",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-row",
+    "job": "distinct-region",
+    "reason": "Home settings row bottom seams separate configurable Home sections within the order list."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-copy strong",
+    "css_block_sha256": "aa6e4880d22b2a9ea9ea1ebf300fc2f0e769197f0c2b0fd7741dac2c6a96e990",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-copy strong",
+    "job": "control-associated-label",
+    "reason": "Home section/shortcut name labels the reorder and visibility controls in its row."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-copy small",
+    "css_block_sha256": "2d9409b1b349b61cc1a84ec76259959776648195514432ec6f457870a3172464",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-copy small",
+    "job": "secondary-metadata",
+    "reason": "The small line explains what each Home section contains and whether it is mandatory."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button; check for nested bezels",
+    "css_block_sha256": "71d5279628f7c5f11c1f7a1932327dc6f40f4be3cbca21e55041cf4b2ebe8234",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button",
+    "job": "control-row-seam",
+    "reason": "Home density option control boundary. every density option, selected and unselected"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density span",
+    "css_block_sha256": "3a30d6425ca60e0313d5dddb344933a9ee299f755acbe80465436cda9e88d73d",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density span",
+    "job": "compact-control-label",
+    "reason": "The 13px density label is a child span; its parent button owns keyboard focus."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density small",
+    "css_block_sha256": "4835391127807531e0a6b4a893dcfdcf1868a31c23686c83ec94a08976f16849",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density small",
+    "job": "secondary-metadata",
+    "reason": "Home density explanation within its option. every density option hint"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-preview; check for nested bezels",
+    "css_block_sha256": "49ba992848de8d716a78d526a51cf3880a89f6950ac01630dc7fd875485cf174",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-preview",
+    "job": "distinct-region",
+    "reason": "Home configuration preview region. Home preview region and clipping"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] #home-settings-preview-title",
+    "css_block_sha256": "80675f3398a204cef5081070c56698b04f62948ef050ead98b1cf526fa631906",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] #home-settings-preview-title",
+    "job": "compact-control-label",
+    "reason": "Home preview title. preview title"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] #home-settings-preview-count, #settings-modal[data-kokuen-surface=\"setti",
+    "css_block_sha256": "50479382f5ad0175a790c0d38b269cf5d178b4f794cbdb1b847718818ce4fa0a",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] #home-settings-preview-count, #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-preview p, #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-preview small",
+    "job": "secondary-metadata",
+    "reason": "Number of included sample sections. Explanation of the Home outline preview. Annotation inside the miniature Home outline."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] #home-settings-preview-list strong",
+    "css_block_sha256": "69bd68f1e92c88f5482039a3922ed29a82e59ea8d857e17fdf67cd1d42ca21d7",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] #home-settings-preview-list strong",
+    "job": "sample-section-label",
+    "reason": "Home preview item primary name. preview record names"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-save; check for nested bezels",
+    "css_block_sha256": "2f11d4ea354786c533233a58eaeb8c7ad09aa3635dad3221ffceff9945647857",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-save",
+    "job": "distinct-region",
+    "reason": "Home save/status footer region. save footer and its separation"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-save span, #settings-modal[data-kokuen-surface=\"settings\"",
+    "css_block_sha256": "06247b8c9f83c8760c564bf6a1e4901df6310188547a33166683dc492f1849dd",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-save span, #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-save small",
+    "job": "secondary-metadata",
+    "reason": "Home configuration save status. Help explaining configuration persistence."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button; check for nested bezels",
+    "css_block_sha256": "aeca34a5c88aa6da0da000724cb294e7978e01030fc7e541110b41830298fdb9",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button",
+    "job": "control-row-seam",
+    "reason": "Home density option label. every density label with target/focus"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-real-head; check for nested bezels",
+    "css_block_sha256": "817889c3429fecb74eaa07eaaa7f67dc6e8b557c5703341b85da07f9e281f6ef",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-real-head",
+    "job": "distinct-region",
+    "reason": "The News header bottom seam separates feature identity and enablement controls from source and delivery settings."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-real-head p, body.afterlife-aide-projects[data-space=\"aide\"] .news",
+    "css_block_sha256": "119fdca2acef7c466d166e4c472cd8cc1d3c539adf7026ac9b6080b2d15d0dea",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-real-head p, body.afterlife-aide-projects[data-space=\"aide\"] .news-real-section header p, body.afterlife-aide-projects[data-space=\"aide\"] .news-preview-note",
+    "job": "secondary-metadata",
+    "reason": "News feature explanation beneath news brief title. Source count or schedule-context annotation beside a section heading. Latest-brief provenance/completion explanation above article clusters."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-real-head [data-enabled]",
+    "css_block_sha256": "81253a18d7f3abd7d170c4cf8d044ec680ed8f183f31d61d6ec81c5229b23558",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-real-head [data-enabled]",
+    "job": "secondary-metadata",
+    "reason": "The data-enabled span states whether News is on or off beside the enable/disable control."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-primary; check for nested bezels",
+    "css_block_sha256": "2351fc4cfabc092955e1efac15d80199fc9cf55ae8b04c3a6b229a3f1f27da99",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-primary",
+    "job": "control-bezel",
+    "reason": "The primary News button has one action outline; it does not define a content region."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-live-status",
+    "css_block_sha256": "3828fcd42f3362264b065a12a16e806ab575431a8d82cf3ef72f712d6d3f2fb6",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-live-status",
+    "job": "secondary-metadata",
+    "reason": "News live status reports the next run or why nothing has been fetched."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-real-section + .news-real-section; check for nested bezels",
+    "css_block_sha256": "abc658dea18b2907a4913ae4d3e3dd07ce00b80b4d8d75a8afa1e95e1c318251",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-real-section + .news-real-section",
+    "job": "distinct-region",
+    "reason": "separator between News operational sections. each adjoining section edge"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-source-row; check for nested bezels",
+    "css_block_sha256": "251da6c502bc1ffe1890fc5f6349bedfe87736622092008d7d1370dbaaa076f0",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-source-row",
+    "job": "distinct-region",
+    "reason": "Each source-row bottom seam separates independent saved feed records."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-source-row:first-child; check for nested bezels",
+    "css_block_sha256": "380b17f91a53e981d6d10009519442834439a92b21d8926ee5f7ec540e1a2334",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-source-row:first-child",
+    "job": "distinct-region",
+    "reason": "The first source row adds the opening edge of the source list; inspect it with the row separators to rule out doubled edges."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] :where(.news-source-name, .news-source-health) span",
+    "css_block_sha256": "85bfb5478bdefd8b525ee767be2d679441cd11d7dfa8ad411c36d36e9beb1ca5",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] :where(.news-source-name, .news-source-health) span",
+    "job": "secondary-metadata",
+    "reason": "Category/language/priority annotation beneath repaired source identity. Last-check/retry detail below source health state."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-source-health strong",
+    "css_block_sha256": "0435ed6432679b01606f2eb1a0f9cae235c63c6867fc2114d686033cff69c647",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-source-health strong",
+    "job": "secondary-metadata",
+    "reason": "Source health strong text reports whether a feed is healthy or waiting to retry."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-custom-time, body.afterlife-aide-projects[data-space=\"aide\"] .news",
+    "css_block_sha256": "ae9065194daafa59b365c6143c9621498107b7925facc88ee495f97af21a9645",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-custom-time, body.afterlife-aide-projects[data-space=\"aide\"] .news-editor label",
+    "job": "control-associated-label",
+    "reason": "Custom-cadence time label beside the time input. Source name and feed URL input labels in the source dialog."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] :where(.news-custom-time input, .news-editor input); check for nested bezels",
+    "css_block_sha256": "95ea1615e69c2a07912d346f855ab31353edb4f3ee22fbb0ad2a10affe9aebd4",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] :where(.news-custom-time input, .news-editor input)",
+    "job": "control-bezel",
+    "reason": "Custom cadence time input perimeter. Source editor name and URL input perimeters."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-delivery-row; check for nested bezels",
+    "css_block_sha256": "38b925e73dd7424417244526601f9bb189be5454d0bef7ddb8bd9ff208239e65",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-delivery-row",
+    "job": "distinct-region",
+    "reason": "delivery destination preference row boundary. Home and Jarvis destination row boundaries"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-delivery-row strong",
+    "css_block_sha256": "91516e5263f325ff06ff053ee2cc2a9e197138b7b1a7e0642cfe856bf8171153",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-delivery-row strong",
+    "job": "control-associated-label",
+    "reason": "Delivery destination name labels its enablement switch."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-delivery-row span",
+    "css_block_sha256": "53429a92fc3068a1f68832096b65fce39366c671c6671b49795f158ada9ae536",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-delivery-row span",
+    "job": "secondary-metadata",
+    "reason": "delivery destination explanatory text. both destination explanatory spans including unavailable Jarvis"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-real-preview; check for nested bezels",
+    "css_block_sha256": "045536c5a53d49b9bb0fcfaf65790b1c43622bdcfc75a1f9531963bf3d6a2225",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-real-preview",
+    "job": "distinct-region",
+    "reason": "digest preview region. populated and empty preview"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-preview-head span",
+    "css_block_sha256": "27ed2f9a00f089be972c8f181f1c882d355bd3c8b9e3df19f0f064283d1dad84",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-preview-head span",
+    "job": "secondary-metadata",
+    "reason": "digest topic or source count. populated digest header count"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-preview-empty",
+    "css_block_sha256": "a2a313a9f0dad30db0b2d6a0ea064daae0236d4420edd5b913d521bc5c06295d",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-preview-empty",
+    "job": "secondary-metadata",
+    "reason": "empty digest preview instruction. empty digest preview"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-cluster; check for nested bezels",
+    "css_block_sha256": "755261298a6095479c7d2c2bd17035e0f2839f2db80643192bef899e855d21a0",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-cluster",
+    "job": "distinct-region",
+    "reason": "grouped digest topic article with its sources. two topic clusters with source links"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-links a",
+    "css_block_sha256": "8757f44a2cd97941061adcf673da727921676d9c343ca30a5ccebcd272064741",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-links a",
+    "job": "compact-control-label",
+    "reason": "actionable source attribution link. all source links, focus without following"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-warning, body.afterlife-aide-projects[data-space=\"aide\"] .n",
+    "css_block_sha256": "e13548eb1f6dbde7bd324cccf0a8e6e064d239b4d7e4cb3802371c9c12ccbfe9",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-warning, body.afterlife-aide-projects[data-space=\"aide\"] .news-source-test",
+    "job": "secondary-metadata",
+    "reason": "Partial-source digest warning beneath the article clusters. Declared synthetic feed-validation result in the source editor."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-warning; check for nested bezels",
+    "css_block_sha256": "6ae0f2d7b4da29d73efa675efac79c87eceb92dedabed27664e8e9a33db2c2fc",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-warning",
+    "job": "authority-state-region",
+    "reason": "digest source failure diagnostic prose. source failure prose"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-editor; check for nested bezels",
+    "css_block_sha256": "a9f31770b28d1a363151082734d2cadd1e2d9ce62de327a967b970433a16d12e",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-editor",
+    "job": "distinct-region",
+    "reason": "The source editor perimeter belongs to a modal dialog above the News workbench."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-editor > header; check for nested bezels",
+    "css_block_sha256": "2af753c5d864804d8a1403c2f53f06e4afd9e180fd8ffeb1b424c4875be827c8",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-editor > header",
+    "job": "distinct-region",
+    "reason": "The editor header seam separates dialog identity/close action from its editable fields."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-editor-grid > div > span",
+    "css_block_sha256": "a63fc4fae094a07cefc9d9ad6befd9e837ba2c51162e262cd7929bf882214aa3",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-editor-grid > div > span",
+    "job": "control-associated-label",
+    "reason": "Category/language/priority/polling captions label the adjacent radio-choice groups."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body.afterlife-aide-projects[data-space=\"aide\"] .news-real-preview; check for nested bezels",
+    "css_block_sha256": "c191c2cfb5444a7a0f51d08624762f2798d9f6bc904cd4945ff378ad0335e506",
+    "path": "static/kokuen.css",
+    "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-real-preview",
+    "job": "distinct-region",
+    "reason": "digest preview responsive region rule. responsive digest layout at active media query only"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view #files-search; check for nested bezels",
+    "css_block_sha256": "32ef526b00f3c85c3d08408d4af139350569b651a0bc3daccadcb2c17e5530aa",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view #files-search",
+    "job": "control-bezel",
+    "reason": "The earlier Files search declaration outlines the search field; the later declaration and shared field rules determine final pixels."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-breadcrumb",
+    "css_block_sha256": "7d3feb50d37b46d2dea3807a99cf2042dc55386fed4adb0f2f68a86788e5771c",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-breadcrumb",
+    "job": "control-associated-label",
+    "reason": "The 13px Files breadcrumb carries current location context and child navigation controls; captured standard and long-name fixtures had supported focus across eight profiles."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .s-navigation; check for nested bezels",
+    "css_block_sha256": "92b9d157309228ae05613252412bfb904c9764950a504c83e3dd1bdd56e9a95d",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-navigation",
+    "job": "distinct-region",
+    "reason": "At narrow widths, the settings navigation strip separates the section trigger from pane content."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .s-section-trigger; check for nested bezels",
+    "css_block_sha256": "98ff568b38a1179d16a32cae294858e8f6f59d1c518a814475a26d03f8119a10",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-section-trigger",
+    "job": "control-bezel",
+    "reason": "The settings section trigger is the custom menu control in compact layouts."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .s-nav; check for nested bezels",
+    "css_block_sha256": "38645f59d36458c416698244127a3820e16a81606778d4f9d2554bd7c06dfe7d",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-nav",
+    "job": "distinct-region",
+    "reason": "settings pane navigation region responsive boundary. expanded narrow settings navigation at applicable media query"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-app-head; check for nested bezels",
+    "css_block_sha256": "2cdd59548afd45c848383bf2cd95f6281a3fbbb4be46c18dc0c421ee9c4c25d2",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-app-head",
+    "job": "distinct-region",
+    "reason": "The Files app-context header bottom seam separates current location/actions from the browser workspace."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-phase7-app-status",
+    "css_block_sha256": "b0c200e990f3409b1216c74962ba741f2ead131407dea3c74e790ac1aa62edbe",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-app-status",
+    "job": "secondary-metadata",
+    "reason": "Files aggregate location or current-workspace status. current aggregate Files status"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-app-actions; check for nested bezels",
+    "css_block_sha256": "06b42311c442ba4a0493f90f8b59a10daa2039df24a7deeaf8592204965d02c0",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-app-actions",
+    "job": "distinct-region",
+    "reason": "The Files header action area uses a side separator to distinguish location settings from current location context."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-location-panel; check for nested bezels",
+    "css_block_sha256": "a2d0203a295acc55b5c599646b01fe682a93a445e018afaf019b98f7ae3677e6",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-location-panel",
+    "job": "distinct-region",
+    "reason": "The Files locations sidebar right seam separates navigation from the file browser at wide widths."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view :where(.files-phase7-panel-head, .files-phase7-detail-head, .files-phase7-operation-h",
+    "css_block_sha256": "6d5152892f545438b7d563d1e580f5c0fbe9f46763f2bdbcc8b73e5d3879d396",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view :where(.files-phase7-panel-head, .files-phase7-detail-head, .files-phase7-operation-head)",
+    "job": "mixed-heading-and-action",
+    "reason": "The 12px Locations/Details/Transfers header containers also hold separate actions. Their direct caption spans are 14px, supported by all 32 applicable recorded measurements; Locations caption is hidden at CSS widths <=760."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view :where(.files-location-button, .files-view-button)",
+    "css_block_sha256": "3fbbe098afd8bd0566be3c39c96531d606ab5b29d1fea28e54991ba18fe4eace",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view :where(.files-location-button, .files-view-button)",
+    "job": "compact-control-label",
+    "reason": "The 13px location/view text labels destination controls, rather than body reading text."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-location-copy strong",
+    "css_block_sha256": "13275b860e018659b0446c94bcb68e65800410a8f2a2db843925dbba3ea841a9",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-location-copy strong",
+    "job": "compact-control-label",
+    "reason": "The 13px strong location name labels its selectable parent row."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-location-copy small, body[data-app=\"files\"] #files-view .files-location-access",
+    "css_block_sha256": "743399b4ac6bc42c1e6fadbafce059461057bd4bdc1a666dbb4de6f2f25d3b6c",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-location-copy small, body[data-app=\"files\"] #files-view .files-location-access",
+    "job": "secondary-metadata",
+    "reason": "Location kind below its destination name. Read-only/managed access annotation beside the location destination."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-views; check for nested bezels",
+    "css_block_sha256": "9eba936956499c3066caca260290b32e9c6564f1a7dea7084f950336e4bf31a2",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-views",
+    "job": "distinct-region",
+    "reason": "The file-views top seam separates location entries from all/starred/offline/trash navigation."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-location-settings",
+    "css_block_sha256": "ca2c3c3b3e0d7e6dfdf06f8fce5b2a52eb8b4f801b4bd8902f5e8879d2531f34",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-location-settings",
+    "job": "mixed-location-details",
+    "reason": "The 13px location-settings container supplies path/access/index supporting notes and independent actions. Primary location identity has its own 14px rule, supported by 16 recorded measurements."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-browser-head; check for nested bezels",
+    "css_block_sha256": "e4779d3bc40d05f870035a7c36d1c07ea5aee9d77c76b6655ead0bf7fe03daa3",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-browser-head",
+    "job": "distinct-region",
+    "reason": "The Files browser toolbar bottom seam separates search/actions from the file table."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .crumb",
+    "css_block_sha256": "6063dc03b8a7d0037f46a4fe86372580399066ca9a8f74e935f6bdd83bee7efd",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .crumb",
+    "job": "compact-control-label",
+    "reason": "The 13px Files crumb labels a parent-location/folder navigation button. All eight profiles support the actual standard/long-name recorded fixtures."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view :where(.files-text-button, .files-bare-icon)",
+    "css_block_sha256": "b1288eb45e5ddf0d5ee0118e8ee2931e3e343918bde75c53409c7f23343064f3",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view :where(.files-text-button, .files-bare-icon)",
+    "job": "compact-control-label",
+    "reason": "Text actions in Files toolbar, panel, dialog and transfer states. Icon actions in Files contexts."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view #files-search; check for nested bezels",
+    "css_block_sha256": "fe2973aecafb3a699e6bd95b5bf5dbbfbc14f1dfd1011104d18b2d8693516cf9",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view #files-search",
+    "job": "control-bezel",
+    "reason": "The later Files search declaration supplies the field bezel within the browser toolbar."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view #files-search",
+    "css_block_sha256": "fe2973aecafb3a699e6bd95b5bf5dbbfbc14f1dfd1011104d18b2d8693516cf9",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view #files-search",
+    "job": "compact-control-label",
+    "reason": "Search-file input text must be assessed in the final cascade, which may override its earlier 13px declaration."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-selection; check for nested bezels",
+    "css_block_sha256": "8bdd7684a3e5738413fe8b5c19f17fbebd86dbee499a658c8bd10871fdf5788f",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-selection",
+    "job": "distinct-region",
+    "reason": "file-selection action-bar label and actions. two selected owned files with bulk controls"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-phase7-selection",
+    "css_block_sha256": "8bdd7684a3e5738413fe8b5c19f17fbebd86dbee499a658c8bd10871fdf5788f",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-selection",
+    "job": "secondary-metadata",
+    "reason": "file-selection action-bar separating edge. same selection bar with visible boundary"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-phase7-notice",
+    "css_block_sha256": "962a56430d5e2ea11d13b219235b83ca2b9c1e3f027ae494f88ad557d0eb5f22",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-notice",
+    "job": "secondary-metadata",
+    "reason": "partial result, offline or permission state notice. synthetic partial/offline/permission notice"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-table-head; check for nested bezels",
+    "css_block_sha256": "590ebc9dcc414ac14a626fde8572a66b168eec8ff1f6b7a6eb86d25166d64137",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-table-head",
+    "job": "distinct-region",
+    "reason": "The table-heading bottom seam separates column captions from the first file row."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-phase7-table-head",
+    "css_block_sha256": "590ebc9dcc414ac14a626fde8572a66b168eec8ff1f6b7a6eb86d25166d64137",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-table-head",
+    "job": "secondary-metadata",
+    "reason": "Name, size and changed captions annotate table columns; owned filenames remain in independently styled row controls."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .file-row; check for nested bezels",
+    "css_block_sha256": "1f421fd0f8affc62f9c856fe124fa365ca3d1c0ac77253b6724ab9b663a920a3",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .file-row",
+    "job": "distinct-region",
+    "reason": "File-row bottom seams separate peer records inside the file list."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .file-name-button",
+    "css_block_sha256": "a2f2bd3a8c58230fb4cb479f61776bf7a6cc5a770c947ec6be444ca673733396",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .file-name-button",
+    "job": "compact-control-label",
+    "reason": "The file-name button identifies and opens an owned file; its small label needs a full target and must not be described as metadata."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view :where(.file-size, .file-changed)",
+    "css_block_sha256": "13cc96bb3cb1cc096f242d432e7b7f6b729b6127d7aa37ea8219708da436d0b8",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view :where(.file-size, .file-changed)",
+    "job": "secondary-metadata",
+    "reason": "The 12px file size/date supplies metadata beside a separate primary filename. Muted color replaced quiet color in the earlier source repair, without changing the role or threshold."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view :where(.files-empty, .files-loading, .files-error)",
+    "css_block_sha256": "b8179188519d7899aa11585cdc16e141135c94a06f3baef303ac0afbf99a18df",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view :where(.files-empty, .files-loading, .files-error)",
+    "job": "mixed-state-copy",
+    "reason": "Empty file-list explanation. File-list loading state. File-list error explanation and recovery context."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-loading-row; check for nested bezels",
+    "css_block_sha256": "c07e386d9687f7dbd10c3b30fb9c22cd6b3500970c15c52b37546bca017457f1",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-loading-row",
+    "job": "distinct-region",
+    "reason": "loading skeleton row separator. held initial list request skeleton"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-detail-panel; check for nested bezels",
+    "css_block_sha256": "d817763dc5cac2cf49fcd672a7b544a4e2c693fe219fe50d559861fa655e0dda",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-detail-panel",
+    "job": "distinct-region",
+    "reason": "The detail panel left seam separates the selected file's information from the file list on wide layouts."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-detail-meta; check for nested bezels",
+    "css_block_sha256": "38402d1191d0d27d6d339479b38d509a29dc4996a11a73da1fd1bd1d82111aae",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-detail-meta",
+    "job": "distinct-region",
+    "reason": "The single top seam on file-detail metadata divides the named metadata region from selected-file identity and actions. This is a specific region separator, not a nested action bezel."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-detail-meta",
+    "css_block_sha256": "38402d1191d0d27d6d339479b38d509a29dc4996a11a73da1fd1bd1d82111aae",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-detail-meta",
+    "job": "secondary-metadata",
+    "reason": "The 12px detail metadata terms name location, access, kind, size and offline availability beneath a separate primary identity. The inherited muted terms have 40 supported recorded glyph/contrast observations; values already used muted."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-operation-dock; check for nested bezels",
+    "css_block_sha256": "50baa7c4b62c3945562f115d7d2918178c7d9ea7844279b756f321cd86b21656",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-operation-dock",
+    "job": "distinct-region",
+    "reason": "file-operation dock boundary. active operations and expanded completed history"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-operation-row; check for nested bezels",
+    "css_block_sha256": "b49c81e9f71edcbc4e3e4938332d92e5daf5910f71bdcb849dfffd6a7ff5ec50",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-operation-row",
+    "job": "distinct-region",
+    "reason": "separator between file-operation records. active, completed and failed operation rows"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-operation-copy small",
+    "css_block_sha256": "53af524d2cbbd16e0266ec0e23cdc748db2d553b5f0a319670d9092ea69438c7",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-operation-copy small",
+    "job": "secondary-metadata",
+    "reason": "file-operation progress or transfer metadata. progress and verified transfer/cross-location text"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-dialog; check for nested bezels",
+    "css_block_sha256": "2bd3b587e50d1bf6636812f1cf2633d6376e32b93ef0e2819e5d49c1f412a6d5",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-dialog",
+    "job": "distinct-region",
+    "reason": "Files dialog perimeter separates a modal form from the Files workspace."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-phase7-dialog label, body[data-app=\"files\"] #files-view .files-choice-field",
+    "css_block_sha256": "d3514d0c5a17dfa10e34ba81b3affb48104f112be6903380188e43be7c5f4302",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-dialog label, body[data-app=\"files\"] #files-view .files-choice-field",
+    "job": "control-associated-label",
+    "reason": "Location/transfer form input labels. Kind/access/vault-workflow choice-group legends; child buttons keep their own control style."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-dialog input; check for nested bezels",
+    "css_block_sha256": "599d215a1565bce4b1f73d64d07b0c2d227b1236ce35d6fa9e10ae4f231b12d1",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-dialog input",
+    "job": "control-bezel",
+    "reason": "Files dialog inputs have their own editing outlines inside the form perimeter."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-phase7-dialog input",
+    "css_block_sha256": "599d215a1565bce4b1f73d64d07b0c2d227b1236ce35d6fa9e10ae4f231b12d1",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-dialog input",
+    "job": "compact-control-label",
+    "reason": "Files dialog input text belongs to editable 44px fields and must remain readable with focus."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view :where(.files-choice-row, .files-transfer-locations) button; check for nested bezels",
+    "css_block_sha256": "634c3c842778364e6d9a50d9d3810dd892b142d81f1a995d22ed56e73c15cf6a",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view :where(.files-choice-row, .files-transfer-locations) button",
+    "job": "control-bezel",
+    "reason": "Location kind/access/workflow choice button perimeter. Transfer destination choice button perimeter."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view :where(.files-choice-row, .files-transfer-locations) button",
+    "css_block_sha256": "634c3c842778364e6d9a50d9d3810dd892b142d81f1a995d22ed56e73c15cf6a",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view :where(.files-choice-row, .files-transfer-locations) button",
+    "job": "compact-control-label",
+    "reason": "Location kind/access/workflow selectable label. Transfer destination selectable label."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-phase7-form-error",
+    "css_block_sha256": "60f07f31ea9440d8820f5afc069a0d320f796598769dea2ad3e8dc0745c24033",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-form-error",
+    "job": "secondary-metadata",
+    "reason": "form validation error prose. location and transfer validation errors, no real external submit"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-vault-help",
+    "css_block_sha256": "60754997f4945119d3040733fcb6b955c8f236b4b2987513212c465120e41c63",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-vault-help",
+    "job": "secondary-metadata",
+    "reason": "vault keep/copy/move workflow explanation. keep/copy/move explanatory text"
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-vault-review",
+    "css_block_sha256": "0a03ebbaad9f6892881b7eace65513c2cf712392a21a322f62f26c56de191e42",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-vault-review",
+    "job": "secondary-metadata",
+    "reason": "vault import preview consequence and storage/conflict disclosure. synthetic preview of keep/copy/move, conflicts and available storage; no commit"
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-app-context; check for nested bezels",
+    "css_block_sha256": "628c1f5f2c78afb4bbac1dd653df0a90732e80133cd41cf5408c897bf2820885",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-app-context",
+    "job": "distinct-region",
+    "reason": "The compact Files app context top seam separates the shell identity from current location context."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-location-panel; check for nested bezels",
+    "css_block_sha256": "688bbe075dffaa3faa5476a28489afba66eaa05ecdbb9d40ca2afa62be299802",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-location-panel",
+    "job": "distinct-region",
+    "reason": "At compact widths the location panel stacks above the file browser, with a bottom seam replacing the right seam."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-phase7-detail-panel:not([hidden]); check for nested bezels",
+    "css_block_sha256": "1bdc47386f4ebbeed8bba78376c4cfba89dce5d0fb5da9e0e993874034b9ab96",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-phase7-detail-panel:not([hidden])",
+    "job": "distinct-region",
+    "reason": "The visible narrow-layout details panel uses a top edge when it stacks or overlays; wide-layout side-border evidence is insufficient."
+  }
+]

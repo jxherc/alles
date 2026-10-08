@@ -1,6 +1,7 @@
 import unittest
 from datetime import date
-from services.task_nl import parse_task, advance
+
+from services.task_nl import advance, parse_task
 
 T = date(2026, 6, 14)  # fixed "today" for determinism
 
@@ -10,6 +11,32 @@ class ParseTests(unittest.TestCase):
         p = parse_task("call mom tomorrow", T)
         self.assertEqual(p["due_date"], "2026-06-15")
         self.assertEqual(p["title"], "call mom")
+
+    def test_possessive_dates_keep_the_title_and_suggest_the_same_due_date(self):
+        for phrase, due in (
+            ("today", "2026-06-14"),
+            ("tomorrow", "2026-06-15"),
+            ("Friday", "2026-06-19"),
+            ("next Monday", "2026-06-15"),
+        ):
+            for apostrophe in ("'", "’"):
+                with self.subTest(phrase=phrase, apostrophe=apostrophe):
+                    title = f"prepare {phrase}{apostrophe}s reading"
+                    parsed = parse_task(title, T)
+                    self.assertEqual(parsed["title"], title)
+                    self.assertEqual(parsed["due_date"], due)
+
+    def test_plain_date_instructions_still_leave_only_the_task_title(self):
+        for phrase, due in (
+            ("today", "2026-06-14"),
+            ("tomorrow", "2026-06-15"),
+            ("Friday", "2026-06-19"),
+            ("next Monday", "2026-06-15"),
+        ):
+            with self.subTest(phrase=phrase):
+                parsed = parse_task(f"prepare reading {phrase}", T)
+                self.assertEqual(parsed["title"], "prepare reading")
+                self.assertEqual(parsed["due_date"], due)
 
     def test_priority_and_tags(self):
         p = parse_task("submit report #work !", T)
@@ -22,6 +49,36 @@ class ParseTests(unittest.TestCase):
         p = parse_task("call mom tomorrow !!", T)
         self.assertEqual(p["priority"], 3)
         self.assertEqual(p["title"], "call mom")
+
+    def test_month_name_date(self):
+        # F13: month-name dates used to never parse, so the task silently lost its due date
+        p = parse_task("submit report june 20", T)
+        self.assertEqual(p["due_date"], "2026-06-20")
+        self.assertEqual(p["title"], "submit report")
+
+    def test_month_name_day_first(self):
+        p = parse_task("party 20 june", T)
+        self.assertEqual(p["due_date"], "2026-06-20")
+        self.assertEqual(p["title"], "party")
+
+    def test_month_name_abbrev_with_ordinal(self):
+        p = parse_task("renew passport dec 25th", T)
+        self.assertEqual(p["due_date"], "2026-12-25")
+
+    def test_month_name_past_rolls_to_next_year(self):
+        # jan 3 is before the fixed today (jun 14 2026) -> next year's jan
+        p = parse_task("taxes jan 3", T)
+        self.assertEqual(p["due_date"], "2027-01-03")
+
+    def test_month_name_explicit_year(self):
+        p = parse_task("deadline june 20 2027", T)
+        self.assertEqual(p["due_date"], "2027-06-20")
+
+    def test_month_name_bare_year_is_not_a_day(self):
+        # "june 2027" has no day-of-month — must NOT read "20" out of "2027" as the day
+        p = parse_task("plan trip june 2027", T)
+        self.assertIsNone(p["due_date"])
+        self.assertIn("2027", p["title"])  # the text is left intact, not half-eaten
 
     def test_every_month_on_day(self):
         p = parse_task("pay rent every 1st", T)

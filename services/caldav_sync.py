@@ -7,11 +7,11 @@ crashes the app, it returns {"error": ...} strings the UI can show. Config is
 stored in data/caldav.json (gitignored, like the rest of data/).
 """
 
-import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from core.settings import data_dir
+from services.config_secrets import load_secret_config, migrate_secret_config, save_secret_config
 
 
 def _ics_esc(s) -> str:
@@ -26,7 +26,11 @@ def _ics_esc(s) -> str:
     )
 
 
-CFG_PATH = ROOT / "data" / "caldav.json"
+CFG_PATH: Path | None = None
+
+
+def _cfg_path() -> Path:
+    return CFG_PATH or data_dir() / "caldav.json"
 
 
 def available() -> bool:
@@ -39,10 +43,7 @@ def available() -> bool:
 
 
 def load_cfg() -> dict:
-    try:
-        return json.loads(CFG_PATH.read_text("utf-8"))
-    except Exception:
-        return {}
+    return load_secret_config(_cfg_path(), "caldav.password")
 
 
 def save_cfg(cfg: dict):
@@ -50,8 +51,11 @@ def save_cfg(cfg: dict):
     # keep the existing password if a blank one is sent (UI doesn't echo it back)
     if not cfg.get("password") and cur.get("password"):
         cfg["password"] = cur["password"]
-    CFG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CFG_PATH.write_text(json.dumps(cfg), "utf-8")
+    save_secret_config(_cfg_path(), cfg, "caldav.password")
+
+
+def migrate_cfg_secrets() -> int:
+    return migrate_secret_config(_cfg_path(), "caldav.password")
 
 
 def status() -> dict:
@@ -71,6 +75,22 @@ def _iso(dt) -> str:
     return dt.strftime("%Y-%m-%d") + "T00:00:00"
 
 
+def _ical_dt(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        return datetime.fromisoformat(raw).strftime("%Y%m%dT%H%M%S")
+    except ValueError:
+        pass
+    compact = raw.replace("-", "").replace(":", "").replace(" ", "T")
+    if "T" not in compact:
+        return compact
+    day, tm = compact.split("T", 1)
+    tm = "".join(ch for ch in tm if ch.isdigit())
+    return f"{day[:8]}T{tm[:6].ljust(6, '0')}"
+
+
 def _event_ics(
     uid: str, title: str, start_dt: str, all_day: bool, end_dt: str = "", description: str = ""
 ) -> str:
@@ -81,8 +101,12 @@ def _event_ics(
     DTEND + DESCRIPTION are included so a pushed event keeps its end time and notes: without
     DTEND the next pull reads no end and nulls the local end_dt (the round-trip lost the end)."""
     lines = [
-        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//alles//EN", "BEGIN:VEVENT",
-        f"UID:{uid}", f"SUMMARY:{_ics_esc(title)}",
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//alles//EN",
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"SUMMARY:{_ics_esc(title)}",
     ]
     if all_day:
         lines.append(f"DTSTART;VALUE=DATE:{(start_dt or '')[:10].replace('-', '')}")
@@ -90,15 +114,16 @@ def _event_ics(
             # stored end is the inclusive last day; RFC all-day DTEND is exclusive → +1 day
             from datetime import date as _date
             from datetime import timedelta as _td
+
             try:
                 excl = _date.fromisoformat(end_dt[:10]) + _td(days=1)
                 lines.append(f"DTEND;VALUE=DATE:{excl.isoformat().replace('-', '')}")
             except ValueError:
                 pass
     else:
-        lines.append(f"DTSTART:{(start_dt or '').replace('-', '').replace(':', '')}")
+        lines.append(f"DTSTART:{_ical_dt(start_dt)}")
         if end_dt:
-            lines.append(f"DTEND:{end_dt.replace('-', '').replace(':', '')}")
+            lines.append(f"DTEND:{_ical_dt(end_dt)}")
     if description:
         lines.append(f"DESCRIPTION:{_ics_esc(description)}")
     lines += ["END:VEVENT", "END:VCALENDAR", ""]
@@ -131,8 +156,8 @@ def sync() -> dict:
 
     from core.database import CalendarEvent, SessionLocal
 
-    start = datetime.utcnow() - timedelta(days=180)
-    end = datetime.utcnow() + timedelta(days=180)
+    start = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=180)
+    end = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=180)
     pulled = pushed = 0
     db = SessionLocal()
     try:

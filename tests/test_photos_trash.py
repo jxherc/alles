@@ -1,5 +1,5 @@
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -36,11 +36,15 @@ class PhotosTrashTests(ApiTest):
         self.tmp.cleanup()
         super().tearDown()
 
-    def _photo(self, name="p.png"):
-        (self.root / "photos" / name).write_bytes(_PNG)
-        (self.root / "photos" / ".thumbs" / name).write_bytes(_PNG)
+    def _photo(self, name="p.png", *, is_video=False):
+        data = b"\x00\x00ftypmp42moov" if is_video else _PNG
+        (self.root / "photos" / name).write_bytes(data)
+        if not is_video:
+            (self.root / "photos" / ".thumbs" / name).write_bytes(_PNG)
         d = self.db()
-        ph = Photo(filename=name, thumb=name, original_name=name)
+        ph = Photo(
+            filename=name, thumb="" if is_video else name, original_name=name, is_video=is_video
+        )
         d.add(ph)
         d.commit()
         pid = ph.id
@@ -66,6 +70,20 @@ class PhotosTrashTests(ApiTest):
         self.client.delete(f"/api/photos/{pid}")
         tr = self.client.get("/api/photos/trash").json()
         self.assertTrue(any(t["id"] == pid for t in tr))
+
+    def test_video_trash_item_carries_video_render_data(self):
+        pid = self._photo("clip.mp4", is_video=True)
+        self.client.delete(f"/api/photos/{pid}")
+        item = next(t for t in self.client.get("/api/photos/trash").json() if t["id"] == pid)
+        self.assertTrue(item["is_video"])
+        self.assertEqual(item["thumb"], f"/api/photos/thumb/{pid}")
+        self.assertEqual(item["original"], f"/api/photos/original/{pid}")
+
+    def test_video_without_thumb_does_not_serve_original_as_thumb(self):
+        pid = self._photo("clip.mp4", is_video=True)
+        self.client.delete(f"/api/photos/{pid}")
+        r = self.client.get(f"/api/photos/thumb/{pid}")
+        self.assertEqual(r.status_code, 404)
 
     def test_restore_unhides(self):
         pid = self._photo()
@@ -101,7 +119,7 @@ class PhotosTrashTests(ApiTest):
         self.client.delete(f"/api/photos/{pid}")
         d = self.db()
         it = d.query(TrashItem).filter_by(ref=pid).first()
-        it.expires_at = datetime.utcnow() - timedelta(days=1)
+        it.expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
         d.commit()
         trash.purge_expired(d)
         self.assertIsNone(d.get(Photo, pid))

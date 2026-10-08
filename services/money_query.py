@@ -53,13 +53,15 @@ def parse_period(text, today=None):
 
 
 def _prev_period(start, end, label):
-    if label in ("this month", "last month"):
+    if label == "this month":
+        # this month is partial (1st..today) — compare against last month truncated to the same
+        # day so it's month-to-date vs month-to-date, not vs a full month (a false "spent less")
         pm, py = (start.month - 1, start.year) if start.month > 1 else (12, start.year - 1)
-        return (
-            date(py, pm, 1),
-            _last_day(py, pm),
-            ("last month" if label == "this month" else MONTHS[pm - 1]),
-        )
+        last = _last_day(py, pm).day
+        return date(py, pm, 1), date(py, pm, min(end.day, last)), "last month"
+    if label == "last month":
+        pm, py = (start.month - 1, start.year) if start.month > 1 else (12, start.year - 1)
+        return date(py, pm, 1), _last_day(py, pm), MONTHS[pm - 1]
     length = (end - start).days
     pend = start - timedelta(days=1)
     return pend - timedelta(days=length), pend, "the prior period"
@@ -101,22 +103,32 @@ def _period_txns(db, start, end):
     from core.database import Account, Transaction
 
     accts = {a.id for a in db.query(Account).filter_by(archived=False).all()}
-    out = []
-    for t in db.query(Transaction).all():
-        if t.account_id not in accts:
-            continue
-        d = (t.date or "")[:10]
-        if start.isoformat() <= d <= end.isoformat():
-            out.append(t)
-    return out
+    if not accts:
+        return []
+    # half-open date range on the stored ISO string: a same-day timed txn ('...Thh:mm') still
+    # counts (matches the old [:10] python filter) without a full-table scan
+    lo, hi = start.isoformat(), (end + timedelta(days=1)).isoformat()
+    return (
+        db.query(Transaction)
+        .filter(Transaction.account_id.in_(accts), Transaction.date >= lo, Transaction.date < hi)
+        .all()
+    )
 
 
-def answer(db, query, today=None):
+def answer(db, query, today=None, *, rows=None):
     """a narrative answer to a spending question: period total + top categories + merchants,
-    with an optional comparison to the preceding period."""
+    with an optional comparison to the preceding period. Supplied rows bypass the local ledger."""
     today = today or date.today()
     start, end, label = parse_period(query, today)
-    txns = _period_txns(db, start, end)
+
+    def period_txns(period_start, period_end):
+        if rows is None:
+            return _period_txns(db, period_start, period_end)
+        lo = period_start.isoformat()
+        hi = (period_end + timedelta(days=1)).isoformat()
+        return [t for t in rows if lo <= (t.date or "") < hi]
+
+    txns = period_txns(start, end)
     spend = [t for t in txns if (t.amount or 0) < 0]
     spent = sum(-(t.amount or 0.0) for t in spend)
     lines = [f"{label}: spent {spent:.2f} across {len(spend)} transactions"]
@@ -129,7 +141,7 @@ def answer(db, query, today=None):
     q = (query or "").lower()
     if any(k in q for k in ("compare", " vs ", "vs.", "month-over-month", "month over month")):
         pstart, pend, plabel = _prev_period(start, end, label)
-        ptxns = _period_txns(db, pstart, pend)
+        ptxns = period_txns(pstart, pend)
         pspent = sum(-(t.amount or 0.0) for t in ptxns if (t.amount or 0) < 0)
         delta = spent - pspent
         lines.append(f"vs {plabel}: spent {pspent:.2f} ({'+' if delta >= 0 else ''}{delta:.2f})")

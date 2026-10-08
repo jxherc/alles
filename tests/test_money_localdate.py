@@ -1,7 +1,7 @@
 """money's 'current month / today' defaults must use LOCAL date.today() (like the rest of the app
-+ money's own recurring poster), not datetime.utcnow() — otherwise budget/alert defaults are off by
-a day/month near midnight on a non-UTC server. these patch money.date and would fail if the code
-went back to utcnow() (which the patch can't touch)."""
+and money's own recurring poster), not a UTC wall-clock date. Otherwise budget and alert defaults
+are off by a day or month near midnight on a non-UTC server. These tests patch money.date and fail
+if the implementation changes back to a separate UTC clock that the patch cannot control."""
 
 from datetime import date as _date
 from unittest import mock
@@ -30,8 +30,10 @@ class MoneyLocalDateTests(ApiTest):
         aid = db.query(Account).first().id
         db.close()
         # a big expense in march; only found if the default month resolves to the patched local today
-        self.client.post("/api/money/transactions",
-                         json={"account_id": aid, "date": "2026-03-20", "amount": -500.0, "payee": "rent"})
+        self.client.post(
+            "/api/money/transactions",
+            json={"account_id": aid, "date": "2026-03-20", "amount": -500.0, "payee": "rent"},
+        )
         with mock.patch.object(money, "date", FakeDate):
             r = self.client.get("/api/money/alerts").json()  # no ?month → default
         self.assertTrue(any(x["payee"] == "rent" for x in r["large_purchases"]))

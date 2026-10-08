@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
+from core.database import HabitLog
 from routes.habits import build_grid, completion_pct, daily_streak, week_done_count
 from tests._client import ApiTest
 
@@ -98,6 +99,108 @@ class HabitApiTests(ApiTest):
         r2 = self.client.post(f"/api/habits/{hid}/toggle", json={"date": "2026-06-20"})
         self.assertFalse(r2.json()["done"])
 
+    def test_explicit_day_state_survives_repeated_acknowledgment_attempts(self):
+        hid = self._create().json()["id"]
+        for done in [True, True, False, False]:
+            response = self.client.post(
+                f"/api/habits/{hid}/toggle", json={"date": "2026-06-20", "done": done}
+            )
+            self.assertEqual(response.json(), {"date": "2026-06-20", "done": done})
+            with self.db() as db:
+                self.assertEqual(db.query(HabitLog).filter_by(habit_id=hid).count(), int(done))
+
+    def test_explicit_day_state_respects_existing_legacy_date_spellings(self):
+        hid = self._create().json()["id"]
+        with self.db() as db:
+            db.add(HabitLog(habit_id=hid, date="20260620"))
+            db.commit()
+        response = self.client.post(
+            f"/api/habits/{hid}/toggle", json={"date": "2026-06-20", "done": True}
+        )
+        self.assertTrue(response.json()["done"])
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).filter_by(habit_id=hid).count(), 1)
+
+    def test_toggle_canonicalizes_accepted_compact_date_for_grid(self):
+        hid = self._create().json()["id"]
+        response = self.client.post(f"/api/habits/{hid}/toggle", json={"date": "20260620"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"done": True, "date": "2026-06-20"})
+        habit = next(
+            item
+            for item in self.client.get(
+                "/api/habits/overview", params={"date_q": "2026-06-20"}
+            ).json()["habits"]
+            if item["id"] == hid
+        )
+        self.assertTrue(habit["grid"][-1]["done"])
+        self.assertTrue(habit["done_today"])
+        self.assertEqual(habit["week_done"], 1)
+
+    def test_toggle_same_day_with_another_accepted_spelling_clears_log(self):
+        hid = self._create().json()["id"]
+        self.client.post(f"/api/habits/{hid}/toggle", json={"date": "2026-W25-6"})
+        response = self.client.post(f"/api/habits/{hid}/toggle", json={"date": "2026-06-20"})
+        self.assertEqual(response.json(), {"done": False, "date": "2026-06-20"})
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).filter_by(habit_id=hid).count(), 0)
+
+    def test_toggle_clears_all_legacy_spellings_of_only_that_day(self):
+        hid = self._create().json()["id"]
+        other = self._create(name="Walk").json()["id"]
+        with self.db() as db:
+            db.add_all(
+                [
+                    HabitLog(habit_id=hid, date="20260620"),
+                    HabitLog(habit_id=hid, date="2026-W25-6"),
+                    HabitLog(habit_id=hid, date="2026-06-19"),
+                    HabitLog(habit_id=other, date="20260620"),
+                ]
+            )
+            db.commit()
+        response = self.client.post(f"/api/habits/{hid}/toggle", json={"date": "2026-06-20"})
+        self.assertEqual(response.json(), {"done": False, "date": "2026-06-20"})
+        with self.db() as db:
+            remaining = {(log.habit_id, log.date) for log in db.query(HabitLog).all()}
+        self.assertEqual(
+            remaining,
+            {(hid, "2026-06-19"), (other, "20260620")},
+        )
+
+    def test_existing_compact_log_still_counts_as_done(self):
+        hid = self._create().json()["id"]
+        with self.db() as db:
+            db.add(HabitLog(habit_id=hid, date="20260620"))
+            db.commit()
+        habit = next(
+            item
+            for item in self.client.get(
+                "/api/habits/overview", params={"date_q": "2026-06-20"}
+            ).json()["habits"]
+            if item["id"] == hid
+        )
+        self.assertTrue(habit["grid"][-1]["done"])
+        self.assertTrue(habit["done_today"])
+
+    def test_existing_compact_log_counts_in_failure_risk(self):
+        hid = self._create().json()["id"]
+        yesterday = date.today() - timedelta(days=1)
+        with self.db() as db:
+            db.add(HabitLog(habit_id=hid, date=yesterday.strftime("%Y%m%d")))
+            db.commit()
+        risk = self.client.get(f"/api/habits/{hid}/risk", params={"window": 1}).json()
+        self.assertEqual(risk["recent_rate"], 1.0)
+
+    def test_existing_invalid_log_does_not_break_overview(self):
+        hid = self._create().json()["id"]
+        with self.db() as db:
+            db.add(HabitLog(habit_id=hid, date="invalid-old-row"))
+            db.commit()
+        response = self.client.get("/api/habits/overview")
+        self.assertEqual(response.status_code, 200)
+        habit = next(item for item in response.json()["habits"] if item["id"] == hid)
+        self.assertEqual(habit["week_done"], 0)
+
     def test_toggle_rejects_junk_date(self):
         # a junk date used to land in the log and 500 the overview later
         hid = self._create().json()["id"]
@@ -110,10 +213,18 @@ class HabitApiTests(ApiTest):
 
     def test_overview_rejects_junk_date_q(self):
         # bad date_q used to raise ValueError -> 500; now a clean 400
-        self.assertEqual(self.client.get("/api/habits/overview", params={"date_q": "garbage"}).status_code, 400)
-        self.assertEqual(self.client.get("/api/habits/overview", params={"date_q": "2026-13-40"}).status_code, 400)
+        self.assertEqual(
+            self.client.get("/api/habits/overview", params={"date_q": "garbage"}).status_code, 400
+        )
+        self.assertEqual(
+            self.client.get("/api/habits/overview", params={"date_q": "2026-13-40"}).status_code,
+            400,
+        )
         # a valid date_q still works
-        self.assertEqual(self.client.get("/api/habits/overview", params={"date_q": "2026-06-20"}).status_code, 200)
+        self.assertEqual(
+            self.client.get("/api/habits/overview", params={"date_q": "2026-06-20"}).status_code,
+            200,
+        )
 
     def test_toggle_idempotent_no_duplicate_logs(self):
         hid = self._create().json()["id"]
@@ -137,17 +248,17 @@ class HabitApiTests(ApiTest):
 
     # 4b slipping nudge
     def _age(self, hid, days):
-        from datetime import datetime, timedelta
-
         from core.database import Habit
 
         s = self.db()
-        s.get(Habit, hid).created_at = datetime.utcnow() - timedelta(days=days)
+        s.get(Habit, hid).created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
         s.commit()
         s.close()
 
     def _overview_one(self, hid):
-        return next(x for x in self.client.get("/api/habits/overview").json()["habits"] if x["id"] == hid)
+        return next(
+            x for x in self.client.get("/api/habits/overview").json()["habits"] if x["id"] == hid
+        )
 
     def test_patch_color_persists(self):
         hid = self._create().json()["id"]
@@ -170,13 +281,13 @@ class HabitApiTests(ApiTest):
         self.assertTrue(self._overview_one(hid)["risk"]["slipping"])
 
     def test_active_habit_not_slipping(self):
-        from datetime import timedelta
-
         hid = self._create().json()["id"]
         self._age(hid, 30)
         today = date.today()
         for i in range(10):  # done most recent days -> high rate + a streak
-            self.client.post(f"/api/habits/{hid}/toggle", json={"date": (today - timedelta(days=i)).isoformat()})
+            self.client.post(
+                f"/api/habits/{hid}/toggle", json={"date": (today - timedelta(days=i)).isoformat()}
+            )
         self.assertFalse(self._overview_one(hid)["risk"]["slipping"])
 
     def test_patch_updates(self):

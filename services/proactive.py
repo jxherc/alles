@@ -7,10 +7,9 @@ bypasses the toggle/interval so it can be tested before being switched on."""
 import hashlib
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from core.database import (
-    ModelEndpoint,
     ProactiveItem,
     ProactiveOutcome,
     ProactiveState,
@@ -73,7 +72,9 @@ def _in_quiet_hours(s, now=None):
 
 
 def _dedupe_key(source_keys):
-    return hashlib.sha1("|".join(sorted(source_keys)).encode()).hexdigest()[:16]
+    return hashlib.sha1("|".join(sorted(source_keys)).encode(), usedforsecurity=False).hexdigest()[
+        :16
+    ]
 
 
 def _interval_seconds():
@@ -87,17 +88,19 @@ def _interval_seconds():
 
 
 def _resolve_endpoint_model(db, s):
-    from services.routing import pick_endpoint
+    from services.model_resolver import ModelResolutionError, resolve_model
 
-    eps = db.query(ModelEndpoint).filter(ModelEndpoint.enabled == True).all()  # noqa: E712
-    ep = pick_endpoint(eps)
-    if not ep:
+    feature_default = {"model": (s.get("proactive_model") or "").strip()}
+    try:
+        selected = resolve_model(
+            db,
+            "jarvis",
+            feature_default=feature_default,
+            settings=s,
+        )
+    except ModelResolutionError:
         return None, None
-    model = (s.get("proactive_model") or "").strip()
-    if not model:
-        ml = ep.models_list()
-        model = ml[0] if ml else ""
-    return (ep, model) if model else (None, None)
+    return selected.endpoint, selected.model
 
 
 async def _run_model(messages, ep, model, s):
@@ -201,16 +204,16 @@ def _parse_suggestions(raw, sigs):
 
 
 async def _reason(db, sigs, s):
-    """run aide over the signals -> list of suggestion dicts. [] on any failure."""
+    """run aide over the signals -> list of suggestion dicts. None means retry later."""
     ep, model = _resolve_endpoint_model(db, s)
     if not ep:
-        return []
+        return None
     messages = _build_messages(sigs, _recall_context(db, sigs, s))
     try:
         raw = await _run_model(messages, ep, model, s)
     except Exception as e:
         log.warning(f"proactive model call failed: {e}")
-        return []
+        return None
     return _parse_suggestions(raw, sigs)
 
 
@@ -249,7 +252,7 @@ def _save_seen(db, keys):
     blob = json.dumps(sorted(keys))
     if st:
         st.seen_keys = blob
-        st.updated_at = datetime.utcnow()
+        st.updated_at = datetime.now(UTC).replace(tzinfo=None)
     else:
         db.add(ProactiveState(id="singleton", seen_keys=blob))
     db.commit()
@@ -259,7 +262,8 @@ def _save_seen(db, keys):
 def record_outcome(db, item, outcome):
     """log one card fate (acted|dismissed|ignored). latency = card age when it landed."""
     try:
-        latency = (datetime.utcnow() - (item.created_at or datetime.utcnow())).total_seconds()
+        now = datetime.now(UTC).replace(tzinfo=None)
+        latency = (now - (item.created_at or now)).total_seconds()
     except Exception:
         latency = 0.0
     db.add(
@@ -308,8 +312,10 @@ def _category_weight(db, cat):
 
 def _all_category_weights(db):
     """{category: weight} from one scan — avoids an N+1 over outcomes."""
-    return {cat: _weight_from_counts(c["acted"], c["dismissed"], c["ignored"])
-            for cat, c in _outcome_counts(db).items()}
+    return {
+        cat: _weight_from_counts(c["acted"], c["dismissed"], c["ignored"])
+        for cat, c in _outcome_counts(db).items()
+    }
 
 
 def feedback_stats(db):
@@ -344,7 +350,7 @@ def _upsert(db, cards, sigs):
         if live:
             live.score, live.urgency = score, urg
             live.title, live.body, live.link = c["title"], c["body"], c["link"]
-            live.updated_at = datetime.utcnow()
+            live.updated_at = datetime.now(UTC).replace(tzinfo=None)
             continue
         # a dismissed card with this exact key stays suppressed
         if db.query(ProactiveItem).filter(ProactiveItem.dedupe_key == dk).first():
@@ -395,19 +401,25 @@ async def _maybe_push(db, s):
     )
     if not rows:
         return 0
-    from routes.push import broadcast
+    from services.push_delivery import broadcast_result
 
     sent = 0
     for r in rows:
+        # Claim before sending. ``pushed`` also quarantines an uncertain result;
+        # a confirmed no-delivery result clears it for a safe later retry.
+        r.pushed = True
+        db.commit()
         try:
-            await broadcast(
+            result = await broadcast_result(
                 {"title": "aide", "body": r.title, "url": "/", "tag": f"proactive-{r.id}"}
             )
-            r.pushed = True
-            sent += 1
+            if result["sent"]:
+                sent += 1
+            elif not result["uncertain"]:
+                r.pushed = False
+            db.commit()
         except Exception as e:
-            log.warning(f"proactive push failed: {e}")
-    db.commit()
+            log.warning("proactive push outcome uncertain: %s", type(e).__name__)
     return sent
 
 
@@ -428,7 +440,10 @@ async def run(force=False):
     try:
         # prune against the FULL signal set - a card should only be dropped when its
         # situation actually resolved, not when the user toggled its category off
-        full = signals.gather(db)
+        unavailable = set()
+        full = signals.gather(db, unavailable=unavailable)
+        if unavailable:
+            return {"ran": False, "reason": "sources_unavailable", "sources": sorted(unavailable)}
         _prune_resolved(db, full)
         cats = _enabled_categories(s)
         min_u = int(s.get("pidx_proactive_min_urgency", 1))
@@ -440,6 +455,8 @@ async def run(force=False):
         if not force and all(x["key"] in seen for x in sigs):
             return {"ran": False, "reason": "nothing_new"}
         cards = await _reason(db, sigs, s)
+        if cards is None:
+            return {"ran": False, "reason": "model_failed", "signals": len(sigs)}
         written = _upsert(db, cards, sigs)
         pushed = await _maybe_push(db, s)
         _save_seen(db, {x["key"] for x in sigs})

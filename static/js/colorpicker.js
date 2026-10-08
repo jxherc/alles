@@ -12,6 +12,7 @@ let _h = 0, _s = 100, _v = 100;
 let _drag = null;
 let _onOutside = null;
 let _onEsc = null;
+let _pickerSequence = 0;
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
@@ -74,12 +75,15 @@ function computeSuggestions() {
 function buildPopover() {
   const p = document.createElement('div');
   p.className = 'cp-popover';
+  p.id = 'color-picker-popover';
+  p.setAttribute('role', 'dialog');
+  p.setAttribute('aria-label', 'choose color');
   p.innerHTML = `
     <div class="cp-sl" data-drag="sl"><div class="cp-sl-white"></div><div class="cp-sl-black"></div><div class="cp-sl-handle"></div></div>
     <div class="cp-hue" data-drag="hue"><div class="cp-hue-handle"></div></div>
     <div class="cp-row">
       <div class="cp-preview"></div>
-      <input type="text" class="cp-hex" maxlength="7" spellcheck="false" autocomplete="off">
+      <input type="text" class="cp-hex" aria-label="hex color" maxlength="7" spellcheck="false" autocomplete="off">
       <button class="cp-eyedropper" title="eyedropper" type="button">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22l4-4m0 0l3-3 5 5-3 3a2 2 0 01-2.8 0l-2.2-2.2a2 2 0 010-2.8z"/><path d="M14 8l3-3a3 3 0 014.2 4.2l-3 3-4.2-4.2z"/></svg>
       </button>
@@ -87,7 +91,8 @@ function buildPopover() {
     <div class="cp-section-label">suggestions</div>
     <div class="cp-swatches cp-suggestions"></div>
     <div class="cp-section-label">recent</div>
-    <div class="cp-swatches cp-recent"></div>`;
+    <div class="cp-swatches cp-recent"></div>
+    <button type="button" class="btn cp-done">done</button>`;
   document.body.appendChild(p);
   wireHandlers(p);
   return p;
@@ -141,7 +146,15 @@ function wireHandlers(p) {
     let v = hex.value.trim(); if (!v.startsWith('#')) v = '#' + v;
     if (/^#[0-9a-f]{6}$/i.test(v)) { setFromHex(v); applyToInput(true); }
   });
-  hex.addEventListener('keydown', e => { if (e.key === 'Enter') { commitCurrent(); close(); } if (e.key === 'Escape') close(); });
+  hex.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); commitCurrent(); close(); } });
+  p.querySelector('.cp-done').addEventListener('click', () => { commitCurrent(); close(); });
+  p.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const items = [...p.querySelectorAll('input, button:not([disabled])')];
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
   p.addEventListener('click', e => {
     const sw = e.target.closest('.cp-swatch');
     if (sw && sw.dataset.hex) { setFromHex(sw.dataset.hex); applyToInput(true); commitCurrent(); }
@@ -189,23 +202,29 @@ function _detachOutsideHandlers() {
   if (_onOutside) { document.removeEventListener('click', _onOutside, true); document.removeEventListener('pointerdown', _onOutside, true); _onOutside = null; }
   if (_onEsc) { document.removeEventListener('keydown', _onEsc, true); _onEsc = null; }
 }
-function _destroyPopover() {
+function _destroyPopover(restoreFocus = false) {
+  const opener = _input;
   _detachOutsideHandlers();
   if (_popover && _popover.parentNode) _popover.parentNode.removeChild(_popover);
   _popover = null; _input = null; _drag = null;
+  opener?.setAttribute('aria-expanded', 'false');
+  if (restoreFocus && opener?.isConnected) opener.focus({ preventScroll: true });
 }
 
 function open(inputEl) {
   _destroyPopover();
   _popover = buildPopover();
   _input = inputEl;
+  inputEl.setAttribute('aria-expanded', 'true');
+  _popover.setAttribute('aria-labelledby', inputEl.id);
   setFromHex(inputEl.value || '#000000');
   requestAnimationFrame(() => { if (_popover && _input) position(_popover, _input); });
   syncUI();
+  _popover.querySelector('.cp-hex').focus({ preventScroll: true });
   _onOutside = e => {
     if (_drag || !_popover) return;
     if (_popover.contains(e.target) || e.target === _input) return;
-    close();
+    close(false);
   };
   _onEsc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
   requestAnimationFrame(() => {
@@ -214,7 +233,7 @@ function open(inputEl) {
     document.addEventListener('keydown', _onEsc, true);
   });
 }
-function close() { _destroyPopover(); }
+function close(restoreFocus = true) { _destroyPopover(restoreFocus); }
 
 const _NATIVE_VALUE_DESC = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
 function _syncSwatch(el) { const v = _NATIVE_VALUE_DESC.get.call(el); if (/^#[0-9a-f]{6}$/i.test(v || '')) el.style.background = v; }
@@ -224,17 +243,26 @@ export function attachColorPicker(inputEl) {
   inputEl.dataset.cpAttached = '1';
   const initial = inputEl.value || inputEl.getAttribute('value') || '#000000';
   inputEl.type = 'text'; inputEl.readOnly = true; inputEl.classList.add('cp-swatch-input');
+  if (!inputEl.id) inputEl.id = `color-picker-${++_pickerSequence}`;
+  inputEl.setAttribute('role', 'button');
+  inputEl.setAttribute('aria-label', inputEl.getAttribute('aria-label') || inputEl.closest('label')?.textContent.trim() || 'choose color');
+  inputEl.setAttribute('aria-haspopup', 'dialog');
+  inputEl.setAttribute('aria-expanded', 'false');
+  inputEl.setAttribute('aria-controls', 'color-picker-popover');
   Object.defineProperty(inputEl, 'value', {
     configurable: true,
     get() { return _NATIVE_VALUE_DESC.get.call(this); },
     set(v) { _NATIVE_VALUE_DESC.set.call(this, v); _syncSwatch(this); },
   });
   inputEl.value = initial;
-  inputEl.addEventListener('mousedown', e => {
+  const activate = e => {
     e.preventDefault(); e.stopPropagation();
     if (_input === inputEl && _popover) close(); else open(inputEl);
+  };
+  inputEl.addEventListener('click', activate);
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') activate(e);
   });
-  inputEl.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); });
 }
 
 export function initColorPickers(root = document) { root.querySelectorAll('input[type="color"]').forEach(attachColorPicker); }

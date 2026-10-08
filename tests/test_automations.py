@@ -1,7 +1,21 @@
+import asyncio
+import json
 import unittest
+from datetime import date, timedelta
+from unittest import mock
 
+from core.database import (
+    AutomationAttempt,
+    AutomationRule,
+    DayEvent,
+    FinanceLedgerState,
+    MailAccount,
+    Subscription,
+    Task,
+)
+from services import actual_finance, automations, day_events, signals
 from services.automations import _render, _trim
-from tests._client import ApiTest
+from tests._client import ApiTest, VaultApiTest
 
 
 class RuleEditTests(ApiTest):
@@ -100,7 +114,9 @@ class RuleEditTests(ApiTest):
         d = self.client.patch(f"/api/automations/{rid}", json={"enabled": False}).json()
         self.assertFalse(d["enabled"])
         d = self.client.patch(f"/api/automations/{rid}", json={"enabled": True}).json()
-        self.assertTrue(d["enabled"])
+        self.assertFalse(d["enabled"])
+        self.assertTrue(d["enabled_intent"])
+        self.assertEqual(d["migration_state"], "needs_review")
 
     def test_delete_missing_404(self):
         self.assertEqual(self.client.delete("/api/automations/nope").status_code, 404)
@@ -118,7 +134,9 @@ class RuleEditTests(ApiTest):
         # a trigger that's wired but missing from options is unreachable from the UI
         from services.automations import TRIGGERS
 
-        exposed = {t["value"] for t in self.client.get("/api/automations/options").json()["triggers"]}
+        exposed = {
+            t["value"] for t in self.client.get("/api/automations/options").json()["triggers"]
+        }
         self.assertEqual(set(TRIGGERS), exposed)
 
     def test_patch_action_arg_only(self):
@@ -165,6 +183,373 @@ class TrimTests(unittest.TestCase):
     def test_trim_noop_when_small(self):
         d = {"a": 1, "b": 2}
         self.assertIs(_trim(d, keep=200), d)
+
+
+class SubscriptionAuthorityTests(ApiTest):
+    def _rule(self, legacy_due, *, canonical):
+        db = self.db()
+        sub = Subscription(name="old plan", next_due=legacy_due, price=8)
+        rule = AutomationRule(
+            name="renewal",
+            trigger="sub_renewing",
+            trigger_arg="3",
+            action="create_task",
+            action_arg="{name}:{date}:{price}",
+        )
+        db.add_all([sub, rule])
+        if canonical:
+            db.add(
+                FinanceLedgerState(
+                    id="primary",
+                    mode="actual",
+                    active_run_id="run-automation",
+                    actual_budget_id="budget-automation",
+                    actual_sync_id="sync-automation",
+                    legacy_read_only=True,
+                )
+            )
+        db.commit()
+        result = sub.id, rule.id
+        db.close()
+        return result
+
+    def _state(self, rule_id):
+        db = self.db()
+        rule = db.get(AutomationRule, rule_id)
+        result = [task.title for task in db.query(Task).all()], json.loads(rule.state or "{}")
+        db.close()
+        return result
+
+    def test_legacy_subscription_rule_still_fires(self):
+        due = date.today().isoformat()
+        sid, rule_id = self._rule(due, canonical=False)
+        asyncio.run(automations.run_automations())
+        tasks, state = self._state(rule_id)
+        self.assertEqual(tasks, [f"old plan:{due}:8.0"])
+        self.assertIn(f"{sid}:{due}", state["done"])
+
+    def test_canonical_subscription_rule_uses_current_schedule(self):
+        due = date.today().isoformat()
+        sid, rule_id = self._rule((date.today() + timedelta(days=40)).isoformat(), canonical=True)
+        schedule = {
+            "id": sid,
+            "name": "current plan",
+            "next_due": due,
+            "price": 12,
+            "active": True,
+        }
+        with mock.patch.object(actual_finance, "subscription_schedules", return_value=[schedule]):
+            asyncio.run(automations.run_automations())
+        tasks, state = self._state(rule_id)
+        self.assertEqual(tasks, [f"current plan:{due}:12"])
+        self.assertIn(f"{sid}:{due}", state["done"])
+
+    def test_canonical_subscription_rule_ignores_frozen_due_date(self):
+        _sid, rule_id = self._rule(date.today().isoformat(), canonical=True)
+        schedule = {
+            "id": _sid,
+            "name": "current plan",
+            "next_due": (date.today() + timedelta(days=40)).isoformat(),
+            "price": 12,
+            "active": True,
+        }
+        with mock.patch.object(actual_finance, "subscription_schedules", return_value=[schedule]):
+            asyncio.run(automations.run_automations())
+        tasks, state = self._state(rule_id)
+        self.assertEqual(tasks, [])
+        self.assertNotIn("done", state)
+
+    def test_canonical_subscription_outage_does_not_fire_frozen_due_date(self):
+        _sid, rule_id = self._rule(date.today().isoformat(), canonical=True)
+        with mock.patch.object(
+            actual_finance,
+            "subscription_schedules",
+            side_effect=actual_finance.ActualFinanceUnavailable("offline"),
+        ):
+            asyncio.run(automations.run_automations())
+        tasks, state = self._state(rule_id)
+        self.assertEqual(tasks, [])
+        self.assertNotIn("done", state)
+
+
+class DayEventOwnershipTests(ApiTest):
+    def test_days_signals_and_automation_use_the_same_repeat_occurrence(self):
+        today = date.today()
+        original = today - timedelta(days=365)
+        target, _nth = day_events.next_occurrence(original, today, "yearly")
+        self.assertLessEqual((target - today).days, 1)
+        db = self.db()
+        event = DayEvent(name="anniversary", date=original.isoformat(), repeat="yearly")
+        rule = AutomationRule(
+            name="day reminder",
+            trigger="day_event_near",
+            trigger_arg="3",
+            action="create_task",
+            action_arg="{name}:{date}",
+        )
+        db.add_all([event, rule])
+        db.commit()
+        event_id, rule_id = event.id, rule.id
+        matching = [row for row in signals._day_events(db, today) if row["data"]["id"] == event_id]
+        self.assertEqual([row["key"] for row in matching], [f"day_event:{event_id}:{target}"])
+        db.close()
+
+        response = self.client.get("/api/days")
+        self.assertEqual(response.status_code, 200, response.text)
+        listed = next(row for row in response.json()["events"] if row["id"] == event_id)
+        self.assertEqual(listed["target"], target.isoformat())
+
+        asyncio.run(automations.run_automations())
+        asyncio.run(automations.run_automations())
+        db = self.db()
+        self.assertEqual(
+            [task.title for task in db.query(Task).all()],
+            [f"anniversary:{target.isoformat()}"],
+        )
+        state = json.loads(db.get(AutomationRule, rule_id).state or "{}")
+        self.assertIn(f"{event_id}:{target.isoformat()}", state["done"])
+        db.close()
+
+
+class AutomationSafetyTests(ApiTest):
+    def _rule(self, *, action="create_task", action_arg="task"):
+        db = self.db()
+        rule = AutomationRule(
+            name="safe rule",
+            trigger="daily_at",
+            trigger_arg="00:00",
+            action=action,
+            action_arg=action_arg,
+        )
+        db.add(rule)
+        db.commit()
+        db.refresh(rule)
+        return db, rule
+
+    def test_one_occurrence_runs_only_once(self):
+        db, rule = self._rule(action_arg="only once")
+        first = asyncio.run(automations._fire(db, rule, {"dedupe": "same occurrence"}))
+        second = asyncio.run(automations._fire(db, rule, {"dedupe": "same occurrence"}))
+
+        self.assertEqual(first["status"], "succeeded")
+        self.assertTrue(first["executed"])
+        self.assertEqual(second["status"], "succeeded")
+        self.assertFalse(second["executed"])
+        self.assertEqual(db.query(Task).filter_by(title="only once").count(), 1)
+        self.assertEqual(db.query(AutomationAttempt).count(), 1)
+        db.close()
+
+    def test_blank_task_action_fails_without_saving_an_empty_record(self):
+        db, rule = self._rule(action_arg="   ")
+        result = asyncio.run(automations._fire(db, rule, {"dedupe": "blank task"}))
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(db.query(Task).count(), 0)
+        db.close()
+
+    def test_task_action_trims_its_rendered_title(self):
+        db, rule = self._rule(action_arg="  follow up  ")
+        result = asyncio.run(automations._fire(db, rule, {"dedupe": "trimmed task"}))
+        self.assertEqual(result["status"], "succeeded")
+        self.assertEqual(db.query(Task).one().title, "follow up")
+        db.close()
+
+    def test_uncertain_push_is_never_retried_automatically(self):
+        db, rule = self._rule(action="push", action_arg="ping")
+        delivery = mock.AsyncMock(
+            return_value={
+                "sent": 0,
+                "failed": 0,
+                "uncertain": 1,
+                "pruned": 0,
+                "total": 1,
+            }
+        )
+        with mock.patch("services.push_delivery.broadcast_result", delivery):
+            first = asyncio.run(automations._fire(db, rule, {"dedupe": "push-1"}))
+            second = asyncio.run(automations._fire(db, rule, {"dedupe": "push-1"}))
+
+        self.assertEqual(first["status"], "uncertain")
+        self.assertEqual(second["status"], "uncertain")
+        self.assertFalse(second["executed"])
+        self.assertEqual(delivery.await_count, 1)
+        db.close()
+
+    def test_no_push_recipient_is_a_confirmed_failure(self):
+        db, rule = self._rule(action="push", action_arg="ping")
+        result = asyncio.run(automations._fire(db, rule, {"dedupe": "push-empty"}))
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("no live push", result["error"])
+        db.close()
+
+    def test_uncertain_notification_is_never_retried_automatically(self):
+        db, rule = self._rule(action="notify", action_arg="ping")
+        delivery = mock.AsyncMock(return_value={"discord": False, "telegram": None})
+        with mock.patch("services.notify.send", delivery):
+            first = asyncio.run(automations._fire(db, rule, {"dedupe": "notify-1"}))
+            second = asyncio.run(automations._fire(db, rule, {"dedupe": "notify-1"}))
+        self.assertEqual(first["status"], "uncertain")
+        self.assertEqual(second["status"], "uncertain")
+        self.assertEqual(delivery.await_count, 1)
+        db.close()
+
+    def test_occurrence_identity_does_not_store_private_source_text(self):
+        db, rule = self._rule()
+        private_value = "/private/vault/work/secret-file.md"
+        asyncio.run(automations._fire(db, rule, {"dedupe": private_value}))
+        attempt = db.query(AutomationAttempt).one()
+        self.assertNotIn("private", attempt.occurrence_key)
+        self.assertNotIn("secret-file", attempt.occurrence_key)
+        self.assertEqual(len(attempt.occurrence_key), 64)
+        db.close()
+
+    def test_interrupted_claim_becomes_uncertain_before_jobs_resume(self):
+        db, rule = self._rule()
+        attempt = AutomationAttempt(
+            rule_id=rule.id,
+            occurrence_key="a" * 64,
+            action=rule.action,
+            status="running",
+        )
+        db.add(attempt)
+        db.commit()
+        attempt_id = attempt.id
+        db.close()
+
+        self.assertEqual(automations.reconcile_interrupted_attempts(), 1)
+        db = self.db()
+        attempt = db.get(AutomationAttempt, attempt_id)
+        self.assertEqual(attempt.status, "uncertain")
+        self.assertIsNotNone(attempt.finished_at)
+        db.close()
+
+    def test_canceled_action_is_saved_as_uncertain(self):
+        db, rule = self._rule(action="push")
+        with mock.patch.object(
+            automations,
+            "_perform_action",
+            mock.AsyncMock(side_effect=asyncio.CancelledError),
+        ):
+            with self.assertRaises(asyncio.CancelledError):
+                asyncio.run(automations._fire(db, rule, {"dedupe": "shutdown"}))
+        attempt = db.query(AutomationAttempt).one()
+        self.assertEqual(attempt.status, "uncertain")
+        db.close()
+
+    def test_daily_success_marker_is_written_only_after_success(self):
+        db, rule = self._rule(action="push")
+        rule_id = rule.id
+        db.close()
+
+        with mock.patch.object(
+            automations,
+            "_fire",
+            mock.AsyncMock(return_value={"status": "uncertain"}),
+        ):
+            asyncio.run(automations.run_automations())
+        db = self.db()
+        self.assertNotIn("last_daily", json.loads(db.get(AutomationRule, rule_id).state))
+        db.close()
+
+        with mock.patch.object(
+            automations,
+            "_fire",
+            mock.AsyncMock(return_value={"status": "succeeded"}),
+        ):
+            asyncio.run(automations.run_automations())
+        db = self.db()
+        self.assertIn("last_daily", json.loads(db.get(AutomationRule, rule_id).state))
+        db.close()
+
+    def test_attempt_history_and_honest_manual_test_response(self):
+        rule_id = self.client.post(
+            "/api/automations",
+            json={"trigger": "daily_at", "trigger_arg": "00:00", "action": "push"},
+        ).json()["id"]
+        response = self.client.post(f"/api/automations/{rule_id}/test")
+        self.assertEqual(response.status_code, 409)
+
+        attempts = self.client.get(f"/api/automations/{rule_id}/attempts").json()
+        self.assertEqual(attempts, [])
+        listed = self.client.get("/api/automations").json()
+        self.assertIsNone(listed[0]["last_attempt"])
+
+    def test_deleting_rule_removes_attempt_history(self):
+        db, rule = self._rule()
+        rule_id = rule.id
+        asyncio.run(automations._fire(db, rule, {"dedupe": "delete-me"}))
+        db.close()
+        self.assertEqual(self.client.delete(f"/api/automations/{rule_id}").status_code, 200)
+        db = self.db()
+        self.assertEqual(db.query(AutomationAttempt).filter_by(rule_id=rule_id).count(), 0)
+        db.close()
+
+
+class DocAutomationSafetyTests(VaultApiTest):
+    def test_uncertain_note_write_is_not_repeated(self):
+        db = self.db()
+        rule = AutomationRule(
+            name="doc rule",
+            trigger="doc_tag",
+            trigger_arg="urgent",
+            action="create_note",
+            action_arg="{path}",
+        )
+        db.add(rule)
+        db.commit()
+        rule_id = rule.id
+        db.close()
+
+        with mock.patch(
+            "services.notes_vault.create",
+            side_effect=OSError("simulated uncertain filesystem result"),
+        ) as create:
+            asyncio.run(automations.on_doc_saved("private.md", "#urgent"))
+            asyncio.run(automations.on_doc_saved("private.md", "#urgent"))
+
+        self.assertEqual(create.call_count, 1)
+        db = self.db()
+        self.assertNotIn(
+            "private.md", json.loads(db.get(AutomationRule, rule_id).state).get("done", {})
+        )
+        self.assertEqual(db.query(AutomationAttempt).one().status, "uncertain")
+        db.close()
+
+
+class MailAutomationTests(ApiTest):
+    def test_new_mail_account_is_baselined_not_fired(self):
+        db = self.db()
+        old = MailAccount(id="old", email="old@example.com")
+        new = MailAccount(id="new", email="new@example.com")
+        rule = AutomationRule(
+            trigger="mail_from",
+            trigger_arg="boss@",
+            action="create_task",
+            action_arg="{subject}",
+            state=json.dumps({"uids": {"old": 9}}),
+        )
+        db.add_all([old, new, rule])
+        db.commit()
+
+        def fake_fetch(acct, folder, limit):
+            if acct["email"] == "old@example.com":
+                return [{"uid": "10", "from": "boss@example.com", "subject": "new boss mail"}]
+            return [{"uid": "100", "from": "boss@example.com", "subject": "historic boss mail"}]
+
+        fired = []
+
+        async def fake_fire(_db, _rule, ctx):
+            fired.append(ctx)
+
+        with (
+            mock.patch("services.mail.fetch_inbox", fake_fetch),
+            mock.patch.object(automations, "_fire", fake_fire),
+        ):
+            asyncio.run(automations._check_mail_rule(db, rule, json.loads(rule.state)))
+
+        self.assertEqual([f["subject"] for f in fired], ["new boss mail"])
+        db.refresh(rule)
+        self.assertEqual(json.loads(rule.state)["uids"], {"old": 10, "new": 100})
+        db.close()
 
 
 if __name__ == "__main__":

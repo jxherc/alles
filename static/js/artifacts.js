@@ -1,7 +1,10 @@
 import { mdToHtml, escapeHtml } from './util.js';
 
+let _returnFocus = null;
+
 export function openArtifact(content, type, title, lang = '') {
   const panel = document.getElementById('artifact-panel');
+  if (!panel.classList.contains('open')) _returnFocus = document.activeElement;
   panel.querySelector('.artifact-title').textContent = title || 'artifact';
   panel.querySelector('.artifact-type-badge').textContent = type;
 
@@ -27,11 +30,18 @@ export function openArtifact(content, type, title, lang = '') {
 
   document.querySelector('.app').classList.add('artifact-open');
   panel.classList.add('open');
+  panel.inert = false;
+  document.getElementById('artifact-close-btn')?.focus();
 }
 
 export function closeArtifactPanel() {
+  const panel = document.getElementById('artifact-panel');
+  const returnFocus = panel.contains(document.activeElement);
   document.querySelector('.app').classList.remove('artifact-open');
-  document.getElementById('artifact-panel').classList.remove('open');
+  panel.classList.remove('open');
+  panel.inert = true;
+  if (returnFocus) _returnFocus?.focus();
+  _returnFocus = null;
 }
 
 export function extractArtifacts(text) {

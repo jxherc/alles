@@ -1,14 +1,13 @@
-"""
-web push subscriptions — the browser registers here, the reminder loop (and
-anything else) broadcasts through `broadcast()`.
-"""
+"""HTTP endpoints for browser push subscriptions and a delivery test."""
 
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, SessionLocal, PushSubscription
-from services import webpush
+
+from core.database import PushSubscription, get_db
+from services import push_delivery, webpush
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("aide.push")
@@ -57,30 +56,21 @@ def status(db: DbSession = Depends(get_db)):
 
 @router.post("/push/test")
 async def test_push():
-    n = await broadcast(
+    res = await push_delivery.broadcast_result(
         {"title": "alles", "body": "push notifications are working", "url": "/", "tag": "push-test"}
     )
-    if n == 0:
+    if res["total"] == 0:
         raise HTTPException(400, "no push subscriptions registered")
-    return {"ok": True, "sent": n}
-
-
-async def broadcast(payload: dict) -> int:
-    """send to every registered browser, pruning dead subscriptions. returns
-    how many deliveries were attempted against live subscriptions."""
-    db = SessionLocal()
-    try:
-        subs = db.query(PushSubscription).all()
-        sent = 0
-        for s in subs:
-            alive = await webpush.send_push(
-                {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth}, payload
-            )
-            if alive:
-                sent += 1
-            else:
-                db.delete(s)
-        db.commit()
-        return sent
-    finally:
-        db.close()
+    if res["sent"] == 0:
+        if res["uncertain"]:
+            raise HTTPException(502, "push delivery outcome is uncertain")
+        if res["failed"]:
+            raise HTTPException(502, "push delivery failed")
+        raise HTTPException(400, "no live push subscriptions registered")
+    return {
+        "ok": True,
+        "sent": res["sent"],
+        "failed": res["failed"],
+        "uncertain": res["uncertain"],
+        "pruned": res["pruned"],
+    }

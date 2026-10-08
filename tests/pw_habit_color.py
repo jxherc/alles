@@ -3,6 +3,7 @@
 needs a fresh instance: ALLES_DATA=.tmp_hc AUTH_ENABLED=false PORT=8077 python app.py
   PYTHONIOENCODING=utf-8 python tests/pw_habit_color.py
 """
+
 from playwright.sync_api import sync_playwright
 
 BASE = "http://habits.localhost:8077"
@@ -34,7 +35,9 @@ def main():
         )
         print("card accent after save:", accent)
         assert "#34d399" in (accent or ""), accent
-        api = pg.evaluate("() => fetch('/api/habits/overview').then(r=>r.json()).then(j=>j.habits[0].color)")
+        api = pg.evaluate(
+            "() => fetch('/api/habits/overview').then(r=>r.json()).then(j=>j.habits[0].color)"
+        )
         assert api == "#34d399", api
         b.close()
     print("PASS: habit color picker sets + persists the accent")

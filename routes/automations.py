@@ -1,10 +1,13 @@
 """automation rules CRUD — the engine lives in services/automations.py"""
 
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, AutomationRule
-from services.automations import TRIGGERS, ACTIONS
+
+from core.database import AutomationAttempt, AutomationRule, JarvisWorkflow, get_db
+from services.automations import ACTIONS, TRIGGERS
 
 router = APIRouter(prefix="/api")
 
@@ -18,7 +21,11 @@ _TRIGGER_META = [
     {"value": "day_event_near", "label": "days-event is within…", "arg": "days (e.g. 7)"},
     {"value": "daily_at", "label": "every day at…", "arg": "HH:MM (server time)"},
     {"value": "doc_tag", "label": "doc saved with #tag…", "arg": "tag (e.g. invoice)"},
-    {"value": "agent_tool", "label": "agent uses a tool…", "arg": "tool name or glob (e.g. write_* or *)"},
+    {
+        "value": "agent_tool",
+        "label": "agent uses a tool…",
+        "arg": "tool name or glob (e.g. write_* or *)",
+    },
 ]
 _ACTION_META = [
     {
@@ -59,7 +66,21 @@ def _fmt(r: AutomationRule) -> dict:
         "action": r.action,
         "action_arg": r.action_arg,
         "enabled": r.enabled,
+        "enabled_intent": bool(r.enabled_intent),
+        "migrated_workflow_id": r.migrated_workflow_id,
+        "migration_state": "needs_review" if r.migrated_workflow_id else "legacy",
         "created_at": r.created_at.isoformat(),
+    }
+
+
+def _fmt_attempt(attempt: AutomationAttempt) -> dict:
+    return {
+        "id": attempt.id,
+        "status": attempt.status,
+        "action": attempt.action,
+        "error": attempt.error or "",
+        "started_at": attempt.started_at.isoformat() if attempt.started_at else None,
+        "finished_at": attempt.finished_at.isoformat() if attempt.finished_at else None,
     }
 
 
@@ -70,7 +91,33 @@ def options():
 
 @router.get("/automations")
 def list_rules(db: DbSession = Depends(get_db)):
-    return [_fmt(r) for r in db.query(AutomationRule).order_by(AutomationRule.created_at).all()]
+    output = []
+    for rule in db.query(AutomationRule).order_by(AutomationRule.created_at).all():
+        item = _fmt(rule)
+        latest = (
+            db.query(AutomationAttempt)
+            .filter_by(rule_id=rule.id)
+            .order_by(AutomationAttempt.started_at.desc())
+            .first()
+        )
+        item["last_attempt"] = _fmt_attempt(latest) if latest else None
+        output.append(item)
+    return output
+
+
+@router.get("/automations/{rid}/attempts")
+def list_attempts(rid: str, limit: int = 20, db: DbSession = Depends(get_db)):
+    if not db.get(AutomationRule, rid):
+        raise HTTPException(404)
+    safe_limit = max(1, min(limit, 100))
+    rows = (
+        db.query(AutomationAttempt)
+        .filter_by(rule_id=rid)
+        .order_by(AutomationAttempt.started_at.desc())
+        .limit(safe_limit)
+        .all()
+    )
+    return [_fmt_attempt(row) for row in rows]
 
 
 class RuleBody(BaseModel):
@@ -114,6 +161,10 @@ def create_rule(body: RuleBody, db: DbSession = Depends(get_db)):
         action_arg=body.action_arg,
     )
     db.add(r)
+    db.flush()
+    from services.automation_migration import sync_migrated_rule
+
+    sync_migrated_rule(db, r)
     db.commit()
     db.refresh(r)
     return _fmt(r)
@@ -146,6 +197,12 @@ def patch_rule(rid: str, body: RulePatch, db: DbSession = Depends(get_db)):
         v = getattr(body, f)
         if v is not None:
             setattr(r, f, v)
+    if body.enabled is not None:
+        r.enabled_intent = body.enabled
+    if r.migrated_workflow_id:
+        from services.automation_migration import sync_migrated_rule
+
+        sync_migrated_rule(db, r)
     db.commit()
     return _fmt(r)
 
@@ -155,6 +212,14 @@ def delete_rule(rid: str, db: DbSession = Depends(get_db)):
     r = db.get(AutomationRule, rid)
     if not r:
         raise HTTPException(404)
+    migrated_workflow = (
+        db.get(JarvisWorkflow, r.migrated_workflow_id) if r.migrated_workflow_id else None
+    )
+    # Production SQLite cascades this foreign key. Delete explicitly too so
+    # alternate/test engines cannot leave orphaned attempt history.
+    db.query(AutomationAttempt).filter_by(rule_id=rid).delete()
+    if migrated_workflow:
+        db.delete(migrated_workflow)
     db.delete(r)
     db.commit()
     return {"ok": True}
@@ -166,6 +231,8 @@ async def test_rule(rid: str, db: DbSession = Depends(get_db)):
     r = db.get(AutomationRule, rid)
     if not r:
         raise HTTPException(404)
+    if r.migrated_workflow_id:
+        raise HTTPException(409, "migrated automation must be reviewed in Jarvis")
     from services.automations import _fire
 
     sample = {
@@ -176,7 +243,16 @@ async def test_rule(rid: str, db: DbSession = Depends(get_db)):
         "path": "sample.md",
         "tag": r.trigger_arg or "tag",
         "price": "9.99",
-        "dedupe": "test",
+        "dedupe": f"manual-test:{uuid.uuid4()}",
     }
-    await _fire(db, r, sample)
-    return {"ok": True, "note": "action executed with sample data"}
+    result = await _fire(db, r, sample)
+    if result.get("status") == "succeeded":
+        return {"ok": True, "note": "action executed with sample data", "attempt": result}
+    status_code = 409 if result.get("status") in ("running", "uncertain") else 502
+    raise HTTPException(
+        status_code,
+        detail={
+            "message": "the action was not confirmed; check its attempt history",
+            "attempt": result,
+        },
+    )

@@ -12,7 +12,7 @@ class MoneyTransferTests(ApiTest):
 
     def _acct(self, name, opening=0.0):
         return self.client.post(
-            "/api/money/accounts", json={"name": name, "opening": opening}
+            "/api/money/accounts", json={"name": name, "currency": "CAD", "opening": opening}
         ).json()["id"]
 
     def _transfer(self, amount=200, frm=None, to=None, d=None):

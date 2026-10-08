@@ -1,28 +1,32 @@
-import { toast } from './util.js';
-import { exportActiveSessionMarkdown } from './sessions.js';
+import { toast, escapeHtml } from './util.js';
+import { exportActiveSessionMarkdown, getActiveId } from './sessions.js';
+import { formatTime, t } from './i18n.js';
+import { confirm } from './dialog.js';
+import { loadShortcuts } from './shortcuts.js';
+import { createFocusBoundary } from './kokuen.js';
+
+let _reminderPending = null;
+let _reminderBusy = false;
 
 // ── built-in command registry ────────────────────────────────────────
 const BUILTINS = [
-  // chats
-  { name: 'new',       cat: 'chats',    help: 'start a new chat' },
-  { name: 'clear',     cat: 'chats',    help: 'clear chat display' },
-  { name: 'rename',    cat: 'chats',    help: 'rename — or auto-name if blank', args: '[name]' },
-  { name: 'archive',   cat: 'chats',    help: 'archive this chat' },
-  { name: 'export',    cat: 'chats',    help: 'export chat as markdown' },
-  { name: 'incognito', cat: 'chats',    help: 'start a new incognito chat' },
+  // Aide tasks
+  { name: 'new',       cat: 'aide',     help: 'start a new aide task' },
+  { name: 'clear',     cat: 'aide',     help: 'clear this aide task’s message display' },
+  { name: 'rename',    cat: 'aide',     help: 'rename this aide task: or auto-name if blank', args: '[name]' },
+  { name: 'archive',   cat: 'aide',     help: 'archive this aide task' },
+  { name: 'export',    cat: 'aide',     help: 'export this aide task as markdown' },
+  { name: 'incognito', cat: 'aide',     help: 'start a new private aide task' },
   // model & persona
   { name: 'model',     cat: 'model',    help: 'open model picker' },
   { name: 'persona',   cat: 'model',    help: 'switch persona',          args: '[name]' },
-  // mode
-  { name: 'research',  cat: 'mode',     help: 'toggle research mode' },
-  { name: 'agent',     cat: 'mode',     help: 'toggle agent mode' },
-  { name: 'bg',        cat: 'mode',     help: 'run an agent task in the background', args: '<task>' },
+  { name: 'andromeda', cat: 'search',   help: 'search the web', args: '[query]' },
   // memory
   { name: 'remember',  cat: 'memory',   help: 'save a memory',           args: '<text>' },
   { name: 'memories',  cat: 'memory',   help: 'open memory panel' },
   { name: 'forget',    cat: 'memory',   help: 'delete memory by id',     args: '<id>' },
   // productivity
-  { name: 'todo',      cat: 'tasks',    help: 'add a task',              args: '<task>' },
+  { name: 'todo',      cat: 'plan',     help: 'add a task to Plan',       args: '<task>' },
   { name: 'doc',       cat: 'docs',     help: 'create a doc',            args: '<text>' },
   // navigate (aide-only)
   { name: 'secrets',   cat: 'navigate', help: 'open secrets' },
@@ -32,7 +36,7 @@ const BUILTINS = [
   { name: 'search',    cat: 'navigate', help: 'open search',             args: '[query]' },
   // system
   { name: 'system',    cat: 'system',   help: 'set session system prompt', args: '<prompt>' },
-  { name: 'backup',    cat: 'system',   help: 'download backup zip' },
+  { name: 'backup',    cat: 'system',   help: 'download encrypted .alles-backup; get its recovery key from settings → backup & restore' },
   { name: 'compact',   cat: 'system',   help: 'compact context now' },
   { name: 'help',      cat: 'system',   help: 'list all slash commands' },
   // scheduling
@@ -78,6 +82,82 @@ export function initSlash(ta) {
   ta.addEventListener('keydown', e => _handleKey(e, ta));
   ta.addEventListener('blur', () => setTimeout(_hide, 150));
   ta.addEventListener('focus', _fetchCookbook);
+  document.getElementById('aide-help')?.addEventListener('click', _showHelp);
+}
+
+function _showHelp() {
+  if (document.getElementById('aide-help-dialog')) return;
+  _hide();
+  const source = document.activeElement;
+  const trigger = document.getElementById('aide-help');
+  const shortcuts = loadShortcuts();
+  const rows = [
+    ['new_chat', 'aide.new_task'], ['search', 'common.search'],
+    ['focus_input', 'aide.message_label'], ['send', 'common.send'], ['settings', 'common.settings'],
+  ].filter(([key]) => shortcuts[key]);
+  const guides = ['model', 'controls', 'memory', 'notes', 'task', 'save', 'recovery'];
+  const overlay = document.createElement('div');
+  overlay.className = 'dialog-overlay aide-help-overlay';
+  overlay.innerHTML = `<section class="dialog-card aide-help-card" id="aide-help-dialog" role="dialog" aria-labelledby="aide-help-title">
+    <header><h2 id="aide-help-title">${escapeHtml(t('aide.help_title'))}</h2><button type="button" class="icon-btn" data-help-close aria-label="${escapeHtml(t('common.close'))}">×</button></header>
+    <label class="sr-only" for="aide-help-search">${escapeHtml(t('aide.help_search'))}</label>
+    <input type="search" class="settings-input" id="aide-help-search" placeholder="${escapeHtml(t('aide.help_search'))}">
+    <p class="aide-help-status" role="status" aria-live="polite"></p>
+    <div class="aide-help-body" tabindex="0">
+      <section data-help-group>
+        <h3>${escapeHtml(t('aide.help_guides'))}</h3>
+        <dl class="aide-help-guides">${guides.map(key => `<div data-help-entry data-help-guide="${key}"><dt>${escapeHtml(t(`aide.help_${key}_title`))}</dt><dd>${escapeHtml(t(`aide.help_${key}_body`))}</dd></div>`).join('')}</dl>
+      </section>
+      <section data-help-group>
+        <h3>${escapeHtml(t('aide.help_shortcuts'))}</h3>
+        <dl class="aide-help-shortcuts">${rows.map(([key, label]) => `<div data-help-entry><dt>${escapeHtml(t(label))}</dt><dd><kbd>${escapeHtml(shortcuts[key])}</kbd></dd></div>`).join('')}</dl>
+        <p data-help-entry>${escapeHtml(t('aide.shortcut_send_tip'))}</p>
+        <p data-help-entry>${escapeHtml(t('aide.shortcut_escape_tip'))}</p>
+      </section>
+      <section data-help-group>
+        <h3>${escapeHtml(t('aide.help_commands'))}</h3>
+        <p data-help-entry>${escapeHtml(t('aide.command_tip'))}</p>
+        <dl class="aide-help-commands">${_allEntries().map(entry => `<div data-help-entry><dt><code>/${escapeHtml(entry.name)}${entry.args ? ' ' + escapeHtml(entry.args) : ''}</code></dt><dd>${escapeHtml(entry.description || '')}</dd></div>`).join('')}</dl>
+      </section>
+    </div>
+    <footer><button type="button" class="btn" data-help-settings="models">${escapeHtml(t('aide.help_models'))}</button><button type="button" class="btn" data-help-settings="developer">${escapeHtml(t('aide.customize_shortcuts'))}</button></footer>
+  </section>`;
+  document.body.appendChild(overlay);
+  const dialog = overlay.querySelector('[role="dialog"]');
+  const close = () => {
+    boundary.deactivate();
+    boundary.destroy();
+    overlay.remove();
+    trigger?.setAttribute('aria-expanded', 'false');
+  };
+  const boundary = createFocusBoundary(dialog, { onEscape: close });
+  overlay.addEventListener('keydown', event => event.stopPropagation());
+  overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+  overlay.querySelector('[data-help-close]').onclick = close;
+  overlay.querySelector('#aide-help-search').addEventListener('input', event => {
+    const query = event.target.value.trim().toLocaleLowerCase();
+    const entries = [...overlay.querySelectorAll('[data-help-entry]')];
+    for (const entry of entries) entry.hidden = !entry.textContent.toLocaleLowerCase().includes(query);
+    for (const group of overlay.querySelectorAll('[data-help-group]')) {
+      group.hidden = [...group.querySelectorAll('[data-help-entry]')].every(entry => entry.hidden);
+    }
+    overlay.querySelector('.aide-help-status').textContent = entries.every(entry => entry.hidden) ? t('aide.help_no_matches') : '';
+    overlay.querySelector('.aide-help-body').scrollTop = 0;
+  });
+  overlay.querySelectorAll('[data-help-settings]').forEach(button => { button.onclick = async () => {
+    const pane = button.dataset.helpSettings;
+    close();
+    const { openSettings } = await import('./settings.js?v=289');
+    if (source?.isConnected && document.activeElement === source) {
+      openSettings(pane);
+      if (pane === 'developer') requestAnimationFrame(() => {
+        const input = document.querySelector('.shortcut-input[data-shortcut="new_chat"]');
+        if (input?.offsetParent !== null) { input?.focus(); input?.scrollIntoView({ block: 'center' }); }
+      });
+    }
+  }; });
+  trigger?.setAttribute('aria-expanded', 'true');
+  boundary.activate({ source, focus: overlay.querySelector('[data-help-close]') });
 }
 
 function _handleInput(ta) {
@@ -88,10 +168,14 @@ function _handleInput(ta) {
 
   if (!line.startsWith('/') || line.includes(' ')) { _hide(); return; }
   const query = line.slice(1).toLowerCase();
-  // show ALL when just "/" — filter when query has chars
+  // show ALL when just "/" — filter when query has chars (case-insensitive, null-safe so a
+  // mixed-case cookbook name / missing description still matches without throwing)
   const all = _allEntries();
   const matches = query
-    ? all.filter(e => e.name.startsWith(query) || e.name.includes(query) || e.description.includes(query))
+    ? all.filter(e => {
+        const n = (e.name || '').toLowerCase(), d = (e.description || '').toLowerCase();
+        return n.startsWith(query) || n.includes(query) || d.includes(query);
+      })
     : all;
   if (!matches.length) { _hide(); return; }
   _show(matches, ta, lineStart, cursor, !query);
@@ -114,11 +198,13 @@ function _show(matches, ta, lineStart, cursor, grouped = false) {
     for (const [cat, entries] of Object.entries(cats)) {
       html += `<div class="slash-cat-label">${cat}</div>`;
       for (const e of entries) {
-        const argsHtml = e.args ? `<span class="slash-args">${e.args}</span>` : '';
+        // escape — args like <task>/<text> are otherwise parsed as html tags and vanish,
+        // and cookbook name/desc are user-authored (self-xss)
+        const argsHtml = e.args ? `<span class="slash-args">${escapeHtml(e.args)}</span>` : '';
         const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
         html += `<div class="slash-item${flatIdx === 0 ? ' selected' : ''}" data-idx="${flatIdx}">
-          <span class="slash-cmd"><span class="slash-name">/${e.name}</span>${argsHtml}</span>
-          <span class="slash-desc">${e.description}</span>${tag}
+          <span class="slash-cmd"><span class="slash-name">/${escapeHtml(e.name)}</span>${argsHtml}</span>
+          <span class="slash-desc">${escapeHtml(e.description || '')}</span>${tag}
         </div>`;
         flatIdx++;
       }
@@ -127,20 +213,21 @@ function _show(matches, ta, lineStart, cursor, grouped = false) {
   } else {
     // filtered mode — flat list, prefix-sorted
     _popup.innerHTML = matches.map((e, i) => {
-      const argsHtml = e.args ? `<span class="slash-args">${e.args}</span>` : '';
+      const argsHtml = e.args ? `<span class="slash-args">${escapeHtml(e.args)}</span>` : '';
       const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
       return `<div class="slash-item${i === 0 ? ' selected' : ''}" data-idx="${i}">
-        <span class="slash-cmd"><span class="slash-name">/${e.name}</span>${argsHtml}</span>
-        <span class="slash-desc">${e.description}</span>${tag}
+        <span class="slash-cmd"><span class="slash-name">/${escapeHtml(e.name)}</span>${argsHtml}</span>
+        <span class="slash-desc">${escapeHtml(e.description || '')}</span>${tag}
       </div>`;
     }).join('');
   }
 
   // position above textarea, wider than textarea for cheatsheet feel
   const rect = ta.getBoundingClientRect();
-  const width = Math.max(480, rect.width);
-  const left  = Math.min(rect.left, window.innerWidth - width - 12);
-  _popup.style.cssText = `bottom:${window.innerHeight - rect.top + 8}px;left:${left}px;width:${width}px`;
+  const width = Math.min(Math.max(480, rect.width), window.innerWidth - 24);
+  const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+  const height = Math.min(360, Math.max(0, rect.top - 20));
+  _popup.style.cssText = `bottom:${window.innerHeight - rect.top + 8}px;left:${left}px;width:${width}px;max-height:${height}px`;
   document.body.appendChild(_popup);
 
   _popup.querySelectorAll('.slash-item').forEach(el => {
@@ -176,6 +263,7 @@ function _handleKey(e, ta) {
 function _updateSelected() {
   _popup?.querySelectorAll('.slash-item').forEach((el, i) =>
     el.classList.toggle('selected', i === _selectedIdx));
+  _popup?.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
 }
 
 function _apply(entry, ta, lineStart, cursor) {
@@ -185,7 +273,7 @@ function _apply(entry, ta, lineStart, cursor) {
     const after  = ta.value.slice(cursor);
     ta.value = before + entry.prompt + after;
     ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+    ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
     ta.focus();
     const pos = lineStart + entry.prompt.length;
     ta.setSelectionRange(pos, pos);
@@ -214,15 +302,23 @@ export async function tryExecuteSlashCommand(text) {
   const cmd  = parts[0].slice(1).toLowerCase();
   const args = parts.slice(1).join(' ').trim();
 
-  // cookbook entries take priority over same-named builtins
-  const cbEntry = _cookbook.find(e => e.name === cmd);
+  // cookbook entries take priority over same-named builtins (cmd is already lowercased)
+  const cbEntry = _cookbook.find(e => e.name.toLowerCase() === cmd);
   if (cbEntry) {
-    // substitute args placeholder if present, else just use the prompt
+    // substitute args placeholder if present, else just use the prompt. function replacer so
+    // args containing $&, $1, $` aren't treated as replacement patterns
+    const expanded = cbEntry.prompt.replace(/\{args\}|\$1/g, () => args);
+    if (!expanded.trim()) {
+      // an args-only template invoked with no args expands to nothing — say so instead of
+      // silently swallowing the send (doSend bails on an empty composer).
+      toast(`/${cmd} needs an argument`, 'error');
+      return true;   // handled (suppress the empty send)
+    }
     const ta = document.getElementById('composer-ta');
     if (ta) {
-      ta.value = cbEntry.prompt.replace(/\{args\}|\$1/g, args);
+      ta.value = expanded;
       ta.style.height = 'auto';
-      ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+      ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
     }
     return false;  // let normal send handle it with substituted text
   }
@@ -261,7 +357,7 @@ export async function tryExecuteSlashCommand(text) {
           updateSessionName(sid, name);
           toast(`renamed to "${name}"`, 'success');
         } else {
-          toast('auto-name failed — add some messages first', 'error');
+          toast('auto-name failed: add some messages first', 'error');
         }
       }
       return true;
@@ -287,39 +383,10 @@ export async function tryExecuteSlashCommand(text) {
       return true;
     }
 
-    case 'research': {
-      document.getElementById('research-toggle-btn')?.click();
-      return true;
-    }
-
-    case 'agent': {
-      // always agent — open the agent panel in settings
-      document.querySelector('.nav-item[data-view="brain"]')?.click();
-      return true;
-    }
-
-    case 'bg':
-    case 'background': {
-      if (!args) { toast('usage: /bg <task>', 'error'); return true; }
-      const { getActiveId, createSession, markActive, appendUserMsg, showMessages } = await import('./sessions.js');
-      const { getCurrentEndpoint, getSelected } = await import('./models.js');
-      let sid = getActiveId();
-      if (!sid) {
-        const ep = getCurrentEndpoint();
-        if (!ep) { toast('no endpoint configured', 'error'); return true; }
-        const sm = getSelected()?.model || ep.models?.[0] || '';
-        const s = await createSession(sm, ep.id);
-        if (!s) { toast('failed to create session', 'error'); return true; }
-        sid = s.id; markActive(sid);
-      }
-      showMessages();
-      appendUserMsg(args + '  ·(background)');
-      const r = await fetch('/api/agent/background', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ session_id: sid, message: args, mode: 'agent' }),
-      });
-      if (r.ok) { toast('running in background — keep working'); _pollBackground(sid); }
-      else toast('background start failed', 'error');
+    case 'research':
+    case 'andromeda': {
+      if (args) window._openAndromedaQuery?.(args);
+      else window._navigateTo?.('andromeda');
       return true;
     }
 
@@ -335,7 +402,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'memories': {
-      (await import('./settings.js')).openSettings('memory');
+      (await import('./settings.js?v=289')).openSettings('memory');
       return true;
     }
 
@@ -386,7 +453,7 @@ export async function tryExecuteSlashCommand(text) {
         const { loadSessions, selectSession } = await import('./sessions.js');
         await loadSessions();
         await selectSession(s.id);
-        toast('incognito session — nothing will be saved');
+        toast('incognito session: nothing will be saved');
       }
       return true;
     }
@@ -426,7 +493,7 @@ export async function tryExecuteSlashCommand(text) {
       return true;
 
     case 'compare':
-      document.querySelector('.nav-item[data-view="compare"]')?.click();
+      window._navigateTo?.('compare');
       return true;
 
     case 'docs':
@@ -470,39 +537,52 @@ export async function tryExecuteSlashCommand(text) {
       return true;
 
     case 'compact':
-      toast('context compaction is automatic — happens when context exceeds threshold');
+      toast('context compaction is automatic: happens when context exceeds threshold');
       return true;
 
     case 'remind':
     case 'send': {
-      // usage: /remind in 2h <text>  OR  /remind at 3pm <text>
-      const { parseReminderTime, createReminder } = await import('./reminders.js');
-      const timePatterns = [
-        /^(in\s+\d+\s*(?:m(?:in)?|h(?:r|our)?|d(?:ay)?))\s+(.+)$/i,
-        /^((?:today\s+)?at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(.+)$/i,
-        /^(tomorrow\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(.+)$/i,
-      ];
-      let timePart = null, textPart = null;
-      for (const pat of timePatterns) {
-        const m = args.match(pat);
-        if (m) { timePart = m[1]; textPart = m[2]; break; }
-      }
-      if (!timePart || !textPart) {
-        toast(`usage: /${cmd} in 2h <text> OR /${cmd} at 3pm <text>`, 'error');
-        return true;
-      }
-      const triggerAt = parseReminderTime(timePart);
-      if (!triggerAt) { toast('could not parse time', 'error'); return true; }
-      const type = cmd === 'send' ? 'message' : 'reminder';
-      const sessionId = type === 'message' ? (window._currentSession?.id || null) : null;
-      await createReminder(textPart, triggerAt, type, sessionId);
-      const when = triggerAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      toast(type === 'message' ? `scheduled for ${when}` : `reminder set for ${when}`, 'success');
-      return true;
+      if (_reminderBusy) return 'keep-draft';
+      _reminderBusy = true;
+      try {
+        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=243');
+        const type = cmd === 'send' ? 'message' : 'reminder';
+        const sessionId = getActiveId();
+        const command = `/${cmd} ${args}`;
+        if (_reminderPending && (_reminderPending.command !== command || _reminderPending.sessionId !== sessionId)) {
+          if (!await confirm('the previous reminder may already be saved. discard its retry and create this one?')) return 'keep-draft';
+          _reminderPending = null;
+        }
+        if (!_reminderPending) {
+          const patterns = [
+            /^(in\s+\d+\s*(?:m(?:in)?|h(?:r|our)?|d(?:ay)?))\s+(.+)$/i,
+            /^((?:(?:today|tomorrow)\s+)?at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(.+)$/i,
+          ];
+          const match = patterns.map(pattern => args.match(pattern)).find(Boolean);
+          const triggerAt = match && parseReminderTime(match[1]);
+          if (!triggerAt) {
+            toast(`use /${cmd} in 2h <text> or /${cmd} at 3pm <text> with a valid time`, 'error');
+            return 'keep-draft';
+          }
+          _reminderPending = { command, sessionId, request: reminderRequest(match[2], triggerAt, type, type === 'message' ? sessionId : null), uncertain: false };
+        }
+        try {
+          const result = await createReminder(_reminderPending.request);
+          const when = formatTime(new Date(_reminderPending.request.trigger_at), { hour: '2-digit', minute: '2-digit' });
+          _reminderPending = null;
+          toast(result.fired ? 'reminder already delivered' : type === 'message' ? `scheduled for ${when}` : `reminder set for ${when}`, 'success');
+          return true;
+        } catch (error) {
+          _reminderPending.uncertain ||= reminderMayHaveSaved(error);
+          if (!_reminderPending.uncertain) _reminderPending = null;
+          toast(`${error.message || 'could not save reminder'}${_reminderPending ? '. send this command again to confirm the same reminder.' : ''}`, 'error');
+          return 'keep-draft';
+        }
+      } finally { _reminderBusy = false; }
     }
 
     case 'reminders':
-      document.querySelector('.nav-item[data-view="reminders"]')?.click();
+      document.querySelector('.nav-item[data-view="aide-reminders"]')?.click();
       return true;
 
     case 'help': {
@@ -517,7 +597,7 @@ export async function tryExecuteSlashCommand(text) {
       let md = '**slash commands**\n\n';
       for (const [cat, entries] of Object.entries(cats)) {
         md += `*${cat}*\n`;
-        md += entries.map(e => `- \`/${e.name}${e.args ? ' ' + e.args : ''}\` — ${e.description}`).join('\n');
+        md += entries.map(e => `- \`/${e.name}${e.args ? ' ' + e.args : ''}\`: ${e.description}`).join('\n');
         md += '\n\n';
       }
       const content = document.createElement('div');
@@ -531,23 +611,4 @@ export async function tryExecuteSlashCommand(text) {
     default:
       return false;
   }
-}
-
-// poll a background run; when it finishes, refresh the session if it's open
-function _pollBackground(sid) {
-  let tries = 0;
-  const iv = setInterval(async () => {
-    if (++tries > 200) { clearInterval(iv); return; }   // ~10 min cap
-    let runs = [];
-    try { runs = await fetch('/api/agent/runs?limit=12').then(r => r.json()); } catch { return; }
-    const run = (runs || [])
-      .filter(r => r.session_id === sid)
-      .sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))[0];
-    if (run && run.status !== 'running') {
-      clearInterval(iv);
-      const { getActiveId, selectSession } = await import('./sessions.js');
-      if (getActiveId() === sid) await selectSession(sid);
-      toast(`background run ${run.status}`, run.status === 'error' ? 'error' : 'success');
-    }
-  }, 3000);
 }

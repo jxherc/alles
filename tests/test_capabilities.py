@@ -63,6 +63,23 @@ class BootstrapTests(unittest.TestCase):
         missing = [t for t in agent_tools.TOOL_PERMISSION if t not in names]
         self.assertEqual(missing, [])
 
+    def test_every_declared_tool_has_a_typed_scope(self):
+        unscoped = sorted(item.name for item in cap.all(kind="tool") if not item.scope)
+        self.assertEqual(unscoped, [])
+
+    def test_product_tools_use_app_owned_scopes(self):
+        expected = {
+            "calendar_create": "calendar_write",
+            "docs_write": "docs_write",
+            "files_operation_create": "files_write",
+            "finance_accounts_list": "finance_read",
+            "server_service_control": "server_write",
+            "adguard_filtering_set": "server_write",
+            "npm_proxy_host_create": "server_write",
+        }
+        for name, scope in expected.items():
+            self.assertEqual(cap.get(name, "tool").scope, scope)
+
     def test_actions_registered(self):
         from services import automations
 
@@ -83,6 +100,40 @@ class BootstrapTests(unittest.TestCase):
         shell = cap.get("shell", "tool")
         self.assertIn("tool", shell.tags)
         self.assertIn(shell.scope, shell.tags)
+
+
+class SurfaceCapabilityTests(unittest.TestCase):
+    def setUp(self):
+        cap.clear()
+        cap.bootstrap()
+
+    def test_phase_four_surfaces_have_typed_rows_and_explicit_exclusions(self):
+        for surface in ("today", "aide", "plan", "docs", "andromeda"):
+            rows = cap.surface_rows(surface)
+            self.assertTrue(rows, surface)
+            self.assertTrue(cap.surface_exclusions(surface), surface)
+            for row in rows:
+                self.assertEqual(row.surface, surface)
+                self.assertIn(row.effect, {"read", "external_read", "change"})
+                self.assertIn(row.approval, {"automatic", "ask", "excluded"})
+
+    def test_every_nonexcluded_surface_tool_is_real(self):
+        for surface in ("today", "aide", "plan", "docs", "andromeda"):
+            for row in cap.surface_rows(surface):
+                for tool in row.tools:
+                    self.assertIsNotNone(cap.get(tool, "tool"), f"{surface}: {tool}")
+
+    def test_changes_never_run_automatically_and_plan_is_read_only(self):
+        for surface in ("today", "aide", "plan", "docs", "andromeda"):
+            for row in cap.surface_rows(surface):
+                if row.effect == "change":
+                    self.assertIn(row.approval, {"ask", "excluded"}, f"{surface}: {row.operation}")
+        self.assertFalse(
+            any(
+                row.effect == "change" and row.approval != "excluded"
+                for row in cap.surface_rows("plan")
+            )
+        )
 
 
 class InvokeTests(unittest.TestCase):

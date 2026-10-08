@@ -1,12 +1,15 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
-import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js';
+import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=212';
+import { formatDate, formatTime } from './i18n.js';
 
 // 4a - typed relationship kinds (mirrors services/contacts_graph _INVERSE)
 const REL_KINDS = ['friend', 'colleague', 'spouse', 'partner', 'sibling', 'parent', 'child', 'manager', 'report', 'mentor', 'mentee'];
 
 let _favOnly = false;
 let _wired = false;
+let _creatingContact = false;
+let _contactsLoad = 0;
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 function _wire() {
@@ -29,7 +32,7 @@ async function showCardDav() {
   const ival = st.interval || 'off';
   const IV = [['off', 'manual'], ['hourly', 'hourly'], ['daily', 'daily']];
   list.innerHTML = `
-    <div class="contacts-bday-head">CardDAV sync <button class="btn ic-btn-lbl" id="cdav-back" style="font-size:.66rem;margin-left:8px">${_si('chevron-left')} contacts</button></div>
+    <div class="contacts-bday-head">CardDAV sync <button class="btn ic-btn-lbl" id="cdav-back" style="font-size:0.75rem;margin-left:8px">${_si('chevron-left')} contacts</button></div>
     <div class="carddav-panel">
       <div class="carddav-status ${st.connected ? 'on' : ''}" id="cdav-status">${st.connected ? `${_si('check')} connected as ${_esc(st.username)}` : 'not connected'}</div>
       <p class="carddav-help">two-way sync with iCloud, Google, or any CardDAV address book. enter your server URL + an app-specific password to connect.</p>
@@ -94,15 +97,20 @@ function _avatarHtml(c, big) {
   return `<span class="${sz} contact-av-ph">${_esc(init)}</span>`;
 }
 
-export async function loadContacts(q = '') {
+export async function loadContacts(q = '', fetcher = fetch) {
   _wire();
   const list = document.getElementById('contacts-list');
   if (!list) return;
+  const load = ++_contactsLoad;
   try {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (_favOnly) params.set('favorites', 'true');
-    const contacts = await fetch('/api/contacts' + (params.toString() ? '?' + params : '')).then(r => r.json());
+    const response = await fetcher('/api/contacts' + (params.toString() ? '?' + params : ''));
+    if (!response.ok) throw new Error('contacts unavailable');
+    const contacts = await response.json();
+    if (!Array.isArray(contacts)) throw new Error('invalid contacts response');
+    if (load !== _contactsLoad) return;
     if (!contacts.length) { list.innerHTML = `<div class="page-empty">${_favOnly ? 'no favorites' : 'no contacts'}</div>`; return; }
     list.innerHTML = contacts.map(c => `
       <div class="contact-item" data-id="${c.id}">
@@ -125,7 +133,9 @@ export async function loadContacts(q = '') {
     list.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openContact(b.dataset.open)));
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => delContact(b.dataset.del)));
   } catch {
-    list.innerHTML = '<div class="page-empty">failed to load</div>';
+    if (load !== _contactsLoad) return;
+    list.innerHTML = '<div class="page-empty" role="alert">could not load contacts. <button class="btn" id="contacts-retry">retry</button></div>';
+    list.querySelector('#contacts-retry').addEventListener('click', () => loadContacts(q, fetcher));
   }
 }
 
@@ -154,7 +164,7 @@ async function openContact(id) {
       <div class="contact-detail-head">
         <button class="btn ic-btn-lbl" id="cd-back">${_si('chevron-left')} contacts</button>
         <label class="contact-av-up" title="set photo">${_avatarHtml(c, true)}<input type="file" id="cd-avatar" accept="image/*" hidden></label>
-        <div class="contact-detail-name"><input class="settings-input" id="cd-name" value="${_esc(c.name)}"></div>
+        <label class="contact-detail-name cd-field"><span>name</span><input class="settings-input" id="cd-name" value="${_esc(c.name)}"></label>
         <button class="btn ic-btn-lbl${c.is_me ? ' primary' : ''}" id="cd-me">${c.is_me ? `${_si('check')} this is me` : 'set as me'}</button>
       </div>
       <div class="contact-scalars">
@@ -178,6 +188,7 @@ async function openContact(id) {
         <button class="btn" id="cd-reladd">link</button>
       </div>
       <div id="cd-events"></div>
+      <p class="contact-error" id="cd-error" role="alert" hidden></p>
       <div class="cd-actions"><button class="btn primary" id="cd-save">save</button></div>
     </div>`;
   document.getElementById('cd-back').addEventListener('click', () => loadContacts());
@@ -191,20 +202,60 @@ async function openContact(id) {
     await fetch(`/api/contacts/${id}/avatar`, { method: 'POST', body: fd });
     toast('photo set', 'success'); openContact(id);
   });
+  let saving = false;
   document.getElementById('cd-save').addEventListener('click', async () => {
-    const body = { name: document.getElementById('cd-name').value.trim() };
-    document.querySelectorAll('.contact-scalars [data-k]').forEach(el => { body[el.dataset.k] = el.value; });
-    await fetch(`/api/contacts/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    toast('saved', 'success'); loadContacts();
+    if (saving) return;
+    const detail = list.querySelector('.contact-detail');
+    const error = detail.querySelector('#cd-error');
+    const body = { name: detail.querySelector('#cd-name').value.trim() };
+    detail.querySelectorAll('.contact-scalars [data-k]').forEach(el => { body[el.dataset.k] = el.value; });
+    if (!body.name) { error.textContent = 'name required'; error.hidden = false; return; }
+    const controls = [...detail.querySelectorAll('input, textarea, button')].filter(el => !el.disabled);
+    saving = true;
+    error.hidden = true;
+    controls.forEach(el => { el.disabled = true; });
+    try {
+      const response = await fetch(`/api/contacts/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      await savedContact(response, body, id);
+      toast('saved', 'success');
+      await loadContacts();
+      list.querySelector(`[data-open="${CSS.escape(id)}"]`)?.focus();
+    } catch {
+      error.textContent = 'could not save contact. your changes are still here; try save again.';
+      error.hidden = false;
+    } finally {
+      saving = false;
+      controls.forEach(el => { el.disabled = false; });
+    }
   });
   initCustomDropdown(document.getElementById('cd-fkind'));
-  document.getElementById('cd-fadd').addEventListener('click', async () => {
+  document.getElementById('cd-fadd').addEventListener('click', async e => {
+    const button = e.currentTarget;
+    if (button.disabled) return;
+    const labelInput = document.getElementById('cd-flabel');
+    const valueInput = document.getElementById('cd-fvalue');
+    const error = document.getElementById('cd-error');
+    const fields = document.getElementById('cd-fields');
     const kind = getDropdownValue(document.getElementById('cd-fkind'));
-    const label = document.getElementById('cd-flabel').value.trim();
-    const value = document.getElementById('cd-fvalue').value.trim();
+    const label = labelInput.value.trim();
+    const value = valueInput.value.trim();
     if (!value) { toast('value needed', ''); return; }
-    await fetch(`/api/contacts/${id}/fields`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, label, value }) });
-    openContact(id);
+    button.disabled = labelInput.disabled = valueInput.disabled = true;
+    error.hidden = true;
+    try {
+      const response = await fetch(`/api/contacts/${id}/fields`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, label, value }) });
+      const field = await response.json();
+      if (!response.ok || !field || typeof field.id !== 'string' || !field.id || field.value !== value) throw new Error('field not saved');
+      c.fields = [...(c.fields || []), field];
+      if (fields.isConnected) renderFields(c);
+      labelInput.value = valueInput.value = '';
+    } catch {
+      error.textContent = 'could not add field. your changes are still here; try again.';
+      error.hidden = false;
+    } finally {
+      button.disabled = labelInput.disabled = valueInput.disabled = false;
+      valueInput.focus();
+    }
   });
   renderFields(c);
   renderRels(id, rels);
@@ -265,8 +316,8 @@ function renderContactEvents(events) {
     const d = new Date(e.start_dt);
     const isPast = !isNaN(d) && d < today;
     const dl = isNaN(d) ? _esc(e.start_dt || '')
-      : _esc(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        + (e.all_day ? '' : ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })));
+      : _esc(formatDate(d, { month: 'short', day: 'numeric', year: 'numeric' })
+        + (e.all_day ? '' : ' ' + formatTime(d, { hour: 'numeric', minute: '2-digit' })));
     const rsvp = e.status ? `<span class="cd-ev-rsvp s-${_esc(e.status)}">${_RSVP_LBL[e.status] || _esc(e.status)}</span>` : '';
     return `<div class="cd-ev-row${isPast ? ' past' : ''}"><span class="cd-ev-date">${dl}</span><span class="cd-ev-title">${_esc(e.title || '(untitled)')}</span>${rsvp}</div>`;
   };
@@ -294,7 +345,7 @@ async function showGroups() {
   const list = document.getElementById('contacts-list');
   const groups = await fetch('/api/contacts/groups').then(r => r.json()).catch(() => []);
   list.innerHTML = `
-    <div class="contacts-bday-head">groups <button class="btn" id="cg-add" style="font-size:.66rem;margin-left:8px">+ group</button> <button class="btn ic-btn-lbl" id="cg-back" style="font-size:.66rem">${_si('chevron-left')} contacts</button></div>
+    <div class="contacts-bday-head">groups <button class="btn" id="cg-add" style="font-size:0.75rem;margin-left:8px">+ group</button> <button class="btn ic-btn-lbl" id="cg-back" style="font-size:0.75rem">${_si('chevron-left')} contacts</button></div>
     <div id="cg-list">${groups.length ? '' : '<div class="page-empty">no groups</div>'}</div>`;
   document.getElementById('cg-back').addEventListener('click', () => loadContacts());
   document.getElementById('cg-add').addEventListener('click', addGroup);
@@ -319,7 +370,7 @@ async function showGroups() {
 async function addGroup() {
   const name = await _dlgPrompt('group name:');
   if (!name?.trim()) return;
-  const tag = await _dlgPrompt('smart rule — tag to auto-include (blank for a manual group):', '');
+  const tag = await _dlgPrompt('smart rule: tag to auto-include (blank for a manual group)', '');
   const body = { name: name.trim() };
   if (tag?.trim()) { body.smart = true; body.rule_tag = tag.trim(); }
   await fetch('/api/contacts/groups', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -329,7 +380,7 @@ async function addGroup() {
 async function showDuplicates() {
   const list = document.getElementById('contacts-list');
   const clusters = await fetch('/api/contacts/duplicates').then(r => r.json()).catch(() => []);
-  list.innerHTML = `<div class="contacts-bday-head">possible duplicates <button class="btn ic-btn-lbl" id="cdup-back" style="font-size:.66rem;margin-left:8px">${_si('chevron-left')} contacts</button></div>`
+  list.innerHTML = `<div class="contacts-bday-head">possible duplicates <button class="btn ic-btn-lbl" id="cdup-back" style="font-size:0.75rem;margin-left:8px">${_si('chevron-left')} contacts</button></div>`
     + (clusters.length ? '' : '<div class="page-empty">no duplicates found</div>')
     + clusters.map((cl, i) => `
       <div class="dup-cluster" data-i="${i}">
@@ -348,15 +399,42 @@ async function showDuplicates() {
   }));
 }
 
+async function savedContact(response, expected, id = '') {
+  const contact = await response.json();
+  if (!response.ok || !contact || typeof contact.id !== 'string' || !contact.id
+      || (id && contact.id !== id) || Object.entries(expected).some(([key, value]) => contact[key] !== value)) {
+    throw new Error('contact save not confirmed');
+  }
+  return contact;
+}
+
 export async function addContact() {
-  const name = document.getElementById('contact-name')?.value.trim();
-  const email = document.getElementById('contact-email')?.value.trim();
-  const phone = document.getElementById('contact-phone')?.value.trim();
-  if (!name) { toast('name required', 'error'); return; }
-  await fetch('/api/contacts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, email, phone }) });
-  ['contact-name', 'contact-email', 'contact-phone'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  toast('contact added', 'success');
-  await loadContacts();
+  if (_creatingContact) return;
+  const inputs = ['contact-name', 'contact-email', 'contact-phone'].map(id => document.getElementById(id));
+  const [name, email, phone] = inputs.map(el => el.value.trim());
+  const error = document.getElementById('contact-add-error');
+  if (!name) { error.textContent = 'name required'; error.hidden = false; inputs[0].focus(); return; }
+  const button = document.getElementById('contact-add-btn');
+  _creatingContact = true;
+  error.hidden = true;
+  button.disabled = true;
+  inputs.forEach(el => { el.disabled = true; });
+  try {
+    const body = { name, email, phone };
+    const response = await fetch('/api/contacts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const contact = await savedContact(response, body);
+    inputs.forEach(el => { el.value = ''; });
+    toast('contact added', 'success');
+    await loadContacts();
+    document.querySelector(`[data-open="${CSS.escape(contact.id)}"]`)?.focus();
+  } catch {
+    error.textContent = 'could not add contact. your details are still here; try add again.';
+    error.hidden = false;
+  } finally {
+    _creatingContact = false;
+    button.disabled = false;
+    inputs.forEach(el => { el.disabled = false; });
+  }
 }
 
 window._delContact = delContact;

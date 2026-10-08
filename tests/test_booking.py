@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from unittest import mock
 
 from core.database import CalendarEvent, EventAttendee
 from tests._client import ApiTest
@@ -30,12 +31,53 @@ class BookingTests(ApiTest):
     def test_page_has_token(self):
         self.assertTrue(self._page()["token"])
 
+    def test_public_page_exposes_keyboard_selectable_slots(self):
+        token = self._page()["token"]
+        page = self.client.get(f"/book/{token}")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("document.createElement('button')", page.text)
+        self.assertIn("b.type = 'button'", page.text)
+        self.assertIn("b.setAttribute('aria-pressed', 'false')", page.text)
+        self.assertIn("button:focus-visible", page.text)
+        self.assertIn("min-height:44px", page.text)
+        self.assertIn('for="date"', page.text)
+        self.assertIn('id="msg" role="status"', page.text)
+
     def test_slots_excludes_busy(self):
         tok = self._page(work_start=9, work_end=11, duration_min=60)["token"]
         self._busy(f"{DAY}T09:00:00", f"{DAY}T10:00:00")
         starts = [s["start"][11:16] for s in self._slots(tok)]
         self.assertNotIn("09:00", starts)
         self.assertIn("10:00", starts)
+
+    def test_recurring_busy_slot_is_not_offered_or_booked(self):
+        tok = self._page(work_start=9, work_end=10, duration_min=30)["token"]
+        prior_monday = (date.fromisoformat(DAY) - timedelta(days=7)).isoformat()
+        db = self.db()
+        db.add(
+            CalendarEvent(
+                title="weekly busy",
+                start_dt=f"{prior_monday}T09:00:00",
+                end_dt=f"{prior_monday}T09:30:00",
+                recurrence="weekly",
+                recur_byday="MO",
+            )
+        )
+        db.commit()
+        db.close()
+
+        self.assertEqual(
+            self._slots(tok),
+            [{"start": f"{DAY}T09:30", "end": f"{DAY}T10:00"}],
+        )
+        refused = self.client.post(
+            f"/book/{tok}", json={"date": DAY, "time": "09:00", "name": "Sam"}
+        )
+        self.assertEqual(refused.status_code, 409)
+
+    def test_bad_slot_date_returns_no_slots(self):
+        tok = self._page()["token"]
+        self.assertEqual(self._slots(tok, day="not-a-date"), [])
 
     def test_slots_respect_work_hours(self):
         tok = self._page(work_start=9, work_end=11, duration_min=30)["token"]
@@ -76,6 +118,24 @@ class BookingTests(ApiTest):
         db.close()
         self.assertIsNotNone(att)
         self.assertEqual(att.status, "accepted")
+
+    def test_attendee_failure_rolls_back_the_event(self):
+        tok = self._page()["token"]
+        with (
+            mock.patch("routes.shared.EventAttendee", side_effect=RuntimeError("fixture")),
+            self.assertRaises(RuntimeError),
+        ):
+            self.client.post(
+                f"/book/{tok}",
+                json={"date": DAY, "time": "10:00", "name": "Sam", "email": "s@x.com"},
+            )
+        db = self.db()
+        try:
+            self.assertIsNone(
+                db.query(CalendarEvent).filter(CalendarEvent.start_dt == f"{DAY}T10:00:00").first()
+            )
+        finally:
+            db.close()
 
     def test_book_unknown_token_404(self):
         r = self.client.post(

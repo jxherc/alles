@@ -1,8 +1,11 @@
 import json
 import os
+import tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+from core.credential_inventory import SETTING_CREDENTIAL_KEYS
 
 load_dotenv(encoding="utf-8-sig")  # utf-8-sig handles windows BOM
 
@@ -13,11 +16,29 @@ def data_dir() -> Path:
 
 
 _SETTINGS_FILE = data_dir() / "settings.json"
+_SETTINGS_CACHE: dict | None = None
+_SETTINGS_CACHE_SIG: tuple[str, int, int] | None = None
+
+_ENCRYPTED_SETTING_KEYS = set(SETTING_CREDENTIAL_KEYS)
+
+BASE_AIDE_SYSTEM_PROMPT = "You are Aide, the AI assistant inside Alles."
+DEFAULT_CHAT_BEHAVIORS = frozenset({"automatic_tools", "answer_only"})
+OWNER_INSTRUCTIONS_MAX_CHARS = 20_000
 
 _defaults = {
     "default_model": "",
     "default_endpoint_id": "",
-    "system_prompt": "You are Aide, the AI assistant inside Alles.",
+    "model_roles": {
+        "aide_chat": {},
+        "andromeda_answer": {},
+        "andromeda_verifier": {},
+        "jarvis": {},
+    },
+    # `system_prompt` remains as a compatibility mirror for older clients. New code keeps the
+    # code-owned base prompt separate from the owner's editable instructions.
+    "system_prompt": BASE_AIDE_SYSTEM_PROMPT,
+    "owner_instructions": "",
+    "default_chat_behavior": "automatic_tools",
     "context_limit": 40,
     "stream_thinking": True,
     "artifacts_enabled": True,
@@ -42,7 +63,7 @@ _defaults = {
     "tts_voice": "alloy",
     "openai_api_key": "",  # for TTS/STT
     "search_provider": "duckduckgo",
-    "search_result_count": 5,
+    "search_result_count": 8,
     "search_fallback_chain": ["duckduckgo"],
     "tavily_api_key": "",
     "brave_api_key": "",
@@ -51,10 +72,38 @@ _defaults = {
     "google_pse_cx": "",
     "serper_api_key": "",
     "search_fallback": "duckduckgo",
+    "andromeda_normal_results": True,
+    "andromeda_overview": True,
+    "andromeda_model_band": "standard",
+    "andromeda_model_bands": {},
+    "andromeda_qualified_models": [],
+    "andromeda_answer_max_tokens": 450,
+    "andromeda_answer_timeout_seconds": 50,
+    "andromeda_verification_enabled": True,
+    "andromeda_verifier_mode": "freshness-sensitive",
+    "andromeda_verifier_max_tokens": 500,
+    "andromeda_verifier_timeout_seconds": 30,
     "memory_auto_inject": True,
+    "memory_policy": "ask",  # off | ask | auto
     "tts_speed": 1.0,
     "tts_auto_play": False,
     "stt_language": "",
+    "language": "en",  # translated UI catalogs; English only until a catalog is reviewed
+    "region": "",  # ISO 3166-1 alpha-2 or UN M49; blank follows the browser
+    "timezone": "",  # IANA name; blank follows the browser
+    "clock_format": "auto",  # auto | 12 | 24
+    "week_start": "auto",  # auto | mon | sun; separate from legacy cal_week_start
+    "currency": "",  # ISO 4217 code; blank follows the configured/browser region
+    "access_profile": "device",
+    "public_url": "",
+    "trusted_hosts": "",
+    "forwarded_allow_ips": "",
+    "keep_vault_inside_alles": True,
+    "automatic_backup_enabled": False,
+    "automatic_backup_dir": "",
+    "automatic_backup_last_success": "",
+    "automatic_backup_last_error": "",
+    "setup_state": {},
     "base_domain": "localhost",  # apex domain; each app lives on {app}.{base_domain}
     # on by default: when a plain chat message clearly asks aide to DO an app thing
     # (check mail, add to calendar, remind me, what's on my schedule…) it acts on it
@@ -108,15 +157,15 @@ _defaults = {
     "holdings_autoprice": False,  # 2d - periodically refresh holding prices from an external source
     "tax_reminders": False,  # 2f - quarterly estimated-tax set-aside reminders (off by default)
     "tax_setaside_rate": 0.25,  # 2f - fraction of quarterly income to suggest setting aside
-    "extra_clip_search": False,  # 5e - opt-in optional/native extras (all off; gated on availability)
+    "extra_clip_search": False,  # 5e - settings-gated optional/native extras
     "extra_ocr": False,
-    "extra_photokit": False,
     "extra_eventkit": False,
     "extra_keychain": False,
     # mail oauth ("sign in with google") - the user's own google cloud oauth client
+    "mail_oauth_revision": 0,
     "mail_oauth_client_id": "",
     "mail_oauth_client_secret": "",
-    "mail_oauth_redirect_base": "",  # "" -> http://localhost:8000 ; set if you reach the app elsewhere
+    "mail_oauth_redirect_base": "",  # blank follows the local Alles port; override for another URL
 }
 
 _ARTIFACT_INSTRUCTIONS = (
@@ -136,13 +185,78 @@ _ARTIFACT_INSTRUCTIONS = (
 )
 
 
+def _settings_sig() -> tuple[str, int, int]:
+    try:
+        st = _SETTINGS_FILE.stat()
+        return (str(_SETTINGS_FILE), st.st_mtime_ns, st.st_size)
+    except OSError:
+        return (str(_SETTINGS_FILE), -1, -1)
+
+
+def settings_secret_key_path() -> Path:
+    """Store the encryption key in the active Alles data directory."""
+    return data_dir() / "secret.key"
+
+
+def _decrypt_setting_secrets(values: dict) -> dict:
+    from services.secretstore import unseal
+
+    result = dict(values)
+    for key in _ENCRYPTED_SETTING_KEYS:
+        value = result.get(key)
+        if isinstance(value, str) and value:
+            result[key] = unseal(value, f"settings.{key}")
+    return result
+
+
+def _encrypt_setting_secrets(values: dict) -> dict:
+    from services.secretstore import seal
+
+    result = dict(values)
+    for key in _ENCRYPTED_SETTING_KEYS:
+        value = result.get(key)
+        if isinstance(value, str) and value:
+            result[key] = seal(value, f"settings.{key}")
+    return result
+
+
+def _clear_settings_cache():
+    global _SETTINGS_CACHE, _SETTINGS_CACHE_SIG
+    _SETTINGS_CACHE = None
+    _SETTINGS_CACHE_SIG = None
+
+
 def load_settings() -> dict:
+    global _SETTINGS_CACHE, _SETTINGS_CACHE_SIG
+    sig = _settings_sig()
+    if _SETTINGS_CACHE is not None and _SETTINGS_CACHE_SIG == sig:
+        return dict(_SETTINGS_CACHE)
     s = dict(_defaults)
-    if _SETTINGS_FILE.exists():
+    if sig[1] != -1:
         try:
-            s.update(json.loads(_SETTINGS_FILE.read_text("utf-8")))
-        except Exception:
+            stored = json.loads(_SETTINGS_FILE.read_text("utf-8"))
+        except (OSError, json.JSONDecodeError, TypeError):
             pass
+        else:
+            if isinstance(stored, dict):
+                s.update(_decrypt_setting_secrets(stored))
+                # Older installs used one editable `system_prompt` as both the base prompt and the
+                # owner's instructions. Preserve a custom value, but do not duplicate the old
+                # stock identity sentence as an owner instruction.
+                if "owner_instructions" not in stored:
+                    legacy_prompt = stored.get("system_prompt")
+                    if isinstance(legacy_prompt, str):
+                        legacy_prompt = legacy_prompt.strip()
+                        if legacy_prompt and legacy_prompt != BASE_AIDE_SYSTEM_PROMPT:
+                            s["owner_instructions"] = legacy_prompt
+                # Keep the old boolean meaningful during upgrade. The new enum becomes the single
+                # source of truth after the next settings save.
+                if "default_chat_behavior" not in stored and "agent_auto_intents" in stored:
+                    s["default_chat_behavior"] = (
+                        "automatic_tools" if stored.get("agent_auto_intents") else "answer_only"
+                    )
+    _SETTINGS_CACHE = dict(s)
+    _SETTINGS_CACHE_SIG = sig
     return s
 
 
@@ -166,20 +280,142 @@ def _drop_non_finite(obj):
 
 
 def save_settings(patch: dict):
+    from services.recovery_consistency import recovery_consistency_lock
+
+    with recovery_consistency_lock:
+        return _save_settings_locked(patch)
+
+
+def _save_settings_locked(patch: dict):
+    global _SETTINGS_CACHE, _SETTINGS_CACHE_SIG
+    patch = dict(patch)
+    # Keep old clients and direct callers working while the new fields remain authoritative.
+    if "owner_instructions" in patch:
+        patch["system_prompt"] = patch["owner_instructions"]
+    elif "system_prompt" in patch:
+        legacy_prompt = patch["system_prompt"]
+        patch["owner_instructions"] = (
+            ""
+            if legacy_prompt == BASE_AIDE_SYSTEM_PROMPT
+            else (legacy_prompt if isinstance(legacy_prompt, str) else "")
+        )
+    if "default_chat_behavior" in patch:
+        patch["agent_auto_intents"] = patch["default_chat_behavior"] == "automatic_tools"
+    elif "agent_auto_intents" in patch:
+        patch["default_chat_behavior"] = (
+            "automatic_tools" if patch["agent_auto_intents"] else "answer_only"
+        )
     s = load_settings()
+    # Every configuration writer invalidates older conditional OAuth saves.
+    patch.pop("mail_oauth_revision", None)
+    if {
+        "mail_oauth_client_id",
+        "mail_oauth_client_secret",
+        "mail_oauth_redirect_base",
+    } & patch.keys():
+        revision = s.get("mail_oauth_revision", 0)
+        if type(revision) is not int or revision < 0:
+            raise ValueError("could not read the Google configuration revision")
+        patch["mail_oauth_revision"] = revision + 1
     s.update(patch)
     # never persist the vault password — strip it if it snuck in
     s.pop("vault_pw_b64", None)
     s = _drop_non_finite(s)
     _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     # allow_nan=False is a backstop in case a non-finite slips past the sanitizer
-    _SETTINGS_FILE.write_text(json.dumps(s, indent=2, allow_nan=False), "utf-8")
+    stored = _encrypt_setting_secrets(s)
+    raw = json.dumps(stored, indent=2, allow_nan=False).encode("utf-8")
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{_SETTINGS_FILE.name}.", suffix=".tmp", dir=_SETTINGS_FILE.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            mode = _SETTINGS_FILE.stat().st_mode if _SETTINGS_FILE.exists() else 0o600
+            os.chmod(temporary, mode)
+        except OSError:
+            pass
+        os.replace(temporary, _SETTINGS_FILE)
+        try:
+            parent_descriptor = os.open(_SETTINGS_FILE.parent, os.O_RDONLY)
+            try:
+                os.fsync(parent_descriptor)
+            finally:
+                os.close(parent_descriptor)
+        except OSError:
+            pass
+    finally:
+        temporary.unlink(missing_ok=True)
+    _SETTINGS_CACHE = dict(s)
+    _SETTINGS_CACHE_SIG = _settings_sig()
     return s
+
+
+def owner_instructions(settings: dict | None = None) -> str:
+    """Return the editable owner text, including compatibility with pre-Afterlife settings."""
+    values = settings if settings is not None else load_settings()
+    if "owner_instructions" in values:
+        value = values.get("owner_instructions")
+        return value.strip() if isinstance(value, str) else ""
+    legacy = values.get("system_prompt")
+    if not isinstance(legacy, str):
+        return ""
+    legacy = legacy.strip()
+    return "" if legacy == BASE_AIDE_SYSTEM_PROMPT else legacy
+
+
+def build_aide_system_prompt(
+    settings: dict | None = None, contextual_instructions: str = ""
+) -> str:
+    """Compose a model prompt without allowing editable text to replace the code-owned base."""
+    values = settings if settings is not None else load_settings()
+    parts = [BASE_AIDE_SYSTEM_PROMPT]
+    contextual = contextual_instructions.strip() if contextual_instructions else ""
+    if contextual and contextual != BASE_AIDE_SYSTEM_PROMPT:
+        parts.append(contextual)
+    editable = owner_instructions(values)
+    if editable:
+        parts.append("### Owner instructions\n" + editable)
+    return "\n\n".join(parts)
+
+
+def migrate_setting_secrets() -> int:
+    """Rewrite plaintext or old-key setting credentials with the active key."""
+    if not _SETTINGS_FILE.is_file():
+        return 0
+    try:
+        stored = json.loads(_SETTINGS_FILE.read_text("utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError):
+        return 0
+    if not isinstance(stored, dict):
+        return 0
+    from services.secretstore import needs_reseal
+
+    changed = sum(
+        1
+        for key in _ENCRYPTED_SETTING_KEYS
+        if isinstance(stored.get(key), str) and stored[key] and needs_reseal(stored[key])
+    )
+    if changed:
+        _clear_settings_cache()
+        save_settings({})
+    return changed
 
 
 # env helpers
 def get_secret_key() -> str:
-    return os.getenv("SECRET_KEY", "dev-secret-change-me")
+    # no silent weak default when the app is locked: if auth is on, a real
+    # secret must exist. local no-auth use keeps the harmless placeholder.
+    key = os.getenv("SECRET_KEY")
+    if key:
+        return key
+    if auth_enabled():
+        raise RuntimeError("SECRET_KEY env var must be set when auth is enabled")
+    return "dev-secret-change-me"
 
 
 def auth_enabled() -> bool:
@@ -193,7 +429,7 @@ def auth_enabled() -> bool:
 
 
 def get_port() -> int:
-    return int(os.getenv("PORT", "8000"))
+    return int(os.getenv("PORT", "6769"))
 
 
 def base_domain() -> str:

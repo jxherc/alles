@@ -52,6 +52,27 @@ class TxnIngestApiTests(ApiTest):
         self.assertEqual(again["imported"], 0)
         self.assertEqual(again["skipped"], 2)
 
+    def test_import_ofx_deduplicates_a_corrected_row_by_fitid(self):
+        aid = self._account()
+        first = "<OFX><STMTTRN><DTPOSTED>20240115<TRNAMT>-15.99<NAME>OLD<FITID>same</STMTTRN></OFX>"
+        corrected = (
+            "<OFX><STMTTRN><DTPOSTED>20240116<TRNAMT>-18.50<NAME>NEW<FITID>same</STMTTRN></OFX>"
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/money/transactions/import-ofx", json={"account_id": aid, "ofx": first}
+            ).json()["imported"],
+            1,
+        )
+        retried = self.client.post(
+            "/api/money/transactions/import-ofx", json={"account_id": aid, "ofx": corrected}
+        )
+        self.assertEqual(retried.status_code, 200, retried.text)
+        self.assertEqual(retried.json(), {"imported": 0, "skipped": 1})
+        db = self.db()
+        self.assertEqual(db.query(Transaction).filter_by(account_id=aid).count(), 1)
+        db.close()
+
     def test_import_ofx_unknown_account_400(self):
         r = self.client.post(
             "/api/money/transactions/import-ofx", json={"account_id": "nope", "ofx": OFX}

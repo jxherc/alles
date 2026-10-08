@@ -234,7 +234,9 @@ def breach_count(password: str, fetch) -> int:
 
     if not password:
         return 0
-    sha = hashlib.sha1(password.encode()).hexdigest().upper()
+    # HIBP's range API protocol requires SHA-1; this value is not stored or used
+    # as a password verifier or any other security primitive.
+    sha = hashlib.sha1(password.encode(), usedforsecurity=False).hexdigest().upper()
     prefix, suffix = sha[:5], sha[5:]
     try:
         text = fetch(prefix) or ""

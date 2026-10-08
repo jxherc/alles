@@ -44,7 +44,11 @@ def _load() -> list[dict]:
                 data = json.loads(f.read_text("utf-8"))
                 if isinstance(data, list):
                     # the file the skill lives in IS its category (coding.json → coding)
-                    out.extend({**x, "category": f.stem} for x in data if isinstance(x, dict) and x.get("name"))
+                    out.extend(
+                        {**x, "category": f.stem}
+                        for x in data
+                        if isinstance(x, dict) and x.get("name")
+                    )
             except Exception:
                 continue
     return out or _BASE

@@ -1,3 +1,4 @@
+import asyncio
 from unittest import mock
 
 from core.database import CalendarEvent, EventAttendee
@@ -65,6 +66,34 @@ class CalendarInvitesTests(ApiTest):
         aid = self._invite(eid).json()["id"]
         self.client.delete(f"/api/calendar/attendees/{aid}")
         self.assertEqual(len(self.client.get(f"/api/calendar/{eid}/attendees").json()), 0)
+
+    def test_deleting_event_retires_its_rsvp_link_from_api_and_aide(self):
+        from services import agent_tools
+
+        for via_aide in (False, True):
+            with self.subTest(via_aide=via_aide):
+                eid = self._event()
+                invite = self._invite(eid).json()
+                token = invite["token"]
+                if via_aide:
+                    agent_tools.set_agent_ctx({"agent_environment": "general"})
+                    try:
+                        result = asyncio.run(agent_tools.execute("calendar_delete", {"id": eid}))
+                    finally:
+                        agent_tools.set_agent_ctx({})
+                    self.assertFalse(result.get("error"), result)
+                else:
+                    self.assertEqual(self.client.delete(f"/api/calendar/{eid}").status_code, 200)
+
+                db = self.db()
+                try:
+                    self.assertIsNone(db.get(EventAttendee, invite["id"]))
+                finally:
+                    db.close()
+                self.assertEqual(
+                    self.client.post(f"/rsvp/{token}", json={"status": "accepted"}).status_code,
+                    404,
+                )
 
     def test_meeting_url_roundtrip(self):
         r = self.client.post(
