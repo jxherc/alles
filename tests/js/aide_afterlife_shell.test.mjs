@@ -319,7 +319,9 @@ test('new tasks cannot overlap the removed proactive tool and can add a project 
 });
 
 test('expected model and session fetch failures stay out of the offline console', () => {
-  assert.match(models, /navigator\?\.onLine !== false\) console\.error\('loadModels'/);
+  assert.doesNotMatch(models, /console\.error\('loadModels'/);
+  assert.match(models, /could not refresh models\. the last loaded catalog is still shown\./);
+  assert.match(models, /status\.setAttribute\('role', 'status'\)/);
   assert.match(sessions, /navigator\?\.onLine !== false\) console\.error\('loadSessions'/);
 });
 

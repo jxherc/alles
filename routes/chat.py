@@ -337,6 +337,11 @@ async def _sse(gen):
 # POST /api/chat
 @router.post("/chat")
 async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_db)):
+    return await create_chat_response(body, request, db)
+
+
+async def create_chat_response(body: ChatRequest, request: Request, db, *, voice_context=None):
+    """Canonical preparation; voice context is server-owned, never a request field."""
     private_session = incognito_service.get_session(body.session_id)
     s = private_session or db.get(Session, body.session_id)
     if not s:
@@ -375,7 +380,19 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
                 "incognito_upload_forbidden",
                 "private attachments can only be used inside incognito",
             )
-    ep, model = _resolve_session_model(s, db, settings)
+    if voice_context:
+        from services import aide_voice
+
+        db.expire_on_commit = False
+        call = aide_voice.lock_call(db, voice_context["call_id"], live=True)
+        if call.session_id != body.session_id or incognito_run:
+            raise ApiError(409, "voice_session_conflict", "voice belongs to the main conversation")
+        selection = aide_voice.selected_model(db, call)
+        ep, model = selection.endpoint, selection.model
+        settings["_aide_voice_turn"] = voice_context
+        db.commit()  # Never hold a SQLite write lock across awaited context preparation.
+    else:
+        ep, model = _resolve_session_model(s, db, settings)
     from services.project_environment import session_environment
 
     environment = session_environment(s)
@@ -451,6 +468,13 @@ async def chat(body: ChatRequest, request: Request, db: DbSession = Depends(get_
         mode="json", exclude={"session_id", "message", "retry_message_id"}
     )
     stop_event = asyncio.Event()
+    if voice_context:
+        from services import aide_voice
+
+        call = aide_voice.lock_call(db, voice_context["call_id"], live=True)
+        aide_voice.selected_model(db, call)
+        aide_voice.claim_chat(voice_context, stop_event)
+        db.commit()
     _streams[body.session_id] = stop_event
     if incognito_run:
         for upload_id in body.file_ids:

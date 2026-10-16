@@ -20,6 +20,8 @@ class FakeElement {
   }
   querySelectorAll() { return []; }
   appendChild() {}
+  before(element) { if (element.id) elements.set(element.id, element); }
+  setAttribute(name, value) { this[name] = String(value); }
   remove() {}
 }
 

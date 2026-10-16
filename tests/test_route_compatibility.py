@@ -26,8 +26,41 @@ def _route_rows():
     return sorted(rows)
 
 
-_FINANCE_ADDITIONS = {
+_ASSISTANT_AND_BANK_ADDITIONS = {
+    "DELETE /api/aide/coding/connection",
+    "GET /api/aide/calls/{call_id}",
+    "GET /api/aide/capabilities",
+    "GET /api/aide/coding/runs",
+    "GET /api/aide/coding/runs/{run_id}",
+    "GET /api/aide/coding/runs/{run_id}/events",
+    "GET /api/aide/coding/runs/{run_id}/live",
+    "GET /api/aide/coding/status",
+    "GET /api/aide/coding/workspaces",
+    "GET /api/aide/conversation",
+    "GET /api/aide/voice/calls/{call_id}/turns/{turn_id}",
+    "GET /api/aide/voice/status",
+    "POST /api/aide/calls",
+    "POST /api/aide/calls/{call_id}/hangup",
+    "POST /api/aide/calls/{call_id}/offer",
+    "POST /api/aide/calls/{call_id}/transcripts",
+    "POST /api/aide/coding/health",
+    "POST /api/aide/coding/pair",
+    "POST /api/aide/coding/runs",
+    "POST /api/aide/coding/runs/{run_id}/cancel",
+    "POST /api/aide/coding/runs/{run_id}/continue",
+    "POST /api/aide/coding/runs/{run_id}/refresh",
+    "POST /api/aide/coding/runs/{run_id}/respond",
+    "POST /api/aide/coding/runs/{run_id}/resume",
+    "POST /api/aide/voice/calls",
+    "POST /api/aide/voice/calls/{call_id}/hangup",
+    "POST /api/aide/voice/calls/{call_id}/turns",
+    "POST /api/aide/voice/calls/{call_id}/turns/{turn_id}/cancel",
+    "POST /api/aide/voice/calls/{call_id}/turns/{turn_id}/speech",
     "POST /api/finance/connections/{connection_id}/plaid/update-complete",
+}
+
+
+_FINANCE_ADDITIONS = {
     "GET /api/money/currencies",
     "GET /api/money/transactions/{tid}/undo",
     "POST /api/money/transactions/{tid}/undo",
@@ -35,15 +68,19 @@ _FINANCE_ADDITIONS = {
 
 
 def _before_finance_additions():
-    return [row for row in _route_rows() if row not in _FINANCE_ADDITIONS]
+    return [
+        row
+        for row in _route_rows()
+        if row not in _FINANCE_ADDITIONS | _ASSISTANT_AND_BANK_ADDITIONS
+    ]
 
 
 class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 918)
-        self.assertEqual(digest, "05f4755fe9cff1beecd905a8b44e250437b9878a4f07806d579cbefccc99fe84")
+        self.assertEqual(len(rows), 947)
+        self.assertEqual(digest, "522fe1fb902186f148959593e48b74a15c559784d3f52cfa890ac36d6aa0d8ff")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -52,9 +89,18 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 901, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 930, "v1": 2, "public": 15})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
+
+    def test_assistant_and_bank_routes_are_additive_to_previous_surface(self):
+        self.assertTrue(_ASSISTANT_AND_BANK_ADDITIONS <= set(_route_rows()))
+        rows = [row for row in _route_rows() if row not in _ASSISTANT_AND_BANK_ADDITIONS]
+        self.assertEqual(len(rows), 917)
+        self.assertEqual(
+            hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest(),
+            "4f2aec58ae7471a12bf539c5edc571b05a29758b7d2d319000fe094888b25e8b",
+        )
 
     def test_finance_currency_and_undo_are_additive_to_previous_surface(self):
         self.assertTrue(_FINANCE_ADDITIONS <= set(_route_rows()))

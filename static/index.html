@@ -28,8 +28,12 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=514">
-  <link rel="stylesheet" href="/static/kokuen.css?v=51">
+<link rel="stylesheet" href="/static/style.css?v=521">
+  <link rel="stylesheet" href="/static/kokuen.css?v=54">
+<link rel="stylesheet" href="/static/aidecentral.css?v=2">
+<link rel="stylesheet" href="/static/aidecoding.css?v=3">
+<link rel="stylesheet" href="/static/aidecall.css?v=2">
+<link rel="stylesheet" href="/static/help.css?v=1">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#090909">
@@ -45,7 +49,9 @@
 
   <button class="shell-navigation-toggle" id="app-drawer-btn" type="button" hidden
     aria-label="switch app from alles" aria-haspopup="dialog" aria-controls="app-drawer" aria-expanded="false">
-    <span id="app-drawer-label">alles</span><span class="shell-navigation-chevron" aria-hidden="true">⌄</span>
+    <span id="app-drawer-label">alles</span><svg class="shell-navigation-chevron" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+      aria-hidden="true"><polyline points="5 9.5 12 16 19 9.5"></polyline></svg>
   </button>
 
   <div class="app-drawer-scrim" id="app-drawer-scrim" hidden></div>
@@ -59,6 +65,7 @@
       <div class="app-drawer-grid" id="app-drawer-grid"></div>
     </div>
     <footer class="app-drawer-footer">
+      <button id="app-drawer-help" type="button" aria-haspopup="dialog">help &amp; manual</button>
       <button id="app-drawer-settings" type="button" data-i18n="common.settings">settings</button>
     </footer>
   </aside>
@@ -67,15 +74,16 @@
   <div class="nav-backdrop" id="nav-backdrop"></div>
 
   <!-- sidebar -->
-  <aside class="sidebar" id="aide-sidebar">
+  <aside class="sidebar" id="aide-sidebar" role="dialog" aria-modal="true" aria-labelledby="aide-archive-title">
     <div class="sidebar-head">
-      <span class="brand sidebar-brand" id="brand-home">aide</span>
-      <button class="icon-btn aide-sidebar-close" id="aide-sidebar-close" type="button" aria-label="close sidebar">×</button>
+      <span class="brand sidebar-brand" id="brand-home"><span id="aide-archive-title">archive</span></span>
+      <button class="icon-btn aide-sidebar-close" id="aide-sidebar-close" type="button" aria-label="close archive">×</button>
     </div>
+    <button class="aide-return-primary" id="aide-return-primary" type="button">return to conversation</button>
 
     <div class="search-wrap">
       <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-      <input class="search-input" id="session-search" type="text" placeholder="search aide tasks…" aria-label="search aide tasks" data-i18n-placeholder="aide.search_tasks" data-i18n-aria-label="aide.search_tasks">
+      <input class="search-input" id="session-search" type="search" placeholder="search conversations…" aria-label="search conversations">
     </div>
 
     <nav class="sidebar-nav">
@@ -108,9 +116,9 @@
   <main class="main">
     <div class="topbar">
       <div class="topbar-left">
-        <button class="icon-btn" id="sidebar-toggle-btn" type="button" title="toggle sidebar (Ctrl+B)" aria-labelledby="aide-sidebar-toggle-label" aria-controls="aide-sidebar" aria-expanded="true" data-i18n-title="aide.toggle_sidebar">
+        <button class="icon-btn" id="sidebar-toggle-btn" type="button" title="archive" aria-labelledby="aide-sidebar-toggle-label" aria-controls="aide-sidebar" aria-expanded="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M9 4v16"/></svg>
-          <span class="aide-toggle-label" id="aide-sidebar-toggle-label" data-i18n="aide.tasks">aide tasks</span>
+          <span class="aide-toggle-label" id="aide-sidebar-toggle-label">archive</span>
         </button>
         <div class="app-crumb" id="app-crumb">alles</div>
         <div class="aide-current-context" id="aide-current-context" hidden>
@@ -119,6 +127,10 @@
           <span id="aide-conversation-name" data-i18n="aide.new_task">new aide task</span>
           <small id="aide-project-name"></small>
         </div>
+        <nav class="aide-mode-nav" aria-label="Aide workspace">
+          <button id="aide-mode-conversation" type="button" aria-pressed="true">conversation</button>
+          <button id="aide-mode-coding" type="button" aria-pressed="false">code</button>
+        </nav>
         <div class="ai-top-controls" id="ai-top-controls">
           <button class="model-btn" id="model-btn" type="button" aria-haspopup="dialog" aria-controls="model-modal" aria-expanded="false">
             <span class="live-dot" id="live-dot"></span>
@@ -138,6 +150,22 @@
         </div>
       </div>
       <div class="topbar-utilities">
+        <button class="aide-central-action" id="aide-jobs-open" type="button" aria-label="background work" aria-haspopup="dialog" aria-controls="aide-context-panel" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="17" r="3"/></svg><span id="aide-jobs-count" hidden></span></button>
+        <button class="aide-central-action" id="aide-call-open" type="button" aria-label="open call" aria-controls="aide-call-workspace" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2c0 8.8 7.2 16 16 16a2 2 0 0 0 2-2v-3l-5-2-2 2a14 14 0 0 1-6-6l2-2-2-5Z"/></svg><span class="aide-call-label">call</span></button>
+        <div class="aide-more-anchor">
+          <button class="aide-central-action" id="aide-more-btn" type="button" aria-label="more Aide actions" aria-haspopup="menu" aria-controls="aide-more-menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
+          <div id="aide-more-menu" class="aide-central-menu" role="menu" aria-label="Aide actions" hidden>
+            <button type="button" role="menuitem" data-aide-central-action="memory">memory</button>
+            <button type="button" role="menuitem" data-aide-central-action="archive">archive</button>
+            <button type="button" role="menuitem" data-aide-central-action="options">conversation settings</button>
+            <button type="button" role="menuitem" data-aide-central-action="scheduled">scheduled work</button>
+            <button type="button" role="menuitem" data-aide-central-action="skills">skills</button>
+            <button type="button" role="menuitem" data-aide-central-action="tools">tools</button>
+            <button type="button" role="menuitem" data-aide-central-action="private">private conversation</button>
+            <button type="button" role="menuitem" data-aide-central-action="share">export conversation</button>
+            <button type="button" role="menuitem" data-aide-central-action="settings">settings</button>
+          </div>
+        </div>
         <span class="session-token-count" id="session-token-count" role="status" aria-live="polite" hidden>
           <svg class="session-token-mark" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" aria-hidden="true">
             <path d="M2 3.25h4.25M8.25 3.25H14M2 8h7.25M11.25 8H14M2 12.75h2.75M6.75 12.75H14"/>
@@ -197,7 +225,7 @@
         </header>
         <form class="today-capture" id="today-capture">
           <button class="today-capture-mode" id="today-capture-mode" type="button" aria-pressed="true" data-i18n="home.task">task</button>
-          <input id="today-capture-input" type="text" aria-label="capture a task" placeholder="capture something…" data-i18n-aria-label="home.capture_task" data-i18n-placeholder="home.capture_placeholder" autocomplete="off">
+          <textarea id="today-capture-input" rows="1" data-kokuen-entry="autogrow" aria-label="capture a task" placeholder="capture something…" data-i18n-aria-label="home.capture_task" data-i18n-placeholder="home.capture_placeholder" autocomplete="off"></textarea>
           <button class="today-capture-send" type="submit" aria-label="save capture" data-i18n-aria-label="home.save_capture">↑</button>
         </form>
         <div id="today-capture-recovery"></div>
@@ -214,7 +242,7 @@
           <form class="andromeda-search" id="andromeda-form" role="search">
             <svg class="andromeda-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
             <label class="sr-only" for="andromeda-query" data-i18n="andromeda.search_web">search the web</label>
-            <input id="andromeda-query" type="search" maxlength="2000" autocomplete="off" placeholder="search the web" data-i18n-placeholder="andromeda.search_web" aria-describedby="andromeda-search-hint">
+            <input id="andromeda-query" type="search" data-kokuen-entry="compact" maxlength="2000" autocomplete="off" placeholder="search the web" data-i18n-placeholder="andromeda.search_web" aria-describedby="andromeda-search-hint">
             <button class="andromeda-icon-button andromeda-submit" type="submit" id="andromeda-submit" aria-label="search" data-i18n-aria-label="common.search">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m14 7 5 5-5 5"></path></svg>
             </button>
@@ -396,6 +424,9 @@
     </section>
 
     <!-- ── chat view (default) ── -->
+    <div class="aide-history-context" id="aide-history-context" hidden><span id="aide-history-name"></span><button type="button" id="aide-history-return">return to conversation</button></div>
+    <section id="aide-coding-workspace" class="aide-dedicated-workspace" hidden></section>
+    <section id="aide-call-workspace" class="aide-dedicated-workspace" hidden></section>
     <nav class="aide-message-rail" id="aide-message-rail" aria-label="messages from you" hidden>
       <div id="aide-message-rail-track"></div>
     </nav>
@@ -479,7 +510,7 @@
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="finance-view" data-specialist-app="finance" data-kokuen-surface="specialist" style="display:none" aria-labelledby="finance-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="finance-tabs" aria-label="hide finance views">views</button><h1 class="specialist-app-name" id="finance-title">finance</h1></div><div class="specialist-group-tabs" id="finance-tabs" role="tablist" aria-label="finance sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><button class="specialist-sidebar-toggle" type="button" data-specialist-sidebar-toggle aria-expanded="true" aria-controls="finance-tabs" aria-label="hide finance views">views</button><h1 class="specialist-app-name" id="finance-title">finance</h1><button class="btn manual-context-help" id="finance-help" type="button" title="how to use Finance" aria-haspopup="dialog">finance guide</button></div><div class="specialist-group-tabs" id="finance-tabs" role="tablist" aria-label="finance sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="money">money</button><button type="button" role="tab" data-group-section="subs">subscriptions</button><button type="button" role="tab" data-group-section="imports">imports</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
@@ -1358,7 +1389,7 @@
         <strong id="aide-document-scope-name"></strong>
         <button type="button" id="aide-document-scope-remove" data-i18n="common.remove">remove</button>
       </div>
-      <div class="aide-new-context" id="aide-new-context" role="group" aria-label="new aide task context" data-i18n-aria-label="aide.new_task_context" hidden>
+      <div class="aide-new-context" id="aide-new-context" role="group" aria-label="conversation settings" hidden>
         <button class="aide-new-context-item aide-project-context" id="aide-project-context" type="button" aria-haspopup="menu" aria-expanded="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg>
           <span id="aide-project-context-label" data-i18n="aide.tasks">aide tasks</span>
@@ -1405,6 +1436,9 @@
             <button type="button" class="c-tool mic-corner" id="mic-btn" title="voice input" aria-label="voice input" data-i18n-title="aide.voice_input" data-i18n-aria-label="aide.voice_input">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
+            <button type="button" class="c-tool mic-corner" id="live-voice-btn" title="start live voice" aria-label="start live voice" aria-pressed="false" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9v6M10 6v12M14 4v16M18 8v8"/></svg>
+            </button>
             <button type="button" class="stop-btn" id="stop-btn" aria-label="stop" data-i18n-aria-label="common.stop">■</button>
             <button type="button" class="send-btn" id="send-btn" aria-label="send" data-i18n-aria-label="common.send">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
@@ -1431,6 +1465,7 @@
     <nav class="aide-task-tools" id="aide-task-tools" aria-label="tools for this task">
       <button type="button" data-aide-tool="review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8M12 8v8"/></svg><span>review</span></button>
       <button type="button" data-aide-tool="terminal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg><span>terminal</span></button>
+      <button type="button" data-aide-tool="coding"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8.5 7-5 5 5 5M15.5 7l5 5-5 5M13.5 4l-3 16"/></svg><span>coding</span></button>
       <button type="button" data-aide-tool="browser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.5 3.5 5.3 3.5 8.5S14.4 18 12 20.5M12 3.5C9.6 6 8.5 8.8 8.5 12s1.1 6 3.5 8.5"/></svg><span>browser</span></button>
       <button type="button" data-aide-tool="files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg><span>files</span></button>
       <button type="button" data-aide-tool="side-task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg><span>side task</span></button>
@@ -1452,6 +1487,13 @@
     <div class="artifact-body" id="artifact-body"></div>
   </div>
 
+</div>
+
+<div class="aide-context-overlay" id="aide-context-overlay" hidden>
+  <section class="aide-context-panel" id="aide-context-panel" role="dialog" aria-modal="true" aria-labelledby="aide-context-title">
+    <header><h2 id="aide-context-title">background work</h2><button id="aide-context-close" class="aide-central-action" type="button" aria-label="close context" data-kokuen-icon="close">close</button></header>
+    <div id="aide-context-content" class="aide-context-content"></div>
+  </section>
 </div>
 
 <!-- login screen -->
@@ -2194,14 +2236,14 @@
             <div class="s-card-body">
               <div class="s-field">
                 <label>provider</label>
-                <div class="settings-input custom-select" id="stt-select" style="width:100%" data-value="browser" data-options="browser|browser (Web Speech API, needs internet);local|local whisper (offline, needs faster-whisper);whisper_api|OpenAI Whisper API"></div>
+                <div class="settings-input custom-select" id="stt-select" aria-label="speech-to-text provider" style="width:100%" data-value="browser" data-options="browser|browser (Web Speech API, needs internet);local|local whisper (offline, needs faster-whisper);whisper_api|OpenAI Whisper API"></div>
               </div>
               <div class="s-field">
                 <label>microphone</label>
-                <div class="settings-input custom-select" id="s-mic-select" style="width:100%" data-options="|default microphone"></div>
+                <div class="settings-input custom-select" id="s-mic-select" aria-label="microphone" style="width:100%" data-options="|default microphone"></div>
               </div>
               <div class="s-field" id="s-stt-lang-row">
-                <label>language <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+                <label for="s-stt-language">language <span style="color:var(--muted);font-weight:400">(optional)</span></label>
                 <input type="text" class="settings-input" id="s-stt-language" placeholder="e.g. en-US, zh-CN, fr-FR" style="width:100%">
               </div>
             </div>
@@ -2215,15 +2257,15 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">auto-play TTS</div><div class="s-toggle-desc">speak AI replies automatically</div></div><div class="s-switch" id="s-tts-enabled-toggle"></div></div>
               <div class="s-field">
                 <label>provider</label>
-                <div class="settings-input custom-select" id="tts-select" style="width:100%" data-value="browser" data-options="browser|browser (free);openai|OpenAI TTS"></div>
+                <div class="settings-input custom-select" id="tts-select" aria-label="text-to-speech provider" style="width:100%" data-value="browser" data-options="browser|browser (free);openai|OpenAI TTS"></div>
               </div>
               <div class="s-field" id="s-tts-voice-row" style="display:none">
                 <label>voice</label>
-                <div class="settings-input custom-select" id="s-tts-voice" style="width:100%" data-value="alloy" data-options="alloy|alloy;echo|echo;fable|fable;onyx|onyx;nova|nova;shimmer|shimmer"></div>
+                <div class="settings-input custom-select" id="s-tts-voice" aria-label="text-to-speech voice" style="width:100%" data-value="alloy" data-options="alloy|alloy;echo|echo;fable|fable;onyx|onyx;nova|nova;shimmer|shimmer"></div>
               </div>
               <div class="s-field">
                 <label>speed</label>
-                <div class="settings-input custom-select" id="s-tts-speed" style="width:120px" data-value="1" data-options="0.5|0.5×;0.75|0.75×;1|1×;1.25|1.25×;1.5|1.5×;1.75|1.75×;2|2×"></div>
+                <div class="settings-input custom-select" id="s-tts-speed" aria-label="text-to-speech speed" style="width:120px" data-value="1" data-options="0.5|0.5×;0.75|0.75×;1|1×;1.25|1.25×;1.5|1.5×;1.75|1.75×;2|2×"></div>
               </div>
             </div>
           </div>
@@ -2234,7 +2276,7 @@
             </div>
             <div class="s-card-body">
               <div class="s-field">
-                <label>required for whisper api and openai tts</label>
+                <label for="settings-openai-key">openai api key — required for whisper api and openai tts</label>
                 <input type="password" class="settings-input" id="settings-openai-key" placeholder="sk-..." style="width:100%">
               </div>
               <button type="button" class="btn primary" id="s-voice-save-btn" style="width:100%;margin-top:0.2rem">save voice settings</button>
@@ -2920,7 +2962,7 @@
 </div>
 
 <script type="module">
-const _v = '514';
+const _v = '521';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

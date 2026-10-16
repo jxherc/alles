@@ -1,18 +1,23 @@
 import { formatNumber } from './i18n.js';
+let loadSequence = 0;
 
 export async function loadBrainPanel(fetcher = fetch) {
+  // The refresh button supplies a click event; tests may supply a fetch function.
+  if (typeof fetcher !== 'function') fetcher = fetch;
   const statsEl = document.getElementById('brain-stats');
   const contextEl = document.getElementById('brain-context');
   const memoriesEl = document.getElementById('brain-memories');
   if (!statsEl || !contextEl || !memoriesEl) return;
+  const sequence = ++loadSequence;
 
   const [memories, history, insights, distilled, settings] = await Promise.all([
-    fetcher('/api/memories').then(r => r.ok ? r.json() : Promise.reject(new Error('memories unavailable'))).catch(() => []),
-    _loadCurrentHistory(fetcher),
-    fetcher('/api/insights').then(r => r.ok ? r.json() : Promise.reject(new Error('insights unavailable'))).catch(() => []),
-    fetcher('/api/memory/distilled').then(r => r.ok ? r.json() : Promise.reject(new Error('memory model unavailable'))).catch(() => []),
-    fetcher('/api/settings').then(r => r.ok ? r.json() : Promise.reject(new Error('settings unavailable'))).catch(() => ({})),
+    _loadList(fetcher, '/api/memories'),
+    _loadCurrentHistory(fetcher).catch(() => null),
+    _loadList(fetcher, '/api/insights'),
+    _loadList(fetcher, '/api/memory/distilled'),
+    fetcher('/api/settings').then(r => r.ok ? r.json() : Promise.reject(new Error('settings unavailable'))).catch(() => null),
   ]);
+  if (sequence !== loadSequence) return;
 
   const messages = history?.messages || [];
   const session = history?.session || window._currentSession || null;
@@ -20,11 +25,11 @@ export async function loadBrainPanel(fetcher = fetch) {
   const aiCount = messages.filter(m => m.role === 'assistant').length;
   const chars = messages.reduce((sum, m) => sum + String(m.content || '').length, 0);
   const approxTokens = Math.ceil(chars / 4);
-  const pinned = memories.filter(m => m.pinned).length;
+  const pinned = memories?.filter(m => m.pinned).length;
 
   statsEl.innerHTML = [
-    _stat('memories', memories.length),
-    _stat('pinned', pinned),
+    _stat('memories', memories?.length ?? 'unavailable'),
+    _stat('pinned', pinned ?? 'unavailable'),
     _stat('messages', messages.length),
     _stat('tokens', formatNumber(approxTokens)),
   ].join('');
@@ -36,8 +41,8 @@ export async function loadBrainPanel(fetcher = fetch) {
     <div><span>context estimate</span><strong>${formatNumber(approxTokens)} tokens</strong></div>
   `;
 
-  const recent = memories.slice(0, 6);
-  memoriesEl.innerHTML = recent.length
+  const recent = memories?.slice(0, 6);
+  memoriesEl.innerHTML = !recent ? _loadError('memories') : recent.length
     ? recent.map(m => `<div class="brain-memory">
         <span>${_esc(m.category || 'memory')}</span>
         <div>${_esc(m.text || '')}</div>
@@ -49,9 +54,24 @@ export async function loadBrainPanel(fetcher = fetch) {
   _bindButtons();
 }
 
+async function _loadList(fetcher, url) {
+  try {
+    const response = await fetcher(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return Array.isArray(data) ? data : null;
+  } catch { return null; }
+}
+
+function _loadError(label) {
+  return `<div class="brain-empty" role="status">could not load ${label}. use refresh to try again.</div>`;
+}
+
 function _renderInsights(items, settings) {
   const el = document.getElementById('brain-insights');
   if (!el) return;
+  if (!items) { el.innerHTML = _loadError('insights'); return; }
+  if (!items.length && !settings) { el.innerHTML = _loadError('insight settings'); return; }
   if (!items.length) {
     el.innerHTML = settings.insights_enabled
       ? '<div class="brain-empty">nothing yet - hit generate to look for cross-domain patterns.</div>'
@@ -85,8 +105,10 @@ function _renderInsights(items, settings) {
 function _renderUserModel(facts, settings) {
   const el = document.getElementById('brain-usermodel');
   if (!el) return;
+  if (!facts) { el.innerHTML = _loadError('learned facts'); return; }
   const live = (facts || []).filter(f => !f.vetoed);
   if (!live.length) {
+    if (!settings) { el.innerHTML = _loadError('learning settings'); return; }
     el.innerHTML = settings.user_model_distill
       ? '<div class="brain-empty">nothing distilled yet - hit refresh once you have some chat history.</div>'
       : _disabledHint('learning about you is off', 'intelligence');

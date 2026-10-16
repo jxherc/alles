@@ -1,6 +1,7 @@
 """One-off Aide-to-Jarvis handoffs backed by durable Phase 2 run records."""
 
 import asyncio
+import hashlib
 import json
 import logging
 
@@ -35,7 +36,35 @@ def model_preview(db, *, endpoint_override: str = "", model_override: str = "") 
     if endpoint_override and model_override:
         choice["endpoint_id"] = str(endpoint_override).strip()
     selection = resolve_model(db, "aide_chat", workflow_override=choice)
-    return selection.public()
+    return {**selection.public(), "destination_fingerprint": _destination_fingerprint(selection)}
+
+
+def _destination_fingerprint(selection) -> str:
+    endpoint = selection.endpoint
+    values = {
+        name: getattr(endpoint, name, "") or ""
+        for name in (
+            "id",
+            "base_url",
+            "provider_id",
+            "provider_adapter",
+            "auth_type",
+            "oauth_project_id",
+        )
+    }
+    values["model"] = selection.model
+    return hashlib.sha256(json.dumps(values, sort_keys=True).encode()).hexdigest()
+
+
+def _accepted_model(db, run: JarvisRun) -> dict:
+    event = (
+        db.query(JarvisRunEvent)
+        .filter_by(run_id=run.id, kind="handoff_requested")
+        .order_by(JarvisRunEvent.sequence)
+        .first()
+    )
+    data = json_value(event.data, dict) if event else {}
+    return data.get("accepted_model") or {}
 
 
 def create_handoff(
@@ -51,6 +80,8 @@ def create_handoff(
     reasoning_mode: str = "automatic",
     custom_effort: dict | None = None,
     origin: dict | None = None,
+    request_id: str = "",
+    accepted_model: dict | None = None,
 ) -> JarvisRun:
     from services.project_environment import session_environment
 
@@ -76,6 +107,37 @@ def create_handoff(
         if custom.get("workflows") in {"off", "auto"}
         else "off",
     }
+    request_id = str(request_id or "")
+    if request_id:
+        existing = db.get(JarvisRun, request_id)
+        if existing:
+            workflow = (
+                db.get(JarvisWorkflow, existing.workflow_id) if existing.workflow_id else None
+            )
+            event = (
+                db.query(JarvisRunEvent)
+                .filter_by(run_id=existing.id, kind="handoff_requested")
+                .order_by(JarvisRunEvent.sequence)
+                .first()
+            )
+            data = json_value(event.data, dict) if event else {}
+            matches = bool(
+                workflow
+                and workflow.deterministic_action == HANDOFF_ACTION
+                and existing.session_id == session.id
+                and workflow.prompt == request
+                and (workflow.model_override or "") == str(model_override or "")[:300]
+                and data.get("request_id") == request_id
+                and data.get("file_ids") == files
+                and data.get("endpoint_override") == str(endpoint_override or "")[:100]
+                and data.get("permission_mode") == permission_mode
+                and data.get("effort") == effort
+                and data.get("reasoning_mode") == reasoning_mode
+                and data.get("custom_effort") == custom
+            )
+            if not matches:
+                raise ValueError("handoff_identity_conflict")
+            return existing
     workflow = JarvisWorkflow(
         name=" ".join(request.split())[:80],
         purpose="one-off work Aide is continuing in the background",
@@ -91,7 +153,7 @@ def create_handoff(
     )
     db.add(workflow)
     db.flush()
-    run = create_run(db, workflow, session_id=session.id)
+    run = create_run(db, workflow, session_id=session.id, run_id=request_id or None)
     workflow.active_run_id = run.id
     environment = session_environment(session)
     append_event(
@@ -101,6 +163,8 @@ def create_handoff(
         source="aide",
         summary="background work requested",
         data={
+            "request_id": request_id,
+            "accepted_model": accepted_model or {},
             "file_ids": files,
             "endpoint_override": str(endpoint_override or "")[:100],
             "permission_mode": permission_mode,
@@ -246,6 +310,7 @@ def retry_handoff(db, previous: JarvisRun, *, request_id: str = "") -> JarvisRun
             "reasoning_mode": reasoning_mode,
             "custom_effort": custom_effort,
             "previous_run_id": previous.id,
+            "accepted_model": _accepted_model(db, previous),
             "retry_request_id": request_id,
             "origin_kind": origin["kind"],
             "origin_connector_id": origin["connector_id"],
@@ -440,12 +505,33 @@ async def _execute(run_id: str) -> None:
         model_choice = {"model": workflow.model_override} if workflow.model_override else {}
         if endpoint_override and workflow.model_override:
             model_choice["endpoint_id"] = endpoint_override
+        accepted_model = _accepted_model(db, run)
+        if accepted_model:
+            model_choice = {
+                "endpoint_id": accepted_model["endpoint_id"],
+                "model": accepted_model["model"],
+            }
         selection = resolve_model(
             db,
             "aide_chat",
             workflow_override=model_choice,
             settings=settings,
         )
+        if accepted_model and _destination_fingerprint(selection) != accepted_model.get(
+            "destination_fingerprint"
+        ):
+            raise ModelResolutionError(
+                "handoff_destination_changed",
+                "the background model destination changed; start new work to confirm it",
+            )
+        from services import aide_voice
+
+        voice_context = aide_voice.handoff_context(db, run.id)
+        if voice_context:
+            from core.database import AideCall
+
+            selection = aide_voice.selected_model(db, db.get(AideCall, voice_context["call_id"]))
+            settings["_aide_voice_turn"] = voice_context
         from services.project_environment import session_environment
 
         environment = session_environment(session)

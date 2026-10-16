@@ -81,6 +81,14 @@ class ModelEndpoint(Base):
 
 class Session(Base):
     __tablename__ = "sessions"
+    __table_args__ = (
+        Index(
+            "ux_sessions_aide_primary",
+            "aide_role",
+            unique=True,
+            sqlite_where=text("aide_role = 'primary'"),
+        ),
+    )
     id = Column(String, primary_key=True, default=_uid)
     name = Column(String, default="new chat")
     model = Column(String, default="")
@@ -91,6 +99,7 @@ class Session(Base):
     chat_behavior = Column(
         String, default=""
     )  # '' follows Settings | automatic_tools | answer_only
+    aide_role = Column(String, nullable=False, default="")  # '' | primary
     persona_id = Column(String, ForeignKey("personas.id", ondelete="SET NULL"), nullable=True)
     project_id = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
     working_dir = Column(Text, default="")
@@ -129,6 +138,84 @@ class Message(Base):
             return json.loads(self.meta or "{}")
         except Exception:
             return {}
+
+
+class AideCall(Base):
+    __tablename__ = "aide_calls"
+    id = Column(String, primary_key=True, default=_uid)
+    session_id = Column(String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
+    provider = Column(String, nullable=False, default="openai-realtime")
+    model = Column(String, nullable=False, default="")
+    state = Column(String, nullable=False, default="connecting", index=True)
+    provider_call_id = Column(String, default="")
+    created_at = Column(DateTime, default=_now)
+    connected_at = Column(DateTime, nullable=True)
+    ended_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class AideCallEvent(Base):
+    __tablename__ = "aide_call_events"
+    __table_args__ = (
+        Index("ux_aide_call_events_sequence", "call_id", "sequence", unique=True),
+        Index(
+            "ux_aide_call_events_provider_event",
+            "call_id",
+            "provider_event_id",
+            unique=True,
+        ),
+    )
+    id = Column(String, primary_key=True, default=_uid)
+    call_id = Column(String, ForeignKey("aide_calls.id", ondelete="CASCADE"), nullable=False)
+    sequence = Column(Integer, nullable=False)
+    kind = Column(String, nullable=False)
+    role = Column(String, default="")
+    text = Column(Text, default="")
+    provider_event_id = Column(String, nullable=True)
+    data = Column(Text, default="{}")
+    created_at = Column(DateTime, default=_now)
+
+
+class DshConnection(Base):
+    __tablename__ = "dsh_connections"
+    id = Column(String, primary_key=True, default="default")
+    base_url = Column(String, nullable=False)
+    token = Column(EncryptedText("dsh_connections.token"), nullable=False)
+    host_version = Column(String, default="")
+    connected_at = Column(DateTime, default=_now)
+    checked_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class AideCodingRun(Base):
+    __tablename__ = "aide_coding_runs"
+    id = Column(String, primary_key=True)
+    aide_session_id = Column(String, ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True)
+    workspace_id = Column(String, nullable=False)
+    workspace_path = Column(Text, default="")
+    provider_session_id = Column(String, nullable=False, unique=True)
+    prompt = Column(Text, nullable=False)
+    prompt_hash = Column(String, nullable=False)
+    state = Column(String, nullable=False, default="starting", index=True)
+    error_code = Column(String, default="")
+    safe_error = Column(Text, default="")
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+    finished_at = Column(DateTime, nullable=True)
+
+
+class AideCodingRunEvent(Base):
+    __tablename__ = "aide_coding_run_events"
+    __table_args__ = (
+        Index("ux_aide_coding_run_events_sequence", "run_id", "sequence", unique=True),
+    )
+    id = Column(String, primary_key=True, default=_uid)
+    run_id = Column(String, ForeignKey("aide_coding_runs.id", ondelete="CASCADE"), nullable=False)
+    sequence = Column(Integer, nullable=False)
+    kind = Column(String, nullable=False)
+    summary = Column(Text, nullable=False)
+    data = Column(Text, default="{}")
+    created_at = Column(DateTime, default=_now)
 
 
 class AndromedaSavedSearch(Base):

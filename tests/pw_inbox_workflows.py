@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import socket
 import sys
 import time
@@ -481,7 +482,11 @@ def run():
                 )
                 expect(opener).to_be_focused()
                 page.keyboard.press("Enter")
-                expect(page.locator("#mail-main")).to_contain_text("Connection refused")
+                expect(page.locator("#mail-main")).to_contain_text(
+                    re.compile(
+                        "Connection refused|owned browser test denies ALL server outbound network"
+                    )
+                )
                 return_to_mail_list(page)
                 page.get_by_role("button", name="add a label", exact=True).first.press("Tab")
                 assert page.locator(":focus").evaluate("e => getComputedStyle(e).opacity === '1'")

@@ -206,6 +206,7 @@ def _delivery(row: JarvisDeliveryAttempt) -> dict:
 
 
 def _run(db: DbSession, row: JarvisRun, *, detail: bool = False) -> dict:
+    workflow = db.get(JarvisWorkflow, row.workflow_id) if row.workflow_id else None
     result = {
         "id": row.id,
         "workflow_id": row.workflow_id,
@@ -213,6 +214,7 @@ def _run(db: DbSession, row: JarvisRun, *, detail: bool = False) -> dict:
         "project_id": row.project_id,
         "session_id": row.session_id,
         "state": row.state,
+        "title": workflow.name if workflow else "aide work",
         "scheduled_for": row.scheduled_for.isoformat() if row.scheduled_for else None,
         "next_attempt_at": row.next_attempt_at.isoformat() if row.next_attempt_at else None,
         "attempt_count": row.attempt_count,
@@ -226,7 +228,6 @@ def _run(db: DbSession, row: JarvisRun, *, detail: bool = False) -> dict:
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
     if detail:
-        workflow = db.get(JarvisWorkflow, row.workflow_id) if row.workflow_id else None
         result["title"] = workflow.name if workflow else "aide work"
         result["can_retry"] = bool(
             workflow
@@ -272,16 +273,18 @@ class WorkflowBody(BaseModel):
 
 class HandoffBody(BaseModel):
     session_id: str
+    request_id: str = Field(default="", max_length=36)
     request: str = Field(min_length=1, max_length=50_000)
     endpoint_override: str = Field(default="", max_length=100)
     model_override: str = Field(default="", max_length=300)
     file_ids: list[str] = Field(default_factory=list, max_length=20)
     confirmed_endpoint_id: str = ""
     confirmed_model: str = ""
+    confirmed_destination_fingerprint: str = ""
     permission_mode: Literal["full_access", "full_auto", "approve", "plan"] = "approve"
     effort: Literal["low", "medium", "high", "xhigh", "max", "deep_work", "custom"] = "medium"
     reasoning_mode: Literal["automatic", "on", "off"] = "automatic"
-    custom_effort: dict = Field(default_factory=dict)
+    custom_effort: dict | None = None
 
 
 @router.get("/handoffs/preview")
@@ -321,27 +324,47 @@ async def add_handoff(body: HandoffBody, db: DbSession = Depends(get_db)):
         raise ApiError(409, "incognito_handoff_forbidden", "incognito work stays in this tab")
     if body.endpoint_override and not body.model_override:
         raise ApiError(400, "invalid_model_override", "an endpoint override needs a model")
-    try:
-        preview = jarvis_handoff.model_preview(
-            db,
-            endpoint_override=body.endpoint_override,
-            model_override=body.model_override,
+    identity = body.request_id
+    if identity:
+        try:
+            canonical = str(UUID(identity))
+            if identity.lower() != canonical:
+                raise ValueError
+            identity = canonical
+        except ValueError:
+            _bad("invalid_handoff_identity", "use a canonical request_id")
+        # Reserve creation for this session so concurrent retries cannot both
+        # create a workflow before the request-id run becomes visible.
+        db.query(Session).filter_by(id=session.id).update(
+            {Session.id: Session.id}, synchronize_session=False
         )
-    except Exception as exc:
-        from services.model_resolver import ModelResolutionError
+        db.expire_all()
+        session = db.get(Session, body.session_id)
+    replay = bool(identity and db.get(JarvisRun, identity))
+    preview = None
+    if not replay:
+        try:
+            preview = jarvis_handoff.model_preview(
+                db,
+                endpoint_override=body.endpoint_override,
+                model_override=body.model_override,
+            )
+        except Exception as exc:
+            from services.model_resolver import ModelResolutionError
 
-        if isinstance(exc, ModelResolutionError):
-            raise ApiError(409, exc.code, str(exc)) from exc
-        raise
-    if preview["privacy_class"] == "remote" and (
-        body.confirmed_endpoint_id != preview["endpoint_id"]
-        or body.confirmed_model != preview["model"]
-    ):
-        raise ApiError(
-            409,
-            "remote_model_confirmation_required",
-            "confirm the shown background model before Project context leaves Alles",
-        )
+            if isinstance(exc, ModelResolutionError):
+                raise ApiError(409, exc.code, str(exc)) from exc
+            raise
+        if preview["privacy_class"] == "remote" and (
+            body.confirmed_endpoint_id != preview["endpoint_id"]
+            or body.confirmed_model != preview["model"]
+            or body.confirmed_destination_fingerprint != preview["destination_fingerprint"]
+        ):
+            raise ApiError(
+                409,
+                "remote_model_confirmation_required",
+                "confirm the shown background model before Project context leaves Alles",
+            )
     try:
         run = jarvis_handoff.create_handoff(
             db,
@@ -354,13 +377,16 @@ async def add_handoff(body: HandoffBody, db: DbSession = Depends(get_db)):
             effort=body.effort,
             reasoning_mode=body.reasoning_mode,
             custom_effort=body.custom_effort,
+            request_id=identity,
+            accepted_model=preview,
         )
     except ValueError as exc:
         code = str(exc)
         raise ApiError(409, code, code.replace("_", " ")) from exc
     db.commit()
     db.refresh(run)
-    jarvis_handoff.launch(run.id)
+    if not replay:
+        jarvis_handoff.launch(run.id)
     return _run(db, run, detail=True)
 
 

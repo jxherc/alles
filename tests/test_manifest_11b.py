@@ -123,6 +123,8 @@ class ManifestTests(ApiTest):
 
     def test_precache_uses_the_shell_stamp_and_every_linked_stylesheet(self):
         urls = self.client.get("/api/pwa/precache").json()["urls"]
+        self.assertIn("/static/vendor/inter/InterVariable.woff2", urls)
+        self.assertIn("/static/vendor/inter/InterVariable-Italic.woff2", urls)
         html = (STATIC / "index.html").read_text(encoding="utf-8")
         app_stamp = re.search(r"const _v = '(\d+)'", html)
         self.assertIsNotNone(app_stamp)

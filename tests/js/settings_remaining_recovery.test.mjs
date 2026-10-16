@@ -66,6 +66,7 @@ function harness(kind = 'settings') {
     window: {}, localStorage: { getItem: () => null },
     navigator: { clipboard: { writeText(value) { copied.push(value); return copy(value); } } },
     fetch, toast: (message, kind) => toasts.push({ message, kind }),
+    _endpointJson: async response => { const data = await response.json(); if (!response.ok) throw new Error(data.detail || 'request failed'); return data; },
     _patchSettings: value => { patches.push(value); return Promise.resolve(value); },
     _fetchWithRecentOwner: fetch, _getAppearance: () => ({}),
     _esc: value => String(value), _escAttr: value => String(value),

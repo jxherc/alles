@@ -72,15 +72,6 @@
     "reason": "seam between completed task records. two completed records, not empty list"
   },
   {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in .specialist-group-capture input; check for nested bezels",
-    "css_block_sha256": "0cfad9630e0dd31d781eb443504402b912abc90f0e518de5a028209d5d448081",
-    "path": "static/kokuen.css",
-    "selector": ".specialist-group-capture input",
-    "job": "control-bezel",
-    "reason": "The specialist capture input has its own editable-field outline within the surrounding specialist page."
-  },
-  {
     "rule": "small-type",
     "message": "font-size 13px is below the 14px essential-text baseline in .server-workbench-copy, .server-workbench-status, .server-workbench-empty",
     "css_block_sha256": "a26943182f691803864039fa7686b69fb5c8a8904af7f0d0e09ebe0833b4ebc3",
@@ -722,7 +713,7 @@
   {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .credits-row; check for nested bezels",
-    "css_block_sha256": "ac81f30a54032af202dcf0e9ef0d3818a70346d72131cf71f58a77747b001b73",
+    "css_block_sha256": "f7ed9e3ea0f095ee7754dac546b1866e788d1af49c821950df589efd3de3cac1",
     "path": "static/kokuen.css",
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-row",
     "job": "control-row-seam",
@@ -838,15 +829,6 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-list, #settings-modal[data-kokuen-surface=\"settings\"] .ho; check for nested bezels",
-    "css_block_sha256": "b00970bf696c375205c7d85f2b999d23768cbc289d77db0d976def9fda39404c",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-list, #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density",
-    "job": "distinct-region",
-    "reason": "Home section order/visibility list groups configurable sections. Home density group encloses peer comfortable/compact choices."
-  },
-  {
-    "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-row; check for nested bezels",
     "css_block_sha256": "cc8a3c3283a646743d7eda94f86f1d9d5fc280d23b05bb81d0cf8c3799478a58",
     "path": "static/kokuen.css",
@@ -871,15 +853,6 @@
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-copy small",
     "job": "secondary-metadata",
     "reason": "The small line explains what each Home section contains and whether it is mandatory."
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button; check for nested bezels",
-    "css_block_sha256": "71d5279628f7c5f11c1f7a1932327dc6f40f4be3cbca21e55041cf4b2ebe8234",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button",
-    "job": "control-row-seam",
-    "reason": "Home density option control boundary. every density option, selected and unselected"
   },
   {
     "rule": "small-type",
@@ -1627,5 +1600,59 @@
     "selector": "body[data-app=\"files\"] #files-view .files-phase7-detail-panel:not([hidden])",
     "job": "distinct-region",
     "reason": "The visible narrow-layout details panel uses a top edge when it stacks or overlays; wide-layout side-border evidence is insufficient."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .specialist-group-capture input; check for nested bezels",
+    "css_block_sha256": "2c9bf8d28ad87706ce033a38b7b37684e474e8b805c3c6f9675d4dceeca3e413",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-group-capture input",
+    "job": "editable field boundary",
+    "reason": "The capture form has no surrounding border. Its input uses one bottom edge and retains the shared keyboard focus ring."
+  },
+  {
+    "rule": "focus-suppression",
+    "message": "outline suppressed in #today-view[data-kokuen-surface=\"home\"] .today-capture textarea:focus-visible; prove one replacement geometry",
+    "css_block_sha256": "6c366e7a917d17a1365cd4b9bdf0f77a7bda2bb2513fee136525fcc43dd88222",
+    "path": "static/kokuen.css",
+    "selector": "#today-view[data-kokuen-surface=\"home\"] .today-capture textarea:focus-visible",
+    "job": "single wrapper-owned focus",
+    "reason": "The Home capture form owns the visible field edge and focused underline; forced colors use a two-pixel Highlight outline on that form. The inner textarea must not add another outline."
+  },
+  {
+    "rule": "focus-suppression",
+    "message": "outline suppressed in html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfi; prove one replacement geometry",
+    "css_block_sha256": "4f4685167e5a865570a21e7bd707a5a21f23c11e94f079192c7febd96dedd813",
+    "path": "static/kokuen.css",
+    "selector": "html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfield > .mc-chip-input ):focus-visible, body.afterlife-aide-projects[data-space=\"aide\"] .search-wrap > input:focus-visible",
+    "job": "single wrapper-owned focus",
+    "reason": "Composer, command search and mail recipient fields have a two-pixel wrapper outline when their text input is focus-visible. Archive uses its wrapper edge and a two-pixel Highlight outline in forced colors. Sibling actions retain independent focus."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button; check for nested bezels",
+    "css_block_sha256": "b976ade04037d6101de5f07ef19d255c2902c70a6d0bea5540332639cb2117d5",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button",
+    "job": "peer choice separator",
+    "reason": "A single right-hand divider separates density choices; the group has no enclosing border. Shared keyboard focus remains visible on the selected control."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #persona-temp .tc; check for nested bezels",
+    "css_block_sha256": "5322b1bc4445a9b4e992ea78b39d634f7082b1f0a9c572fd5f8e81bbf98dafa5",
+    "path": "static/kokuen.css",
+    "selector": "#persona-temp .tc",
+    "job": "control-bezel",
+    "reason": "In forced colors, each temperature segment needs a system-color border so the unfilled range remains visible when backgrounds are replaced. Filled segments use Highlight. These boundaries describe one slider value, not nested containers."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #persona-accent .pa-swatch; check for nested bezels",
+    "css_block_sha256": "b1b7410462c51910d6eeca3e13e54f3c6204846b08ad3917a5bd6543f02839dd",
+    "path": "static/kokuen.css",
+    "selector": "#persona-accent .pa-swatch",
+    "job": "control-bezel",
+    "reason": "Forced colors replaces color-only swatches with named accent buttons. Each boundary identifies an individual choice; the selected choice uses Highlight and an underline. Rendered at desktop and phone widths with keyboard selection."
   }
 ]

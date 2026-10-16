@@ -35,8 +35,14 @@ export async function saveAnswerTask(button) {
   if (button.getAttribute('aria-disabled') === 'true') return;
   const wrap = button.closest('.ai-wrap');
   if (!wrap?.answerText?.trim()) return;
+  // Reply menus close before dispatch. Use their surviving visible opener for
+  // async ownership checks and review focus, retaining the original source button.
+  const trigger = button.closest('.msg-actions-menu')
+    ? button.closest('.msg-actions')?.querySelector('.msg-more-trigger') || button
+    : button;
   const attempt = ++preparation;
-  const current = () => attempt === preparation && button.isConnected && button.getClientRects().length;
+  const current = () => attempt === preparation && button.isConnected
+    && trigger.isConnected && trigger.getClientRects().length;
   if (wrap.savedTask) { taskSaved(wrap.savedTask, 'task', true); return; }
   button.setAttribute('aria-disabled', 'true');
   button.textContent = 'preparing…';
@@ -57,7 +63,7 @@ export async function saveAnswerTask(button) {
     const source = { kind: 'aide', label: 'original Aide reply', excerpt, fingerprint,
       private: privateReply, session_id: sessionId, message_id: messageId };
     const title = raw.split('\n')[0].replace(/[#*`\[\]]/g, '').trim().slice(0, 200) || 'task from Aide';
-    await openCaptureReview({ kind: 'task', candidate: { title, notes: raw }, source }, button, (saved, kind) => {
+    await openCaptureReview({ kind: 'task', candidate: { title, notes: raw }, source }, trigger, (saved, kind) => {
       const origin = saved.source;
       if (kind === 'task' && origin?.kind === 'aide' && origin.fingerprint === fingerprint
           && origin.session_id === sessionId && origin.message_id === messageId && origin.private === privateReply) {
@@ -65,7 +71,7 @@ export async function saveAnswerTask(button) {
         button.textContent = t('aide.saved_plan_task');
       }
       return taskSaved(saved, kind);
-    });
+    }, current);
   } catch (error) {
     if (!current()) return;
     const host = document.getElementById('aide-task-recovery');

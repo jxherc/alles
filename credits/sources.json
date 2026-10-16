@@ -74,6 +74,19 @@
   ],
   "manual": [
     {
+      "id": "inter",
+      "name": "Inter",
+      "category": "code",
+      "summary": "Locally served interface font",
+      "version": "4.1",
+      "license": "OFL-1.1",
+      "source_url": "https://github.com/rsms/inter/releases/tag/v4.1",
+      "bundled": true,
+      "notice_required": true,
+      "license_source_files": ["static/vendor/inter/LICENSE.txt"],
+      "artifact_files": ["static/vendor/inter/InterVariable.woff2", "static/vendor/inter/InterVariable-Italic.woff2"]
+    },
+    {
       "id": "leaflet",
       "name": "Leaflet",
       "category": "code",

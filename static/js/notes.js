@@ -73,7 +73,7 @@ function renderNotes() {
 
   list.innerHTML = _notes.map(n => `
     <div class="note-card${n.pinned ? ' pinned' : ''}" data-id="${esc(n.id)}">
-      <div class="note-title">${esc(n.title || 'untitled')}</div>
+      <button class="note-title" type="button">${esc(n.title || 'untitled')}</button>
       <div class="note-preview">${esc(n.content.slice(0, 200)) || '—'}</div>
       ${(n.due || n.items?.length) ? `<div class="note-meta-row">
         ${n.due ? `<span class="note-due${_isOverdue(n.due) ? ' overdue' : ''}">${_isOverdue(n.due) ? 'overdue' : 'due'} ${esc(n.due)}</span>` : ''}

@@ -23,11 +23,17 @@ def realtime_status(db: DbSession = Depends(get_db)):
 def realtime_session(db: DbSession = Depends(get_db)):
     from services import realtime
 
-    ep, model = realtime.find_realtime_endpoint(db)
-    if not ep:
+    status = realtime.status(db)
+    if not status["available"]:
         raise HTTPException(503, realtime.status(db)["reason"])
-    # real connection descriptor — the client negotiates the WS/WebRTC session with the provider
-    return {"provider": "openai-realtime", "base_url": ep.base_url, "model": model}
+    # Compatibility descriptor. The browser posts SDP through the Alles-owned
+    # call endpoint; provider URLs and long-lived credentials remain server-side.
+    return {
+        "provider": "openai-realtime",
+        "model": status["model"],
+        "transport": "webrtc",
+        "create_call_url": "/api/aide/calls",
+    }
 
 
 @router.post("/stt")

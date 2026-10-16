@@ -1,4 +1,5 @@
 import { calendarDateKey, formatDate, formatDateParts, resolvedTimeZone, t, tp } from './i18n.js';
+import { autosizeTextarea, wireAutosizeTextarea } from './text_entry.js?v=1';
 import { toast } from './util.js';
 
 const SECTION_LABELS = {
@@ -413,7 +414,10 @@ async function loadNoteRecovery() {
 function homeNoteSaved(saved, text, focus = false) {
   const input = document.getElementById('today-capture-input');
   const asTask = document.getElementById('today-capture-mode')?.getAttribute('aria-pressed') === 'true';
-  if (input && !asTask && input.value === text) input.value = '';
+  if (input && !asTask && input.value === text) {
+    input.value = '';
+    autosizeTextarea(input);
+  }
   const host = document.getElementById('today-note-recovery');
   if (host) {
     host.dataset.savedNoteRequest = saved.request_id;
@@ -430,7 +434,10 @@ function homeNoteSaved(saved, text, focus = false) {
 function homeCaptureSaved(saved, kind) {
   const input = document.getElementById('today-capture-input');
   const asTask = document.getElementById('today-capture-mode')?.getAttribute('aria-pressed') === 'true';
-  if (input && asTask && kind === 'task' && saved.source?.kind === 'capture' && input.value === saved.source.excerpt) input.value = '';
+  if (input && asTask && kind === 'task' && saved.source?.kind === 'capture' && input.value === saved.source.excerpt) {
+    input.value = '';
+    autosizeTextarea(input);
+  }
   if (input?.getClientRects().length) void load();
 }
 
@@ -440,6 +447,12 @@ function wireCapture() {
   const input = document.getElementById('today-capture-input');
   if (!form || form.dataset.wired) return;
   form.dataset.wired = '1';
+  wireAutosizeTextarea(input);
+  input.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    form.requestSubmit();
+  });
   mode.addEventListener('click', () => {
     const task = mode.getAttribute('aria-pressed') === 'true';
     mode.setAttribute('aria-pressed', String(!task));

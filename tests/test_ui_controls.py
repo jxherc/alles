@@ -37,10 +37,13 @@ class ToggleSwitchTests(unittest.TestCase):
 
     def test_switch_on_moves_knob(self):
         self.assertIn("left: 5px", _block(".s-switch::after"))
-        self.assertIn("left: 23px", _block(".s-switch.on::after"))
+        self.assertIn("left: 23px", _block('.s-switch:is(.on, [aria-checked="true"])::after'))
 
     def test_switch_on_changes_track_background(self):
-        self.assertRegex(_block(".s-switch.on::before"), r"background:[^;]+var\(--accent\)")
+        self.assertRegex(
+            _block('.s-switch:is(.on, [aria-checked="true"])::before'),
+            r"background:[^;]+var\(--accent\)",
+        )
 
 
 class SegmentedControlTests(unittest.TestCase):

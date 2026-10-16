@@ -107,6 +107,7 @@ source revision: `phase10-release-inventory-2026-07-22`
 | idna | `3.18` | BSD-3-Clause | [upstream](https://github.com/kjd/idna/blob/master/HISTORY.md) | [`01-license-md.txt`](licenses/python/idna-3.18/01-license-md.txt) |
 | inherits | `2.0.4` | ISC | [upstream](https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz) | [`01-license.txt`](licenses/node/mobile-inherits-c76937ee24-2-0-4/01-license.txt) |
 | ini | `4.1.3` | ISC | [upstream](https://registry.npmjs.org/ini/-/ini-4.1.3.tgz) | [`01-license.txt`](licenses/node/mobile-ini-dd252dd1dd-4-1-3/01-license.txt) |
+| Inter | `4.1` | OFL-1.1 | [upstream](https://github.com/rsms/inter/releases/tag/v4.1) | [`01-license-txt.txt`](licenses/manual/inter/01-license-txt.txt) |
 | is-docker | `2.2.1` | MIT | [upstream](https://registry.npmjs.org/is-docker/-/is-docker-2.2.1.tgz) | [`01-license.txt`](licenses/node/mobile-is-docker-e6eccf5447-2-2-1/01-license.txt) |
 | is-fullwidth-code-point | `3.0.0` | MIT | [upstream](https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-3.0.0.tgz) | [`01-license.txt`](licenses/node/mobile-is-fullwidth-code-point-5a85b89bf5-3-0-0/01-license.txt) |
 | is-wsl | `2.2.0` | MIT | [upstream](https://registry.npmjs.org/is-wsl/-/is-wsl-2.2.0.tgz) | [`01-license.txt`](licenses/node/mobile-is-wsl-2275f062be-2-2-0/01-license.txt) |

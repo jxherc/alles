@@ -28,17 +28,24 @@ function harness() {
     };
   }
   const messages = element();
+  const compacted = [];
   const context = vm.createContext({
     t,
     window: { addEventListener() {}, _mdToHtml: text => text },
     document: { getElementById: () => messages, createElement: element },
     stripEmojis: text => text, applyResponsePrivacy() {}, scrollToLatest() {}, reconcileAnswerNote() {},
     contextProvenanceElement: () => null, sourceCitationStatus: () => null, isIncognitoMode: () => false,
+    // Menu interaction is covered by aide_response_actions; this fixture owns
+    // interruption content and verifies the renderer passes its real action row.
+    compactResponseActions: actions => {
+      assert.ok(actions?.className.split(' ').includes('msg-actions'));
+      compacted.push(actions);
+    },
   });
   vm.runInContext(source + `
     globalThis.subject = { render: renderMessages, notice: appendInterruptionNotice };
   `, context);
-  return { ...context.subject, messages };
+  return { ...context.subject, messages, compacted };
 }
 
 for (const content of ['partial reply', '']) {
@@ -50,6 +57,7 @@ for (const content of ['partial reply', '']) {
     assert.equal(notices[0].textContent, 'response interrupted');
     assert.equal(notices[0].attributes.role, 'status');
     assert.equal(h.messages.querySelector('.ai-content').html, content);
+    assert.equal(h.compacted.length, 2, 'initial and late history actions both use the compact-action boundary');
     h.render([{ id: 'reply', role: 'assistant', content, meta: { interrupted: true } }]);
     assert.equal(h.messages.querySelectorAll('.aide-interruption').length, 1);
   });

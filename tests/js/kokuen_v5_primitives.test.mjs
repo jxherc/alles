@@ -138,13 +138,39 @@ test('the runtime reconciles asynchronous control state mutations', () => {
   assert.match(runtime, /function syncControlState/);
   for (const attribute of [
     'disabled', 'aria-disabled', 'aria-busy', 'aria-invalid',
-    'aria-checked', 'aria-selected', 'aria-pressed',
+    'aria-checked', 'aria-selected', 'aria-pressed', 'data-kokuen-icon',
   ]) {
     assert.match(runtime, new RegExp(`'${attribute}'`), attribute);
   }
   assert.match(runtime, /record\.type === 'attributes'/);
   assert.match(runtime, /attributes: true/);
   assert.match(runtime, /attributeFilter:/);
+});
+
+test('legacy glyph actions upgrade to the shared centered SVG system', () => {
+  const decision = read('design-system/decisions/0026-borderless-control-grammar.md');
+  assert.match(runtime, /const ICON_GLYPHS/);
+  assert.match(runtime, /function inferredIconName/);
+  assert.match(runtime, /function decorateIconControl/);
+  assert.match(runtime, /globalThis\.iconEl/);
+  assert.match(runtime, /element\.dataset\.kokuenIcon !== name/);
+  assert.match(runtime, /element\.setAttribute\('aria-label', fallback\)/);
+  assert.match(runtime, /delete\|remove\|discard\|trash/);
+  assert.match(runtime, /send\|save\|submit/);
+  assert.match(css, /\[data-kokuen-icon\][\s\S]*?place-items:\s*center/);
+  assert.match(css, /\[data-kokuen-icon\] > svg\.ic[\s\S]*?width:\s*16px/);
+  assert.match(decision, /44px/);
+  assert.match(decision, /long-form/i);
+});
+
+test('the compact visual grammar removes decorative boxes without flattening structure', () => {
+  assert.match(css, /\.specialist-group-tabs \[role="tab"\]\[aria-selected="true"\][\s\S]*?background:\s*transparent/);
+  assert.match(css, /\.specialist-group-capture input[\s\S]*?border-bottom:\s*1px solid/);
+  assert.match(css, /\.finance-actual-panel[\s\S]*?background:\s*transparent/);
+  assert.match(css, /\.s-card \{[\s\S]*?border:\s*0/);
+  assert.match(css, /\.home-settings-density button\[aria-checked="true"\][\s\S]*?font-weight:\s*600/);
+  assert.match(css, /\.specialist-group-capture :where\(input, button\):focus-visible/);
+  assert.match(css, /body\.afterlife-aide-projects\[data-space="aide"\] \.composer-box \{[\s\S]*?border:\s*1px solid/);
 });
 
 test('v5 enforces targets, stable motion, focus, and state affordances', () => {
@@ -309,4 +335,25 @@ test('ordinary dialog wrapping, hidden fields, escape and trigger return still w
   assert.equal(h.document.activeElement, trigger);
   assert.equal(h.key('Tab').prevented, false);
   boundary.destroy();
+});
+
+test('compact and autogrowing text entry share one documented opt-in contract', () => {
+  const field = contracts.contracts.find(contract => contract.id === 'kokuen.field');
+  const foundations = read('design-system/FOUNDATIONS.md');
+  const components = read('design-system/COMPONENTS.md');
+  const decision = read('design-system/decisions/0024-compact-text-entry-sizing.md');
+  const sizing = read('static/js/text_entry.js');
+  assert.ok(field.code_paths.includes('static/js/text_entry.js'));
+  assert.ok(field.variants.includes('compact'));
+  assert.ok(field.variants.includes('autogrow'));
+  assert.match(html, /id="andromeda-query"[^>]*data-kokuen-entry="compact"/);
+  assert.match(html, /id="today-capture-input"[^>]*data-kokuen-entry="autogrow"/);
+  assert.match(css, /\[data-kokuen-entry="compact"\]/);
+  assert.match(css, /textarea\[data-kokuen-entry="autogrow"\]/);
+  assert.match(sizing, /Math\.min\(configuredMaximum, viewportMaximum\)/);
+  assert.match(sizing, /textarea\.style\.overflowY = overflow \? 'auto' : 'hidden'/);
+  for (const document of [foundations, components, decision]) {
+    assert.match(document, /44px/);
+    assert.match(document, /long-form/i);
+  }
 });

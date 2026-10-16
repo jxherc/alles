@@ -183,7 +183,7 @@ test('all four Aide tool pages report their initial API failures to showView', (
   assert.match(scheduled, /initAideScheduled\(fetcher = fetch\)/);
   assert.match(scheduled, /throw error/);
   assert.match(brain, /loadBrainPanel\(fetcher = fetch\)/);
-  assert.match(brain, /fetcher\('\/api\/memories'\)/);
+  assert.match(brain, /_loadList\(fetcher, '\/api\/memories'\)/);
   assert.match(brain, /_loadCurrentHistory\(fetcher\)/);
 });
 

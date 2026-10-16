@@ -2,6 +2,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 from unittest import mock
+from uuid import uuid4
 
 from core.database import (
     JarvisRun,
@@ -81,6 +82,64 @@ class JarvisHandoffTest(ApiTest):
         self.assertEqual(workflow.model_override, "phase4-model")
         self.assertEqual(workflow.context_mode, "project")
         db.close()
+
+    def test_handoff_request_identity_replays_one_durable_run(self):
+        self._endpoint(local=True)
+        session_id, _ = self._session()
+        identity = str(uuid4())
+        body = {
+            "session_id": session_id,
+            "request_id": identity,
+            "request": "finish this once",
+        }
+        with mock.patch.object(jarvis_handoff, "launch", return_value=True) as launch:
+            first = self.client.post("/api/jarvis/handoffs", json=body)
+            second = self.client.post("/api/jarvis/handoffs", json=body)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(first.json()["id"], identity)
+        self.assertEqual(second.json()["id"], identity)
+        launch.assert_called_once_with(identity)
+        recovered = self.client.get(f"/api/jarvis/runs/{identity}")
+        self.assertEqual(recovered.status_code, 200)
+        self.assertEqual(recovered.json()["events"][-1]["data"]["request_id"], identity)
+
+    def test_handoff_request_identity_cannot_change_intent(self):
+        self._endpoint(local=True)
+        session_id, _ = self._session()
+        identity = str(uuid4())
+        with mock.patch.object(jarvis_handoff, "launch", return_value=True):
+            first = self.client.post(
+                "/api/jarvis/handoffs",
+                json={
+                    "session_id": session_id,
+                    "request_id": identity,
+                    "request": "original intent",
+                },
+            )
+            conflict = self.client.post(
+                "/api/jarvis/handoffs",
+                json={
+                    "session_id": session_id,
+                    "request_id": identity,
+                    "request": "changed intent",
+                },
+            )
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(conflict.status_code, 409)
+        self.assertEqual(conflict.json()["code"], "handoff_identity_conflict")
+
+    def test_handoff_request_identity_must_be_canonical_uuid(self):
+        self._endpoint(local=True)
+        session_id, _ = self._session()
+        response = self.client.post(
+            "/api/jarvis/handoffs",
+            json={"session_id": session_id, "request_id": "not-a-uuid", "request": "test"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "invalid_handoff_identity")
 
     def test_explicit_endpoint_survives_same_named_models(self):
         first = self._endpoint(local=True)
@@ -296,9 +355,102 @@ class JarvisHandoffTest(ApiTest):
                     "request": "research this",
                     "confirmed_endpoint_id": endpoint_id,
                     "confirmed_model": "phase4-model",
+                    "confirmed_destination_fingerprint": preview["destination_fingerprint"],
                 },
             )
         self.assertEqual(allowed.status_code, 200)
+
+    def test_background_selection_is_pinned_when_role_settings_change(self):
+        endpoint_id = self._endpoint(local=True)
+        other_id = self._endpoint(local=False)
+        session_id, _ = self._session()
+        with mock.patch.object(jarvis_handoff, "launch", return_value=True):
+            response = self.client.post(
+                "/api/jarvis/handoffs",
+                json={
+                    "session_id": session_id,
+                    "request": "keep the accepted destination",
+                },
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        run_id = response.json()["id"]
+        captured = {}
+
+        async def stream(*args, **_kwargs):
+            captured["endpoint_id"] = args[3].id
+            captured["model"] = args[4]
+            yield {"delta": "verified"}
+
+        with (
+            mock.patch.object(
+                jarvis_handoff,
+                "load_settings",
+                return_value={
+                    "memory_policy": "off",
+                    "model_roles": {
+                        "aide_chat": {"endpoint_id": other_id, "model": "phase4-model"}
+                    },
+                },
+            ),
+            mock.patch("services.chat_turn._build_messages", return_value=[]),
+            mock.patch("services.chat_turn._stream_and_save", side_effect=stream),
+        ):
+            asyncio.run(jarvis_handoff._execute(run_id))
+        self.assertEqual(captured, {"endpoint_id": endpoint_id, "model": "phase4-model"})
+
+    def test_changed_endpoint_url_blocks_execution_and_retry_keeps_binding(self):
+        endpoint_id = self._endpoint(local=True)
+        session_id, _ = self._session()
+        with mock.patch.object(jarvis_handoff, "launch", return_value=True):
+            response = self.client.post(
+                "/api/jarvis/handoffs",
+                json={
+                    "session_id": session_id,
+                    "request": "only the accepted destination",
+                },
+            )
+        run_id = response.json()["id"]
+        db = self.db()
+        db.get(ModelEndpoint, endpoint_id).base_url = "https://changed.example/v1"
+        db.commit()
+        db.close()
+        with mock.patch("services.chat_turn._stream_and_save") as stream:
+            asyncio.run(jarvis_handoff._execute(run_id))
+        stream.assert_not_called()
+        db = self.db()
+        original = db.get(JarvisRun, run_id)
+        self.assertEqual(original.state, "failed")
+        self.assertEqual(original.failure_class, "model_or_tool")
+        self.assertIn("destination changed", original.safe_error)
+        retried = jarvis_handoff.retry_handoff(db, original)
+        self.assertEqual(
+            jarvis_handoff._accepted_model(db, retried),
+            jarvis_handoff._accepted_model(db, original),
+        )
+        db.close()
+
+    def test_confirmation_cannot_cover_destination_changed_after_preview(self):
+        endpoint_id = self._endpoint(local=False)
+        session_id, _ = self._session()
+        preview = self.client.get(
+            "/api/jarvis/handoffs/preview", params={"session_id": session_id}
+        ).json()
+        db = self.db()
+        db.get(ModelEndpoint, endpoint_id).base_url = "https://other.example/v1"
+        db.commit()
+        db.close()
+        response = self.client.post(
+            "/api/jarvis/handoffs",
+            json={
+                "session_id": session_id,
+                "request": "confirmed only the old endpoint",
+                "confirmed_endpoint_id": endpoint_id,
+                "confirmed_model": preview["model"],
+                "confirmed_destination_fingerprint": preview["destination_fingerprint"],
+            },
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "remote_model_confirmation_required")
 
     def test_incognito_handoff_is_rejected(self):
         self._endpoint(local=True)

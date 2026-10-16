@@ -34,6 +34,7 @@
   --k-line: var(--faint, var(--k-default-line));
   --k-line-strong: var(--line-strong, color-mix(in srgb, var(--faint, var(--k-default-line-strong)) 72%, var(--text, var(--k-default-text)) 28%));
   --k-focus: var(--focus, var(--k-soft));
+  --k-focus-offset: -2px;
   --k-accent: var(--accent, #9298ff);
   --k-permission: var(--signal, #d5a265);
   --k-danger: var(--error, #df7474);
@@ -58,7 +59,7 @@
   --k-motion-fast: 120ms;
   --k-motion-panel: 180ms;
   --k-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --k-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --k-font: var(--font-family, 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
   --k-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 
   /* Portable KOKUEN v5 aliases. Product CSS may keep --k-* while shared
@@ -142,7 +143,7 @@ html[data-theme="light"] #search-modal[data-kokuen-surface="command"] {
   color: var(--ui-muted);
 }
 
-#search-modal[data-kokuen-surface="command"] .search-command-head:focus-within {
+#search-modal[data-kokuen-surface="command"] .search-command-head:has(> .search-prompt-input:focus-visible) {
   outline: 2px solid var(--ui-focus);
   outline-offset: -2px;
 }
@@ -168,7 +169,7 @@ html[data-theme="light"] #search-modal[data-kokuen-surface="command"] {
 
 #search-modal[data-kokuen-surface="command"] .search-command-close:focus-visible {
   outline: 2px solid var(--ui-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 #search-modal[data-kokuen-surface="command"] #search-results {
@@ -440,14 +441,14 @@ body:is(
 
 .specialist-group-tabs [role="tab"][aria-selected="true"] {
   color: var(--k-ink, var(--text));
-  background: var(--k-panel-raised, var(--panel));
+  background: transparent;
   font-weight: 600;
 }
 
 .specialist-group-tabs [role="tab"]:focus-visible,
 .specialist-group-capture :where(input, button):focus-visible {
   outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 .specialist-group-overview {
@@ -531,7 +532,7 @@ body:is(
 
 .plan-board-root :where(button, input):focus-visible {
   outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 .plan-board-root button {
@@ -1019,6 +1020,13 @@ body:is(
 .specialist-group-note { color: var(--k-ink-muted, var(--muted)); font-size: 0.76rem; line-height: 1.5; }
 .specialist-group-note { max-width: 62rem; margin: 0 0 var(--k-space-4, 16px); }
 
+.finance-bank-dialog [hidden] { display: none !important; }
+.finance-bank-dialog a.btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--k-control, 44px);
+}
+
 .specialist-group-capture {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1037,10 +1045,12 @@ body:is(
 
 .specialist-group-capture input {
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 var(--k-space-1, 4px);
   color: var(--k-ink, var(--text));
-  background: var(--k-panel, var(--panel));
-  border: 1px solid var(--k-line, var(--faint));
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--k-line, var(--faint));
+  border-radius: 0;
 }
 
 .specialist-group-capture button {
@@ -1444,7 +1454,7 @@ body:is(
 .specialist-library-row:focus-visible,
 .specialist-habit-row:focus-visible {
   outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 .specialist-workbench-head {
@@ -1538,7 +1548,7 @@ body:is(
   width: max-content;
   padding: var(--k-space-2, 8px) var(--k-space-3, 12px);
   color: var(--k-ink, var(--text));
-  background: var(--k-panel-raised, var(--panel2));
+  background: transparent;
 }
 
 .specialist-workbench .specialist-group-capture {
@@ -1574,9 +1584,9 @@ body:is(
   gap: var(--k-space-3, 12px);
   max-width: 72rem;
   margin: 0 0 var(--k-space-4, 16px);
-  padding: var(--k-space-4, 16px);
-  border-radius: var(--k-radius-surface, 4px);
-  background: var(--k-panel, var(--panel));
+  padding: var(--k-space-4, 16px) 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 :where(#finance-view) .finance-actual-head {
@@ -1664,7 +1674,7 @@ body:is(
 :where(#finance-view) .finance-actual-confirm-actions button:focus-visible,
 :where(#finance-view) .finance-actual-confirm:focus-visible {
   outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 :where(#finance-view) .finance-actual-actions button:disabled,
@@ -1758,7 +1768,7 @@ body:is(
 :where(#finance-view) .finance-import-actions button:focus-visible,
 :where(#finance-view) .finance-import-history-list button:focus-visible {
   outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 :where(#finance-view) .finance-import-file-row > span {
@@ -1872,7 +1882,7 @@ body:is(
 
 :where(#finance-view) .finance-import-match-resolution button:focus-visible {
   outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 :where(#finance-view) .finance-import-match-resolution button:disabled {
@@ -2103,7 +2113,7 @@ html[data-theme="light"] :where(
 
 [data-kokuen-surface] :where(button, input, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 [data-kokuen-surface].custom-dropdown-panel,
@@ -2257,14 +2267,19 @@ html[data-theme="light"] :where(
 
 #today-view[data-kokuen-surface="home"] .today-capture {
   margin-top: var(--k-space-4);
-  min-height: var(--k-app-header);
+  min-height: var(--k-control);
   border-color: var(--k-line);
 }
 
-#today-view[data-kokuen-surface="home"] .today-capture input {
-  height: calc(var(--k-app-header) - 1px);
+#today-view[data-kokuen-surface="home"] .today-capture textarea {
+  min-height: var(--k-control);
   color: var(--k-text);
   font-size: 15px;
+}
+
+/* The capture form owns the focus boundary, not the field inside it. */
+#today-view[data-kokuen-surface="home"] .today-capture textarea:focus-visible {
+  outline: none;
 }
 
 @media (max-height: 600px) {
@@ -2374,14 +2389,51 @@ html[data-kokuen-version="5"] .shell-navigation-toggle {
 }
 
 html[data-kokuen-version="5"] .shell-navigation-chevron {
+  width: 12px;
+  height: 12px;
+  display: block;
+  flex: 0 0 12px;
   color: var(--k-muted, var(--muted));
-  font-size: 16px;
+}
+
+/* Icon actions use one centered, bare 16px SVG. The 44px interaction target,
+   visible keyboard focus, and accessible name stay on the owning control. */
+html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-kokuen-icon] {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--k-control, 44px);
+  min-height: var(--k-control, 44px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--k-radius-control, 3px);
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
   line-height: 1;
+}
+
+/* kokuen-lint-disable-next-line target-size: the SVG is a glyph; its owning control keeps a 44px target. */
+html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-kokuen-icon] > svg.ic {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex: 0 0 16px;
+  vertical-align: middle;
+}
+
+html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-kokuen-icon]:hover {
+  color: var(--k-text, var(--text));
+  background: transparent;
 }
 
 html[data-kokuen-version="5"] .shell-navigation-toggle:is(:hover, [aria-expanded="true"]) {
   color: var(--k-text, var(--text));
   background: var(--k-hover, var(--panel));
+}
+
+/* Aide coding handoff: one flat control path with durable, honest receipts. */
+body.afterlife-aide-projects[data-space="aide"] .aide-work-panel.coding-open {
+  background: var(--k-bg, var(--bg));
 }
 
 html[data-kokuen-version="5"] .shell-trigger-host :is(.today-wordmark, .sidebar-brand, .aide-mobile-name) {
@@ -2629,7 +2681,19 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:is(:hover, :active) {
 
 html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
   outline: 2px solid var(--k-focus, var(--focus));
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
+}
+
+/* A bounded text entry has one focus owner. Its sibling actions keep their
+   individual indicators; focusing an action must not light the whole field. */
+html[data-kokuen-version="5"] :is(
+  .composer-box > .composer-ta,
+  .search-command-head > .search-prompt-input,
+  .mc-chipfield > .mc-chip-input
+):focus-visible,
+body.afterlife-aide-projects[data-space="aide"] .search-wrap > input:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 /* These controls meet pane/viewport edges; keep the ring inside their targets. */
@@ -2728,9 +2792,113 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
     outline-color: Highlight;
   }
+
+  /* Forced colors suppresses inset shadows; retain the field owner's ring. */
+  #today-view[data-kokuen-surface="home"] .today-capture:has(textarea:focus-visible),
+  body.afterlife-aide-projects[data-space="aide"] .search-wrap:has(> input:focus-visible) {
+    outline: 2px solid Highlight;
+    outline-offset: var(--k-focus-offset, -2px);
+  }
+
+  /* Keep the moving knob visible when the browser replaces background colors. */
+  :is(.s-switch, .home-settings-switch, .news-switch)::after,
+  .andromeda-switch > span {
+    forced-color-adjust: none;
+    background: CanvasText !important;
+    border: 1px solid CanvasText;
+    box-sizing: border-box;
+  }
+
+  :is(.s-switch, .home-settings-switch, .news-switch)[aria-disabled="true"]::after,
+  :is(.s-switch, .home-settings-switch, .news-switch):disabled::after,
+  .andromeda-switch:is(:disabled, [aria-disabled="true"]) > span {
+    background: GrayText !important;
+    border-color: GrayText;
+  }
+
+  .jrnl-hc:not(.off) {
+    forced-color-adjust: none;
+    box-sizing: border-box;
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+
+  .jrnl-hc:is(.l1, .l2, .l3, .l4):not(.off) {
+    background: Highlight;
+  }
+
+  .jrnl-hc:is(.today, .sel) {
+    outline-color: Highlight;
+  }
+
+  #persona-temp {
+    opacity: 1;
+    filter: none;
+  }
+
+  #persona-temp .tc {
+    forced-color-adjust: none;
+    box-sizing: border-box;
+    border: 1px solid CanvasText;
+    background: Canvas !important;
+  }
+
+  #persona-temp .tc.f {
+    background: Highlight !important;
+  }
+
+  #persona-temp.is-auto .tc.f {
+    background: GrayText !important;
+  }
+
+  #persona-temp:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: var(--k-focus-offset, -2px);
+  }
+
+  #persona-accent .pa-swatch {
+    forced-color-adjust: none;
+    width: auto;
+    padding-inline: var(--k-space-2);
+    border: 1px solid ButtonText;
+    border-radius: var(--k-radius-control);
+    background: Canvas !important;
+    color: CanvasText;
+  }
+
+  #persona-accent .pa-swatch:not(.pa-none)::after {
+    content: attr(title);
+  }
+
+  #persona-accent .pa-swatch.active,
+  #persona-mode .seg-opt.active {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-weight: 600;
+  }
 }
 
-/* Andromeda: keep answer-first search, share the same controls and type scale. */
+/* Shared text-entry sizing. Opt in only compact capture/search/composition fields;
+   long-form editors retain their workspace-specific sizing. */
+[data-kokuen-entry="compact"] {
+  min-height: var(--k-control);
+  height: var(--k-control);
+  box-sizing: border-box;
+}
+
+textarea[data-kokuen-entry="autogrow"] {
+  --k-text-entry-max: 132px;
+  min-height: var(--k-control);
+  max-height: min(var(--k-text-entry-max), calc(100dvh - 96px));
+  overflow-y: hidden;
+  resize: none;
+  box-sizing: border-box;
+}
+
+/* Andromeda: one search line and typography-led results. */
 #andromeda-view[data-kokuen-surface="andromeda"] {
   --andromeda-line: var(--k-line);
   --andromeda-strong-line: var(--k-line-strong);
@@ -2738,35 +2906,52 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-page {
-  padding-inline: clamp(var(--k-space-4), 3vw, var(--k-space-6));
+  padding-inline: clamp(var(--k-space-4), 2vw, var(--k-space-5));
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-app-head {
-  min-height: 68px;
+  min-height: 64px;
+}
+
+#andromeda-view[data-kokuen-surface="andromeda"] .shell-navigation-toggle {
+  margin-inline-start: 0;
+  padding-inline: var(--k-space-1);
+  color: var(--k-muted);
+  background: transparent;
+  font-size: 14px;
+}
+
+#andromeda-view[data-kokuen-surface="andromeda"] .shell-navigation-toggle:is(:hover, [aria-expanded="true"]) {
+  color: var(--k-text);
+  background: transparent;
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search {
-  min-height: var(--k-app-header);
-  border-color: var(--k-line);
-  border-radius: var(--k-radius-surface);
-  background: var(--k-panel);
+  min-height: var(--k-control);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:is(:hover, :focus-within) {
-  border-color: var(--k-line-strong);
-  background: var(--k-hover);
+  border: 0;
+  box-shadow: none;
+}
+
+#andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search[data-keyboard-focus] {
+  background: color-mix(in srgb, var(--k-panel) 78%, var(--k-page));
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] :where(.andromeda-icon-button, .andromeda-results-tail button) {
-  min-width: var(--k-control-dense);
-  min-height: var(--k-control-dense);
+  min-width: var(--k-control);
+  min-height: var(--k-control);
   border-radius: var(--k-radius-control);
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-result-tools {
-  min-height: var(--k-app-header);
-  border-color: var(--k-line);
+  min-height: var(--k-control);
+  border: 0;
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-result-focus {
@@ -2788,14 +2973,32 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-overview {
-  border-color: var(--k-line-strong);
-  border-radius: var(--k-radius-surface);
-  background: var(--k-panel);
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
+#andromeda-view[data-kokuen-surface="andromeda"] :where(
+  .andromeda-result-actions-trigger,
+  .andromeda-result-summary-head button,
+  .andromeda-result-menu button
+) {
+  min-height: var(--k-control);
+  border-radius: var(--k-radius-control);
+}
+
+#andromeda-view[data-kokuen-surface="andromeda"] .andromeda-result-menu {
+  border-color: var(--k-line);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+}
+
+#andromeda-view[data-kokuen-surface="andromeda"] .andromeda-result[data-selected] {
+  background: transparent;
+}
+
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-settings-panel {
-  top: 68px;
+  top: 64px;
   border-color: var(--k-line-strong);
   border-radius: var(--k-radius-surface);
   background: var(--k-page);
@@ -3240,23 +3443,24 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 
 #settings-modal[data-kokuen-surface="settings"] .s-card {
   margin-bottom: var(--k-space-4);
-  border-color: var(--k-line);
-  border-radius: var(--k-radius-surface);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-card-head {
   min-height: 40px;
-  padding: 0 var(--k-space-3);
-  border-color: var(--k-line);
-  background: var(--k-panel);
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--k-text);
   font-size: 14px;
   font-weight: 500;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-card-body {
-  padding: var(--k-space-3);
+  padding: 0 0 var(--k-space-3);
 }
 
 #settings-modal[data-kokuen-surface="settings"] :where(.s-field label, .s-toggle-desc, .s-card-hint, .s-role-desc, .s-role-status, .s-ep-meta, .s-field-note) {
@@ -3729,7 +3933,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
   width: 100%;
   min-height: 58px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.6fr);
   align-items: center;
   gap: var(--k-space-4);
   padding: var(--k-space-2) var(--k-space-3);
@@ -3773,7 +3977,10 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
 }
 
 #settings-modal[data-kokuen-surface="settings"] .credits-row em {
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: end;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .credits-empty {
@@ -4024,9 +4231,9 @@ html[dir="rtl"] :where(
 #settings-modal[data-kokuen-surface="settings"] .home-settings-list,
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density {
   overflow: hidden;
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-surface);
-  background: var(--k-panel);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-row {
@@ -4184,7 +4391,7 @@ html[dir="rtl"] :where(
   padding: var(--k-space-2) var(--k-space-3);
   border: 0;
   border-right: 1px solid var(--k-line);
-  background: var(--k-panel);
+  background: transparent;
   color: var(--k-muted);
   text-align: left;
   cursor: pointer;
@@ -4200,8 +4407,9 @@ html[dir="rtl"] :where(
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density button[aria-checked="true"] {
-  background: var(--k-hover);
+  background: transparent;
   color: var(--k-text);
+  font-weight: 600;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density span {
@@ -4438,7 +4646,7 @@ body.afterlife-aide-projects[data-space="aide"] :where(
   textarea
 ):focus-visible {
   outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 body.afterlife-aide-projects[data-space="aide"] .composer-box {
@@ -5185,7 +5393,7 @@ body[data-app="files"] #files-view :where(.btn, .icon-btn):focus-visible {
 
 body[data-app="files"] #files-view :where(.btn, .icon-btn, input, [role="button"]):focus-visible {
   outline: 2px solid var(--k-focus);
-  outline-offset: 2px;
+  outline-offset: var(--k-focus-offset, -2px);
 }
 
 body[data-app="files"] #files-view #files-search {
@@ -5330,6 +5538,10 @@ body[data-app="files"] :where(.files-preview-pre) {
 
 }
 
+#plan-view #reminders-view :where(.aide-tool-head, .aide-tool-content) {
+  padding-inline: var(--ui-page-gutter);
+}
+
 @media (max-width: 620px) {
   body.afterlife-aide-projects[data-space="aide"] #reminders-view .reminder-add-form,
   #plan-view #reminders-view .reminder-add-form {
@@ -5361,6 +5573,13 @@ body[data-app="files"] :where(.files-preview-pre) {
 }
 
 @media (max-width: 760px) {
+  #settings-modal[data-kokuen-surface="settings"] .credits-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--k-space-1);
+  }
+
+  #settings-modal[data-kokuen-surface="settings"] .credits-row em { text-align: start; }
+
   #settings-modal[data-kokuen-surface="settings"] .s-layout {
     flex-direction: column;
   }

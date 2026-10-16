@@ -7,7 +7,8 @@ const source = readFileSync(new URL('../../static/js/sessions.js', import.meta.u
 const drafts = source.slice(source.indexOf('const _legacyDraftKey'), source.indexOf('export function newChat'));
 const fresh = source.match(/^export function newChat\([^]*?^}/m)?.[0];
 const rowState = source.match(/^function syncSessionRowState\([^]*?^}/m)?.[0];
-assert.ok(drafts && fresh && rowState, 'exercise actual draft, newChat and row-state functions');
+const primaryState = source.match(/^export function setPrimaryConversationUnavailable\([^]*?^}/m)?.[0];
+assert.ok(drafts && fresh && rowState && primaryState, 'exercise actual draft, newChat and row-state functions');
 
 const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
 const privateDay = app.match(/^async function showPrivateDayDraft\([^]*?^}/m)?.[0];
@@ -56,11 +57,12 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     : name === 'composer-send-recovery' ? recovery : name === 'messages' ? messages
       : name === 'incognito-btn' ? enterButton : name === 'incognito-exit' ? exitButton : null;
   document.querySelectorAll = () => rows;
-  const window = { _pendingDocumentScope: copy(outgoing.document_scope), _currentSession: { id, name: 'outgoing', project_id: 'old-project' },
+  const window = { _pendingDocumentScope: copy(outgoing.document_scope), _currentSession: { id, name: 'outgoing', project_id: 'old-project', incognito: privateMode },
     _pendingProjectId: 'old-project', _pendingWorkingDir: '/synthetic/work',
     _pendingPersona: { id: 'synthetic-persona' }, _pendingChatBehavior: 'old-behavior',
     _refreshPersonaBtn: () => effects.push('refresh-persona'),
     _syncAideNewTaskContext: value => effects.push(['sync-context', value]),
+    _showPrimaryAide: async () => { effects.push('open-primary'); return true; },
     _setAideDocumentScope(value) { this._pendingDocumentScope = value; context.subject.save(); } };
   const storageAPI = {
     getItem(name) { storageCalls.push(['get', name]); return storage.get(name) ?? null; },
@@ -77,6 +79,7 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     discardAttachments: async () => { attachments.splice(0); effects.push('discard-attachments'); },
     navigateTo: async view => { navigations.push(view); return state.navigateAllowed; },
     canSendMessage: () => state.canSend,
+    getSendBlockReason: () => state.canSend ? '' : 'busy',
     sendMessage: async text => sends.push([text, copy(window._pendingDocumentScope), window._pendingProjectId]),
     singleHost: () => true, urlForApp: () => 'http://127.0.0.1:1/',
     validatedProjectId: id => ['allowed-project', 'old-project'].includes(id) ? id : '',
@@ -93,6 +96,7 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     },
     getProjects: () => [{ id: 'allowed-project' }, { id: 'old-project' }], selectAideDefault: () => effects.push('default-model'),
     showWelcome: () => effects.push('welcome'),
+    showChatView: () => effects.push('show-conversation'),
     replaceRouteUrl(url) { effects.push(['route', url.href]); location.href = url.href; },
   });
   Object.defineProperty(context, 'localStorage', { get() {
@@ -101,7 +105,7 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     return storageAPI;
   } });
   vm.runInContext(`let _activeId = ${JSON.stringify(id)}; let _composerGeneration = 7;\n`
-    + [drafts, rowState, fresh, privateDay, boundAsk, clickHandler('incognito-btn'), clickHandler('incognito-exit')].join('\n').replace(/^export /gm, '')
+    + [drafts, rowState, primaryState, fresh, privateDay, boundAsk, clickHandler('incognito-btn'), clickHandler('incognito-exit')].join('\n').replace(/^export /gm, '')
     + '\nglobalThis.subject = { save: saveDraft, fresh: newChat, day: showPrivateDayDraft, state: () => ({ id: _activeId, generation: _composerGeneration }) };', context);
   return { field, document, messages, window, storage, notices, effects, storageCalls, state, recovery, location,
     attachments, navigations, sends, searches, requests,
@@ -204,7 +208,7 @@ test('incognito entry retains the missing-composer undefined-save bypass', async
   assert.equal(h.effects.includes('focus-composer'), false);
 });
 
-test('unchanged private exit uses skipDraft and restores the normal new-task draft at quota', async () => {
+test('private exit preserves public drafts at quota and requests the main conversation', async () => {
   const h = harness({ privateMode: true }); h.state.failure = 'QuotaExceededError';
   const storedOutgoing = h.storage.get(key('outgoing'));
   assert.equal(await h.privateExit(), undefined);
@@ -215,6 +219,7 @@ test('unchanged private exit uses skipDraft and restores the normal new-task dra
   assert.equal(h.storageCalls.some(([method, name]) => method === 'set' && name === key('outgoing')), false);
   assert.equal(h.field.value, newDraft.text);
   assert.deepEqual(copy(h.window._pendingDocumentScope), newDraft.document_scope);
+  assert.equal(h.effects.filter(effect => effect === 'open-primary').length, 1);
 });
 
 for (const web of [false, true]) {

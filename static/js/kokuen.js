@@ -60,6 +60,55 @@ let observer = null;
 let initialized = false;
 let switchLabelId = 0;
 
+const ICON_GLYPHS = Object.freeze({
+  '×': 'close',
+  '↑': 'chevron-up',
+  '↓': 'chevron-down',
+  '←': 'chevron-left',
+  '→': 'chevron-right',
+});
+
+function inferredIconName(element) {
+  if (element.dataset.kokuenIcon) return element.dataset.kokuenIcon;
+  if (!element.matches('button, a[href], [role="button"]')) return '';
+  const glyph = (element.textContent || '').trim();
+  let name = ICON_GLYPHS[glyph] || '';
+  if (!name) return '';
+  const semantics = [
+    element.getAttribute('aria-label'),
+    element.getAttribute('title'),
+    element.className,
+    element.dataset.act,
+  ].filter(Boolean).join(' ').toLowerCase();
+  if (glyph === '×' && /delete|remove|discard|trash|(?:^|[-_])del(?:$|[-_])/.test(semantics)) name = 'trash';
+  if (glyph === '↑' && /send|save|submit/.test(semantics)) name = 'send';
+  if (element.id === 'files-up-btn') name = 'chevron-up';
+  return name;
+}
+
+function decorateIconControl(element) {
+  const name = inferredIconName(element);
+  if (!name) return;
+  if (element.dataset.kokuenIcon !== name) element.dataset.kokuenIcon = name;
+  if (!element.getAttribute('aria-label') && !element.getAttribute('aria-labelledby')) {
+    const fallback = element.getAttribute('title') || {
+      close: 'close',
+      trash: 'delete',
+      send: 'send',
+      'chevron-up': 'move up',
+      'chevron-down': 'move down',
+      'chevron-left': 'back',
+      'chevron-right': 'next',
+    }[name];
+    if (fallback) element.setAttribute('aria-label', fallback);
+  }
+  if (element.dataset.kokuenIconReady === name && element.querySelector(':scope > svg.ic')) return;
+  const makeIcon = globalThis.iconEl;
+  if (typeof makeIcon !== 'function') return;
+  element.replaceChildren(makeIcon(name));
+  element.dataset.kokuenIconReady = name;
+}
+
 function visible(element) {
   return !element.hidden && element.getAttribute('aria-hidden') !== 'true';
 }
@@ -81,6 +130,7 @@ function primitiveFor(element) {
 
 function decorateControl(element) {
   if (!(element instanceof HTMLElement)) return;
+  decorateIconControl(element);
   if (!element.dataset.kokuenPrimitive) element.dataset.kokuenPrimitive = primitiveFor(element);
   if (!element.dataset.kokuenState) element.dataset.kokuenState = 'resting';
 
@@ -153,6 +203,9 @@ export function initKokuenPrimitives(root = document) {
         decorateControl(record.target);
         continue;
       }
+      if (record.target instanceof HTMLElement && record.target.matches(CONTROL_SELECTOR)) {
+        decorateControl(record.target);
+      }
       for (const node of record.addedNodes) {
         if (node instanceof HTMLElement) decorateRoot(node);
       }
@@ -162,7 +215,7 @@ export function initKokuenPrimitives(root = document) {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['disabled', 'aria-disabled', 'aria-busy', 'aria-invalid', 'aria-checked', 'aria-selected', 'aria-pressed'],
+    attributeFilter: ['disabled', 'aria-disabled', 'aria-busy', 'aria-invalid', 'aria-checked', 'aria-selected', 'aria-pressed', 'data-kokuen-icon'],
   });
 }
 
@@ -185,6 +238,7 @@ export function beginBusy(element, label = 'working') {
     disabled: 'disabled' in element ? element.disabled : false,
     ariaDisabled: element.getAttribute('aria-disabled'),
     text: element.textContent,
+    icon: element.dataset.kokuenIcon || '',
   };
   if ('disabled' in element) element.disabled = true;
   element.setAttribute('aria-disabled', 'true');
@@ -195,7 +249,11 @@ export function beginBusy(element, label = 'working') {
     if (snapshot.ariaDisabled == null) element.removeAttribute('aria-disabled');
     else element.setAttribute('aria-disabled', snapshot.ariaDisabled);
     element.removeAttribute('aria-busy');
-    element.textContent = text;
+    if (snapshot.icon) {
+      element.dataset.kokuenIcon = snapshot.icon;
+      delete element.dataset.kokuenIconReady;
+      decorateIconControl(element);
+    } else element.textContent = text;
     setControlState(element, state);
   };
 }
@@ -262,7 +320,7 @@ export function createMenuController(menu, { onClose = null, closeOnOutsidePoint
   let returnFocus = null;
   let outsideListening = false;
   const items = () => [...menu.querySelectorAll('[role^="menuitem"]')]
-    .filter(element => visible(element) && element.getAttribute('aria-disabled') !== 'true');
+    .filter(element => visible(element) && !element.disabled && element.getAttribute('aria-disabled') !== 'true');
   const stopOutsideListening = () => {
     if (!outsideListening) return;
     outsideListening = false;

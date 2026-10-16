@@ -490,6 +490,18 @@ def _save_turn(
         if not s:
             return
 
+        voice_event = None
+        voice_context = (settings or {}).get("_aide_voice_turn")
+        if voice_context:
+            from services import aide_voice
+
+            voice_event = aide_voice.prepare_save(db, voice_context)
+            prior = aide_voice.data(voice_event)
+            if prior.get("assistant_message_id"):
+                return {"id": prior["assistant_message_id"]}
+            if prior.get("user_message_id"):
+                return {"user_id": prior["user_message_id"]}
+
         # save user message if not already there (first time)
         # do this even if the model returned nothing, otherwise the just-sent
         # user turn vanishes on reload when a completion comes back empty/errored
@@ -503,12 +515,16 @@ def _save_turn(
         added = 0
         am = None
         um = last
-        if not last or last.role != "user" or last.content != user_text:
+        if voice_event is not None or not last or last.role != "user" or last.content != user_text:
             um = Message(session_id=session_id, role="user", content=user_text)
             db.add(um)
             added += 1
 
         user_meta = um.meta_dict()
+        if voice_context:
+            user_meta.update(
+                live_call_id=voice_context["call_id"], voice_turn_id=voice_context["turn_id"]
+            )
         user_meta.pop("response_recovery", None)
         if response_recovery and not (full_text or interrupted or tool_steps):
             user_meta["response_recovery"] = response_recovery
@@ -534,6 +550,10 @@ def _save_turn(
                 meta["interrupted"] = True
             if response_recovery:
                 meta["response_recovery"] = response_recovery
+            if voice_context:
+                meta.update(
+                    live_call_id=voice_context["call_id"], voice_turn_id=voice_context["turn_id"]
+                )
             artifacts = _extract_artifacts(full_text)
             if artifacts:
                 meta["artifacts"] = artifacts
@@ -551,6 +571,11 @@ def _save_turn(
         # otherwise the sidebar count drifts a message behind every turn
         if added:
             s.message_count = (s.message_count or 0) + added
+
+        if voice_event is not None:
+            aide_voice.link_saved(
+                db, voice_event, um, am, interrupted=interrupted, recovery=response_recovery
+            )
 
         db.commit()
 

@@ -16,10 +16,12 @@ import { loadAnswerNoteRecovery, reconcileAnswerNote } from './answer_note.js';
 import { loadAnswerTaskRecovery } from './answer_task.js';
 import { createMenuController } from './kokuen.js';
 import { replaceRouteUrl } from './route_history.js';
+import { compactResponseActions } from './response_actions.js?v=1';
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
 let _composerGeneration = 0;
+let _sessionSelectionRequest = 0;
 let _allSessions = [];  // flat list for search
 let _sessionsLoaded = false;
 let _sessionLoadGeneration = 0;
@@ -29,6 +31,13 @@ let _contextMenuController = null;
 
 export function getActiveId() { return _activeId; }
 export function getComposerGeneration() { return _composerGeneration; }
+
+export function setPrimaryConversationUnavailable(unavailable) {
+  window._aidePrimaryUnavailable = unavailable;
+  const composer = document.getElementById('composer-outer');
+  if (composer) composer.inert = unavailable;
+  if (unavailable) document.dispatchEvent(new CustomEvent('alles:aide-primary-unavailable'));
+}
 
 function syncSessionRowState(row, active) {
   row.classList.toggle('active', active);
@@ -89,18 +98,40 @@ function renderSessionLoadState() {
   retry.onclick = () => { if (_sessionLoadState !== 'loading') void loadSessions(); };
 }
 
-// called once on boot. only restore a session from a deep-link hash —
-// a bare localhost:6769 always opens a fresh chat (like claude.ai/new).
+// called once on boot. Deep links still restore exact historical tasks; a bare
+// Aide route opens the one permanent primary conversation.
 export async function initSessions({ hashOwner = 'session' } = {}) {
   await loadSessions();
   void loadAnswerNoteRecovery();
   void loadAnswerTaskRecovery();
+  // Session restoration owns only the Aide conversation route. Resolving the
+  // canonical thread must never pull Home or a specialist app into Aide after
+  // that route has already rendered.
+  if (hashOwner !== 'session') return;
   const hash = location.hash.slice(1);
   const sourceMessage = new URLSearchParams(location.search).get('message') || '';
   if (hashOwner === 'session' && hash && (!_sessionsLoaded || _allSessions.find(s => s.id === hash))) {
-    await selectSession(hash, sourceMessage, { skipDraft: true });
+    await selectSession(hash, sourceMessage, { skipDraft: true, preserveRecord: true });
   } else {
-    newChat({ skipDraft: true, preserveHash: hashOwner !== 'session' || Boolean(sourceMessage) });
+    try {
+      let primary = _allSessions.find(item => item.primary);
+      if (!primary) {
+        const response = await fetch('/api/aide/conversation');
+        if (!response.ok) throw new Error('primary conversation unavailable');
+        primary = await response.json();
+      }
+      if (!primary?.id) throw new Error('primary conversation unavailable');
+      if (!_allSessions.some(item => item.id === primary.id)) await loadSessions();
+      const opened = await selectSession(primary.id, '', {
+        skipDraft: true,
+        preserveRecord: true,
+        preserveHash: hashOwner !== 'session' || Boolean(sourceMessage),
+      });
+      if (!opened) throw new Error('primary conversation unavailable');
+    } catch (error) {
+      console.error('initSessions', error);
+      setPrimaryConversationUnavailable(true);
+    }
   }
 }
 
@@ -177,7 +208,7 @@ export function getDraftSnapshot(id) {
 
 // A late acceptance may belong to a task that is no longer on screen. Only
 // consume its submitted draft; a newer saved question still belongs to the user.
-export function consumeDraft(id, expected, remainingText = '') {
+export function consumeDraft(id, expected, remainingText = '', remainingScope = null) {
   try {
     const stored = localStorage.getItem(_draftKey(id));
     if (stored === null) {
@@ -189,7 +220,7 @@ export function consumeDraft(id, expected, remainingText = '') {
         || JSON.stringify(draft.document_scope) !== JSON.stringify(expected.document_scope)) return false;
     }
   } catch { return false; }
-  return remainingText ? writeDraft(id, remainingText, null) : clearStoredDraft(id);
+  return remainingText || remainingScope ? writeDraft(id, remainingText, remainingScope) : clearStoredDraft(id);
 }
 
 function clearStoredDraft(owner) {
@@ -209,6 +240,7 @@ function clearStoredDraft(owner) {
 
 export function newChat(options = {}) {
   if (!options.skipDraft && saveDraft() === false) return false;
+  setPrimaryConversationUnavailable(false);
   ++_composerGeneration;
   document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
   _activeId = null;
@@ -253,20 +285,23 @@ export function renderSidebar(filter = '') {
   if (!_sessionsLoaded) { list.innerHTML = ''; return; }
   const fl = filter.toLowerCase();
 
-  let src = _allSessions;
+  const archive = document.body.classList.contains('aide-central');
+  let src = _allSessions.filter(session => !archive || !session.primary);
   if (fl) {
-    src = _allSessions.filter(s => (s.name || '').toLowerCase().includes(fl));
+    src = src.filter(s => (s.name || '').toLowerCase().includes(fl));
   }
 
   if (!src.length) {
-    list.innerHTML = `<div class="empty-sessions">${fl ? t('aide.no_matching_tasks') : t('aide.no_tasks')}</div>`;
-    if (!fl) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
+    list.innerHTML = `<div class="empty-sessions">${fl ? t('aide.no_matching_tasks') : archive ? 'no earlier conversations' : t('aide.no_tasks')}</div>`;
+    if (!fl && !archive) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
     return;
   }
 
   let html = '';
 
-  if (!fl && document.body.classList.contains('afterlife-aide-projects')) {
+  if (archive) {
+    html = src.map(s => renderItem(s)).join('');
+  } else if (!fl && document.body.classList.contains('afterlife-aide-projects')) {
     html = '';
   } else if (!fl) {
     if (_sessions.today.length)     html += renderGroup('today', _sessions.today);
@@ -279,7 +314,7 @@ export function renderSidebar(filter = '') {
   list.innerHTML = html;
 
   // inject project folders above the session groups
-  if (!fl) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
+  if (!fl && !archive) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
 
   list.querySelectorAll('.session-item').forEach(el => {
     const sid = el.dataset.id;
@@ -421,37 +456,43 @@ export function focusSessionMessage(messageId) {
 }
 
 export async function selectSession(id, messageId = '', options = {}) {
+  if (options.isCurrent?.() === false) return false;
   if (messageId && !/^[a-zA-Z0-9_-]{1,160}$/.test(messageId)) return false;
   if (id !== _activeId && !options.skipDraft && saveDraft() === false) return false;
-  ++_composerGeneration;
-  document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
-  _activeId = id;
-  location.hash = id;
-  const sourceUrl = new URL(location.href);
-  if (messageId) sourceUrl.searchParams.set('message', messageId);
-  else sourceUrl.searchParams.delete('message');
-  replaceRouteUrl(sourceUrl);
-  restoreDraft(id);                    // and bring up this convo's draft
-
-  // if we're sitting on a tools page (models/memory/etc), get back to chat first
-  // — otherwise the messages render behind the still-open tool view
-  window._enterChatView?.();
-
-  // update active class
-  document.querySelectorAll('.session-item').forEach(el => {
-    const active = el.dataset.id === id;
-    syncSessionRowState(el, active);
-  });
-
+  const generation = _composerGeneration;
+  const previousId = _activeId;
+  const request = ++_sessionSelectionRequest;
   try {
     const r = await fetch(`/api/sessions/${id}/history`);
+    if (!r.ok) throw new Error('conversation unavailable');
     const data = await r.json();
+    if (request !== _sessionSelectionRequest || generation !== _composerGeneration || previousId !== _activeId || options.isCurrent?.() === false) return false;
+    if (data.session?.id !== id || !Array.isArray(data.messages)) throw new Error('invalid conversation history');
+    // Fetch before changing the owner. Failed or stale archive reads must keep
+    // the currently visible thread, URL and unsent input intact. Save again so
+    // text typed while the read was pending is not lost at the final switch.
+    if (id !== _activeId && !options.skipDraft && saveDraft() === false) return false;
+    ++_composerGeneration;
+    document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
+    _activeId = id;
+    const sourceUrl = new URL(location.href);
+    if (!options.preserveHash) sourceUrl.hash = id;
+    if (messageId) sourceUrl.searchParams.set('message', messageId);
+    else sourceUrl.searchParams.delete('message');
+    replaceRouteUrl(sourceUrl);
+    // Reloading the same owner must retain live input (including text typed
+    // during a recovery fetch), not replace it with an older stored snapshot.
+    if (id !== previousId) restoreDraft(id);
+    setPrimaryConversationUnavailable(false);
     window._currentSession = data.session;
+    window._enterChatView?.({ preserveRecord: options.preserveRecord === true });
+    document.querySelectorAll('.session-item').forEach(el => syncSessionRowState(el, el.dataset.id === id));
     renderMessages(data.messages);
     showMessages();
 
     restoreSessionModel(data.session);
     updateSessionHeader(data.session);
+    document.dispatchEvent(new CustomEvent('alles:aide-session'));
     window._setMode?.(data.session.mode || 'chat');   // restore this convo's last mode
     // refresh persona button
     try {
@@ -471,6 +512,51 @@ export async function selectSession(id, messageId = '', options = {}) {
 
 // let bgrun.js refresh the conversation once a background run finishes
 window._reloadActiveSession = () => { if (_activeId) selectSession(_activeId); };
+
+// A receipt updates message content without changing the owner's route, mode,
+// selection, or composer draft. Never replace a foreground stream in progress.
+let _quietRefreshTimer = null;
+let _quietRefreshRequest = 0;
+function canRefreshAideHistory() {
+  // Message edits have their own unsent text, separate from the composer draft.
+  // Keep the whole message tree intact until that editor is saved or cancelled.
+  const editor = document.getElementById('messages')?.querySelector(
+    'textarea:not([disabled]):not([readonly]), input:not([type="hidden"]):not([disabled]):not([readonly]), [contenteditable]:not([contenteditable="false"])',
+  );
+  return !editor && window._canRefreshAideMessages?.() !== false;
+}
+export async function refreshActiveSessionQuietly(sessionId) {
+  if (!sessionId || sessionId !== _activeId) return false;
+  clearTimeout(_quietRefreshTimer);
+  if (!canRefreshAideHistory()) {
+    _quietRefreshTimer = setTimeout(() => refreshActiveSessionQuietly(sessionId), 750);
+    return false;
+  }
+  const request = ++_quietRefreshRequest;
+  const generation = _composerGeneration;
+  try {
+    const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/history`);
+    if (!response.ok) return false;
+    const data = await response.json();
+    if (request !== _quietRefreshRequest || generation !== _composerGeneration || sessionId !== _activeId) return false;
+    if (!canRefreshAideHistory()) {
+      _quietRefreshTimer = setTimeout(() => refreshActiveSessionQuietly(sessionId), 750);
+      return false;
+    }
+    const chat = document.getElementById('chat');
+    const top = chat?.scrollTop || 0;
+    const atEnd = chat && chat.scrollHeight - chat.clientHeight - top < 80;
+    window._currentSession = data.session;
+    renderMessages(data.messages);
+    if (data.messages.length) showMessages();
+    requestAnimationFrame(() => {
+      if (chat && sessionId === _activeId) chat.scrollTop = atEnd ? chat.scrollHeight : top;
+    });
+    document.dispatchEvent(new CustomEvent('alles:aide-session'));
+    return true;
+  } catch { return false; }
+}
+window._refreshAideSessionQuietly = refreshActiveSessionQuietly;
 
 
 function renderMessages(msgs) {
@@ -526,6 +612,7 @@ function renderMessages(msgs) {
         bb.dataset.msgId = m.id;
         actions.appendChild(bb);
       }
+      compactResponseActions(actions);
     }
   }
   // wire edit + branch buttons after all messages are rendered
@@ -630,6 +717,7 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
     <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
   wrap.appendChild(actions);
   wireRewriteButtons(actions);
+  compactResponseActions(actions);
 
   document.getElementById('messages').appendChild(row);
   scrollDown();

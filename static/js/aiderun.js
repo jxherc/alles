@@ -144,12 +144,21 @@ export async function openAideRun(id, isCurrent = () => true) {
 
   async function act(callback) {
     if (owner.busy || !live()) return;
+    const previousFocus = document.activeElement;
+    const hadFocus = panel.contains(previousFocus);
     lock(true);
     try { await callback(); }
     catch (error) { if (live()) status.textContent = error.message || 'could not confirm this action; refresh to check'; }
     finally {
       owner.busy = false;
-      if (live()) { lock(false); poll(); }
+      if (live()) {
+        lock(false);
+        if (hadFocus && !panel.contains(document.activeElement)) {
+          (previousFocus.isConnected && !previousFocus.hidden && !previousFocus.disabled
+            ? previousFocus : close).focus();
+        }
+        poll();
+      }
     }
   }
   async function answer(prompt, payload, structured) {

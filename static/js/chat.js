@@ -15,6 +15,7 @@ import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.
 import { saveAnswerNote } from './answer_note.js';
 import { saveAnswerTask } from './answer_task.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=1';
+import { compactResponseActions } from './response_actions.js?v=1';
 
 // tools that change state / reach out — flagged in the agent panel + permission cards
 const DESTRUCTIVE_TOOLS = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
@@ -85,8 +86,13 @@ let _chatAbort = null;
 let _chatSessionId = null;
 let _streamToken = 0;
 
+export function getSendBlockReason() {
+  if (_streaming || _backgroundLaunching) return 'busy';
+  return window._aidePrimaryUnavailable ? 'primary-unavailable' : '';
+}
+
 export function canSendMessage() {
-  return !_streaming && !_backgroundLaunching;
+  return !getSendBlockReason();
 }
 
 function normalizeDocumentScope(value) {
@@ -129,6 +135,24 @@ function restoreComposerInput(text) {
   composer.style.height = 'auto';
   composer.dispatchEvent(new Event('input', { bubbles: true }));
   composer.focus();
+}
+
+function restoreBackgroundInput(sessionId, text) {
+  // A delayed enqueue failure still belongs to the conversation that sent it.
+  if (getActiveId() === sessionId && !isIncognitoMode()) {
+    restoreComposerInput(text);
+    return;
+  }
+  const draft = getDraftSnapshot(sessionId);
+  if (!draft || typeof draft.text !== 'string') {
+    toast('background work did not start. could not restore its original draft.', 'error');
+    return;
+  }
+  const restored = draft.text.trim() && draft.text.trim() !== text.trim()
+    ? `${text}\n\n${draft.text}` : text;
+  if (!consumeDraft(sessionId, draft, restored, draft.document_scope || null)) {
+    toast('background work did not start. could not restore its original draft.', 'error');
+  }
 }
 
 function restoreDocumentScope(scope) {
@@ -183,6 +207,10 @@ function holdDocumentDraft(sessionId, draft, attachmentIds, privateReply, { owns
 
 export async function sendMessage(text, onAccepted = () => {}) {
   if (!text?.trim() || _streaming || _backgroundLaunching) return;
+  if (window._aidePrimaryUnavailable) {
+    showSendIssue('reopen your main conversation before sending.');
+    return;
+  }
   if (hasPendingAttachments()) {
     showSendIssue('wait for attachments to finish uploading.');
     return;
@@ -297,10 +325,10 @@ export async function sendMessage(text, onAccepted = () => {}) {
     }
     if (!run) {
       userRow.remove();
-      restoreComposerInput(text);
+      restoreBackgroundInput(sessionId, text);
       return;
     }
-    clearAttachments();
+    if (getActiveId() === sessionId) clearAttachments(attachmentIds);
     if (freshSession) updateSessionName(sessionId, text.slice(0, 54));
     return;
   }
@@ -908,6 +936,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       }
       actions.innerHTML = html;
       wrap.appendChild(actions);
+      compactResponseActions(actions);
       if (cleanText) import('./sessions.js').then(m => m.wireRewriteButtons(actions));
     }
 

@@ -228,7 +228,7 @@ def run(device: str) -> None:
                 for _ in range(2):
                     page.reload(wait_until="networkidle")
                     expect(page.locator(visible)).to_be_visible()
-                    expect(page).to_have_url(re.compile(rf"[?&]view={destination}(?:&|$)"))
+                    expect(page).to_have_url(re.compile(rf"[?&]view={destination}(?:&|#|$)"))
             page.go_back(wait_until="networkidle")
             expect(page.locator("#composer-ta")).to_be_visible()
             page.go_forward(wait_until="networkidle")

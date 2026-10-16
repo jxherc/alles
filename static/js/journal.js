@@ -292,7 +292,7 @@ async function buildJournal() {
           <div class="jrnl-prompt" id="jrnl-prompt"></div>
           <textarea id="jrnl-text" class="jrnl-text" rows="7" aria-label="journal entry" aria-describedby="jrnl-prompt" placeholder="how was your day?"></textarea>
           <div class="jrnl-mood-label" id="jrnl-mood-label">mood (optional)</div>
-          <div class="jrnl-moods" id="jrnl-moods" role="group" aria-labelledby="jrnl-mood-label">${MOODS.map(([m, label]) => `<button type="button" class="jrnl-mood" data-m="${m}" aria-label="${label}" aria-pressed="false">${m}</button>`).join('')}</div>
+          <div class="jrnl-moods" id="jrnl-moods" role="group" aria-labelledby="jrnl-mood-label">${MOODS.map(([m, label]) => `<button type="button" class="jrnl-mood" data-m="${m}" aria-label="${label}" aria-pressed="false">${label}</button>`).join('')}</div>
           <input id="jrnl-tags" class="jrnl-tags" aria-label="tags (optional, comma separated)" placeholder="tags (optional, comma separated)">
           <div class="jrnl-actions">
             <button class="btn primary" id="jrnl-save">save</button>

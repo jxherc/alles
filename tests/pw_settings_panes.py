@@ -3660,6 +3660,7 @@ def exercise(page, api, endpoint, destination):
         "**/api/local-models/jobs/example-failed",
         lambda route: route.fulfill(
             json={
+                "id": "example-failed",
                 "status": "error",
                 "error": "synthetic completed job failure",
             }
@@ -3669,6 +3670,7 @@ def exercise(page, api, endpoint, destination):
         "**/api/local-models/jobs/example-done",
         lambda route: route.fulfill(
             json={
+                "id": "example-done",
                 "status": "done",
                 "model": "example-submitted-model",
             }
@@ -3699,7 +3701,13 @@ def exercise(page, api, endpoint, destination):
             pulls[-1].fulfill(
                 json={"id": "example-failed" if outcome == "newer" else "example-done"}
             )
-            expect(button).to_have_text("download" if outcome == "newer" else "downloaded")
+            expect(button).to_be_enabled()
+            expect(button).to_have_text("pull")
+            expect(page.locator("#toast-container .toast").last).to_have_text(
+                "synthetic completed job failure"
+                if outcome == "newer"
+                else "example-submitted-model downloaded"
+            )
             expect(field).to_have_value(draft if outcome == "newer" else "")
         creation_evidence.append({"form": "custom-pull", "outcome": outcome, "one_post": True})
     page.unroute("**/api/local-models/download_model", hold_custom_pull)

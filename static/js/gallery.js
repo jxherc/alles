@@ -120,8 +120,8 @@ export function initGalleryUpload() {
       const r = await fetch('/api/gallery/upload', { method: 'POST', body: fd });
       if (!r.ok) throw new Error(await r.text());
       toast('uploaded', 'success');
-      if (document.getElementById('gallery-prompt-input'))
-        document.getElementById('gallery-prompt-input').value = '';
+      const promptInput = document.getElementById('gallery-prompt-input');
+      if (promptInput?.value === prompt) promptInput.value = '';
       await loadGallery();
     } catch (e) {
       toast('upload failed: ' + e.message, 'error');

@@ -3,6 +3,7 @@
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
 let _built = false;
 let _searchTimer = null;
+let _loadSequence = 0;
 
 const USE_CASES = ['general', 'coding', 'reasoning', 'chat', 'multimodal', 'embedding', 'image_gen'];
 const SORTS = [['score', 'best fit'], ['speed', 'fastest'], ['vram', 'most VRAM'], ['params', 'biggest'], ['newest', 'newest']];
@@ -20,7 +21,7 @@ export function initCookbook() {
         <input id="cb-search" class="cb-search" placeholder="search models…">
         <div id="cb-usecase" class="cb-sel custom-select"></div>
         <div id="cb-sort" class="cb-sel custom-select"></div>
-        <button type="button" class="cb-fitonly" id="cb-fitonly" role="switch" aria-checked="true"><span class="chk" aria-hidden="true"></span> fits only</button>
+        <button type="button" class="cb-fitonly s-switch s-switch-labeled" id="cb-fitonly" role="switch" aria-checked="true">fits only</button>
         <button class="btn" id="cb-refresh">refresh</button>
       </div>
       <div id="cb-table" class="cb-table"><div class="jrnl-empty">loading catalog…</div></div>`;
@@ -37,6 +38,7 @@ export function initCookbook() {
     };
     document.getElementById('cb-refresh').onclick = reload;
     document.getElementById('cb-search').addEventListener('input', () => {
+      _loadSequence++;
       clearTimeout(_searchTimer); _searchTimer = setTimeout(load, 300);
     });
     _built = true;
@@ -57,6 +59,7 @@ async function loadHardware() {
 async function load() {
   const table = document.getElementById('cb-table');
   if (!table) return;
+  const sequence = ++_loadSequence;
   const uc = getDropdownValue(document.getElementById('cb-usecase'));
   const sort = getDropdownValue(document.getElementById('cb-sort'));
   const fitOnly = document.getElementById('cb-fitonly').getAttribute('aria-checked') === 'true';
@@ -66,6 +69,7 @@ async function load() {
   table.innerHTML = '<div class="jrnl-empty">ranking against your hardware…</div>';
   try {
     const d = await cget('/api/local-models/catalog?' + qs);
+    if (sequence !== _loadSequence) return;
     if (!d.models.length) { table.innerHTML = '<div class="jrnl-empty">no models match</div>'; return; }
     table.innerHTML = `
       <div class="cb-row cb-head">
@@ -73,6 +77,7 @@ async function load() {
         <span>VRAM</span><span>speed</span><span>fit</span><span>score</span>
       </div>` + d.models.map(rowHtml).join('');
   } catch (e) {
+    if (sequence !== _loadSequence) return;
     table.innerHTML = `<div class="jrnl-empty">catalog failed: ${esc(String(e.message || e))}</div>`;
   }
 }
