@@ -167,6 +167,17 @@ with sync_playwright() as pw:
                     page.wait_for_function("innerWidth === 720 && devicePixelRatio === 2")
                     row["native_zoom"] = {"factor": 2, "css_width": 720, "dpr": 2}
                 field = page.locator("#andromeda-query")
+                search_form = page.locator("#andromeda-form")
+                idle_bounds = search_form.bounding_box()
+                assert idle_bounds and 44 <= idle_bounds["height"] <= 46, idle_bounds
+                assert idle_bounds["width"] <= min(620, page.evaluate("innerWidth")) + 1, (
+                    idle_bounds
+                )
+                field.focus()
+                field_focus = field.evaluate(
+                    "e=>({outline:getComputedStyle(e).outlineStyle, border:getComputedStyle(e.form).borderColor})"
+                )
+                assert field_focus["outline"] == "none", field_focus
 
                 def search(query):
                     field.fill(query)
@@ -180,6 +191,8 @@ with sync_playwright() as pw:
                     return response.value.json()
 
                 payload = search("owned local question !ai")
+                active_bounds = search_form.bounding_box()
+                assert active_bounds and 44 <= active_bounds["height"] <= 46, active_bounds
                 empty = page.locator("#andromeda-results .andromeda-empty")
                 expect(empty).to_contain_text("search is disabled")
                 row.update(payload=payload, empty_text=empty.inner_text())
@@ -210,7 +223,13 @@ with sync_playwright() as pw:
                 assert requests[-1]["normal_results"] and not requests[-1]["overview"]
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                 capture("disabled")
-                row.update(action_bounds=bounds, focus_ring=ring)
+                row.update(
+                    action_bounds=bounds,
+                    focus_ring=ring,
+                    idle_search_bounds=idle_bounds,
+                    active_search_bounds=active_bounds,
+                    field_focus=field_focus,
+                )
 
                 if width == 390 and theme == "light":
                     row["localized"] = []

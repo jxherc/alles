@@ -177,7 +177,10 @@ async function _dismiss() {
   } catch (error) {
     _busy(button, false, error.message);
     toast(error.message, 'error');
-    openSetupWizard();
+    // A refused pause must not replace a rendered form with its last saved values.
+    // Only restart an initial load that the dismissal invalidated above.
+    if ($('setup-wizard')?.getAttribute('aria-busy') === 'true') openSetupWizard();
+    else button?.focus();
   }
 }
 
@@ -223,6 +226,13 @@ function _bindActions(save) {
   $('sw-save')?.addEventListener('click', save);
 }
 
+function _formIsCurrent() {
+  const body = $('setup-wizard-body');
+  const first = body?.firstElementChild;
+  return () => $('setup-wizard')?.style.display === 'flex'
+    && body?.firstElementChild === first;
+}
+
 function _busy(button, on, message = '') {
   if (button) {
     button.disabled = on;
@@ -233,9 +243,9 @@ function _busy(button, on, message = '') {
   if (status) status.textContent = message;
 }
 
-async function _saveStep(step, values) {
+async function _saveStep(step, values, isCurrent = () => true) {
   const response = await _api('/api/setup/step', _json('PATCH', { step, values }));
-  _state = response.setup;
+  if (isCurrent()) _state = response.setup;
   return response;
 }
 
@@ -264,15 +274,17 @@ function _renderBasics(body) {
     ${_actions(false)}`;
   $('sw-name').focus();
   _bindActions(async () => {
+    const current = _formIsCurrent();
     const button = $('sw-save');
     _busy(button, true, 'saving…');
     try {
       await _saveStep('basics', {
         username: $('sw-name').value.trim(), language: 'en',
         region: defaults.region, timezone: $('sw-timezone').value.trim(),
-      });
+      }, current);
+      if (!current()) return;
       _setStep(1);
-    } catch (error) { _busy(button, false, error.message); }
+    } catch (error) { if (current()) _busy(button, false, error.message); }
   });
 }
 
@@ -286,10 +298,14 @@ function _choiceGroup(id, choices, selected) {
 function _bindChoiceGroup(id, onChange) {
   const group = $(id);
   if (!group) return;
+  let selected = group.querySelector('[aria-checked="true"]')?.dataset.value;
   wireChoiceGroup(group);
   group.addEventListener('click', event => {
     const button = event.target.closest('[role="radio"]');
-    if (button && group.contains(button)) onChange?.(button.dataset.value);
+    if (button && group.contains(button) && button.dataset.value !== selected) {
+      selected = button.dataset.value;
+      onChange?.(selected);
+    }
   });
 }
 
@@ -321,6 +337,7 @@ function _renderAccess(body) {
   details(selected);
   _bindChoiceGroup('sw-access', details);
   _bindActions(async () => {
+    const current = _formIsCurrent();
     const profile = $('sw-access').querySelector('[aria-checked="true"]')?.dataset.value || 'device';
     const password = $('sw-owner-password')?.value || '';
     if (profile !== 'device' && !_auth.enabled && password.length < 12) {
@@ -332,15 +349,17 @@ function _renderAccess(body) {
         await _api('/api/auth/config', _json('POST', { enabled: true, password }));
         _auth = { ..._auth, enabled: true };
       }
+      if (!current()) return;
       await _saveStep('access', {
         profile,
         public_url: $('sw-public-url')?.value.trim() || '',
         base_domain: $('sw-base-domain')?.value.trim() || '',
         trusted_hosts: $('sw-trusted-hosts')?.value.trim() || '',
         forwarded_allow_ips: $('sw-proxies')?.value.trim() || '',
-      });
+      }, current);
+      if (!current()) return;
       _setStep(2);
-    } catch (error) { _busy(button, false, error.message); }
+    } catch (error) { if (current()) _busy(button, false, error.message); }
   });
 }
 
@@ -372,6 +391,7 @@ function _renderFiles(body) {
   if (_filesSaved) _renderObsidianChoice();
   $('sw-back')?.addEventListener('click', () => _setStep(1));
   $('sw-save').addEventListener('click', async () => {
+    const current = _formIsCurrent();
     const filesSignature = `${$('sw-vault').value.trim()}\n${$('sw-files').value.trim()}\n${$('sw-keep-vault').getAttribute('aria-checked') === 'true'}`;
     const locationsChanged = _filesSaved && filesSignature !== _savedFilesSignature;
     const advance = _filesSaved && !locationsChanged;
@@ -382,16 +402,20 @@ function _renderFiles(body) {
         keep_vault_inside_alles: $('sw-keep-vault').getAttribute('aria-checked') === 'true',
         vault_path: $('sw-vault').value.trim(), files_path: $('sw-files').value.trim(),
         companion_reviewed: advance,
-      });
+      }, current);
+      if (!current()) return;
       _filesSaved = true;
       // Compare the next click with the server's canonical paths. On macOS a
       // valid /var path is returned as /private/var; retaining the pre-save
       // spelling makes the new Continue control look dead for one click.
       _savedFilesSignature = `${_state.vault_preview}\n${_state.files_preview}\n${Boolean(_state.keep_vault_inside_alles)}`;
       if (advance) { _setStep(3); return; }
-      try { _obsidian = await _api('/api/setup/obsidian'); } catch { _obsidian = null; }
-      _renderFiles(body);
-    } catch (error) { _busy(button, false, error.message); }
+      let companion = null;
+      try { companion = await _api('/api/setup/obsidian'); } catch { /* optional status */ }
+      if (!current()) return;
+      _obsidian = companion;
+      _render();
+    } catch (error) { if (current()) _busy(button, false, error.message); }
   });
 }
 
@@ -438,6 +462,7 @@ function _renderAiSearch(body) {
     ${_actions()}`;
   $('sw-models').addEventListener('click', event => {
     const button = event.target.closest('[data-index]'); if (!button) return;
+    if (_pickedModel === MODEL_PRESETS[Number(button.dataset.index)]) return;
     _pickedModel = MODEL_PRESETS[Number(button.dataset.index)];
     $('sw-models').querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
     $('sw-model-fields').innerHTML = `
@@ -452,21 +477,24 @@ function _renderAiSearch(body) {
   searchFields(selectedSearch);
   _bindChoiceGroup('sw-search', searchFields);
   _bindActions(async () => {
+    const current = _formIsCurrent();
     const button = $('sw-save'); _busy(button, true, 'connecting…');
     try {
       if (_pickedModel) {
         const url = $('sw-model-url').value.trim();
         if (!url) throw new Error('the model base URL is required');
         await addEndpoint(_pickedModel.name, url, $('sw-model-key').value.trim());
+        if (!current()) return;
         _pickedModel = null;
       }
       const provider = $('sw-search').querySelector('[aria-checked="true"]')?.dataset.value || 'duckduckgo';
       await _saveStep('ai_search', {
         search_provider: provider,
         searxng_url: $('sw-searxng-url')?.value.trim() || '',
-      });
+      }, current);
+      if (!current()) return;
       _setStep(4);
-    } catch (error) { _busy(button, false, error.message || 'the connection could not be verified'); }
+    } catch (error) { if (current()) _busy(button, false, error.message || 'the connection could not be verified'); }
   });
 }
 
@@ -486,16 +514,19 @@ function _renderProtection(body) {
   fields(enabled);
   _bindSwitch('sw-auto-backup', fields);
   _bindActions(async () => {
+    const current = _formIsCurrent();
     const button = $('sw-save'); _busy(button, true, 'saving protection…');
     try {
       await _saveStep('protection', {
         automatic_backup_enabled: $('sw-auto-backup').getAttribute('aria-checked') === 'true',
         automatic_backup_dir: $('sw-backup-dir')?.value.trim() || _state.automatic_backup_dir,
-      });
+      }, current);
+      if (!current()) return;
       const completed = await _api('/api/setup/complete', { method: 'POST' });
+      if (!current()) return;
       _state = completed.setup;
       _step = STEPS.length; _render();
-    } catch (error) { _busy(button, false, error.message); }
+    } catch (error) { if (current()) _busy(button, false, error.message); }
   });
 }
 

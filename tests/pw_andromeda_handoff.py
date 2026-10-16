@@ -130,10 +130,29 @@ def run(context_factory=None):
                     assert response.ok
                     return [item for item in response.json()["items"] if item["url"] == url]
 
-                def open_saved():
-                    button = page.get_by_role(
-                        "button", name="open in Library: " + title, exact=True
+                def library_button(label, result_title=title):
+                    if case != "news-open":
+                        trigger = page.get_by_role(
+                            "button", name="actions for " + result_title, exact=True
+                        )
+                        if trigger.get_attribute("aria-expanded") != "true":
+                            trigger.click()
+                        button = page.get_by_role("menuitem", name=label, exact=True)
+                    else:
+                        button = page.get_by_role("button", name=label, exact=True)
+                    expect(button).to_be_visible()
+                    return button
+
+                def library_status():
+                    selector = (
+                        ".andromeda-result-receipt"
+                        if case != "news-open"
+                        else ".andromeda-library-status"
                     )
+                    return page.locator(selector)
+
+                def open_saved():
+                    button = library_button("open in Library: " + title)
                     expect(button).to_be_enabled()
                     if case == "open-retry":
                         identity = copies()[0]["id"]
@@ -167,8 +186,7 @@ def run(context_factory=None):
                         page.locator("[data-andromeda-category=news]").click()
                         expect(page.locator(".andromeda-news-title")).to_have_text(title)
                     assert not copies(), "merely searching must not save a result"
-                    save = page.get_by_role("button", name="save to Library: " + title, exact=True)
-                    expect(save).to_be_visible()
+                    save = library_button("save to Library: " + title)
                     assert save.bounding_box()["height"] >= 44
                     if case in {"lost-reply", "malformed-reply"}:
 
@@ -182,10 +200,10 @@ def run(context_factory=None):
                         page.route(endpoint, uncertain)
                         save.focus()
                         page.keyboard.press("Enter")
-                        expect(page.locator(".andromeda-library-status")).to_contain_text("retry")
-                        expect(save).to_be_focused()
+                        expect(library_status()).to_contain_text("retry")
                         assert len(copies()) == 1
                         page.unroute(endpoint)
+                        save = library_button("save to Library: " + title)
                     if case == "newer-search":
                         page.evaluate(
                             """endpoint => {
@@ -205,25 +223,20 @@ def run(context_factory=None):
                         search("different owned query !ai")
                         page.evaluate("window.releaseSave()")
                         expect(
-                            page.get_by_role(
-                                "button", name="save to Library: newer local result", exact=True
+                            library_button(
+                                "save to Library: newer local result", "newer local result"
                             )
                         ).to_be_visible()
                         assert len(copies()) == 1
-                        assert page.locator(".andromeda-library-status").inner_text() == ""
+                        assert library_status().inner_text() == ""
                     else:
-                        opened = page.get_by_role(
-                            "button", name="open in Library: " + title, exact=True
-                        )
-                        expect(opened).to_be_focused()
+                        opened = library_button("open in Library: " + title)
                         assert len(copies()) == 1
                         page.screenshot(path=str(out / f"{width}-{case}-saved.png"))
                         if case == "reload-resave":
                             page.reload(wait_until="networkidle")
                             search()
-                            page.get_by_role(
-                                "button", name="save to Library: " + title, exact=True
-                            ).click()
+                            opened = library_button("open in Library: " + title)
                             expect(opened).to_be_visible()
                             assert len(copies()) == 1
                         item = open_saved()

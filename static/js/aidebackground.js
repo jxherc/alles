@@ -1,6 +1,7 @@
 import { createStreamingAiRow, scrollDown } from './sessions.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { t as tr } from './i18n.js';
+import { requestId } from './request_id.js';
 
 const TERMINAL = new Set(['succeeded', 'failed', 'cancelled', 'interrupted', 'uncertain']);
 const timers = new Map();
@@ -44,6 +45,9 @@ function makeCard() {
 }
 
 function renderCard(card, run = {}, preview = {}) {
+  const changed = run.id && card.dataset.runState !== run.state;
+  card.dataset.runState = run.state || '';
+  if (changed) document.dispatchEvent(new CustomEvent('alles:aide-work-changed'));
   card.dataset.runId = run.id || card.dataset.runId || '';
   const state = run.state || 'preparing';
   const head = document.createElement('div');
@@ -99,31 +103,41 @@ async function poll(card, preview = {}) {
   const runId = card.dataset.runId;
   if (!runId || !card.isConnected) return;
   const pollVersion = card.dataset.pollVersion || '0';
+  const current = () => card.isConnected && card.dataset.runId === runId
+    && (card.dataset.pollVersion || '0') === pollVersion;
   try {
     const run = await readRun(runId);
     // A cancel/retry may finish while this request is in flight. Never let that
     // stale status overwrite the action response that the user just received.
-    if ((card.dataset.pollVersion || '0') !== pollVersion) return;
+    if (!current()) return;
     renderCard(card, run, preview);
     if (TERMINAL.has(run.state)) {
       stopPolling(runId);
       if (run.state === 'succeeded') {
-        setTimeout(() => window._reloadActiveSession?.(), 650);
+        setTimeout(() => {
+          if (window._refreshAideSessionQuietly) window._refreshAideSessionQuietly(run.session_id);
+          else window._reloadActiveSession?.();
+        }, 650);
       }
       return;
     }
   } catch (error) {
+    if (!current()) return;
     const note = card.querySelector('.aide-background-details');
     if (note) note.textContent = safeMessage(error.message);
   }
+  stopPolling(runId);
   timers.set(runId, setTimeout(() => poll(card, preview), 1400));
 }
 
 async function act(card, action, preview) {
   const runId = card.dataset.runId;
   const button = card.querySelector('[data-background-action]');
-  if (!runId || !button) return;
+  if (!runId || !button || button.disabled) return;
   card.dataset.pollVersion = String(Number(card.dataset.pollVersion || 0) + 1);
+  const actionVersion = card.dataset.pollVersion;
+  const current = () => card.isConnected && card.dataset.runId === runId
+    && card.dataset.pollVersion === actionVersion;
   stopPolling(runId);
   button.disabled = true;
   try {
@@ -131,12 +145,19 @@ async function act(card, action, preview) {
       await fetch(`/api/jarvis/runs/${encodeURIComponent(runId)}/${action}`, { method: 'POST' }),
       `could not ${action} this work`,
     );
+    if (!current()) return;
     renderCard(card, run, preview);
     if (!TERMINAL.has(run.state)) poll(card, preview);
   } catch (error) {
+    if (!current()) return;
     button.disabled = false;
     const note = card.querySelector('.aide-background-details');
     if (note) note.textContent = safeMessage(error.message);
+    // A rejected or lost action response does not end status observation.
+    if (!TERMINAL.has(card.dataset.runState)) {
+      stopPolling(runId);
+      timers.set(runId, setTimeout(() => poll(card, preview), 1400));
+    }
   }
 }
 
@@ -164,6 +185,8 @@ export async function startBackgroundWork({
   customEffort = null,
 } = {}) {
   const card = makeCard();
+  const identity = requestId();
+  card.dataset.requestId = identity;
   renderCard(card);
   try {
     const override = selectionOverride(selection, selectionSource);
@@ -181,23 +204,36 @@ export async function startBackgroundWork({
       }
       confirmation.confirmed_endpoint_id = preview.endpoint_id;
       confirmation.confirmed_model = preview.model;
+      confirmation.confirmed_destination_fingerprint = preview.destination_fingerprint;
     }
-    const run = await readJson(await fetch('/api/jarvis/handoffs', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        session_id: sessionId,
-        request,
-        endpoint_override: override.endpoint_id,
-        model_override: override.model,
-        file_ids: fileIds,
-        ...confirmation,
-        permission_mode: permissionMode,
-        effort,
-        reasoning_mode: reasoningMode,
-        custom_effort: customEffort,
-      }),
-    }), 'could not start background work');
+    let run;
+    try {
+      run = await readJson(await fetch('/api/jarvis/handoffs', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          request_id: identity,
+          request,
+          endpoint_override: override.endpoint_id,
+          model_override: override.model,
+          file_ids: fileIds,
+          ...confirmation,
+          permission_mode: permissionMode,
+          effort,
+          reasoning_mode: reasoningMode,
+          custom_effort: customEffort,
+        }),
+      }), 'could not start background work');
+    } catch (error) {
+      // A response can disappear after the durable write committed. Since the
+      // request id is also the run id, reconcile before showing a false failure.
+      try {
+        run = await readRun(identity);
+      } catch {
+        throw error;
+      }
+    }
     renderCard(card, run, preview);
     poll(card, preview);
     return run;
@@ -215,7 +251,11 @@ export async function reattachBackgroundWork(sessionId) {
       item.session_id === sessionId
       && ['queued', 'running', 'failed', 'cancelled', 'interrupted', 'uncertain'].includes(item.state)
     ));
-    if (relevantRuns.length) {
+    const central = document.body.classList.contains('aide-central');
+    if (central) {
+      document.dispatchEvent(new CustomEvent('alles:aide-work-changed'));
+    }
+    if (relevantRuns.length && !central) {
       relevantRuns.forEach(run => {
         const card = makeCard();
         renderCard(card, run);

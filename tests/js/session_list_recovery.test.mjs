@@ -102,21 +102,34 @@ test('a deep link loads its exact history even when the list is unavailable', as
 
 test('successful list still rejects a missing deep-link target', async () => {
   const h = harness(); const pending = h.init();
-  h.requests[0].resolve(response(groups('other'))); await pending;
-  assert.equal(h.opens.length, 0); assert.equal(h.fresh.length, 1);
+  h.requests[0].resolve(response(groups('other')));
+  await new Promise(r => setImmediate(r));
+  h.requests[1].resolve(response({ id: 'primary', name: 'Aide', primary: true }));
+  await new Promise(r => setImmediate(r));
+  h.requests[2].resolve(response(groups('primary', 'other')));
+  await pending;
+  assert.equal(h.opens[0][0], 'primary'); assert.equal(h.fresh.length, 0);
 });
 
 test('an app-owned hash never becomes a conversation after list failure', async () => {
   const h = harness(); const pending = h.init({ hashOwner: 'app' });
-  h.requests[0].resolve(response({}, false)); await pending;
-  assert.equal(h.opens.length, 0); assert.equal(h.fresh[0].preserveHash, true);
+  h.requests[0].resolve(response({}, false));
+  await pending;
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.opens.length, 0);
+  assert.equal(h.fresh.length, 0);
 });
 
 test('startup uses a newer confirmed index when its own request was superseded', async () => {
   const h = harness(); const initial = h.init(); const refresh = h.load();
   h.requests[1].resolve(response(groups('other'))); await refresh;
-  h.requests[0].resolve(response(groups('linked-task'))); await initial;
-  assert.equal(h.opens.length, 0, 'old index must not restore an excluded target');
-  assert.equal(h.fresh.length, 1);
-  assert.deepEqual(h.state().ids, ['other']);
+  h.requests[0].resolve(response(groups('linked-task')));
+  await new Promise(r => setImmediate(r));
+  h.requests[2].resolve(response({ id: 'primary', name: 'Aide', primary: true }));
+  await new Promise(r => setImmediate(r));
+  h.requests[3].resolve(response(groups('primary', 'other')));
+  await initial;
+  assert.equal(h.opens[0][0], 'primary', 'old index must not restore an excluded target');
+  assert.equal(h.fresh.length, 0);
+  assert.deepEqual(h.state().ids, ['primary', 'other']);
 });

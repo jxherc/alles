@@ -4,6 +4,7 @@ Alles is an independent project built on open-source code, public data, and clea
 inspiration. This file is generated from `credits/manifest.json`; exact package notices and
 local license text are in `THIRD_PARTY_NOTICES.md` and `licenses/`.
 
+- **[Inter](https://github.com/rsms/inter/releases/tag/v4.1)** - Locally served interface font (`4.1`, OFL-1.1).
 - **[Leaflet](https://github.com/Leaflet/Leaflet/tree/v1.9.4)** - Gallery places map (`1.9.4`, BSD-2-Clause).
 - **[xterm.js](https://github.com/xtermjs/xterm.js)** - Project terminal runtime (`sha256:1d172c326d08fabbf891a7512ea1147ceb960faab51157fa5d04925e0156bf45`, MIT).
 - **[xterm.js addon-fit](https://github.com/xtermjs/xterm.js)** - Terminal viewport sizing (`sha256:2d87e1bddc73be9111de8beee5370c3bb7aac9c94e18e6f245f02ca741ef1769`, MIT).
@@ -20,4 +21,4 @@ local license text are in `THIRD_PARTY_NOTICES.md` and `licenses/`.
 - **[Odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** - Original product inspiration; Alles is an independent reimplementation (`not bundled`, credit).
 - **[Perplexica (now Vane)](https://github.com/ItzCrazyKns/Perplexica)** - Cited self-hosted answer-engine reference; no upstream code is bundled (`not bundled`, credit).
 
-The complete generated inventory contains 495 exact release entries, including every locked Python, CodeMirror, Actual, and Capacitor dependency.
+The complete generated inventory contains 496 exact release entries, including every locked Python, CodeMirror, Actual, and Capacitor dependency.

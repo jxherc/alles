@@ -163,7 +163,8 @@ with sync_playwright() as pw:
                 )
             for private_mode in [False, True]:
                 if private_mode:
-                    page.locator("#incognito-btn").click()
+                    page.locator("#aide-more-btn").click()
+                    page.get_by_role("menuitem", name="private conversation", exact=True).click()
                     expect(page.locator("#incognito-bar")).to_be_visible()
                 for mode in [
                     "partial",

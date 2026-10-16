@@ -36,7 +36,7 @@ colors may remain categorical, but numeric labels must remain readable in both t
 
 ## typography
 
-- family: local system UI stack;
+- family: locally bundled Inter, with the system UI stack as fallback; explicit appearance font choices flow through the same shared token;
 - body: 15px / 1.45 / regular;
 - conversation: 16px minimum;
 - app name: 15px / medium;
@@ -68,6 +68,10 @@ Use 0, 4, 8, 12, 16, 24, 32, 48, and 64px. These values express relationship:
 Fixed structural sizes are separate tokens: 52px app header, 44px product controls
 and interactive rows, and 36px only for noninteractive dense data. Do not invent a spacing value to
 repair a layout; fix the layout rule.
+
+Compact search, capture, command, and composition entry starts at the 44px product-control height. A single-line entry stays 44px; it does not inherit the 52px app-header height or a large empty minimum height. An inline multiline entry starts at 44px, grows with content, and becomes internally scrollable at its documented cap or before it would consume the viewport. Use `data-kokuen-entry="compact"` or `data-kokuen-entry="autogrow"` with `static/js/text_entry.js` instead of one-off height code.
+
+Long-form writing surfaces, source editors, notes, message bodies, and structured multi-row settings are exempt: their work needs determine their height. A field inside a visually bounded composer or search shell must not draw a second focus box; the owning boundary shows the one visible focus state.
 
 The runtime numeric token names match their ordered KOKUEN step: `--k-space-1` through
 `--k-space-8` resolve to 4, 8, 12, 16, 24, 32, 48, and 64px. Portable components may use the

@@ -1771,6 +1771,26 @@
       "inventory_source": "mobile/package-lock.json"
     },
     {
+      "id": "inter",
+      "name": "Inter",
+      "category": "code",
+      "summary": "Locally served interface font",
+      "version": "4.1",
+      "license": "OFL-1.1",
+      "source_url": "https://github.com/rsms/inter/releases/tag/v4.1",
+      "bundled": true,
+      "notice_required": true,
+      "license_files": [
+        "licenses/manual/inter/01-license-txt.txt"
+      ],
+      "notice_files": [],
+      "artifact_files": [
+        "static/vendor/inter/InterVariable.woff2",
+        "static/vendor/inter/InterVariable-Italic.woff2"
+      ],
+      "inventory_source": "credits/sources.json"
+    },
+    {
       "id": "mobile-is-docker-e6eccf5447",
       "name": "is-docker",
       "category": "code",

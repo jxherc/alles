@@ -208,6 +208,8 @@
       "coverage": {
         "route_modules": [
           "routes.agent",
+          "routes.aide",
+          "routes.aide_voice",
           "routes.chat",
           "routes.sessions",
           "routes.models",

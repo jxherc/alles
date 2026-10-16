@@ -29,7 +29,14 @@ function harness() {
     append(...children) { children.forEach(child => this.appendChild(child)); }
     replaceChildren() { this.children.forEach(child => { child.parent = null; }); this.children = []; }
     setAttribute(name, value) { this.attrs[name] = value; }
-    addEventListener(name, fn) { this.handlers[name] = fn; }
+    addEventListener(name, fn) {
+      const earlier = this.handlers[name];
+      this.handlers[name] = earlier ? (...args) => {
+        const result = earlier(...args);
+        fn(...args);
+        return result;
+      } : fn;
+    }
   }
   const nodes = new Map();
   const get = id => {
@@ -40,9 +47,14 @@ function harness() {
   let intercept = () => response({ items: [] });
   const context = vm.createContext({
     URL, console,
-    document: { getElementById: get, createElement: tag => new Element(tag),
+    document: { getElementById: get, querySelectorAll: () => [], createElement: tag => new Element(tag),
       createTextNode: text => Object.assign(new Element('text'), { textContent: text }) },
     window: { _openRecord: async (...args) => { opens.push(args); return true; } },
+    navigator: { clipboard: { writeText: async () => {} } },
+    createMenuController: (menu, { onClose } = {}) => ({
+      open() { menu.hidden = false; },
+      close() { menu.hidden = true; onClose?.(); },
+    }),
     tr: key => key === 'andromeda.save_library' ? 'save to Library' : key,
     formatDate: String, formatDateTime: String,
     fetch: async (path, options = {}) => { requests.push({ path, options }); return intercept(path, options); },
@@ -54,8 +66,8 @@ function harness() {
     intercept: fn => { intercept = fn; },
     render: (results = [result], category = 'all', restored = true) => context.subject.render(results, 'ready', category, restored),
     buttons: (category = 'all') => walk(get(category === 'news' ? 'andromeda-news' : 'andromeda-results'))
-      .filter(node => node.tag === 'button'),
-    messages: () => walk(get('andromeda-results')).filter(node => node.className === 'andromeda-library-status'),
+      .filter(node => node.tag === 'button' && /^(?:save to Library|open in Library)$/.test(node.textContent)),
+    messages: () => walk(get('andromeda-results')).filter(node => ['andromeda-library-status', 'andromeda-result-receipt'].includes(node.className)),
   };
 }
 
@@ -74,15 +86,15 @@ test('saved web and news results find the exact active or archived record withou
   }
 });
 
-test('lookup is batched per restored result render; fresh proposals do not trigger it', async () => {
+test('lookup is batched once per result render so fresh proposals restore duplicate identity', async () => {
   const h = harness();
   h.render([{ ...result, id: item.id, saved: true }], 'all', false);
   await tick();
   assert.equal(h.buttons()[0].textContent, 'save to Library');
-  assert.equal(h.requests.length, 0);
+  assert.equal(h.requests.length, 2);
   h.render([result, { ...result, url: url + '&page=2' }]);
   await tick();
-  assert.equal(h.requests.length, 2);
+  assert.equal(h.requests.length, 4);
   assert.ok(h.buttons().every(button => button.textContent === 'save to Library'));
 });
 

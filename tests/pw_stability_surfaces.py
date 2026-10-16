@@ -68,6 +68,65 @@ def assert_surface(page, root, primary) -> dict:
     }
 
 
+def assert_shared_visual_grammar(page, name: str, root) -> dict:
+    result: dict = {}
+    selected = root.locator('[role="tab"][aria-selected="true"]:visible')
+    if selected.count():
+        background = selected.first.evaluate("el => getComputedStyle(el).backgroundColor")
+        assert background in {"transparent", "rgba(0, 0, 0, 0)"}, (name, background)
+        result["selected_tab_background"] = background
+
+    if name == "plan":
+        field = root.locator(".specialist-group-capture input").first
+        edges = field.evaluate(
+            """el => { const s = getComputedStyle(el); return {
+              top: s.borderTopWidth, right: s.borderRightWidth,
+              bottom: s.borderBottomWidth, left: s.borderLeftWidth,
+              background: s.backgroundColor,
+            }; }"""
+        )
+        assert edges["top"] == edges["right"] == edges["left"] == "0px", edges
+        assert float(edges["bottom"].removesuffix("px")) >= 1, edges
+        assert edges["background"] in {"transparent", "rgba(0, 0, 0, 0)"}, edges
+        result["capture_edges"] = edges
+
+    if name == "settings":
+        group = root.locator(".home-settings-list:visible").first
+        group_style = group.evaluate(
+            """el => { const s = getComputedStyle(el); return {
+              top: s.borderTopWidth, right: s.borderRightWidth,
+              bottom: s.borderBottomWidth, left: s.borderLeftWidth,
+              background: s.backgroundColor,
+            }; }"""
+        )
+        assert set(group_style.values()) <= {"0px", "transparent", "rgba(0, 0, 0, 0)"}, group_style
+        close = root.locator("#settings-modal-close")
+        expect(close.locator(":scope > svg.ic")).to_have_count(1)
+        icon_geometry = close.evaluate(
+            """el => { const a = el.getBoundingClientRect(); const b = el.querySelector('svg').getBoundingClientRect(); return {
+              targetWidth: a.width, targetHeight: a.height,
+              deltaX: Math.abs((a.left + a.width / 2) - (b.left + b.width / 2)),
+              deltaY: Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)),
+              iconWidth: b.width, iconHeight: b.height,
+            }; }"""
+        )
+        assert icon_geometry["targetWidth"] >= 44 and icon_geometry["targetHeight"] >= 44, (
+            icon_geometry
+        )
+        assert icon_geometry["iconWidth"] == icon_geometry["iconHeight"] == 16, icon_geometry
+        assert icon_geometry["deltaX"] <= 1 and icon_geometry["deltaY"] <= 1, icon_geometry
+        result["settings_group"] = group_style
+        result["icon_geometry"] = icon_geometry
+
+    if name == "aide":
+        composer = root.locator(".composer-box")
+        border = composer.evaluate("el => getComputedStyle(el).borderTopWidth")
+        assert float(border.removesuffix("px")) >= 1, border
+        result["composer_border"] = border
+
+    return result
+
+
 def run(device: str, theme: str) -> None:
     data = Path(os.environ["ALLES_DATA"]).resolve()
     run_id = os.environ["ALLES_TEST_RUN_ID"]
@@ -197,6 +256,7 @@ def run(device: str, theme: str) -> None:
                     if name == "server":
                         expect(page.locator("#system-body .nf-logo")).to_be_visible()
                     row.update(assert_surface(page, root, root.locator(primary_selector).first))
+                    row["shared_visual_grammar"] = assert_shared_visual_grammar(page, name, root)
                     page.screenshot(path=str(output / f"{key}.png"), full_page=True)
                     if name == "docs":
                         page.locator('#wiki-empty-recent [data-file="surface-proof.md"]').click()
@@ -206,6 +266,17 @@ def run(device: str, theme: str) -> None:
                         row["populated_document"] = assert_surface(
                             page, root, page.locator("#wiki-edit-btn")
                         )
+                        page.locator("#wiki-edit-btn").click()
+                        expect(page.locator("#wiki-editor")).to_be_visible()
+                        source = page.locator("#wiki-source")
+                        assert source.get_attribute("data-kokuen-entry") is None
+                        visual_editor = page.locator("#wiki-live .cm-editor")
+                        expect(visual_editor).to_be_visible()
+                        editor_style = visual_editor.evaluate(
+                            "el => ({minHeight: getComputedStyle(el).minHeight, height: el.getBoundingClientRect().height})"
+                        )
+                        assert editor_style["height"] > 44, editor_style
+                        row["long_form_editor"] = editor_style
                         page.screenshot(path=str(output / f"{key}--document.png"), full_page=True)
                     if name == "settings":
                         page.locator("#settings-modal-close").click()

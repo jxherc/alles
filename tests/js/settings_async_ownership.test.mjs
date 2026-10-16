@@ -43,7 +43,7 @@ function harness() {
     const method = options.method || 'GET'; requests.push({ url, ...options });
     const handler = routes.get(`${method} ${url}`);
     if (handler) return handler(options);
-    if (url === '/api/settings') return response({ context_limit: 57, stream_thinking: false, artifacts_enabled: false, auto_compact: false });
+    if (url === '/api/settings') return response({ context_limit: 57, language: 'en', stream_thinking: false, artifacts_enabled: false, auto_compact: false });
     if (url === '/api/automations') return response([]);
     if (url === '/api/automations/options') return response({ triggers: [], actions: [] });
     if (url === '/api/recall/stats' || url === '/api/proactive/stats') return response({});

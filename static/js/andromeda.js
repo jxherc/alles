@@ -1,7 +1,7 @@
 import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
-import { setControlState } from './kokuen.js?v=1';
+import { createMenuController, setControlState } from './kokuen.js?v=1';
 import { replaceRouteUrl } from './route_history.js';
 
 let _bound = false;
@@ -30,6 +30,9 @@ let _savedOpenBusy = false;
 let _savedOpenRetry = '';
 let _openedSaved = null;
 let _explainBusy = false;
+let _selectedResultIndex = -1;
+let _openResultMenu = null;
+let _resultSummaryAbort = null;
 
 const SAVE_PREFIX = 'alles.andromeda.pending.v1:';
 
@@ -351,13 +354,185 @@ export function formatPublishedDate(value) {
   });
 }
 
-function resultNode(result, savedItems = null) {
+function resultRows() {
+  return [...document.querySelectorAll('#andromeda-results .andromeda-result[data-result-index]')];
+}
+
+function selectResult(index, { focus = false, scroll = false } = {}) {
+  const rows = resultRows();
+  if (!rows.length) { _selectedResultIndex = -1; return null; }
+  const next = Math.max(0, Math.min(rows.length - 1, Number(index) || 0));
+  _selectedResultIndex = next;
+  rows.forEach((row, rowIndex) => row.toggleAttribute('data-selected', rowIndex === next));
+  const row = rows[next];
+  if (focus) row.focus({ preventScroll: true });
+  if (scroll) row.scrollIntoView({ block: 'nearest' });
+  return row;
+}
+
+function closeResultMenu({ restoreFocus = false } = {}) {
+  if (!_openResultMenu) return;
+  const open = _openResultMenu;
+  _openResultMenu = null;
+  open.controller.close({ restoreFocus });
+}
+
+function stopResultSummary({ announce = true } = {}) {
+  const active = _resultSummaryAbort;
+  if (!active) return;
+  _resultSummaryAbort = null;
+  active.controller.abort();
+  active.surface.removeAttribute('aria-busy');
+  active.stop.hidden = true;
+  active.retry.hidden = false;
+  if (announce) active.status.textContent = 'summary stopped. original link is unchanged.';
+}
+
+function resetResultInteractions() {
+  closeResultMenu();
+  stopResultSummary({ announce: false });
+  _selectedResultIndex = -1;
+}
+
+function renderResultSummaryClaim(host, claim, result) {
+  if (!claim?.text) return;
+  const line = document.createElement('p');
+  line.className = 'andromeda-result-summary-claim';
+  line.append(document.createTextNode(claim.text));
+  const citations = Array.isArray(claim.citations) ? claim.citations : [];
+  citations.slice(0, 3).forEach((citation, index) => {
+    const url = safeUrl(citation.url || result.url);
+    if (!url) return;
+    const link = document.createElement('a');
+    link.href = url.href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'andromeda-result-summary-citation';
+    link.textContent = `[${index + 1}]`;
+    link.setAttribute('aria-label', `source: ${citation.title || result.title || url.hostname}`);
+    line.append(' ', link);
+  });
+  host.appendChild(line);
+}
+
+async function startResultSummary(result, refs) {
+  stopResultSummary();
+  const searchGeneration = _searchGeneration;
+  const controller = new AbortController();
+  const { surface, output, status: summaryStatus, stop, retry } = refs;
+  _resultSummaryAbort = { controller, surface, status: summaryStatus, stop, retry };
+  const current = () => _resultSummaryAbort?.controller === controller
+    && searchGeneration === _searchGeneration && surface.isConnected && !controller.signal.aborted;
+  surface.hidden = false;
+  surface.setAttribute('aria-busy', 'true');
+  output.replaceChildren();
+  summaryStatus.textContent = 'checking this page…';
+  stop.hidden = false;
+  retry.hidden = true;
+  try {
+    let preview;
+    try {
+      preview = await previewOverview(controller.signal);
+    } catch (error) {
+      if (!current()) return;
+      throw error;
+    }
+    if (!current()) return;
+    const confirmation = {};
+    if (preview.privacy_class === 'remote') {
+      const host = safeUrl(result.url)?.hostname || 'this source';
+      const allowed = await confirmDialog(
+        `summarize page: send the current query and content from ${host} to ${preview.endpoint} · ${preview.model}?`,
+      );
+      if (!current()) return;
+      if (!allowed) {
+        summaryStatus.textContent = 'summary cancelled before anything was sent.';
+        retry.hidden = false;
+        return;
+      }
+      confirmation.confirmed_endpoint_id = preview.endpoint_id;
+      confirmation.confirmed_model = preview.model;
+    }
+    const exact = selectedExactModel();
+    const response = await fetch('/api/andromeda/overview', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal,
+      body: JSON.stringify({
+        query: _state.query || result.title || 'summarize this page', results: [result],
+        band: providerValue('andromeda-band', 'standard'), endpoint_id: exact.endpoint_id || '',
+        model: exact.model || '', ...confirmation,
+      }),
+    });
+    if (!current()) { await response.body?.cancel(); return; }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw Object.assign(new Error(body.detail || 'could not summarize this page'), body);
+    }
+    summaryStatus.textContent = `reading with ${preview.model} · ${preview.privacy_class}`;
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('summary response was unavailable');
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let rendered = 0;
+    let complete = null;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (!current()) { await reader.cancel(); return; }
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done }).replace(/\r\n/g, '\n');
+      const parsed = parseSseFrames(buffer);
+      buffer = parsed.rest;
+      for (const frame of parsed.frames) {
+        if (frame === '[DONE]') continue;
+        let event;
+        try { event = JSON.parse(frame); } catch { continue; }
+        if (event.type === 'claim') {
+          renderResultSummaryClaim(output, event.claim, result);
+          rendered += 1;
+        } else if (event.type === 'overview') {
+          complete = event.overview;
+        } else if (event.type === 'error') {
+          throw Object.assign(new Error(event.detail || 'could not summarize this page'), event);
+        }
+      }
+      if (done) break;
+    }
+    if (!rendered && complete?.status === 'ready') {
+      for (const claim of complete.claims || []) renderResultSummaryClaim(output, claim, result);
+      rendered = output.childElementCount;
+    }
+    if (!rendered) throw new Error('this page did not provide enough evidence for a summary');
+    summaryStatus.textContent = `summary ready · ${preview.model}`;
+  } catch (error) {
+    if (!current()) return;
+    summaryStatus.textContent = `${error.message || 'could not summarize this page'}. original link is unchanged.`;
+    retry.hidden = false;
+  } finally {
+    if (_resultSummaryAbort?.controller === controller) {
+      _resultSummaryAbort = null;
+      surface.removeAttribute('aria-busy');
+      stop.hidden = true;
+    }
+  }
+}
+
+async function copyResultLink(result, message) {
+  const url = resultSaveUrl(result.url);
+  if (!url) { message.textContent = 'this link cannot be copied'; return; }
+  try {
+    await navigator.clipboard.writeText(url);
+    message.textContent = 'link copied';
+  } catch {
+    message.textContent = 'could not copy the link; open it instead';
+  }
+}
+
+function resultNode(result, savedItems = null, index = 0) {
   const row = document.createElement('article');
   row.className = 'andromeda-result';
+  row.dataset.resultIndex = String(index);
+  row.tabIndex = -1;
   const body = document.createElement('div');
   const source = document.createElement('div');
   source.className = 'andromeda-result-source';
-  source.appendChild(mediaFrame(result, { favicon: true }));
   const sourceCopy = document.createElement('span');
   sourceCopy.className = 'andromeda-source-copy';
   const sourceName = document.createElement('span');
@@ -366,15 +541,90 @@ function resultNode(result, savedItems = null) {
   const site = document.createElement('span');
   site.className = 'andromeda-result-site';
   site.textContent = safeUrl(result.url)?.href.replace(/^https?:\/\//, '').replace(/\/$/, '') || '';
-  sourceCopy.append(sourceName, site);
-  source.appendChild(sourceCopy);
+  sourceCopy.append(site);
+  source.append(mediaFrame(result, { favicon: true }), sourceCopy);
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'andromeda-result-actions-trigger';
+  trigger.dataset.resultAction = 'menu';
+  trigger.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="19" cy="12" r="1.4"></circle></svg>';
+  trigger.setAttribute('aria-label', `actions for ${result.title || sourceName.textContent}`);
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.setAttribute('aria-expanded', 'false');
+  const menu = document.createElement('div');
+  menu.id = `andromeda-result-menu-${_searchGeneration}-${index}`;
+  menu.className = 'andromeda-result-menu';
+  menu.hidden = true;
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', `actions for ${result.title || sourceName.textContent}`);
+  trigger.setAttribute('aria-controls', menu.id);
+  const receipt = document.createElement('div');
+  receipt.className = 'andromeda-result-receipt';
+  receipt.setAttribute('role', 'status');
+  receipt.setAttribute('aria-live', 'polite');
+  const summary = document.createElement('section');
+  summary.className = 'andromeda-result-summary';
+  summary.hidden = true;
+  summary.setAttribute('aria-label', `summary of ${result.title || sourceName.textContent}`);
+  const summaryHead = document.createElement('div');
+  summaryHead.className = 'andromeda-result-summary-head';
+  const summaryStatus = document.createElement('span');
+  summaryStatus.setAttribute('role', 'status');
+  summaryStatus.setAttribute('aria-live', 'polite');
+  const stop = document.createElement('button');
+  stop.type = 'button'; stop.textContent = 'stop'; stop.hidden = true;
+  const retry = document.createElement('button');
+  retry.type = 'button'; retry.textContent = 'retry summary'; retry.hidden = true;
+  const output = document.createElement('div');
+  output.className = 'andromeda-result-summary-output';
+  summaryHead.append(summaryStatus, stop, retry);
+  summary.append(summaryHead, output);
+  const summaryRefs = { surface: summary, output, status: summaryStatus, stop, retry };
+  stop.addEventListener('click', () => stopResultSummary());
+  retry.addEventListener('click', () => void startResultSummary(result, summaryRefs));
+  const addMenuItem = (label, action, name) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.role = 'menuitem'; button.textContent = label;
+    button.dataset.resultAction = name;
+    button.addEventListener('click', () => { closeResultMenu({ restoreFocus: true }); action(); });
+    menu.appendChild(button);
+    return button;
+  };
+  addMenuItem('summarize page', () => void startResultSummary(result, summaryRefs), 'summarize');
+  addMenuItem('copy link', () => void copyResultLink(result, receipt), 'copy');
+  const library = libraryControl(result, false, savedItems, receipt);
+  library.button.role = 'menuitem';
+  library.button.className = '';
+  library.button.dataset.resultAction = 'library';
+  library.button.addEventListener('click', () => closeResultMenu({ restoreFocus: true }));
+  menu.appendChild(library.button);
+  const menuController = createMenuController(menu, {
+    onClose: () => {
+      trigger.setAttribute('aria-expanded', 'false');
+      if (_openResultMenu?.menu === menu) _openResultMenu = null;
+    },
+  });
+  const openMenu = () => {
+    if (_openResultMenu?.menu === menu) { closeResultMenu({ restoreFocus: true }); return; }
+    closeResultMenu();
+    selectResult(index);
+    _openResultMenu = { menu, trigger, controller: menuController };
+    trigger.setAttribute('aria-expanded', 'true');
+    menuController.open({ source: trigger });
+  };
+  trigger.addEventListener('click', openMenu);
+  trigger.addEventListener('keydown', event => {
+    if (!['ArrowDown', 'Enter', ' '].includes(event.key)) return;
+    event.preventDefault(); openMenu();
+  });
+  source.append(trigger, menu);
   const link = makeExternalLink(result, 'andromeda-result-title');
   const snippet = document.createElement('p');
   renderResultSnippet(snippet, result.snippet, _state.query);
-  body.append(source, link, snippet);
-  const action = libraryAction(result, false, savedItems);
-  if (action) body.append(action);
+  body.append(source, link, snippet, receipt, summary);
   row.append(body);
+  row.addEventListener('pointerdown', () => selectResult(index));
+  row.addEventListener('focusin', () => selectResult(index));
   return row;
 }
 
@@ -386,17 +636,17 @@ function resultSaveUrl(value) {
   return url.href;
 }
 
-function libraryAction(result, news = false, savedItems = null) {
+function libraryControl(result, news = false, savedItems = null, existingMessage = null) {
   const url = resultSaveUrl(result.url);
-  if (!url) return null;
-  const action = document.createElement('div');
-  action.className = 'andromeda-library-action';
+  if (!url) return { button: document.createElement('button'), message: existingMessage };
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'andromeda-news-save';
-  const message = document.createElement('span');
-  message.className = 'andromeda-library-status';
-  message.setAttribute('role', 'status');
+  const message = existingMessage || document.createElement('span');
+  if (!existingMessage) {
+    message.className = 'andromeda-library-status';
+    message.setAttribute('role', 'status');
+  }
   let savedItem = null;
   let busy = false;
   let acted = false;
@@ -406,7 +656,7 @@ function libraryAction(result, news = false, savedItems = null) {
   };
   label();
   savedItems?.then(items => {
-    if (!items || acted || !action.isConnected) return;
+    if (!items || acted || !button.isConnected) return;
     const matches = new Map(items.filter(item => resultSaveUrl(item?.url) === url)
       .map(item => [item.id, item]));
     if (matches.size !== 1) return;
@@ -444,7 +694,7 @@ function libraryAction(result, news = false, savedItems = null) {
       }
       savedItem = saved.item;
       label();
-      message.textContent = saved.duplicate ? 'already in Library' : 'excerpt saved';
+      message.textContent = saved.duplicate ? 'already in Library' : 'saved to Library';
     } catch (error) {
       message.textContent = `${error.message || 'could not confirm the save'}; retry safely`;
     } finally {
@@ -452,6 +702,15 @@ function libraryAction(result, news = false, savedItems = null) {
       button.setAttribute('aria-disabled', 'false');
     }
   });
+  return { button, message };
+}
+
+function libraryAction(result, news = false, savedItems = null) {
+  const url = resultSaveUrl(result.url);
+  if (!url) return null;
+  const action = document.createElement('div');
+  action.className = 'andromeda-library-action';
+  const { button, message } = libraryControl(result, news, savedItems);
   action.append(button, message);
   return action;
 }
@@ -520,6 +779,7 @@ function emptyMessage(state, currentCategory) {
 }
 
 export function renderAndromedaResults(results, state = 'ready', currentCategory = category(), restoreLibrary = false) {
+  resetResultInteractions();
   _state.resultStatus = state;
   const targets = {
     all: el('andromeda-results'), images: el('andromeda-images'),
@@ -538,13 +798,13 @@ export function renderAndromedaResults(results, state = 'ready', currentCategory
   }
   const render = { all: resultNode, images: imageNode, news: newsNode, videos: videoNode }[currentCategory];
   // Read both shelves: archiving an excerpt does not remove its saved identity.
-  const savedItems = restoreLibrary && results?.length && ['all', 'news'].includes(currentCategory)
+  const savedItems = results?.length && ['all', 'news'].includes(currentCategory)
     ? Promise.all(['/api/read', '/api/read?filter=archived'].map(url => jsonRequest(url, { cache: 'no-store' })))
       .then(replies => replies.every(reply => Array.isArray(reply?.items))
         ? replies.flatMap(reply => reply.items) : null)
       .catch(() => null)
     : null;
-  for (const result of results || []) list.appendChild(render(result, savedItems));
+  for (const [index, result] of (results || []).entries()) list.appendChild(render(result, savedItems, index));
   if (!results?.length && !(state === 'loading' && currentCategory === 'images')) {
     const empty = document.createElement('div');
     empty.className = 'andromeda-empty';
@@ -1996,6 +2256,7 @@ export function andromedaLandingUrl(value) {
 }
 
 function resetToLanding() {
+  resetResultInteractions();
   _searchAbort?.abort();
   _overviewAbort?.abort();
   void cancelVerification();
@@ -2011,10 +2272,65 @@ function resetToLanding() {
   requestAnimationFrame(() => el('andromeda-query')?.focus());
 }
 
+function resultShortcutBlocked(event) {
+  if (event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return true;
+  return !!event.target?.closest?.(
+    'input, textarea, select, [contenteditable], [role="textbox"], [role="combobox"], [role="dialog"], [role="menu"], [role="listbox"]',
+  );
+}
+
+function handleResultShortcut(event) {
+  const view = el('andromeda-view');
+  if (!view?.getClientRects().length || view.dataset.state !== 'results' || category() !== 'all') return;
+  if (event.key === 'Escape' && _openResultMenu) {
+    event.preventDefault();
+    closeResultMenu({ restoreFocus: true });
+    return;
+  }
+  if (resultShortcutBlocked(event)) return;
+  const rows = resultRows();
+  if (!rows.length) return;
+  const key = event.key.toLowerCase();
+  if (key === 'j' || key === 'k') {
+    event.preventDefault();
+    const fallback = key === 'j' ? 0 : rows.length - 1;
+    const next = _selectedResultIndex < 0
+      ? fallback : _selectedResultIndex + (key === 'j' ? 1 : -1);
+    selectResult(next, { focus: true, scroll: true });
+    return;
+  }
+  const selected = rows[_selectedResultIndex];
+  if (!selected || !['m', 's', 'c'].includes(key)) return;
+  event.preventDefault();
+  const action = key === 'm' ? 'menu' : key === 's' ? 'summarize' : 'copy';
+  selected.querySelector(`[data-result-action="${action}"]`)?.click();
+}
+
+function wireSearchFocusPresentation() {
+  const form = el('andromeda-form');
+  const input = el('andromeda-query');
+  if (!form || !input) return;
+  let keyboard = false;
+  const sync = () => {
+    form.toggleAttribute('data-keyboard-focus', keyboard && document.activeElement === input);
+  };
+  document.addEventListener('pointerdown', () => {
+    keyboard = false;
+    sync();
+  }, true);
+  document.addEventListener('keydown', () => {
+    keyboard = true;
+    sync();
+  }, true);
+  input.addEventListener('focus', sync);
+  input.addEventListener('blur', () => form.removeAttribute('data-keyboard-focus'));
+}
+
 function bindOnce() {
   if (_bound) return;
   _bound = true;
   initCustomDropdowns(el('andromeda-view'));
+  wireSearchFocusPresentation();
   el('andromeda-form')?.addEventListener('submit', event => {
     event.preventDefault();
     runAndromedaSearch();
@@ -2148,6 +2464,7 @@ function bindOnce() {
       closeSettings({ restoreFocus: true });
     }
   });
+  document.addEventListener('keydown', handleResultShortcut);
   window.addEventListener('alles:localization-change', () => {
     renderAndromedaResults(_state.results, _state.resultStatus, category());
     updateMoreResults();

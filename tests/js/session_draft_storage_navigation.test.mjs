@@ -46,16 +46,17 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     removeItem(name) { storageCalls.push(['remove', name]); storage.delete(name); },
   };
   const context = vm.createContext({
-    window, location, URL, Event: class {},
+    window, location, URL, Event: class {}, CustomEvent: class {},
     document: { getElementById: name => name === 'composer-ta' ? (missingComposer ? null : field)
-      : name === 'composer-send-recovery' ? recovery : null, querySelectorAll: () => rows },
+      : name === 'composer-send-recovery' ? recovery : null, querySelectorAll: () => rows, dispatchEvent() {} },
     isIncognitoMode: () => privateMode, toast: text => notices.push(text),
     replaceRouteUrl(url) { effects.push(['route', url.href]); location.href = url.href; },
     fetch: async url => {
       effects.push(['fetch', url]);
-      return { json: async () => ({ session: { id: url.split('/')[3], mode: 'chat' }, messages: [] }) };
+      return { ok: true, json: async () => ({ session: { id: url.split('/')[3], mode: 'chat' }, messages: [] }) };
     },
     renderMessages: () => effects.push('render'), showMessages: () => effects.push('show'),
+    setPrimaryConversationUnavailable() {},
     restoreSessionModel: () => effects.push('model'), updateSessionHeader: () => effects.push('header'),
     focusSessionMessage: () => true, console: { error: (...args) => effects.push(['error', ...args]) },
   });
@@ -64,7 +65,7 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     if (state.failure === 'SecurityError') throw new DOMException('synthetic storage denial', state.failure);
     return storageAPI;
   } });
-  vm.runInContext(`let _activeId = ${JSON.stringify(id)}; let _composerGeneration = 7;\n`
+  vm.runInContext(`let _activeId = ${JSON.stringify(id)}; let _composerGeneration = 7; let _sessionSelectionRequest = 0;\n`
     + [drafts, rowState, select, sidebar].join('\n').replace(/^export /gm, '')
     + '\nglobalThis.subject = { save: saveDraft, select: selectSession, sidebar: selectSidebarSession, state: () => ({ id: _activeId, generation: _composerGeneration }) };',
   context, { importModuleDynamically: async () => { throw new Error('background reattachment outside this unit'); } });

@@ -1,0 +1,42 @@
+/* Shared reading utility; no app navigation or provider authority. */
+.alles-help-card.dialog-card,
+body[data-app="files"] .alles-help-card.dialog-card {
+  box-sizing: border-box;
+  width: min(880px, calc(100vw - 2 * var(--k-space-4)));
+  max-width: none;
+  min-width: 0;
+  height: min(760px, calc(100dvh - 2 * var(--k-space-4)));
+  max-height: calc(100dvh - 2 * var(--k-space-4));
+  padding: var(--k-space-4);
+  gap: var(--k-space-3);
+  overflow: hidden;
+}
+.alles-help-header { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3); flex-shrink: 0; }
+.alles-help-header h2 { margin: 0; font-size: 1rem; font-weight: 620; }
+.alles-help-card #alles-help-search { width: 100%; min-height: var(--k-control); flex-shrink: 0; }
+.alles-help-status { margin: 0; color: var(--muted); font-size: 0.875rem; line-height: 1.45; flex-shrink: 0; }
+.alles-help-status:empty { display: none; }
+.alles-help-body { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr); gap: var(--k-space-5); min-height: 0; flex: 1; }
+.alles-help-topics { display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; padding: var(--k-space-1); gap: var(--k-space-1); }
+.alles-help-topics button { flex-shrink: 0; padding: var(--k-space-2); background: transparent; border: 0; border-radius: var(--k-radius-control); color: var(--muted); text-align: start; font: inherit; font-size: 0.875rem; cursor: pointer; }
+.alles-help-topics button[aria-current="true"] { color: var(--text); background: var(--k-raised); font-weight: 560; }
+.alles-help-topics button:hover { color: var(--text); }
+.alles-help-card button, .manual-context-help { min-height: var(--k-control); min-width: var(--k-control); }
+.alles-help-article { min-width: 0; overflow: auto; overscroll-behavior: contain; padding: var(--k-space-1); font-size: 0.9375rem; line-height: 1.5; }
+.alles-help-article h3 { margin: 0 0 var(--k-space-4); font-size: 1rem; font-weight: 620; }
+.alles-help-article h4 { margin: var(--k-space-5) 0 var(--k-space-2); font-size: 0.9375rem; font-weight: 580; }
+.alles-help-article p { max-width: 68ch; margin: 0 0 var(--k-space-3); color: var(--text); overflow-wrap: anywhere; }
+.alles-help-article ol { margin: 0 0 var(--k-space-3); padding-inline-start: var(--k-space-5); }
+.alles-help-article li { margin-block: var(--k-space-2); }
+.alles-help-article pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); background: var(--k-raised); padding: var(--k-space-3); font-size: 0.8125rem; }
+.alles-help-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin-top: var(--k-space-5); }
+.alles-help-card [hidden] { display: none; }
+.manual-context-help { flex-shrink: 0; margin-inline-start: auto; }
+@media (max-width: 620px) {
+  .alles-help-card.dialog-card,
+  body[data-app="files"] .alles-help-card.dialog-card { width: calc(100vw - 2 * var(--k-space-2)); height: calc(100dvh - 2 * var(--k-space-2)); max-height: calc(100dvh - 2 * var(--k-space-2)); }
+  .alles-help-body { display: flex; flex-direction: column; gap: var(--k-space-3); }
+  .alles-help-topics { flex-direction: row; overflow-x: auto; overflow-y: hidden; flex-shrink: 0; }
+  .alles-help-topics button { white-space: nowrap; }
+  .alles-help-article { flex: 1; min-height: 0; }
+}

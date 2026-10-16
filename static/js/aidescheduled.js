@@ -11,6 +11,7 @@ let projects = [];
 let workflows = [];
 let triggersByWorkflow = new Map();
 let loadSequence = 0;
+let formSequence = 0;
 const SUPPORTED_SCHEDULE_KINDS = new Set(['schedule', 'once', 'interval', 'heartbeat']);
 
 const byId = id => document.getElementById(id);
@@ -234,7 +235,9 @@ function timingValues(trigger) {
 function openForm(workflow = null) {
   const form = byId('aide-schedule-form');
   if (!form) return;
+  formSequence++;
   form.reset();
+  byId('aide-schedule-submit').disabled = false;
   editingWorkflowId = workflow?.id || '';
   const trigger = workflow ? triggersByWorkflow.get(workflow.id)?.[0] : null;
   const timing = timingValues(trigger);
@@ -259,8 +262,10 @@ function openForm(workflow = null) {
 function closeForm() {
   const form = byId('aide-schedule-form');
   if (!form) return;
+  formSequence++;
   form.hidden = true;
   form.reset();
+  byId('aide-schedule-submit').disabled = false;
   editingWorkflowId = '';
   byId('aide-schedule-form-title').textContent = 'new schedule';
   byId('aide-schedule-submit').textContent = 'save schedule';
@@ -297,6 +302,8 @@ async function saveSchedule(event) {
   catch (error) { setStatus(error.message, true); return; }
 
   const submit = event.currentTarget.querySelector('[type="submit"]');
+  if (submit.disabled) return;
+  const sequence = formSequence;
   submit.disabled = true;
   setStatus('saving…');
   try {
@@ -307,12 +314,12 @@ async function saveSchedule(event) {
       name, prompt, project_id: selectedProject,
       kind: scheduleKind, config, timezone: localZone(),
     }));
-    closeForm();
+    if (sequence === formSequence) closeForm();
     await loadScheduled();
   } catch (error) {
-    setStatus(error.message, true);
+    if (sequence === formSequence) setStatus(error.message, true);
   } finally {
-    submit.disabled = false;
+    if (sequence === formSequence) submit.disabled = false;
   }
 }
 

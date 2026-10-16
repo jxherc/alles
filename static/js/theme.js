@@ -72,7 +72,7 @@ export const PRESETS = {
 };
 
 const FONT_MAP = {
-  sans: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+  sans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   mono: "ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace",
   serif: "Georgia, 'Times New Roman', serif",
 };

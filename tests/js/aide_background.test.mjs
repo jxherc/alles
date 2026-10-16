@@ -58,10 +58,10 @@ test('remote background work requires owner confirmation before any request or f
 
 test('failed background enqueue restores the composer and keeps attachments', () => {
   const branch = chat.match(/if \(!documentScope && shouldRunInBackground[\s\S]*?\r?\n  }\r?\n\r?\n  showMessages/)?.[0] || '';
-  assert.match(branch, /if \(!run\)[\s\S]*restoreComposerInput\(text\)[\s\S]*return/);
-  assert.match(branch, /if \(!run\)[\s\S]*return;[\s\S]*clearAttachments\(\)/);
+  assert.match(branch, /if \(!run\)[\s\S]*restoreBackgroundInput\(sessionId, text\)[\s\S]*return/);
+  assert.match(branch, /if \(!run\)[\s\S]*return;[\s\S]*getActiveId\(\) === sessionId\) clearAttachments\(attachmentIds\)/);
   assert.match(branch, /const userRow = appendUserMsg\(text\)/);
-  assert.match(branch, /if \(!run\)[\s\S]*userRow\.remove\(\)[\s\S]*restoreComposerInput\(text\)/);
+  assert.match(branch, /if \(!run\)[\s\S]*userRow\.remove\(\)[\s\S]*restoreBackgroundInput\(sessionId, text\)/);
   assert.match(chat, /function restoreComposerInput\(text\)[\s\S]*dispatchEvent\(new Event\('input'/);
 });
 
@@ -103,7 +103,8 @@ test('reattaching a conversation keeps every run that still needs attention', ()
 
 test('a stale status poll cannot overwrite a cancel or retry response', () => {
   assert.match(background, /const pollVersion = card\.dataset\.pollVersion \|\| '0'/);
-  assert.match(background, /if \(\(card\.dataset\.pollVersion \|\| '0'\) !== pollVersion\) return/);
+  assert.match(background, /const current = \(\) => card\.isConnected && card\.dataset\.runId === runId[\s\S]*?=== pollVersion/);
+  assert.match(background, /if \(!current\(\)\) return/);
   assert.match(background, /card\.dataset\.pollVersion = String\(Number\(card\.dataset\.pollVersion \|\| 0\) \+ 1\)/);
 });
 

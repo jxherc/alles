@@ -247,7 +247,8 @@ what it supports:
 
 - streaming chat (the reply types itself out live, word by word)
 - works with any provider: claude, openai/gpt, deepseek, gemini, groq, mistral, a local model, and ~15 others; switch any time, even mid-conversation
-- **one automatic aide mode**: aide chats, uses approved tools when useful, and can keep longer work running in the same conversation without a mode switch
+- **one main conversation**: Aide returns to a persistent primary conversation. older and private conversations remain separate; the primary conversation cannot be archived or deleted. Aide chats, uses approved tools when useful, and keeps longer work in the same conversation.
+- **coding**: pair a local DeepSeek Harness bridge, select an offered workspace and start a task. saved runs show status, activity, assistant output and reported file changes; the output is limited to the latest 50 messages. answer questions, inspect tool arguments before approval, stop work, or send a follow-up in the same DSH session. durable request identities prevent duplicate starts after lost responses. refresh reconciles uncertain results without replacing a newer completion. the workspace has no file editor or interactive terminal.
 - **app actions from plain chat**: just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm"). reads can run directly; changes and sends follow the configured permission rules
 - **conclusion-first work**: successful answers lead with the result. exact steps, sources, diffs, and revert controls stay available under one accessible control after reload
 - **confirmed tool sources**: source history separates successful reads, search references and other
@@ -291,7 +292,7 @@ what it supports:
   their original reply. Private replies require explicit acceptance of a copy outside the
   private conversation and retain no conversation or reply IDs.
 - **safe markdown saves**: vault writes replace files atomically, notes refuses to overwrite a file changed after you opened it and preserves unrelated frontmatter/body bytes during partial edits, and deleted docs/notes can be restored from 30-day trash
-- **voice**: talk to it and have it talk back (speech-to-text in, text-to-speech out)
+- **voice**: dictation and read-aloud use the selected speech providers. Call is available from conversation and coding through first-party OpenAI Realtime over WebRTC. it requires an enabled OpenAI endpoint, eligible realtime model, API access and a secure browser context. only an explicit start requests microphone access. mute, interruption, connection recovery and end-call controls share one call experience; Back preserves an active call. a text-only compatible endpoint does not enable realtime audio.
 - **vision**: drop in an image and capable models can see it
 - **incognito chats**: conversations and attachments kept only in short-lived ram; they use no
   long-term memory and disappear when you exit or restart alles
@@ -304,6 +305,8 @@ what it supports:
 - **skills**: write reusable procedures (a name, when-to-use, and the steps in markdown) that the agent discovers and loads on its own; it ranks your skills against each task and reaches for the right one. the built-in catalogue is installed on first launch. “start here” highlights six common tasks alongside pinned and custom skills; all skills remain available through search and categories.
 
 The composer’s **help** button shows the current keyboard shortcuts and slash commands without changing the draft. It links directly to shortcut customization. `/help` also lists the commands locally, without a model call.
+
+the app-name menu also opens **help & manual**, with local search, provider requirements and recovery instructions. Finance has a **finance guide** link to the same manual. navigation from the manual uses the existing unsaved-draft checks.
 
 **the model picker**: every endpoint you add shows up here, with provider labels and logos. image-generation models are flagged with a 🎨, so you can run a **chat model and an image model together** (talk to sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release. model ids come from each endpoint's live catalog or its editable manual list; alles does not ship a guessed model lineup. a failed refresh keeps the last good list and marks it stale, while models removed by a provider leave new pickers and remain marked unavailable for old runs.
 
@@ -1225,7 +1228,7 @@ erDiagram
     money_accounts |o--o{ money_transactions : records
     albums |o--o{ photos : groups
 ```
-the declared schema has **132 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+the declared schema has **137 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`**: your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`**: agent skills as `SKILL.md` files (frontmatter + steps).
 - **`data/`** (other): uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
@@ -1394,10 +1397,10 @@ the registered http operations are grouped by handler source. use `/openapi.json
 
 the compatibility snapshot locks the registered http surface:
 
-- 83 included fastapi router modules
-- 917 http method/path pairs
-- 900 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `4f2aec58ae7471a12bf539c5edc571b05a29758b7d2d319000fe094888b25e8b`
+- 85 included fastapi router modules
+- 947 http method/path pairs
+- 930 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `522fe1fb902186f148959593e48b74a15c559784d3f52cfa890ac36d6aa0d8ff`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -1412,6 +1415,54 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/health` | `health` |
 | `GET` | `/manifest.json` | `manifest` |
 | `GET` | `/sw.js` | `service_worker` |
+
+</details>
+
+<details>
+<summary>routes/aide_voice.py · 7 operations</summary>
+
+[source](routes/aide_voice.py)
+
+| method | path | handler |
+| --- | --- | --- |
+| `POST` | `/api/aide/voice/calls` | `create_call` |
+| `POST` | `/api/aide/voice/calls/{call_id}/hangup` | `hangup` |
+| `POST` | `/api/aide/voice/calls/{call_id}/turns` | `start_turn` |
+| `GET` | `/api/aide/voice/calls/{call_id}/turns/{turn_id}` | `get_turn` |
+| `POST` | `/api/aide/voice/calls/{call_id}/turns/{turn_id}/cancel` | `cancel_turn` |
+| `POST` | `/api/aide/voice/calls/{call_id}/turns/{turn_id}/speech` | `speech` |
+| `GET` | `/api/aide/voice/status` | `status` |
+
+</details>
+
+<details>
+<summary>routes/aide.py · 21 operations</summary>
+
+[source](routes/aide.py)
+
+| method | path | handler |
+| --- | --- | --- |
+| `POST` | `/api/aide/calls` | `create_call` |
+| `GET` | `/api/aide/calls/{call_id}` | `get_call` |
+| `POST` | `/api/aide/calls/{call_id}/hangup` | `hangup` |
+| `POST` | `/api/aide/calls/{call_id}/offer` | `negotiate_call` |
+| `POST` | `/api/aide/calls/{call_id}/transcripts` | `save_transcript` |
+| `GET` | `/api/aide/capabilities` | `capabilities` |
+| `DELETE` | `/api/aide/coding/connection` | `coding_disconnect` |
+| `POST` | `/api/aide/coding/health` | `coding_health` |
+| `POST` | `/api/aide/coding/pair` | `coding_pair` |
+| `GET` | `/api/aide/coding/runs` | `coding_runs` |
+| `POST` | `/api/aide/coding/runs` | `coding_start` |
+| `GET` | `/api/aide/coding/runs/{run_id}` | `coding_run` |
+| `POST` | `/api/aide/coding/runs/{run_id}/cancel` | `coding_cancel` |
+| `POST` | `/api/aide/coding/runs/{run_id}/continue` | `coding_continue` |
+| `GET` | `/api/aide/coding/runs/{run_id}/events` | `coding_events` |
+| `GET` | `/api/aide/coding/runs/{run_id}/live` | `coding_live` |
+| `POST` | `/api/aide/coding/runs/{run_id}/refresh` | `coding_refresh` |
+| `POST` | `/api/aide/coding/runs/{run_id}/respond` | `coding_respond` |
+| `POST` | `/api/aide/coding/runs/{run_id}/resume` | `coding_resume` |
+| `GET` | `/api/aide/coding/status` | `coding_status` |
+| `GET` | `/api/aide/coding/workspaces` | `coding_workspaces` |
 
 </details>
 
@@ -1838,13 +1889,14 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/delegation.py · 6 operations</summary>
+<summary>routes/delegation.py · 7 operations</summary>
 
 [source](routes/delegation.py)
 
 | method | path | handler |
 | --- | --- | --- |
 | `GET` | `/api/delegation/actions` | `list_actions` |
+| `GET` | `/api/delegation/actions/{action_id}` | `get_action` |
 | `POST` | `/api/delegation/actions/{action_id}/decision` | `action_decision` |
 | `GET` | `/api/delegation/events` | `list_events` |
 | `GET` | `/api/delegation/grants` | `list_grants` |
@@ -1941,7 +1993,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/finance_connections.py · 8 operations</summary>
+<summary>routes/finance_connections.py · 9 operations</summary>
 
 [source](routes/finance_connections.py)
 
@@ -1954,6 +2006,7 @@ the compatibility snapshot locks the registered http surface:
 | `DELETE` | `/api/finance/connections/{connection_id}` | `disconnect` |
 | `POST` | `/api/finance/connections/{connection_id}/plaid/exchange` | `plaid_exchange` |
 | `POST` | `/api/finance/connections/{connection_id}/plaid/link-token` | `plaid_link_token` |
+| `POST` | `/api/finance/connections/{connection_id}/plaid/update-complete` | `plaid_update_complete` |
 | `POST` | `/api/finance/connections/{connection_id}/sync` | `sync` |
 
 </details>
@@ -3212,7 +3265,7 @@ retrieve full article text from each entry's publisher.
 
 ## database table inventory
 
-this lists **132 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **137 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -3223,6 +3276,10 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | --- | --- | --- |
 | `actual_entity_links` | `id: VARCHAR pk`, `run_id: VARCHAR`, `entity_kind: VARCHAR`, `source_id: VARCHAR`, `actual_id: VARCHAR`, `metadata_json: TEXT ?`, `created_at: DATETIME ?` | — |
 | `actual_migration_runs` | `id: VARCHAR pk`, `status: VARCHAR`, `base_currency_code: VARCHAR`, `snapshot_sha256: VARCHAR`, `snapshot_path: TEXT`, `actual_budget_id: VARCHAR ?`, `actual_sync_id: VARCHAR ?`, `report_json: TEXT ?`, `error: TEXT ?`, `created_at: DATETIME ?`, `verified_at: DATETIME ?`, `cutover_at: DATETIME ?`, `rolled_back_at: DATETIME ?` | — |
+| `aide_calls` | `id: VARCHAR pk`, `session_id: VARCHAR`, `provider: VARCHAR`, `model: VARCHAR`, `state: VARCHAR`, `provider_call_id: VARCHAR ?`, `created_at: DATETIME ?`, `connected_at: DATETIME ?`, `ended_at: DATETIME ?`, `updated_at: DATETIME ?` | `session_id → sessions.id` |
+| `aide_call_events` | `id: VARCHAR pk`, `call_id: VARCHAR`, `sequence: INTEGER`, `kind: VARCHAR`, `role: VARCHAR ?`, `text: TEXT ?`, `provider_event_id: VARCHAR ?`, `data: TEXT ?`, `created_at: DATETIME ?` | `call_id → aide_calls.id` |
+| `aide_coding_runs` | `id: VARCHAR pk`, `aide_session_id: VARCHAR ?`, `workspace_id: VARCHAR`, `workspace_path: TEXT ?`, `provider_session_id: VARCHAR`, `prompt: TEXT`, `prompt_hash: VARCHAR`, `state: VARCHAR`, `error_code: VARCHAR ?`, `safe_error: TEXT ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?`, `finished_at: DATETIME ?` | `aide_session_id → sessions.id` |
+| `aide_coding_run_events` | `id: VARCHAR pk`, `run_id: VARCHAR`, `sequence: INTEGER`, `kind: VARCHAR`, `summary: TEXT`, `data: TEXT ?`, `created_at: DATETIME ?` | `run_id → aide_coding_runs.id` |
 | `albums` | `id: VARCHAR pk`, `name: VARCHAR`, `cover_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `andromeda_save_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR`, `search_id: VARCHAR`, `created_at: DATETIME ?` | — |
 | `andromeda_saved_searches` | `id: VARCHAR pk`, `query: TEXT`, `request_json: TEXT ?`, `results_json: TEXT ?`, `overview_json: TEXT ?`, `evidence_json: TEXT ?`, `model_json: TEXT ?`, `verification_json: TEXT ?`, `verifier_model_json: TEXT ?`, `checked_at: DATETIME ?`, `created_at: DATETIME ?` | — |
@@ -3251,6 +3308,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `commitment_create_receipts` | `id: VARCHAR pk`, `kind: VARCHAR`, `payload_hash: VARCHAR`, `resource_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `contacts` | `id: VARCHAR pk`, `name: VARCHAR`, `email: VARCHAR ?`, `phone: VARCHAR ?`, `notes: TEXT ?`, `tags: TEXT ?`, `company: VARCHAR ?`, `title: VARCHAR ?`, `address: TEXT ?`, `birthday: VARCHAR ?`, `website: VARCHAR ?`, `favorite: BOOLEAN ?`, `avatar: VARCHAR ?`, `is_me: BOOLEAN ?`, `carddav_uid: VARCHAR ?`, `carddav_href: VARCHAR ?`, `carddav_etag: VARCHAR ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `cookbook` | `id: VARCHAR pk`, `name: VARCHAR`, `description: VARCHAR ?`, `prompt: TEXT`, `created_at: DATETIME ?` | — |
+| `dsh_connections` | `id: VARCHAR pk`, `base_url: VARCHAR`, `token: TEXT sealed`, `host_version: VARCHAR ?`, `connected_at: DATETIME ?`, `checked_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `day_events` | `id: VARCHAR pk`, `name: VARCHAR`, `date: VARCHAR`, `repeat: VARCHAR ?`, `category: VARCHAR ?`, `notes: TEXT ?`, `pinned: BOOLEAN ?`, `notify_days: INTEGER ?`, `last_notified: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `delegated_actions` | `id: VARCHAR pk`, `origin: VARCHAR`, `run_id: VARCHAR ?`, `agent_run_id: VARCHAR ?`, `session_id: VARCHAR ?`, `grant_id: VARCHAR ?`, `scope_kind: VARCHAR`, `scope_id: VARCHAR ?`, `capability: VARCHAR`, `action: VARCHAR`, `target: TEXT ?`, `data_summary: TEXT ?`, `privacy_effect: TEXT ?`, `cost: VARCHAR ?`, `exact_hash: VARCHAR(64)`, `pending_key: VARCHAR(64) ?`, `state: VARCHAR`, `expires_at: DATETIME`, `approved_at: DATETIME ?`, `used_at: DATETIME ?`, `finished_at: DATETIME ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | `run_id → jarvis_runs.id`, `session_id → sessions.id`, `grant_id → capability_grants.id` |
 | `doc_comments` | `id: VARCHAR pk`, `doc: VARCHAR`, `anchor: TEXT ?`, `body: TEXT ?`, `author: VARCHAR ?`, `parent_id: VARCHAR ?`, `resolved: BOOLEAN ?`, `created_at: DATETIME ?` | — |
@@ -3334,7 +3392,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `reminder_create_receipts` | `id: VARCHAR pk`, `reminder_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `reminders` | `id: VARCHAR pk`, `text: TEXT`, `trigger_at: DATETIME`, `type: VARCHAR ?`, `session_id: VARCHAR ?`, `fired: BOOLEAN ?`, `notified: BOOLEAN ?`, `created_at: DATETIME ?` | — |
 | `research_findings` | `id: VARCHAR pk`, `url: VARCHAR ?`, `question: TEXT ?`, `title: VARCHAR ?`, `summary: TEXT ?`, `ts: DATETIME ?` | — |
-| `sessions` | `id: VARCHAR pk`, `name: VARCHAR ?`, `model: VARCHAR ?`, `endpoint_id: VARCHAR ?`, `mode: VARCHAR ?`, `chat_behavior: VARCHAR ?`, `persona_id: VARCHAR ?`, `project_id: VARCHAR ?`, `working_dir: TEXT ?`, `starred: BOOLEAN ?`, `archived: BOOLEAN ?`, `incognito: BOOLEAN ?`, `share_token: VARCHAR ?`, `message_count: INTEGER ?`, `created_at: DATETIME ?`, `last_message_at: DATETIME ?` | `endpoint_id → model_endpoints.id`, `persona_id → personas.id`, `project_id → projects.id` |
+| `sessions` | `id: VARCHAR pk`, `name: VARCHAR ?`, `model: VARCHAR ?`, `endpoint_id: VARCHAR ?`, `mode: VARCHAR ?`, `chat_behavior: VARCHAR ?`, `aide_role: VARCHAR`, `persona_id: VARCHAR ?`, `project_id: VARCHAR ?`, `working_dir: TEXT ?`, `starred: BOOLEAN ?`, `archived: BOOLEAN ?`, `incognito: BOOLEAN ?`, `share_token: VARCHAR ?`, `message_count: INTEGER ?`, `created_at: DATETIME ?`, `last_message_at: DATETIME ?` | `endpoint_id → model_endpoints.id`, `persona_id → personas.id`, `project_id → projects.id` |
 | `shares` | `id: VARCHAR pk`, `token: VARCHAR`, `kind: VARCHAR`, `ref: VARCHAR`, `location_id: VARCHAR ?`, `normalized_path: VARCHAR ?`, `level: VARCHAR ?`, `expires_at: VARCHAR ?`, `password_hash: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `signal_snapshots` | `id: VARCHAR pk`, `ts: DATETIME ?`, `category: VARCHAR ?`, `key: VARCHAR ?`, `urgency: INTEGER ?`, `data: TEXT ?` | — |
 | `storage_locations` | `id: VARCHAR pk`, `name: VARCHAR`, `kind: VARCHAR`, `access: VARCHAR`, `root_path: TEXT ?`, `endpoint: TEXT ?`, `bucket: VARCHAR ?`, `prefix: TEXT ?`, `config: TEXT ?`, `secret: TEXT ? sealed`, `enabled: BOOLEAN ?`, `is_default: BOOLEAN ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
@@ -3434,6 +3492,9 @@ known versions run in ascending order.
 | 65 | `reading_text_state` | [m0065_reading_text_state.py](core/migrations/m0065_reading_text_state.py) |
 | 66 | `andromeda_save_receipts` | [m0066_andromeda_save_receipts.py](core/migrations/m0066_andromeda_save_receipts.py) |
 | 67 | `reading_position_revision` | [m0067_reading_position_revision.py](core/migrations/m0067_reading_position_revision.py) |
+| 68 | `aide_primary_session` | [m0068_aide_primary_session.py](core/migrations/m0068_aide_primary_session.py) |
+| 69 | `aide_live_calls` | [m0069_aide_live_calls.py](core/migrations/m0069_aide_live_calls.py) |
+| 70 | `aide_coding_runs` | [m0070_aide_coding_runs.py](core/migrations/m0070_aide_coding_runs.py) |
 
 </details>
 

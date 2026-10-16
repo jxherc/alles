@@ -5,16 +5,32 @@ function fmt(n) {
   return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n);
 }
 function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+let loadSequence = 0;
 
 export async function initUsage() {
   const body = document.getElementById('usage-body');
   if (!body) return;
+  const sequence = ++loadSequence;
+  const totEl = document.getElementById('usage-total');
+  if (totEl) totEl.textContent = '';
   body.innerHTML = '<div class="jrnl-empty">loading…</div>';
   let d;
-  try { d = await fetch('/api/usage/summary').then(r => r.json()); }
-  catch { body.innerHTML = '<div class="jrnl-empty">failed to load usage</div>'; return; }
+  try {
+    const response = await fetch('/api/usage/summary');
+    if (!response.ok) throw new Error('usage unavailable');
+    d = await response.json();
+    if (!d || !Array.isArray(d.by_month) || !Array.isArray(d.by_model) ||
+        !['total_tokens', 'total_prompt', 'total_completion', 'total_messages'].every(key => Number.isFinite(d[key]) && d[key] >= 0)) {
+      throw new Error('bad usage response');
+    }
+  } catch {
+    if (sequence !== loadSequence) return;
+    body.innerHTML = '<div class="jrnl-empty" role="status">failed to load usage <button type="button" class="btn" id="usage-retry">retry</button></div>';
+    document.getElementById('usage-retry')?.addEventListener('click', () => initUsage());
+    return;
+  }
+  if (sequence !== loadSequence) return;
 
-  const totEl = document.getElementById('usage-total');
   if (totEl) totEl.textContent = `${fmt(d.total_tokens)} tokens · ${d.total_messages} messages`;
 
   if (!d.total_messages) {

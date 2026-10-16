@@ -301,6 +301,22 @@ test('Andromeda results stay clean and end with a useful continuation', () => {
   assert.doesNotMatch(streamedClaim, /renderKeyAnswer/);
 });
 
+test('normal results expose one keyboard-accessible contextual action surface', () => {
+  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
+  assert.match(source, /createMenuController/);
+  assert.match(source, /dataResultAction|dataset\.resultAction/);
+  assert.match(source, /\['m', 's', 'c'\]/);
+  assert.match(source, /key === 'j' \|\| key === 'k'/);
+  assert.match(source, /navigator\.clipboard\.writeText/);
+  assert.match(source, /results: \[result\]/);
+  assert.match(source, /stopResultSummary/);
+  assert.match(source, /confirmed_endpoint_id = preview\.endpoint_id/);
+  assert.match(source, /libraryControl\(result, false, savedItems, receipt\)/);
+  assert.match(css, /\.andromeda-result-menu button[\s\S]*?min-height: 44px/);
+  assert.match(css, /\.andromeda-result\[data-selected\]::before/);
+});
+
 test('news results require an explicit save action before entering Library', () => {
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   assert.match(source, /andromeda-news-save/);

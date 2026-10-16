@@ -7,6 +7,7 @@ let _endpoints = [];
 let _selected = null;   // { endpointId, model }
 let _selectionSource = 'none'; // role | persona | explicit | session | broken
 let _aideDefault = null;
+let _catalogSequence = 0;
 const _modelSelectionQueues = new Map();
 const _modelSelectionGenerations = new Map();
 
@@ -35,14 +36,18 @@ const PRESETS = [
 ];
 
 export async function loadModels() {
+  const sequence = ++_catalogSequence;
   try {
     const [modelsResponse, rolesResponse] = await Promise.all([
       fetch('/api/models'),
       fetch('/api/models/roles'),
     ]);
     if (!modelsResponse.ok || !rolesResponse.ok) throw new Error('model state unavailable');
-    _endpoints = await modelsResponse.json();
-    const roles = await rolesResponse.json();
+    const [endpoints, roles] = await Promise.all([modelsResponse.json(), rolesResponse.json()]);
+    if (sequence !== _catalogSequence) return;
+    if (!Array.isArray(endpoints)) throw new Error('bad model catalog');
+    _endpoints = endpoints;
+    _catalogStatus();
     window._endpoints = _endpoints;
     const savedRaw = localStorage.getItem('aide-model');
     const saved = _ls('aide-model');
@@ -67,8 +72,34 @@ export async function loadModels() {
     } else {
       selectAideDefault();
     }
-  } catch (e) {
-    if (globalThis.navigator?.onLine !== false) console.error('loadModels', e);
+  } catch {
+    if (sequence !== _catalogSequence) return;
+    _catalogStatus(_endpoints.length
+      ? 'could not refresh models. the last loaded catalog is still shown.'
+      : 'could not load models.');
+  }
+}
+
+function _catalogStatus(message = '') {
+  const list = document.getElementById('sidebar-model-list');
+  if (!list) return;
+  let status = document.getElementById('models-load-status');
+  if (!status) {
+    status = document.createElement('div');
+    status.id = 'models-load-status';
+    status.className = 'sidebar-model-empty';
+    status.setAttribute('role', 'status');
+    list.before(status);
+  }
+  status.hidden = !message;
+  status.textContent = message;
+  if (message) {
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'btn';
+    retry.textContent = 'retry';
+    retry.addEventListener('click', () => loadModels());
+    status.append(' ', retry);
   }
 }
 

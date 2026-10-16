@@ -13,6 +13,11 @@
       "bytes": 18657
     },
     {
+      "path": "licenses/manual/inter/01-license-txt.txt",
+      "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+      "bytes": 4380
+    },
+    {
       "path": "licenses/manual/leaflet/01-leaflet-1-9-4-license-txt.txt",
       "sha256": "bbc959aaef7488b38942e7f05cfd1244351f8bce54261951ea17dd7cf60f894b",
       "bytes": 1369

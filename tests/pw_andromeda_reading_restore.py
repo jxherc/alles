@@ -159,9 +159,19 @@ def run(configure_context=None, profiles=PROFILES):
                     844 if width == 390 else 900,
                 )
 
-            def open_record(identity):
-                button = page.get_by_role("button", name="open in Library: " + title, exact=True)
+            def library_button(label):
+                if category == "all":
+                    trigger = page.get_by_role("button", name="actions for " + title, exact=True)
+                    if trigger.get_attribute("aria-expanded") != "true":
+                        trigger.click()
+                    button = page.get_by_role("menuitem", name=label, exact=True)
+                else:
+                    button = page.get_by_role("button", name=label, exact=True)
                 expect(button).to_be_visible()
+                return button
+
+            def open_record(identity):
+                button = library_button("open in Library: " + title)
                 button.focus()
                 expect(button).to_be_focused()
                 assert button.bounding_box()["height"] >= 44
@@ -235,11 +245,10 @@ def run(configure_context=None, profiles=PROFILES):
                 assert saved_search["request"]["category"] == category
                 row["saved_search_id"] = saved_id
                 assert not records(), "saving a search must not save its reading proposals"
-                save = page.get_by_role("button", name="save to Library: " + title, exact=True)
+                save = library_button("save to Library: " + title)
                 save.focus()
                 page.keyboard.press("Enter")
-                opened = page.get_by_role("button", name="open in Library: " + title, exact=True)
-                expect(opened).to_be_focused()
+                opened = library_button("open in Library: " + title)
                 items = records()
                 assert len(items) == 1 and not items[0]["read"]
                 assert items[0]["source_kind"] == (
@@ -255,7 +264,9 @@ def run(configure_context=None, profiles=PROFILES):
                 capture("exact-record")
                 page.go_back(wait_until="networkidle")
                 assert page.url == saved_url
+                opened = library_button("open in Library: " + title)
                 expect(opened).to_be_visible()
+                page.keyboard.press("Escape")
                 page.reload(wait_until="networkidle")
                 expect(result_title).to_have_text(title)
                 row["after_reload_records"] = records()
@@ -265,12 +276,15 @@ def run(configure_context=None, profiles=PROFILES):
                     == saved_search
                 )
                 capture("reload")
+                opened = library_button("open in Library: " + title)
                 expect(opened).to_be_visible()
+                page.keyboard.press("Escape")
                 assert len(writes) == 1, "restore must only read; no reconfirmation POST"
                 open_record(identity)
                 capture("reloaded-exact-record")
                 page.go_back(wait_until="networkidle")
                 assert page.url == saved_url
+                opened = library_button("open in Library: " + title)
                 expect(opened).to_be_visible()
                 capture("browser-back")
                 # Archived records are still saved and must retain their exact destination.

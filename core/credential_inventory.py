@@ -18,6 +18,7 @@ DATABASE_CREDENTIAL_FIELDS = (
     ("finance_connections", "client_id", "finance_connections.client_id"),
     ("finance_connections", "client_secret", "finance_connections.client_secret"),
     ("finance_connections", "access_token", "finance_connections.access_token"),
+    ("dsh_connections", "token", "dsh_connections.token"),
 )
 
 SETTING_CREDENTIAL_KEYS = (

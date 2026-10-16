@@ -5,7 +5,8 @@ import { icon, iconEl, ICON_NAMES } from './icons.js';
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
 import { chooseBootState } from './bootstate.js';
 import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
-import { canSendMessage, sendMessage, stopStream, hideConnBanner } from './chat.js';
+import { canSendMessage, getSendBlockReason, sendMessage, stopStream, hideConnBanner } from './chat.js';
+window._canRefreshAideMessages = canSendMessage;
 import { toast, closeAllModals, mdToHtml, api } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
@@ -15,6 +16,7 @@ import { initSlash, tryExecuteSlashCommand } from './slash.js?v=398';
 import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=253';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
+import { openManual } from './help.js?v=1';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
 import { loadVaultView, initVault } from './vault.js?v=283';
 import { loadContacts, addContact } from './contacts.js';
@@ -33,6 +35,7 @@ import { loadBrainPanel } from './brain.js?v=241';
 import { openSettings, closeSettings, applyVis } from './settings.js?v=289';
 import {
   setIncognitoMode,
+  isIncognitoMode,
   getPermMode,
   setPermMode,
   getEffort,
@@ -47,7 +50,8 @@ import {
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
 import { initAideWorkspace } from './aideworkspace.js?v=278';
-import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=1';
+import { initAideCentral } from './aidecentral.js?v=1';
+import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=2';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=248';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=243';
@@ -373,9 +377,7 @@ async function _boot({ reachable = true } = {}) {
   _syncAppearance();   // pull theme/accent from the server so it matches across subdomains
   const aideSidebarMedia = window.matchMedia('(max-width: 700px)');
   let aideSidebarWasMobile = aideSidebarMedia.matches;
-  const storedAideSidebar = localStorage.getItem('aide-sidebar-hidden');
-  setAideSidebarHidden(storedAideSidebar === '1'
-    || (storedAideSidebar === null && aideSidebarMedia.matches));
+  setAideSidebarHidden(true);
   const syncAideSidebarViewport = event => {
     if (event.matches && !aideSidebarWasMobile) {
       setAideSidebarHidden(true);
@@ -400,6 +402,7 @@ async function _boot({ reachable = true } = {}) {
   registerServiceWorker();
   initSync();
   bindEvents();
+  import('./livevoice.js?v=2').then(module => module.initLiveVoice()).catch(() => {});
   // per-app settings gears (header cogs) + the reload hooks they call after saving
   initAppCogs();
   window._reloadFiles = () => loadFiles('');   // jump to the (possibly new) root
@@ -516,6 +519,7 @@ function applySubdomainScope(initialRoute = null) {
   if (initialRoute) renderLocalRoute(initialRoute);
   else if (!sub) { if (!location.hash) showTodayView(); }
   else if (!(app.primary === 'chat' && location.hash)) renderLocalRoute({ view: app.primary, hashOwner: app.primary });
+  else if (readRecordTarget(location.href)) void revealLinkedRecord();
   // (aide with a #sessionId is already restored by initSessions)
   document.body.classList.remove('preboot', 'login-mode');
 }
@@ -736,6 +740,7 @@ function _paintSpecialistState(root, state, retry, details = null) {
 }
 
 function showView(viewId, navKey, onShow, stateRootId = '') {
+  window._hideAideSurfaces?.();
   hideAllViews();
   const root = document.getElementById(viewId);
   root.style.display = 'flex';
@@ -802,6 +807,7 @@ const showChatView = ({ preserveRecord = false } = {}) => {
   document.getElementById('chat').style.display = 'flex';
   _syncShellTrigger();
   document.getElementById('composer-outer').style.display = 'block';
+  window._aideConversationShown?.();
   setNav('chat');
   refreshScrollFollow();
 };
@@ -831,7 +837,7 @@ window._openSearchResult = async (type, value, messageId = '') => {
     }
     return _navigateWithHandoff(target.toString());
   }
-  if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat'))) return false;
+  if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat', { preserveSession: true }))) return false;
   if (type === 'chat') return selectSession(value, messageId);
   const { openNote } = await import('./docs.js?v=259');
   return openNote(value);
@@ -873,7 +879,7 @@ async function openHomeRecord(view, id, occurrence) {
 window._openRecord = openHomeRecord;
 
 async function showPrivateDayDraft(prompt) {
-  if (!(await navigateTo('chat'))) return false;
+  if (!(await navigateTo('chat', { preserveSession: true }))) return false;
   if (saveDraft() === false) return false;
   await discardAttachments();
   setIncognitoMode(true);
@@ -968,8 +974,22 @@ window._askInChat = async (
   const ta = document.getElementById('composer-ta');
   const canOpenAideInline = singleHost() || appForSub(currentSub()).app === 'aide';
   if (ta && canOpenAideInline) {   // on aide (or one-host installs) — run it inline
-    if (!canSendMessage()) { toast('wait for the current answer or stop it first', 'error'); return false; }
-    if (!(await navigateTo('chat'))) return false;
+    const refuseBlockedHandoff = async () => {
+      const reason = getSendBlockReason();
+      if (!reason) return false;
+      if (reason === 'primary-unavailable') {
+        // Reveal recovery through the guarded router, without loading another
+        // owner or replacing the draft with a request that cannot be sent.
+        if (await navigateTo('chat', { preserveSession: true }) && getSendBlockReason() === reason) {
+          document.dispatchEvent(new CustomEvent('alles:aide-primary-unavailable'));
+          toast('could not load your main conversation. choose retry, then ask again.', 'error');
+        }
+      } else toast('wait for the current answer or stop it first', 'error');
+      return true;
+    };
+    if (await refuseBlockedHandoff()) return false;
+    if (!(await navigateTo('chat', { preserveSession: Boolean(projectId) }))) return false;
+    if (await refuseBlockedHandoff()) return false;
     if (projectId && window._currentSession?.project_id !== projectId) {
       if (newChat({ projectId }) === false) return false;
     }
@@ -1098,7 +1118,7 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
 }
 
 // central nav dispatch — used by both the sidebar nav-items and the home tiles
-async function navigateTo(v, { record = null, preserveRecord = false, allTasks = false } = {}) {
+async function navigateTo(v, { record = null, preserveRecord = false, preserveSession = false, allTasks = false } = {}) {
   const generation = ++_navigationGeneration;
   if (v === 'home') v = 'today';
   if (v === 'mail' && !record && !preserveRecord && document.getElementById('mail-view')?.getClientRects().length) return true;
@@ -1135,6 +1155,12 @@ async function navigateTo(v, { record = null, preserveRecord = false, allTasks =
   if (v !== 'settings' && !singleHost()) {
     const dest = groupedRoute?.host ?? viewToSub(v);
     if (dest !== currentSub()) { await crossNav(dest, groupedIdentifier, { docsPrepared: true }); return true; }
+  }
+  // Ordinary Aide entry has one destination. Explicit record/search/project
+  // handoffs retain their owner instead of passing through the primary thread.
+  if (v === 'chat' && !record && !preserveSession && !isIncognitoMode() && window._showPrimaryAide) {
+    if (!await window._showPrimaryAide({ focus: false, isCurrent: () => generation === _navigationGeneration })) return false;
+    if (generation !== _navigationGeneration) return false;
   }
   if (v === 'tasks' && allTasks) resetTaskFilters();
   const knownRoute = groupedRoute || resolveCompatibilityRoute({ view: v, flags: _afterlifeFlags });
@@ -1346,6 +1372,7 @@ function initAfterlifeShell(flags) {
   document.body.classList.toggle('afterlife-shell', spaces.length > 0);
   document.body.classList.toggle('afterlife-aide-projects', flags.afterlife_aide_projects === true);
   initAideWorkspace();
+  initAideCentral();
   if (!trigger || !spaces.length) return;
   _setAfterlifeSpace(document.body.classList.contains('is-aide') ? 'aide' : '');
   _renderAppDrawer();
@@ -1367,6 +1394,13 @@ function initAfterlifeShell(flags) {
     closeAppDrawer();
     openSettings();
   });
+  document.getElementById('app-drawer-help')?.addEventListener('click', () => {
+    closeAppDrawer();
+    openManual({ source: trigger });
+  });
+  document.getElementById('finance-help')?.addEventListener('click', event => {
+    openManual({ topic: 'finance', source: event.currentTarget });
+  });
   window.matchMedia('(max-width: 700px)').addEventListener?.('change', () => _syncShellTrigger());
 }
 
@@ -1385,8 +1419,7 @@ function _syncShellTrigger(root = null) {
   const label = space === 'today' ? 'alles' : space === 'aide' ? 'aide'
     : space === 'andromeda' ? 'andromeda' : app;
   const target = space === 'today' ? document.querySelector('.today-topbar')
-    : space === 'aide' ? document.querySelector(window.matchMedia('(max-width: 700px)').matches
-      ? '.topbar-left' : '.sidebar-head')
+    : space === 'aide' ? document.querySelector('.topbar-left')
       : space === 'andromeda' ? document.querySelector('.andromeda-app-head')
       : root?.querySelector('.specialist-app-brand, .page-view-head')
         || document.querySelector(`[data-specialist-app="${app}"] .specialist-app-brand`)
@@ -1529,12 +1562,14 @@ function setAideSidebarHidden(hidden, { restoreFocus = false, persist = false } 
   const hadSidebarFocus = !!document.activeElement?.closest('.sidebar');
   const trigger = document.getElementById('sidebar-toggle-btn');
   document.body.classList.toggle('sidebar-hidden', hidden);
+  document.getElementById('aide-sidebar')?.toggleAttribute('inert', hidden);
   trigger?.setAttribute('aria-expanded', String(!hidden));
   if (persist) localStorage.setItem('aide-sidebar-hidden', hidden ? '1' : '');
+  window._aideArchiveVisibility?.(!hidden, { restoreFocus });
   if (!document.body.classList.contains('is-aide')) return;
   if (hidden) {
     setAideToolsMenu(false);
-    if (restoreFocus || hadSidebarFocus) trigger?.focus();
+    if (restoreFocus || hadSidebarFocus) (document.body.classList.contains('aide-central') ? document.getElementById('aide-more-btn') : trigger)?.focus();
   } else {
     document.dispatchEvent(new CustomEvent('alles:aide-sidebar-open'));
     if (window.matchMedia('(max-width: 700px)').matches) {
@@ -1546,12 +1581,13 @@ function setAideSidebarHidden(hidden, { restoreFocus = false, persist = false } 
 
 function closeCompactAideSidebar({ restoreFocus = false, maxWidth = 700 } = {}) {
   if (!document.body.classList.contains('is-aide')
-    || !window.matchMedia(`(max-width: ${maxWidth}px)`).matches
+    || (!document.body.classList.contains('aide-central') && !window.matchMedia(`(max-width: ${maxWidth}px)`).matches)
     || document.body.classList.contains('sidebar-hidden')) return false;
   setAideSidebarHidden(true, { restoreFocus });
   return true;
 }
 window._closeCompactAideSidebar = closeCompactAideSidebar;
+window._setAideArchiveOpen = open => setAideSidebarHidden(!open, { restoreFocus: !open });
 
 function bindEvents() {
   if (_eventsBound) return;
@@ -1621,7 +1657,7 @@ function bindEvents() {
   document.getElementById('session-search').addEventListener('input', e => renderSidebar(e.target.value));
   document.getElementById('sidebar-model-search')?.addEventListener('input', e => renderSidebarModelList(e.target.value));
   document.getElementById('models-refresh-btn')?.addEventListener('click', loadModels);
-  document.getElementById('brain-refresh-btn')?.addEventListener('click', loadBrainPanel);
+  document.getElementById('brain-refresh-btn')?.addEventListener('click', () => showBrainView());
   document.getElementById('brain-open-memory-btn')?.addEventListener('click', () => openSettings('memory'));
 
   document.querySelector('.c-tools')?.addEventListener('click', e => {
@@ -1638,15 +1674,17 @@ function bindEvents() {
   document.getElementById('incognito-btn')?.addEventListener('click', async () => {
     if (saveDraft() === false) return false;
     await discardAttachments();
+    showChatView();
     setIncognitoMode(true);
-    newChat();
+    newChat({ skipDraft: true });
   });
   document.getElementById('incognito-exit')?.addEventListener('click', async () => {
-    const sessionId = getActiveId();
+    const sessionId = isIncognitoMode() && window._currentSession?.incognito ? getActiveId() : null;
     await discardAttachments();
     if (sessionId) await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' }).catch(() => {});
     setIncognitoMode(false);
     newChat({ skipDraft: true });
+    await window._showPrimaryAide?.();
   });
 
   document.getElementById('shell-btn-tool')?.addEventListener('click', openShellPanel);
@@ -1746,38 +1784,50 @@ function bindEvents() {
   document.getElementById('model-search-input').addEventListener('input', e => renderModelList(e.target.value));
 
   // export/share/print dropdown
-  document.getElementById('session-actions-btn')?.addEventListener('click', e => {
-    e.stopPropagation();
+  let sessionActionsController;
+  const openSessionActions = btn => {
     const existing = document.getElementById('_export_menu');
-    if (existing) { existing.remove(); return; }
-    const btn = e.currentTarget;
+    if (existing) { sessionActionsController?.close(); return; }
     const rect = btn.getBoundingClientRect();
     const menu = document.createElement('div');
     menu.id = '_export_menu';
     menu.className = 'ctx-menu';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'conversation actions');
     menu.style.cssText = `display:block;right:${window.innerWidth - rect.right}px;top:${rect.bottom + 4}px;left:auto`;
     menu.innerHTML = `
-      <div class="ctx-item" data-a="export-md">export markdown</div>
-      <div class="ctx-item" data-a="export-html">export html</div>
-      <div class="ctx-item" data-a="export-json">export json</div>
-      <div class="ctx-item" data-a="export-txt">export text</div>
-      <div class="ctx-sep"></div>
-      <div class="ctx-item" data-a="share">copy share link</div>
-      <div class="ctx-item" data-a="print">print / save pdf</div>
-      <div class="ctx-sep"></div>
-      <div class="ctx-item" data-a="audio-summary">🔊 audio overview</div>
-      <div class="ctx-item" data-a="audio-podcast">🎙 podcast overview</div>`;
+      <button type="button" role="menuitem" class="ctx-item" data-a="export-md">export markdown</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="export-html">export html</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="export-json">export json</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="export-txt">export text</button>
+      <div class="ctx-sep" role="separator"></div>
+      <button type="button" role="menuitem" class="ctx-item" data-a="share">copy share link</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="print">print / save pdf</button>
+      <div class="ctx-sep" role="separator"></div>
+      <button type="button" role="menuitem" class="ctx-item" data-a="audio-summary">audio overview</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="audio-podcast">podcast overview</button>`;
     menu.addEventListener('click', e => {
       const a = e.target.closest('.ctx-item')?.dataset.a;
+      if (!a) return;
+      sessionActionsController.close();
       if (a?.startsWith('export-')) downloadSession(a.slice(7));
       if (a === 'share')  _shareSession();
       if (a === 'print')  _printSession();
       if (a === 'audio-summary') _playAudioOverview('summary');
       if (a === 'audio-podcast') _playAudioOverview('podcast');
-      menu.remove();
     });
     document.body.appendChild(menu);
-    setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+    sessionActionsController = createMenuController(menu, { onClose: () => {
+      sessionActionsController?.destroy();
+      sessionActionsController = null;
+      menu.remove();
+    } });
+    sessionActionsController.open({ source: btn });
+  };
+  window._openAideSessionActions = openSessionActions;
+  document.getElementById('session-actions-btn')?.addEventListener('click', event => {
+    event.stopPropagation();
+    openSessionActions(event.currentTarget);
   });
   document.getElementById('sidebar-toggle-btn')?.addEventListener('click', () => {
     if (!document.body.classList.contains('is-aide')) return;
@@ -1787,7 +1837,7 @@ function bindEvents() {
     closeCompactAideSidebar({ restoreFocus: true });
   });
   document.getElementById('aide-sidebar-close')?.addEventListener('blur', event => {
-    if (!event.relatedTarget && !window.matchMedia('(max-width: 700px)').matches) document.getElementById('sidebar-toggle-btn')?.focus();
+    if (!event.relatedTarget && !document.body.classList.contains('aide-central') && !window.matchMedia('(max-width: 700px)').matches) document.getElementById('sidebar-toggle-btn')?.focus();
   });
 
   // tasks / calendar / gallery

@@ -12,6 +12,7 @@ from core.api_errors import ApiError
 from core.auth import require_recent_owner
 from core.database import Message, ModelEndpoint, Project, Session, get_db
 from services import incognito, lifecycle
+from services.aide_conversation import PRIMARY_ROLE, get_or_create_primary
 from services.project_environment import canonical_folder, session_environment
 from services.project_git import ProjectGitError, branch_state, switch_branch
 
@@ -63,6 +64,7 @@ def _fmt_session(s: Session) -> dict:
         "endpoint_id": s.endpoint_id,
         "mode": _aide_mode(s.mode),
         "chat_behavior": _chat_behavior(getattr(s, "chat_behavior", "")),
+        "primary": getattr(s, "aide_role", "") == PRIMARY_ROLE,
         "persona_id": s.persona_id,
         "project_id": getattr(s, "project_id", None),
         "working_dir": getattr(s, "working_dir", "") or "",
@@ -99,6 +101,14 @@ def list_sessions(db: DbSession = Depends(get_db)):
         else:
             result["earlier"].append(_fmt_session(s))
     return result
+
+
+@router.get("/aide/conversation")
+def primary_aide_conversation(db: DbSession = Depends(get_db)):
+    session = get_or_create_primary(db)
+    db.commit()
+    db.refresh(session)
+    return _fmt_session(session)
 
 
 class CreateSession(BaseModel):
@@ -297,6 +307,10 @@ def archive_session(session_id: str, db: DbSession = Depends(get_db)):
     s = db.get(Session, session_id)
     if not s:
         raise HTTPException(404)
+    if getattr(s, "aide_role", "") == PRIMARY_ROLE:
+        raise ApiError(
+            409, "primary_aide_session_protected", "the primary Aide conversation stays available"
+        )
     s.archived = True
     db.commit()
     return {"ok": True}
@@ -310,6 +324,10 @@ def delete_session(session_id: str, db: DbSession = Depends(get_db)):
     s = db.get(Session, session_id)
     if not s:
         raise HTTPException(404)
+    if getattr(s, "aide_role", "") == PRIMARY_ROLE:
+        raise ApiError(
+            409, "primary_aide_session_protected", "the primary Aide conversation cannot be deleted"
+        )
     if s.starred:
         raise HTTPException(400, "unstar before deleting")
     db.delete(s)

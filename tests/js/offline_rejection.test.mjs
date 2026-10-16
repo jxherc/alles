@@ -12,9 +12,11 @@ function harness(entries, send = async () => new Response('{}')) {
   const rows = new Map(entries.map(item => [item.id, structuredClone(item)]));
   const requests = [];
   const notices = [];
+  const listeners = {};
   const context = vm.createContext({
     URL, Response, Number,
-    self: { addEventListener() {}, location: { origin: 'https://alles.test' },
+    location: { origin: 'https://alles.test' },
+    self: { addEventListener(type, handler) { listeners[type] = handler; }, location: { origin: 'https://alles.test' },
       clients: { matchAll: async () => [{ postMessage: value => notices.push(value) }] } },
     getAll: async () => [...rows.values()].map(item => structuredClone(item)),
     remove: async id => rows.delete(id),
@@ -26,8 +28,63 @@ function harness(entries, send = async () => new Response('{}')) {
     globalThis.flush = flushOutbox;
     globalThis.discard = discardOutboxItem;
   `, context);
-  return { rows, requests, notices, flush: context.flush, discard: context.discard };
+  return { rows, requests, notices, flush: context.flush, discard: context.discard,
+    intercepts(path, method = 'POST') {
+      let intercepted = false;
+      listeners.fetch({ request: new Request(new URL(path, 'https://alles.test'), { method }),
+        respondWith() { intercepted = true; } });
+      return intercepted;
+    },
+  };
 }
+
+const aideAuthorityPaths = [
+  '/api/aide/primary-session',
+  '/api/aide/calls',
+  '/api/aide/calls/call-id/offer',
+  '/api/aide/calls/call-id/transcripts',
+  '/api/aide/calls/call-id/hangup',
+  '/api/aide/coding/pair',
+  '/api/aide/coding/connection',
+  '/api/aide/coding/health',
+  '/api/aide/coding/runs',
+  '/api/aide/coding/runs/run-id/refresh',
+  '/api/aide/coding/runs/run-id/resume',
+  '/api/aide/coding/runs/run-id/cancel',
+  '/api/%61ide/coding/runs',
+  '/api/%2561ide/calls',
+  '/api%2Faide/coding/pair',
+  '/api%5Caide/calls/call-id/hangup',
+  '/api/health/%252e%252e/aide/coding/runs',
+];
+
+test('Aide call and coding mutations never enter the offline queue, including encoded paths', () => {
+  const h = harness([]);
+  for (const path of aideAuthorityPaths) {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+      assert.equal(h.intercepts(path, method), false, `${method} ${path}`);
+    }
+  }
+  assert.equal(h.requests.length, 0);
+});
+
+test('old Aide authority writes are retained in quarantine and cannot replay after reconnect or manual retry', async () => {
+  const originals = aideAuthorityPaths.map((path, index) => entry(index + 1, {
+    url: `https://alles.test${path}`, body: JSON.stringify({ request_id: `synthetic-${index}` }),
+  }));
+  const h = harness([...originals, entry(originals.length + 1)]);
+  await h.flush();
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.requests[0].url, 'https://alles.test/api/health');
+  for (const original of originals) {
+    assert.equal(h.rows.get(original.id).blocked_reason, 'replay_policy_changed', original.url);
+    assert.equal(h.rows.get(original.id).body, original.body);
+    await h.flush({ retryId: original.id, retryAuth: true });
+  }
+  await h.flush({ retryAuth: true });
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.rows.size, originals.length);
+});
 
 for (const [status, reason] of [[401, 'auth_required'], [409, 'conflict'], [422, 'validation_failed'], [403, 'request_rejected']]) {
   test(`replay ${status} retains exact input and requires recovery instead of deleting it`, async () => {

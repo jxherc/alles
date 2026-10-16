@@ -58,9 +58,51 @@ def run() -> None:
             capture = page.locator("#today-capture-input")
             mode = page.locator("#today-capture-mode")
             submit = page.locator('#today-capture [type="submit"]')
+            assert capture.evaluate("element => element.tagName") == "TEXTAREA"
             for control in (capture, mode, submit):
                 box = control.bounding_box()
                 assert box and box["width"] >= 44 and box["height"] >= 44, box
+            empty_height = capture.bounding_box()["height"]
+            for _ in range(3):
+                mode.focus()
+                page.keyboard.press("Tab")
+                expect(capture).to_be_focused()
+                focus_style = capture.evaluate(
+                    """element => ({
+                      outline: getComputedStyle(element).outlineStyle,
+                      formShadow: getComputedStyle(element.form).boxShadow,
+                    })"""
+                )
+                assert focus_style["outline"] == "none", focus_style
+                assert focus_style["formShadow"] != "none", focus_style
+            page.screenshot(path=str(output / f"home-focus-{width}.png"))
+            page.emulate_media(forced_colors="active")
+            expect(capture).to_be_focused()
+            forced_focus = capture.evaluate(
+                """element => ({
+                  fieldOutline: getComputedStyle(element).outlineStyle,
+                  formOutline: getComputedStyle(element.form).outlineStyle,
+                  formOutlineWidth: getComputedStyle(element.form).outlineWidth,
+                  formShadow: getComputedStyle(element.form).boxShadow,
+                })"""
+            )
+            assert forced_focus == {
+                "fieldOutline": "none",
+                "formOutline": "solid",
+                "formOutlineWidth": "2px",
+                "formShadow": "none",
+            }, forced_focus
+            page.screenshot(path=str(output / f"home-focus-forced-colors-{width}.png"))
+            page.emulate_media(forced_colors="none")
+            capture.fill("first line\nsecond line\nthird line")
+            multiline_height = capture.bounding_box()["height"]
+            assert empty_height < multiline_height <= 132, (empty_height, multiline_height)
+            capture.fill("\n".join(f"line {index}" for index in range(20)))
+            capped_height = capture.bounding_box()["height"]
+            assert capped_height <= 132, capped_height
+            assert capture.evaluate("element => getComputedStyle(element).overflowY") == "auto"
+            capture.fill("")
+            assert capture.bounding_box()["height"] == empty_height
             mode.click()
             expect(mode).to_have_attribute("aria-pressed", "false")
 
@@ -194,21 +236,39 @@ def run() -> None:
                 f"{base}/api/sessions", data={"name": f"returning chat {width}"}
             )
             assert session.ok, session.text()
-            page.evaluate("window._refreshPersonaBtn()")
+            page.reload(wait_until="networkidle")
             expect(page.locator("#persona-btn")).to_be_hidden()
             page.locator("#app-drawer-btn").click()
             page.locator('.app-drawer-item[data-view="chat"]').click()
             expect(page.locator("#chat")).to_be_visible()
-            expect(page.locator("#persona-btn")).to_be_visible()
-            page.evaluate("window._reloadAideSessions()")
-            if page.locator("body").evaluate("body => body.classList.contains('sidebar-hidden')"):
-                page.locator("#sidebar-toggle-btn").click()
+            page.wait_for_function("window._currentSession?.primary === true")
+            primary_id = page.evaluate("window._currentSession.id")
+            draft = f"keep this primary draft after home {width}"
+            page.locator("#composer-ta").fill(draft)
+            expect(page.locator("#aide-sidebar")).to_be_hidden()
+            expect(page.locator("#persona-btn")).to_be_hidden()
+            page.locator("#aide-more-btn").click()
+            page.locator('[data-aide-central-action="archive"]').click()
+            expect(page.locator("#aide-sidebar")).to_be_visible()
             page.locator(f'.session-item[data-id="{session.json()["id"]}"] .session-open').click()
-            expect(page.locator("#session-actions-btn")).to_be_visible()
+            page.wait_for_function(
+                "id => window._currentSession?.id === id", arg=session.json()["id"]
+            )
+            expect(page.locator("#aide-history-context")).to_be_visible()
+            expect(page.locator("#aide-history-name")).to_contain_text(f"returning chat {width}")
+            page.locator("#aide-history-return").click()
+            page.wait_for_function("id => window._currentSession?.id === id", arg=primary_id)
+            expect(page.locator("#composer-ta")).to_have_value(draft)
             page.goto(f"{base}/?view=home", wait_until="networkidle")
             expect(page.locator("#today-view")).to_be_visible()
             expect(page.locator("#persona-btn")).to_be_hidden()
             expect(page.locator("#session-actions-btn")).to_be_hidden()
+            expect(page.locator("#aide-sidebar")).to_be_hidden()
+            page.locator("#app-drawer-btn").click()
+            page.locator('.app-drawer-item[data-view="chat"]').click()
+            page.wait_for_function("id => window._currentSession?.id === id", arg=primary_id)
+            expect(page.locator("#composer-ta")).to_have_value(draft)
+            expect(page.locator("#aide-sidebar")).to_be_hidden()
             assert not errors, errors
             context.close()
         browser.close()

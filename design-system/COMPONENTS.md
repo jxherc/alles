@@ -36,6 +36,8 @@ Use when the label is clearer than an icon. It has no visible container at rest.
 
 Use only for a widely understood action. Keep the SVG bare. The invisible hit area is 44px at every viewport. Add an accessible name and tooltip only when it adds meaning. No hover box, lift, or glow.
 
+Set `data-kokuen-icon` to a name from `static/js/icons.js`; the shared runtime centers the 16px mark and preserves the owning control's accessible name. The runtime also upgrades legacy single-glyph close, delete, move, and send controls so dynamically rendered features do not fall back to mismatched text glyphs.
+
 ## primary action
 
 One per screen. Use text and stronger tonal contrast, not a saturated filled pill. It must remain visible while the action is available and show progress without changing width.
@@ -70,6 +72,8 @@ same geometry; reduced motion removes the knob transition.
 ## field
 
 Visible label first, then control, helper or error below. Placeholder text is an example, never the label. Validation occurs at a useful time, preserves input, connects the error with `aria-describedby`, and says how to recover.
+
+Use `data-kokuen-entry="compact"` for one-line search/capture entry and `data-kokuen-entry="autogrow"` plus `wireAutosizeTextarea` for short multiline capture or composition. Autogrow starts at 44px, follows content, respects its CSS maximum and viewport, and then scrolls internally. Do not apply either sizing variant to long-form editors. If a wrapper owns the field boundary, keep the inner input borderless and let `:focus-within` expose the focus state once.
 
 ## search field
 

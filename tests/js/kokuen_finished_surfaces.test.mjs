@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import vm from 'node:vm';
 
 const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8');
@@ -148,13 +149,108 @@ test('the finished surfaces share the documented rhythm and safe motion', () => 
   }
 });
 
-test('a fresh phone session keeps Aide to one usable pane', () => {
-  assert.match(
-    appJs,
-    /storedAideSidebar === null && aideSidebarMedia\.matches/,
-  );
-  assert.match(appJs, /const aideSidebarMedia = window\.matchMedia\('\(max-width: 700px\)'\)/);
-  assert.doesNotMatch(appJs, /sidebar starts open at every width/);
+const centralJs = readFileSync(new URL('../../static/js/aidecentral.js', import.meta.url), 'utf8');
+const centralCss = readFileSync(new URL('../../static/aidecentral.css', import.meta.url), 'utf8');
+function archiveHarness({ width = 1440, stored = null } = {}) {
+  const extract = (source, name) => {
+    const result = source.match(new RegExp(`^(?:export )?function ${name}\\([^]*?^}`, 'm'))?.[0];
+    assert.ok(result, `exercise actual ${name} behavior`);
+    return result.replace(/^export /, '');
+  };
+  const bootStart = appJs.indexOf('  const aideSidebarMedia =');
+  const bootEnd = appJs.indexOf('\n  // these hit the server', bootStart);
+  assert.ok(bootStart >= 0 && bootEnd > bootStart, 'exercise the actual sidebar boot/resize initialization');
+  const classes = new Set(['is-aide', 'aide-central']);
+  const document = { activeElement: null, body: { classList: {
+    contains: name => classes.has(name),
+    toggle(name, on) { if (on) classes.add(name); else classes.delete(name); },
+  } }, dispatchEvent() {} };
+  const nodes = new Map();
+  const get = id => {
+    if (!nodes.has(id)) nodes.set(id, {
+      id, inert: false, isConnected: true, attributes: {},
+      closest: selector => selector === '.sidebar' && id.startsWith('aide-sidebar') ? get('aide-sidebar') : null,
+      toggleAttribute(name, on) { this[name] = on; },
+      setAttribute(name, value) { this.attributes[name] = value; },
+      focus() { document.activeElement = this; },
+    });
+    return nodes.get(id);
+  };
+  document.getElementById = get;
+  document.querySelector = selector => selector === '.main' ? get('main') : null;
+  const composer = get('composer-ta');
+  Object.assign(composer, { value: '  unfinished primary question\n中文  ', selectionStart: 4, selectionEnd: 12 });
+  document.activeElement = composer;
+  const storage = new Map([['aide-draft-v2-primary', '{"text":"saved primary question","document_scope":null}']]);
+  if (stored !== null) storage.set('aide-sidebar-hidden', stored);
+  const media = { matches: width <= 700, addEventListener(type, listener) { assert.equal(type, 'change'); this.listener = listener; } };
+  const window = { matchMedia: () => media, _currentSession: { id: 'primary', primary: true },
+    _pendingDocumentScope: { kind: 'vault_document', path: 'primary.md', expected_hash: 'owned' }, _closeAideTools() {} };
+  const location = { href: 'http://isolated.test/?view=chat#primary' };
+  const context = vm.createContext({ window, document, location,
+    CustomEvent: class {}, $: get, setAideToolsMenu() {}, closeContext() {},
+    localStorage: { getItem: name => storage.get(name) ?? null, setItem: (name, value) => storage.set(name, value) },
+  });
+  vm.runInContext(`let archiveInert = []; const menu = { close() {} };
+    const archiveBoundary = { activate({ focus }) { focus.focus(); }, deactivate() {} };
+    ${['restoreInert', 'suspend', 'archiveVisibility'].map(name => extract(centralJs, name)).join('\n')}
+    window._aideArchiveVisibility = archiveVisibility;
+    ${['setAideSidebarHidden', 'closeCompactAideSidebar'].map(name => extract(appJs, name)).join('\n')}
+    ${appJs.match(/^window\._setAideArchiveOpen = .*;$/m)?.[0]}
+    ${appJs.slice(bootStart, bootEnd)}
+    globalThis.closeArchive = closeCompactAideSidebar;
+  `, context);
+  return { window, document, get, classes, storage, composer, closeArchive: context.closeArchive,
+    resize: nextWidth => { media.matches = nextWidth <= 700; media.listener({ matches: media.matches }); },
+    snapshot: () => JSON.stringify({ session: window._currentSession, scope: window._pendingDocumentScope,
+      text: composer.value, start: composer.selectionStart, end: composer.selectionEnd, storage: [...storage], href: location.href }),
+  };
+}
+
+test('central Aide boots with archive closed at every size regardless of legacy sidebar preference', () => {
+  for (const width of [360, 700, 820, 1440]) for (const stored of [null, '', '1']) {
+    const h = archiveHarness({ width, stored });
+    assert.equal(h.classes.has('sidebar-hidden'), true, `archive unexpectedly open at ${width}px with saved preference ${stored}`);
+    assert.equal(h.get('aide-sidebar').inert, true);
+    assert.equal(h.get('sidebar-toggle-btn').attributes['aria-expanded'], 'false');
+    const before = h.snapshot();
+    for (const nextWidth of [1440, 360, 820]) {
+      h.resize(nextWidth);
+      assert.equal(h.classes.has('sidebar-hidden'), true, 'resizing must not open an archive the user did not request');
+      assert.equal(h.get('aide-sidebar').inert, true);
+    }
+    assert.equal(h.snapshot(), before);
+  }
+});
+
+test('deliberate archive browsing preserves the primary owner, route and exact unsent draft on desktop and phone', () => {
+  for (const width of [360, 1440]) {
+    const h = archiveHarness({ width, stored: '' });
+    const before = h.snapshot();
+    h.window._setAideArchiveOpen(true);
+    assert.equal(h.classes.has('sidebar-hidden'), false);
+    assert.equal(h.get('aide-sidebar').inert, false);
+    assert.equal(h.get('main').inert, true, 'archive is an explicit modal surface, not a second default pane');
+    assert.equal(h.snapshot(), before, 'opening archive alone must not select or create a conversation');
+    assert.equal(h.closeArchive({ restoreFocus: true }), true, 'central archive closes even on desktop');
+    assert.equal(h.classes.has('sidebar-hidden'), true);
+    assert.equal(h.get('aide-sidebar').inert, true);
+    assert.equal(h.get('main').inert, false);
+    assert.equal(h.document.activeElement, h.get('aide-more-btn'));
+    assert.equal(h.snapshot(), before);
+  }
+});
+
+test('archive remains an explicitly labelled More action and its closed presentation is not phone-only', () => {
+  assert.match(html, /<button[^>]+role="menuitem"[^>]+data-aide-central-action="archive"/);
+  assert.match(centralJs, /if \(value === 'archive'\) window\._setAideArchiveOpen\?\.\(true\)/);
+  assert.match(html, /<aside[^>]+id="aide-sidebar"[^>]+role="dialog"[^>]+aria-modal="true"[^>]+aria-labelledby="aide-archive-title"/);
+  const hiddenRule = centralCss.match(/body\.aide-central\[data-space="aide"\]\.sidebar-hidden \.sidebar\s*\{\s*display:\s*none !important;/);
+  assert.ok(hiddenRule, 'the closed archive has an explicit display:none rule');
+  const precedingCss = centralCss.slice(0, hiddenRule.index).replace(/\/\*[^]*?\*\//g, '');
+  const nesting = [...precedingCss].reduce((depth, character) => depth + (character === '{' ? 1 : character === '}' ? -1 : 0), 0);
+  assert.equal(nesting, 0, 'archive hiding applies at stylesheet root, not only inside a phone media query');
+  assert.match(centralCss, /body\.aide-central\[data-space="aide"\] \.main\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;/);
 });
 
 test('current file controls use buttons and selection state rather than hover-only actions', () => {

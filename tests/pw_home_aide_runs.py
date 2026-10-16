@@ -560,6 +560,9 @@ def run():
                 record("lost-retry-reload-creates-one-child")
                 panel.get_by_role("button", name="open conversation", exact=True).click()
                 expect(panel).to_have_count(0)
+                page.wait_for_function(
+                    "id => window._currentSession?.id === id", arg=retry_job["session"]
+                )
                 assert retry_job["session"] in page.url
                 record("open-exact-conversation")
                 assert not errors, errors

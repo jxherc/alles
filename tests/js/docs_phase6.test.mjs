@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
+import vm from 'node:vm';
 
 const docs = fs.readFileSync(new URL('../../static/js/docs.js', import.meta.url), 'utf8');
 const notes = fs.readFileSync(new URL('../../static/js/notes.js', import.meta.url), 'utf8');
@@ -281,14 +282,61 @@ test('Aide receives a visible selection of exact note versions', () => {
   assert.match(html, /id="aide-document-scope"/);
 });
 
-test('Docs saves the visible draft before handing its exact revision to Aide', () => {
+test('Docs saves the visible draft before handing its exact revision to Aide', async () => {
   const handoff = docs.match(/async function askAideAboutCurrent\(\)[\s\S]*?\n}/)?.[0] || '';
   assert.match(handoff, /if \(current && _dirty\) \{\s*if \(!\(await saveCurrent\(\)\)\) return/);
   assert.ok(handoff.indexOf('await saveCurrent()') < handoff.indexOf('window._askInChat'));
   assert.match(handoff, /current\.expected_hash = _doc\.hash/);
   const inline = app.match(/window\._askInChat = async[\s\S]*?\n};/)?.[0] || '';
-  assert.match(inline, /if \(!\(await navigateTo\('chat'\)\)\) return/);
   assert.doesNotMatch(inline, /canOpenAideInline[^]*?showChatView\(\)/);
+  assert.ok(inline, 'execute the actual handoff implementation');
+  for (const projectId of ['', 'project-one']) {
+    for (const allowed of [false, true]) {
+      const calls = [];
+      const scope = { kind: 'vault_documents', documents: [{ path: 'note.md', hash: 'saved-revision' }] };
+      const textarea = { value: 'unsent draft', dispatchEvent: event => calls.push(['input', event.type]) };
+      let resolveNavigation;
+      const navigation = new Promise(resolve => { resolveNavigation = resolve; });
+      const window = {
+        _currentSession: { project_id: 'previous-project' },
+        _setAideDocumentScope: value => calls.push(['scope', value]),
+      };
+      vm.runInNewContext(inline, {
+        window,
+        document: { getElementById: id => id === 'composer-ta' ? textarea : null },
+        singleHost: () => true,
+        getSendBlockReason: () => '',
+        navigateTo: (view, options) => {
+          calls.push(['navigate', view, options?.preserveSession]);
+          return navigation;
+        },
+        newChat: options => {
+          calls.push(['newChat', options.projectId]);
+          window._currentSession.project_id = options.projectId;
+          return true;
+        },
+        sendMessage: async text => calls.push(['send', text]),
+        Event: class { constructor(type) { this.type = type; } },
+      });
+      const pending = window._askInChat('explain the saved draft', false, scope, projectId);
+      await new Promise(resolve => setImmediate(resolve));
+      assert.deepEqual(calls, [['navigate', 'chat', Boolean(projectId)]]);
+      assert.equal(textarea.value, 'unsent draft', 'navigation must finish before draft replacement');
+      resolveNavigation(allowed);
+      assert.equal(await pending, allowed);
+      if (!allowed) {
+        assert.deepEqual(calls, [['navigate', 'chat', Boolean(projectId)]]);
+        assert.equal(textarea.value, 'unsent draft');
+      } else {
+        assert.deepEqual(calls, [
+          ['navigate', 'chat', Boolean(projectId)],
+          ...(projectId ? [['newChat', projectId]] : []),
+          ['scope', scope], ['input', 'input'], ['send', 'explain the saved draft'],
+        ]);
+        assert.equal(textarea.value, 'explain the saved draft');
+      }
+    }
+  }
 });
 
 test('Docs and Journal use semantic svg icons, not generic rectangle marks', () => {

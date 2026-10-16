@@ -4,6 +4,7 @@ import { getCurrentEndpoint, getSelected } from './models.js?v=212';
 import { prompt as dlgPrompt } from './dialog.js';
 import { toast } from './util.js';
 import { t } from './i18n.js';
+import { initAideCoding, openAideCoding } from './aidecoding.js';
 
 const $ = id => document.getElementById(id);
 
@@ -451,7 +452,7 @@ function syncNewTaskContext(session = window._currentSession) {
   }
   const project = selectedProject(session);
   const workingDir = selectedWorkingDir(session);
-  label.textContent = project?.name || (workingDir ? folderName(workingDir) : t('aide.tasks'));
+  label.textContent = project?.name || (workingDir ? folderName(workingDir) : document.body.classList.contains('aide-central') ? 'context' : t('aide.tasks'));
   closeProjectMenu();
   if (!row.hidden) loadBranchContext(project, session);
   else {
@@ -459,6 +460,7 @@ function syncNewTaskContext(session = window._currentSession) {
     branchContext = null;
     syncBranchButton();
   }
+  document.dispatchEvent(new CustomEvent('alles:aide-session'));
 }
 
 function setPanelOpen(open, focusInside = true) {
@@ -627,26 +629,39 @@ async function connectTerminal() {
   }
 }
 
-function setTerminalOpen(open) {
+function setWorkView(view = '') {
   const terminal = $('aide-terminal');
+  const coding = $('aide-coding');
   const tools = $('aide-task-tools');
   const panel = $('aide-work-panel');
   const back = $('aide-work-panel-back');
   const title = $('aide-work-panel-title');
   if (!terminal || !tools || !panel || !back || !title) return;
-  terminal.hidden = !open;
-  tools.hidden = open;
-  panel.classList.toggle('terminal-open', open);
-  back.hidden = !open;
-  title.textContent = open ? 'terminal' : 'task tools';
-  if (open) {
+  terminal.hidden = view !== 'terminal';
+  if (coding) coding.hidden = view !== 'coding';
+  tools.hidden = !!view;
+  panel.classList.toggle('terminal-open', view === 'terminal');
+  panel.classList.toggle('coding-open', view === 'coding');
+  back.hidden = !view;
+  title.textContent = view || 'task tools';
+  if (view === 'terminal') {
     connectTerminal();
   } else disconnectTerminal();
+  if (view === 'coding') openAideCoding();
+}
+
+function setTerminalOpen(open) {
+  setWorkView(open ? 'terminal' : '');
 }
 
 function openDestination(tool) {
   if (tool === 'terminal') {
-    setTerminalOpen(true);
+    setWorkView('terminal');
+    return;
+  }
+  if (tool === 'coding') {
+    setPanelOpen(false, false);
+    document.dispatchEvent(new CustomEvent('alles:aide-coding-open'));
     return;
   }
   setPanelOpen(false, false);
@@ -748,6 +763,8 @@ export function initAideWorkspace() {
   const chat = $('chat');
   if (!panel || !toggle || !messages || !chat || panel.dataset.wired) return;
   panel.dataset.wired = '1';
+  initAideCoding();
+  window._closeAideTools = () => setPanelOpen(false, false);
   window._syncAideNewTaskContext = syncNewTaskContext;
   $('aide-project-context')?.addEventListener('click', event => {
     event.stopPropagation();
@@ -806,7 +823,7 @@ export function initAideWorkspace() {
   });
   toggle.addEventListener('click', () => setPanelOpen(panel.hidden));
   $('aide-work-panel-close')?.addEventListener('click', () => setPanelOpen(false));
-  $('aide-work-panel-back')?.addEventListener('click', () => setTerminalOpen(false));
+  $('aide-work-panel-back')?.addEventListener('click', () => setWorkView(''));
   $('aide-task-tools')?.addEventListener('click', event => {
     const button = event.target.closest('[data-aide-tool]');
     if (button) openDestination(button.dataset.aideTool);
@@ -820,7 +837,7 @@ export function initAideWorkspace() {
   document.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || panel.hidden) return;
     event.preventDefault();
-    if (!$('aide-terminal')?.hidden) setTerminalOpen(false);
+    if (!$('aide-terminal')?.hidden) setWorkView('');
     else setPanelOpen(false);
   });
   rebuildRail();

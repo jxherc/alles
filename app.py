@@ -30,6 +30,12 @@ from routes import (
     agent as agent_routes,
 )
 from routes import (
+    aide as aide_routes,
+)
+from routes import (
+    aide_voice as aide_voice_routes,
+)
+from routes import (
     api_tokens as token_routes,
 )
 from routes import (
@@ -714,7 +720,11 @@ def _cleanup_empty_sessions():
             for (sid,) in (
                 db.query(Session.id)
                 .outerjoin(Msg, Msg.session_id == Session.id)
-                .filter(Session.starred.is_(False), Msg.id.is_(None))
+                .filter(
+                    Session.starred.is_(False),
+                    Session.aide_role != "primary",
+                    Msg.id.is_(None),
+                )
                 .all()
             )
         ]
@@ -885,6 +895,16 @@ async def lifespan(app: FastAPI):
                 "reconciled Aide runs after restart: %s interrupted, %s uncertain",
                 interrupted_jarvis["interrupted"],
                 interrupted_jarvis["uncertain"],
+            )
+
+        from services.aide_coding import reconcile_interrupted_runs as reconcile_coding_runs
+
+        interrupted_coding = reconcile_coding_runs()
+        if interrupted_coding["interrupted"] or interrupted_coding["uncertain"]:
+            log.warning(
+                "reconciled Aide coding runs after restart: %s interrupted, %s uncertain",
+                interrupted_coding["interrupted"],
+                interrupted_coding["uncertain"],
             )
 
         from services.andromeda_verifier import recover_interrupted as recover_andromeda_checks
@@ -1132,6 +1152,8 @@ app.add_middleware(ObservabilityMiddleware)
 app.include_router(auth_routes.router)
 app.include_router(chat.router)
 app.include_router(sessions.router)
+app.include_router(aide_routes.router)
+app.include_router(aide_voice_routes.router)
 app.include_router(models.router)
 app.include_router(setup_routes.router)
 app.include_router(settings_routes.router)
@@ -1309,6 +1331,8 @@ async def pwa_precache():
         add_url(f"/static/locales/{p.name}")
     for path, version in (
         ("vendor/cm6.bundle.js", ""),
+        ("vendor/inter/InterVariable.woff2", ""),
+        ("vendor/inter/InterVariable-Italic.woff2", ""),
         ("vendor/xterm/xterm.mjs", "?v=6.0.0"),
         ("vendor/xterm/addon-fit.mjs", "?v=0.11.0"),
     ):

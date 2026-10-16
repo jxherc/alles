@@ -283,21 +283,6 @@ function _initSettings() {
     document.getElementById(id)?.addEventListener('blur', saveSearchSettings));
   document.getElementById('s-search-count')?.addEventListener('change', saveSearchSettings);
   document.getElementById('s-search-test-btn')?.addEventListener('click', testSearch);
-  document.getElementById('s-andromeda-results')?.addEventListener('click', event => {
-    const next = !event.currentTarget.classList.contains('on');
-    _setSwitch(event.currentTarget, next);
-    _patchSetting('andromeda_normal_results', next);
-  });
-  document.getElementById('s-andromeda-overview')?.addEventListener('click', event => {
-    const next = !event.currentTarget.classList.contains('on');
-    _setSwitch(event.currentTarget, next);
-    _patchSetting('andromeda_overview', next);
-  });
-  document.getElementById('s-andromeda-verification')?.addEventListener('click', event => {
-    const next = !event.currentTarget.classList.contains('on');
-    _setSwitch(event.currentTarget, next);
-    _patchSetting('andromeda_verification_enabled', next);
-  });
   document.getElementById('s-andromeda-verifier-mode')?.addEventListener('change', event => {
     _patchSetting('andromeda_verifier_mode', getDropdownValue(event.currentTarget));
   });
@@ -487,7 +472,8 @@ const _SEARCH_KEY_FIELDS = {
 
 async function loadSearchPane() {
   try {
-    const s = await fetch('/api/settings').then(r => r.json());
+    const s = await _loadPaneSettings('search');
+    if (!s) return;
     const prov = s.search_provider || 'duckduckgo';
     setDropdownValue(document.getElementById('s-search-provider'), prov);
     setDropdownValue(document.getElementById('s-search-fallback'), s.search_fallback || 'duckduckgo');
@@ -502,16 +488,17 @@ async function loadSearchPane() {
     _updateSearchKeyRow();
     _updateSearchStatus(s);
     await loadAndromedaSearchSettings(s);
-  } catch {}
+  } catch { toast('could not load search settings; reopen this section to retry', 'error'); }
 }
 
 let _andromedaModelChoices = new Map();
 let _andromedaModelBands = {};
 
 async function loadAndromedaSearchSettings(settings) {
-  _setSwitch(document.getElementById('s-andromeda-results'), settings.andromeda_normal_results !== false);
-  _setSwitch(document.getElementById('s-andromeda-overview'), settings.andromeda_overview !== false);
-  _setSwitch(document.getElementById('s-andromeda-verification'), settings.andromeda_verification_enabled !== false);
+  for (const [id, key] of [['s-andromeda-results', 'andromeda_normal_results'],
+    ['s-andromeda-overview', 'andromeda_overview'], ['s-andromeda-verification', 'andromeda_verification_enabled']]) {
+    _bindSwitch(document.getElementById(id), () => settings[key] !== false, value => _patchSetting(key, value));
+  }
   const verifierMode = document.getElementById('s-andromeda-verifier-mode');
   if (verifierMode) setDropdownValue(verifierMode, settings.andromeda_verifier_mode || 'freshness-sensitive');
   const band = document.getElementById('s-andromeda-band');
@@ -1640,8 +1627,20 @@ async function addWebhook() {
 }
 
 // ── recall pane ───────────────────────────────────────────────────────────────
+async function _loadPaneSettings(name) {
+  try {
+    const settings = await _endpointJson(await fetch('/api/settings'));
+    if (!Number.isFinite(settings?.context_limit) || typeof settings.language !== 'string') throw new Error('incomplete settings');
+    return settings;
+  } catch (error) {
+    toast(`could not load ${name} settings: ${error.message || 'server unavailable'}. reopen this section to retry.`, 'error');
+    return null;
+  }
+}
+
 async function loadRecallPane() {
-  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  const s = await _loadPaneSettings('recall');
+  if (!s) return;
   const keys = ['enabled', 'mail', 'note', 'journal', 'contact', 'read', 'book'];
   for (const k of keys) {
     const el = document.getElementById('s-pidx-' + k);
@@ -1667,23 +1666,31 @@ async function loadRecallPane() {
     });
   }
   const cb = document.getElementById('s-pidx-clear');
-  if (cb && !cb.dataset.bound) { cb.dataset.bound = '1'; cb.addEventListener('click', async () => { if (!await _dlgConfirm('clear the recall index?')) return; await fetch('/api/recall/clear', { method: 'POST' }); loadRecallPane(); }); }
+  if (cb && !cb.dataset.bound) {
+    cb.dataset.bound = '1';
+    let pending = false;
+    cb.addEventListener('click', async () => {
+      if (pending) return;
+      pending = true;
+      try {
+        if (!await _dlgConfirm('clear the recall index?')) return;
+        cb.disabled = true;
+        const result = await _endpointJson(await fetch('/api/recall/clear', { method: 'POST' }));
+        if (!Number.isInteger(result?.removed) || result.removed < 0) throw new Error('clear result could not be confirmed');
+        await loadRecallPane();
+      } catch { toast('clear failed; try again', 'error'); }
+      finally { pending = false; cb.disabled = false; }
+    });
+  }
 }
 
 async function loadProactivePane() {
-  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
-  // bind a switch once (visual state refreshed every open), guard against listener leak
+  const s = await _loadPaneSettings('background checks');
+  if (!s) return;
   const sw = (id, key, defOn) => {
     const el = document.getElementById(id);
     if (!el) return;
-    _setSwitch(el, s[key] === undefined ? defOn : !!s[key]);
-    if (el.dataset.bound) return;
-    el.dataset.bound = '1';
-    el.addEventListener('click', () => {
-      const next = !el.classList.contains('on');
-      _setSwitch(el, next);
-      _patchSetting(key, next);
-    });
+    _bindSwitch(el, () => s[key] === undefined ? defOn : !!s[key], value => _patchSetting(key, value));
   };
   sw('s-prox-enabled', 'pidx_proactive_enabled', false);
   sw('s-prox-cat-task', 'pidx_proactive_cat_task', true);
@@ -1714,15 +1721,8 @@ async function loadProactivePane() {
   // channel is a string ("push" | "inapp"), drive it from one switch
   const pushEl = document.getElementById('s-prox-push');
   if (pushEl) {
-    _setSwitch(pushEl, s.pidx_proactive_channel === 'push');
-    if (!pushEl.dataset.bound) {
-      pushEl.dataset.bound = '1';
-      pushEl.addEventListener('click', () => {
-        const next = !pushEl.classList.contains('on');
-        _setSwitch(pushEl, next);
-        _patchSetting('pidx_proactive_channel', next ? 'push' : 'inapp');
-      });
-    }
+    _bindSwitch(pushEl, () => s.pidx_proactive_channel === 'push',
+      value => _patchSetting('pidx_proactive_channel', value ? 'push' : 'inapp'));
   }
 
   const run = document.getElementById('s-prox-run');
@@ -1760,18 +1760,12 @@ async function loadProactivePane() {
 }
 
 async function loadIntelligencePane() {
-  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  const s = await _loadPaneSettings('patterns & suggestions');
+  if (!s) return;
   const sw = (id, key, defOn) => {
     const el = document.getElementById(id);
     if (!el) return;
-    _setSwitch(el, s[key] === undefined ? defOn : !!s[key]);
-    if (el.dataset.bound) return;
-    el.dataset.bound = '1';
-    el.addEventListener('click', () => {
-      const next = !el.classList.contains('on');
-      _setSwitch(el, next);
-      _patchSetting(key, next);
-    });
+    _bindSwitch(el, () => s[key] === undefined ? defOn : !!s[key], value => _patchSetting(key, value));
   };
   sw('s-intel-insights', 'insights_enabled', false);
   sw('s-intel-insights-inject', 'insights_auto_inject', true);
@@ -1811,20 +1805,31 @@ let _rulesWired = false;
 let _editingRule = null;   // rule id being edited (null = adding a new one)
 let _ruleSavePending = false;
 let _ruleFormRevision = 0;
+let _rulesRead = 0;
+let _rulesPaneRead = 0;
+const _ruleMutations = new Set();
 
 // one-click starting points — prefill the form with a sensible rule to tweak
 const _RULE_PRESETS = [
-  { label: '☀ morning digest', trigger: 'daily_at', trigger_arg: '08:00', action: 'push_digest', action_arg: '', name: 'morning digest' },
-  { label: '✈ briefing → discord/telegram', trigger: 'daily_at', trigger_arg: '08:00', action: 'notify_digest', action_arg: '', name: 'morning briefing' },
-  { label: '📥 important email → task', trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: '{subject}: from {from}', name: '' },
-  { label: '💳 renewal heads-up', trigger: 'sub_renewing', trigger_arg: '3', action: 'push', action_arg: '{name} renews in 3 days', name: 'renewal reminder' },
-  { label: '📅 upcoming day', trigger: 'day_event_near', trigger_arg: '7', action: 'push', action_arg: '{name} is in a week', name: '' },
+  { label: 'morning digest', trigger: 'daily_at', trigger_arg: '08:00', action: 'push_digest', action_arg: '', name: 'morning digest' },
+  { label: 'briefing → discord/telegram', trigger: 'daily_at', trigger_arg: '08:00', action: 'notify_digest', action_arg: '', name: 'morning briefing' },
+  { label: 'important email → task', trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: '{subject}: from {from}', name: '' },
+  { label: 'renewal heads-up', trigger: 'sub_renewing', trigger_arg: '3', action: 'push', action_arg: '{name} renews in 3 days', name: 'renewal reminder' },
+  { label: 'upcoming day', trigger: 'day_event_near', trigger_arg: '7', action: 'push', action_arg: '{name} is in a week', name: '' },
 ];
 
 async function loadRulesPane() {
+  const read = ++_rulesPaneRead;
   if (!_ruleOpts) {
-    try { _ruleOpts = await fetch('/api/automations/options').then(r => r.json()); }
-    catch { _ruleOpts = { triggers: [], actions: [] }; }
+    try {
+      const options = await _endpointJson(await fetch('/api/automations/options'));
+      if (!Array.isArray(options?.triggers) || !Array.isArray(options?.actions)) throw new Error('incomplete rule options');
+      if (read !== _rulesPaneRead) return;
+      _ruleOpts = options;
+    } catch {
+      if (read === _rulesPaneRead) toast('could not load rule options; reopen this section to retry', 'error');
+      return;
+    }
   }
   const trigEl = document.getElementById('rule-trigger');
   const actEl = document.getElementById('rule-action');
@@ -1855,7 +1860,8 @@ async function loadRulesPane() {
     _renderRulePresets();
   }
   // delivery channels (discord / telegram) persist as settings; the notify actions use them
-  const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  const s = await _loadPaneSettings('rules & delivery');
+  if (!s || read !== _rulesPaneRead) return;
   for (const [id, key] of [['s-notify-discord', 'notify_discord_webhook'],
                            ['s-notify-tgtoken', 'notify_telegram_token'],
                            ['s-notify-tgchat', 'notify_telegram_chat_id']]) {
@@ -1906,8 +1912,16 @@ function _resetRuleForm() {
 async function _renderRules() {
   const el = document.getElementById('rules-list');
   if (!el) return;
-  let rules = [];
-  try { rules = await fetch('/api/automations').then(r => r.json()); } catch {}
+  const read = ++_rulesRead;
+  let rules;
+  try {
+    rules = await _endpointJson(await fetch('/api/automations'));
+    if (!Array.isArray(rules)) throw new Error('incomplete rules list');
+  } catch {
+    if (read === _rulesRead) toast('could not load rules; reopen this section to retry', 'error');
+    return;
+  }
+  if (read !== _rulesRead) return;
   if (!rules.length) {
     el.innerHTML = '<div class="settings-row-empty">no rules yet: your first automation is one form away</div>';
     return;
@@ -1926,22 +1940,33 @@ async function _renderRules() {
     </div>`).join('');
   el.querySelectorAll('.rule-row').forEach(row => {
     const id = row.dataset.id;
+    row.querySelectorAll('button').forEach(button => { button.disabled = _ruleMutations.has(id); });
     row.querySelector('.rule-row-main')?.addEventListener('click', () => {
       const r = rules.find(x => x.id === id);
       if (r) _fillRuleForm(r, id);
     });
     row.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', async () => {
-      if (b.dataset.act === 'del') {
-        await fetch(`/api/automations/${id}`, { method: 'DELETE' });
-        _renderRules(); return;
-      }
-      if (b.dataset.act === 'toggle') {
-        const off = row.classList.contains('off');
-        await fetch(`/api/automations/${id}`, {
-          method: 'PATCH', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ enabled: off }),
-        });
-        _renderRules(); return;
+      if (b.dataset.act === 'del' || b.dataset.act === 'toggle') {
+        if (_ruleMutations.has(id)) return;
+        const deleting = b.dataset.act === 'del';
+        const enabled = row.classList.contains('off');
+        _ruleMutations.add(id);
+        ++_rulesRead;
+        row.querySelectorAll('button').forEach(button => { button.disabled = true; });
+        try {
+          const result = await _endpointJson(await fetch(`/api/automations/${id}`, deleting ? { method: 'DELETE' } : {
+            method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled }),
+          }));
+          if (deleting ? result?.ok !== true : result?.id !== id || result.enabled !== enabled) throw new Error('rule change could not be confirmed');
+          await _renderRules();
+        } catch { toast(deleting ? 'rule could not be deleted; try again' : 'rule could not be updated; try again', 'error'); }
+        finally {
+          _ruleMutations.delete(id);
+          el.querySelectorAll('.rule-row').forEach(current => {
+            if (current.dataset.id === id) current.querySelectorAll('button').forEach(button => { button.disabled = false; });
+          });
+        }
+        return;
       }
       if (b.dataset.act === 'test') {
         if (b.disabled) return;

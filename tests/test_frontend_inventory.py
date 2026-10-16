@@ -123,10 +123,13 @@ class FrontendInventoryTests(unittest.TestCase):
             ):
                 self._assert_shipped_module_reachability(directory)
 
-    def test_composer_keeps_microphone_without_the_nonfunctional_live_voice_control(self):
+    def test_composer_keeps_dictation_and_the_working_live_voice_entry(self):
         html = (ROOT / "static/index.html").read_text()
         self.assertIn('id="mic-btn"', html)
-        self.assertNotIn('id="live-voice-btn"', html)
+        self.assertIn('id="aide-call-open"', html)
+        self.assertIn('id="aide-call-workspace"', html)
+        source = (ROOT / "static/js/app.js").read_text()
+        self.assertIn("initLiveVoice", source)
 
 
 if __name__ == "__main__":

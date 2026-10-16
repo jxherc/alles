@@ -1,146 +1,185 @@
-"""8c UI — labeled fields, avatar, Me badge, address map, groups, duplicate merge.
-contacts.localhost:8866.  ALLES_DATA=/tmp/alles8c PORT=8866 AUTH_ENABLED=false python app.py
-"""
+"""Owned Contacts labeled fields, avatar, Me badge, smart groups and duplicate merge."""
 
+import io
 import json
-import sys
-import urllib.request
+import os
+import traceback
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from playwright.sync_api import sync_playwright
-
-
-def _seed(contact):
-    """create a contact straight against the server (IPv4, no browser/SW) and return its id."""
-    req = urllib.request.Request(
-        "http://127.0.0.1:8866/api/contacts",
-        data=json.dumps(contact).encode(),
-        headers={"content-type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=10) as r:
-        return json.loads(r.read())["id"]
+from browser_gate_safety import require_server_ownership
+from PIL import Image
+from playwright.sync_api import expect, sync_playwright
 
 
-CON = "http://contacts.localhost:8866"
-EVID = Path(__file__).resolve().parent.parent / "docs" / "evidence" / "8c"
-IGNORE = ("Failed to load resource", "net::", "ERR_", "favicon", "401", "Load failed")
+def run():
+    base = f"http://127.0.0.1:{os.environ['PORT']}"
+    require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
+    output = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
+    records = []
+    stream = io.BytesIO()
+    Image.new("RGB", (24, 24), "blue").save(stream, format="PNG")
+    avatar = stream.getvalue()
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        for width, theme in [(1440, "dark"), (390, "light")]:
+            context = browser.new_context(
+                viewport={"width": width, "height": 900},
+                service_workers="block",
+                reduced_motion="reduce",
+                has_touch=width == 390,
+            )
+            context.tracing.start(screenshots=True, snapshots=True, sources=True)
+            page = context.new_page()
+            page.set_default_timeout(8000)
+            errors, console, external = [], [], []
+            record = {"profile": f"{width}-{theme}", "status": "failed", "checks": []}
+            records.append(record)
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            page.on(
+                "console",
+                lambda message: console.append(message.text) if message.type == "error" else None,
+            )
 
+            def boundary(route):
+                if urlsplit(route.request.url).netloc == urlsplit(base).netloc:
+                    route.continue_()
+                else:
+                    external.append(route.request.url)
+                    route.abort("blockedbyclient")
 
-def main():
-    EVID.mkdir(parents=True, exist_ok=True)
-    r = {}
-    errs = []
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        pg = b.new_context().new_page()
-        pg.on(
-            "console",
-            lambda m: (
-                errs.append(m.text)
-                if m.type == "error" and not any(x in m.text for x in IGNORE)
-                else None
-            ),
-        )
-        pg.on(
-            "pageerror",
-            lambda e: errs.append(str(e)) if not any(x in str(e) for x in IGNORE) else None,
-        )
+            context.route("**/*", boundary)
+            context.route_web_socket("**/*", lambda socket: socket.close())
+            api = context.request
 
-        ada = _seed({"name": "Ada Lovelace", "address": "12 Baker St, London", "tags": ["vip"]})
-        _seed({"name": "Jane Doe", "email": "jane@x.com"})
-        _seed({"name": "jane doe", "email": "jane2@x.com"})
+            def post(path, body):
+                response = api.post(base + path, data=body)
+                assert response.ok, response.text()
+                return response.json()
 
-        pg.goto(f"{CON}/", wait_until="domcontentloaded")
-        pg.wait_for_selector("#contacts-view", timeout=15000)
-        pg.wait_for_selector(".contact-item", timeout=12000)
+            def read(path):
+                response = api.get(base + path)
+                assert response.ok, response.text()
+                return response.json()
 
-        # ---- open Ada's detail; add a labeled field ----
-        pg.eval_on_selector(f'[data-open="{ada}"]', "el => el.click()")
-        pg.wait_for_selector(".contact-detail", timeout=8000)
-        r["address_map_link"] = pg.query_selector(".contact-map") is not None
-        pg.eval_on_selector("#cd-fkind", "el => { el.value='phone'; }")
-        pg.fill("#cd-flabel", "mobile")
-        pg.fill("#cd-fvalue", "555-9000")
-        pg.eval_on_selector("#cd-fadd", "el => el.click()")
-        pg.wait_for_selector(".cd-field-row", timeout=8000)
-        r["field_add_shows"] = "555-9000" in (pg.text_content("#cd-fields") or "")
+            def click(target):
+                target.tap() if width == 390 else target.click()
 
-        # ---- avatar upload ----
-        png = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00"
-            b"\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc```\x00\x00\x00\x04\x00\x01\xf6\x178U\x00\x00\x00\x00IEND\xaeB`\x82"
-        )
-        tmp = Path(EVID) / "_av.png"
-        tmp.write_bytes(png)
-        pg.set_input_files("#cd-avatar", str(tmp))
-        pg.wait_for_selector(".contact-detail-head img.contact-av-lg", timeout=8000)
-        r["avatar_uploads"] = (
-            pg.query_selector(".contact-detail-head img.contact-av-lg") is not None
-        )
+            try:
+                assert api.post(base + "/api/setup/dismiss").ok
+                assert api.patch(base + "/api/settings", data={"theme": theme, "language": "en"}).ok
+                ada = post(
+                    "/api/contacts",
+                    {
+                        "name": f"Ada {width}",
+                        "address": "12 Baker St, London",
+                        "tags": [f"vip-{width}"],
+                    },
+                )
+                jane = post(
+                    "/api/contacts",
+                    {"name": f"Jane {width}", "email": f"jane-{width}@example.invalid"},
+                )
+                duplicate = post(
+                    "/api/contacts",
+                    {"name": f"jane {width}", "email": f"jane2-{width}@example.invalid"},
+                )
+                page.goto(base + "/?view=contacts", wait_until="networkidle")
+                click(page.locator(f'[data-open="{ada["id"]}"]'))
+                expect(page.locator(".contact-detail")).to_be_visible()
+                expect(page.locator(".contact-map")).to_be_visible()
+                click(page.locator("#cd-fkind"))
+                click(page.get_by_role("option", name="phone", exact=True))
+                page.locator("#cd-flabel").fill("mobile")
+                page.locator("#cd-fvalue").fill("555-9000")
+                click(page.locator("#cd-fadd"))
+                expect(page.locator("#cd-fields")).to_contain_text("555-9000")
+                expect(page.locator("#cd-fields")).to_contain_text("mobile")
+                fields = read(f"/api/contacts/{ada['id']}/fields")
+                assert any(
+                    field["kind"] == "phone"
+                    and field["label"] == "mobile"
+                    and field["value"] == "555-9000"
+                    for field in fields
+                )
+                record["checks"].append(
+                    "real custom choice and labeled phone field saved; address map link visible"
+                )
+                page.locator("#cd-avatar").set_input_files(
+                    {"name": "avatar.png", "mimeType": "image/png", "buffer": avatar}
+                )
+                picture = page.locator(".contact-detail-head img.contact-av-lg")
+                expect(picture).to_be_visible()
+                response = api.get(base + picture.get_attribute("src"))
+                assert response.ok and response.body() == avatar
+                click(page.locator("#cd-me"))
+                expect(page.locator("#cd-me")).to_have_class("btn ic-btn-lbl primary")
+                click(page.locator("#cd-back"))
+                expect(
+                    page.locator(f'.contact-item[data-id="{ada["id"]}"] .contact-me-badge')
+                ).to_be_visible()
+                assert read(f"/api/contacts/{ada['id']}")["is_me"] is True
+                record["checks"].append(
+                    "avatar exact bytes reopen; Me flag persists and renders badge"
+                )
+                page.screenshot(path=str(output / f"{width}-contacts.png"))
 
-        # ---- set as me, back to list, badge shows ----
-        pg.eval_on_selector("#cd-me", "el => el.click()")
-        pg.wait_for_function("document.getElementById('cd-me')?.classList.contains('primary')")
-        pg.eval_on_selector("#cd-back", "el => el.click()")
-        # a dropped keep-alive can make loadContacts show "failed to load"; reload once if so
-        try:
-            pg.wait_for_selector(".contact-item", timeout=6000)
-        except Exception:
-            pg.goto(f"{CON}/", wait_until="domcontentloaded")
-            pg.wait_for_selector(".contact-item", timeout=10000)
-        r["me_badge"] = pg.query_selector(".contact-me-badge") is not None
-        pg.screenshot(path=str(EVID / "contacts-list.png"))
+                click(page.locator("#contacts-groups-btn"))
+                click(page.locator("#cg-add"))
+                page.get_by_role("textbox", name="group name:", exact=True).fill(f"VIPs {width}")
+                click(page.locator("[data-dialog-confirm]"))
+                page.get_by_role(
+                    "textbox",
+                    name="smart rule: tag to auto-include (blank for a manual group)",
+                    exact=True,
+                ).fill(f"vip-{width}")
+                click(page.locator("[data-dialog-confirm]"))
+                expect(page.locator("#cg-list")).to_contain_text(f"VIPs {width}")
+                group = next(
+                    item for item in read("/api/contacts/groups") if item["name"] == f"VIPs {width}"
+                )
+                members = read(f"/api/contacts/groups/{group['id']}/members")
+                assert group["smart"] and [item["id"] for item in members] == [ada["id"]]
+                record["checks"].append(
+                    "smart group created via dialogs and exact tag membership verified"
+                )
+                page.screenshot(path=str(output / f"{width}-groups.png"))
 
-        # ---- groups: create a smart group by tag ----
-        pg.eval_on_selector("#contacts-groups-btn", "el => el.click()")
-        pg.wait_for_selector("#cg-add", timeout=8000)
-        pg.eval_on_selector("#cg-add", "el => el.click()")
-        pg.wait_for_selector("#_di", timeout=5000)
-        pg.fill("#_di", "VIPs")
-        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
-        pg.wait_for_selector("#_di", timeout=5000)
-        pg.fill("#_di", "vip")
-        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
-        pg.wait_for_selector("#cg-list .settings-list-row", timeout=8000)
-        gtext = pg.text_content("#cg-list") or ""
-        r["group_create"] = "VIPs" in gtext
-        # smart membership computed: the VIPs group resolves >=1 vip-tagged contact
-        smart_n = pg.evaluate(
-            "() => fetch('/api/contacts/groups').then(r=>r.json())"
-            ".then(gs => { const g = gs.find(x=>x.name==='VIPs' && x.smart); return g ? "
-            "fetch('/api/contacts/groups/'+g.id+'/members').then(r=>r.json()).then(m=>m.length) : 0; })"
-        )
-        r["smart_group_lists"] = (smart_n or 0) >= 1
-        pg.screenshot(path=str(EVID / "groups.png"))
-
-        # ---- duplicates: merge the two janes ----
-        pg.eval_on_selector("#contacts-dups-btn", "el => el.click()")
-        pg.wait_for_selector(".dup-cluster", timeout=8000)
-        before = pg.evaluate("() => fetch('/api/contacts').then(r=>r.json()).then(a=>a.length)")
-        pg.eval_on_selector("[data-merge]", "el => el.click()")
-        merged = False
-        for _ in range(20):
-            pg.wait_for_timeout(300)
-            now = pg.evaluate("() => fetch('/api/contacts').then(r=>r.json()).then(a=>a.length)")
-            if now == before - 1:
-                merged = True
-                break
-        r["duplicate_merge"] = merged
-
-        r["zero_console_errors"] = len(errs) == 0
-        b.close()
-
-    ok = all(r.values())
-    lines = [f"{'PASS' if v else 'FAIL'}  {k}" for k, v in r.items()]
-    if errs:
-        lines.append(f"console_errors: {errs[:8]}")
-    out = "\n".join(lines)
-    (EVID / "pw_contacts_8c.txt").write_text(out, encoding="utf-8")
-    print(out)
-    print(f"\n{sum(bool(v) for v in r.values())}/{len(r)} assertions passed")
-    return 0 if ok else 1
+                click(page.locator("#contacts-dups-btn"))
+                cluster = page.locator(".dup-cluster").filter(has_text=f"Jane {width}")
+                expect(cluster).to_be_visible()
+                before = len(read("/api/contacts"))
+                with page.expect_response(
+                    lambda response: (
+                        response.url == base + "/api/contacts/merge"
+                        and response.request.method == "POST"
+                    )
+                ) as merged:
+                    click(cluster.locator("[data-merge]"))
+                assert merged.value.ok
+                expect(cluster).to_have_count(0)
+                contacts = read("/api/contacts")
+                assert len(contacts) == before - 1
+                assert sum(item["id"] in {jane["id"], duplicate["id"]} for item in contacts) == 1
+                record["checks"].append(
+                    "duplicate merge removes one contact and keeps one original identity"
+                )
+                page.screenshot(path=str(output / f"{width}-merged.png"))
+                assert not errors and not console and not external, (errors, console, external)
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+                record["status"] = "passed"
+            except Exception:
+                record["error"] = traceback.format_exc()
+                page.screenshot(path=str(output / f"{width}-failure.png"))
+            finally:
+                record.update(errors=errors, console=console, external=external)
+                (output / "scenarios.json").write_text(json.dumps(records, indent=2))
+                context.tracing.stop(path=str(output / f"contacts-{width}-trace.zip"))
+                context.close()
+        browser.close()
+    print(json.dumps(records, indent=2))
+    assert all(record["status"] == "passed" for record in records)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    run()

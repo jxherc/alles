@@ -7,7 +7,8 @@ const source = readFileSync(new URL('../../static/js/sessions.js', import.meta.u
 const drafts = source.slice(source.indexOf('const _legacyDraftKey'), source.indexOf('export function newChat'));
 const fresh = source.match(/^export function newChat\([^]*?^}/m)?.[0];
 const rowState = source.match(/^function syncSessionRowState\([^]*?^}/m)?.[0];
-assert.ok(drafts && fresh && rowState, 'exercise actual draft, newChat and row-state functions');
+const primaryState = source.match(/^export function setPrimaryConversationUnavailable\([^]*?^}/m)?.[0];
+assert.ok(drafts && fresh && rowState && primaryState, 'exercise actual draft, newChat and row-state functions');
 const copy = value => JSON.parse(JSON.stringify(value));
 const key = id => 'aide-draft-v2-' + (id || 'new');
 const scope = name => ({ kind: 'vault_documents', documents: [{ path: name, expected_hash: 'synthetic-hash' }] });
@@ -62,7 +63,7 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     return storageAPI;
   } });
   vm.runInContext(`let _activeId = ${JSON.stringify(id)}; let _composerGeneration = 7;\n`
-    + [drafts, rowState, fresh].join('\n').replace(/^export /gm, '')
+    + [drafts, rowState, primaryState, fresh].join('\n').replace(/^export /gm, '')
     + '\nglobalThis.subject = { save: saveDraft, fresh: newChat, state: () => ({ id: _activeId, generation: _composerGeneration }) };', context);
   return { field, document, messages, window, storage, notices, effects, storageCalls, state, recovery, location,
     fresh: options => context.subject.fresh(options), active: () => copy(context.subject.state()),
