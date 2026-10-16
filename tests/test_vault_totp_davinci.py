@@ -36,6 +36,18 @@ def independent_code(key: bytes, timestamp: int, period: int = 30, digits: int =
 
 
 class TotpDavinciCounterTests(unittest.TestCase):
+    def test_invalid_secrets_and_non_ascii_codes_are_rejected(self):
+        for secret, code in (
+            ("not-a-secret!", "123456"),
+            ("", "123456"),
+            (" ", "123456"),
+            ("秘密", "123456"),
+            ("JBSWY3DPEHPK3PXP", "１２３４５６"),
+            ("JBSWY3DPEHPK3PXP", "12345"),
+        ):
+            with self.subTest(secret=secret, code=code):
+                self.assertFalse(totp_verify(secret, code, t=1_700_000_000))
+
     def test_independent_step_large_counter_normalization_and_skew(self):
         key = hashlib.sha256(b"alles independent totp test fixture").digest()[:20]
         encoded = base64.b32encode(key).decode().rstrip("=")
@@ -114,6 +126,30 @@ class TotpDavinciEnrollmentTests(ApiTest):
     def tearDown(self):
         # All resources, including the base harness, are registered cleanups.
         pass
+
+    def test_invalid_enrollment_is_a_client_error_and_keeps_factors_unchanged(self):
+        for secret, code in (("not-a-secret!", "123456"), ("JBSWY3DPEHPK3PXP", "１２３４５６")):
+            with self.subTest(secret=secret, code=code):
+                response = self.client.post(
+                    "/api/vault/2fa/totp",
+                    headers=self.headers,
+                    json={"secret": secret, "code": code},
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertNotIn("default", core.settings.load_settings().get("vault_2fa_totp", {}))
+
+    def test_invalid_saved_secret_and_non_ascii_unlock_code_do_not_mint_tokens(self):
+        for secret, code in (("not-a-secret!", "123456"), ("JBSWY3DPEHPK3PXP", "１２３４５６")):
+            with self.subTest(secret=secret, code=code):
+                core.settings.save_settings({"vault_2fa_totp": {"default": secret}})
+                existing = dict(routes.vault._unlock_tokens)
+                response = self.client.post(
+                    "/api/vault/unlock/2fa/totp",
+                    json={"password": self.PASSWORD, "code": code},
+                )
+                self.assertEqual(response.status_code, 401)
+                self.assertNotIn("token", response.json())
+                self.assertEqual(routes.vault._unlock_tokens, existing)
 
     def test_independent_enrollment_expiry_and_settings_cache_reload(self):
         setup = self.client.post("/api/vault/2fa/totp/setup", headers=self.headers)

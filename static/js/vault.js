@@ -22,6 +22,7 @@ let _vaultId = 'default';  // 9c — which vault is currently unlocked
 let _vaults = [];          // 9c — known vaults for the switcher
 let _travel = false;       // 9c — travel mode on?
 let _wtOpen = false;       // 8d — is the watchtower panel showing? (the button is a real toggle)
+let _wtGeneration = 0;
 let _customTypes = {};     // 8e — user-defined entry types {key: {label, fields:[{key,label,kind,width,placeholder}]}}
 
 const $ = id => document.getElementById(id);
@@ -1018,6 +1019,7 @@ async function _bioUnlock() {
 // 9a — Watchtower security panel (weak / reused / breached)
 function _closeWatchtower() {
   _wtOpen = false;
+  _wtGeneration++;
   $('vault-watchtower-btn')?.classList.remove('active');
   _loadEntries();
 }
@@ -1027,17 +1029,35 @@ async function showWatchtower() {
   const list = $('vault-entry-list');
   if (!list) return;
   _wtOpen = true;
+  const generation = ++_wtGeneration;
+  const token = _token, vaultId = _vaultId;
+  const current = () => _wtOpen && generation === _wtGeneration && _sameVault(token, vaultId);
+  _entriesGeneration++;
   $('vault-watchtower-btn')?.classList.add('active');
-  list.innerHTML = '<div class="page-empty">scanning…</div>';
+  list.innerHTML = '<div class="page-empty" role="status">scanning…</div>';
   let d;
-  try { d = await _vfetch('/api/vault/watchtower').then(r => r.json()); }
-  catch { toast('scan failed', 'error'); _closeWatchtower(); return; }
-  const sec = (title, desc, rows, cls) => `
+  try {
+    const response = await _vfetch('/api/vault/watchtower');
+    if (!response.ok) throw new Error('scan failed');
+    d = await response.json();
+    if (!d || !['breached', 'reused', 'weak'].every(key => Array.isArray(d[key]))) throw new Error('invalid scan response');
+    if (!d.weak.every(row => row && typeof row.name === 'string')
+      || !d.breached.every(row => row && typeof row.name === 'string' && Number.isSafeInteger(row.count) && row.count > 0)
+      || !d.reused.every(row => row && Array.isArray(row.names) && row.names.every(name => typeof name === 'string'))) throw new Error('invalid scan response');
+  } catch {
+    if (current()) { toast('scan failed. try watchtower again.', 'error'); _closeWatchtower(); }
+    return;
+  }
+  if (!current()) return;
+  const check = d.breach_check;
+  const complete = check?.status === 'complete' && Number.isSafeInteger(check.total)
+    && check.total >= 0 && check.checked === check.total;
+  const sec = (title, desc, rows, cls, known = true) => `
     <div class="wt-section">
       <div class="wt-head ${cls}">${title} <span class="wt-n">${rows.length}</span></div>
       <div class="wt-desc">${desc}</div>
       ${rows.length ? rows.map(x => `<div class="wt-row">${x}</div>`).join('')
-        : `<div class="wt-clean">${_si('check')} all clear</div>`}
+        : known ? `<div class="wt-clean">${_si('check')} all clear</div>` : '<div class="wt-desc" role="status">breach check incomplete. try watchtower again when the lookup service is available.</div>'}
     </div>`;
   list.innerHTML = `
     <div class="vault-wt" id="vault-wt">
@@ -1045,7 +1065,8 @@ async function showWatchtower() {
         <button class="btn ic-btn-lbl" id="wt-back">${_si('chevron-left')} back to vault</button>
         <span class="wt-intro">Watchtower scans your saved passwords for problems: known data-breach exposure, the same password reused across logins, and weak/short passwords.</span>
       </div>
-      ${sec('breached', 'passwords found in known data breaches - change these first.', (d.breached || []).map(x => `${_esc(x.name)} <span class="wt-meta">seen ${formatNumber(x.count)}×</span>`), 'bad')}
+      ${!complete && d.breached.length ? '<p class="wt-desc" role="status">breach check incomplete. these findings cover only checked passwords; try watchtower again to check the rest.</p>' : ''}
+      ${sec('breached', 'passwords found in known data breaches - change these first.', d.breached.map(x => `${_esc(x.name)} <span class="wt-meta">seen ${formatNumber(x.count)}×</span>`), 'bad', complete)}
       ${sec('reused', 'the same password used on more than one login.', (d.reused || []).map(g => _esc(g.names.join(', '))), 'warn')}
       ${sec('weak', 'short or low-entropy passwords that are easy to guess.', (d.weak || []).map(x => _esc(x.name)), 'warn')}
     </div>`;
@@ -1785,6 +1806,9 @@ async function _doLock() {
 async function _loadEntries(fetcher = fetch) {
   const list = $('vault-entry-list');
   if (!list) return;
+  _wtOpen = false;
+  _wtGeneration++;
+  $('vault-watchtower-btn')?.classList.remove('active');
   const token = _token, vaultId = _vaultId;
   const generation = ++_entriesGeneration;
   const current = () => generation === _entriesGeneration && _unlocked && _token === token && _vaultId === vaultId;
