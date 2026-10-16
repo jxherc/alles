@@ -8585,10 +8585,10 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-custom-row .settings-input { flex: 1; }
 .te-custom-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .te-custom-chip { display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid var(--faint); border-radius: 3px; padding: 0.15rem 0.2rem 0.15rem 0.5rem; font-size: 0.75rem; }
-.te-custom-chip b { font-weight: 400; cursor: pointer; }
-.te-custom-chip b:hover { color: var(--accent); }
-.te-custom-chip button { background: none; border: none; color: var(--muted); cursor: pointer; display: flex; padding: 2px; }
-.te-custom-chip button:hover { color: var(--error); }
+.te-custom-chip [data-apply] { background: none; border: none; padding: 0; color: inherit; font: inherit; font-weight: 400; cursor: pointer; }
+.te-custom-chip [data-apply]:hover { color: var(--accent); }
+.te-custom-chip [data-del] { background: none; border: none; color: var(--muted); cursor: pointer; display: flex; padding: 2px; }
+.te-custom-chip [data-del]:hover { color: var(--error); }
 .te-custom-chip svg { width: 12px; height: 12px; }
 .te-empty { font-size: 0.75rem; color: var(--muted); }
 .te-foot { display: flex; justify-content: flex-end; gap: 0.4rem; border-top: 1px solid var(--faint); padding-top: 0.8rem; }

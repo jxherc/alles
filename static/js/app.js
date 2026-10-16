@@ -145,7 +145,14 @@ async function _ssoRedirect(target) {
     if (!response.ok) throw new Error('handoff failed');
     const { code } = await response.json();
     location.replace(addSsoAuthCode(target, code));
-  } catch { _stripParam('_sso'); _showLoginScreen(); }
+  } catch {
+    // Keep the validated destination for both an in-page retry and a reload.
+    // Authentication succeeded; the failed operation is the app handoff.
+    _pendingSso = target;
+    _showLoginScreen();
+    const error = document.getElementById('login-error');
+    if (error) error.textContent = 'signed in, but could not open the app. try again.';
+  }
 }
 
 function _storedContextHandoffCode() {
@@ -635,7 +642,7 @@ function _showLoginScreen() {
       }
       if (screen) screen.style.display = 'none';
       document.body.classList.remove('login-mode');
-      if (_pendingSso) { _ssoRedirect(_pendingSso); return; }
+      if (_pendingSso) { await _ssoRedirect(_pendingSso); return; }
       _boot();
     } catch {
       if (error) error.textContent = 'could not reach Alles. check the connection and try again.';

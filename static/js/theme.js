@@ -753,7 +753,7 @@ function _renderEditor() {
       <div class="te-sec"><div class="te-sec-h">custom themes</div>
         <label for="te-custom-name">theme name</label>
         <div class="te-custom-row"><input type="text" id="te-custom-name" class="settings-input" placeholder="e.g. evening" maxlength="24"><button class="btn primary" id="te-save-custom">save current</button></div>
-        <div class="te-custom-list">${Object.keys(ct).length ? Object.keys(ct).map(n => `<span class="te-custom-chip" data-ct="${esc(n)}"><b data-apply="${esc(n)}">${esc(n)}</b><button data-del="${esc(n)}" title="delete">${window.icon ? window.icon('close') : '×'}</button></span>`).join('') : '<span class="te-empty">none saved yet</span>'}</div>
+        <div class="te-custom-list">${Object.keys(ct).length ? Object.keys(ct).map(n => `<span class="te-custom-chip" data-ct="${esc(n)}"><button type="button" data-apply="${esc(n)}" aria-label="apply theme ${esc(n)}" data-kokuen-primitive="action">${esc(n)}</button><button data-del="${esc(n)}" title="delete">${window.icon ? window.icon('close') : '×'}</button></span>`).join('') : '<span class="te-empty">none saved yet</span>'}</div>
       </div>
       </details>
 
@@ -872,8 +872,15 @@ function _wireEditor(m) {
     save(_draft); _renderEditor();
   };
   m.querySelectorAll('[data-apply]').forEach(b => b.onclick = () => {
-    const t = _draft.customThemes[b.dataset.apply];
-    if (t) { _draft = { ..._draft, ...t, colors: { ...t.colors }, preset: b.dataset.apply }; _commit(); _renderEditor(); }
+    const name = b.dataset.apply;
+    const t = _draft.customThemes[name];
+    if (t) {
+      _draft = { ..._draft, ...t, colors: { ...t.colors }, preset: name };
+      _commit();
+      const restoreFocus = document.activeElement === b;
+      _renderEditor();
+      if (restoreFocus) [...m.querySelectorAll('[data-apply]')].find(button => button.dataset.apply === name)?.focus();
+    }
   });
   m.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { delete _draft.customThemes[b.dataset.del]; save(_draft); _renderEditor(); });
 

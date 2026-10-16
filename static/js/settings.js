@@ -785,8 +785,20 @@ function _loadThemeColorControls() {
   const uname = document.getElementById('s-username');
   if (uname && !uname.dataset.bound) {
     uname.dataset.bound = '1';
-    fetch('/api/auth/me').then(r => r.json()).then(m => { uname.value = m.username || ''; }).catch(() => {});
-    let t; uname.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => _patchSettings({ username: uname.value.trim() }), 400); });
+    const initialValue = uname.value;
+    let revision = 0;
+    fetch('/api/auth/me').then(async r => {
+      if (!r.ok) throw new Error('username read failed');
+      const m = await r.json();
+      if (typeof m?.username !== 'string') throw new Error('invalid username response');
+      if (!revision && uname.value === initialValue && document.activeElement !== uname) uname.value = m.username;
+    }).catch(() => {});
+    let t; uname.addEventListener('input', () => {
+      ++revision;
+      const username = uname.value.trim();
+      clearTimeout(t);
+      t = setTimeout(() => _patchSettings({ username }), 400);
+    });
   }
   // change password — bind once
   const pwBtn = document.getElementById('s-pw-save');
@@ -1111,6 +1123,7 @@ export async function loadPersonas() {
     <div class="settings-list-row persona-row${_editingPersona === p.id ? ' editing' : ''}" data-id="${p.id}" onclick="window._editPersona('${p.id}')">
       <span class="row-name">${_esc(p.name)}${p.is_default ? ' <span class="row-tag">default</span>' : ''}</span>
       <span class="row-meta">${_esc(prev.slice(0, 60))}${prev.length > 60 ? '…' : ''}</span>
+      <button type="button" class="act-btn" data-persona-edit aria-label="edit ${_escAttr(p.name)}" onclick="event.stopPropagation();window._editPersona('${p.id}')">edit</button>
       <button class="act-btn" data-id="${p.id}" data-persona-duplicate ${_personaDuplicates.has(p.id) ? 'disabled' : ''} onclick="event.stopPropagation();window._dupPersona('${p.id}')">duplicate</button>
       <button class="act-btn" data-id="${p.id}" data-persona-remove ${_personaRemovalPending(p.id) ? 'disabled' : ''} onclick="event.stopPropagation();window._rmPersona(this)">remove</button>
     </div>`;
@@ -1473,7 +1486,8 @@ async function generateToken() {
       body: JSON.stringify({ name, scopes }),
     });
     const data = await r.json();
-    if (!r.ok) { toast(data.detail || 'token could not be created', 'error'); return; }
+    if (!r.ok) { toast(data?.detail || 'token could not be created', 'error'); return; }
+    if (typeof data?.token !== 'string' || !data.token) throw new Error('invalid token receipt');
     const currentScopes = [...document.querySelectorAll('[data-token-scope].active')]
       .map(btn => btn.dataset.tokenScope);
     if (input.value === submittedName && JSON.stringify(currentScopes) === JSON.stringify(scopes)) input.value = '';
@@ -1481,9 +1495,7 @@ async function generateToken() {
     reveal.style.display = 'block';
     reveal.textContent = data.token;
     reveal.title = 'click to copy';
-    reveal.onclick = () => {
-      navigator.clipboard.writeText(data.token).then(() => toast('token copied', 'success'));
-    };
+    reveal.onclick = () => _copySettingsValue(reveal, 'token');
     toast('token generated: copy it now, shown once', 'success');
     loadTokens();
   } catch { toast('token could not be created', 'error'); }
@@ -1494,6 +1506,26 @@ async function generateToken() {
         document.activeElement === document.body && button.isConnected &&
         document.getElementById('token-add-btn') === button)
       button.focus({ preventScroll: true });
+  }
+}
+
+const _settingsCopies = new WeakSet();
+async function _copySettingsValue(target, label) {
+  if (_settingsCopies.has(target)) return;
+  const value = target.textContent;
+  const opening = _developerOpening;
+  const isCurrent = () => target.isConnected && target.textContent === value &&
+    opening === _developerOpening && _isSettingsPaneOpen('developer');
+  _settingsCopies.add(target);
+  target.setAttribute('aria-busy', 'true');
+  try {
+    await navigator.clipboard.writeText(value);
+    if (isCurrent()) toast(`${label} copied`, 'success');
+  } catch {
+    if (isCurrent()) toast('copy failed; select the shown value and copy manually, or try again', 'error');
+  } finally {
+    _settingsCopies.delete(target);
+    target.removeAttribute('aria-busy');
   }
 }
 
@@ -1535,11 +1567,14 @@ async function loadWebhooks() {
       <span class="status-dot" style="background:${h.enabled ? 'var(--green)' : 'var(--faint)'}"></span>
       <span class="row-name">${_esc(h.name)}</span>
       <span class="row-meta">${h.events.join(', ')}${st}</span>
-      ${h.secret ? `<code class="wh-secret" title="HMAC-SHA256 signing key: verify the X-Alles-Signature header with this" onclick="navigator.clipboard.writeText('${_esc(h.secret)}');window._toastCopied&&window._toastCopied()" style="font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${_esc(h.secret)}</code>` : ''}
+      ${h.secret ? `<button type="button" class="wh-secret act-btn" aria-label="copy webhook signing key" title="HMAC-SHA256 signing key: verify the X-Alles-Signature header with this" style="font-family:monospace;font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;text-transform:none;letter-spacing:normal">${_esc(h.secret)}</button>` : ''}
       <button class="act-btn" data-id="${h.id}" data-webhook-test ${pending ? 'disabled' : ''} onclick="window._testWebhook(this)">${_webhookTests.has(h.id) ? '…' : 'test'}</button>
       <button class="act-btn" data-id="${h.id}" data-webhook-remove ${pending ? 'disabled' : ''} onclick="window._rmWebhook(this)">remove</button>
     </div>`;
   }).join('');
+  el.querySelectorAll('.wh-secret').forEach(button => {
+    button.addEventListener('click', () => _copySettingsValue(button, 'signing key'));
+  });
 }
 
 window._testWebhook = async btn => {
@@ -1880,11 +1915,11 @@ async function _renderRules() {
   const label = (list, v) => list.find(x => x.value === v)?.label || v;
   el.innerHTML = rules.map(r => `
     <div class="rule-row${r.enabled ? '' : ' off'}" data-id="${r.id}">
-      <div class="rule-row-main">
+      <button type="button" class="rule-row-main" aria-label="edit rule ${_escAttr(r.name)}" style="background:none;border:0;color:inherit;font:inherit;text-align:left">
         <span class="rule-row-name">${_esc(r.name)}</span>
         <span class="rule-row-desc">${_esc(label(_ruleOpts.triggers, r.trigger))} <b>${_esc(r.trigger_arg)}</b> → ${_esc(label(_ruleOpts.actions, r.action))}${r.action_arg ? `: <i>${_esc(r.action_arg.slice(0, 60))}</i>` : ''}</span>
         ${r.last_attempt && r.last_attempt.status !== 'succeeded' ? `<span class="rule-row-desc" title="${_esc(r.last_attempt.error || '')}">last attempt: <b>${_esc(r.last_attempt.status)}</b></span>` : ''}
-      </div>
+      </button>
       <button class="btn" data-act="test" title="run once with sample data">test</button>
       <button class="btn" data-act="toggle">${r.enabled ? 'pause' : 'resume'}</button>
       <button class="btn danger" data-act="del">×</button>
