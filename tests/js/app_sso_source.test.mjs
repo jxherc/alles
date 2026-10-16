@@ -9,5 +9,5 @@ test('sso boot retries failed codes and preserves the full target URL', () => {
   assert.match(src, /redeemedAuthCode = response\.ok/);
   assert.match(src, /buildApexBrokerUrl\(location\.href, parseHost\(\)\.base\)/);
   assert.match(src, /location\.replace\(addSsoAuthCode\(target, code\)\)/);
-  assert.match(src, /if \(_pendingSso\) \{ _ssoRedirect\(_pendingSso\); return; \}/);
+  assert.match(src, /if \(_pendingSso\) \{ await _ssoRedirect\(_pendingSso\); return; \}/);
 });

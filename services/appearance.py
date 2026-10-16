@@ -135,6 +135,8 @@ def normalize(obj) -> dict:
 
     if isinstance(obj.get("preset"), str) and obj["preset"]:
         d["preset"] = obj["preset"]
+    base = LIGHT_BASE if d["preset"] == "light" else DARK_BASE
+    d["colors"] = dict(base)
 
     # Missing means an older save; the client infers its original accent intent.
     if isinstance(obj.get("accentCustom"), bool):
@@ -142,6 +144,10 @@ def normalize(obj) -> dict:
 
     colors = obj.get("colors")
     if isinstance(colors, dict):
+        # Optional role colors are derived from this palette by theme.js. Supplying
+        # dark defaults here changes a light preview as soon as its save is acknowledged.
+        # Keep explicit overrides, but leave omitted/invalid roles for the client to derive.
+        d["colors"] = {key: base[key] for key in ("bg", "text", "panel", "faint", "accent")}
         for k in COLOR_KEYS:
             if _is_hex(colors.get(k)):
                 d["colors"][k] = colors[k]

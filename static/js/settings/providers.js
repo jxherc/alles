@@ -21,6 +21,7 @@ let _endpointAddConfigRevision = 0;
 let _endpointPartialCreate = null;
 const _localPresetPending = new Map();
 const _localPresetConfirmations = new Set();
+let _customPullPending = null;
 
 function _syncLocalPresetPending(model) {
   document.querySelectorAll(`#s-local-presets [data-local-model="${CSS.escape(model)}"]`).forEach(row => {
@@ -174,19 +175,27 @@ async function downloadLocalModel(model, btn) {
   }
 }
 
-async function pollLocalJob(jobId, btn, model = null, pending = null) {
+async function pollLocalJob(jobId, btn, model = null, pending = null, onFinish = null) {
   if (!jobId) {
     if (model) _releaseLocalPreset(model, pending);
+    btn.disabled = false;
+    btn.textContent = 'download';
+    toast('download could not be confirmed; try again', 'error');
+    onFinish?.(false);
     return;
   }
   try {
     const job = await _localJson(`/api/local-models/jobs/${jobId}`);
+    if (job?.id !== jobId || !['queued', 'running', 'done', 'error'].includes(job.status))
+      throw new Error('download status could not be confirmed');
     if (job.status === 'done') {
+      if (typeof job.model !== 'string' || !job.model) throw new Error('invalid download receipt');
       if (model) _releaseLocalPreset(model, pending);
       btn.textContent = 'downloaded';
       toast(`${job.model} downloaded`, 'success');
       loadLocalModels();
       loadModels();
+      onFinish?.(true);
       return;
     }
     if (job.status === 'error') {
@@ -194,6 +203,7 @@ async function pollLocalJob(jobId, btn, model = null, pending = null) {
       btn.disabled = false;
       btn.textContent = 'download';
       toast(job.error || 'download failed', 'error');
+      onFinish?.(false);
       return;
     }
     btn.textContent = job.status === 'running' ? 'pulling...' : 'queued';
@@ -201,31 +211,46 @@ async function pollLocalJob(jobId, btn, model = null, pending = null) {
       pending.label = btn.textContent;
       _syncLocalPresetPending(model);
     }
-    setTimeout(() => pollLocalJob(jobId, btn, model, pending), 1800);
+    setTimeout(() => pollLocalJob(jobId, btn, model, pending, onFinish), 1800);
   } catch {
     if (model) _releaseLocalPreset(model, pending);
     btn.disabled = false;
     btn.textContent = 'download';
+    toast('download status could not be confirmed; try again', 'error');
+    onFinish?.(false);
   }
 }
 
 async function pullCustomLocalModel() {
   const inp = document.getElementById('s-local-custom');
   const btn = document.getElementById('s-local-pull-btn');
-  if (btn.disabled) return;
+  if (!inp || !btn || _customPullPending || btn.disabled) return;
   const draft = inp?.value || '';
   const model = draft.trim();
   if (!model) { toast('enter a model name', 'error'); return; }
+  const pending = {};
+  _customPullPending = pending;
+  let edited = false;
+  const markEdited = () => { edited = true; };
+  inp.addEventListener('input', markEdited);
+  const finish = succeeded => {
+    if (_customPullPending !== pending) return;
+    _customPullPending = null;
+    inp.removeEventListener('input', markEdited);
+    btn.disabled = false;
+    btn.textContent = 'pull';
+    if (succeeded && !edited && inp.value === draft) inp.value = '';
+  };
   btn.disabled = true; btn.textContent = 'queued';
   try {
     const job = await _localJson('/api/local-models/download_model', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model }),
     });
-    pollLocalJob(job.id, btn);
-    if (inp.value === draft) inp.value = '';
+    if (typeof job?.id !== 'string' || !job.id.trim()) throw new Error('pull could not be confirmed');
+    pollLocalJob(job.id, btn, null, null, finish);
   } catch (e) {
-    btn.disabled = false; btn.textContent = 'pull';
+    finish(false);
     toast(e.message || 'pull failed to start', 'error');
   }
 }
