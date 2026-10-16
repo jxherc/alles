@@ -2,6 +2,8 @@ import { toast } from './util.js';
 
 let _notes = [];
 let _editing = null;
+let _editorOwner = null;
+let _creating = false;
 let _q = '';
 let _tag = '';      // active tag filter, '' = all
 let _searchWired = false;
@@ -101,14 +103,27 @@ function renderNotes() {
   });
 
   list.querySelectorAll('.note-archive-btn').forEach(btn => {
+    let archiving = false;
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await _fetcher(`/api/notes/${encodeURIComponent(btn.dataset.id)}/archive`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ archived: true }),
-      });
-      toast('archived', 'success');
-      await loadNotes();
+      if (archiving) return;
+      archiving = true;
+      btn.setAttribute('aria-disabled', 'true');
+      let archived = false;
+      try {
+        const r = await _fetcher(`/api/notes/${encodeURIComponent(btn.dataset.id)}/archive`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ archived: true }),
+        });
+        const result = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(result.detail || 'note could not be archived');
+        if (result.id !== btn.dataset.id || result.archived !== true) throw new Error('archive was not confirmed. reload notes to check');
+        archived = true;
+        toast('archived', 'success');
+        await loadNotes();
+      } catch (error) {
+        toast(archived ? 'note archived, but the list could not refresh. reopen notes' : error.message || 'note could not be archived', 'error');
+      } finally { archiving = false; btn.removeAttribute('aria-disabled'); }
     });
   });
 
@@ -129,6 +144,7 @@ function renderNotes() {
 function openEditor(note) {
   const list = document.getElementById('notes-list');
   _editing = note;
+  const owner = _editorOwner = { note, pending: null, saved: null };
 
   list.innerHTML = `
     <div class="note-editor">
@@ -158,18 +174,19 @@ function openEditor(note) {
   });
 
   document.getElementById('note-back-btn').addEventListener('click', async () => {
-    const saved = await saveCurrentNote();
-    if (saved) await loadNotes();
+    if (!await _saveBeforeLeaving(owner) || owner !== _editorOwner) return;
+    _editing = null;
+    _editorOwner = null;
+    await loadNotes();
   });
 
   document.getElementById('note-save-btn').addEventListener('click', async () => {
-    const prevId = _editing?.id;
+    if (owner.pending) return;
     const updated = await saveCurrentNote();
-    // a retitle renamed the file (new id) → rebuild the editor on the fresh note so further
-    // edits hit the right file; otherwise just keep editing the same one
-    if (updated && updated.id !== prevId) openEditor(updated);
-    else if (updated) _editing = updated;
-    toast('saved', 'success');
+    if (!updated) return;
+    const current = owner === _editorOwner;
+    const newer = current && owner.saved !== JSON.stringify(_editorFields());
+    toast(newer ? 'saved; newer edits are still unsaved' : current ? 'saved' : `saved ${updated.title || 'untitled'}`, 'success');
   });
 }
 
@@ -207,20 +224,50 @@ function _isOverdue(due) {
 }
 
 
-export async function saveCurrentNote() {
-  if (!_editing) return null;
+function _editorFields() {
   const title = document.getElementById('note-edit-title')?.value || '';
   const content = document.getElementById('note-edit-body')?.value || '';
   const tags = (document.getElementById('note-edit-tags')?.value || '').split(',').map(t => t.trim()).filter(Boolean);
   const due = document.getElementById('note-edit-due')?.value || '';
   const items = _gatherItems();
+  return { title, content, tags, items, due };
+}
+
+// Navigation may begin during a Save, and typing may continue while it waits.
+// Finish each submitted snapshot before saving newer input with its fresh hash.
+async function _saveBeforeLeaving(owner) {
+  while (owner === _editorOwner) {
+    if (!owner.pending && owner.saved === JSON.stringify(_editorFields())) return true;
+    if (!await saveCurrentNote()) return false;
+  }
+  return false;
+}
+
+export async function saveCurrentNote() {
+  const owner = _editorOwner;
+  if (!owner) return null;
+  if (owner.pending) return owner.pending;
+  const fields = _editorFields();
+  const button = document.getElementById('note-save-btn');
+  button?.setAttribute('aria-disabled', 'true');
+  button?.setAttribute('aria-busy', 'true');
+  owner.pending = _saveNote(owner, fields);
+  try { return await owner.pending; }
+  finally {
+    owner.pending = null;
+    button?.removeAttribute('aria-disabled');
+    button?.removeAttribute('aria-busy');
+  }
+}
+
+async function _saveNote(owner, fields) {
   // the id is the filename stem — retitling renames the file, so the response can carry a NEW id
   let updated = null;
   try {
-    const r = await _fetcher(`/api/notes/${encodeURIComponent(_editing.id)}`, {
+    const r = await _fetcher(`/api/notes/${encodeURIComponent(owner.note.id)}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title, content, tags, items, due, expected_hash: _editing.hash || '' }),
+      body: JSON.stringify({ ...fields, expected_hash: owner.note.hash || '' }),
     });
     if (!r.ok) {
       const data = await r.json().catch(() => ({}));
@@ -231,22 +278,47 @@ export async function saveCurrentNote() {
       throw new Error(data.detail || 'note could not be saved');
     }
     updated = await r.json();
+    if (!updated?.id || !updated.hash) throw new Error('save was not confirmed. reload notes to check');
+    owner.note = updated;
+    owner.saved = JSON.stringify(fields);
+    // Keep the live fields mounted: the receipt may rename the file, but it
+    // must neither replace newer typing nor bind a different editor to this id.
+    if (owner === _editorOwner) _editing = updated;
+    return updated;
   } catch (error) { toast(error.message || 'note could not be saved', 'error'); }
-  if (!updated) return null;
-  _editing = null;
-  return updated;
+  return null;
 }
 
 
 export async function newNote() {
-  const r = await _fetcher('/api/notes', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title: '', content: '' }),
-  });
-  const note = await r.json();
-  _notes.unshift(note);
-  openEditor(note);
+  if (_creating) return;
+  _creating = true;
+  const owner = _editorOwner;
+  const button = document.getElementById('note-new-btn');
+  button?.setAttribute('aria-disabled', 'true');
+  button?.setAttribute('aria-busy', 'true');
+  try {
+    if (owner && !await _saveBeforeLeaving(owner)) return;
+    if (owner !== _editorOwner) return;
+    const r = await _fetcher('/api/notes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: '', content: '' }),
+    });
+    const note = await r.json();
+    if (!r.ok) throw new Error(note.detail || 'note could not be created');
+    if (!note?.id || !note.hash) throw new Error('new note was not confirmed. reload notes to check');
+    _notes.unshift(note);
+    if (owner !== _editorOwner) return;
+    if (owner && !await _saveBeforeLeaving(owner)) return;
+    if (owner !== _editorOwner) return;
+    openEditor(note);
+  } catch (error) { toast(error.message || 'note could not be created', 'error'); }
+  finally {
+    _creating = false;
+    button?.removeAttribute('aria-disabled');
+    button?.removeAttribute('aria-busy');
+  }
 }
 
 

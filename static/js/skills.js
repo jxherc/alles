@@ -13,6 +13,8 @@ let _drawerRead = 0;
 let _matchSeq = 0;          // bumps per match call so stale responses don't clobber newer ones
 let _listRead = 0;
 const _pinning = new Set();
+const _savingDrawers = new WeakSet();
+let _saveRead = 0;
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const $ = id => document.getElementById(id);
@@ -597,21 +599,46 @@ function _closeDrawer(returnToNew = false) {
 }
 
 async function _save() {
+  const drawer = $('skl-drawer');
+  if (!drawer || _savingDrawers.has(drawer)) return;
+  const read = _drawerRead;
+  const slug = _cur;
   const name = $('skl-d-name').value.trim();
   if (!name) { toast('give the skill a name', 'error'); return; }
   const payload = { name, description: $('skl-d-desc').value.trim(), when_to_use: $('skl-d-when').value.trim(), body: $('skl-d-body').value };
+  const button = $('skl-d-save');
+  const saveRead = ++_saveRead;
+  _savingDrawers.add(drawer);
+  button.setAttribute('aria-disabled', 'true');
+  button.setAttribute('aria-busy', 'true');
+  let saved = false;
   try {
-    const res = _cur
-      ? await _api(`/api/skills/${encodeURIComponent(_cur)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+    const res = slug
+      ? await _api(`/api/skills/${encodeURIComponent(slug)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
       : await _api('/api/skills', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
-    _cur = res.slug;
-    $('skl-d-del').hidden = false; $('skl-d-export').hidden = false;
-    $('skl-d-heading').textContent = 'edit skill';
-    $('skl-d-status').textContent = 'saved';
-    setTimeout(() => { if ($('skl-d-status')) $('skl-d-status').textContent = ''; }, 1500);
-    toast('skill saved', 'success');
+    if (!res?.slug) throw new Error('save was not confirmed. reopen skills to check');
+    saved = true;
+    const current = read === _drawerRead && drawer === $('skl-drawer');
+    if (current) {
+      _cur = res.slug;
+      $('skl-d-del').hidden = false; $('skl-d-export').hidden = false;
+      $('skl-d-heading').textContent = 'edit skill';
+      const unchanged = name === $('skl-d-name').value.trim() && payload.description === $('skl-d-desc').value.trim()
+        && payload.when_to_use === $('skl-d-when').value.trim() && payload.body === $('skl-d-body').value;
+      const status = $('skl-d-status');
+      status.textContent = unchanged ? 'saved' : 'newer edits not saved';
+      if (unchanged) setTimeout(() => {
+        if (read === _drawerRead && saveRead === _saveRead && drawer === $('skl-drawer')) status.textContent = '';
+      }, 1500);
+    }
+    toast(current ? 'skill saved' : `${name} saved`, 'success');
     await _refresh();
-  } catch (e) { toast('save failed: ' + e.message, 'error'); }
+  } catch (e) { toast(saved ? 'skill saved, but the list could not refresh. reopen skills' : 'save failed: ' + e.message, 'error'); }
+  finally {
+    _savingDrawers.delete(drawer);
+    button.removeAttribute('aria-disabled');
+    button.removeAttribute('aria-busy');
+  }
 }
 
 async function _delete() {
