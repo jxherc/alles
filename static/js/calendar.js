@@ -489,17 +489,47 @@ function _bindNav() {
   if (imp && !imp.dataset.bound) {
     imp.dataset.bound = '1';
     const fileInp = document.getElementById('cal-import-file');
-    imp.addEventListener('click', () => fileInp?.click());
-    fileInp?.addEventListener('change', async e => {
-      const f = e.target.files[0]; if (!f) return;
+    const feedback = document.createElement('div');
+    feedback.id = 'cal-import-feedback'; feedback.className = 'cal-quick-feedback'; feedback.hidden = true;
+    const status = document.createElement('span');
+    status.id = 'cal-import-status'; status.setAttribute('role', 'alert');
+    const retry = document.createElement('button');
+    retry.id = 'cal-import-retry'; retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'retry import';
+    const choose = document.createElement('button');
+    choose.id = 'cal-import-choose'; choose.type = 'button'; choose.className = 'btn'; choose.textContent = 'choose another file';
+    feedback.append(status, retry, choose);
+    document.getElementById('cal-quick-feedback')?.after(feedback);
+    let importing = false, retainedFile = null;
+    const chooseFile = () => { if (!importing && fileInp) { fileInp.value = ''; fileInp.click(); } };
+    const importSelected = async f => {
+      if (!f || importing) return;
+      retainedFile = f;
+      const origin = [imp, retry, choose].includes(document.activeElement) ? document.activeElement : null;
+      importing = true; imp.disabled = true; fileInp.disabled = true; retry.disabled = true; choose.disabled = true;
       try {
         const r = await fetch('/api/calendar/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ics: await f.text() }) });
-        const d = await r.json();
+        const d = await readCalendarResponse(r);
+        if (!Number.isInteger(d?.imported) || d.imported < 0) throw new Error('The calendar did not confirm the import. Check the calendar before importing again.');
+        if (document.getElementById('cal-import-file') !== fileInp) return;
+        if (fileInp.files[0] === f) fileInp.value = '';
+        retainedFile = null; feedback.hidden = true;
         toast(trp('calendar.imported_count', d.imported), 'success');
-        loadCalendar();
-      } catch { toast(tr('calendar.import_failed'), 'error'); }
-      fileInp.value = '';
-    });
+        await loadCalendar(fetch, () => !document.querySelector('.cal-editor'));
+      } catch {
+        if (document.getElementById('cal-import-file') === fileInp) {
+          status.textContent = `Import of “${f.name || 'selected file'}” was not confirmed. Check the calendar before retrying, or choose another file.`;
+          feedback.hidden = false;
+        }
+      } finally {
+        importing = false; imp.disabled = false; fileInp.disabled = false; retry.disabled = false; choose.disabled = false;
+        if (origin && (document.activeElement === origin || document.activeElement === document.body)
+            && document.getElementById('cal-import') === imp) (feedback.hidden ? imp : origin).focus();
+      }
+    };
+    imp.addEventListener('click', chooseFile);
+    choose.addEventListener('click', chooseFile);
+    retry.addEventListener('click', () => importSelected(retainedFile));
+    fileInp?.addEventListener('change', () => importSelected(fileInp.files[0]));
   }
 }
 
@@ -1254,14 +1284,38 @@ async function findTime() {
   }<button class="btn cal-scope-cancel">cancel</button></div>`;
   document.body.appendChild(ov);
   ov.addEventListener('click', e => { if (e.target === ov || e.target.classList.contains('cal-scope-cancel')) ov.remove(); });
-  ov.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', async () => {
-    const title = await dlgPrompt('event title:');
-    if (!title?.trim()) { ov.remove(); return; }
-    const start = b.dataset.s;
-    const end = new Date(new Date(start).getTime() + mins * 60000);
-    await fetch('/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: title.trim(), start_dt: start, end_dt: localISO(end) }) });
-    ov.remove(); toast('booked', 'success'); loadCalendar();
-  }));
+  const errorBox = document.createElement('div');
+  errorBox.className = 'cal-save-error'; errorBox.setAttribute('role', 'alert'); errorBox.hidden = true;
+  ov.querySelector('.cal-scope').appendChild(errorBox);
+  let booking = false;
+  ov.querySelectorAll('[data-s]').forEach(b => {
+    let titleDraft = '';
+    b.addEventListener('click', async () => {
+      if (booking || !ov.isConnected) return;
+      booking = true;
+      ov.querySelectorAll('[data-s]').forEach(button => { button.disabled = true; });
+      try {
+        const title = await dlgPrompt('event title:', titleDraft);
+        if (!title?.trim() || !ov.isConnected) return;
+        titleDraft = title;
+        errorBox.hidden = true;
+        const start = b.dataset.s;
+        const end = new Date(new Date(start).getTime() + mins * 60000);
+        await saveCalendarRequest('/api/calendar', 'POST', { title: title.trim(), start_dt: start, end_dt: localISO(end), description: '' });
+        if (!ov.isConnected) return;
+        ov.remove(); toast('booked', 'success');
+        await loadCalendar(fetch, () => !document.querySelector('.cal-editor'));
+      } catch {
+        if (ov.isConnected) {
+          errorBox.textContent = `Booking “${titleDraft}” was not confirmed. Check the calendar before trying again.`;
+          errorBox.hidden = false;
+        }
+      } finally {
+        booking = false;
+        ov.querySelectorAll('[data-s]').forEach(button => { button.disabled = false; });
+      }
+    });
+  });
 }
 
 // ── the event editor ─────────────────────────────────────────────────────────
@@ -1465,18 +1519,30 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
   // 8b — invites + rsvp (existing events only)
   if (event?.id) renderAttendees(event.id);
-  document.getElementById('cal-inv-btn')?.addEventListener('click', async () => {
-    const name = document.getElementById('cal-inv-name').value.trim();
-    const email = document.getElementById('cal-inv-email').value.trim();
+  const inviteButton = document.getElementById('cal-inv-btn');
+  const inviteName = document.getElementById('cal-inv-name');
+  const inviteEmail = document.getElementById('cal-inv-email');
+  const ownsInvite = () => _editing?.id === event?.id && document.getElementById('cal-inv-btn') === inviteButton;
+  inviteButton?.addEventListener('click', async () => {
+    if (!ownsInvite() || inviteButton.disabled) return;
+    const originalName = inviteName.value, originalEmail = inviteEmail.value;
+    const name = originalName.trim(), email = originalEmail.trim();
     if (!name && !email) { toast('name or email needed', ''); return; }
+    inviteButton.disabled = true;
     try {
-      await fetch(`/api/calendar/${event.id}/invite`, {
+      const attendee = await readCalendarResponse(await fetch(`/api/calendar/${event.id}/invite`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, email }),
-      });
-      document.getElementById('cal-inv-name').value = '';
-      document.getElementById('cal-inv-email').value = '';
-      renderAttendees(event.id);
-    } catch { toast('invite failed', 'error'); }
+      }));
+      if (typeof attendee?.id !== 'string' || !attendee.id || attendee.event_id !== event.id
+          || attendee.name !== name || attendee.email !== email) throw new Error('Invite not confirmed. Check the attendee list before trying again.');
+      if (!ownsInvite()) return;
+      if (inviteName.value === originalName && inviteEmail.value === originalEmail) {
+        inviteName.value = ''; inviteEmail.value = '';
+      }
+      await renderAttendees(event.id);
+    } catch (error) { if (ownsInvite()) toast(error.message === 'Failed to fetch'
+      ? 'Invite not confirmed. Check the attendee list before trying again.' : (error.message || 'invite failed'), 'error'); }
+    finally { inviteButton.disabled = false; }
   });
 }
 
@@ -1484,8 +1550,10 @@ const RSVP_LABEL = { invited: 'invited', accepted: 'yes', declined: 'no', tentat
 
 async function renderAttendees(eid) {
   const box = document.getElementById('cal-invites');
-  if (!box) return;
+  const ownsBox = () => _editing?.id === eid && document.getElementById('cal-invites') === box;
+  if (!box || !ownsBox()) return;
   const list = await fetch(`/api/calendar/${eid}/attendees`).then(r => r.json()).catch(() => []);
+  if (!ownsBox()) return;
   if (!list.length) {
     box.innerHTML = '<div class="cal-inv-empty">no invites yet</div>';
   } else {
@@ -1497,8 +1565,9 @@ async function renderAttendees(eid) {
       </div>`).join('');
     box.querySelectorAll('.cal-inv-row').forEach(row => {
       row.querySelector('[data-act="del"]').addEventListener('click', async () => {
+        if (!ownsBox()) return;
         await fetch(`/api/calendar/attendees/${row.dataset.id}`, { method: 'DELETE' });
-        renderAttendees(eid);
+        if (ownsBox()) renderAttendees(eid);
       });
     });
   }
@@ -1508,9 +1577,11 @@ async function renderAttendees(eid) {
 // 4a — suggest contacts linked to whoever's already invited; one click invites them
 async function renderInviteSuggestions(eid) {
   const box = document.getElementById('cal-inv-suggest');
-  if (!box) return;
+  const ownsBox = () => _editing?.id === eid && document.getElementById('cal-inv-suggest') === box;
+  if (!box || !ownsBox()) return;
   const sugg = await fetch(`/api/calendar/${eid}/invite-suggestions`)
     .then(r => r.ok ? r.json() : { suggestions: [] }).then(j => j.suggestions || []).catch(() => []);
+  if (!ownsBox()) return;
   if (!sugg.length) { box.innerHTML = ''; return; }
   box.innerHTML = '<div class="cal-inv-suggest-lbl">suggested from your contacts</div>'
     + sugg.map(s => `
@@ -1518,11 +1589,12 @@ async function renderInviteSuggestions(eid) {
         + ${esc(s.name)}${s.kind ? ` <span class="cal-inv-chip-kind">${esc(s.kind)}</span>` : ''}
       </button>`).join('');
   box.querySelectorAll('.cal-inv-chip').forEach(b => b.addEventListener('click', async () => {
+    if (!ownsBox()) return;
     await fetch(`/api/calendar/${eid}/invite`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: b.dataset.name, email: b.dataset.email }),
     });
-    renderAttendees(eid);
+    if (ownsBox()) renderAttendees(eid);
   }));
 }
 

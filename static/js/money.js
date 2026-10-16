@@ -45,6 +45,7 @@ let _goals = [];   // savings/debt goals (4d)
 let _searchResults = null;   // array when a search/filter is active, else null
 let _searchTimer = null;
 let _searchSequence = 0;
+let _searchStatus = '';
 let _amountRangeOpen = false;
 let _cur = '$';
 let _currencyCodes = [];
@@ -479,6 +480,7 @@ async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = p
   _searchSequence += 1;
   if (!preserveFilters) {
     _searchResults = null;   // month change / reload clears any active search
+    _searchStatus = '';
     _tagFilter = '';
     if (preserveDrafts) for (const id of ['txn-search', 'txn-min', 'txn-max']) if ($(id)) $(id).value = '';
   }
@@ -1298,9 +1300,16 @@ function transferRow() {
 
 function txnList() {
   const rows = _searchResults !== null ? _searchResults : _txns;
-  const banner = _tagFilter
+  let banner = _tagFilter
     ? `<div class="txn-tagfilter">filtered by tag <span class="tx-tag">${esc(_tagFilter)}</span><button class="btn" id="tag-clear">clear</button></div>`
     : '';
+  if (_searchStatus) {
+    const loading = _searchStatus === 'loading';
+    banner += `<div class="money-empty-sm" role="status">${loading ? 'loading matching transactions…' : "couldn't load matching transactions."}${rows.length ? ' previous transactions remain below.' : ''}
+      <button type="button" class="btn" id="txn-search-retry" aria-disabled="${loading}">retry</button>
+      <button type="button" class="btn" id="txn-search-clear">clear filters</button></div>`;
+    if (!rows.length) return banner;
+  }
   if (!rows.length) return banner + `<div class="money-empty-sm">${(_searchResults !== null || _tagFilter) ? 'no matches' : 'no transactions this month'}</div>`;
   const an = {}; _accounts.forEach(a => an[a.id] = a.name);
   return banner + `<div class="txns">` + rows.map(t => {
@@ -1489,6 +1498,7 @@ function wire() {
   syncAmountRange();
   ['txn-search', 'txn-min', 'txn-max'].forEach(id => $(id)?.addEventListener('input', () => {
     syncAmountRange();
+    _searchSequence += 1;
     clearTimeout(_searchTimer); _searchTimer = setTimeout(applySearch, 220);
   }));
   _wireTxnRows();
@@ -1743,6 +1753,15 @@ function _wireTxnRows() {
   root.querySelectorAll('[data-receipt-txn]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); attachReceipt(b.dataset.receiptTxn); }));
   root.querySelectorAll('.tx-tag[data-tag]').forEach(c => c.addEventListener('click', e => { e.stopPropagation(); filterByTag(c.dataset.tag); }));
   $('tag-clear')?.addEventListener('click', clearTagFilter);
+  $('txn-search-retry')?.addEventListener('click', () => {
+    if (_searchStatus === 'loading') return;
+    return _tagFilter ? filterByTag(_tagFilter) : applySearch();
+  });
+  $('txn-search-clear')?.addEventListener('click', () => {
+    for (const id of ['txn-search', 'txn-min', 'txn-max']) if ($(id)) $(id).value = '';
+    syncAmountRange();
+    clearTagFilter();
+  });
   $('split-add-row')?.addEventListener('click', () => {
     _splitRows = _readSplitRows();
     _splitRows.push({ category: '', amount: '' });
@@ -1793,6 +1812,7 @@ export async function applySearch() {
   const mx = $('txn-max')?.value.trim() || '';
   if (!q && !mn && !mx) {   // nothing to filter → back to the plain month list
     _searchResults = null;
+    _searchStatus = '';
     _tagFilter = '';
     renderTxns();
     return;
@@ -1800,15 +1820,31 @@ export async function applySearch() {
   _tagFilter = '';
   const p = new URLSearchParams({ month: _month });
   if (q) p.set('q', q);
-  if (!_validAmounts(_decimal(mn, 0), _decimal(mx, 0))) return;
+  if (!_validAmounts(_decimal(mn, 0), _decimal(mx, 0))) {
+    if (_searchStatus) {
+      _searchStatus = '';
+      renderTxns();
+    }
+    return;
+  }
   if (mn) p.set('min_amt', _decimal(mn));
   if (mx) p.set('max_amt', _decimal(mx));
-  let results;
+  await readTransactionFilter(`/api/money/transactions/search?${p}`, sequence);
+}
+
+async function readTransactionFilter(path, sequence) {
+  _searchStatus = 'loading';
+  renderTxns();
   try {
-    results = await api(`/api/money/transactions/search?${p}`);
-  } catch { results = []; }
-  if (sequence !== _searchSequence) return;
-  _searchResults = results;
+    const results = await api(path);
+    if (!Array.isArray(results)) throw new Error('invalid transaction list');
+    if (sequence !== _searchSequence) return;
+    _searchResults = results;
+    _searchStatus = '';
+  } catch {
+    if (sequence !== _searchSequence) return;
+    _searchStatus = 'error';
+  }
   renderTxns();
 }
 
@@ -2007,11 +2043,15 @@ function attachReceipt(id) {
     const f = inp.files?.[0]; if (!f) return;
     const fd = new FormData(); fd.append('file', f);
     try {
-      const up = await fetch('/api/uploads', { method: 'POST', body: fd }).then(r => r.json());
-      await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: { receipt_id: up.id } });
+      const up = await api('/api/uploads', { method: 'POST', body: fd });
+      if (typeof up?.id !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(up.id)) {
+        throw new Error('invalid upload acknowledgment');
+      }
+      const saved = await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: { receipt_id: up.id } });
+      if (saved?.id !== id || saved.receipt_id !== up.id) throw new Error('attachment not confirmed');
       toast('receipt attached', 'success');
-      await load();
-    } catch { toast('upload failed', 'error'); }
+      await load(fetch, true);
+    } catch { toast('receipt attachment not confirmed. try again.', 'error'); }
   };
   inp.click();
 }
@@ -2027,18 +2067,14 @@ export async function filterByTag(tag) {
   clearTimeout(_searchTimer);
   const sequence = ++_searchSequence;
   _tagFilter = tag;
-  let results;
-  try { results = await api(`/api/money/transactions?tag=${encodeURIComponent(tag)}`); }
-  catch { results = []; }
-  if (sequence !== _searchSequence) return;
-  _searchResults = results;
-  renderTxns();
+  await readTransactionFilter(`/api/money/transactions?tag=${encodeURIComponent(tag)}`, sequence);
 }
 function clearTagFilter() {
   clearTimeout(_searchTimer);
   _searchSequence += 1;
   _tagFilter = '';
   _searchResults = null;
+  _searchStatus = '';
   renderTxns();
 }
 function renderTxns(rebuildSplit = false) {
@@ -2050,6 +2086,10 @@ function renderTxns(rebuildSplit = false) {
   rows.innerHTML = txnList();
   _wireTxnRows();
   restoreMoneyDrafts(rows, retained);
+  if (['txn-search-retry', 'txn-search-clear', 'tag-clear'].includes(retained.active?.id)
+      && retained.focusVersion === _moneyFocusChange && document.activeElement === document.body) {
+    $('txn-search')?.focus();
+  }
 }
 function toggleReconcile(aid) {
   const wrap = $(`rc-panel-${aid}`); if (!wrap) return;
