@@ -185,7 +185,11 @@ def _plaid_post(row: FinanceConnection, path: str, payload: dict, *, client=http
     except Exception as exc:
         raise FinanceConnectorError("Plaid request failed") from exc
     if response.status_code >= 400 or not isinstance(data, dict):
-        message = str((data or {}).get("error_message") or "Plaid request failed")
+        message = (
+            str(data.get("error_message") or "Plaid request failed")
+            if isinstance(data, dict)
+            else "Plaid request failed"
+        )
         raise FinanceConnectorError(message[:500])
     return data
 
@@ -216,6 +220,8 @@ def plaid_link_token(db, connection_id: str, *, redirect_uri: str = "", client=h
         "link_token": token,
         "expiration": data.get("expiration"),
         "environment": row.environment,
+        "redirect_uri": redirect_uri,
+        "update_mode": bool(row.access_token),
     }
 
 
@@ -233,6 +239,21 @@ def exchange_plaid_public_token(db, connection_id: str, public_token: str, *, cl
         raise FinanceConnectorError("Plaid token exchange was incomplete")
     row.access_token = access_token
     row.item_id = item_id
+    row.status = "connected"
+    row.last_error = ""
+    db.commit()
+    db.refresh(row)
+    return public_dict(row)
+
+
+def complete_plaid_update(db, connection_id: str, *, client=httpx) -> dict:
+    row = db.get(FinanceConnection, connection_id)
+    if not row or row.provider != "plaid" or not row.access_token or not row.item_id:
+        raise FinanceConnectorError("Plaid connection is not ready to reconnect")
+    data = _plaid_post(row, "/item/get", {"access_token": row.access_token}, client=client)
+    item = data.get("item")
+    if not isinstance(item, dict) or item.get("item_id") != row.item_id or item.get("error"):
+        raise FinanceConnectorError("Plaid has not confirmed this connection. Open Link again.")
     row.status = "connected"
     row.last_error = ""
     db.commit()

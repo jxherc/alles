@@ -6,7 +6,7 @@ import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdo
 import { initDatePicker, calendarDateParts } from './datepick.js';
 import { calendarDateKey, formatCalendarDate, formatDate, formatNumber } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=1';
-import { requestWithRecentOwner } from './recent_owner.js';
+import { bankRequest as _ownerFetch, openPlaidLink } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 
 const $ = id => document.getElementById(id);
@@ -42,6 +42,7 @@ let _targetStatus = '';
 let _forecast = null, _nwhist = [], _holdings = null, _alerts = null;   // Simplifi (4c)
 let _forecastError = 'couldn\'t load forecast';
 let _goals = [];   // savings/debt goals (4d)
+let _goalSaving = false, _budgetSaving = false;
 let _searchResults = null;   // array when a search/filter is active, else null
 let _searchTimer = null;
 let _searchSequence = 0;
@@ -367,102 +368,150 @@ export function initMoneyPanel(fetcher = fetch) {
   return load(fetcher, !!$('money-body')?.childElementCount, false);
 }
 
-async function _ownerFetch(path, options = {}) {
-  const init = { ...options };
-  if (init.body && typeof init.body !== 'string') {
-    init.headers = { 'content-type': 'application/json', ...(init.headers || {}) };
-    init.body = JSON.stringify(init.body);
-  }
-  const response = await requestWithRecentOwner(fetch, path, init);
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.detail?.message || payload.detail || `request failed (${response.status})`);
-  return payload;
-}
-
 function _bankDialog() {
   const overlay = document.createElement('div');
   overlay.className = 'dialog-overlay finance-bank-overlay';
   overlay.innerHTML = `<section class="dialog-card finance-bank-dialog" role="dialog" aria-modal="true" aria-labelledby="finance-bank-title">
     <header class="finance-bank-head"><div><h2 id="finance-bank-title">bank connections</h2><p>read-only sync. Alles never asks for a bank password.</p></div><button class="btn" type="button" data-bank-close>close</button></header>
     <div class="finance-bank-status" role="status" aria-live="polite"></div>
-    <div class="finance-bank-connections"></div>
+    <button class="btn" type="button" data-bank-refresh>refresh connections</button><div class="finance-bank-connections"></div>
     <div class="finance-bank-setup">
       <section><h3>SimpleFIN</h3><p>Paste a one-time setup token. It is exchanged once and never shown again.</p><label for="finance-simplefin-token">setup token</label><textarea id="finance-simplefin-token" rows="3" autocomplete="off" spellcheck="false"></textarea><button class="btn" type="button" data-bank-simplefin>connect SimpleFIN</button></section>
-      <section><h3>Plaid</h3><p>Use your Plaid application credentials, then finish in official Plaid Link.</p><label for="finance-plaid-client">client id</label><input id="finance-plaid-client" autocomplete="off"><label for="finance-plaid-secret">secret</label><input id="finance-plaid-secret" type="password" autocomplete="new-password"><div class="finance-bank-environments" role="group" aria-label="Plaid environment"><button class="btn active" type="button" aria-pressed="true" data-plaid-env="sandbox">sandbox</button><button class="btn" type="button" aria-pressed="false" data-plaid-env="production">production</button></div><button class="btn" type="button" data-bank-plaid>connect Plaid</button></section>
+      <section><h3>Plaid</h3><p>Use your Plaid application credentials, then finish in official Plaid Link. Sandbox uses test accounts; production requires Plaid access.</p><label for="finance-plaid-client">client id</label><input id="finance-plaid-client" autocomplete="off"><label for="finance-plaid-secret">secret</label><input id="finance-plaid-secret" type="password" autocomplete="new-password"><div class="finance-bank-environments" role="group" aria-label="Plaid environment"><button class="btn active" type="button" aria-pressed="true" data-plaid-env="sandbox">sandbox</button><button class="btn" type="button" aria-pressed="false" data-plaid-env="production">production</button></div><button class="btn" type="button" data-bank-plaid>connect Plaid</button></section>
     </div>
   </section>`;
   return overlay;
 }
 
-async function _plaidSdk() {
-  if (window.Plaid?.create) return window.Plaid;
-  const existing = document.querySelector('script[data-alles-plaid-link]');
-  if (existing) await new Promise((resolve, reject) => { existing.addEventListener('load', resolve, { once: true }); existing.addEventListener('error', reject, { once: true }); });
-  else await new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
-    script.async = true; script.dataset.allesPlaidLink = '1';
-    script.onload = resolve; script.onerror = reject; document.head.append(script);
-  });
-  if (!window.Plaid?.create) throw new Error('Plaid Link did not load');
-  return window.Plaid;
-}
+let _bankOverlay = null;
+let _bankActionPending = false;
 
-async function _finishPlaid(connection, setStatus) {
-  const token = await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}/plaid/link-token`, { method: 'POST' });
-  const Plaid = await _plaidSdk();
-  await new Promise((resolve, reject) => {
-    const handler = Plaid.create({
-      token: token.link_token,
-      onSuccess: async publicToken => {
-        try {
-          await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}/plaid/exchange`, { method: 'POST', body: { public_token: publicToken } });
-          resolve();
-        } catch (error) { reject(error); }
-      },
-      onExit: error => error ? reject(new Error(error.display_message || error.error_message || 'Plaid Link closed with an error')) : reject(new Error('Plaid Link was closed')),
-    });
-    handler.open();
-  });
-  setStatus('Plaid connected. Run sync when you are ready.');
+function _confirmedConnection(value, provider) {
+  if (!value || typeof value.id !== 'string' || !value.id || value.provider !== provider
+    || value.status !== (provider === 'simplefin' ? 'connected' : 'link_required')) {
+    throw new Error('the connection was not confirmed. refresh connections before trying again.');
+  }
+  return value;
 }
 
 async function openBankConnections() {
+  if (_bankOverlay?.isConnected) { _bankOverlay.querySelector('[data-bank-close]').focus(); return; }
   const overlay = _bankDialog();
+  _bankOverlay = overlay;
   const prior = document.activeElement;
   document.body.append(overlay);
+  const controller = new AbortController();
   const status = overlay.querySelector('.finance-bank-status');
-  const setStatus = (message, error = false) => { status.textContent = message; status.dataset.error = error ? 'true' : 'false'; };
+  const setStatus = (message, error = false) => {
+    if (!overlay.isConnected) return;
+    status.textContent = message; status.dataset.error = error ? 'true' : 'false';
+  };
   const dialog = overlay.querySelector('[role="dialog"]');
   let focusBoundary = null;
   const close = () => {
+    controller.abort();
     focusBoundary?.deactivate();
     focusBoundary?.destroy();
     focusBoundary = null;
     overlay.remove();
+    if (_bankOverlay === overlay) _bankOverlay = null;
   };
   overlay.querySelector('[data-bank-close]').addEventListener('click', close);
   overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
   focusBoundary = createFocusBoundary(dialog, { trigger: prior, onEscape: close });
   focusBoundary.activate({ source: prior, focus: overlay.querySelector('[data-bank-close]') });
-  let environment = 'sandbox';
+  let environment = 'sandbox', refreshSequence = 0;
+  const updateBusy = () => {
+    const target = _bankOverlay;
+    if (!target?.isConnected) return;
+    target.querySelector('[role="dialog"]').setAttribute('aria-busy', String(_bankActionPending));
+    target.querySelectorAll('button:not([data-bank-close])').forEach(button => {
+      button.disabled = _bankActionPending || button.dataset.unavailable === 'true';
+    });
+  };
+  const action = async work => {
+    if (_bankActionPending || !overlay.isConnected) return;
+    _bankActionPending = true;
+    updateBusy();
+    try { await work(); }
+    catch (error) { if (error.name !== 'AbortError') setStatus(error.message, true); }
+    finally {
+      _bankActionPending = false; updateBusy();
+      if (overlay.isConnected && (!document.activeElement?.isConnected || document.activeElement === document.body)) {
+        overlay.querySelector('[data-bank-close]').focus();
+      }
+    }
+  };
   overlay.querySelectorAll('[data-plaid-env]').forEach(button => button.addEventListener('click', () => {
+    if (_bankActionPending) return;
     environment = button.dataset.plaidEnv;
     overlay.querySelectorAll('[data-plaid-env]').forEach(item => { const active = item === button; item.classList.toggle('active', active); item.setAttribute('aria-pressed', String(active)); });
   }));
   const refresh = async () => {
+    const sequence = ++refreshSequence;
     const payload = await _ownerFetch('/api/finance/connections');
+    if (!Array.isArray(payload?.connections)) throw new Error('could not read bank connections. try refresh connections.');
+    if (!overlay.isConnected || sequence !== refreshSequence) return;
     const host = overlay.querySelector('.finance-bank-connections');
-    host.innerHTML = payload.connections.length ? payload.connections.map(connection => `<article class="finance-bank-row" data-bank-id="${esc(connection.id)}"><div><strong>${esc(connection.label)}</strong><span>${esc(connection.status)}${connection.last_synced_at ? ` · synced ${esc(formatDate(connection.last_synced_at))}` : ''}</span>${connection.last_error ? `<small>${esc(connection.last_error)}</small>` : ''}</div><div><button class="btn" type="button" data-bank-sync>sync</button>${connection.provider === 'plaid' && connection.status === 'link_required' ? '<button class="btn" type="button" data-bank-link>open Link</button>' : ''}<button class="btn" type="button" data-bank-disconnect>disconnect</button></div></article>`).join('') : '<p class="finance-bank-empty">no bank connections</p>';
+    host.innerHTML = payload.connections.length ? payload.connections.map(connection => `<article class="finance-bank-row" data-bank-id="${esc(connection.id)}"><div><strong>${esc(connection.label)}</strong><span>${connection.provider === 'plaid' ? `${connection.environment === 'sandbox' ? 'sandbox · test accounts' : 'production'} · ` : ''}${esc(connection.status)}${connection.last_synced_at ? ` · synced ${esc(formatDate(connection.last_synced_at))}` : ''}</span>${connection.last_error ? `<small>${esc(connection.last_error)}</small>` : ''}</div><div><button class="btn" type="button" data-bank-sync${connection.status === 'link_required' ? ' disabled data-unavailable="true"' : ''}>sync</button>${connection.provider === 'plaid' ? `<button class="btn" type="button" data-bank-link>${connection.item_id ? 'reconnect' : 'open Link'}</button>` : ''}<button class="btn" type="button" data-bank-disconnect>disconnect</button></div></article>`).join('') : '<p class="finance-bank-empty">no bank connections</p>';
     host.querySelectorAll('[data-bank-id]').forEach(row => {
       const connection = payload.connections.find(item => item.id === row.dataset.bankId);
-      row.querySelector('[data-bank-sync]')?.addEventListener('click', async () => { try { setStatus('syncing…'); const result = await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}/sync`, { method: 'POST' }); setStatus(`sync complete · ${result.created || 0} new · ${result.updated || 0} updated`); await refresh(); await load(); } catch (error) { setStatus(error.message, true); } });
-      row.querySelector('[data-bank-link]')?.addEventListener('click', async () => { try { setStatus('opening Plaid Link…'); await _finishPlaid(connection, setStatus); await refresh(); } catch (error) { setStatus(error.message, true); } });
-      row.querySelector('[data-bank-disconnect]')?.addEventListener('click', async () => { if (!await dlgConfirm(`disconnect ${connection.label}? imported transactions stay in Finance.`)) return; try { await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}`, { method: 'DELETE' }); setStatus('connection revoked'); await refresh(); } catch (error) { setStatus(error.message, true); } });
+      row.querySelector('[data-bank-sync]')?.addEventListener('click', () => action(async () => {
+        setStatus('syncing…');
+        const result = await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}/sync`, { method: 'POST' });
+        if (result?.id !== connection.id || !Number.isInteger(result.created) || !Number.isInteger(result.updated)) {
+          throw new Error('sync was not confirmed. refresh connections before trying again.');
+        }
+        setStatus(`sync complete · ${result.created} new · ${result.updated} updated`);
+        await refresh();
+        await load(fetch, true);
+      }));
+      row.querySelector('[data-bank-link]')?.addEventListener('click', () => action(() => finishLink(connection)));
+      row.querySelector('[data-bank-disconnect]')?.addEventListener('click', () => action(async () => {
+        if (!await dlgConfirm(`disconnect ${connection.label}? imported transactions stay in Finance.`)) return;
+        controller.signal.throwIfAborted();
+        const result = await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}`, { method: 'DELETE' });
+        if (result?.ok !== true || result.connection_id !== connection.id) throw new Error('disconnect was not confirmed. refresh connections before trying again.');
+        setStatus('connection revoked');
+        await refresh();
+      }));
     });
+    updateBusy();
   };
-  overlay.querySelector('[data-bank-simplefin]').addEventListener('click', async () => { const token = overlay.querySelector('#finance-simplefin-token'); try { setStatus('exchanging one-time token…'); await _ownerFetch('/api/finance/connections/simplefin', { method: 'POST', body: { setup_token: token.value.trim() } }); token.value = ''; setStatus('SimpleFIN connected'); await refresh(); } catch (error) { setStatus(error.message, true); } });
-  overlay.querySelector('[data-bank-plaid]').addEventListener('click', async () => { const clientId = overlay.querySelector('#finance-plaid-client'), secret = overlay.querySelector('#finance-plaid-secret'); try { setStatus('saving encrypted Plaid credentials…'); const connection = await _ownerFetch('/api/finance/connections/plaid', { method: 'POST', body: { client_id: clientId.value.trim(), secret: secret.value, environment } }); secret.value = ''; await _finishPlaid(connection, setStatus); await refresh(); } catch (error) { setStatus(error.message, true); } });
+  const finishLink = async connection => {
+    controller.signal.throwIfAborted();
+    setStatus('opening Plaid Link…');
+    try {
+      const result = await openPlaidLink(connection, { signal: controller.signal });
+      setStatus(result.cancelled ? 'Plaid Link closed. use open Link or reconnect to continue.' : 'Plaid connected. run sync when you are ready.');
+    } finally {
+      // Configuration is already saved even if Link was cancelled or could not load.
+      if (overlay.isConnected) await refresh();
+    }
+  };
+  overlay.querySelector('[data-bank-refresh]').addEventListener('click', () => action(async () => {
+    setStatus('refreshing connections…'); await refresh(); setStatus('connections refreshed');
+  }));
+  overlay.querySelector('[data-bank-simplefin]').addEventListener('click', () => action(async () => {
+    const field = overlay.querySelector('#finance-simplefin-token'), token = field.value;
+    if (!token.trim()) { setStatus('enter your one-time SimpleFIN setup token.', true); field.focus(); return; }
+    setStatus('exchanging one-time token…');
+    _confirmedConnection(await _ownerFetch('/api/finance/connections/simplefin', { method: 'POST', body: { setup_token: token.trim() } }), 'simplefin');
+    if (field.value === token) field.value = '';
+    setStatus('SimpleFIN connected');
+    await refresh();
+  }));
+  overlay.querySelector('[data-bank-plaid]').addEventListener('click', () => action(async () => {
+    const clientId = overlay.querySelector('#finance-plaid-client'), secret = overlay.querySelector('#finance-plaid-secret');
+    const submittedSecret = secret.value;
+    if (!clientId.value.trim() || !submittedSecret.trim()) { setStatus('enter your Plaid client id and matching environment secret.', true); return; }
+    setStatus('saving encrypted Plaid credentials…');
+    const connection = _confirmedConnection(await _ownerFetch('/api/finance/connections/plaid', { method: 'POST', body: { client_id: clientId.value.trim(), secret: submittedSecret, environment } }), 'plaid');
+    if (secret.value === submittedSecret) secret.value = '';
+    controller.signal.throwIfAborted();
+    await finishLink(connection);
+  }));
+  updateBusy();
   try { await refresh(); } catch (error) { setStatus(error.message, true); }
 }
 
@@ -1477,10 +1526,12 @@ function wire() {
     $('af-name')?.focus();
   });
   $('bf-add')?.addEventListener('click', addBudget);
+  if ($('bf-add')) $('bf-add').disabled = _budgetSaving;
   _wireEnvelope();
   $('hd-add')?.addEventListener('click', addHolding);
   $('money-body').querySelectorAll('[data-del-hold]').forEach(b => b.addEventListener('click', () => delHolding(b.dataset.delHold)));
   $('gl-add')?.addEventListener('click', addGoal);
+  if ($('gl-add')) $('gl-add').disabled = _goalSaving;
   $('money-body').querySelectorAll('[data-del-goal]').forEach(b => b.addEventListener('click', () => delGoal(b.dataset.delGoal)));
   $('rp-run')?.addEventListener('click', runReport);
   wireForecast();
@@ -2190,19 +2241,32 @@ async function editAccountCurrency(id) {
   finally { button.disabled = false; }
 }
 async function addGoal() {
+  if (_goalSaving) return;
   const name = $('gl-name')?.value.trim();
   if (!name) { toast('name the goal', 'error'); return; }
   const target = _decimal($('gl-target')?.value, 0);
   const current = _decimal($('gl-current')?.value, 0);
   const monthly = _decimal($('gl-monthly')?.value, 0);
   if (!_validAmounts(target, current, monthly)) return;
+  const kind = getDropdownValue($('gl-kind')) || 'savings';
+  const fields = ['gl-name', 'gl-target', 'gl-current', 'gl-monthly'].map(id => [id, $(id), $(id)?.value]);
+  const button = $('gl-add');
+  _goalSaving = true;
+  if (button) button.disabled = true;
   try {
-    await api('/api/money/goals', { method: 'POST', body: {
-      name, kind: getDropdownValue($('gl-kind')) || 'savings',
-      target, current, monthly,
-    } });
-    await load();
-  } catch { toast('add failed', 'error'); }
+    const saved = await api('/api/money/goals', { method: 'POST', body: { name, kind, target, current, monthly } });
+    if (!saved?.id || saved.name !== name || saved.kind !== kind
+      || saved.target !== target || saved.current !== current || saved.monthly !== monthly) {
+      throw new Error('goal was not confirmed. reload goals before trying again.');
+    }
+    if (fields.every(([id, field, value]) => $(id) === field && field.value === value)
+      && getDropdownValue($('gl-kind')) === kind) fields.forEach(([, field]) => { field.value = ''; });
+    await load(fetch, true);
+  } catch (error) { toast(error.message?.includes('not confirmed') ? error.message : 'add failed', 'error'); }
+  finally {
+    _goalSaving = false;
+    if ($('gl-add')) $('gl-add').disabled = false;
+  }
 }
 async function delGoal(id) {
   if (!await dlgConfirm('delete this goal?')) return;
@@ -2455,12 +2519,31 @@ async function bindEnvTarget(targetId) {
   }
 }
 async function addBudget() {
+  if (_budgetSaving) return;
   const category = $('bf-cat')?.value.trim();
   const limit_amt = _decimal($('bf-amt')?.value, 0);
   if (!_validAmounts(limit_amt)) return;
   if (!category) { toast('pick a category', 'error'); return; }
-  try { await api('/api/money/budgets', { method: 'POST', body: { category, limit_amt } }); await load(); }
-  catch (error) { toast(error.message?.includes('budget cap requires one existing spending category') ? 'use one existing spending category in Actual' : 'couldn\'t set spending cap', 'error'); }
+  const fields = ['bf-cat', 'bf-amt'].map(id => [id, $(id), $(id)?.value]);
+  const button = $('bf-add');
+  _budgetSaving = true;
+  if (button) button.disabled = true;
+  try {
+    const saved = await api('/api/money/budgets', { method: 'POST', body: { category, limit_amt } });
+    if (!saved?.id || saved.category !== category || saved.limit_amt !== limit_amt) {
+      throw new Error('spending cap was not confirmed. reload budgets before trying again.');
+    }
+    if (fields.every(([id, field, value]) => $(id) === field && field.value === value)) {
+      fields.forEach(([, field]) => { field.value = ''; });
+    }
+    await load(fetch, true);
+  } catch (error) {
+    toast(error.message?.includes('not confirmed') ? error.message
+      : error.message?.includes('budget cap requires one existing spending category') ? 'use one existing spending category in Actual' : 'couldn\'t set spending cap', 'error');
+  } finally {
+    _budgetSaving = false;
+    if ($('bf-add')) $('bf-add').disabled = false;
+  }
 }
 async function delBudget(id) {
   if (!await dlgConfirm('remove this spending cap?')) return;

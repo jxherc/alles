@@ -307,7 +307,8 @@ test('recurring edit stays scoped to one eligible linked schedule', () => {
 
 test('finance dialogs, rows, and destructive actions expose complete interaction boundaries', () => {
   assert.match(moneySource, /createFocusBoundary\(dialog/);
-  assert.match(moneySource, /requestWithRecentOwner\(fetch, path, init\)/);
+  assert.match(moneySource, /bankRequest as _ownerFetch/);
+  assert.match(readFileSync(new URL('../../static/js/finance_plaid.js', import.meta.url), 'utf8'), /requestWithRecentOwner\(fetch, path, init\)/);
   assert.match(moneySource, /class="tx-edit" data-edit-txn=/);
   assert.match(moneySource, /<button type="button" class="tx-tag"/);
   assert.doesNotMatch(moneySource, /<span class="tx-tag" data-tag=/);
