@@ -201,6 +201,38 @@ def run():
                 before = rows()
                 ics = f"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:{label}-synthetic-import\r\nDTSTART:{day.replace('-', '')}T150000\r\nDTEND:{day.replace('-', '')}T160000\r\nSUMMARY:{label} imported\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
 
+                # A malformed real file remains available for replacement without partial writes.
+                with page.expect_file_chooser() as chooser:
+                    page.locator("#cal-import").click()
+                with page.expect_response(
+                    lambda response: response.url.endswith("/api/calendar/import")
+                ) as malformed:
+                    chooser.value.set_files(
+                        {
+                            "name": "malformed.ics",
+                            "mimeType": "text/calendar",
+                            "buffer": b"not a calendar",
+                        }
+                    )
+                assert malformed.value.status == 400
+                expect(page.locator("#cal-import-status")).to_contain_text("malformed.ics")
+                expect(page.locator("#cal-import-status")).to_contain_text("was not confirmed")
+                expect(page.locator("#cal-import-retry")).to_be_enabled()
+                assert rows() == before
+
+                def malformed_receipt(route):
+                    route.fulfill(status=200, json={"imported": "unknown"})
+
+                page.route("**/api/calendar/import", malformed_receipt)
+                with page.expect_file_chooser() as chooser:
+                    page.locator("#cal-import-choose").click()
+                chooser.value.set_files(
+                    {"name": "unconfirmed.ics", "mimeType": "text/calendar", "buffer": ics.encode()}
+                )
+                expect(page.locator("#cal-import-status")).to_contain_text("was not confirmed")
+                assert rows() == before
+                page.unroute("**/api/calendar/import", malformed_receipt)
+
                 def refuse_import(route):
                     route.fulfill(status=503, json={"detail": "synthetic import unavailable"})
 
@@ -324,7 +356,10 @@ def run():
                     item
                     for item in console
                     if not (
-                        "503 (Service Unavailable)" in item["text"]
+                        (
+                            "503 (Service Unavailable)" in item["text"]
+                            or "400 (Bad Request)" in item["text"]
+                        )
                         and item["url"] in {base + "/api/calendar/import", base + "/api/calendar"}
                     )
                 ]
@@ -335,7 +370,7 @@ def run():
                 )
                 row.update(
                     status="passed",
-                    checks="A-to-B invite ownership/focus; 503 import/file retention and explicit retry; both replacement-picker entry points; empty-picker retention; replacement file persists without resending rejected file; recovery focus/44px controls; 503 booking/title retention and retry; newer editor preserved; real local persistence after reload; keyboard; reduced motion",
+                    checks="A-to-B invite ownership/focus; malformed file and malformed acknowledgment preserve file without writes; 503 import/file retention and explicit retry; both replacement-picker entry points; empty-picker retention; replacement file persists without resending rejected file; recovery focus/44px controls; 503 booking/title retention and retry; newer editor preserved; real local persistence after reload; keyboard; reduced motion",
                     writes=api_writes,
                 )
                 for event in rows():

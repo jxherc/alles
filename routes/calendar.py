@@ -481,9 +481,28 @@ def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
     """import events from a pasted/uploaded .ics."""
     from services.ics import parse_ics
 
+    content = body.ics.lstrip("\ufeff").strip()
+    lines = content.splitlines()
+    if not lines or lines[0] != "BEGIN:VCALENDAR" or lines[-1] != "END:VCALENDAR":
+        raise HTTPException(400, "Choose a complete .ics calendar file.")
+    events = parse_ics(content)
+    end_fields = sum(line.split(":", 1)[0].split(";")[0].upper() == "DTEND" for line in lines)
+    if (
+        lines.count("BEGIN:VEVENT") != len(events)
+        or lines.count("END:VEVENT") != len(events)
+        or end_fields != sum(bool(event.get("end_dt")) for event in events)
+    ):
+        raise HTTPException(
+            400,
+            "An event in this file is incomplete or has an invalid date. No events were imported.",
+        )
+    # Validate the entire file before adding any rows; retries must not duplicate a partial import.
+    for ev in events:
+        ev["title"] = ev["title"] or "(untitled)"
+        calendar_events.validate_event(ev)
     n = 0
     cid = calendar_events.default_calendar_id(db)
-    for ev in parse_ics(body.ics):
+    for ev in events:
         db.add(
             CalendarEvent(
                 title=ev["title"] or "(untitled)",
