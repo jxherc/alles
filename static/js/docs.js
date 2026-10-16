@@ -407,6 +407,8 @@ export function showSection(section) {
     else button.removeAttribute('aria-current');
   });
   const journal = _section === 'journal';
+  setHidden($('wiki-stats'), _section !== 'docs');
+  setHidden($('wiki-save-state'), _section !== 'docs');
   setHidden($('docs-reader-main'), journal);
   setHidden($('docs-journal-section'), !journal);
   setHidden($('wiki-trash-btn'), journal);

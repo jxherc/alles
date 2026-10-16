@@ -86,7 +86,7 @@ function harness({ mobile = false } = {}) {
     document, fetch: fetcher, URL, URLSearchParams, TextEncoder, console,
     setTimeout: () => 1, clearTimeout() {},
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
-    window: {}, location: routeLocation, history: { replaceState() {} },
+    window: {}, location: routeLocation, history: { replaceState() {} }, loadNotes: async () => {},
     replaceRouteUrl(url) {
       const route = new URL(url, 'http://local');
       routeLocation.pathname = route.pathname;
@@ -100,6 +100,7 @@ function harness({ mobile = false } = {}) {
   vm.runInContext(source + `
     globalThis.subject = {
       wire: _wire,
+      section: showSection, lateSaveState: setSaveState,
       open: openNote, enter: enterEdit, done: exitEdit, save: saveCurrent, view: setEditView,
       useDisk: useExternalCopy,
       discard: async () => { openDialog = async () => ({ action: 'discard' }); return discardDraft(); },
@@ -120,6 +121,24 @@ function harness({ mobile = false } = {}) {
     seed(path, content) { disk.set(path, { path, content, hash: path + '-base', exists: true, editable: true }); },
   };
 }
+
+test('quick notes hide the previous document metadata, including late document save updates', async () => {
+  const h = harness();
+  h.seed('saved.md', 'one two three four five six seven');
+  await h.open('saved.md');
+  assert.equal(h.get('wiki-stats').textContent, '7 words · 1 min');
+  assert.equal(h.get('wiki-save-state').textContent, 'saved');
+  await h.section('notes');
+  assert.equal(h.get('wiki-stats').hidden, true);
+  assert.equal(h.get('wiki-save-state').hidden, true);
+  h.lateSaveState('saved');
+  assert.equal(h.get('wiki-save-state').hidden, true);
+  h.section('docs');
+  assert.equal(h.get('wiki-stats').hidden, false);
+  assert.equal(h.get('wiki-stats').textContent, '7 words · 1 min');
+  assert.equal(h.get('wiki-save-state').hidden, false);
+  assert.equal(h.get('wiki-save-state').textContent, 'saved');
+});
 
 test('mobile document navigation moves focus inside and close returns to browse', () => {
   const h = harness({ mobile: true }); h.wire();
