@@ -14,12 +14,35 @@ let _events = [];
 let _editing = null;
 let _midnightTimer = null;
 let _lastRenderDay = '';
+let _loadSequence = 0;
+let _loadError = '';
+let _adding = false;
+const _pending = new Set();
+const _editFields = ['name', 'date', 'repeat', 'category', 'notes', 'notify_days'];
 
 export async function loadDays(fetcher = fetch) {
+  const sequence = ++_loadSequence;
   try {
-    _events = (await fetcher('/api/days').then(r => r.json())).events || [];
-  } catch { _events = []; }
+    const data = await dayJson(fetcher, '/api/days', undefined, value => Array.isArray(value?.events)
+      && value.events.every(item => item && typeof item.id === 'string' && typeof item.name === 'string'
+        && typeof item.date === 'string' && typeof item.target === 'string'
+        && Number.isFinite(new Date(item.target + 'T00:00:00').getTime())));
+    if (sequence !== _loadSequence) return;
+    _events = data.events;
+    _loadError = '';
+  } catch (error) {
+    if (sequence !== _loadSequence) return;
+    _loadError = error.message || 'countdowns unavailable; try again';
+  }
   _render();
+}
+
+async function dayJson(request, path, options, valid) {
+  const response = await request(path, options);
+  const value = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(typeof value?.detail === 'string' ? value.detail : `request failed (${response.status}); try again`);
+  if (!valid(value)) throw new Error('the server response was not confirmed; try again');
+  return value;
 }
 
 export function initDaysPanel(fetcher = fetch) {
@@ -39,22 +62,28 @@ export function initDaysPanel(fetcher = fetch) {
 }
 
 async function _add() {
+  if (_adding) return;
+  const originalName = $('day-name')?.value;
+  const originalCategory = $('day-category')?.value;
   const name = $('day-name')?.value.trim();
   const dt = $('day-date')?.value;
   if (!name) { toast('what are we counting?', 'error'); return; }
   if (!dt) { toast('pick a date', 'error'); return; }
-  const r = await fetch('/api/days', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      name, date: dt.slice(0, 10),
-      repeat: $('day-repeat')?.dataset.value || 'none',
-      category: $('day-category')?.value.trim() || '',
-    }),
-  });
-  if (!r.ok) { toast((await r.json()).detail || 'failed to add', 'error'); return; }
-  ['day-name', 'day-category'].forEach(id => { if ($(id)) $(id).value = ''; });
-  toast(`counting ${name}`, 'success');
-  loadDays();
+  const button = $('day-add-btn');
+  _adding = true; button.disabled = true; button.setAttribute('aria-busy', 'true');
+  try {
+    await dayJson(fetch, '/api/days', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, date: dt.slice(0, 10), repeat: $('day-repeat')?.dataset.value || 'none', category: originalCategory?.trim() || '' }),
+    }, value => typeof value?.id === 'string' && value.name === name && value.date === dt.slice(0, 10));
+    ++_loadSequence;
+    for (const [id, original] of [['day-name', originalName], ['day-category', originalCategory]]) {
+      if ($(id)?.value === original) $(id).value = '';
+    }
+    toast(`counting ${name}`, 'success');
+    await loadDays();
+  } catch (error) { toast(error.message || 'could not confirm this countdown; try again', 'error'); }
+  finally { _adding = false; button.disabled = false; button.removeAttribute('aria-busy'); }
 }
 
 // ── local-time derivation ───────────────────────────────────────────────────
@@ -132,6 +161,10 @@ function _render() {
   _lastRenderDay = _todayLocal().toDateString();
   const grid = $('days-grid');
   if (!grid) return;
+  const editor = grid.querySelector('.day-card.editing');
+  const draft = editor?.dataset.id === _editing
+    ? Object.fromEntries(_editFields.map(field => [field, editor.querySelector(`[data-f="${field}"]`)?.value])) : null;
+  const failure = _loadError ? `<div class="page-empty" role="alert">could not load countdowns: ${esc(_loadError)} <button class="btn" id="days-retry">retry</button></div>` : '';
 
   const derived = _events.map(e => _derive(e));  // not map(_derive) — that leaks the index in as `today`
   const sum = $('days-summary');
@@ -145,7 +178,8 @@ function _render() {
   }
 
   if (!derived.length) {
-    grid.innerHTML = '<div style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">nothing counted yet: a trip, a birthday, a streak. add one below.</div>';
+    grid.innerHTML = failure || '<div style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">nothing counted yet: a trip, a birthday, a streak. add one below.</div>';
+    _wire(grid);
     return;
   }
 
@@ -156,11 +190,15 @@ function _render() {
     ['upcoming',  derived.filter(x => x.mode === 'countdown').sort(_byPinThenSoonest)],
     ['counting up', derived.filter(x => x.mode === 'since').sort((a, b) => a.count - b.count)],
   ];
-  grid.innerHTML = sections
+  grid.innerHTML = failure + sections
     .filter(([, list]) => list.length)
     .map(([label, list]) => `<div class="day-section">${label}</div>` + list.map(cardOf).join(''))
     .join('');
   _wire(grid);
+  if (draft) for (const [field, value] of Object.entries(draft)) {
+    const input = grid.querySelector(`.day-card.editing[data-id="${CSS.escape(_editing)}"] [data-f="${field}"]`);
+    if (input && value !== undefined) input.value = value;
+  }
 }
 
 function _byPinThenName(a, b) {
@@ -204,42 +242,64 @@ function _editCard(e) {
 }
 
 function _wire(grid) {
+  $('days-retry')?.addEventListener('click', async () => {
+    $('days-retry').disabled = true;
+    await loadDays();
+    if (document.activeElement === document.body) ($('days-retry') || $('day-add-btn'))?.focus();
+  });
   grid.querySelectorAll('.day-card.editing .custom-select').forEach(initCustomDropdown);
   grid.querySelectorAll('.day-card.editing .date-input').forEach(initDatePicker);
   grid.querySelectorAll('.day-card').forEach(card => {
     const id = card.dataset.id;
+    const busy = value => card.querySelectorAll('[data-act]').forEach(button => {
+      if (!['edit', 'cancel'].includes(button.dataset.act)) button.disabled = value;
+    });
+    busy(_pending.has(id));
     card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
       const act = btn.dataset.act;
       if (act === 'edit') { _editing = id; _render(); return; }
       if (act === 'cancel') { _editing = null; _render(); return; }
-      if (act === 'pin') {
-        const e = _events.find(x => x.id === id);
-        await fetch(`/api/days/${id}`, {
-          method: 'PATCH', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ pinned: !e.pinned }),
-        });
-        loadDays(); return;
-      }
-      if (act === 'del') {
-        const e = _events.find(x => x.id === id);
-        if (!await dlgConfirm(`stop counting ${e?.name || 'this'}?`)) return;
-        await fetch(`/api/days/${id}`, { method: 'DELETE' });
-        loadDays(); return;
-      }
-      if (act === 'save') {
-        const v = f => card.querySelector(`[data-f="${f}"]`)?.value;
-        const r = await fetch(`/api/days/${id}`, {
-          method: 'PATCH', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            name: v('name')?.trim(), date: v('date'), repeat: v('repeat'),
-            category: v('category')?.trim() || '', notes: v('notes') || '',
-            notify_days: Number.isNaN(parseInt(v('notify_days'), 10)) ? undefined : parseInt(v('notify_days'), 10),
-          }),
-        });
-        if (!r.ok) { toast((await r.json()).detail || 'save failed', 'error'); return; }
-        _editing = null;
-        toast('saved', 'success');
-        loadDays(); return;
+      if (_pending.has(id)) return;
+      _pending.add(id); busy(true);
+      try {
+        if (act === 'pin') {
+          const e = _events.find(x => x.id === id);
+          await dayJson(fetch, `/api/days/${id}`, {
+            method: 'PATCH', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ pinned: !e.pinned }),
+          }, value => value?.id === id && value.pinned === !e.pinned);
+          ++_loadSequence;
+          await loadDays(); return;
+        }
+        if (act === 'del') {
+          const e = _events.find(x => x.id === id);
+          if (!await dlgConfirm(`stop counting ${e?.name || 'this'}?`)) return;
+          await dayJson(fetch, `/api/days/${id}`, { method: 'DELETE' }, value => value?.ok === true);
+          ++_loadSequence;
+          _events = _events.filter(item => item.id !== id);
+          await loadDays(); return;
+        }
+        if (act === 'save') {
+          const v = f => card.querySelector(`[data-f="${f}"]`)?.value;
+          const submitted = Object.fromEntries(_editFields.map(field => [field, v(field)]));
+          await dayJson(fetch, `/api/days/${id}`, {
+            method: 'PATCH', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              name: v('name')?.trim(), date: v('date'), repeat: v('repeat'),
+              category: v('category')?.trim() || '', notes: v('notes') || '',
+              notify_days: Number.isNaN(parseInt(v('notify_days'), 10)) ? undefined : parseInt(v('notify_days'), 10),
+            }),
+          }, value => value?.id === id && value.name === submitted.name?.trim() && value.date === submitted.date);
+          ++_loadSequence;
+          if (_editing === id && card.isConnected && _editFields.every(field => v(field) === submitted[field])) _editing = null;
+          toast('saved', 'success');
+          await loadDays(); return;
+        }
+      } catch (error) { toast(error.message || 'could not confirm this change; try again', 'error'); }
+      finally {
+        _pending.delete(id); busy(false);
+        const current = grid.querySelector(`.day-card[data-id="${CSS.escape(id)}"]`);
+        current?.querySelectorAll('[data-act]').forEach(button => { button.disabled = false; });
       }
     }));
   });
