@@ -27,6 +27,7 @@ def _route_rows():
 
 
 _FINANCE_ADDITIONS = {
+    "POST /api/finance/connections/{connection_id}/plaid/update-complete",
     "GET /api/money/currencies",
     "GET /api/money/transactions/{tid}/undo",
     "POST /api/money/transactions/{tid}/undo",
@@ -41,8 +42,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 917)
-        self.assertEqual(digest, "4f2aec58ae7471a12bf539c5edc571b05a29758b7d2d319000fe094888b25e8b")
+        self.assertEqual(len(rows), 918)
+        self.assertEqual(digest, "05f4755fe9cff1beecd905a8b44e250437b9878a4f07806d579cbefccc99fe84")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -51,7 +52,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 900, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 901, "v1": 2, "public": 15})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

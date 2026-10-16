@@ -1,6 +1,9 @@
 """Owner-controlled read-only bank aggregation."""
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
@@ -67,13 +70,25 @@ def plaid_link_token(connection_id: str, request: Request, db: DbSession = Depen
 
 @router.get("/plaid/return", name="finance_plaid_return")
 def plaid_return():
-    return {"ok": True, "message": "return to Alles to finish connecting Plaid"}
+    return FileResponse(
+        Path(__file__).resolve().parent.parent / "static" / "finance-plaid-return.html",
+        media_type="text/html",
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
 
 
 @router.post("/{connection_id}/plaid/exchange", dependencies=[Depends(require_recent_owner)])
 def plaid_exchange(connection_id: str, body: PlaidExchangeBody, db: DbSession = Depends(get_db)):
     try:
         return finance_connectors.exchange_plaid_public_token(db, connection_id, body.public_token)
+    except finance_connectors.FinanceConnectorError as exc:
+        _error(exc)
+
+
+@router.post("/{connection_id}/plaid/update-complete", dependencies=[Depends(require_recent_owner)])
+def plaid_update_complete(connection_id: str, db: DbSession = Depends(get_db)):
+    try:
+        return finance_connectors.complete_plaid_update(db, connection_id)
     except finance_connectors.FinanceConnectorError as exc:
         _error(exc)
 

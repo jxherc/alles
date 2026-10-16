@@ -124,6 +124,7 @@ class FinanceConnectorTests(ApiTest):
             )
             link = finance_connectors.plaid_link_token(db, row.id, client=link_client)
             self.assertEqual(link["link_token"], "link-sandbox-token")
+            self.assertFalse(link["update_mode"])
             exchange_client = Client(
                 Response({"access_token": "access-sandbox-token", "item_id": "item-1"})
             )
@@ -273,6 +274,86 @@ class FinanceConnectorTests(ApiTest):
 
 
 class FinanceConnectorApiTests(ApiTest):
+    def test_oauth_return_is_a_no_store_page_with_local_resume_module(self):
+        response = self.client.get("/api/finance/connections/plaid/return?oauth_state_id=synthetic")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/html", response.headers["content-type"])
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        self.assertIn("/static/js/finance_plaid_return.js", response.text)
+        self.assertNotIn("synthetic", response.text)
+
+    def test_plaid_reconnect_reuses_access_token_and_confirms_item(self):
+        db = self.db()
+        try:
+            row = FinanceConnection(
+                provider="plaid",
+                label="Plaid",
+                environment="sandbox",
+                client_id="fake-client",
+                client_secret="fake-secret",
+                access_token="fake-access",
+                item_id="fake-item",
+                status="error",
+            )
+            db.add(row)
+            db.commit()
+            client = Client(Response({"link_token": "fake-link", "expiration": "later"}))
+            uri = "https://alles.example/api/finance/connections/plaid/return"
+            link = finance_connectors.plaid_link_token(db, row.id, redirect_uri=uri, client=client)
+            self.assertTrue(link["update_mode"])
+            self.assertEqual(link["redirect_uri"], uri)
+            request = client.calls[0][2]["json"]
+            self.assertEqual(request["access_token"], "fake-access")
+            self.assertNotIn("products", request)
+            with mock.patch(
+                "services.finance_connectors.httpx.post",
+                return_value=Response({"item": {"item_id": "fake-item", "error": None}}),
+            ) as post:
+                response = self.client.post(
+                    f"/api/finance/connections/{row.id}/plaid/update-complete"
+                )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["status"], "connected")
+            self.assertTrue(post.call_args.args[0].endswith("/item/get"))
+            db.refresh(row)
+            self.assertEqual(row.access_token, "fake-access")
+        finally:
+            db.close()
+
+    def test_plaid_update_does_not_clear_provider_error_or_accept_a_different_item(self):
+        db = self.db()
+        try:
+            row = FinanceConnection(
+                provider="plaid",
+                label="Plaid",
+                environment="sandbox",
+                client_id="fake-client",
+                client_secret="fake-secret",
+                access_token="fake-access",
+                item_id="fake-item",
+                status="error",
+                last_error="original failure",
+            )
+            db.add(row)
+            db.commit()
+            for payload in [
+                [],
+                {},
+                {"item": {"item_id": "other"}},
+                {"item": {"item_id": "fake-item", "error": {"error_code": "ITEM_LOGIN_REQUIRED"}}},
+            ]:
+                with (
+                    self.subTest(payload=payload),
+                    self.assertRaises(finance_connectors.FinanceConnectorError),
+                ):
+                    finance_connectors.complete_plaid_update(
+                        db, row.id, client=Client(Response(payload))
+                    )
+                self.assertEqual(row.status, "error")
+                self.assertEqual(row.last_error, "original failure")
+        finally:
+            db.close()
+
     def test_sync_and_disconnect_are_recent_owner_mutations(self):
         with mock.patch(
             "routes.finance_connections.finance_connectors.sync", return_value={"ok": True}

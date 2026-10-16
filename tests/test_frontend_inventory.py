@@ -29,10 +29,10 @@ def _module_graph(directory):
 
 
 class FrontendInventoryTests(unittest.TestCase):
-    def _assert_shipped_module_reachability(self, directory):
+    def _assert_shipped_module_reachability(self, directory, entrypoints=("app.js",)):
         modules, edges = _module_graph(directory)
         reached = set()
-        pending = ["app.js"]
+        pending = list(entrypoints)
         while pending:
             name = pending.pop()
             if name in reached:
@@ -51,7 +51,15 @@ class FrontendInventoryTests(unittest.TestCase):
         self.assertEqual(set(modules) - reached, set(), "unreachable shipped frontend modules")
 
     def test_every_shipped_module_is_reachable_from_app(self):
-        self._assert_shipped_module_reachability(ROOT / "static/js")
+        entrypoints = {"app.js"}
+        for page in (ROOT / "static").glob("*.html"):
+            entrypoints.update(
+                re.findall(
+                    r'<script\s+type="module"\s+src="/static/js/([^"?#]+\.js)(?:[?#][^"]*)?"',
+                    page.read_text("utf-8"),
+                )
+            )
+        self._assert_shipped_module_reachability(ROOT / "static/js", entrypoints)
 
     def test_nested_graph_resolves_each_reference_from_its_importing_module(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Plaid connection · Alles</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/kokuen.css">
+  <script type="module" src="/static/js/finance_plaid_return.js"></script>
+</head>
+<body>
+  <main class="dialog-overlay">
+    <section class="dialog-card finance-bank-dialog" aria-labelledby="plaid-return-title">
+      <header class="finance-bank-head"><h2 id="plaid-return-title">Plaid connection</h2></header>
+      <p id="plaid-return-status" class="finance-bank-status" role="status" aria-live="polite">resuming Plaid Link…</p>
+      <button id="plaid-return-retry" class="btn" type="button" hidden>try again</button>
+      <a id="plaid-return-finance" class="btn" href="/?view=finance">return to Finance</a>
+      <noscript>enable JavaScript to resume Plaid Link, or return to Finance and open Link again.</noscript>
+    </section>
+  </main>
+</body>
+</html>
