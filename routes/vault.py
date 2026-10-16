@@ -972,19 +972,37 @@ def watchtower(db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
 
     breached = []
     seen = {}  # cache prefix→count per distinct password to limit calls
+    checked = 0
     deadline = time.monotonic() + 3.0
     for i in items:
-        cnt = seen.get(i["password"])
-        if cnt is None:
-            cnt = breach_count(i["password"], _hibp_fetch) if time.monotonic() < deadline else 0
+        if i["password"] not in seen:
+            try:
+                cnt = (
+                    breach_count(i["password"], _hibp_fetch, strict=True)
+                    if time.monotonic() < deadline
+                    else None
+                )
+            except Exception:
+                cnt = None
             seen[i["password"]] = cnt
-        if cnt > 0:
+        cnt = seen[i["password"]]
+        checked += cnt is not None
+        if cnt is not None and cnt > 0:
             breached.append({"id": i["id"], "name": i["name"], "count": cnt})
 
     return {
         "weak": weak,
         "reused": reused,
         "breached": breached,
+        "breach_check": {
+            "status": "complete"
+            if checked == len(items)
+            else "partial"
+            if checked
+            else "unavailable",
+            "checked": checked,
+            "total": len(items),
+        },
         "counts": {"weak": len(weak), "reused": len(reused), "breached": len(breached)},
     }
 

@@ -113,6 +113,31 @@ class TotpWatchtowerTests(ApiTest):
         self.assertTrue(any(w["name"] == "Weak" for w in d["weak"]))
         self.assertTrue(any(set(g["names"]) == {"A", "B"} for g in d["reused"]))
         self.assertEqual(d["breached"], [])
+        self.assertEqual(d["breach_check"], {"status": "unavailable", "checked": 0, "total": 3})
+
+    def test_watchtower_malformed_lookup_is_not_all_clear(self):
+        self._entry("Weak", {"password": "123"})
+        for response in ("", "maintenance", "not-a-hash:0"):
+            with (
+                self.subTest(response=response),
+                mock.patch("routes.vault._hibp_fetch", return_value=response),
+            ):
+                result = self.client.get("/api/vault/watchtower", headers=self.h)
+                self.assertEqual(result.status_code, 200)
+                self.assertEqual(result.json()["breach_check"]["status"], "unavailable")
+
+    def test_watchtower_partial_and_completed_lookup_are_distinct(self):
+        self._entry("A", {"password": "Password-fixture-a!"})
+        self._entry("B", {"password": "Password-fixture-b!"})
+        empty_range = "0" * 35 + ":0"
+        with mock.patch(
+            "routes.vault._hibp_fetch", side_effect=[empty_range, RuntimeError("offline")]
+        ):
+            result = self.client.get("/api/vault/watchtower", headers=self.h).json()
+        self.assertEqual(result["breach_check"], {"status": "partial", "checked": 1, "total": 2})
+        with mock.patch("routes.vault._hibp_fetch", return_value=empty_range):
+            result = self.client.get("/api/vault/watchtower", headers=self.h).json()
+        self.assertEqual(result["breach_check"], {"status": "complete", "checked": 2, "total": 2})
 
     def test_watchtower_breached(self):
         self._entry("Pwned", {"password": "password"})
