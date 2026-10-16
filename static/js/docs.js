@@ -1164,7 +1164,9 @@ async function flushDraft() {
       }),
     ));
     if (_cur === path && _editRevision === revision && _dirty) {
-      _draft = savedDraft;
+      // Draft writes acknowledge metadata only; keep the exact submitted bytes
+      // available after Done, when pagehide and Save read from this snapshot.
+      _draft = { ...savedDraft, content };
       _persistedDraftPath = path;
       _persistedDraftRevision = revision;
       _persistedDraftHash = savedDraft.draft_hash || '';
