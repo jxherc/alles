@@ -566,9 +566,40 @@ def run(context_factory=None):
                                     expect(page.locator(".ai-body").last).to_contain_text(
                                         "owned continuation received"
                                     )
-                                    page.get_by_role(
-                                        "button", name="+note", exact=True
-                                    ).last.click()
+                                    expect(page.locator("#send-btn")).to_be_enabled()
+                                    page.wait_for_function(
+                                        "id => window._currentSession?.id === id",
+                                        arg=chats[0]["session_id"],
+                                    )
+                                    more = page.get_by_role(
+                                        "button", name="more reply actions", exact=True
+                                    ).last
+                                    # A click's auto-scroll can enqueue the captured scroll
+                                    # event which closes reply menus. Settle ancestor scrolling
+                                    # before opening, just as a user scrolls then activates it.
+                                    more.scroll_into_view_if_needed()
+                                    more.evaluate("""async el => {
+                                        const nodes = [];
+                                        for (let node = el; node; node = node.parentElement) nodes.push(node);
+                                        let previous = '', stable = 0;
+                                        for (let frame = 0; frame < 60 && stable < 3; frame++) {
+                                            await new Promise(requestAnimationFrame);
+                                            const rect = el.getBoundingClientRect();
+                                            const next = JSON.stringify([rect.x, rect.y, ...nodes.map(node => [node.scrollTop, node.scrollLeft])]);
+                                            stable = next === previous ? stable + 1 : 0;
+                                            previous = next;
+                                        }
+                                        if (stable < 3) throw new Error('reply action scrolling did not settle');
+                                    }""")
+                                    more.click()
+                                    expect(more).to_have_attribute("aria-expanded", "true")
+                                    reply_menu = page.locator(
+                                        "#" + more.get_attribute("aria-controls")
+                                    )
+                                    expect(reply_menu).to_be_visible()
+                                    reply_menu.get_by_role(
+                                        "menuitem", name="+note", exact=True
+                                    ).click()
                                     open_note = page.locator("#aide-note-recovery .note-saved-open")
                                     expect(open_note).to_be_visible()
                                     note_path = (

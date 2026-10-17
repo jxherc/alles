@@ -116,7 +116,7 @@ async function poll(card, preview = {}) {
       if (run.state === 'succeeded') {
         setTimeout(() => {
           if (window._refreshAideSessionQuietly) window._refreshAideSessionQuietly(run.session_id);
-          else window._reloadActiveSession?.();
+          else window._reloadActiveSession?.(run.session_id);
         }, 650);
       }
       return;

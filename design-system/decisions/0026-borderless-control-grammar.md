@@ -9,6 +9,7 @@ Alles accumulated selected tabs, quick-capture fields, nested settings cards, an
 - Selected tabs use tone and type, not a filled tile.
 - Quick-capture inputs use a single bottom structural rail; long-form editors and the Aide composer keep their workspace boundary.
 - Icon-only actions use one bare 16px SVG centered in a 44px target. The shared KOKUEN runtime upgrades explicit `data-kokuen-icon` controls and legacy single-glyph controls, including dynamically inserted rows.
+- Inferred glyph upgrades apply only to controls without child elements. Nested labels, provider logos, and their listeners stay owned by the product module, even while their text is empty. An explicit `data-kokuen-icon` opts into replacement; repeated state decoration preserves an already rendered icon.
 - Settings sections group with headings, rhythm, and row separators instead of nested outer card borders.
 - Dialog edges, pane seams, data-grid lines, editor boundaries, and visible keyboard focus remain because they communicate structure or interaction state.
 

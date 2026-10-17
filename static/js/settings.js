@@ -846,43 +846,140 @@ function loadShortcutSettings() {
 }
 
 // ── voice pane ────────────────────────────────────────────────────────────────
+let _voiceReadGeneration = 0;
+let _voiceMicReadGeneration = 0;
+let _voiceLoaded = false;
+let _voiceWrite = null;
+const _voiceDrafts = new WeakMap();
+const _voiceFields = [
+  ['stt-select', 'stt_provider', true],
+  ['tts-select', 'tts_provider', true],
+  ['s-tts-voice', 'tts_voice', true],
+  ['s-tts-speed', 'tts_speed', true],
+  ['s-stt-language', 'stt_language', false],
+  ['settings-openai-key', 'openai_api_key', false],
+];
+
+function _trackVoiceDrafts() {
+  return _voiceFields.flatMap(([id, key, dropdown]) => {
+    const el = document.getElementById(id);
+    if (!el) return [];
+    let draft = _voiceDrafts.get(el);
+    if (!draft) {
+      draft = { revision: 0, dirty: false };
+      _voiceDrafts.set(el, draft);
+      el.addEventListener(dropdown ? 'change' : 'input', () => {
+        ++draft.revision;
+        draft.dirty = true;
+        if (_voiceLoaded && !_voiceWrite) _showVoiceState('unsaved voice changes', 'dirty');
+      });
+    }
+    return [{ el, key, dropdown, draft }];
+  });
+}
+
+function _showVoiceState(message, state, retry = false) {
+  const pane = document.getElementById('s-pane-voice');
+  if (!pane) return;
+  let status = pane.querySelector('.settings-save-state');
+  if (!status) {
+    status = document.createElement('p');
+    status.className = 'settings-save-state';
+    status.setAttribute('role', 'status');
+    pane.prepend(status);
+  }
+  let button = document.getElementById('s-voice-retry-btn');
+  if (!button) {
+    button = document.createElement('button');
+    button.id = 's-voice-retry-btn';
+    button.type = 'button';
+    button.className = 'btn';
+    button.textContent = 'retry voice settings';
+    button.onclick = () => button.getAttribute('aria-disabled') !== 'true' && loadVoicePane();
+    pane.prepend(button);
+    pane.prepend(status);
+  }
+  status.textContent = message;
+  status.dataset.state = state;
+  // Retain retry focus while its request is running, then return to the form.
+  const retryFocused = document.activeElement === button;
+  button.hidden = !retry && !(state === 'loading' && retryFocused);
+  // Native disabled blurs a focused button before the read completes.
+  button.setAttribute('aria-disabled', String(state === 'loading'));
+  if (button.hidden && retryFocused) document.getElementById('stt-select')?.focus();
+}
+
+function _refreshVoiceActions() {
+  const unavailable = !_voiceLoaded || !!_voiceWrite;
+  const save = document.getElementById('s-voice-save-btn');
+  if (save) save.disabled = unavailable;
+  const autoplay = document.getElementById('s-tts-enabled-toggle');
+  if (autoplay) {
+    autoplay.inert = unavailable;
+    autoplay.setAttribute('aria-disabled', String(unavailable));
+  }
+}
+
 async function loadVoicePane() {
+  const read = ++_voiceReadGeneration;
+  const fields = _trackVoiceDrafts();
+  _voiceLoaded = false;
+  _refreshVoiceActions();
+  const pane = document.getElementById('s-pane-voice');
+  // An earlier save receipt must not replace this opening's loading/error state.
+  if (pane) pane.dataset.saveRevision = `voice-read-${read}`;
+  _showVoiceState('loading voice settings…', 'loading');
+  _loadMicDevices(++_voiceMicReadGeneration);
   try {
-    const s = await fetch('/api/settings').then(r => r.json());
-    const ttsEl = document.getElementById('tts-select');
-    const sttEl = document.getElementById('stt-select');
-    if (ttsEl) setDropdownValue(ttsEl, s.tts_provider || 'browser');
-    if (sttEl) setDropdownValue(sttEl, s.stt_provider || 'browser');
-    const voiceSel = document.getElementById('s-tts-voice');
-    if (voiceSel) setDropdownValue(voiceSel, s.tts_voice || 'alloy');
-    if (s.openai_api_key) document.getElementById('settings-openai-key').value = s.openai_api_key;
-    const langEl = document.getElementById('s-stt-language');
-    if (langEl && s.stt_language) langEl.value = s.stt_language;
-    setDropdownValue(document.getElementById('s-tts-speed'), String(s.tts_speed ?? 1));
+    // Reopening during a write must not read its old server baseline.
+    if (_voiceWrite) await _voiceWrite;
+    if (read !== _voiceReadGeneration) return;
+    const s = await _endpointJson(await fetch('/api/settings'));
+    if (read !== _voiceReadGeneration) return;
+    if (!s || typeof s.stt_provider !== 'string' || typeof s.tts_provider !== 'string'
+        || typeof s.tts_voice !== 'string' || typeof s.stt_language !== 'string'
+        || !Number.isFinite(s.tts_speed) || typeof s.tts_auto_play !== 'boolean') {
+      throw new Error('incomplete voice settings');
+    }
+    for (const { el, key, dropdown, draft } of fields) {
+      // The API key is write-only. A read must never populate or clear its draft.
+      if (draft.dirty || key === 'openai_api_key') continue;
+      if (dropdown) setDropdownValue(el, String(s[key]));
+      else el.value = s[key];
+    }
     _bindSwitch(document.getElementById('s-tts-enabled-toggle'),
-      () => !!(s.tts_auto_play),
-      on => _patchSettings({ tts_auto_play: on })
+      () => s.tts_auto_play,
+      on => _writeVoiceSettings({ tts_auto_play: on })
     );
+    _voiceLoaded = true;
     _updateTtsVoiceRow();
-  } catch {}
-  _loadMicDevices();
+    const dirty = fields.some(({ draft }) => draft.dirty);
+    _showVoiceState(dirty ? 'unsaved voice changes' : 'voice settings loaded', dirty ? 'dirty' : 'loaded');
+  } catch {
+    if (read === _voiceReadGeneration) {
+      _showVoiceState('could not load voice settings. retry to load your saved choices.', 'error', true);
+    }
+  } finally {
+    if (read === _voiceReadGeneration) _refreshVoiceActions();
+  }
 }
 
 // Populate device choices without requesting recording permission. Labels become
 // available after the owner grants access through an explicit recording action.
-async function _loadMicDevices() {
+async function _loadMicDevices(read = _voiceMicReadGeneration) {
   const el = document.getElementById('s-mic-select');
   if (!el || !navigator.mediaDevices?.enumerateDevices) return;
-  const mics = (await navigator.mediaDevices.enumerateDevices().catch(() => []))
-    .filter(d => d.kind === 'audioinput');
-  const opts = [{ value: '', label: 'default microphone' },
-    ...mics.map((m, i) => ({ value: m.deviceId, label: m.label || `microphone ${i + 1}` }))];
-  const saved = localStorage.getItem('alles-mic-id') || '';
-  populateDropdown(el, opts, opts.some(o => o.value === saved) ? saved : '');
   if (!el.dataset.micBound) {
     el.dataset.micBound = '1';
     el.addEventListener('change', () => localStorage.setItem('alles-mic-id', getDropdownValue(el) || ''));
   }
+  const devices = await navigator.mediaDevices.enumerateDevices().catch(() => null);
+  if (!devices || read !== _voiceMicReadGeneration) return;
+  const mics = devices.filter(d => d.kind === 'audioinput');
+  const opts = [{ value: '', label: 'default microphone' },
+    ...mics.map((m, i) => ({ value: m.deviceId, label: m.label || `microphone ${i + 1}` }))];
+  const saved = localStorage.getItem('alles-mic-id') || '';
+  populateDropdown(el, opts, opts.some(o => o.value === saved) ? saved : '');
 }
 
 function _updateTtsVoiceRow() {
@@ -892,16 +989,45 @@ function _updateTtsVoiceRow() {
 }
 
 async function saveVoiceSettings() {
+  if (!_voiceLoaded || _voiceWrite) return;
+  const submitted = _trackVoiceDrafts().map(field => ({ ...field, revision: field.draft.revision }));
   const patch = {
     tts_provider: getDropdownValue(document.getElementById('tts-select')) || 'browser',
     stt_provider: getDropdownValue(document.getElementById('stt-select')) || 'browser',
     tts_voice:    getDropdownValue(document.getElementById('s-tts-voice')) || 'alloy',
-    tts_speed:    parseFloat(document.getElementById('s-tts-speed')?.value || '1.0'),
+    tts_speed:    parseFloat(getDropdownValue(document.getElementById('s-tts-speed')) || '1.0'),
     stt_language: document.getElementById('s-stt-language')?.value.trim() || '',
   };
   const key = document.getElementById('settings-openai-key')?.value.trim();
-  if (key) patch.openai_api_key = key;
-  if (await _patchSettings(patch)) toast('voice settings saved', 'success');
+  if (key && submitted.some(field => field.key === 'openai_api_key' && field.draft.dirty)) patch.openai_api_key = key;
+  if (await _writeVoiceSettings(patch, submitted)) {
+    const dirty = submitted.some(({ draft }) => draft.dirty);
+    toast(dirty ? 'earlier voice settings saved; your latest edits still need saving' : 'voice settings saved', 'success');
+  }
+}
+
+async function _writeVoiceSettings(patch, submitted = []) {
+  if (!_voiceLoaded || _voiceWrite) return null;
+  const read = ++_voiceReadGeneration;
+  const pending = _patchSettings(patch);
+  _voiceWrite = pending;
+  _refreshVoiceActions();
+  try {
+    const settings = await pending;
+    if (settings) {
+      for (const { draft, revision } of submitted) {
+        if (draft.revision === revision) draft.dirty = false;
+      }
+      if (read === _voiceReadGeneration) {
+        const dirty = _trackVoiceDrafts().some(({ draft }) => draft.dirty);
+        _showVoiceState(dirty ? 'earlier voice settings saved; your latest edits still need saving' : 'saved', dirty ? 'dirty' : 'saved');
+      }
+    }
+    return settings;
+  } finally {
+    if (_voiceWrite === pending) _voiceWrite = null;
+    _refreshVoiceActions();
+  }
 }
 
 // ── personas ──────────────────────────────────────────────────────────────────
@@ -922,7 +1048,11 @@ function _isSettingsPaneOpen(name) {
 }
 
 function _invalidateRetainedReads(name) {
-  if (name === 'memory') {
+  if (name === 'voice') {
+    ++_voiceReadGeneration;
+    ++_voiceMicReadGeneration;
+    _voiceLoaded = false;
+  } else if (name === 'memory') {
     ++_ownerInstructionsRead;
   } else if (name === 'personas') {
     ++_personaReadGeneration;

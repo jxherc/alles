@@ -3,7 +3,9 @@
 import json
 import os
 import threading
+import time
 import traceback
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
@@ -12,6 +14,139 @@ from playwright.sync_api import expect, sync_playwright
 from pw_aide_questions_real import HOME, _require_throwaway_data_root, api
 
 ANSWER = "# send the owned application\n\nkeep **this source detail** and [local note](/?doc=owned.md). 🌱"
+
+
+def current_model_turn(messages):
+    """Ignore retained conversation history; include only this user's tool results."""
+    start = next(
+        (i for i in range(len(messages) - 1, -1, -1) if messages[i].get("role") == "user"),
+        len(messages),
+    )
+    return messages[start:]
+
+
+def close_archive(page):
+    close = page.locator("#aide-sidebar-close")
+    if close.is_visible():
+        close.click()
+    expect(page.locator("#nav-backdrop")).not_to_be_visible()
+
+
+def private_conversation(page):
+    close_archive(page)
+    page.locator("#aide-more-btn").click()
+    page.get_by_role("menuitem", name="private conversation", exact=True).click()
+    expect(page.locator("#incognito-bar")).to_be_visible()
+
+
+def new_task(page):
+    close_archive(page)
+    # Central Aide hides legacy sidebar navigation. Its documented shortcut
+    # still starts an independent task through the real keyboard handler.
+    page.keyboard.press("Alt+n")
+    expect(page.locator("#messages .ai-wrap")).to_have_count(0)
+    expect(page.locator("#composer-ta")).to_be_focused()
+
+
+def submitted_reply(page, question, submit):
+    """Pin the row created by this request, never a live `.last` historical reply."""
+    with page.expect_request(
+        lambda request: (
+            urlparse(request.url).path == "/api/chat"
+            and request.method == "POST"
+            and request.post_data_json.get("message") == question
+        )
+    ):
+        submit()
+    # A failed send may leave the same user bubble before a retry. The latest
+    # matching user is resolved once, after its exact request has started.
+    bubble = page.locator("#messages").get_by_text(question, exact=True)
+    expect(bubble.last).to_be_attached()
+    reply = (
+        bubble.last.locator("xpath=ancestor::*[contains(@class,'msg-row')][1]")
+        .locator("xpath=following-sibling::*[1]")
+        .locator(".ai-wrap")
+    )
+    expect(reply).to_have_count(1)
+    token = uuid.uuid4().hex
+    reply.evaluate("(element, token) => element.dataset.ownedTurn = token", token)
+    return page.locator(f'#messages .ai-wrap[data-owned-turn="{token}"]')
+
+
+def settled_reply(page, reply):
+    expect(reply.locator(".msg-actions")).to_have_count(1)
+    expect(page.locator("#send-btn")).to_be_enabled()
+    expect(page.locator("#stop-btn")).not_to_be_visible()
+    assert reply.get_attribute("data-session-id"), "new reply lacks session identity"
+
+
+def canonical_reply(page, reply):
+    """Match the persisted reply by its immutable message/provenance identity."""
+    identity = reply.evaluate("""element => ({
+        session: element.dataset.sessionId, source: element.sourceReplyId,
+        message: element.closest('.msg-row').dataset.msgId
+    })""")
+    assert identity.get("source") or identity.get("message"), identity
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        history = api("GET", f"/api/sessions/{identity['session']}/history")["messages"]
+        matches = [
+            message
+            for message in history
+            if message["role"] == "assistant"
+            and (
+                message.get("id") == identity.get("message")
+                or identity.get("source")
+                and message.get("meta", {}).get("context_provenance", {}).get("reply_id")
+                == identity["source"]
+            )
+        ]
+        if matches:
+            assert len(matches) == 1, identity
+            return matches[0]
+        page.wait_for_timeout(20)
+    raise AssertionError(f"new reply was not persisted: {identity}")
+
+
+def persisted_reply(page, message):
+    reply = page.locator(f'#messages .msg-row[data-msg-id="{message}"] .ai-wrap')
+    expect(reply).to_have_count(1)
+    return reply
+
+
+def reply_action(page, reply, name):
+    """Open the actual menu after streaming/focus scrolling has settled."""
+    trigger = reply.get_by_role("button", name="more reply actions", exact=True)
+    trigger.scroll_into_view_if_needed()
+    trigger.focus()
+    trigger.evaluate("""element => new Promise((resolve, reject) => {
+      const deadline = performance.now() + 3000;
+      let previous = '', stable = 0;
+      const sample = () => {
+        const box = element.getBoundingClientRect();
+        const chat = document.getElementById('chat');
+        const current = JSON.stringify([box.x, box.y, chat.scrollTop, chat.scrollLeft]);
+        stable = current === previous ? stable + 1 : 0;
+        previous = current;
+        if (stable >= 3) return resolve();
+        if (performance.now() > deadline) return reject(new Error('reply scroll did not settle'));
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    })""")
+    menu = reply.get_by_role("menu", name="reply actions")
+    if not menu.is_visible():
+        trigger.press("ArrowDown")
+    expect(menu).to_be_visible()
+    action = menu.get_by_role("menuitem", name=name, exact=True)
+    expect(action).to_be_visible()
+    action.focus()
+    expect(action).to_be_focused()
+    # Its accessible name changes while preparing/saved. Pin this element so
+    # subsequent busy-state assertions cannot lose it or select a different action.
+    token = action.get_attribute("data-owned-action") or uuid.uuid4().hex
+    action.evaluate("(element, token) => element.dataset.ownedAction = token", token)
+    return reply.locator(f'[data-owned-action="{token}"]')
 
 
 class Model(BaseHTTPRequestHandler):
@@ -25,7 +160,7 @@ class Model(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers.get("content-length", "0"))))
         selected = any(
             "<alles_document_reference>" in str(message.get("content", ""))
-            for message in body.get("messages", [])
+            for message in current_model_turn(body.get("messages", []))
         )
         answer = "keep **this source detail** [[source:1:2-2]]" if selected else ANSWER
         if not body.get("stream"):
@@ -59,6 +194,7 @@ class Model(BaseHTTPRequestHandler):
 def run(context_factory=None, cases=None):
     _require_throwaway_data_root()
     out = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
+    out.mkdir(parents=True, exist_ok=True)
     rows = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), Model)
     server.daemon_threads = True
@@ -166,11 +302,14 @@ def run(context_factory=None, cases=None):
                             else HOME
                         )
                         page.goto(base + "/?app=aide", wait_until="networkidle")
-                        if page.locator("#nav-backdrop").is_visible():
-                            page.locator("#nav-backdrop").click(position={"x": width - 20, "y": 80})
+                        close_archive(page)
                         if case == "private":
-                            page.locator("#incognito-btn").click()
-                            expect(page.locator("#incognito-bar")).to_be_visible()
+                            private_conversation(page)
+                        if case == "deleted":
+                            # The primary conversation is deliberately protected.
+                            # Exercise missing-source recovery on a deletable Aide task.
+                            new_task(page)
+                        question = f"owned task {width}-{case}: give me the application task"
                         if source_case:
                             path = f"task-{width}-{case}/source.md"
                             api(
@@ -189,27 +328,22 @@ def run(context_factory=None, cases=None):
                                 "owned source passage"
                             )
                             page.locator("#wiki-ask-btn").click()
-                            page.locator("#wiki-ask-input").fill("use the owned source")
-                            page.locator("#wiki-ask-go").click()
+                            page.locator("#wiki-ask-input").fill(question)
+                            reply = submitted_reply(
+                                page, question, page.locator("#wiki-ask-go").click
+                            )
                         else:
-                            page.locator("#composer-ta").fill("give me the owned application task")
-                            page.locator("#send-btn").click()
-                        expect(page.locator(".ai-body").last).to_contain_text(
-                            "keep this source detail"
-                        )
+                            page.locator("#composer-ta").fill(question)
+                            reply = submitted_reply(page, question, page.locator("#send-btn").click)
+                        expect(reply.locator(".ai-body")).to_contain_text("keep this source detail")
                         if source_case:
+                            expect(page.locator("#stop-btn")).to_be_visible()
                             page.locator("#stop-btn").click()
-                        expect(page.locator("#send-btn")).to_be_enabled()
-                        reply = page.locator("#messages .ai-wrap").last
+                        settled_reply(page, reply)
                         message = reply.locator("xpath=..").get_attribute("data-msg-id")
                         session = reply.get_attribute("data-session-id")
                         if source_case:
-                            for _ in range(100):
-                                history = api("GET", f"/api/sessions/{session}/history")["messages"]
-                                if history and history[-1]["role"] == "assistant":
-                                    break
-                                page.wait_for_timeout(20)
-                            canonical = history[-1]
+                            canonical = canonical_reply(page, reply)
                             assert canonical["meta"]["interrupted"] is True
                             for hold in Model.holds:
                                 hold.set()
@@ -217,16 +351,17 @@ def run(context_factory=None, cases=None):
                             expected = canonical["content"].strip()
                             assert "[[source:" not in expected and "doc_hash=" in expected
                             assert "> owned source passage" in expected
-                            if page.locator("#nav-backdrop").is_visible():
-                                page.locator("#nav-backdrop").click(
-                                    position={"x": width - 20, "y": 80}
-                                )
+                            assert quote(path, safe="") in expected, expected
+                            close_archive(page)
                         if case == "history":
                             page.reload(wait_until="networkidle")
-                            if page.locator("#nav-backdrop").is_visible():
-                                page.locator("#nav-backdrop").click(
-                                    position={"x": width - 20, "y": 80}
-                                )
+                            close_archive(page)
+                            reply = persisted_reply(page, message)
+                        record["reply_identity"] = {
+                            "question": question,
+                            "session": session,
+                            "message": message,
+                        }
                         button = reply.locator('button[title="review this reply as a plan task"]')
                         if case in ("source-fail", "source-pending"):
                             page.route(
@@ -240,7 +375,7 @@ def run(context_factory=None, cases=None):
                                 ),
                                 times=1,
                             )
-                            button.click()
+                            reply_action(page, reply, "+plan task").press("Enter")
                             expect(page.locator("#aide-task-recovery")).to_contain_text(
                                 "try +plan task again"
                             )
@@ -252,34 +387,39 @@ def run(context_factory=None, cases=None):
                                 lambda route: held.append(route),
                                 times=1,
                             )
-                        button.focus()
+                        button = reply_action(page, reply, "+plan task")
                         button.press("Enter")
                         if case == "source-stale":
                             old_button = button.element_handle()
                             expect(button).to_have_attribute("aria-disabled", "true")
-                            if not page.locator("#new-chat-btn").is_visible():
-                                page.locator("#sidebar-toggle-btn").click()
-                            page.locator("#new-chat-btn").click()
+                            new_task(page)
                             if page.locator("#aide-document-scope-remove").is_visible():
                                 page.locator("#aide-document-scope-remove").click()
-                            page.locator("#composer-ta").fill("another owned task")
-                            page.locator("#send-btn").click()
-                            expect(page.locator(".ai-body").last).to_contain_text(
+                            record["superseded_reply_identity"] = record["reply_identity"]
+                            question = f"another owned task {width}-{case}"
+                            page.locator("#composer-ta").fill(question)
+                            reply = submitted_reply(page, question, page.locator("#send-btn").click)
+                            expect(reply.locator(".ai-body")).to_contain_text(
                                 "keep this source detail"
                             )
-                            expect(page.locator("#send-btn")).to_be_enabled()
-                            reply = page.locator("#messages .ai-wrap").last
+                            settled_reply(page, reply)
                             message = reply.locator("xpath=..").get_attribute("data-msg-id")
                             session = reply.get_attribute("data-session-id")
                             expected = ANSWER
-                            button = reply.locator(
-                                'button[title="review this reply as a plan task"]'
-                            )
-                            button.click()
+                            record["reply_identity"] = {
+                                "question": question,
+                                "session": session,
+                                "message": message,
+                            }
+                            button = reply_action(page, reply, "+plan task")
+                            button.press("Enter")
                         if case == "source-busy":
                             expect(button).to_have_attribute("aria-disabled", "true")
-                            button.press("Enter")
+                            # Targeted keyboard re-entry on the visible disabled item;
+                            # ordinary menu arrow navigation intentionally skips it.
+                            reply_action(page, reply, "preparing…").press("Enter")
                             assert len(held) == 1 and not writes
+                            page.keyboard.press("Escape")
                             held.pop().continue_()
                         expect(page.locator("#capture-title")).to_be_visible()
                         expect(page.locator("#capture-notes")).to_have_value(expected)
@@ -289,7 +429,9 @@ def run(context_factory=None, cases=None):
                         if case == "cancel":
                             page.locator("#capture-cancel").click()
                             expect(page.locator("#capture-title")).to_be_hidden()
-                            expect(button).to_be_focused()
+                            expect(
+                                reply.get_by_role("button", name="more reply actions", exact=True)
+                            ).to_be_focused()
                             assert not writes
                             assert {
                                 r["id"]
@@ -315,10 +457,7 @@ def run(context_factory=None, cases=None):
                                 )
                                 if case == "reload":
                                     page.reload(wait_until="networkidle")
-                                    if page.locator("#nav-backdrop").is_visible():
-                                        page.locator("#nav-backdrop").click(
-                                            position={"x": width - 20, "y": 80}
-                                        )
+                                    close_archive(page)
                                     page.get_by_role(
                                         "button", name="review pending capture", exact=True
                                     ).click()
@@ -413,9 +552,7 @@ def run(context_factory=None, cases=None):
                                         path=str(out / f"{width}-deleted-source-error.png"),
                                         full_page=True,
                                     )
-                                    if not page.locator("#new-chat-btn").is_visible():
-                                        page.locator("#sidebar-toggle-btn").click()
-                                    page.locator("#new-chat-btn").click()
+                                    new_task(page)
                                     assert "message" not in parse_qs(urlparse(page.url).query)
                                     assert not urlparse(page.url).fragment
                                     page.reload(wait_until="networkidle")
@@ -464,6 +601,7 @@ def run(context_factory=None, cases=None):
                             record["error"] = record.get("error", "") + "\npage overflow"
                         page.screenshot(path=str(out / f"{width}-{case}.png"), full_page=True)
                         rows.append(record)
+                        (out / "scenarios.json").write_text(json.dumps(rows, indent=2))
                         context.close()
             browser.close()
     finally:

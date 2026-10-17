@@ -172,6 +172,14 @@ def run():
                     for number in (1, 2):
                         if page.locator("#money-entry-fields").is_hidden():
                             page.locator("#money-entry-action").press("Enter")
+                        if (
+                            case in ("entry-focus", "shared-tag-focus")
+                            and page.locator("#tx-details").is_hidden()
+                        ):
+                            page.locator("#tx-details-toggle").press("Enter")
+                            expect(page.locator("#tx-details-toggle")).to_have_attribute(
+                                "aria-expanded", "true"
+                            )
                         page.locator("#tx-payee").fill(f"owned recovery expense {number}")
                         page.locator("#tx-amt").fill("2.50")
                         if case == "shared-tag-focus":
@@ -595,6 +603,11 @@ def run():
                     finally:
                         record.update(page_errors=errors, console_errors=console, external=external)
                         page.screenshot(path=str(out / f"{width}-{case}.png"))
+                        # Finish route.fetch callbacks before disposing their API
+                        # context. Otherwise a late summary read leaks into the next case.
+                        for pending in held + held_refresh:
+                            pending.abort()
+                        context.unroute_all(behavior="wait")
                         context.close()
                         (out / "scenarios.json").write_text(json.dumps(records, indent=2) + "\n")
         finally:

@@ -11,6 +11,16 @@ from urllib.parse import quote
 
 from playwright.sync_api import expect, sync_playwright
 from pw_aide_questions_real import HOME, _require_throwaway_data_root, api
+from pw_aide_task_capture import (
+    canonical_reply,
+    close_archive,
+    current_model_turn,
+    persisted_reply,
+    private_conversation,
+    reply_action,
+    settled_reply,
+    submitted_reply,
+)
 
 
 class SourceModel(BaseHTTPRequestHandler):
@@ -27,10 +37,11 @@ class SourceModel(BaseHTTPRequestHandler):
             return
         request = json.loads(self.rfile.read(int(self.headers.get("content-length", "0"))))
         messages = request.get("messages", [])
-        selected = any("<alles_document_reference>" in str(m.get("content", "")) for m in messages)
+        turn = current_model_turn(messages)
+        selected = any("<alles_document_reference>" in str(m.get("content", "")) for m in turn)
         if selected:
             self.requests.append(request)
-        question = str(messages[-1].get("content", "")) if messages else ""
+        question = str(turn[0].get("content", "")) if turn else ""
         if "question-uncited" in question:
             content = "**comparison**: an answer without passage coordinates"
         elif "question-invalid" in question:
@@ -133,6 +144,7 @@ def run():
                         else "tablet"
                         if width == 820
                         else "desktop",
+                        "viewport": {"width": width, "height": height},
                         "status": "failed",
                         "evidence": [label + ".zip", label + ".png", label + ".json"],
                         "simulation": "synthetic loopback model; save-lost replaces one acknowledged real save with HTTP503; other APIs real",
@@ -174,7 +186,7 @@ def run():
                         "/api/vault-md/file",
                         {"path": path2, "content": "# source\nclosed on monday\n"},
                     )
-                    question = f"question-{case}: compare the notes"
+                    question = f"question-{case}: compare the notes ({label})"
                     first_line = "open on monday"
                     if case == "literal":
                         first_line = "**literal** $x$ [brackets] <mark>text</mark>"
@@ -197,12 +209,7 @@ def run():
                         if case == "interrupted-private":
                             page.locator("#app-drawer-btn").click()
                             page.locator('.app-drawer-item[data-view="chat"]').click()
-                            if page.locator("#nav-backdrop").is_visible():
-                                page.locator("#nav-backdrop").click(
-                                    position={"x": width - 20, "y": 80}
-                                )
-                            page.locator("#incognito-btn").click()
-                            expect(page.locator("#incognito-bar")).to_be_visible()
+                            private_conversation(page)
                             page.go_back(wait_until="networkidle")
                             expect(page.locator("#wiki-preview")).to_contain_text("source")
                         if case == "dirty":
@@ -315,7 +322,12 @@ def run():
                                 ),
                                 times=1,
                             )
-                        page.locator("#wiki-ask-go").click()
+                        if case in ("changed", "validation-retry", "edit-during-check"):
+                            page.locator("#wiki-ask-go").click()
+                        else:
+                            reply = submitted_reply(
+                                page, question, page.locator("#wiki-ask-go").click
+                            )
                         if case == "edit-during-check":
                             first_line = "edited during validation"
                             page.locator("#wiki-source").fill("# source\n" + first_line + "\n")
@@ -328,24 +340,24 @@ def run():
                             expect(page.locator("#wiki-source")).to_have_value(
                                 "# source\n" + first_line + "\n"
                             )
-                            page.locator("#wiki-ask-go").click()
+                            reply = submitted_reply(
+                                page, question, page.locator("#wiki-ask-go").click
+                            )
                         if case in ("rejected", "many"):
                             expect(page.locator("#composer-ta")).to_have_value(question)
                             expect(page.locator("#aide-document-scope-name")).to_contain_text(
                                 f"{len(expected_paths)} notes only"
                             )
                             assert len(SourceModel.requests) == before
-                            if (
-                                width == 390
-                                and page.locator("body.is-aide:not(.sidebar-hidden)").count()
-                            ):
-                                page.locator("#nav-backdrop").click(
-                                    position={"x": width - 20, "y": 80}
-                                )
+                            close_archive(page)
                             expect(page.locator("#composer-ta")).to_be_in_viewport()
-                            expect(page.locator(".error-msg").last).to_be_in_viewport()
+                            expect(reply.locator(".error-msg")).to_be_in_viewport()
                             if case == "many":
-                                sources = page.locator("details.user-context-scope").last
+                                sources = (
+                                    reply.locator("xpath=..")
+                                    .locator("xpath=preceding-sibling::*[1]")
+                                    .locator("details.user-context-scope")
+                                )
                                 expect(sources).not_to_have_attribute("open", "")
                                 sources.locator("summary").focus()
                                 page.keyboard.press("Enter")
@@ -361,7 +373,7 @@ def run():
                                     "document.documentElement.scrollWidth <= innerWidth + 1"
                                 )
                                 page.screenshot(path=str(output / (label + "-recovery.png")))
-                            page.locator("#send-btn").click()
+                            reply = submitted_reply(page, question, page.locator("#send-btn").click)
                         if case in ("changed", "validation-retry"):
                             expect(page.locator("#wiki-ask-results")).to_contain_text(
                                 "changed or is missing"
@@ -376,24 +388,20 @@ def run():
                                     page.locator("#wiki-ask-sources span").filter(has_text=third)
                                 ).to_have_count(1)
                         else:
-                            expect(page.locator(".ai-content").last).to_contain_text("comparison")
+                            expect(reply.locator(".ai-content")).to_contain_text("comparison")
                             if case.startswith("interrupted"):
                                 page.locator("#stop-btn").click()
-                                expect(page.locator("#send-btn")).to_be_enabled()
-                                if page.locator("#nav-backdrop").is_visible():
-                                    page.locator("#nav-backdrop").click(
-                                        position={"x": width - 20, "y": 80}
-                                    )
-                                session = page.evaluate("window._currentSession.id")
-                                for _ in range(100):
-                                    messages = api("GET", f"/api/sessions/{session}/history")[
-                                        "messages"
-                                    ]
-                                    if messages and messages[-1]["role"] == "assistant":
-                                        break
-                                    page.wait_for_timeout(20)
-                                assert messages[-1]["meta"]["interrupted"] is True
-                                save = page.get_by_role("button", name="+note", exact=True).last
+                                settled_reply(page, reply)
+                                close_archive(page)
+                                session = reply.get_attribute("data-session-id")
+                                history = canonical_reply(page, reply)
+                                assert history["meta"]["interrupted"] is True
+                                record["reply_identity"] = {
+                                    "question": question,
+                                    "session": session,
+                                    "message": history["id"],
+                                }
+                                save = reply.locator('button[title="save this reply as a note"]')
                                 note_writes = []
                                 page.on(
                                     "request",
@@ -416,13 +424,13 @@ def run():
                                         ),
                                         times=1,
                                     )
-                                    save.click()
+                                    reply_action(page, reply, "+note").press("Enter")
                                     expect(page.locator("#aide-note-recovery")).to_contain_text(
                                         "try +note again"
                                     )
                                     expect(save).to_be_enabled()
                                     assert not note_writes
-                                save.click()
+                                reply_action(page, reply, "+note").press("Enter")
                                 expect(
                                     page.locator("#aide-note-recovery .note-saved-open")
                                 ).to_be_visible()
@@ -446,7 +454,7 @@ def run():
                                     "doc_hash=" in stored["content"]
                                     and "> open on monday" in stored["content"]
                                 )
-                                expect(page.locator(".ai-content blockquote").first).to_have_text(
+                                expect(reply.locator(".ai-content blockquote").first).to_have_text(
                                     "open on monday"
                                 )
                                 page.locator("#aide-note-recovery .note-saved-open").click()
@@ -459,19 +467,25 @@ def run():
                                 continue
                             if case == "citation-labels":
                                 expect(
-                                    page.locator(".ai-content").last.get_by_role(
+                                    reply.locator(".ai-content").get_by_role(
                                         "link", name=f"2. {path2}, lines 2–2", exact=True
                                     )
                                 ).to_be_visible()
-                            expect(page.locator(".source-citation-status").last).to_be_visible()
-                            expect(page.locator("#send-btn")).to_be_enabled()
+                            settled_reply(page, reply)
+                            expect(reply.locator(".source-citation-status")).to_be_visible()
                             assert len(SourceModel.requests) == before + 1
                             model = SourceModel.requests[-1]
                             assert not model.get("tools")
                             assert len(model["messages"]) == 2
-                            session = page.evaluate("window._currentSession.id")
+                            session = reply.get_attribute("data-session-id")
                             saved_url = page.url
-                            history = api("GET", f"/api/sessions/{session}/history")["messages"][-1]
+                            history = canonical_reply(page, reply)
+                            message = history["id"]
+                            record["reply_identity"] = {
+                                "question": question,
+                                "session": session,
+                                "message": message,
+                            }
                             assert (
                                 history["meta"]["context_provenance"]["document"]["kind"]
                                 == "vault_documents"
@@ -490,23 +504,21 @@ def run():
                             )
                             assert history["meta"]["source_citations"]["status"] == status
                             page.reload(wait_until="networkidle")
-                            if width == 390 and not page.locator("body.sidebar-hidden").count():
-                                page.locator("#nav-backdrop").click(
-                                    position={"x": width - 20, "y": 80}
-                                )
-                            expect(page.locator(".source-citation-status")).to_be_visible()
-                            page.locator(".context-provenance > summary").click()
-                            page.locator(".source-snapshot > summary").first.click()
-                            expect(page.locator(".source-snapshot pre").first).to_contain_text(
+                            close_archive(page)
+                            reply = persisted_reply(page, message)
+                            expect(reply.locator(".source-citation-status")).to_be_visible()
+                            reply.locator(".context-provenance > summary").click()
+                            reply.locator(".source-snapshot > summary").first.click()
+                            expect(reply.locator(".source-snapshot pre").first).to_contain_text(
                                 first_line
                             )
-                            page.locator(".context-provenance > summary").click()
+                            reply.locator(".context-provenance > summary").click()
                             if case == "literal":
-                                expect(page.locator(".ai-content blockquote").first).to_have_text(
+                                expect(reply.locator(".ai-content blockquote").first).to_have_text(
                                     first_line
                                 )
                             if case in ("success", "save-lost", "literal", "citation-labels"):
-                                save = page.get_by_role("button", name="+note", exact=True).last
+                                save = reply.locator('button[title="save this reply as a note"]')
                                 if case == "save-lost":
 
                                     def lost(route):
@@ -524,19 +536,13 @@ def run():
                                         )
 
                                     page.route("**/api/vault-md/file", lost, times=1)
-                                save.click()
+                                reply_action(page, reply, "+note").press("Enter")
                                 if case == "save-lost":
                                     expect(
                                         page.locator("#aide-note-recovery .note-retry")
                                     ).to_be_visible()
                                     page.reload(wait_until="networkidle")
-                                    if (
-                                        width == 390
-                                        and not page.locator("body.sidebar-hidden").count()
-                                    ):
-                                        page.locator("#nav-backdrop").click(
-                                            position={"x": width - 20, "y": 80}
-                                        )
+                                    close_archive(page)
                                     expect(
                                         page.locator("#aide-note-recovery .note-retry")
                                     ).to_be_visible()
@@ -557,12 +563,9 @@ def run():
                                     original_feedback = page.locator(
                                         "#aide-note-recovery p"
                                     ).inner_text()
-                                    saved_button = page.locator(".ai-wrap").last.get_by_role(
-                                        "button", name="saved note", exact=True
-                                    )
-                                    expect(saved_button).to_be_visible()
-                                    saved_button.focus()
-                                    page.keyboard.press("Enter")
+                                    reply = persisted_reply(page, message)
+                                    saved_button = reply_action(page, reply, "saved note")
+                                    saved_button.press("Enter")
                                     expect(open_note).to_be_visible()
                                     page.wait_for_timeout(100)
                                     assert not repeat_posts, repeat_posts
@@ -576,8 +579,8 @@ def run():
                                         )
                                     ):
                                         page.evaluate("window._reloadActiveSession()")
-                                    expect(saved_button).to_be_visible()
-                                    saved_button.click()
+                                    reply = persisted_reply(page, message)
+                                    reply_action(page, reply, "saved note").press("Enter")
                                     page.wait_for_timeout(100)
                                     assert not repeat_posts, repeat_posts
 
@@ -610,8 +613,9 @@ def run():
                                         "link", name="from Aide", exact=True
                                     ).click()
                                 source_page = source_page.value
-                                expect(source_page.locator(".ai-content").last).to_be_visible()
-                                expect(source_page.locator(".ai-content").last).to_contain_text(
+                                source_reply = persisted_reply(source_page, message)
+                                expect(source_reply.locator(".ai-content")).to_be_visible()
+                                expect(source_reply.locator(".ai-content")).to_contain_text(
                                     "comparison"
                                 )
                                 assert source_page.evaluate("window._currentSession.id") == session
@@ -645,12 +649,9 @@ def run():
                                     "new current source"
                                 )
                                 page.goto(saved_url, wait_until="networkidle")
-                                expect(page.locator(".ai-content").last).to_contain_text(first_line)
-                        if (
-                            width == 390
-                            and page.locator("body.is-aide:not(.sidebar-hidden)").count()
-                        ):
-                            page.locator("#nav-backdrop").click(position={"x": width - 20, "y": 80})
+                                reply = persisted_reply(page, message)
+                                expect(reply.locator(".ai-content")).to_contain_text(first_line)
+                        close_archive(page)
                         page.screenshot(path=str(output / (label + ".png")), full_page=True)
                         assert not errors, errors
                         record["status"] = "passed"
@@ -667,6 +668,7 @@ def run():
                                 {"errors": errors, "requests": requests, "notes": notes}, indent=2
                             )
                         )
+                        (output / "scenarios.json").write_text(json.dumps(records, indent=2))
                         context.tracing.stop(path=str(output / (label + ".zip")))
                         context.close()
             browser.close()

@@ -115,7 +115,9 @@ def run():
 
             def open_sidebar():
                 if page.locator("body.sidebar-hidden").count():
-                    page.locator("#sidebar-toggle-btn").click()
+                    page.locator("#aide-more-btn").click()
+                    page.locator('[data-aide-central-action="archive"]').click()
+                expect(page.locator("#aide-sidebar")).to_be_visible()
 
             page.route(base + "/api/sessions", listed)
             context.tracing.start(screenshots=True, snapshots=True)
@@ -157,7 +159,7 @@ def run():
                     page.locator(".sidebar").hover()
                     page.mouse.wheel(0, 1200)
                     page.wait_for_timeout(150)
-                    for control in [retry, page.locator("#aide-tools-link")]:
+                    for control in [retry, page.locator("#aide-sidebar-close")]:
                         target = control.bounding_box()
                         assert target["y"] >= 0 and target["y"] + target["height"] <= page.evaluate(
                             "innerHeight"
@@ -217,7 +219,7 @@ def run():
                 ids.clear()
                 page.evaluate("window._reloadAideSessions()")
                 open_sidebar()
-                expect(page.locator("#session-list")).to_contain_text("no aide tasks yet")
+                expect(page.locator("#session-list")).to_contain_text("no earlier conversations")
                 expect(status).to_be_hidden()
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                 assert not errors, errors

@@ -107,7 +107,7 @@ with sync_playwright() as pw:
                                         if "long" in payload["query"]
                                         else "local result"
                                     ),
-                                    "url": base + "/owned-result",
+                                    "url": base + "/owned-result?profile=" + label,
                                     "snippet": "synthetic local excerpt",
                                     "publisher": "owned local source",
                                 }
@@ -216,15 +216,19 @@ with sync_playwright() as pw:
                     "owned synthetic destination"
                 )
                 popup.value.close()
-                save = page.locator(".andromeda-news-save").first
+                trigger = page.locator(".andromeda-result-actions-trigger").first
+                trigger.click()
+                save = page.locator('[data-result-action="library"]').first
+                expect(save).to_be_visible()
                 box = save.bounding_box()
-                linkbox = title.bounding_box()
-                assert box["y"] >= linkbox["y"] + linkbox["height"]
+                assert box["height"] >= 44 and box["width"] >= 44, box
                 if width in (320, 390):
                     save.tap()
                 else:
                     save.click()
                 expect(save).to_have_text("open in Library")
+                trigger.click()
+                expect(save).to_be_visible()
                 save.click()
                 expect(page.locator(".read-article h1")).to_have_text("local result")
                 page.goto(base + "/?app=andromeda", wait_until="networkidle")

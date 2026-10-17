@@ -187,7 +187,17 @@ def run():
                     page.go_back(wait_until="networkidle")
                     expect(row.locator("em")).to_have_text(case["clock"])
                     expect(page.locator(".today-schedule")).not_to_contain_text(future)
-                    box = row.bounding_box()
+                    expect(row).to_be_visible()
+                    box = page.wait_for_function(
+                        """text => {
+                      const element = [...document.querySelectorAll('.today-schedule .today-row')]
+                        .find(node => node.textContent.includes(text));
+                      const rect = element?.getBoundingClientRect();
+                      return rect && rect.width >= 44 && rect.height >= 44
+                        ? {x:rect.x,y:rect.y,width:rect.width,height:rect.height} : false;
+                    }""",
+                        arg=visible,
+                    ).json_value()
                     assert box and box["width"] >= 44 and box["height"] >= 44, box
                     assert page.evaluate(
                         "document.documentElement.scrollWidth <= document.documentElement.clientWidth"

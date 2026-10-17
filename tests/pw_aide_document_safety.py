@@ -28,6 +28,17 @@ class DocumentModelHandler(BaseHTTPRequestHandler):
             return
         request = json.loads(self.rfile.read(int(self.headers.get("content-length", "0"))) or b"{}")
         messages = request.get("messages") or []
+        # The primary conversation retains history. This fixture owns only the
+        # latest user turn and the tool results produced for that turn.
+        last_user = next(
+            (
+                index
+                for index in range(len(messages) - 1, -1, -1)
+                if messages[index].get("role") == "user"
+            ),
+            None,
+        )
+        messages = messages[last_user:] if last_user is not None else []
         text = "\n".join(
             str(message.get("content", "")) for message in messages if message.get("role") == "user"
         )

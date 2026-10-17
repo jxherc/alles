@@ -678,14 +678,29 @@ class FilesLocationIdentityTests(ApiTest):
         db.commit()
         db.close()
         local_only = (("/api/files/read", {"path": "docs/note.md"}),)
-        with mock.patch(
-            "services.webdav_locations.download",
-            side_effect=RuntimeError("remote is unavailable"),
+        with (
+            mock.patch(
+                "services.webdav_locations.listdir",
+                return_value={
+                    "path": "docs",
+                    "items": [{"path": "docs/note.md", "type": "file", "size": 5}],
+                },
+            ) as listing,
+            mock.patch(
+                "services.webdav_locations.download",
+                side_effect=RuntimeError("remote is unavailable"),
+            ) as download,
         ):
             for url, params in local_only:
                 with self.subTest(url=url):
                     response = self.client.get(url, params={**params, "location_id": "remote"})
                     self.assertEqual(response.status_code, 409, response.text)
+                    self.assertIn("remote is unavailable", response.text)
+        listing.assert_called_once_with(mock.ANY, "docs")
+        self.assertEqual(listing.call_args.args[0].id, "remote")
+        download.assert_called_once()
+        self.assertEqual(download.call_args.args[0].id, "remote")
+        self.assertEqual(download.call_args.args[1], "docs/note.md")
         metadata = (
             ("/api/files/starred", {}),
             ("/api/files/comments", {"path": "docs/note.md"}),

@@ -122,19 +122,47 @@ with sync_playwright() as pw:
 
                 other = create("other local task")
                 existing = create("original local task")
+                primary = api.get(base + "/api/aide/conversation").json()["id"]
                 field = page.locator("#composer-ta")
                 retry = page.get_by_role("button", name="retry response", exact=True)
 
-                def switch(session):
+                def open_archive():
                     if not page.locator("#aide-sidebar").is_visible():
-                        page.locator("#sidebar-toggle-btn").click()
-                    page.locator(f'.session-item[data-id="{session}"] .session-open').click()
-                    page.wait_for_function("id=>location.hash.slice(1)===id", arg=session)
-                    if width == 390:
-                        expect(page.locator("#aide-sidebar")).to_be_hidden()
+                        page.locator("#aide-more-btn").click()
+                        page.locator('[data-aide-central-action="archive"]').click()
+                    expect(page.locator("#aide-sidebar")).to_be_visible()
+
+                def switch(session):
+                    open_archive()
+                    if session == primary:
+                        page.locator("#aide-return-primary").click()
+                    else:
+                        page.locator(f'.session-item[data-id="{session}"] .session-open').click()
+                    page.wait_for_function(
+                        "id => window._currentSession?.id === id && location.hash.slice(1) === id",
+                        arg=session,
+                    )
+                    expect(page.locator("#aide-sidebar")).to_be_hidden()
+
+                def enter_private():
+                    page.locator("#aide-more-btn").click()
+                    page.locator('[data-aide-central-action="private"]').click()
+                    expect(page.locator("#incognito-exit")).to_be_visible()
+
+                def fresh_creation_fixture():
+                    # The central UI opens the primary conversation. Explicitly
+                    # enter the production lazy-creation state for these retained
+                    # attachment/scope integration cases; this is not a UI path.
+                    page.evaluate("""async () => {
+                        const sessions = await import('/static/js/sessions.js');
+                        sessions.newChat();
+                    }""")
+                    page.wait_for_function("window._currentSession === null")
+                    check("", None)
 
                 def draft(question, scope):
                     field.fill(question)
+                    expect(field).to_have_value(question)
                     page.evaluate("scope=>window._setAideDocumentScope(scope)", scope)
 
                 def check(question, scope):
@@ -206,10 +234,11 @@ with sync_playwright() as pw:
                     switch(other)
                     check("other task's own draft", None)
 
-                # Quota cannot revive a consumed old draft, including a task left during acceptance.
+                # Quota cannot revive a consumed old draft. An owner switch is
+                # safely refused while its scoped draft cannot be persisted.
                 for inactive in (False, True):
                     target = base + "/?view=chat" + ("#" + existing if inactive else "")
-                    owner = existing if inactive else "new"
+                    owner = existing if inactive else primary
                     page.goto(target, wait_until="networkidle")
                     page.evaluate(
                         """id => {
@@ -222,6 +251,7 @@ with sync_playwright() as pw:
                     check("legacy question at quota", None)
                     page.evaluate("""() => {
                         const original = Storage.prototype.setItem;
+                        window.restoreDraftStorage = () => { Storage.prototype.setItem = original; };
                         Storage.prototype.setItem = function(key,value) {
                             if(key.startsWith('aide-draft-v2-')) throw new DOMException('synthetic full storage', 'QuotaExceededError');
                             return original.call(this,key,value);
@@ -240,9 +270,18 @@ with sync_playwright() as pw:
                             page.wait_for_timeout(10)
                         page.wait_for_timeout(100)
                         assert len(held) == 1
-                        switch(other)
+                        open_archive()
+                        page.locator(f'.session-item[data-id="{other}"] .session-open').click()
+                        expect(page.locator("#aide-sidebar")).to_be_visible()
+                        assert page.evaluate("window._currentSession.id") == existing
+                        assert page.evaluate("location.hash.slice(1)") == existing
+                        check("legacy question at quota", scopes[0])
                         reply(held.pop())
                         expect(page.locator("#send-btn")).to_be_enabled()
+                        check("", None)
+                        page.evaluate("window.restoreDraftStorage()")
+                        switch(other)
+                        check("other task's own draft", None)
                         switch(existing)
                     else:
                         expect(page.locator(".ai-content").last).to_have_text(
@@ -256,6 +295,7 @@ with sync_playwright() as pw:
                 for late_scope in (None, scopes[0]):
                     page.goto(base + "/?view=chat", wait_until="networkidle")
                     check("", None)
+                    fresh_creation_fixture()
                     creations.clear()
                     state.update(busy=False, hold=False, hold_creation=True)
                     field.fill("ordinary pending task")
@@ -287,6 +327,7 @@ with sync_playwright() as pw:
 
                 # A newer scope adopted during task creation belongs to the next question.
                 page.goto(base + "/?view=chat", wait_until="networkidle")
+                fresh_creation_fixture()
                 creations.clear()
                 state.update(busy=False, hold=True, hold_creation=True)
                 question = "same text with a newer selection"
@@ -429,8 +470,7 @@ with sync_playwright() as pw:
                     page.wait_for_timeout(10)
                 page.wait_for_timeout(100)
                 assert len(held) == 1
-                page.locator("#incognito-btn").click()
-                expect(page.locator("#incognito-exit")).to_be_visible()
+                enter_private()
                 draft("new private draft", scopes[1])
                 field.focus()
                 reply(held.pop())
@@ -446,7 +486,7 @@ with sync_playwright() as pw:
                 stored = page.evaluate(
                     "Object.entries(localStorage).filter(([k])=>k.startsWith('aide-draft-')).sort()"
                 )
-                page.locator("#incognito-btn").click()
+                enter_private()
                 state["busy"] = True
                 draft("private refused question", scopes[0])
                 field.press("Enter")
@@ -474,7 +514,7 @@ with sync_playwright() as pw:
                 row.update(
                     status="passed",
                     requests=len(requests),
-                    boundary="actual local drafts and task history; synthetic refused/accepted HTTP responses, no provider",
+                    boundary="actual local drafts and task history; synthetic refused/accepted HTTP responses, no provider; lazy-creation cases enter production newChat programmatically",
                 )
             except Exception as error:
                 row.update(error=str(error), traceback=traceback.format_exc())

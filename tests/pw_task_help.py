@@ -279,7 +279,15 @@ def run():
                     field = page.locator("#composer-ta")
                     field.fill("owned unsent question 中文")
                     help_button = page.locator("#aide-help")
-                    help_button.press("Enter")
+
+                    def open_context_help():
+                        if not help_button.is_visible():
+                            page.locator("#aide-more-btn").click()
+                            page.locator('[data-aide-central-action="options"]').click()
+                        expect(help_button).to_be_visible()
+                        help_button.press("Enter")
+
+                    open_context_help()
                     dialog = page.get_by_role("dialog", name="aide help", exact=True)
                     expect(dialog).to_be_visible()
                     expect(dialog.locator("[data-help-close]")).to_be_focused()
@@ -317,7 +325,7 @@ def run():
                     page.keyboard.press("Escape")
                     expect(dialog).to_have_count(0)
                     expect(help_button).to_be_focused()
-                    help_button.press("Enter")
+                    open_context_help()
                     expect(search).to_have_value("")
                     dialog.locator('[data-help-settings="models"]').press("Enter")
                     expect(page.locator("#s-pane-models")).to_be_visible()
@@ -326,7 +334,7 @@ def run():
                     expect(help_button).to_be_focused()
                     expect(field).to_have_value("owned unsent question 中文")
                     # The actual Settings picker keeps all19 panes and each stored owner.
-                    help_button.press("Enter")
+                    open_context_help()
                     dialog.locator('[data-help-settings="models"]').press("Enter")
                     expect(page.locator("#s-pane-models")).to_be_visible()
                     names = {
@@ -366,7 +374,7 @@ def run():
                     page.locator("#settings-modal-close").press("Enter")
                     expect(field).to_have_value("owned unsent question 中文")
                     page.reload(wait_until="networkidle")
-                    help_button.press("Enter")
+                    open_context_help()
                     dialog.locator('[data-help-settings="models"]').press("Enter")
                     expect(page.locator("#s-pane-models")).to_be_visible()
                     choose_settings_section(page, "memory")

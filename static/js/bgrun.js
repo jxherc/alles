@@ -58,7 +58,7 @@ export async function reattach(sessionId) {
       const st = box.querySelector('.bg-reattach-status');
       if (st) st.textContent = '✓ finished';
       // give the saved reply a moment to land, then refresh the conversation
-      setTimeout(() => { box.remove(); window._reloadActiveSession?.(); }, 800);
+      setTimeout(() => { box.remove(); window._reloadActiveSession?.(sessionId); }, 800);
     }
   };
 

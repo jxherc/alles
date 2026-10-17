@@ -129,22 +129,43 @@ with sync_playwright() as pw:
                 draft = "keep this unsent local draft"
                 field = page.locator("#composer-ta")
                 jump = page.locator("#jump-latest")
+                primary = context.request.get(base + "/api/aide/conversation").json()["id"]
+                assert primary not in (empty, populated)
+
+                def open_task(session_id):
+                    if not page.locator("#aide-sidebar").is_visible():
+                        page.locator("#aide-more-btn").click()
+                        page.locator('[data-aide-central-action="archive"]').click()
+                    page.locator(f'.session-item[data-id="{session_id}"] .session-open').click()
+                    page.wait_for_function(
+                        "id => window._currentSession?.id === id", arg=session_id
+                    )
+                    if page.locator("#aide-sidebar").is_visible():
+                        page.locator("#aide-sidebar-close").click()
+                    expect(page.locator("#aide-sidebar")).to_be_hidden()
+
+                def open_auxiliary(view):
+                    page.locator("#aide-more-btn").click()
+                    page.locator(f'[data-aide-central-action="{view}"]').click()
+
+                def return_primary():
+                    page.locator("#app-drawer-btn").click()
+                    page.locator('.app-drawer-item[data-view="chat"]').click()
+                    page.wait_for_function("id => window._currentSession?.id === id", arg=primary)
+                    expect(field).to_have_value("")
+                    expect(jump).to_be_hidden()
+
                 field.fill(draft)
                 expect(jump).to_be_hidden()
                 for view, marker in [("skills", "#skl-new"), ("scheduled", "#aide-scheduled-view")]:
-                    page.evaluate("view => window._navigateTo(view)", view)
+                    open_auxiliary(view)
                     expect(page.locator(marker)).to_be_visible()
                     expect(jump).to_be_hidden()
-                    page.evaluate("window._navigateTo('chat')")
+                    return_primary()
+                    open_task(empty)
                     expect(field).to_be_visible()
                     expect(field).to_have_value(draft)
                     expect(jump).to_be_hidden()
-
-                def open_task(session_id):
-                    sidebar = page.locator("#sidebar-toggle-btn")
-                    if sidebar.get_attribute("aria-expanded") == "false":
-                        sidebar.click()
-                    page.locator(f'.session-item[data-id="{session_id}"] .session-open').click()
 
                 open_task(populated)
                 expect(page.locator("#messages .msg-row")).to_have_count(12)
@@ -160,12 +181,20 @@ with sync_playwright() as pw:
                 expect(jump).to_be_visible()
                 page.screenshot(path=str(out / f"{label}-scrolled.png"))
                 for view, marker in [("skills", "#skl-new"), ("scheduled", "#aide-scheduled-view")]:
-                    page.evaluate("view => window._navigateTo(view)", view)
+                    open_auxiliary(view)
                     expect(page.locator(marker)).to_be_visible()
                     expect(jump).to_be_hidden()
                     page.screenshot(path=str(out / f"{label}-{view}.png"))
-                    page.evaluate("window._navigateTo('chat')")
+                    return_primary()
+                    open_task(populated)
                     expect(field).to_have_value(draft)
+                    expect(page.locator("#messages .msg-row")).to_have_count(12)
+                    # Reopening an archive deliberately renders at latest. Establish
+                    # a new scroll-up state before exercising the jump control.
+                    expect(jump).to_be_hidden()
+                    chat.evaluate(
+                        "node => { node.scrollTop = 0; node.dispatchEvent(new Event('scroll')); }"
+                    )
                     expect(jump).to_be_visible()
                 jump.press("Enter")
                 expect(jump).to_be_hidden()
@@ -186,6 +215,14 @@ with sync_playwright() as pw:
                     status="passed",
                     native_zoom=zoom,
                     history="synthetic browser fixture; no model call",
+                    checks=[
+                        "visible skills/scheduled navigation",
+                        "ordinary Aide primary isolation",
+                        "visible archive draft recovery",
+                        "jump hidden outside chat",
+                        "keyboard jump after explicit scrolling",
+                        "empty-owner jump isolation",
+                    ],
                 )
             except Exception as error:
                 row.update(error=str(error), traceback=traceback.format_exc())

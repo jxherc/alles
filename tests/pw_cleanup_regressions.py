@@ -88,7 +88,7 @@ def run() -> None:
                 assert page.request.delete(base + "api/storage-locations/" + location_id).ok
             page.goto(f"http://aide.localhost:{PORT}/", wait_until="networkidle")
             expect(page.locator("#mic-btn")).to_be_visible()
-            expect(page.locator("#live-voice-btn")).to_have_count(0)
+            expect(page.locator("#live-voice-btn")).to_be_hidden()
             page.screenshot(path=str(output / f"aide-{width}.png"))
             context.close()
         browser.close()

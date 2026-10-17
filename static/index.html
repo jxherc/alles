@@ -1885,7 +1885,7 @@
                     <input type="text" class="settings-input" id="s-ep-manual" placeholder="model-a, model-b">
                   </div>
                   <button type="button" class="btn primary" id="s-ep-add-btn" style="width:100%;margin-top:0.2rem">add + probe models</button>
-                  <div class="s-field" style="margin-top:0.5rem"><label>vision-capable models <span style="color:var(--muted);font-weight:400">(comma-separated, optional)</span></label><input type="text" class="settings-input" id="s-ep-vision" placeholder="e.g. gpt-4o, claude-3-5-sonnet-20241022" style="width:100%"></div>
+                  <div class="s-field" style="margin-top:0.5rem"><label for="s-ep-vision">vision-capable models <span style="color:var(--muted);font-weight:400">(comma-separated, optional)</span></label><input type="text" class="settings-input" id="s-ep-vision" placeholder="e.g. gpt-4o, claude-3-5-sonnet-20241022" style="width:100%"></div>
                 </div>
               </details>
               <div class="s-oauth-connect">
@@ -1893,10 +1893,10 @@
                 <div class="s-oauth-panel" id="s-gemini-oauth-panel" hidden>
                   <p>Use a desktop OAuth client from your own Google Cloud project. Alles stores its refresh token encrypted and requests only the Cloud Platform scope required by Google's Gemini flow.</p>
                   <div class="s-ep-auth-grid">
-                    <div class="s-field"><label>client ID</label><input class="settings-input" id="s-gemini-client-id" autocomplete="off"></div>
-                    <div class="s-field"><label>client secret</label><input type="password" class="settings-input" id="s-gemini-client-secret" autocomplete="off"></div>
+                    <div class="s-field"><label for="s-gemini-client-id">client ID</label><input class="settings-input" id="s-gemini-client-id" autocomplete="off"></div>
+                    <div class="s-field"><label for="s-gemini-client-secret">client secret</label><input type="password" class="settings-input" id="s-gemini-client-secret" autocomplete="off"></div>
                   </div>
-                  <div class="s-field"><label>Google Cloud project ID</label><input class="settings-input" id="s-gemini-project-id" autocomplete="off"></div>
+                  <div class="s-field"><label for="s-gemini-project-id">Google Cloud project ID</label><input class="settings-input" id="s-gemini-project-id" autocomplete="off"></div>
                   <button class="btn primary" id="s-gemini-oauth-start" type="button">open Google authorization</button>
                 </div>
               </div>
@@ -1911,7 +1911,7 @@
               <div id="s-local-ollama" style="font-size:0.75rem;color:var(--muted);margin-bottom:0.45rem">checking Ollama...</div>
               <div id="s-local-hw" style="font-size:0.75rem;color:var(--muted);margin-bottom:0.65rem"></div>
               <div id="s-local-presets" class="settings-list"></div>
-              <div class="s-field" style="margin-top:0.65rem"><label>pull any model</label>
+              <div class="s-field" style="margin-top:0.65rem"><label for="s-local-custom">pull any model</label>
                 <div style="display:flex;gap:0.4rem">
                   <input type="text" class="settings-input" id="s-local-custom" placeholder="e.g. qwen2.5:14b" style="flex:1">
                   <button type="button" class="btn" id="s-local-pull-btn">pull</button>
@@ -1945,7 +1945,7 @@
             <div class="s-card-body">
               <p class="s-card-hint" data-i18n="settings.chat_context_hint">choose how many earlier messages Aide uses and whether replies show reasoning or artifacts. auto-compact summarizes older messages.</p>
               <div class="s-field">
-                <label>context window (messages)</label>
+                <label for="settings-context-limit">context window (messages)</label>
                 <input type="text" inputmode="numeric" class="settings-input" id="settings-context-limit" style="width:80px">
               </div>
             </div>
@@ -1990,7 +1990,7 @@
             <div class="s-card-head">owner instructions</div>
             <div class="s-card-body">
               <p class="s-card-hint" data-i18n="settings.memory_instructions_hint">set how Aide responds. instructions are separate from saved facts and cannot replace Alles safety rules. source notes and mail are configured in search personal records.</p>
-              <textarea class="settings-textarea" id="settings-owner-instructions" rows="5" placeholder="for example: use short answers and explain unfamiliar terms."></textarea>
+              <textarea class="settings-textarea" id="settings-owner-instructions" aria-label="owner instructions" rows="5" placeholder="for example: use short answers and explain unfamiliar terms."></textarea>
               <div style="text-align:right;margin-top:0.55rem"><button class="btn primary" id="s-owner-instructions-save" type="button">save instructions</button></div>
             </div>
           </div>
@@ -2017,11 +2017,11 @@
                 <div><div class="s-toggle-label">use relevant memory in chats</div><div class="s-toggle-desc">available only while memory is set to ask or auto</div></div>
                 <div class="s-switch" id="s-memory-inject-toggle" role="switch" aria-checked="false"></div>
               </div>
-              <input type="text" id="mem-search" class="settings-input" placeholder="search memories..." style="width:100%;margin-bottom:0.55rem">
+              <input type="text" id="mem-search" aria-label="search memories" class="settings-input" placeholder="search memories..." style="width:100%;margin-bottom:0.55rem">
               <div id="mem-category-filter" class="mem-cat-filter"></div>
               <div class="mem-view-list" id="memory-list"></div>
               <div style="display:flex;gap:0.4rem;margin-top:0.6rem">
-                <input type="text" id="mem-add-input" class="settings-input" placeholder="add a memory..." style="flex:1">
+                <input type="text" id="mem-add-input" aria-label="add a memory" class="settings-input" placeholder="add a memory..." style="flex:1">
                 <button type="button" class="btn mem-cat-cycle" id="mem-cat-cycle-btn" data-val="general">general</button>
                 <button type="button" class="btn primary" id="mem-add-btn">remember</button>
               </div>
@@ -2051,23 +2051,23 @@
                 </div>
               </div>
               <div class="s-field" id="s-tavily-row" style="display:none">
-                <label>tavily api key</label>
+                <label for="s-tavily-key">tavily api key</label>
                 <input type="password" class="settings-input" id="s-tavily-key" placeholder="tvly-..." style="width:100%">
               </div>
               <div class="s-field" id="s-brave-row" style="display:none">
-                <label>brave search api key</label>
+                <label for="s-brave-key">brave search api key</label>
                 <input type="password" class="settings-input" id="s-brave-key" placeholder="BSA..." style="width:100%">
               </div>
               <div class="s-field" id="s-searxng-row" style="display:none">
-                <label>searxng base url</label>
+                <label for="s-searxng-url">searxng base url</label>
                 <input type="text" class="settings-input" id="s-searxng-url" placeholder="https://search.example.com" style="width:100%">
               </div>
               <div id="s-google-pse-rows" style="display:none">
-                <div class="s-field"><label>google pse api key</label><input type="password" class="settings-input" id="s-gpse-key" placeholder="AIza..." style="width:100%"></div>
-                <div class="s-field"><label>search engine cx id</label><input type="text" class="settings-input" id="s-gpse-cx" placeholder="cx:..." style="width:100%"></div>
+                <div class="s-field"><label for="s-gpse-key">google pse api key</label><input type="password" class="settings-input" id="s-gpse-key" placeholder="AIza..." style="width:100%"></div>
+                <div class="s-field"><label for="s-gpse-cx">search engine cx id</label><input type="text" class="settings-input" id="s-gpse-cx" placeholder="cx:..." style="width:100%"></div>
               </div>
               <div class="s-field" id="s-serper-row" style="display:none">
-                <label>serper api key</label>
+                <label for="s-serper-key">serper api key</label>
                 <input type="password" class="settings-input" id="s-serper-key" placeholder="..." style="width:100%">
               </div>
               <div class="s-field">
@@ -2180,9 +2180,9 @@
             </div>
             <div class="s-card-body">
               <div class="s-toggle-row"><div><div class="s-toggle-label">require password</div><div class="s-toggle-desc">lock alles behind your password</div></div><div class="s-switch" id="s-auth-enable"></div></div>
-              <div class="s-field"><label>current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%"></div>
-              <div class="s-field"><label>new password</label><input type="password" class="settings-input" id="s-pw-new" minlength="12" placeholder="at least 12 characters" style="width:100%"></div>
-              <div class="s-field"><label>verify password <span style="color:var(--muted);font-weight:400">: enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%"></div>
+              <div class="s-field"><label for="s-pw-old">current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%"></div>
+              <div class="s-field"><label for="s-pw-new">new password</label><input type="password" class="settings-input" id="s-pw-new" minlength="12" placeholder="at least 12 characters" style="width:100%"></div>
+              <div class="s-field"><label for="s-pw-new2">verify password <span style="color:var(--muted);font-weight:400">: enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%"></div>
               <button type="button" class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem">change password</button>
             </div>
           </div>
@@ -2294,9 +2294,9 @@
             <div class="s-card-body">
               <div id="persona-list" style="margin-bottom:0.75rem"></div>
               <div id="persona-form-title" class="s-form-title" hidden></div>
-              <div class="s-field"><label>name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
-              <div class="s-field"><label>system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="6" placeholder="You are..." style="width:100%;resize:vertical"></textarea></div>
-              <div class="s-field"><label>starter message <span style="color:var(--muted);font-weight:400">: prefilled into the composer when you pick this persona (optional)</span></label><textarea class="settings-textarea" id="persona-initial" rows="2" placeholder="e.g. Please review this code:" style="width:100%;resize:vertical"></textarea></div>
+              <div class="s-field"><label for="persona-name">name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%"></div>
+              <div class="s-field"><label for="persona-prompt">system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="6" placeholder="You are..." style="width:100%;resize:vertical"></textarea></div>
+              <div class="s-field"><label for="persona-initial">starter message <span style="color:var(--muted);font-weight:400">: prefilled into the composer when you pick this persona (optional)</span></label><textarea class="settings-textarea" id="persona-initial" rows="2" placeholder="e.g. Please review this code:" style="width:100%;resize:vertical"></textarea></div>
               <div class="s-field"><label>pinned model</label><div class="settings-input custom-select" id="persona-model" style="width:100%"></div></div>
               <div class="s-field persona-temp-field">
                 <div class="persona-temp-head">
@@ -2334,8 +2334,8 @@
                 <div class="s-field"><label>knowledge files <span style="color:var(--muted);font-weight:400">: this assistant answers from these</span></label>
                   <div id="persona-docs" class="persona-docs"></div>
                   <div style="display:flex;gap:.4rem;margin-top:.4rem">
-                    <input type="text" class="settings-input" id="persona-doc-title" placeholder="title" style="flex:0 0 30%">
-                    <input type="text" class="settings-input" id="persona-doc-content" placeholder="paste knowledge text…" style="flex:1">
+                    <input type="text" class="settings-input" id="persona-doc-title" aria-label="knowledge file title" placeholder="title" style="flex:0 0 30%">
+                    <input type="text" class="settings-input" id="persona-doc-content" aria-label="knowledge file content" placeholder="paste knowledge text…" style="flex:1">
                     <button type="button" class="btn" id="persona-doc-add">add</button>
                   </div>
                 </div>
@@ -2351,10 +2351,10 @@
             <div class="s-card-body">
               <div id="cookbook-list" style="margin-bottom:0.75rem"></div>
               <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-                <div class="s-field" style="flex:1;min-width:80px"><label>name</label><input type="text" class="settings-input" id="cookbook-name"></div>
-                <div class="s-field" style="flex:1;min-width:100px"><label>description</label><input type="text" class="settings-input" id="cookbook-desc"></div>
+                <div class="s-field" style="flex:1;min-width:80px"><label for="cookbook-name">name</label><input type="text" class="settings-input" id="cookbook-name"></div>
+                <div class="s-field" style="flex:1;min-width:100px"><label for="cookbook-desc">description</label><input type="text" class="settings-input" id="cookbook-desc"></div>
               </div>
-              <div class="s-field"><label>prompt template</label><textarea class="settings-textarea" id="cookbook-prompt" rows="2" placeholder="use {args} for the user's input"></textarea></div>
+              <div class="s-field"><label for="cookbook-prompt">prompt template</label><textarea class="settings-textarea" id="cookbook-prompt" rows="2" placeholder="use {args} for the user's input"></textarea></div>
               <button type="button" class="btn primary" id="cookbook-add-btn" style="width:100%">add command</button>
             </div>
           </div>
@@ -2375,7 +2375,7 @@
                 <div class="settings-row-empty">loading connection…</div>
               </div>
               <div id="jarvis-discord-setup" hidden>
-                <div class="s-field"><label>Discord bot token <span class="s-field-note">encrypted and never shown again</span></label><input type="password" class="settings-input" id="jarvis-discord-token" autocomplete="off" placeholder="paste the bot token" style="width:100%"></div>
+                <div class="s-field"><label for="jarvis-discord-token">Discord bot token <span class="s-field-note">encrypted and never shown again</span></label><input type="password" class="settings-input" id="jarvis-discord-token" autocomplete="off" placeholder="paste the bot token" style="width:100%"></div>
                 <button class="btn primary" type="button" id="jarvis-discord-connect" style="width:100%">connect Jarvis</button>
                 <div class="s-card-hint">create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work.</div>
               </div>
@@ -2389,7 +2389,7 @@
                   <div class="jarvis-pairing-code" id="jarvis-pairing-code" hidden></div>
                   <button class="btn" type="button" id="jarvis-discord-pair">new pairing code</button>
                 </div>
-                <div class="s-field"><label>approved private channel ids <span class="s-field-note">one numeric id per line; owner messages only</span></label><textarea class="settings-textarea" id="jarvis-discord-channels" rows="3" placeholder="123456789012345678"></textarea></div>
+                <div class="s-field"><label for="jarvis-discord-channels">approved private channel ids <span class="s-field-note">one numeric id per line; owner messages only</span></label><textarea class="settings-textarea" id="jarvis-discord-channels" rows="3" placeholder="123456789012345678"></textarea></div>
                 <div class="jarvis-discord-save-row">
                   <button class="btn" type="button" id="jarvis-discord-save-channels">save channels</button>
                   <button class="btn" type="button" id="jarvis-discord-revoke">revoke owner</button>
@@ -2421,7 +2421,7 @@
                 <div class="s-toggle-row"><div><div class="s-toggle-label">shell sandbox</div><div class="s-toggle-desc">run shell inside docker (needs docker installed)</div></div><div class="s-switch" id="s-agent-sandbox-toggle"></div></div>
                 <div class="s-toggle-row"><div><div class="s-toggle-label">computer use</div><div class="s-toggle-desc">screenshot + click/type tools (needs pyautogui)</div></div><div class="s-switch" id="s-agent-computer-toggle"></div></div>
                 <div class="s-toggle-row"><div><div class="s-toggle-label">sub-agents</div><div class="s-toggle-desc">allow spawn_agent + parallel delegation</div></div><div class="s-switch" id="s-agent-subagents-toggle"></div></div>
-                <div class="s-field"><label>extra approved file roots <span class="s-field-note">read-only; one existing folder per line</span></label><textarea class="settings-textarea" id="s-agent-roots" rows="3" placeholder="/path/to/another/folder"></textarea></div>
+                <div class="s-field"><label for="s-agent-roots">extra approved file roots <span class="s-field-note">read-only; one existing folder per line</span></label><textarea class="settings-textarea" id="s-agent-roots" rows="3" placeholder="/path/to/another/folder"></textarea></div>
                 <button type="button" class="btn" id="s-agent-roots-save">save approved roots</button>
               </div>
               <div id="agent-tool-list" class="agent-tool-list"></div>
@@ -2437,8 +2437,8 @@
               <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (<code>*</code> <code>?</code>); a plain path is a "contains" match. e.g. allow <code>git_status</code>, ask on <code>git_commit</code>, deny <code>write_file</code> on <code>.env</code>.</p>
               <div id="perm-rules-list" style="margin-bottom:0.7rem"></div>
               <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.45rem">
-                <input type="text" id="perm-rule-tool" class="settings-input" placeholder="tool (git_* / shell / *)" style="flex:1;min-width:120px">
-                <input type="text" id="perm-rule-path" class="settings-input" placeholder="path or command match (optional)" style="flex:1.4;min-width:140px">
+                <input type="text" id="perm-rule-tool" aria-label="permission rule tool" class="settings-input" placeholder="tool (git_* / shell / *)" style="flex:1;min-width:120px">
+                <input type="text" id="perm-rule-path" aria-label="permission rule path or command match" class="settings-input" placeholder="path or command match (optional)" style="flex:1.4;min-width:140px">
                 <div id="perm-rule-action" class="settings-input custom-select" data-value="ask" data-options="allow|allow;ask|ask;deny|deny" style="width:88px;flex-shrink:0"></div>
               </div>
               <button type="button" class="btn primary" id="perm-rule-add-btn" style="width:100%">add rule</button>
@@ -2452,14 +2452,14 @@
             <div class="s-card-body">
               <div id="mcp-server-list" style="margin-bottom:0.75rem"></div>
               <div class="s-field"><label>one-click presets</label><div id="mcp-presets" class="mcp-presets"></div></div>
-              <div class="s-field"><label>name</label><input type="text" class="settings-input" id="mcp-name" style="width:100%"></div>
-              <div class="s-field"><label>command</label><input type="text" class="settings-input" id="mcp-command" placeholder="npx -y @modelcontextprotocol/server-filesystem /path" style="width:100%"></div>
+              <div class="s-field"><label for="mcp-name">name</label><input type="text" class="settings-input" id="mcp-name" style="width:100%"></div>
+              <div class="s-field"><label for="mcp-command">command</label><input type="text" class="settings-input" id="mcp-command" placeholder="npx -y @modelcontextprotocol/server-filesystem /path" style="width:100%"></div>
               <details class="mcp-advanced">
                 <summary>remote server and private values</summary>
                 <div class="s-field"><label>transport</label><div class="settings-input custom-select" id="mcp-transport" data-value="stdio" data-options="stdio|local command;sse|remote SSE" style="width:100%"></div></div>
-                <div class="s-field"><label>remote url</label><input type="url" class="settings-input" id="mcp-url" placeholder="https://server.example/mcp" style="width:100%"></div>
-                <div class="s-field"><label>environment</label><textarea class="settings-input" id="mcp-env" rows="3" placeholder="GITHUB_TOKEN=…&#10;one private value per line" style="width:100%"></textarea></div>
-                <div class="s-field"><label>http headers</label><textarea class="settings-input" id="mcp-headers" rows="3" placeholder="Authorization=Bearer …" style="width:100%"></textarea></div>
+                <div class="s-field"><label for="mcp-url">remote url</label><input type="url" class="settings-input" id="mcp-url" placeholder="https://server.example/mcp" style="width:100%"></div>
+                <div class="s-field"><label for="mcp-env">environment</label><textarea class="settings-input" id="mcp-env" rows="3" placeholder="GITHUB_TOKEN=…&#10;one private value per line" style="width:100%"></textarea></div>
+                <div class="s-field"><label for="mcp-headers">http headers</label><textarea class="settings-input" id="mcp-headers" rows="3" placeholder="Authorization=Bearer …" style="width:100%"></textarea></div>
                 <div class="s-card-hint">private values are encrypted on disk and never shown again.</div>
               </details>
               <button type="button" class="btn primary" id="mcp-add-btn" style="width:100%">add server</button>
@@ -2485,8 +2485,8 @@
               <div class="s-field"><label>service</label>
                 <div class="settings-input custom-select" id="conn-service" data-value="github" data-options="github|github;gitlab|gitlab;custom|custom…" style="width:100%"></div>
               </div>
-              <div class="s-field" id="conn-custom-row" style="display:none"><label>name</label><input type="text" class="settings-input" id="conn-custom" placeholder="service id" style="width:100%"></div>
-              <div class="s-field"><label>token</label><input type="password" class="settings-input" id="conn-token" placeholder="personal access token" style="width:100%"></div>
+              <div class="s-field" id="conn-custom-row" style="display:none"><label for="conn-custom">name</label><input type="text" class="settings-input" id="conn-custom" placeholder="service id" style="width:100%"></div>
+              <div class="s-field"><label for="conn-token">token</label><input type="password" class="settings-input" id="conn-token" placeholder="personal access token" style="width:100%"></div>
               <button type="button" class="btn primary" id="conn-add-btn" style="width:100%">connect</button>
               <div class="s-card-hint">github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected.</div>
               <div class="s-card-hint">alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed.</div>
@@ -2506,7 +2506,7 @@
             <div class="s-card-body">
               <div id="token-list" style="margin-bottom:0.75rem"></div>
               <div style="display:flex;gap:0.4rem">
-                <input type="text" class="settings-input" id="token-name" placeholder="token name" style="flex:1">
+                <input type="text" class="settings-input" id="token-name" aria-label="token name" placeholder="token name" style="flex:1">
                 <button type="button" class="btn primary" id="token-add-btn">generate</button>
               </div>
               <div class="vault-schema-pick" id="token-scopes" style="margin-top:0.55rem" aria-label="token permissions">
@@ -2530,8 +2530,8 @@
             </div>
             <div class="s-card-body">
               <div id="webhook-list" style="margin-bottom:0.75rem"></div>
-              <div class="s-field"><label>name</label><input type="text" class="settings-input" id="wh-name" style="width:100%"></div>
-              <div class="s-field"><label>url</label><input type="text" class="settings-input" id="wh-url" placeholder="https://..." style="width:100%"></div>
+              <div class="s-field"><label for="wh-name">name</label><input type="text" class="settings-input" id="wh-name" style="width:100%"></div>
+              <div class="s-field"><label for="wh-url">url</label><input type="text" class="settings-input" id="wh-url" placeholder="https://..." style="width:100%"></div>
               <button type="button" class="btn primary" id="wh-add-btn" style="width:100%">add webhook</button>
             </div>
           </div>
@@ -2541,13 +2541,13 @@
               shortcuts
             </div>
             <div class="s-card-body" id="shortcut-settings">
-              <div class="s-field"><label>search</label><input class="settings-input shortcut-input" data-shortcut="search" style="width:160px"></div>
-              <div class="s-field"><label>sidebar</label><input class="settings-input shortcut-input" data-shortcut="sidebar" style="width:160px"></div>
-              <div class="s-field"><label>settings</label><input class="settings-input shortcut-input" data-shortcut="settings" style="width:160px"></div>
+              <div class="s-field"><label for="shortcut-search">search</label><input id="shortcut-search" class="settings-input shortcut-input" data-shortcut="search" style="width:160px"></div>
+              <div class="s-field"><label for="shortcut-sidebar">sidebar</label><input id="shortcut-sidebar" class="settings-input shortcut-input" data-shortcut="sidebar" style="width:160px"></div>
+              <div class="s-field"><label for="shortcut-settings-input">settings</label><input id="shortcut-settings-input" class="settings-input shortcut-input" data-shortcut="settings" style="width:160px"></div>
               <div class="s-field"><label for="shortcut-new-task">new aide task</label><input id="shortcut-new-task" class="settings-input shortcut-input" data-shortcut="new_chat" style="width:160px"></div>
-              <div class="s-field"><label>send</label><input class="settings-input shortcut-input" data-shortcut="send" style="width:160px"></div>
-              <div class="s-field"><label>focus input</label><input class="settings-input shortcut-input" data-shortcut="focus_input" style="width:160px"></div>
-              <div class="s-field"><label>stop generating</label><input class="settings-input shortcut-input" data-shortcut="stop" style="width:160px"></div>
+              <div class="s-field"><label for="shortcut-send">send</label><input id="shortcut-send" class="settings-input shortcut-input" data-shortcut="send" style="width:160px"></div>
+              <div class="s-field"><label for="shortcut-focus_input">focus input</label><input id="shortcut-focus_input" class="settings-input shortcut-input" data-shortcut="focus_input" style="width:160px"></div>
+              <div class="s-field"><label for="shortcut-stop">stop generating</label><input id="shortcut-stop" class="settings-input shortcut-input" data-shortcut="stop" style="width:160px"></div>
             </div>
           </div>
           <div class="s-card">
@@ -2709,14 +2709,14 @@
               <div class="rules-form">
                 <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.4rem">
                   <div id="rule-trigger" class="settings-input custom-select" style="flex:1;min-width:170px"></div>
-                  <input type="text" id="rule-trigger-arg" class="settings-input" placeholder="…" style="flex:1;min-width:140px">
+                  <input type="text" id="rule-trigger-arg" aria-label="rule trigger value" class="settings-input" placeholder="…" style="flex:1;min-width:140px">
                 </div>
                 <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.4rem">
                   <div id="rule-action" class="settings-input custom-select" style="flex:1;min-width:170px"></div>
-                  <input type="text" id="rule-action-arg" class="settings-input" placeholder="…" style="flex:1;min-width:140px">
+                  <input type="text" id="rule-action-arg" aria-label="rule action value" class="settings-input" placeholder="…" style="flex:1;min-width:140px">
                 </div>
                 <div style="display:flex;gap:0.4rem">
-                  <input type="text" id="rule-name" class="settings-input" placeholder="rule name (optional)" style="flex:1">
+                  <input type="text" id="rule-name" aria-label="rule name" class="settings-input" placeholder="rule name (optional)" style="flex:1">
                   <button type="button" class="btn" id="rule-cancel-btn" style="display:none">cancel</button>
                   <button type="button" class="btn primary" id="rule-add-btn">add rule</button>
                 </div>
@@ -2727,9 +2727,9 @@
             <div class="s-card-head">delivery channels</div>
             <div class="s-card-body">
               <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem">the "send to discord / telegram" actions use these. paste a discord webhook url and/or a telegram bot token + chat id.</p>
-              <input type="text" id="s-notify-discord" class="settings-input" placeholder="discord webhook url" style="width:100%;margin-bottom:0.45rem">
-              <input type="text" id="s-notify-tgtoken" class="settings-input" placeholder="telegram bot token" style="width:100%;margin-bottom:0.45rem">
-              <input type="text" id="s-notify-tgchat" class="settings-input" placeholder="telegram chat id" style="width:100%">
+              <input type="text" id="s-notify-discord" aria-label="Discord webhook URL" class="settings-input" placeholder="discord webhook url" style="width:100%;margin-bottom:0.45rem">
+              <input type="text" id="s-notify-tgtoken" aria-label="Telegram bot token" class="settings-input" placeholder="telegram bot token" style="width:100%;margin-bottom:0.45rem">
+              <input type="text" id="s-notify-tgchat" aria-label="Telegram chat ID" class="settings-input" placeholder="telegram chat id" style="width:100%">
             </div>
           </div>
         </div>
@@ -2919,14 +2919,14 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label">journal (stale nudge)</div></div><div class="s-switch" id="s-prox-cat-journal"></div></div>
               <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.7rem;font-size:0.75rem;color:var(--muted)">
                 run every
-                <input type="number" min="1" max="168" id="s-prox-hours" style="width:4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
+                <input type="number" min="1" max="168" id="s-prox-hours" aria-label="background check interval in hours" style="width:4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
                 hours
               </div>
               <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem;font-size:0.75rem;color:var(--muted)">
                 quiet hours
-                <input type="number" min="0" max="23" id="s-prox-qstart" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
+                <input type="number" min="0" max="23" id="s-prox-qstart" aria-label="quiet hours start" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
                 to
-                <input type="number" min="0" max="23" id="s-prox-qend" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
+                <input type="number" min="0" max="23" id="s-prox-qend" aria-label="quiet hours end" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.75rem">
               </div>
               <div class="s-toggle-row" style="margin-top:0.5rem"><div><div class="s-toggle-label">send push for urgent</div><div class="s-toggle-desc">web-push high-priority cards (needs notifications on)</div></div><div class="s-switch" id="s-prox-push"></div></div>
               <div id="s-prox-status" style="font-size:0.75rem;color:var(--muted);margin:0.6rem 0"></div>

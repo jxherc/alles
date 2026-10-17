@@ -111,6 +111,9 @@ BROWSER_SUITES = {
     ),
     "setup": ("setup-auth",),
     "settings": (
+        "credits-detail",
+        "settings-voice-recovery",
+        "settings-field-labels",
         "settings-recovery",
         "settings-panes",
         "settings-language-badges",
@@ -268,6 +271,10 @@ BROWSER_SUITES = {
         "vault-setup-phone",
     ),
     "full": (
+        "credits-detail",
+        "settings-voice-recovery",
+        "settings-field-labels",
+        "shared-status-pages",
         "style-ownership",
         "help-manual",
         "livevoice",

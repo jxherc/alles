@@ -142,6 +142,8 @@ with sync_playwright() as pw:
                 expect(chip).to_be_visible()
                 expect(page.locator("#aide-document-scope-name")).to_contain_text("1 note only")
                 selected = page.evaluate("window._pendingDocumentScope")
+                draft_owner = page.evaluate("window._currentSession.id")
+                assert draft_owner
                 assert selected["documents"][0]["path"] == name
                 page.reload(wait_until="networkidle")
                 close_compact_sidebar()
@@ -155,7 +157,8 @@ with sync_playwright() as pw:
                     field.fill(empty_text)
                     expect(chip).to_be_visible()
                     stored_empty = page.evaluate(
-                        "JSON.parse(localStorage.getItem('aide-draft-v2-new'))"
+                        "id => JSON.parse(localStorage.getItem('aide-draft-v2-'+id))",
+                        draft_owner,
                     )
                     assert stored_empty == {"text": "", "document_scope": selected}
                     page.reload(wait_until="networkidle")
@@ -167,7 +170,8 @@ with sync_playwright() as pw:
 
                 def sidebar():
                     if not page.locator("#aide-sidebar").is_visible():
-                        page.locator("#sidebar-toggle-btn").click()
+                        page.locator("#aide-more-btn").click()
+                        page.locator('[data-aide-central-action="archive"]').click()
                     expect(page.locator("#aide-sidebar")).to_be_visible()
 
                 sidebar()
@@ -175,20 +179,24 @@ with sync_playwright() as pw:
                 expect(page.locator("#aide-conversation-name")).to_have_text(
                     f"other local task {label}"
                 )
-                if page.evaluate("matchMedia('(max-width:700px)').matches"):
-                    expect(page.locator("#aide-sidebar")).to_be_hidden()
+                expect(page.locator("#aide-sidebar")).to_be_hidden()
                 expect(field).to_have_value("")
                 expect(chip).to_be_hidden()
                 field.fill("ordinary other-task draft")
+                expect(field).to_have_value("ordinary other-task draft")
                 sidebar()
-                page.locator("#new-chat-btn").click()
+                page.locator("#aide-return-primary").click()
+                page.wait_for_function("id => window._currentSession?.id === id", arg=draft_owner)
+                expect(page.locator("#aide-sidebar")).to_be_hidden()
+                expect(page.locator("#aide-return-primary")).to_be_enabled()
                 expect(field).to_have_value("")
                 expect(chip).to_be_visible()
                 assert page.evaluate("window._pendingDocumentScope") == selected
                 stored = page.evaluate(
                     "Object.entries(localStorage).filter(([key]) => key.startsWith('aide-draft-'))"
                 )
-                page.locator("#incognito-btn").click()
+                page.locator("#aide-more-btn").click()
+                page.locator('[data-aide-central-action="private"]').click()
                 expect(field).to_have_value("")
                 expect(chip).to_be_hidden()
                 field.fill("private local question that must never persist")

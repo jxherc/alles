@@ -10,7 +10,7 @@ from playwright.sync_api import sync_playwright
 
 SURFACES = (
     ("home", "", ".today-topbar", "alles"),
-    ("aide", "chat", ".sidebar-head", "aide"),
+    ("aide", "chat", ".topbar-left", "aide"),
     ("andromeda", "andromeda", ".andromeda-app-head", "andromeda"),
     *(
         (app, app, f'.specialist-group[data-specialist-app="{app}"] .specialist-app-brand', app)
@@ -115,7 +115,7 @@ def run() -> None:
             )
 
             for host, view, expected in (
-                ("aide", "", ".topbar-left" if width <= 700 else ".sidebar-head"),
+                ("aide", "", ".topbar-left"),
                 ("docs", "wiki", "#docs-workbench-view .specialist-app-brand"),
                 ("files", "photos", "#files-workbench-view .specialist-app-brand"),
             ):

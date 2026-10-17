@@ -3,6 +3,7 @@
 import datetime
 import os
 import unittest
+from unittest import mock
 
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
@@ -142,10 +143,15 @@ class RefreshEndpointTests(unittest.TestCase):
         self.eng.dispose()
 
     def test_refresh_endpoint_runs(self):
-        # no network in tests -> default fetcher best-effort returns {}; endpoint must still 200
-        r = self.c.post("/api/money/holdings/refresh")
+        # An unavailable quote source must leave the saved holding intact.
+        with mock.patch.object(price_fetch, "_default_fetcher", return_value={}) as fetcher:
+            r = self.c.post("/api/money/holdings/refresh")
+        fetcher.assert_called_once_with(["AAPL"])
         self.assertEqual(r.status_code, 200)
-        self.assertIn("updated", r.json())
+        self.assertEqual(r.json(), {"updated": 0, "prices": {}})
+        with db.SessionLocal() as session:
+            self.assertEqual(session.query(db.Holding).one().price, 10.0)
+            self.assertEqual(session.query(db.PriceHistory).count(), 0)
 
     def test_history_endpoint(self):
         s = db.SessionLocal()
