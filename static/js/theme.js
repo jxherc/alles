@@ -747,7 +747,7 @@ function _renderEditor() {
           <label class="te-color te-inline"><input type="color" id="te-effect-color" value="${esc(c.text)}"><span>effect color</span></label>
           <label class="te-slider"><span>intensity</span><input type="range" id="te-intensity" min="0" max="1" step="0.05" value="${_draft.effect?.intensity ?? 1}"></label>
         </div>
-        <button class="btn te-toggle-btn${_draft.frosted ? ' primary' : ''}" id="te-frosted">frosted glass: ${_draft.frosted ? 'on' : 'off'}</button>
+        <button type="button" class="btn te-toggle-btn" id="te-frosted" aria-pressed="${!!_draft.frosted}">frosted glass: ${_draft.frosted ? 'on' : 'off'}</button>
       </div>
 
       <div class="te-sec"><div class="te-sec-h">custom themes</div>
@@ -844,7 +844,7 @@ function _wireEditor(m) {
   const fr = m.querySelector('#te-frosted');
   if (fr) fr.addEventListener('click', () => {
     _draft.frosted = !_draft.frosted;
-    fr.classList.toggle('primary', _draft.frosted);
+    fr.setAttribute('aria-pressed', String(!!_draft.frosted));
     fr.textContent = 'frosted glass: ' + (_draft.frosted ? 'on' : 'off');
     _commit();
   });

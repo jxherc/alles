@@ -286,7 +286,7 @@ function _render() {
     ${_savedURL ? `<div class="read-save-result"><p role="status">saved ${esc(_savedURL.title || _savedURL.url)}</p><button type="button" class="btn" id="read-save-open">open saved item</button></div>` : ''}
     <div class="read-toolbar">
       <div class="read-filters"><span class="read-filter-choices" role="radiogroup" aria-label="saved reading filter">${FILTERS.map(([k, l]) => `<button type="button" role="radio" aria-checked="${_filter === k}" class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${l}</button>`).join('')}</span><button type="button" class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" aria-pressed="${_showFeeds}" title="rss feeds">feeds</button></div>
-      <div class="read-search"><input type="text" id="read-q" class="settings-input" placeholder="search saved…" value="${esc(_q)}" spellcheck="false"></div>
+      <div class="read-search"><input type="text" id="read-q" aria-label="search saved" class="settings-input" placeholder="search saved…" value="${esc(_q)}" spellcheck="false"></div>
     </div>
     ${_loadNotice()}
     ${_showFeeds ? _feedsPanel() : ''}

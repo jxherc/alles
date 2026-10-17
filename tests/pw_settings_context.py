@@ -186,16 +186,17 @@ def navigation(page, api, dest, profile, records):
             tabs:[...document.querySelectorAll('.s-nav-item')].map(e=>{
               const r=e.getBoundingClientRect(),s=getComputedStyle(e);
               return {pane:e.dataset.pane,active:e.classList.contains('active'),current:e.getAttribute('aria-current'),hover:e.matches(':hover'),
-                decoration:s.textDecorationLine,visible:r.right>box.left&&r.left<box.right&&r.bottom>box.top&&r.top<box.bottom};
+                decoration:s.textDecorationLine,weight:+s.fontWeight,bg:s.backgroundColor,visible:r.right>box.left&&r.left<box.right&&r.bottom>box.top&&r.top<box.bottom};
             }), panes:[...document.querySelectorAll('.s-pane')].filter(e=>e.getBoundingClientRect().height>0).map(e=>e.id)};
         }""")
         active = [t for t in actual["tabs"] if t["active"]]
         assert len(active) == 1 and active[0]["current"] == "page", actual
         assert actual["panes"] == ["s-pane-" + active[0]["pane"]], actual
-        assert active[0]["decoration"] == "underline", actual
-        assert all(t["decoration"] != "underline" for t in actual["tabs"] if not t["active"]), (
-            actual
-        )
+        # selected row: raised surface plus weight, no underline (decision 0031)
+        resting = [t for t in actual["tabs"] if not t["active"] and not t["hover"]]
+        assert active[0]["weight"] >= 560, actual
+        assert all(t["bg"] != active[0]["bg"] for t in resting), actual
+        assert all(t["decoration"] != "underline" for t in actual["tabs"]), actual
         header, context, close = actual["header"], actual["contextRect"], actual["close"]
         assert context["top"] >= header["top"] and context["bottom"] <= header["bottom"], actual
         assert context["right"] <= close["left"] or close["right"] <= context["left"], actual

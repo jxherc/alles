@@ -2,6 +2,7 @@
 import { toast, mdToHtml } from './util.js';
 import { formatCalendarDate, formatTime } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=1';
+import { wireGridNav, WEEK_COLUMNS } from './grid_nav.js';
 import { replaceRouteUrl } from './route_history.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
@@ -477,6 +478,7 @@ async function loadHeatmap() {
     const end = new Date(Date.UTC(d.year, 11, 31));
     const today = todayISO();
     let cells = '', weeks = 0;
+    const rowsByDay = Array.from({ length: 7 }, () => []);
     for (let c = new Date(start); c <= end; c.setUTCDate(c.getUTCDate() + 7)) {
       for (let r = 0; r < 7; r++) {
         const dt = new Date(c); dt.setUTCDate(dt.getUTCDate() + r);
@@ -489,7 +491,10 @@ async function loadHeatmap() {
         if (iso === _day) cls.push('sel');
         const title = info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso;
         const clickable = inYear && iso <= today;
-        cells += `<span class="${cls.join(' ')}" data-d="${clickable ? iso : ''}" title="${title}"></span>`;
+        if (inYear) rowsByDay[r].push(`jh-${iso}`);
+        cells += inYear
+          ? `<span class="${cls.join(' ')}" id="jh-${iso}" data-d="${clickable ? iso : ''}" title="${title}" aria-label="${title}"${clickable ? '' : ' aria-disabled="true"'}${iso === _day ? ' aria-selected="true"' : ''}></span>`
+          : `<span class="${cls.join(' ')}" data-d="" aria-hidden="true"></span>`;
       }
       weeks++;
     }
@@ -503,9 +508,17 @@ async function loadHeatmap() {
     }
     el.innerHTML =
       `<div class="jrnl-heatmonths" style="grid-template-columns:repeat(${weeks},minmax(0,1fr))">${months}</div>` +
-      `<div class="jrnl-heatgrid" style="grid-template-columns:repeat(${weeks},minmax(0,1fr))">${cells}</div>`;
+      `<div class="jrnl-heatgrid" style="grid-template-columns:repeat(${weeks},minmax(0,1fr))">${cells}` +
+      // weekday rows for assistive tech; boxless, so the column-major layout stays put
+      rowsByDay.map(ids => `<div class="jrnl-heatrow" role="row" aria-owns="${ids.join(' ')}"></div>`).join('') +
+      '</div>';
     el.querySelectorAll('.jrnl-hc[data-d]:not([data-d=""])').forEach(c => {
       if (c.dataset.d) c.onclick = () => navigateDay(c.dataset.d);
+    });
+    // in-year cells run day by day down each week column
+    wireGridNav(el.querySelector('.jrnl-heatgrid'), {
+      cells: '.jrnl-hc[id]', steps: WEEK_COLUMNS, label: `journal ${d.year}`,
+      start: c => c.classList.contains('sel') || c.classList.contains('today'),
     });
   } catch { el.innerHTML = ''; }
 }

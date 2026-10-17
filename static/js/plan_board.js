@@ -167,6 +167,15 @@ function projectMenu(projects, onChange) {
     trigger.setAttribute('aria-expanded', 'false');
     if (returnFocus) trigger.focus();
   };
+  // anchored to the trigger's right edge; flip when that would leave the screen
+  const place = () => {
+    menu.style.left = '';
+    menu.style.right = '';
+    if (menu.getBoundingClientRect().left < 8) {
+      menu.style.right = 'auto';
+      menu.style.left = '0';
+    }
+  };
   const choose = item => {
     items.forEach(option => option.setAttribute('aria-checked', String(option === item)));
     trigger.textContent = item.dataset.value === 'all' ? 'project: all' : `project: ${item.dataset.value}`;
@@ -177,6 +186,7 @@ function projectMenu(projects, onChange) {
     const open = trigger.getAttribute('aria-expanded') !== 'true';
     trigger.setAttribute('aria-expanded', String(open));
     menu.hidden = !open;
+    if (open) place();
     if (open) items.find(item => item.getAttribute('aria-checked') === 'true')?.focus();
   });
   trigger.addEventListener('keydown', event => {
@@ -184,6 +194,7 @@ function projectMenu(projects, onChange) {
     event.preventDefault();
     trigger.setAttribute('aria-expanded', 'true');
     menu.hidden = false;
+    place();
     items.find(item => item.getAttribute('aria-checked') === 'true')?.focus();
   });
   items.forEach((item, index) => {
@@ -346,7 +357,7 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
       row.append(el('dt', '', label), el('dd', '', value));
       facts.append(row);
     }
-    const notes = el('p', 'plan-board-notes', task.notes || 'No notes.');
+    const notes = el('p', 'plan-board-notes', task.notes || 'no notes');
     const actions = el('div', 'plan-board-detail-actions');
     const index = STAGES.indexOf(task.stage);
     const back = el('button', '', 'move back');
@@ -369,7 +380,7 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
     root.querySelectorAll('.plan-board-card').forEach(card => card.setAttribute('aria-selected', 'false'));
     detail.replaceChildren(el('h2', '', 'completed tasks'));
     const list = el('ul', 'plan-board-completed');
-    if (!completed.length) list.append(el('li', 'plan-board-empty', 'No completed tasks.'));
+    if (!completed.length) list.append(el('li', 'plan-board-empty', 'no completed tasks'));
     for (const task of completed) {
       const item = el('li');
       const copy = el('div');

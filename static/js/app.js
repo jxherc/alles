@@ -1234,6 +1234,12 @@ const AIDE_TOOL_VIEWS = new Set([
 
 function renderLocalView(v, route = {}) {
   if (v === 'home') v = 'today';
+  // memory lives in settings; a deep link or reload opens it over Aide
+  if (v === 'memory') {
+    const shown = renderLocalView('chat', route);
+    openSettings('memory');
+    return shown;
+  }
   const staysInAide = AIDE_TOOL_VIEWS.has(v);
   _setAfterlifeSpace(staysInAide ? 'aide' : v === 'today' ? 'today' : v === 'andromeda' ? 'andromeda' : '');
   if (singleHost() && v !== 'settings') _shChrome(v, { onAide: staysInAide });

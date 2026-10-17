@@ -43,6 +43,7 @@ BROWSER_SUITES = {
     "vault-watchtower": ("vault-watchtower",),
     "finance-bank-connections": ("finance-bank-connections",),
     "finance-planning": ("finance-planning",),
+    "ui-audit": ("ui-audit",),
     "ownership": ("style-ownership", "settings-recovery", "settings-panes", "files-workflows"),
     "smoke": SMOKE_GATES,
     "surfaces": SURFACE_GATES,

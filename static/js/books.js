@@ -188,7 +188,7 @@ function _render() {
         <div class="empty-state-icon">${_si('bookmark')}</div>
         <div class="empty-state-title">no books yet</div>
         <div class="empty-state-desc">track what you're reading, want to read, or have finished. search a title and alles autofills the cover, author and year.</div>
-        <button class="btn primary" id="books-empty-add">${_si('plus')} add your first book</button>
+        <button type="button" class="btn" id="books-empty-add">${_si('plus')} add your first book</button>
       </div>`)}`;
   _wire(body);
   if (editing && body.getClientRects().length) {

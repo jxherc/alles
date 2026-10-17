@@ -8,11 +8,13 @@
  */
 
 :where(
+  :root,
   body.afterlife-aide-projects[data-space="aide"],
   body[data-app="files"],
   [data-kokuen-surface]
 ) {
-  /* documented KOKUEN defaults */
+  /* documented KOKUEN defaults; on :root too, so shared rules resolve in
+     dialogs and menus mounted outside a surface */
   --k-default-page: #090909;
   --k-default-panel: #0d0d0d;
   --k-default-raised: #171717;
@@ -90,6 +92,17 @@
   --ui-radius-container: var(--k-radius-surface);
 
   font-family: var(--k-font);
+}
+
+/* taps fire at once on every control; zero specificity so drag surfaces keep touch-action: none */
+:where(button, a[href], summary, [role="button"], [role="tab"], [role^="menuitem"], [role="option"], [role="switch"]) {
+  touch-action: manipulation;
+}
+
+/* scrolling inside a dialog, sheet or menu never drags the page behind it */
+:where([role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], .modal-overlay),
+:where([role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], .modal-overlay) * {
+  overscroll-behavior-y: contain;
 }
 
 /* Universal command: one quiet dialog, one input, one listbox. The input
@@ -341,6 +354,13 @@ body:is(
   cursor: pointer;
 }
 
+/* header actions sit together at the end: views, then the guide, same size */
+.specialist-app-brand .manual-context-help {
+  margin-inline-start: 0;
+  padding: 0 var(--k-space-2, 8px);
+  font-size: 14px;
+}
+
 .specialist-sidebar-toggle svg {
   width: 18px;
   height: 18px;
@@ -412,7 +432,8 @@ body:is(
   gap: var(--k-space-1, 4px);
   min-width: 0;
   min-height: var(--k-control, 44px);
-  padding: 0 var(--k-space-4, 16px);
+  /* 12px + the tab's 12px puts the first label on the 24px content edge */
+  padding: 0 var(--k-space-3, 12px);
   overflow-x: auto;
   overflow-y: hidden;
   background: var(--k-page, var(--bg));
@@ -572,10 +593,11 @@ body:is(
 .plan-board-inline-add input {
   min-width: 0;
   min-height: var(--k-control, 44px);
-  padding: 0 var(--k-space-3, 12px);
-  border: 1px solid var(--k-line-strong, var(--faint));
-  border-radius: var(--k-radius-control, 3px);
-  background: var(--k-panel, var(--panel));
+  padding: 0 var(--k-space-2, 8px);
+  border: 0;
+  border-bottom: 1px solid var(--k-line, var(--faint));
+  border-radius: 0;
+  background: transparent;
 }
 
 .plan-board-add input::placeholder,
@@ -595,13 +617,14 @@ body:is(
 }
 
 .plan-board-add-button {
-  color: var(--k-canvas, var(--bg));
-  background: var(--k-ink, var(--text));
-  font-weight: 600;
+  border: 1px solid var(--k-line-strong, var(--faint));
+  color: var(--k-ink, var(--text));
+  background: transparent;
+  font-weight: 560;
 }
 
 .plan-board-add-button:hover {
-  background: var(--k-soft, var(--text));
+  background: var(--k-raised, var(--panel));
 }
 
 .plan-board-tool:hover,
@@ -971,8 +994,9 @@ body:is(
   display: grid;
   place-items: center;
   padding: var(--k-space-3, 12px);
-  color: var(--k-quiet, var(--muted));
-  font-size: 0.75rem;
+  /* quiet fails on raised surfaces in light (FOUNDATIONS); muted keeps 4.5:1 */
+  color: var(--k-muted, var(--muted));
+  font-size: 12px;
   text-align: center;
 }
 
@@ -1018,8 +1042,8 @@ body:is(
 .specialist-group-row strong { overflow: hidden; font-size: 0.79rem; font-weight: 520; text-overflow: ellipsis; white-space: nowrap; }
 .specialist-group-row span { color: var(--k-ink-muted, var(--muted)); font-size: 0.75rem; text-align: right; }
 .specialist-group-empty,
-.specialist-group-note { color: var(--k-ink-muted, var(--muted)); font-size: 0.76rem; line-height: 1.5; }
-.specialist-group-note { max-width: 62rem; margin: 0 0 var(--k-space-4, 16px); }
+.specialist-group-note { color: var(--k-ink-muted, var(--muted)); font-size: 13px; line-height: 1.5; }
+.specialist-group-note { max-width: 62rem; margin: 0 0 var(--k-space-5, 24px); }
 
 .finance-bank-dialog [hidden] { display: none !important; }
 .finance-bank-dialog a.btn {
@@ -1041,12 +1065,12 @@ body:is(
   border: 0;
   border-radius: var(--k-radius-surface, 4px);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 13px;
 }
 
 .specialist-group-capture input {
   min-width: 0;
-  padding: 0 var(--k-space-1, 4px);
+  padding: 0 var(--k-space-2, 8px);
   color: var(--k-ink, var(--text));
   background: transparent;
   border: 0;
@@ -1055,10 +1079,17 @@ body:is(
 }
 
 .specialist-group-capture button {
-  padding: 0 16px;
-  color: var(--k-action-ink, var(--bg));
-  background: var(--k-action, var(--text));
+  padding: 0 var(--k-space-4, 16px);
+  border: 1px solid var(--k-line-strong, var(--faint));
+  border-radius: var(--k-radius-control, 3px);
+  color: var(--k-ink, var(--text));
+  background: transparent;
+  font-weight: 560;
   cursor: pointer;
+}
+
+.specialist-group-capture button:hover:not(:disabled) {
+  background: var(--k-raised, var(--panel));
 }
 
 .specialist-group-capture button:disabled {
@@ -1088,6 +1119,17 @@ body:is(
   width: 100%;
   height: 100%;
   min-height: 0;
+}
+
+/* every page inside an app shares the overview gutter: 24px, 16px on phones */
+.specialist-group-slot > .page-view > :is(.page-view-head, .page-view-body, .page-view-footer) {
+  padding-inline: var(--k-space-5, 24px);
+}
+
+@media (max-width: 760px) {
+  .specialist-group-slot > .page-view > :is(.page-view-head, .page-view-body, .page-view-footer) {
+    padding-inline: var(--k-space-4, 16px);
+  }
 }
 
 .specialist-group-slot > .page-view > .page-view-head .page-view-title {
@@ -1182,8 +1224,16 @@ body:is(
   color: var(--k-soft, var(--text));
   background: transparent;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
+}
+
+/* card and row actions are text actions; a list of cards has no boxed primary
+   per card, the stronger one only gains tone and weight */
+.server-workbench-actions button,
+.server-workbench-card > button {
+  border-color: transparent;
 }
 
 .server-workbench-actions button:hover,
@@ -1194,7 +1244,7 @@ body:is(
   background: var(--k-hover, var(--panel));
 }
 
-.server-workbench-actions button.is-primary { border-color: var(--k-line-strong, var(--faint)); color: var(--k-text, var(--text)); }
+.server-workbench-actions button.is-primary { color: var(--k-text, var(--text)); font-weight: 560; }
 .server-workbench-actions button:disabled,
 .server-workbench-card > button:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -1349,14 +1399,16 @@ body:is(
 .specialist-workbench {
   display: grid;
   grid-template-columns: 224px minmax(18rem, 1.5fr) minmax(14rem, 0.75fr);
-  gap: var(--k-space-5, 24px);
+  /* columns carry no inset of their own; the gap separates them so every
+     column's text starts on its edge and the first matches the page gutter */
+  gap: var(--k-space-7, 48px);
   min-width: 0;
   max-width: 90rem;
 }
 
 .specialist-workbench > :where(.specialist-workbench-rail, .specialist-workbench-main, .specialist-workbench-detail) {
   min-width: 0;
-  padding: var(--k-space-4, 16px);
+  padding: 0;
   background: transparent;
 }
 
@@ -1395,7 +1447,7 @@ body:is(
 .specialist-workbench :where(h2) {
   margin: 0 0 var(--k-space-3, 12px);
   color: var(--k-ink, var(--text));
-  font-size: 0.78rem;
+  font-size: 13px;
   font-weight: 650;
 }
 
@@ -1434,6 +1486,11 @@ body:is(
   padding: var(--k-space-2, 8px) var(--k-space-3, 12px);
 }
 
+/* a vertical list of jumps keeps its labels on the column edge */
+.specialist-workbench-jumps {
+  margin-inline-start: calc(-1 * var(--k-space-3, 12px));
+}
+
 .specialist-choice-group button:is(:hover, [aria-pressed="true"]),
 .specialist-workbench-jumps button:hover,
 .specialist-message-row:is(:hover, [aria-current="true"]),
@@ -1463,12 +1520,17 @@ body:is(
   align-items: baseline;
   justify-content: space-between;
   gap: var(--k-space-3, 12px);
-  min-height: 44px;
+  /* same height as a bare column heading, so parallel columns share baselines */
+  margin-bottom: var(--k-space-3, 12px);
+}
+
+.specialist-workbench-head > h2 {
+  margin-bottom: 0;
 }
 
 .specialist-workbench-head > span {
   color: var(--k-ink-muted, var(--muted));
-  font-size: 0.75rem;
+  font-size: 12px;
   text-align: right;
 }
 
@@ -1525,7 +1587,7 @@ body:is(
 }
 .specialist-workbench-detail .specialist-record-time { display: none; }
 .specialist-workbench-detail .specialist-record-meta { grid-column: 1; text-align: left; }
-.specialist-workbench-empty { margin: 0; padding: 12px 8px; color: var(--k-ink-muted, var(--muted)); font-size: 0.76rem; line-height: 1.5; }
+.specialist-workbench-empty { margin: 0; padding: var(--k-space-3, 12px) 0; color: var(--k-ink-muted, var(--muted)); font-size: 13px; line-height: 1.5; }
 
 .specialist-detail-title {
   display: block;
@@ -1547,9 +1609,16 @@ body:is(
   display: inline-flex;
   align-items: center;
   width: max-content;
+  /* the label starts on the content edge; the hover tone may extend past it */
+  margin-inline-start: calc(-1 * var(--k-space-3, 12px));
   padding: var(--k-space-2, 8px) var(--k-space-3, 12px);
   color: var(--k-ink, var(--text));
   background: transparent;
+  font-size: 13px;
+}
+
+.specialist-inline-action:hover {
+  background: var(--k-hover);
 }
 
 .specialist-workbench .specialist-group-capture {
@@ -1583,7 +1652,6 @@ body:is(
 :where(#finance-view) .finance-actual-panel {
   display: grid;
   gap: var(--k-space-3, 12px);
-  max-width: 72rem;
   margin: 0 0 var(--k-space-4, 16px);
   padding: var(--k-space-4, 16px) 0;
   border-radius: 0;
@@ -1686,9 +1754,10 @@ body:is(
 
 :where(#finance-view) .finance-actual-actions .finance-actual-primary,
 :where(#finance-view) .finance-actual-confirm-actions .finance-actual-confirm-primary {
-  border-color: var(--k-action, var(--text));
-  color: var(--k-action-ink, var(--bg));
-  background: var(--k-action, var(--text));
+  border-color: var(--k-line-strong, var(--faint));
+  color: var(--k-ink, var(--text));
+  background: transparent;
+  font-weight: 560;
 }
 
 :where(#finance-view) .finance-actual-confirm {
@@ -1780,9 +1849,10 @@ body:is(
 
 :where(#finance-view) .finance-import-file-row .finance-import-preview,
 :where(#finance-view) .finance-import-actions .finance-import-apply {
-  border-color: var(--k-action, var(--text));
-  color: var(--k-action-ink, var(--bg));
-  background: var(--k-action, var(--text));
+  border-color: var(--k-line-strong, var(--faint));
+  color: var(--k-ink, var(--text));
+  background: transparent;
+  font-weight: 560;
 }
 
 :where(#finance-view) .finance-import-file-row button:disabled,
@@ -1955,12 +2025,14 @@ body:is(
     align-items: stretch;
     gap: 0;
     min-height: var(--k-control);
-    padding: 0 var(--k-space-3, 12px);
+    /* 4px + the tab's 12px lands on the 16px phone gutter */
+    padding: 0 var(--k-space-1, 4px);
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: thin;
     border-right: 0;
-    border-top: 1px solid var(--k-line, var(--faint));
+    /* the identity row above already draws the seam */
+    border-top: 0;
   }
   .specialist-group-tabs [role="tab"] {
     flex: 0 0 auto;
@@ -2011,7 +2083,8 @@ body:is(
   .specialist-group-capture :where(input, button) { min-height: 44px; }
   .specialist-group-row { min-height: 44px; }
   .specialist-workbench { grid-template-columns: minmax(0, 1fr); }
-  .specialist-workbench > :where(.specialist-workbench-rail, .specialist-workbench-main, .specialist-workbench-detail) { padding: var(--k-space-4, 16px); }
+  .specialist-workbench { gap: var(--k-space-6, 32px); }
+  .specialist-workbench > :where(.specialist-workbench-rail, .specialist-workbench-main, .specialist-workbench-detail) { padding: 0; }
   .specialist-record-row,
   .specialist-message-row,
   .specialist-library-row { grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr); }
@@ -2700,6 +2773,20 @@ html[data-kokuen-version="5"] :where(
   box-shadow: inset 0 -2px 0 var(--k-field-focus, var(--muted)) !important;
 }
 
+/* Legacy search and quick-entry fields use the compact rail, like Docs and Plan
+   (decisions 0024, 0026): one bottom line at rest, the shared focus line on top. */
+html[data-kokuen-version="5"] :is(.cal-quick, .act-search, .cal-side-search) {
+  height: var(--k-control);
+  min-height: var(--k-control);
+  padding: 0 var(--k-space-2);
+  border: 0;
+  border-bottom: 1px solid var(--k-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--k-text);
+  font-size: 13px;
+}
+
 /* A bounded text entry has one focus owner. Its sibling actions keep their
    individual indicators; focusing an action must not light the whole field. */
 html[data-kokuen-version="5"] :is(
@@ -2736,6 +2823,95 @@ body[data-app="files"] #files-view :is(.file-row, .file-row > .files-check):focu
   outline-offset: -3px;
 }
 
+/* One button grammar for the legacy action classes (decision 0031).
+   Text action: no box at rest, tone on hover. Primary: the same, plus one
+   strong line. Filter chips: bare until selected, then raised + strong line. */
+html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--k-space-2);
+  min-height: var(--k-control);
+  padding: 0 var(--k-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-soft);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: none;
+  white-space: nowrap;
+  transition: color var(--k-motion-fast) var(--k-ease), background-color var(--k-motion-fast) var(--k-ease);
+}
+
+html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn):hover {
+  border-color: transparent;
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+html[data-kokuen-version="5"] :is(.btn.primary, .btn.primary:hover) {
+  border-color: var(--k-line-strong);
+  color: var(--k-text);
+  font-weight: 560;
+}
+
+html[data-kokuen-version="5"] .btn.primary:hover {
+  background: var(--k-raised);
+}
+
+html[data-kokuen-version="5"] :is(.btn.danger, .btn.danger:hover) {
+  color: var(--k-danger);
+}
+
+html[data-kokuen-version="5"] :is(.act-chip[aria-pressed="true"], .mem-cat-btn[aria-pressed="true"], .btn.active) {
+  border-color: var(--k-line-strong);
+  background: var(--k-raised);
+  color: var(--k-text);
+  font-weight: 560;
+}
+
+html[data-kokuen-version="5"] .act-chip.off {
+  opacity: 1;
+  color: var(--k-muted);
+}
+
+/* every action answers the pointer with tone, never a lift */
+#today-view :is(.today-capture-send, .today-shortcut):hover,
+#wiki-view[data-kokuen-surface="docs"] :is(.docs-nav-label, .docs-nav-text-action):hover,
+body[data-app="files"] #files-view :is(button.crumb, .files-check):hover,
+.skl-card-name:hover,
+#settings-modal .modal-close:hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+#today-view .today-summary-tasks:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Local navigation rows share the data-row contract: bare at rest, hover tone,
+   selected = raised surface + weight. No accent tint or accent edge bar. */
+html[data-kokuen-version="5"] :is(.mail-nav-item, .photos-nav-item, .skl-rail-cat) {
+  gap: var(--k-space-2);
+  padding: 0 var(--k-space-2);
+  border: 0;
+  border-radius: var(--k-radius-control);
+}
+
+html[data-kokuen-version="5"] :is(.mail-nav-item, .photos-nav-item, .skl-rail-cat):hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+html[data-kokuen-version="5"] :is(.mail-nav-item.active, .photos-nav-item.active, .skl-rail-cat.active) {
+  background: var(--k-raised);
+  color: var(--k-text);
+  font-weight: 560;
+}
+
 html[data-kokuen-version="5"] [data-kokuen-state="disabled"],
 html[data-kokuen-version="5"] [data-kokuen-primitive][aria-disabled="true"] {
   cursor: not-allowed;
@@ -2747,7 +2923,8 @@ html[data-kokuen-version="5"] [data-kokuen-state="loading"] {
   cursor: progress;
 }
 
-html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch)) {
+/* tabs show selection with tone and weight only (COMPONENTS.md tabs) */
+html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, [role="tab"])) {
   color: var(--k-text);
   background: var(--k-raised);
 }
@@ -3136,13 +3313,38 @@ textarea[data-kokuen-entry="autogrow"] {
 
 #wiki-view[data-kokuen-surface="docs"] .docs-nav-text-action {
   min-height: var(--k-control);
+  padding: 0 var(--k-space-2);
   color: var(--k-muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
+#wiki-view[data-kokuen-surface="docs"] .docs-nav-panel .docs-nav-text-action {
+  margin: var(--k-space-1) 0 0;
+}
+
+/* every sidebar line starts on one text edge: 8px panel + 8px inset */
 #wiki-view[data-kokuen-surface="docs"] .docs-nav-create {
+  display: flex;
+  justify-content: flex-start;
   gap: var(--k-space-1);
-  padding: 0 var(--k-space-1) var(--k-space-2);
+  padding: 0 0 var(--k-space-2);
+}
+
+#wiki-view[data-kokuen-surface="docs"] .docs-nav-create button {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 var(--k-space-2);
+  border-width: 0;
+}
+
+#wiki-view[data-kokuen-surface="docs"] .docs-nav-panel :is(.docs-nav-label, .docs-nav-empty) {
+  padding-inline: var(--k-space-2);
+}
+
+#wiki-view[data-kokuen-surface="docs"] :where(.docs-library-item, .docs-recent-item, .wiki-file, .wiki-dir-head) {
+  gap: var(--k-space-2);
+  padding-inline: var(--k-space-2);
 }
 
 #wiki-view[data-kokuen-surface="docs"] :where(
@@ -3155,11 +3357,44 @@ textarea[data-kokuen-entry="autogrow"] {
   .docs-inline-actions button
 ) {
   min-height: var(--k-control);
-  border-color: var(--k-line);
+  padding: 0 var(--k-space-3);
+  border-color: transparent;
   border-radius: var(--k-radius-control);
-  color: var(--k-muted);
+  background: transparent;
+  color: var(--k-soft);
   font-size: 13px;
   box-shadow: none;
+}
+
+/* text actions stay bare; the empty state's create action is the one primary */
+#wiki-view[data-kokuen-surface="docs"] :where(
+  .docs-nav-create button,
+  .docs-reader-actions > button,
+  .docs-editor-bar button,
+  .docs-empty-actions button,
+  .docs-notes-actions button,
+  .docs-ask-panel button,
+  .docs-inline-actions button
+):hover {
+  border-color: transparent;
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+/* labels never wrap; the row wraps instead */
+#wiki-view[data-kokuen-surface="docs"] .docs-empty-actions {
+  flex-wrap: wrap;
+  gap: var(--k-space-2);
+}
+
+#wiki-view[data-kokuen-surface="docs"] .docs-empty-actions button {
+  white-space: nowrap;
+}
+
+#wiki-view[data-kokuen-surface="docs"] #wiki-empty-new {
+  border-color: var(--k-line-strong);
+  color: var(--k-text);
+  font-weight: 560;
 }
 
 #wiki-view[data-kokuen-surface="docs"] #wiki-ask-btn {
@@ -3167,9 +3402,11 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 #wiki-view[data-kokuen-surface="docs"] .docs-nav-search {
+  width: 100%;
   height: var(--k-control);
   min-height: var(--k-control);
-  margin-bottom: var(--k-space-3);
+  margin: 0 0 var(--k-space-3);
+  padding: 0 var(--k-space-2);
   border-color: var(--k-line);
   color: var(--k-text);
   font-size: 13px;
@@ -3265,9 +3502,11 @@ textarea[data-kokuen-entry="autogrow"] {
   background: var(--k-page);
 }
 
+/* the status row and the monitor share one left-anchored dashboard column */
 #system-view[data-kokuen-surface="system"] > .page-view-head {
+  width: min(100%, 1080px);
   min-height: var(--k-app-header);
-  padding: 0 var(--k-space-4);
+  padding: 0 var(--k-space-5);
   border-color: var(--k-line);
   font-family: var(--k-font);
 }
@@ -3280,8 +3519,8 @@ textarea[data-kokuen-entry="autogrow"] {
 
 #system-view[data-kokuen-surface="system"] #system-body {
   width: min(100%, 1080px);
-  margin-inline: auto;
-  padding: var(--k-space-5) var(--k-space-4) var(--k-space-6);
+  margin-inline: 0;
+  padding: var(--k-space-5) var(--k-space-5) var(--k-space-6);
   font-family: var(--k-mono);
 }
 
@@ -3382,7 +3621,7 @@ textarea[data-kokuen-entry="autogrow"] {
 
 #settings-modal[data-kokuen-surface="settings"] .s-nav-item {
   width: 100%;
-  min-height: 40px;
+  min-height: var(--k-control);
   margin: 0;
   padding: 0 var(--k-space-3);
   border-radius: var(--k-radius-control);
@@ -3395,10 +3634,10 @@ textarea[data-kokuen-entry="autogrow"] {
   color: var(--k-text);
 }
 
+/* selected row: raised surface plus weight, same as Files and Docs rows */
 #settings-modal[data-kokuen-surface="settings"] .s-nav-item.active {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: var(--k-space-1);
+  background: var(--k-raised);
+  font-weight: 560;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .theme-mode-btn.active {
@@ -4435,6 +4674,8 @@ html[dir="rtl"] :where(
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density button {
   min-height: 58px;
   display: grid;
+  font: inherit;
+  font-size: 13px;
   align-content: center;
   gap: var(--k-space-1);
   padding: var(--k-space-2) var(--k-space-3);
@@ -5447,12 +5688,13 @@ body[data-app="files"] #files-view :where(.btn, .icon-btn, input, [role="button"
 
 body[data-app="files"] #files-view #files-search {
   width: clamp(150px, 22vw, 280px);
-  height: var(--k-control-dense);
-  min-height: var(--k-control-dense);
-  padding: 0 var(--k-space-3);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-control);
-  background: var(--k-panel);
+  height: var(--k-control);
+  min-height: var(--k-control);
+  padding: 0 var(--k-space-2);
+  border: 0;
+  border-bottom: 1px solid var(--k-line);
+  border-radius: 0;
+  background: transparent;
   color: var(--k-text);
   font: 400 14px/1 var(--k-font) !important;
   outline: 0;
@@ -5460,10 +5702,6 @@ body[data-app="files"] #files-view #files-search {
 
 body[data-app="files"] #files-view #files-search::placeholder {
   color: var(--k-muted);
-}
-
-body[data-app="files"] #files-view #files-search:focus {
-  border-color: var(--k-focus);
 }
 
 body[data-app="files"] #files-view .files-breadcrumb {
@@ -5835,6 +6073,11 @@ body[data-app="files"] #files-view :where(.files-phase7-panel-head, .files-phase
   font-weight: 500;
 }
 
+/* the location panel head holds a text action; its label shares the rows' 16px edge */
+body[data-app="files"] #files-view .files-phase7-location-panel > .files-phase7-panel-head {
+  padding-inline: 0;
+}
+
 body[data-app="files"] #files-view :where(.files-phase7-panel-head, .files-phase7-detail-head, .files-phase7-operation-head) > span {
   font-size: 14px;
 }
@@ -6038,6 +6281,7 @@ body[data-app="files"] #files-view :where(.files-text-button, .files-bare-icon) 
 
 body[data-app="files"] #files-view .files-text-button {
   padding: 0 var(--k-space-2);
+  white-space: nowrap;
 }
 
 body[data-app="files"] #files-view .files-bare-icon {
@@ -6056,8 +6300,15 @@ body[data-app="files"] #files-view :where(.files-text-button, .files-bare-icon):
   cursor: not-allowed;
 }
 
+/* the shared primary: one strong line, full text, weight (decision 0031) */
 body[data-app="files"] #files-view .files-primary-action {
+  border: 1px solid var(--k-line-strong);
   color: var(--k-text);
+  background: transparent;
+  font-weight: 560;
+}
+
+body[data-app="files"] #files-view .files-primary-action:hover {
   background: var(--k-raised);
 }
 
@@ -6067,11 +6318,12 @@ body[data-app="files"] #files-view .files-danger {
 
 body[data-app="files"] #files-view #files-search {
   width: clamp(136px, 20vw, 240px);
-  min-height: var(--k-control-dense);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-control);
-  padding: 0 var(--k-space-3);
-  background: var(--k-panel);
+  min-height: var(--k-control);
+  border: 0;
+  border-bottom: 1px solid var(--k-line);
+  border-radius: 0;
+  padding: 0 var(--k-space-2);
+  background: transparent;
   color: var(--k-text);
   font-size: 13px;
 }

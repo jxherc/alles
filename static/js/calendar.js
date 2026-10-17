@@ -3,6 +3,7 @@ import { replaceLinkedRecord } from './recordlinks.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
+import { wireGridNav, WEEK_ROWS } from './grid_nav.js';
 import { formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -534,7 +535,7 @@ function _bindNav() {
 }
 
 function _syncViewBtns() {
-  document.querySelectorAll('#cal-view .seg-opt').forEach(b => b.classList.toggle('active', b.dataset.view === _view));
+  document.querySelectorAll('#cal-view .seg-opt').forEach(b => { b.classList.toggle('active', b.dataset.view === _view); b.setAttribute('aria-pressed', String(b.dataset.view === _view)); });
 }
 
 function shift(dir) {
@@ -683,17 +684,24 @@ function renderMini() {
   let html = `<div class="cal-mini-head"><button class="cal-mini-nav" data-d="-1">‹</button>
     <span>${formatCalendarDate(_miniCursor, { month: 'long', year: 'numeric' })}</span>
     <button class="cal-mini-nav" data-d="1">›</button></div><div class="cal-mini-grid">`;
-  for (const w of miniWd) html += `<div class="cal-mini-wd">${w}</div>`;
-  for (let i = 0; i < startDay; i++) html += '<div></div>';
+  html += '<div class="cal-row" role="row">';
+  for (const w of miniWd) html += `<div class="cal-mini-wd" role="columnheader">${w}</div>`;
+  html += '</div><div class="cal-row" role="row">';
+  for (let i = 0; i < startDay; i++) html += '<div aria-hidden="true"></div>';
   for (let d = 1; d <= dim; d++) {
+    if ((startDay + d - 1) % 7 === 0 && d > 1) html += '</div><div class="cal-row" role="row">';
     const date = new Date(y, m, d);
     const cls = ['cal-mini-day'];
     if (sameDay(date, today)) cls.push('today');
     if (sameDay(date, _cursor)) cls.push('sel');
-    html += `<div class="${cls.join(' ')}" data-date="${ymd(date)}">${d}</div>`;
+    html += `<div class="${cls.join(' ')}" data-date="${ymd(date)}" aria-label="${esc(formatCalendarDate(date, { dateStyle: 'full' }))}"${sameDay(date, _cursor) ? ' aria-selected="true"' : ''}>${d}</div>`;
   }
-  html += '</div>';
+  html += '</div></div>';
   el.innerHTML = html;
+  wireGridNav(el.querySelector('.cal-mini-grid'), {
+    cells: '.cal-mini-day', steps: WEEK_ROWS, label: formatCalendarDate(_miniCursor, { month: 'long', year: 'numeric' }),
+    start: c => c.classList.contains('sel'),
+  });
   el.querySelectorAll('.cal-mini-nav').forEach(b => b.addEventListener('click', () => {
     _miniCursor = addMonths(_miniCursor, +b.dataset.d); renderMini();  // clamp, else 29-31 skips a month
   }));
@@ -707,8 +715,8 @@ function renderCalList() {
   if (!el) return;
   el.innerHTML = _calendars.map(c => `
     <div class="cal-cal-row" data-id="${c.id}">
-      <span class="cal-cal-chk ${c.visible ? 'on' : ''}" data-act="vis" style="--cc:${hexOf(c.color)}"></span>
-      <span class="cal-cal-name" data-act="edit">${esc(c.name)}</span>
+      <button type="button" class="cal-cal-vis" data-act="vis" role="switch" aria-checked="${!!c.visible}" aria-label="show ${esc(c.name)}" style="--cc:${hexOf(c.color)}"><span class="cal-cal-chk ${c.visible ? 'on' : ''}" aria-hidden="true"></span></button>
+      <button type="button" class="cal-cal-name" data-act="edit" aria-label="edit ${esc(c.name)}">${esc(c.name)}</button>
     </div>`).join('');
   el.querySelectorAll('.cal-cal-row').forEach(row => {
     const c = calById(row.dataset.id);
@@ -728,7 +736,7 @@ function calForm(cal) {
   form.className = 'cal-cal-form';
   form.innerHTML = `
     <input class="settings-input" id="cc-name" placeholder="calendar name" value="${esc(cal?.name || '')}" style="width:100%">
-    <div class="cal-swatches" id="cc-colors">${COLOR_NAMES.map(c => `<span class="cal-sw ${c === sel ? 'sel' : ''}" data-c="${c}" style="background:${hexOf(c)}"></span>`).join('')}</div>
+    <div class="cal-swatches" id="cc-colors" role="radiogroup" aria-label="calendar color">${COLOR_NAMES.map(c => `<button type="button" class="cal-sw ${c === sel ? 'sel' : ''}" data-c="${c}" role="radio" aria-checked="${c === sel}" aria-label="${c}" style="--cal-swatch:${hexOf(c)}"></button>`).join('')}</div>
     <div class="cal-cal-form-btns">
       ${isNew || cal.is_default ? '' : '<button class="btn" id="cc-del" style="color:var(--error);border-color:var(--error);margin-right:auto">delete</button>'}
       <button class="btn" id="cc-cancel">cancel</button>
@@ -737,7 +745,7 @@ function calForm(cal) {
   wrap.prepend(form);
   let color = sel;
   form.querySelectorAll('.cal-sw').forEach(s => s.addEventListener('click', () => {
-    color = s.dataset.c; form.querySelectorAll('.cal-sw').forEach(x => x.classList.toggle('sel', x === s));
+    color = s.dataset.c; form.querySelectorAll('.cal-sw').forEach(x => { x.classList.toggle('sel', x === s); x.setAttribute('aria-checked', String(x === s)); });
   }));
   form.querySelector('#cc-cancel').addEventListener('click', () => renderCalList());
   form.querySelector('#cc-del')?.addEventListener('click', async () => {
@@ -969,10 +977,12 @@ function renderMonth() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
   while (cells.length % 7) cells.push(null);
 
-  let html = '<div class="cal-grid">';
-  for (const w of _weekdayLabels()) html += `<div class="cal-weekday">${esc(w)}</div>`;
-  for (const cell of cells) {
-    if (!cell) { html += '<div class="cal-cell empty"></div>'; continue; }
+  let html = '<div class="cal-grid"><div class="cal-row" role="row">';
+  for (const w of _weekdayLabels()) html += `<div class="cal-weekday" role="columnheader">${esc(w)}</div>`;
+  html += '</div>';
+  for (const [index, cell] of cells.entries()) {
+    if (index % 7 === 0) html += `${index ? '</div>' : ''}<div class="cal-row" role="row">`;
+    if (!cell) { html += '<div class="cal-cell empty" aria-hidden="true"></div>'; continue; }
     const key = ymd(cell);
     const evts = (byDay[key] || []).sort((a, b) => (a.all_day ? 0 : a._date) - (b.all_day ? 0 : b._date));
     const chips = evts.slice(0, 4).map(o =>
@@ -984,8 +994,13 @@ function renderMonth() {
       <div class="cal-cell-num">${cell.getDate()}</div>
       <div class="cal-cell-events">${chips}${more}${tchips}${_bdayChips(bmap, cell)}</div></div>`;
   }
-  html += '</div>';
+  html += '</div></div>';
   el.innerHTML = html;
+  // Enter on a day creates an event there, same as a click on its empty space
+  wireGridNav(el.querySelector('.cal-grid'), {
+    cells: '.cal-cell:not(.empty)', steps: WEEK_ROWS, label: tr('calendar.month'),
+    start: c => c.classList.contains('today'),
+  });
   el.querySelectorAll('.cal-cell:not(.empty)').forEach(c => c.addEventListener('click', async ev => {
     const task = ev.target.closest('.cal-task');
     if (task) {

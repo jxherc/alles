@@ -28,8 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=521">
-  <link rel="stylesheet" href="/static/kokuen.css?v=54">
+<link rel="stylesheet" href="/static/style.css?v=522">
+  <link rel="stylesheet" href="/static/kokuen.css?v=55">
 <link rel="stylesheet" href="/static/aidecentral.css?v=2">
 <link rel="stylesheet" href="/static/aidecoding.css?v=3">
 <link rel="stylesheet" href="/static/aidecall.css?v=2">
@@ -452,7 +452,7 @@
         </div>
       </div>
       <div class="page-view-body">
-        <input type="text" id="sidebar-model-search" class="settings-input" placeholder="filter models..." style="width:100%;margin-bottom:0.65rem">
+        <input type="text" id="sidebar-model-search" aria-label="filter models" class="settings-input" placeholder="filter models…" style="width:100%;margin-bottom:0.65rem">
         <div class="sidebar-model-list" id="sidebar-model-list"></div>
       </div>
     </div>
@@ -561,7 +561,7 @@
       </div>
       <div class="page-view-body" id="tasks-list"></div>
       <div class="page-view-footer">
-        <input type="text" id="task-add-input" placeholder="add a task… try 'pay rent every 1st !' or 'call mom tomorrow #home'" data-i18n-placeholder="tasks.quick_add_placeholder">
+        <input type="text" id="task-add-input" aria-label="add a task" placeholder="add a task… try 'pay rent every 1st !' or 'call mom tomorrow #home'" data-i18n-placeholder="tasks.quick_add_placeholder">
         <button type="button" class="btn primary" id="task-add-btn" data-i18n="common.add">add</button>
       </div>
     </div>
@@ -592,7 +592,7 @@
           <a class="btn" id="cal-export" href="/api/calendar/export.ics" download title="export to .ics (Apple/Google/Outlook)" data-i18n="calendar.export" data-i18n-title="calendar.export_help">export</a>
           <input type="file" id="cal-import-file" accept=".ics,text/calendar" hidden>
           <button type="button" class="btn" id="cal-import" title="import a .ics file" data-i18n="calendar.import" data-i18n-title="calendar.import_help">import</button>
-          <input type="text" id="cal-quick" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'" data-i18n-placeholder="calendar.quick_add_placeholder">
+          <input type="text" id="cal-quick" aria-label="quick add event" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'" data-i18n-placeholder="calendar.quick_add_placeholder">
           <button type="button" class="btn" id="cal-find" title="find a free time slot" data-i18n="calendar.find_time" data-i18n-title="calendar.find_time_help">find time</button>
           <button type="button" class="btn" id="cal-sync-btn" title="CalDAV sync" data-i18n="calendar.sync" data-i18n-title="calendar.sync_help">sync</button>
           <button type="button" class="icon-btn app-cog" data-app="calendar" title="calendar settings" data-i18n-title="calendar.settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.8 1z"/></svg></button>
@@ -627,7 +627,7 @@
     <div class="page-view aide-tool-view" id="reminders-view" data-kokuen-surface="aide-tool" style="display:none">
       <div class="page-view-head aide-tool-head">
         <span class="page-view-title">reminders</span>
-        <button type="button" class="btn primary" id="push-enable-btn" style="margin-left:auto;font-size:0.75rem">enable notifications</button>
+        <button type="button" class="btn" id="push-enable-btn" style="margin-left:auto">enable notifications</button>
       </div>
       <div class="page-view-body aide-tool-content">
         <div id="reminder-list" style="margin-bottom:0.75rem"></div>
@@ -808,11 +808,11 @@
       <div class="page-view-footer" style="flex-wrap:wrap;gap:0.4rem">
         <p id="sub-required" aria-live="polite" class="specialist-group-note" style="flex-basis:100%;margin:0">enter a name and choose the next billing date.</p>
         <input type="text" id="sub-name" aria-label="subscription name" aria-required="true" aria-describedby="sub-required" class="settings-input" placeholder="name (e.g. netflix)" style="flex:2;min-width:130px">
-        <input type="text" id="sub-price" class="settings-input" placeholder="price" style="width:75px" inputmode="decimal">
+        <input type="text" id="sub-price" aria-label="price" class="settings-input" placeholder="price" style="width:75px" inputmode="decimal">
         <div id="sub-cycle" class="settings-input custom-select" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly;custom|custom days" style="width:auto;min-width:110px"></div>
         <input type="text" id="sub-cycle-days" class="settings-input" placeholder="days" style="width:60px;display:none" inputmode="numeric">
         <div class="date-input" id="sub-due" data-type="date" data-ph="next billing date" aria-label="next billing date (required)" aria-describedby="sub-required" style="width:170px"></div>
-        <input type="text" id="sub-category" class="settings-input" placeholder="category" style="width:105px">
+        <input type="text" id="sub-category" aria-label="category" class="settings-input" placeholder="category" style="width:105px">
         <button type="button" class="btn primary" id="sub-add-btn" aria-describedby="sub-required" disabled>add</button>
         <div id="sub-create-status" class="specialist-group-note" hidden></div>
       </div>
@@ -849,10 +849,10 @@
         <div id="days-grid" class="days-grid"></div>
       </div>
       <div class="page-view-footer" style="flex-wrap:wrap;gap:0.4rem">
-        <input type="text" id="day-name" class="settings-input" placeholder="event (e.g. trip to japan, quit smoking)" style="flex:2;min-width:170px">
+        <input type="text" id="day-name" aria-label="event name" class="settings-input" placeholder="event (e.g. trip to japan, quit smoking)" style="flex:2;min-width:170px">
         <div class="date-input" id="day-date" data-type="date" data-ph="date" style="width:135px"></div>
         <div id="day-repeat" class="settings-input custom-select" data-value="none" data-options="none|one-time;yearly|every year;monthly|every month" style="width:auto;min-width:115px"></div>
-        <input type="text" id="day-category" class="settings-input" placeholder="category" style="width:105px">
+        <input type="text" id="day-category" aria-label="category" class="settings-input" placeholder="category" style="width:105px">
         <button type="button" class="btn primary" id="day-add-btn">add</button>
       </div>
     </div>
@@ -964,8 +964,8 @@
               <h1>open a document</h1>
               <p>Choose a document or create one. Your files stay in Markdown.</p>
               <div class="docs-empty-actions">
-                <button class="docs-obsidian-action" type="button" id="wiki-empty-obsidian">open in Obsidian</button>
                 <button type="button" id="wiki-empty-new">new document</button>
+                <button class="docs-obsidian-action" type="button" id="wiki-empty-obsidian">open in Obsidian</button>
                 <button type="button" id="docs-empty-import" class="btn">import document</button>
               </div>
             </div>
@@ -1116,7 +1116,7 @@
     <div class="page-view" id="contacts-view" data-specialist-app="contacts" style="display:none">
       <div class="page-view-head contacts-head">
         <span class="page-view-title">contacts</span>
-        <input type="text" id="contacts-search" class="settings-input contacts-search" placeholder="search...">
+        <input type="text" id="contacts-search" aria-label="search contacts" class="settings-input contacts-search" placeholder="search…">
         <button type="button" class="btn" id="contacts-fav-filter" title="show favorites only">favorites</button>
         <button type="button" class="btn" id="contacts-bday-btn" title="upcoming birthdays">birthdays</button>
         <button type="button" class="btn" id="contacts-groups-btn" title="groups">groups</button>
@@ -1128,9 +1128,9 @@
       </div>
       <div class="page-view-body" id="contacts-list"></div>
       <div class="page-view-footer contacts-create">
-        <input type="text" id="contact-name" class="settings-input" placeholder="name">
-        <input type="text" id="contact-email" class="settings-input" placeholder="email">
-        <input type="text" id="contact-phone" class="settings-input" placeholder="phone">
+        <input type="text" id="contact-name" aria-label="name" class="settings-input" placeholder="name">
+        <input type="text" id="contact-email" aria-label="email" class="settings-input" placeholder="email">
+        <input type="text" id="contact-phone" aria-label="phone" class="settings-input" placeholder="phone">
         <button type="button" class="btn primary" id="contact-add-btn">add</button>
         <p class="contact-error" id="contact-add-error" role="alert" hidden></p>
       </div>
@@ -1303,7 +1303,7 @@
       <div class="page-view-head mail-head">
         <button type="button" class="icon-btn mail-sidebar-toggle" id="mail-sidebar-toggle" title="toggle folders">☰</button>
         <div id="mail-account" class="settings-input custom-select mail-account-select"></div>
-        <input type="text" id="mail-search" class="cal-quick mail-search" placeholder="search mail…">
+        <input type="text" id="mail-search" aria-label="search mail" class="cal-quick mail-search" placeholder="search mail…">
         <div class="mail-head-actions">
           <button type="button" class="btn" id="mail-refresh-btn">refresh</button>
           <button type="button" class="btn primary" id="mail-compose-btn">compose</button>
@@ -1588,7 +1588,7 @@
         <input type="text" id="photos-keywords" class="settings-input photos-meta-in" placeholder="study, autumn" aria-describedby="photos-keywords-help">
         <p id="photos-keywords-help">separate keywords with commas</p>
       </div>
-      <button type="button" class="btn primary" id="photos-meta-save" style="font-size:0.75rem">save caption & keywords</button>
+      <button type="button" class="btn primary" id="photos-meta-save">save caption & keywords</button>
       <p id="photos-meta-status" role="status"></p>
     </div>
     <div class="photos-faces" id="photos-faces" style="display:none"></div>
@@ -1830,7 +1830,7 @@
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
               model connections
-              <button class="btn" id="s-ep-refresh-all" type="button" style="margin-left:auto;font-size:0.75rem;padding:0.15rem 0.5rem">refresh all</button>
+              <button class="btn" id="s-ep-refresh-all" type="button" style="margin-left:auto">refresh all</button>
             </div>
             <div class="s-card-body">
               <p class="s-card-hint s-provider-warning">Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits.</p>
@@ -1986,19 +1986,19 @@
 
         <!-- ── memory pane (aide's long-term memory) ── -->
         <div class="s-pane" id="s-pane-memory">
-          <div class="s-card">
-            <div class="s-card-head">owner instructions</div>
+          <div class="s-card" role="region" aria-labelledby="s-owner-instructions-head">
+            <div class="s-card-head" id="s-owner-instructions-head">owner instructions</div>
             <div class="s-card-body">
               <p class="s-card-hint" data-i18n="settings.memory_instructions_hint">set how Aide responds. instructions are separate from saved facts and cannot replace Alles safety rules. source notes and mail are configured in search personal records.</p>
               <textarea class="settings-textarea" id="settings-owner-instructions" aria-label="owner instructions" rows="5" placeholder="for example: use short answers and explain unfamiliar terms."></textarea>
               <div style="text-align:right;margin-top:0.55rem"><button class="btn primary" id="s-owner-instructions-save" type="button">save instructions</button></div>
             </div>
           </div>
-          <div class="s-card">
+          <div class="s-card" role="region" aria-labelledby="s-memory-head">
             <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
-              memory
-              <button type="button" class="btn" id="mem-extract-btn" style="margin-left:auto;font-size:0.75rem;padding:0.15rem 0.5rem">extract from chat</button>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+              <span id="s-memory-head">memory</span>
+              <button type="button" class="btn" id="mem-extract-btn" style="margin-left:auto">extract from chat</button>
             </div>
             <div class="s-card-body">
               <p class="s-card-hint">incognito chats never read or save memory. owner instructions stay separate from the memories below.</p>
@@ -2148,7 +2148,7 @@
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               chat bar
-              <button type="button" class="btn" id="s-vis-reset-btn" style="margin-left:auto;font-size:0.75rem;padding:0.15rem 0.5rem">reset all</button>
+              <button type="button" class="btn" id="s-vis-reset-btn" style="margin-left:auto">reset all</button>
             </div>
             <div class="s-card-body" style="padding-top:0.2rem;padding-bottom:0.2rem">
               <div class="s-toggle-row"><div><div class="s-toggle-label">welcome message</div><div class="s-toggle-desc">show the empty chat welcome screen</div></div><div class="s-switch" id="s-welcome-toggle"></div></div>
@@ -2210,7 +2210,7 @@
                 <label for="s-accent-hex">custom accent color</label>
                 <div class="accent-custom">
                   <input type="text" id="s-accent-hex" class="settings-input" placeholder="type a #hex color" spellcheck="false" style="width:160px">
-                  <button type="button" class="btn" id="s-accent-reset" style="font-size:0.75rem;padding:0.2rem 0.55rem">reset</button>
+                  <button type="button" class="btn" id="s-accent-reset">reset</button>
                 </div>
               </details>
             </div>
@@ -2412,7 +2412,7 @@
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
               agent stack
-              <button type="button" class="btn" id="agent-status-refresh-btn" style="margin-left:auto;font-size:0.75rem;padding:0.15rem 0.5rem">refresh</button>
+              <button type="button" class="btn" id="agent-status-refresh-btn" style="margin-left:auto">refresh</button>
             </div>
             <div class="s-card-body">
               <div id="agent-status-grid" class="agent-status-grid"></div>
@@ -2962,7 +2962,7 @@
 </div>
 
 <script type="module">
-const _v = '521';
+const _v = '522';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

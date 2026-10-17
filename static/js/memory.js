@@ -167,7 +167,7 @@ function _renderCategoryFilter() {
   const el = document.getElementById('mem-category-filter');
   if (!el) return;
   el.innerHTML = CATEGORIES.map(c =>
-    `<button class="mem-cat-btn${c === _activeCategory ? ' active' : ''}" data-cat="${c}">${c}</button>`
+    `<button type="button" class="mem-cat-btn${c === _activeCategory ? ' active' : ''}" data-cat="${c}" aria-pressed="${c === _activeCategory}">${c}</button>`
   ).join('');
   el.querySelectorAll('.mem-cat-btn').forEach(btn => {
     btn.addEventListener('click', () => {

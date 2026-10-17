@@ -42,6 +42,8 @@ Set `data-kokuen-icon` to a name from `static/js/icons.js`; the shared runtime c
 
 One per screen. Use text and stronger tonal contrast, not a saturated filled pill. It must remain visible while the action is available and show progress without changing width.
 
+In Alles the primary is the text action's shape plus one `--k-line-strong` line, full text color and weight 560; hover adds the raised surface. No filled block. A labelled region or dialog may hold its own primary (decision 0031).
+
 ## custom menu
 
 - `role="menu"` with `menuitem` children;

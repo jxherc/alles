@@ -2764,7 +2764,7 @@ async function accountsPanel(firstRun = false) {
     mountMailSettings(main.firstElementChild, () => accountsPanel(firstRun));
     main.querySelector('button').addEventListener('click', () => accountsPanel(firstRun)); return;
   }
-  main.innerHTML = `<div class="mail-accounts">
+  main.innerHTML = `<div class="mail-accounts" role="region" aria-label="mail accounts">
     <div class="mail-form-head"><div><div class="mail-compose-head">accounts</div><div class="mail-form-sub">${firstRun ? 'connect a mailbox to get started' : 'manage saved mailboxes'}</div></div>
       <div class="mail-form-actions"><button type="button" class="btn" id="mail-accounts-close">close</button><button type="button" class="btn primary" id="mail-add-acct">add</button></div></div>
     <div class="mail-service-links">${providerHelpHtml()}</div>${accountRecoveryHtml}<div id="mail-account-rows"></div></div>`;
@@ -2801,7 +2801,7 @@ function acctForm(acct) {
   const generation = ++_messageGeneration;
   let existing = acct, testing = false;
   const state = _accountRecovery;
-  main.innerHTML = `<div class="mail-accounts">
+  main.innerHTML = `<div class="mail-accounts" role="region" aria-label="mail accounts">
     <div class="mail-form-head">
       <div>
         <div class="mail-compose-head">${acct ? 'edit account' : 'add account'}</div>

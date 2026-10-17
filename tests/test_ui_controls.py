@@ -57,7 +57,11 @@ class SegmentedControlTests(unittest.TestCase):
         self.assertIn("border-left: none", _block(".seg-opt:first-child"))
 
     def test_seg_active_state_exists(self):
-        self.assertIn("var(--accent)", _block(".seg-opt.active"))
+        # neutral selection (decision 0019): raised surface and weight, never the accent
+        active = _block(".seg-opt.active")
+        self.assertIn("var(--k-raised", active)
+        self.assertIn("font-weight", active)
+        self.assertNotIn("var(--accent)", active)
 
     def test_seg_sm_variant_exists(self):
         self.assertIn(".seg.seg-sm", CSS)
