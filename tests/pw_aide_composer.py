@@ -99,13 +99,14 @@ def message_geometry(page):
     result = page.evaluate("""() => {
       const split = [];
       for (const bubble of document.querySelectorAll('#messages .user-bubble')) {
-        const style = getComputedStyle(bubble), parent = bubble.parentElement;
-        const room = parent.clientWidth - parseFloat(getComputedStyle(parent).paddingLeft)
-          - parseFloat(getComputedStyle(parent).paddingRight);
-        const max = style.maxWidth === 'none' ? room : style.maxWidth.endsWith('%')
-          ? room * parseFloat(style.maxWidth) / 100 : parseFloat(style.maxWidth);
+        // Let layout resolve percentages, min() and font-relative limits.
+        // A numeric parseFloat of computed max-width can produce NaN.
+        const previousWidth = bubble.style.width;
+        bubble.style.width = '100%';
+        const max = bubble.getBoundingClientRect().width;
+        bubble.style.width = previousWidth;
         const width = bubble.getBoundingClientRect().width;
-        if (width >= Math.min(max, room) - 1) continue;
+        if (width >= max - 1) continue;
         const walk = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT);
         for (let node; (node = walk.nextNode());) {
           for (const m of node.data.matchAll(/\\S+/g)) {
@@ -113,7 +114,7 @@ def message_geometry(page):
             range.setStart(node, m.index);
             range.setEnd(node, m.index + m[0].length);
             const lines = new Set([...range.getClientRects()].map(r => Math.round(r.top)));
-            if (lines.size > 1) split.push({word: m[0], width, max: Math.min(max, room)});
+            if (lines.size > 1) split.push({word: m[0], width, max});
           }
         }
       }
@@ -531,6 +532,20 @@ def run():
                                     page.screenshot(path=str(dest / "05-docs-draft-safe.png"))
                                     page.locator("#app-drawer-btn").click()
                                     page.locator('.app-drawer-item[data-view="chat"]').click()
+                                    primary_id = request("GET", "/api/aide/conversation")["id"]
+                                    page.wait_for_function(
+                                        "id => window._currentSession?.id === id", arg=primary_id
+                                    )
+                                    page.locator("#aide-more-btn").click()
+                                    page.locator('[data-aide-central-action="archive"]').click()
+                                    page.locator(
+                                        f'.session-item[data-id="{sid}"] .session-open'
+                                    ).click()
+                                    page.wait_for_function(
+                                        "id => window._currentSession?.id === id", arg=sid
+                                    )
+                                    if page.locator("#aide-sidebar").is_visible():
+                                        page.locator("#aide-sidebar-close").click()
                                     expect(page.locator("#composer-ta")).to_be_visible()
                                     expect(page.locator("#composer-ta")).to_have_value(draft)
                                     assert page.locator("#chat").evaluate(

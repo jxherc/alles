@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "scripts"))
-from browser_gate_safety import require_server_ownership  # noqa: E402
+from browser_gate_safety import prepare_network_isolation, require_server_ownership  # noqa: E402
 from stabilization_report import (  # noqa: E402
     BROWSER_SUITES,
     acceptance_fingerprint,
@@ -213,6 +213,10 @@ COMMANDS = {
     "settings-language-badges": ("tests/pw_settings_language_badges.py",),
     "settings-selected": ("tests/pw_settings_selected.py",),
     "settings-context": ("tests/pw_settings_context.py",),
+    "credits-detail": ("tests/pw_credits_detail.py",),
+    "settings-voice-recovery": ("tests/pw_settings_voice_recovery.py",),
+    "settings-field-labels": ("tests/pw_settings_field_labels.py",),
+    "shared-status-pages": ("tests/pw_shared_status_pages.py",),
     "server-recovery": ("tests/pw_server_recovery.py",),
     "reminder-undo": ("tests/pw_reminder_undo.py",),
     "reminder-recovery": ("tests/pw_reminder_recovery.py",),
@@ -274,6 +278,7 @@ def isolated_environment(data: Path, run_id: str, port: int, artifacts: Path) ->
             "PORT": str(port),
             "PYTHON_DOTENV_DISABLED": "1",
             "PYTHONUNBUFFERED": "1",
+            "PYTHONPATH": str(data / ".browser-network"),
             "HF_HOME": str(data / "model-cache" / "huggingface"),
             "FASTEMBED_CACHE_PATH": str(data / "model-cache" / "fastembed"),
             "HF_HUB_OFFLINE": "1",
@@ -291,6 +296,7 @@ def owned_data():
         data = Path(raw).resolve()
         run_id = uuid.uuid4().hex
         (data / ".alles-test-owner").write_text(run_id, encoding="utf-8")
+        prepare_network_isolation(data, run_id)
         yield data, run_id
 
 
@@ -359,7 +365,8 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
         "artifacts": str(directory),
         "build_fingerprint": before,
         "acceptance_fingerprint": contract_before,
-        "integration_mode": "local services; model downloads disabled; no provider credentials",
+        "integration_mode": "loopback-only Python and Playwright transports; synthetic external fixtures",
+        "network_isolation": "owned Python startup hook; rejecting browser/API proxy",
     }
     if name in {"feed-workflows", "read-text"}:
         result["integration_mode"] = (

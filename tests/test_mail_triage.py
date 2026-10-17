@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from unittest import mock
 
 from core.database import CachedMessage, MailAccount
 from services import mail as mailsvc
@@ -141,7 +142,12 @@ class MailTriageTests(ApiTest):
     def test_archive_removes_from_cache(self):
         self._msg(1, "a@x.com", "keep")
         self._msg(2, "b@x.com", "bye")
-        self.client.post(f"/api/mail/archive/{self.aid}", json={"uid": "2"})
+        with mock.patch.object(mailsvc, "move_message", return_value={"ok": True}) as remote:
+            response = self.client.post(f"/api/mail/archive/{self.aid}", json={"uid": "2"})
+        remote.assert_called_once_with(mock.ANY, "2", "Archive", "INBOX")
+        self.assertEqual(remote.call_args.args[0]["imap_host"], "imap.x.com")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"archived": 1, "moved_on_server": True})
         uids = [
             m["uid"] for m in self.client.get(f"/api/mail/cached/{self.aid}").json()["messages"]
         ]

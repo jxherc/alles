@@ -245,6 +245,11 @@ def run():
                 def save(payee, amount):
                     open_entry()
                     page.locator("#tx-payee").fill(payee)
+                    if page.locator("#tx-details").is_hidden():
+                        page.locator("#tx-details-toggle").press("Enter")
+                    expect(page.locator("#tx-details-toggle")).to_have_attribute(
+                        "aria-expanded", "true"
+                    )
                     page.locator("#tx-cat").fill("owned category")
                     page.locator("#tx-amt").fill(amount)
                     with page.expect_response(

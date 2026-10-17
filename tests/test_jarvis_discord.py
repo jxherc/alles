@@ -1305,9 +1305,14 @@ class JarvisDiscordTest(ApiTest):
         db.close()
 
         sender = mock.AsyncMock(return_value=("delivered", "unexpected-old-notice"))
-        with mock.patch.object(jarvis_discord, "_api_create_message_result", new=sender):
+        typing = mock.AsyncMock()
+        with (
+            mock.patch.object(jarvis_discord, "_api_create_message_result", new=sender),
+            mock.patch.object(jarvis_discord, "_api_typing", new=typing),
+        ):
             asyncio.run(jarvis_discord.deliver_notices(connector_id))
         sender.assert_not_awaited()
+        typing.assert_awaited_once_with("synthetic-discord-bot-token", "dm-1")
 
     def test_revoked_token_disables_reconnect_loop(self):
         connected = self._connect()

@@ -200,6 +200,11 @@ with sync_playwright() as pw:
                 assert bounds and bounds["height"] >= 44 and bounds["width"] >= 44
                 if page.locator("#money-entry-fields").is_hidden():
                     page.locator("#money-entry-action").press("Enter")
+                if page.locator("#tx-details").is_hidden():
+                    page.locator("#tx-details-toggle").press("Enter")
+                expect(page.locator("#tx-details-toggle")).to_have_attribute(
+                    "aria-expanded", "true"
+                )
                 drafts = {
                     "tx-payee": "independent draft 草稿",
                     "tx-cat": "independent category",

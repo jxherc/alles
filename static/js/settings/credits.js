@@ -12,6 +12,23 @@ let _creditsLoadGeneration = 0;
 const _creditDetails = new Map();
 const _creditDetailLoads = new Map();
 let _creditDetailGeneration = 0;
+let _creditsCompactLayout = null;
+
+function _placeCreditDetail() {
+  const detail = document.getElementById('credits-detail');
+  const list = document.getElementById('credits-list');
+  const workbench = document.getElementById('credits-settings-workbench');
+  if (!detail || !list || !workbench) return;
+  const focused = detail.contains(document.activeElement) ? document.activeElement : null;
+  const selected = list.querySelector('[aria-current="true"]');
+  if (_creditsCompactLayout?.matches) {
+    if (selected) selected.insertAdjacentElement('afterend', detail);
+    else list.append(detail);
+  } else if (detail.parentElement !== workbench) {
+    workbench.append(detail);
+  }
+  focused?.focus({ preventScroll: true });
+}
 
 function _visibleCredits() {
   const query = _creditsQuery.trim().toLowerCase();
@@ -97,8 +114,11 @@ function _renderCredits() {
   if (!list || !summary || !coverage || !_creditsManifest) return;
   const entries = _visibleCredits();
   if (!entries.some(entry => entry.id === _creditsSelectedId)) _creditsSelectedId = entries[0]?.id || '';
+  // Preserve the one detail surface before replacing the filtered rows around it.
+  const detail = document.getElementById('credits-detail');
+  if (detail?.parentElement === list) document.getElementById('credits-settings-workbench')?.append(detail);
   list.innerHTML = entries.length ? entries.map(entry => `
-    <button class="credits-row" type="button" data-credit-id="${_esc(entry.id)}" aria-current="${entry.id === _creditsSelectedId ? 'true' : 'false'}">
+    <button class="credits-row" type="button" data-credit-id="${_esc(entry.id)}" aria-controls="credits-detail" aria-current="${entry.id === _creditsSelectedId ? 'true' : 'false'}">
       <span><strong>${_esc(entry.name)}</strong><small>${_esc(entry.summary)}</small></span>
       <em>${_esc(entry.license)}</em>
     </button>
@@ -111,6 +131,7 @@ function _renderCredits() {
   coverage.textContent = _creditsManifest.coverage?.complete
     ? t('credits.coverage_complete')
     : `${t('credits.inventory.in_progress')} · ${tp('credits.gap_remaining', gapCount)}`;
+  _placeCreditDetail();
   void _loadCreditDetail(entries.find(entry => entry.id === _creditsSelectedId));
 }
 
@@ -166,6 +187,8 @@ function _wireCreditsPane() {
   const pane = document.getElementById('s-pane-credits');
   if (!pane || pane.dataset.creditsBound) return;
   pane.dataset.creditsBound = '1';
+  _creditsCompactLayout = window.matchMedia('(max-width: 860px)');
+  _creditsCompactLayout.addEventListener('change', _placeCreditDetail);
   pane.addEventListener('click', event => {
     const tab = event.target.closest('[data-credit-category]');
     if (tab) {
@@ -175,10 +198,13 @@ function _wireCreditsPane() {
     const row = event.target.closest('[data-credit-id]');
     if (row) {
       _creditsSelectedId = row.dataset.creditId;
-      _renderCredits();
-      requestAnimationFrame(() => {
-        document.querySelector(`[data-credit-id="${CSS.escape(_creditsSelectedId)}"]`)?.focus({ preventScroll: true });
+      pane.querySelectorAll('[data-credit-id]').forEach(item => {
+        item.setAttribute('aria-current', String(item === row));
       });
+      _placeCreditDetail();
+      void _loadCreditDetail(_visibleCredits().find(entry => entry.id === _creditsSelectedId));
+      row.focus({ preventScroll: true });
+      if (_creditsCompactLayout.matches) row.scrollIntoView({ block: 'start', behavior: 'instant' });
       return;
     }
     if (event.target.closest('[data-credits-retry]')) loadCreditsPane();

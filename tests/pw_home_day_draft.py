@@ -134,7 +134,21 @@ def run() -> None:
                     MARKER,
                 )
                 sessions = context.request.get(f"{backend}/api/sessions").json()
-                assert not any(sessions.values()), sessions
+                # Opening central Aide may create its empty primary shell; the
+                # private day draft must never be sent or persisted in a session.
+                saved_sessions = [item for group in sessions.values() for item in group]
+                assert len(saved_sessions) <= 1, sessions
+                assert MARKER not in json.dumps(sessions), sessions
+                for primary in saved_sessions:
+                    assert (
+                        primary["primary"] is True
+                        and primary["message_count"] == 0
+                        and not primary["incognito"]
+                    ), sessions
+                    history = context.request.get(f"{backend}/api/sessions/{primary['id']}/history")
+                    assert history.ok and history.json()["messages"] == [], history.text()
+                    assert history.json()["session"]["id"] == primary["id"]
+                    assert MARKER not in history.text()
                 assert page.evaluate(
                     "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 )

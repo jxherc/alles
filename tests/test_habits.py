@@ -228,12 +228,21 @@ class HabitApiTests(ApiTest):
 
     def test_toggle_idempotent_no_duplicate_logs(self):
         hid = self._create().json()["id"]
-        for _ in range(3):
-            self.client.post(f"/api/habits/{hid}/toggle", json={"date": "2026-06-20"})
+        day = "2026-06-20"
+        for done in (True, False, True):
+            response = self.client.post(f"/api/habits/{hid}/toggle", json={"date": day})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), {"done": done, "date": day})
         # 3 toggles → on/off/on → done, exactly one log
-        ov = self.client.get("/api/habits/overview").json()
+        # Anchor the overview to the same day so the log never ages out of its grid.
+        response = self.client.get("/api/habits/overview", params={"date_q": day})
+        self.assertEqual(response.status_code, 200)
+        ov = response.json()
         h = next(x for x in ov["habits"] if x["id"] == hid)
-        self.assertTrue(h["done_today"] is True or any(g["done"] for g in h["grid"]))
+        self.assertTrue(h["done_today"])
+        self.assertEqual([g["date"] for g in h["grid"] if g["done"]], [day])
+        with self.db() as db:
+            self.assertEqual(db.query(HabitLog).filter_by(habit_id=hid).count(), 1)
 
     def test_overview_shape(self):
         hid = self._create(name="Water").json()["id"]

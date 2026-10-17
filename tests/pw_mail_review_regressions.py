@@ -168,9 +168,22 @@ with sync_playwright() as pw:
                         expect(page.locator(".mail-reader-subject")).to_have_text(
                             "owned message 702"
                         )
+                        expect(page.locator("#mail-unread")).to_have_attribute(
+                            "aria-disabled", "false"
+                        )
                         page.locator("#mail-unread").focus()
-                        page.keyboard.press("Enter")
-                        page.wait_for_timeout(200)
+                        with page.expect_response(
+                            lambda response: (
+                                response.request.method == "POST"
+                                and "/api/mail/read/" in response.url
+                                and "seen=false" in response.url
+                            )
+                        ) as marked_unread:
+                            page.keyboard.press("Enter")
+                        assert marked_unread.value.ok
+                        expect(page.locator("#mail-unread")).to_have_attribute(
+                            "aria-disabled", "false"
+                        )
                         with SessionLocal() as db:
                             result["seen_after_unread"] = (
                                 db.query(CachedMessage)

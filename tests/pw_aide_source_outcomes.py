@@ -25,6 +25,17 @@ class SourceModel(BaseHTTPRequestHandler):
             return
         request = json.loads(self.rfile.read(int(self.headers.get("content-length", "0"))))
         messages = request.get("messages", [])
+        # Scope both the filename and tool progression to the current turn;
+        # previous profiles remain in the primary conversation's history.
+        last_user = next(
+            (
+                index
+                for index in range(len(messages) - 1, -1, -1)
+                if messages[index].get("role") == "user"
+            ),
+            None,
+        )
+        messages = messages[last_user:] if last_user is not None else []
         question = " ".join(str(m.get("content", "")) for m in messages if m.get("role") == "user")
         found = re.search(r"source-(1440|820|390)\.md", question)
         results = [m for m in messages if m.get("role") == "tool"]

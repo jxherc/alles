@@ -103,89 +103,77 @@ with sync_playwright() as pw:
                         == 2
                     )
                     page.wait_for_function("innerWidth === 640 && devicePixelRatio === 2")
-                small = page.evaluate("matchMedia('(max-width:700px)').matches")
-                trigger = page.locator("#sidebar-toggle-btn")
+                # Archive is a modal drawer at every width in central Aide.
+                trigger = page.get_by_role("button", name="more Aide actions", exact=True)
+                legacy_state = page.locator("#sidebar-toggle-btn")
+                menu = page.get_by_role("menu", name="Aide actions", exact=True)
                 sidebar = page.locator("#aide-sidebar")
                 field = page.locator("#composer-ta")
 
                 def open_sidebar():
                     if not sidebar.is_visible():
                         trigger.click()
+                        menu.get_by_role("menuitem", name="archive", exact=True).click()
                     expect(sidebar).to_be_visible()
-                    expect(trigger).to_have_attribute("aria-expanded", "true")
+                    expect(sidebar).to_have_attribute("aria-modal", "true")
+                    expect(sidebar).to_have_accessible_name("archive")
+                    expect(legacy_state).to_have_attribute("aria-expanded", "true")
 
                 def closed():
                     expect(sidebar).to_be_hidden()
-                    expect(trigger).to_have_attribute("aria-expanded", "false")
+                    expect(legacy_state).to_have_attribute("aria-expanded", "false")
                     expect(trigger).to_be_focused()
 
-                expect(page.locator("#aide-conversation-name")).to_have_text("owned first task")
-                if small:
-                    open_sidebar()
-                    page.keyboard.press("Escape")
-                    closed()
-                    open_sidebar()
-                    page.keyboard.press("Control+b")
-                    closed()
-                    open_sidebar()
-                    page.locator("#nav-backdrop").click(
-                        position={"x": page.evaluate("innerWidth") - 10, "y": 100}
-                    )
-                    closed()
-                else:
-                    open_sidebar()
-                    page.locator("#new-chat-btn").focus()
-                    page.keyboard.press("Escape")
-                    expect(sidebar).to_be_visible()
-                    page.keyboard.press("Control+b")
-                    closed()
-                    page.keyboard.press("Control+b")
-                    expect(sidebar).to_be_visible()
-                    expect(trigger).to_have_attribute("aria-expanded", "true")
+                expect(page.locator("#aide-history-name")).to_have_text("owned first task")
                 open_sidebar()
-                tools = page.locator("#aide-tools-link")
-                tools.focus()
-                page.keyboard.press("Enter")
-                expect(page.locator("#aide-sidebar-menu")).to_be_visible()
                 page.keyboard.press("Escape")
-                expect(page.locator("#aide-sidebar-menu")).to_be_hidden()
+                closed()
+                open_sidebar()
+                page.keyboard.press("Control+b")
+                closed()
+                open_sidebar()
+                page.locator("#nav-backdrop").click(
+                    position={"x": page.evaluate("innerWidth") - 10, "y": 100}
+                )
+                closed()
+                page.keyboard.press("Control+b")
                 expect(sidebar).to_be_visible()
-                expect(tools).to_be_focused()
-                tools.click()
-                page.locator("#aide-settings-link").click()
+                expect(legacy_state).to_have_attribute("aria-expanded", "true")
+                page.keyboard.press("Escape")
+                closed()
+                # Nested controls now live in More rather than the hidden archive footer.
+                trigger.press("Enter")
+                expect(menu).to_be_visible()
+                page.keyboard.press("Escape")
+                expect(menu).to_be_hidden()
+                expect(trigger).to_be_focused()
+                trigger.click()
+                menu.get_by_role("menuitem", name="settings", exact=True).click()
                 expect(page.locator("#settings-modal")).to_be_visible()
                 page.wait_for_function(
                     "document.querySelector('#settings-modal').contains(document.activeElement)"
                 )
                 page.keyboard.press("Escape")
                 expect(page.locator("#settings-modal")).to_be_hidden()
-                expect(sidebar).to_be_visible()
-                expect(tools).to_be_focused()
-                if small:
-                    page.keyboard.press("Escape")
-                    closed()
+                expect(sidebar).to_be_hidden()
+                expect(trigger).to_be_focused()
                 field.fill("keep my first task draft")
                 open_sidebar()
                 first = page.locator(f'.session-item[data-id="{ids[0]}"] .session-open')
                 first.focus()
                 page.keyboard.press("Enter")
-                if small:
-                    closed()
-                else:
-                    expect(sidebar).to_be_visible()
+                closed()
                 expect(field).to_have_value("keep my first task draft")
                 open_sidebar()
                 page.locator(f'.session-item[data-id="{ids[1]}"] .session-open').click()
-                expect(page.locator("#aide-conversation-name")).to_have_text("owned second task")
-                if small:
-                    closed()
+                expect(page.locator("#aide-history-name")).to_have_text("owned second task")
+                closed()
                 expect(field).to_have_value("")
                 field.fill("second task draft")
                 open_sidebar()
                 page.locator(f'.session-item[data-id="{ids[0]}"] .session-open').click()
-                expect(page.locator("#aide-conversation-name")).to_have_text("owned first task")
-                if small:
-                    closed()
+                expect(page.locator("#aide-history-name")).to_have_text("owned first task")
+                closed()
                 expect(field).to_have_value("keep my first task draft")
                 open_sidebar()
                 with page.expect_response(
@@ -193,30 +181,28 @@ with sync_playwright() as pw:
                 ):
                     page.evaluate("window._reloadActiveSession()")
                 expect(sidebar).to_be_visible()
-                if small:
-                    page.keyboard.press("Escape")
-                    closed()
-                open_sidebar()
-                page.locator('.sidebar [data-view="skills"]').click()
+                page.keyboard.press("Escape")
+                closed()
+                trigger.click()
+                menu.get_by_role("menuitem", name="skills", exact=True).click()
                 expect(page.locator("#skills-view")).to_be_visible()
-                if small:
-                    closed()
-                open_sidebar()
-                page.locator("#new-chat-btn").click()
-                expect(field).to_be_visible()
-                if small:
-                    expect(sidebar).to_be_hidden()
-                    expect(trigger).to_have_attribute("aria-expanded", "false")
-                was_visible = sidebar.is_visible()
-                page.locator("#incognito-btn").click()
                 expect(sidebar).to_be_hidden()
-                expect(trigger).to_have_attribute("aria-expanded", "false")
+                # The preserved new-task shortcut is available from auxiliary views.
+                page.keyboard.press("Alt+n")
+                expect(field).to_be_visible()
+                expect(sidebar).to_be_hidden()
+                expect(legacy_state).to_have_attribute("aria-expanded", "false")
+                was_visible = sidebar.is_visible()
+                trigger.click()
+                menu.get_by_role("menuitem", name="private conversation", exact=True).click()
+                expect(sidebar).to_be_hidden()
+                expect(legacy_state).to_have_attribute("aria-expanded", "false")
                 page.locator("#incognito-exit").click()
                 if was_visible:
                     expect(sidebar).to_be_visible()
                 else:
                     expect(sidebar).to_be_hidden()
-                expect(trigger).to_have_attribute("aria-expanded", str(was_visible).lower())
+                expect(legacy_state).to_have_attribute("aria-expanded", str(was_visible).lower())
                 assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
                 assert not errors, errors
                 assert not console, console

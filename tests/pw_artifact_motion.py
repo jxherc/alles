@@ -104,6 +104,8 @@ def run():
                         base + "/api/sessions", data={"name": "Owned artifact motion fixture"}
                     ).json()
                     task_ids.append(session["id"])
+                    primary_id = api.get(base + "/api/aide/conversation").json()["id"]
+                    assert primary_id != session["id"]
 
                     def history(route):
                         response = route.fetch()
@@ -144,12 +146,18 @@ def run():
                             == 2
                         )
                         page.wait_for_function("innerWidth === 720 && devicePixelRatio === 2")
-                    opener = page.get_by_role("button", name="open artifact", exact=True)
+                    reply_trigger = page.get_by_role(
+                        "button", name="more reply actions", exact=True
+                    )
+                    opener = page.get_by_role("menuitem", name="open artifact", exact=True)
                     panel = page.locator("#artifact-panel")
                     close = page.locator("#artifact-close-btn")
                     observations = []
                     for motion in ["reduce", "no-preference"]:
                         page.emulate_media(reduced_motion=motion)
+                        expect(reply_trigger).to_be_visible()
+                        reply_trigger.press("Enter")
+                        expect(opener).to_be_visible()
                         opener.press("Enter")
                         expect(panel).to_have_class("artifact-panel open")
                         expect(close).to_be_focused()
@@ -197,11 +205,26 @@ def run():
                             assert panel.evaluate("e=>e.inert")
                             page.locator("#app-drawer-btn").click()
                             page.locator('.app-drawer-item[data-view="chat"]').click()
-                            expect(opener).to_be_visible()
+                            # Ordinary Aide entry selects the primary owner. Reopen
+                            # this owned archived fixture through its visible archive.
+                            page.wait_for_function(
+                                "id => window._currentSession?.id === id", arg=primary_id
+                            )
+                            page.locator("#aide-more-btn").click()
+                            page.locator('[data-aide-central-action="archive"]').click()
+                            page.locator(
+                                f'.session-item[data-id="{session["id"]}"] .session-open'
+                            ).click()
+                            page.wait_for_function(
+                                "id => window._currentSession?.id === id", arg=session["id"]
+                            )
+                            if page.locator("#aide-sidebar").is_visible():
+                                page.locator("#aide-sidebar-close").click()
+                            expect(reply_trigger).to_be_visible()
                         else:
                             # On small screens the full-screen artifact covers navigation.
                             page.keyboard.press("Escape")
-                            expect(opener).to_be_focused()
+                            expect(reply_trigger).to_be_focused()
                             page.wait_for_function(
                                 "document.getElementById('artifact-panel').getBoundingClientRect().width <= 1"
                             )
@@ -212,7 +235,11 @@ def run():
                     row.update(
                         status="passed",
                         observations=observations,
-                        checks="actual saved-result opener, code content, close/Escape/focus, both motion preferences, outside-Aide desktop navigation/close, native200 full CDP captures, console and overflow",
+                        checks="visible reply menu saved-result opener, code content, close/Escape/trigger focus, both motion preferences, outside-Aide desktop navigation/close and visible archive reopen, native200 full CDP captures, console and overflow",
+                        changed_contracts=[
+                            "ordinary Aide return selects primary; visibly reopen archived fixture",
+                            "Escape returns to visible reply-menu trigger after menuitem dismissal",
+                        ],
                     )
                 except Exception:
                     row["error"] = traceback.format_exc()

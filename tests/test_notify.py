@@ -74,21 +74,29 @@ class NotifyServiceTest(unittest.TestCase):
 
     def test_failure_is_swallowed(self):
         class _Boom:
+            def __init__(self):
+                self.calls = []
+
             async def __aenter__(self):
                 return self
 
             async def __aexit__(self, *a):
                 return False
 
-            async def post(self, *a, **k):
+            async def post(self, url, **k):
+                self.calls.append(url)
                 raise RuntimeError("network down")
 
+        cli = _Boom()
         with (
             mock.patch.object(notify, "_targets", lambda: _cfg("https://d/wh")),
-            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: _Boom()),
+            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: cli),
+            mock.patch("services.net_guard.is_safe_url", return_value=True) as safe_url,
         ):
             res = asyncio.run(notify.send("x"))  # must not raise
-        self.assertFalse(res["discord"])
+        safe_url.assert_called_once_with("https://d/wh")
+        self.assertEqual(cli.calls, ["https://d/wh"])
+        self.assertIs(res["discord"], False)
 
     def test_configured_discord_only(self):
         with mock.patch.object(notify, "_targets", lambda: _cfg(discord="https://d/wh")):
@@ -101,12 +109,16 @@ class NotifyServiceTest(unittest.TestCase):
         self.assertIsNone(res["telegram"])
 
     def test_4xx_response_discord_false(self):
+        cli = _Client4xx()
         with (
             mock.patch.object(notify, "_targets", lambda: _cfg("https://d/wh")),
-            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: _Client4xx()),
+            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: cli),
+            mock.patch("services.net_guard.is_safe_url", return_value=True) as safe_url,
         ):
             res = asyncio.run(notify.send("ping"))
-        self.assertFalse(res["discord"])
+        safe_url.assert_called_once_with("https://d/wh")
+        self.assertEqual(cli.calls, ["https://d/wh"])
+        self.assertIs(res["discord"], False)
         self.assertIsNone(res["telegram"])
 
 
@@ -116,13 +128,17 @@ class NotifyApiTest(ApiTest):
             self.assertTrue(self.client.get("/api/notify/status").json()["configured"])
 
     def test_test_route_sends_when_configured(self):
+        cli = _Client()
         with (
             mock.patch.object(notify, "_targets", lambda: _cfg("https://d/wh")),
-            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: _Client()),
+            mock.patch.object(notify.httpx, "AsyncClient", lambda *a, **k: cli),
+            mock.patch("services.net_guard.is_safe_url", return_value=True) as safe_url,
         ):
             r = self.client.post("/api/notify/test")
+        safe_url.assert_called_once_with("https://d/wh")
+        self.assertEqual(cli.calls, ["https://d/wh"])
         self.assertEqual(r.status_code, 200)
-        self.assertTrue(r.json()["ok"])
+        self.assertEqual(r.json(), {"ok": True, "sent": {"discord": True, "telegram": None}})
 
     def test_test_route_400_when_unconfigured(self):
         with mock.patch.object(notify, "_targets", lambda: _cfg()):

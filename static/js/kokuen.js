@@ -71,6 +71,9 @@ const ICON_GLYPHS = Object.freeze({
 function inferredIconName(element) {
   if (element.dataset.kokuenIcon) return element.dataset.kokuenIcon;
   if (!element.matches('button, a[href], [role="button"]')) return '';
+  // Nested labels and logos belong to the product control, even while empty.
+  // Only an explicit icon opt-in may replace that structure.
+  if (element.childElementCount) return '';
   const glyph = (element.textContent || '').trim();
   let name = ICON_GLYPHS[glyph] || '';
   if (!name) return '';

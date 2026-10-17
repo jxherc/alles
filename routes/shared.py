@@ -157,8 +157,7 @@ def delete_share(body: ShareRef, db: DbSession = Depends(get_db)):
 # ── public read-only viewer ───────────────────────────────────────────────────
 def _not_found():
     return HTMLResponse(
-        "<html><body style='font:14px/1.6 sans-serif;padding:2rem;background:#0a0a0a;color:#e8e6e3'>"
-        "<h2>not found or link revoked</h2></body></html>",
+        _status_html("not found or link revoked", "Ask the person who shared it for a new link."),
         status_code=404,
     )
 
@@ -303,27 +302,69 @@ def _shared_folder_entries(
     return sorted(entries)
 
 
-_PAGE = (
-    "<html><body style='font:14px/1.6 sans-serif;padding:2rem;background:#0a0a0a;color:#e8e6e3'>"
-)
+def _status_html(title: str, description: str, content: str = "") -> str:
+    """Standalone public recovery page using the app's semantic palette and touch targets."""
+    return f"""<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{_esc(title)} — alles</title>
+<style>
+  @font-face{{font-family:Inter;src:url('/static/vendor/inter/InterVariable.woff2') format('woff2');font-weight:100 900;font-display:swap}}
+  :root{{color-scheme:dark;--bg:#090909;--panel:#0d0d0d;--hover:#141414;--text:#eceae6;--soft:#b9b5b0;--muted:#85817c;--error:#df7474}}
+  @media(prefers-color-scheme:light){{
+    :root{{color-scheme:light;--bg:#f4f3f0;--panel:#eeece8;--hover:#e9e7e2;--text:#242321;--soft:#55514c;--muted:#68635e;--error:#a64242}}
+  }}
+  *{{box-sizing:border-box}}
+  body{{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}
+  main{{max-width:480px;margin:64px auto;padding:0 24px;overflow-wrap:anywhere}}
+  .brand{{color:var(--muted);font-size:13px;margin:0 0 24px}}
+  h1{{font-size:16px;font-weight:600;margin:0 0 8px}}
+  .description{{color:var(--soft);margin:0}}
+  form{{margin-top:24px}}
+  label{{display:block;margin-bottom:8px}}
+  .fields{{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}}
+  input,button{{min-width:44px;min-height:44px;border:1px solid var(--muted);border-radius:4px;padding:8px 12px;background:var(--panel);color:var(--text);font:inherit}}
+  input{{width:100%;min-width:0;border-color:transparent}}
+  button{{cursor:pointer}}
+  button:hover{{background:var(--hover)}}
+  input:focus-visible{{outline:none;box-shadow:inset 0 -2px 0 var(--muted)}}
+  input[aria-invalid="true"]:focus-visible{{box-shadow:inset 0 -2px 0 var(--error)}}
+  button:focus-visible{{outline:2px solid var(--text);outline-offset:-2px}}
+  .error{{color:var(--error);margin:0 0 12px}}
+  @media(forced-colors:active){{input:focus-visible{{outline:2px solid Highlight;outline-offset:-2px}}}}
+  @media(max-width:480px){{main{{margin:32px auto;padding:0 16px}}.fields{{grid-template-columns:minmax(0,1fr)}}}}
+</style></head><body>
+<main><p class="brand">alles</p><h1>{_esc(title)}</h1>
+<p class="description">{_esc(description)}</p>{content}</main>
+</body></html>"""
 
 
 def _expired_page():
-    return HTMLResponse(_PAGE + "<h2>this link has expired</h2></body></html>", status_code=410)
+    return HTMLResponse(
+        _status_html("this link has expired", "Ask the person who shared it for a new link."),
+        status_code=410,
+    )
 
 
 def _locked_page(token: str, wrong: bool):
-    import html as _h
-
-    msg = "<p style='color:#e06c75'>wrong password</p>" if wrong else ""
+    error = (
+        '<p class="error" id="password-error" role="alert">wrong password — try again.</p>'
+        if wrong
+        else ""
+    )
+    invalid = ' aria-invalid="true" aria-describedby="password-error"' if wrong else ""
+    form = (
+        f'<form method="post" action="/s/{_esc(token)}/unlock">'
+        '<label for="share-password">password</label>'
+        f'{error}<div class="fields">'
+        '<input type="password" id="share-password" name="password" '
+        f'autocomplete="current-password" autofocus{invalid}>'
+        '<button type="submit">open</button></div></form>'
+    )
     return HTMLResponse(
-        _PAGE
-        + "<h2>password required</h2>"
-        + msg
-        + f"<form method='post' action='/s/{_h.escape(token)}/unlock'>"
-        "<input type='password' name='password' autocomplete='current-password' autofocus "
-        "style='padding:.5rem;background:#1a1a1a;color:#e8e6e3;border:1px solid #333;border-radius:3px'>"
-        "<button style='padding:.5rem 1rem;margin-left:.5rem'>open</button></form></body></html>",
+        _status_html(
+            "password required", "Enter the password from the person who shared this link.", form
+        ),
         status_code=401,
         headers={"Cache-Control": "private, no-store, max-age=0"},
     )

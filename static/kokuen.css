@@ -4159,6 +4159,16 @@ html[dir="rtl"] :where(
   #settings-modal[data-kokuen-surface="settings"] .locale-settings-preview {
     position: static;
   }
+
+  #settings-modal[data-kokuen-surface="settings"] .credits-list > .credits-detail {
+    border: 0;
+    border-bottom: 1px solid var(--k-line);
+    border-radius: 0;
+  }
+
+  #settings-modal[data-kokuen-surface="settings"] .credits-list > .credits-detail:last-child {
+    border-bottom: 0;
+  }
 }
 
 @media (max-width: 540px) {

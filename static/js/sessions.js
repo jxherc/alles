@@ -126,6 +126,7 @@ export async function initSessions({ hashOwner = 'session' } = {}) {
         skipDraft: true,
         preserveRecord: true,
         preserveHash: hashOwner !== 'session' || Boolean(sourceMessage),
+        preserveMessage: Boolean(sourceMessage),
       });
       if (!opened) throw new Error('primary conversation unavailable');
     } catch (error) {
@@ -478,7 +479,9 @@ export async function selectSession(id, messageId = '', options = {}) {
     const sourceUrl = new URL(location.href);
     if (!options.preserveHash) sourceUrl.hash = id;
     if (messageId) sourceUrl.searchParams.set('message', messageId);
-    else sourceUrl.searchParams.delete('message');
+    // The boot fallback retains a missing reply's identity so the existing
+    // source-link recovery notice can explain why the original did not open.
+    else if (!options.preserveMessage) sourceUrl.searchParams.delete('message');
     replaceRouteUrl(sourceUrl);
     // Reloading the same owner must retain live input (including text typed
     // during a recovery fetch), not replace it with an older stored snapshot.
@@ -510,8 +513,9 @@ export async function selectSession(id, messageId = '', options = {}) {
   }
 }
 
-// let bgrun.js refresh the conversation once a background run finishes
-window._reloadActiveSession = () => { if (_activeId) selectSession(_activeId); };
+// Background completion updates its owner without reopening the conversation
+// or dismissing the archive, call, coding workspace, or another active view.
+window._reloadActiveSession = (sessionId = _activeId) => refreshActiveSessionQuietly(sessionId);
 
 // A receipt updates message content without changing the owner's route, mode,
 // selection, or composer draft. Never replace a foreground stream in progress.

@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 import sys
 import traceback
 from pathlib import Path
@@ -144,33 +143,67 @@ with sync_playwright() as pw:
                         == 2
                     )
                     page.wait_for_function("innerWidth === 720 && devicePixelRatio === 2")
-                for id, text in [
-                    ("sidebar-toggle-btn", "aide tasks"),
-                    ("aide-work-panel-toggle", "tools"),
-                ]:
-                    label_element = page.locator("#" + id + " .aide-toggle-label")
-                    expect(label_element).to_have_text(text)
-                    expect(page.locator("#" + id)).to_have_accessible_name(re.compile(text, re.I))
-                    if page.evaluate("innerWidth <= 700"):
-                        expect(label_element).to_be_visible()
-                        assert page.locator("#" + id).bounding_box()["height"] >= 44
-                        if id == "sidebar-toggle-btn":
-                            assert label_element.bounding_box()["height"] <= 14
-                            assert (
-                                page.locator("#aide-conversation-name").bounding_box()["height"]
-                                <= 21
-                            )
-                    else:
-                        expect(label_element).to_be_hidden()
+                # Central Aide exposes these commands through one named menu.
+                # The legacy header controls remain hidden implementation adapters.
+                more = page.get_by_role("button", name="more Aide actions", exact=True)
+                expect(more).to_be_visible()
+                expect(more).to_have_accessible_name("more Aide actions")
+                assert more.bounding_box()["height"] >= 44
+                expect(page.locator("#sidebar-toggle-btn")).to_be_hidden()
+                expect(page.locator("#aide-work-panel-toggle")).to_be_hidden()
                 page.screenshot(path=str(out / f"{label}-named-controls.png"))
-                panel_toggle = page.locator("#aide-work-panel-toggle")
-                if width <= 390:
-                    panel_toggle.tap()
-                else:
-                    panel_toggle.press("Enter")
-                expect(page.locator("#aide-work-panel")).to_be_visible()
+
+                def menu_open():
+                    if width <= 390:
+                        more.tap()
+                    else:
+                        more.press("Enter")
+                    menu = page.get_by_role("menu", name="Aide actions", exact=True)
+                    expect(menu).to_be_visible()
+                    expect(more).to_have_attribute("aria-expanded", "true")
+                    return menu
+
+                menu = menu_open()
+                items = menu.get_by_role("menuitem")
+                expect(items).to_have_text(
+                    [
+                        "memory",
+                        "archive",
+                        "conversation settings",
+                        "scheduled work",
+                        "skills",
+                        "tools",
+                        "private conversation",
+                        "export conversation",
+                        "settings",
+                    ]
+                )
+                expect(items.first).to_be_focused()
+                page.keyboard.press("End")
+                expect(items.last).to_be_focused()
+                page.keyboard.press("ArrowDown")
+                expect(items.first).to_be_focused()
+                for item in items.all():
+                    assert item.bounding_box()["height"] >= 44
+                menu_box = menu.bounding_box()
+                assert menu_box["x"] >= 0 and (
+                    menu_box["x"] + menu_box["width"] <= page.evaluate("innerWidth")
+                ), menu_box
+                page.screenshot(path=str(out / f"{label}-tools.png"))
                 page.keyboard.press("Escape")
-                expect(panel_toggle).to_be_focused()
+                expect(more).to_be_focused()
+                expect(menu).to_be_hidden()
+                menu_open().get_by_role("menuitem", name="tools", exact=True).press("Enter")
+                expect(page.locator("#aide-work-panel")).to_be_visible()
+                page.wait_for_function(
+                    "document.querySelector('#aide-work-panel').contains(document.activeElement)"
+                )
+                page.keyboard.press("Escape")
+                expect(page.locator("#aide-work-panel")).to_be_hidden()
+                expect(more).to_be_focused()
+                # Use the visible side-task action to retain the fresh-name case.
+                menu_open().get_by_role("menuitem", name="tools", exact=True).press("Enter")
+                page.get_by_role("button", name="side task", exact=True).click()
                 field = page.locator("#composer-ta")
                 draft = "keep the current question while comparing models"
                 field.fill(draft)
@@ -181,56 +214,15 @@ with sync_playwright() as pw:
                 }
                 page.evaluate("scope=>window._setAideDocumentScope(scope)", scope)
 
-                def menu_open():
-                    sidebar = page.locator("#sidebar-toggle-btn")
-                    if sidebar.get_attribute("aria-expanded") == "false":
-                        sidebar.click()
-                    tools = page.locator("#aide-tools-link")
-                    tools.press("Enter")
-                    expect(page.locator("#aide-sidebar-menu")).to_be_visible()
-                    return tools
-
-                tools = menu_open()
-                menu = page.locator("#aide-sidebar-menu")
-                items = menu.get_by_role("menuitem")
-                expect(items).to_have_text(["usage", "settings"])
-                expect(items.first).to_be_focused()
-                page.keyboard.press("End")
-                expect(items.last).to_be_focused()
-                page.keyboard.press("ArrowDown")
-                expect(items.first).to_be_focused()
-                for index in range(2):
-                    assert items.nth(index).bounding_box()["height"] >= 44
-                page.screenshot(path=str(out / f"{label}-tools.png"))
-                page.keyboard.press("Escape")
-                expect(tools).to_be_focused()
+                # These retained compatibility routes are no longer archive menu
+                # entries. Exercise their router and back/draft/scope contract without
+                # pretending that hidden legacy controls remain discoverable.
                 for view, title in [("compare", "compare models"), ("usage", "usage")]:
-                    if view == "compare":
-                        sidebar = page.locator("#sidebar-toggle-btn")
-                        if sidebar.get_attribute("aria-expanded") == "false":
-                            sidebar.click()
-                        direct = page.locator(".sidebar-nav #aide-compare-link")
-                        expect(direct).to_have_text("compare models")
-                        expect(menu).to_be_hidden()
-                        page.screenshot(path=str(out / f"{label}-direct-compare.png"))
-                        if width <= 390:
-                            direct.tap()
-                        else:
-                            direct.press("Enter")
-                    else:
-                        menu_open()
-                        menu.get_by_role("menuitem", name=title, exact=True).press("Enter")
+                    assert page.evaluate("view => window._navigateTo(view)", view)
                     root = page.locator("#" + view + "-view")
                     expect(root).to_be_visible()
-                    page.wait_for_function(
-                        "id => document.getElementById(id).contains(document.activeElement)",
-                        arg=view + "-view",
-                    )
                     expect(menu).to_be_hidden()
-                    if page.evaluate("innerWidth <= 700"):
-                        expect(page.locator("#sidebar-toggle-btn")).to_have_attribute(
-                            "aria-expanded", "false"
-                        )
+                    expect(page.locator("#aide-sidebar")).to_be_hidden()
                     if view == "compare":
                         expect(page.locator("#compare-model-status")).not_to_have_text(
                             "loading models…"
@@ -243,21 +235,17 @@ with sync_playwright() as pw:
                     expect(field).to_have_value(draft)
                     assert page.evaluate("window._pendingDocumentScope") == scope
                 page.evaluate("window._setAideDocumentScope(null)")
-                sidebar = page.locator("#sidebar-toggle-btn")
-                if (
-                    page.evaluate("innerWidth <= 700")
-                    and sidebar.get_attribute("aria-expanded") == "true"
-                ):
-                    page.locator("#aide-sidebar-close").click()
                 field.fill("original connection failure question")
                 page.locator("#send-btn").click()
                 expect(page.locator("#send-btn")).to_be_disabled()
-                page.wait_for_timeout(75)
+                page.wait_for_function(
+                    "document.querySelector('#stop-btn').classList.contains('visible')"
+                )
                 assert len(held) == 1
                 sid = requests[0]["session_id"]
                 session = api.get(base + "/api/sessions/" + sid + "/history").json()["session"]
                 assert session["name"] == "new task", session
-                expect(page.locator("#aide-conversation-name")).to_have_text("new task")
+                expect(page.locator("#aide-history-name")).to_have_text("new task")
                 field.fill("newer draft survives the connection failure")
                 reply(held.pop())
                 notice = page.locator(".error-msg.model-error").last
@@ -306,18 +294,22 @@ with sync_playwright() as pw:
                 expect(page.locator(".ai-content").last).to_have_text(
                     "successful synthetic local answer"
                 )
-                stream_action = page.locator(".ai-wrap").last.get_by_role(
-                    "button", name="+plan task", exact=True
-                )
+                reply_actions = page.locator(".ai-wrap").last
+                reply_more = reply_actions.get_by_role("button", name="more reply actions")
+                reply_more.scroll_into_view_if_needed()
+                reply_more.press("Enter")
+                stream_action = reply_actions.get_by_role("menuitem", name="+plan task", exact=True)
+                expect(stream_action).to_be_visible()
                 expect(stream_action).to_have_attribute("title", "review this reply as a plan task")
                 row["streamed_plan_action_verified"] = True
+                page.keyboard.press("Escape")
                 expect(page.locator("#conn-banner")).to_be_hidden()
                 expect(field).to_have_value("newer draft survives the connection failure")
                 # An existing owner-provided name remains unchanged after the new default.
                 named = api.post(base + "/api/sessions", data={"name": "new chat"}).json()
                 page.goto(base + "/?view=chat#" + named["id"], wait_until="networkidle")
                 page.reload(wait_until="networkidle")
-                expect(page.locator("#aide-conversation-name")).to_have_text("new chat")
+                expect(page.locator("#aide-history-name")).to_have_text("new chat")
                 assert (
                     api.get(base + "/api/sessions/" + named["id"] + "/history").json()["session"][
                         "name"
@@ -334,7 +326,7 @@ with sync_playwright() as pw:
                 project_view.get_by_role("button", name="+ new aide task", exact=True).press(
                     "Enter"
                 )
-                expect(page.locator("#aide-conversation-name")).to_have_text("new task")
+                expect(page.locator("#aide-history-name")).to_have_text("new task")
                 page.wait_for_function(
                     "id => window._currentSession?.project_id === id", arg=project["id"]
                 )
@@ -342,11 +334,11 @@ with sync_playwright() as pw:
                 saved = api.get(base + "/api/sessions/" + created_id + "/history").json()["session"]
                 assert saved["name"] == "new task" and saved["project_id"] == project["id"], saved
                 page.reload(wait_until="networkidle")
-                expect(page.locator("#aide-conversation-name")).to_have_text("new task")
+                expect(page.locator("#aide-history-name")).to_have_text("new task")
                 assert not errors and not console and not external, (errors, console, external)
                 row.update(
                     status="passed",
-                    checks="menu keyboard/focus and direct routes, back with draft/scope, new task name without rewriting old name, bounded connection details/settings/retry",
+                    checks="visible More menu keyboard/focus and compatibility router routes, back with draft/scope, new task name without rewriting old name, bounded connection details/settings/retry",
                 )
             except Exception as error:
                 row.update(

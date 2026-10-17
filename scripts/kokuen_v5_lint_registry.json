@@ -1663,5 +1663,14 @@
     "selector": "html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfield > .mc-chip-input, .today-capture > textarea, .andromeda-search > input ):focus-visible, body.afterlife-aide-projects[data-space=\"aide\"] .search-wrap > input:focus-visible",
     "job": "single wrapper-owned focus",
     "reason": "Composer, command search and mail recipient fields expose text focus on their wrapper. Home capture, Archive and Andromeda also own their input indicator and receive a Highlight outline in forced colors. Inner fields add neither outline nor shadow; sibling actions retain independent focus."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .credits-list > .credits-detail; check for nested bezels",
+    "css_block_sha256": "ce93c8fb2176366486cdfd2402eadfb939445d19b2b3c8147354877da6d08189",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-list > .credits-detail",
+    "job": "distinct-region",
+    "reason": "On compact screens the selected credit detail sits inside the list. Its single bottom divider separates license text from the next dependency; the other borders and corner radius are removed, and the final detail has no trailing divider. Verified at phone, tablet, and native 200% zoom."
   }
 ]

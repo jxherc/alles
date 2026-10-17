@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -113,6 +114,20 @@ try:
                     page.goto(base + "/?view=chat", wait_until="networkidle")
                     close_sidebar()
 
+                def private_draft_absent(value=None):
+                    assert page.evaluate(
+                        """text => !Object.keys(localStorage)
+                          .filter(key => key.startsWith('aide-draft-'))
+                          .some(key => {
+                            const raw = localStorage.getItem(key) || '';
+                            let saved;
+                            try { saved = JSON.parse(raw)?.text || ''; }
+                            catch { saved = raw; }
+                            return saved.includes(text);
+                          })""",
+                        text if value is None else value,
+                    )
+
                 try:
                     if case != "no-model":
                         configure()
@@ -121,8 +136,16 @@ try:
                             base + "/api/sessions", data={"name": "other saved task"}
                         ).json()
                     load()
+                    primary_id = page.evaluate("window._currentSession.id")
+                    # Ordinary Aide owns a permanent primary. Private entry is
+                    # the supported fresh-session path that still creates on send.
+                    if case != "no-model":
+                        page.locator("#aide-more-btn").click()
+                        page.locator('[data-aide-central-action="private"]').click()
+                        expect(page.locator("body")).to_have_class(re.compile(r"\bis-incognito\b"))
+                        page.wait_for_function("() => !window._currentSession")
                     field = page.locator("#composer-ta")
-                    text = "keep this exact thought  中文\n  before sending"
+                    text = f"keep this exact thought {width}-{theme}-{case}  中文\n  before sending"
                     field.fill(text)
                     held = []
                     failing = case == "create-failed"
@@ -157,9 +180,13 @@ try:
                         while not held and time.monotonic() < deadline:
                             page.wait_for_timeout(20)
                         assert len(held) == 1
-                        if width < 700:
-                            page.locator("#sidebar-toggle-btn").click()
+                        page.locator("#incognito-exit").click()
+                        page.wait_for_function(
+                            "id => window._currentSession?.id === id", arg=primary_id
+                        )
                         if case == "switched-task":
+                            page.locator("#aide-more-btn").click()
+                            page.locator('[data-aide-central-action="archive"]').click()
                             page.locator(
                                 f'.session-item[data-id="{existing["id"]}"] .session-open'
                             ).click()
@@ -169,8 +196,6 @@ try:
                             )
                             if width < 700:
                                 expect(page.locator("#aide-sidebar")).to_be_hidden()
-                        else:
-                            page.locator("#new-chat-btn").click()
                         close_sidebar()
                         field.fill("new context draft")
                         held[0].fulfill(
@@ -179,13 +204,8 @@ try:
                         page.wait_for_timeout(200)
                         expect(page.locator("#composer-send-recovery")).to_be_hidden()
                         expect(field).to_have_value("new context draft")
-                        if case == "switched-task":
-                            assert (
-                                page.evaluate(
-                                    "JSON.parse(localStorage.getItem('aide-draft-v2-new') || '{}').text"
-                                )
-                                == text
-                            )
+                        private_draft_absent()
+                        assert base + "/api/chat" not in posts
                     elif case == "newer-draft":
                         deadline = time.monotonic() + 4
                         while not held and time.monotonic() < deadline:
@@ -205,12 +225,16 @@ try:
                         expect(field).to_be_focused()
                         if case == "create-failed":
                             expect(page.locator("#composer-choose-model")).to_be_hidden()
-                        assert (
-                            page.evaluate(
-                                "JSON.parse(localStorage.getItem('aide-draft-v2-new') || '{}').text"
+                        if case == "no-model":
+                            assert (
+                                page.evaluate(
+                                    "id => JSON.parse(localStorage.getItem('aide-draft-v2-' + id) || '{}').text",
+                                    primary_id,
+                                )
+                                == text
                             )
-                            == text
-                        )
+                        else:
+                            private_draft_absent()
                         page.screenshot(path=str(out / f"{width}-{theme}-{case}-recovery.png"))
                         if case == "no-model":
                             assert not posts, posts
@@ -226,8 +250,9 @@ try:
                             configure()
                         else:
                             failing = False
-                        page.reload(wait_until="networkidle")
-                        close_sidebar()
+                        if case == "no-model":
+                            page.reload(wait_until="networkidle")
+                            close_sidebar()
                         expect(field).to_have_value(text)
                         field.press("Enter")
                         expect(page.locator(".user-bubble").last).to_have_text(text.strip())
@@ -235,12 +260,25 @@ try:
                     expect(page.locator("#send-btn")).to_be_enabled(timeout=12000)
                     expect(page.locator("#composer-send-recovery")).to_be_hidden()
                     if case == "newer-draft":
+                        private_draft_absent()
+                        private_draft_absent("a newer draft to keep")
+                        private_id = page.evaluate("window._currentSession.id")
+                        assert page.evaluate("window._currentSession.incognito")
                         page.evaluate(
                             "localStorage.setItem('aide-draft-v2-new', JSON.stringify({text:'separate unsent draft',document_scope:null}))"
                         )
                         page.reload(wait_until="networkidle")
                         close_sidebar()
-                        expect(field).to_have_value("a newer draft to keep")
+                        # Private mode and its ephemeral draft do not survive
+                        # reload. The supported destination is ordinary primary.
+                        page.wait_for_function(
+                            "id => window._currentSession?.id === id", arg=primary_id
+                        )
+                        assert not page.evaluate("window._currentSession.incognito")
+                        expect(field).to_have_value("")
+                        assert page.evaluate(
+                            "id => !localStorage.getItem('aide-draft-v2-' + id)", private_id
+                        )
                         assert (
                             page.evaluate(
                                 "JSON.parse(localStorage.getItem('aide-draft-v2-new') || '{}').text"
@@ -257,6 +295,9 @@ try:
                     assert not unexpected_console, unexpected_console
                     assert not errors, errors
                     result["status"] = "passed"
+                    result["creation_path"] = (
+                        "permanent primary" if case == "no-model" else "visible private entry"
+                    )
                 except Exception as e:
                     result.update(error=str(e), traceback=traceback.format_exc())
                 finally:

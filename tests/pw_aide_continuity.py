@@ -238,7 +238,8 @@ async def run_case(browser, state, endpoint, output, profile, case):
 
     async def select(label):
         if not await page.locator("#session-search").is_visible():
-            await page.locator("#sidebar-toggle-btn").click()
+            await page.locator("#aide-more-btn").click()
+            await page.locator('[data-aide-central-action="archive"]').click()
         await page.locator("#session-search").fill(f"{key} {label}")
         await page.locator(f'.session-item[data-id="{session_ids[label]}"] .session-open').click()
         await expect(page.locator("#aide-conversation-name")).to_have_text(f"{key} {label}")
@@ -263,7 +264,8 @@ async def run_case(browser, state, endpoint, output, profile, case):
             await expect(page.locator("#setup-wizard")).to_be_hidden()
         await expect(page.locator("#composer-ta")).to_be_visible()
         if case == "incognito-stop":
-            await page.locator("#incognito-btn").click()
+            await page.locator("#aide-more-btn").click()
+            await page.locator('[data-aide-central-action="private"]').click()
             await expect(page.locator("#incognito-bar")).to_be_visible()
         prompt = f"Respond with the fixture text for {key}"
         await page.locator("#composer-ta").fill(prompt)

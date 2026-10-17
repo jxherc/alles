@@ -15,6 +15,35 @@ from PIL import Image
 from playwright.sync_api import expect, sync_playwright
 
 
+def image_slot_state(page):
+    """The compatibility chip is hidden by central Aide, but models still owns it."""
+    expect(page.locator("#image-slot-label")).to_have_count(1)
+    expect(page.locator("#image-slot-ic svg")).to_have_count(1)
+    expect(page.locator("#image-slot-label")).not_to_have_text("")
+    state = page.locator("#image-slot-btn").evaluate("""async button => {
+      const children = [...button.children];
+      // State reflection must not replace model-owned labels or provider logos.
+      button.setAttribute('aria-busy', 'true');
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      button.removeAttribute('aria-busy');
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      return {
+        childIds: [...button.children].map(child => child.id),
+        sameChildren: children.every((child, index) => button.children[index] === child),
+        label: button.querySelector('#image-slot-label').textContent,
+        providerIcons: button.querySelectorAll('#image-slot-ic svg').length,
+        inferredIcon: button.dataset.kokuenIcon || null,
+        selected: button.style.display !== 'none',
+        state: button.dataset.kokuenState,
+      };
+    }""")
+    assert state["sameChildren"] and state["selected"], state
+    assert state["childIds"] == ["image-slot-ic", "image-slot-label", ""], state
+    assert state["providerIcons"] == 1 and state["inferredIcon"] is None, state
+    assert state["state"] == "resting", state
+    return state
+
+
 def run():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from services.appearance import from_legacy
@@ -59,7 +88,13 @@ def run():
             try:
                 for profile, width, theme in (
                     ("desktop-light", 1440, "light"),
+                    ("desktop-dark", 1440, "dark"),
+                    ("tablet-light", 820, "light"),
+                    ("tablet-dark", 820, "dark"),
+                    ("phone-light", 390, "light"),
                     ("phone-dark", 390, "dark"),
+                    ("narrow-light", 320, "light"),
+                    ("narrow-dark", 320, "dark"),
                 ):
                     context = browser.new_context(
                         base_url=base,
@@ -135,6 +170,8 @@ def run():
                         page.goto(f"/?view=chat#{session_id}", wait_until="networkidle")
                         assert (page.locator("html").get_attribute("data-theme") or "dark") == theme
                         expect(page.locator("#composer-ta")).to_be_visible()
+                        boot_slot = image_slot_state(page)
+                        assert not errors, errors
                         backdrop = page.locator("#nav-backdrop")
                         if backdrop.is_visible():
                             box = backdrop.bounding_box()
@@ -211,6 +248,8 @@ def run():
                         page.screenshot(path=str(output / f"{profile}-recovered.png"))
                         page.reload(wait_until="networkidle")
                         expect(page.locator("#messages .ai-content img")).to_be_visible()
+                        reloaded_slot = image_slot_state(page)
+                        assert reloaded_slot == boot_slot
                         assert not errors, errors
                         results.append(
                             {
@@ -219,8 +258,15 @@ def run():
                                 "status": "passed",
                                 "session": session_id,
                                 "simulation": "local provider; response lost after server commit",
+                                "boot_slot": boot_slot,
+                                "reloaded_slot": reloaded_slot,
+                                "provider_calls": len(provider_calls) - before_provider,
+                                "image_requests": len(requests),
+                                "history_messages": len(history["messages"]),
+                                "console_errors": errors,
                             }
                         )
+                        (output / "scenarios.json").write_text(json.dumps(results, indent=2))
                     finally:
                         context.close()
             finally:

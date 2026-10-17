@@ -110,7 +110,15 @@ with sync_playwright() as pw:
                 field = page.locator("#composer-ta")
                 field.fill("owned unsent question")
                 help_button = page.locator("#aide-help")
-                help_button.press("Enter")
+
+                def open_context_help():
+                    if not help_button.is_visible():
+                        page.locator("#aide-more-btn").click()
+                        page.locator('[data-aide-central-action="options"]').click()
+                    expect(help_button).to_be_visible()
+                    help_button.press("Enter")
+
+                open_context_help()
                 dialog = page.get_by_role("dialog", name="aide help", exact=True)
                 close = dialog.get_by_role("button", name="close", exact=True)
                 customize = dialog.get_by_role("button", name="customize shortcuts", exact=True)
@@ -153,14 +161,14 @@ with sync_playwright() as pw:
                 expect(binding).to_have_value("Alt+J")
                 page.locator("#settings-modal-close").click()
                 expect(help_button).to_be_focused()
-                help_button.press("Enter")
+                open_context_help()
                 expect(dialog).to_contain_text("Alt+J")
                 assert "Alt+N" not in dialog.locator(".aide-help-shortcuts").inner_text()
                 close.press("Enter")
                 expect(help_button).to_be_focused()
                 expect(field).to_have_value("owned unsent question")
                 context.set_offline(True)
-                help_button.press("Enter")
+                open_context_help()
                 expect(dialog).to_contain_text("start a new aide task")
                 close.press("Enter")
                 context.set_offline(False)
