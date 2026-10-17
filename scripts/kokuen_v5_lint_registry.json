@@ -1620,15 +1620,6 @@
     "reason": "The Home capture form owns the visible field edge and focused underline; forced colors use a two-pixel Highlight outline on that form. The inner textarea must not add another outline."
   },
   {
-    "rule": "focus-suppression",
-    "message": "outline suppressed in html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfi; prove one replacement geometry",
-    "css_block_sha256": "4f4685167e5a865570a21e7bd707a5a21f23c11e94f079192c7febd96dedd813",
-    "path": "static/kokuen.css",
-    "selector": "html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfield > .mc-chip-input ):focus-visible, body.afterlife-aide-projects[data-space=\"aide\"] .search-wrap > input:focus-visible",
-    "job": "single wrapper-owned focus",
-    "reason": "Composer, command search and mail recipient fields have a two-pixel wrapper outline when their text input is focus-visible. Archive uses its wrapper edge and a two-pixel Highlight outline in forced colors. Sibling actions retain independent focus."
-  },
-  {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button; check for nested bezels",
     "css_block_sha256": "b976ade04037d6101de5f07ef19d255c2902c70a6d0bea5540332639cb2117d5",
@@ -1654,5 +1645,23 @@
     "selector": "#persona-accent .pa-swatch",
     "job": "control-bezel",
     "reason": "Forced colors replaces color-only swatches with named accent buttons. Each boundary identifies an individual choice; the selected choice uses Highlight and an underline. Rendered at desktop and phone widths with keyboard selection."
+  },
+  {
+    "rule": "focus-suppression",
+    "message": "outline suppressed in html[data-kokuen-version=\"5\"] :where( input:not([type]), input:is([type=\"text\"], [type=\"search\"], [type=\"email\"], [type=; prove one replacement geometry",
+    "css_block_sha256": "53166910ef68cd5ac4eba77daada10ea4ac5f79ca3782e8c3505a18c12e6d9cf",
+    "path": "static/kokuen.css",
+    "selector": "html[data-kokuen-version=\"5\"] :where( input:not([type]), input:is([type=\"text\"], [type=\"search\"], [type=\"email\"], [type=\"url\"], [type=\"tel\"], [type=\"password\"], [type=\"number\"]), textarea, .custom-select[role=\"combobox\"], .locale-choice-trigger[aria-haspopup=\"listbox\"] ):not([role=\"button\"]):focus-visible",
+    "job": "single form-field focus line",
+    "reason": "Text-like inputs, textareas and custom-select combobox and locale-choice dropdown triggers replace the generic rectangle with a two-pixel inset bottom indicator using the neutral field-focus token. Invalid fields retain a danger indicator. Forced colors restores a Highlight outline for independent fields; action, choice, slider and color-control rings remain. Inputs acting as buttons keep their full control outline."
+  },
+  {
+    "rule": "focus-suppression",
+    "message": "outline suppressed in html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfi; prove one replacement geometry",
+    "css_block_sha256": "c7380a47e08e6dd5ded69c1a39d21588e48909b54c3e2ff191ed63789e6301fa",
+    "path": "static/kokuen.css",
+    "selector": "html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfield > .mc-chip-input, .today-capture > textarea, .andromeda-search > input ):focus-visible, body.afterlife-aide-projects[data-space=\"aide\"] .search-wrap > input:focus-visible",
+    "job": "single wrapper-owned focus",
+    "reason": "Composer, command search and mail recipient fields expose text focus on their wrapper. Home capture, Archive and Andromeda also own their input indicator and receive a Highlight outline in forced colors. Inner fields add neither outline nor shadow; sibling actions retain independent focus."
   }
 ]
