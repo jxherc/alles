@@ -61,22 +61,23 @@ function renderFilters() {
   const wrap = $('activity-filters');
   if (!wrap) return;
   const chips = TYPES.map(t =>
-    `<button class="act-chip${_off.has(t.key) ? ' off' : ''}" data-k="${t.key}">${GLYPH[t.key]} ${t.label}</button>`).join('');
-  const ranges = `<span class="seg seg-sm act-seg">${RANGES.map(([d, l]) =>
-    `<button class="seg-opt${d === _days ? ' active' : ''}" data-d="${d}">${l}</button>`).join('')}</span>`;
-  const search = `<input type="text" id="act-search" class="act-search" placeholder="search activity…" value="${esc(_q)}">`;
+    `<button type="button" class="act-chip${_off.has(t.key) ? ' off' : ''}" data-k="${t.key}" aria-pressed="${!_off.has(t.key)}">${GLYPH[t.key]} ${t.label}</button>`).join('');
+  const ranges = `<span class="seg seg-sm act-seg" role="group" aria-label="time range">${RANGES.map(([d, l]) =>
+    `<button type="button" class="seg-opt${d === _days ? ' active' : ''}" data-d="${d}" aria-pressed="${d === _days}">${l}</button>`).join('')}</span>`;
+  const search = `<input type="text" id="act-search" class="act-search" placeholder="search activity…" aria-label="search activity" value="${esc(_q)}">`;
   wrap.innerHTML = chips + ranges + search;
   wrap.querySelectorAll('.act-chip').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.k;
     if (_off.has(k)) _off.delete(k); else _off.add(k);
     b.classList.toggle('off');
+    b.setAttribute('aria-pressed', String(!_off.has(k)));
     localStorage.setItem(_hk, JSON.stringify([..._off]));
     _writeUrl();
     load();
   }));
   wrap.querySelectorAll('.act-seg .seg-opt').forEach(b => b.addEventListener('click', () => {
     _days = +b.dataset.d || 30;
-    wrap.querySelectorAll('.act-seg .seg-opt').forEach(x => x.classList.toggle('active', x === b));
+    wrap.querySelectorAll('.act-seg .seg-opt').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b)); });
     _writeUrl();
     load();
   }));

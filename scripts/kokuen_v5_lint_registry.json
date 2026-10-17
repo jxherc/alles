@@ -47,7 +47,7 @@
   {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in .plan-board-add input, .plan-board-search, .plan-board-inline-add input; check for nested bezels",
-    "css_block_sha256": "4ba57ac6272cadc298de1ee5b2da52921aa83988e07f27086289e49c16cd1ff2",
+    "css_block_sha256": "17f9f727a2fd61e0e02dc3c804a2414c74be1385a4032921e2e95f14003b1bfe",
     "path": "static/kokuen.css",
     "selector": ".plan-board-add input, .plan-board-search, .plan-board-inline-add input",
     "job": "control-bezel",
@@ -92,20 +92,11 @@
   {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in .server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button; check for nested bezels",
-    "css_block_sha256": "b1f107bbf03617ddef85803d6c9fe0caefb01784cc5412abef1b3894872b60e1",
+    "css_block_sha256": "26f96242fe960577c24859630f9128c19eefc873367fa58b86d447c58e798b91",
     "path": "static/kokuen.css",
     "selector": ".server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button",
     "job": "control-bezel",
     "reason": "Service/workbench action button perimeter. Direct section action button perimeter, including open Files and disabled backup action. Model/connection choice button perimeter."
-  },
-  {
-    "rule": "small-type",
-    "message": "font-size 12px is below the 14px essential-text baseline in .server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button",
-    "css_block_sha256": "b1f107bbf03617ddef85803d6c9fe0caefb01784cc5412abef1b3894872b60e1",
-    "path": "static/kokuen.css",
-    "selector": ".server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button",
-    "job": "compact-control-label",
-    "reason": "Service/workbench action label. Direct section action label, including open Files and disabled backup action. Selectable model or connection choice label."
   },
   {
     "rule": "small-type",
@@ -370,17 +361,8 @@
   },
   {
     "rule": "small-type",
-    "message": "font-size 12px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-text-action",
-    "css_block_sha256": "395799188ce7dd4f5ec5f27672d73e0053bc1aa725e07faf76b58d7298f5c116",
-    "path": "static/kokuen.css",
-    "selector": "#wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-text-action",
-    "job": "compact-control-label",
-    "reason": "Docs navigation text action such as recently deleted. expanded Docs navigation including recently deleted"
-  },
-  {
-    "rule": "small-type",
     "message": "font-size 13px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] :where( .docs-nav-create button, .docs-reader-actions > button, .docs-editor-bar ",
-    "css_block_sha256": "e96fa75fc9084376d4f54b0b60b0214962fd40692cf2fe7e96dee9083d516a63",
+    "css_block_sha256": "cdbe3515235f5b88a7baa2f1e1285d08edc15b3dcc7c3ee08359c4e34b89574f",
     "path": "static/kokuen.css",
     "selector": "#wiki-view[data-kokuen-surface=\"docs\"] :where( .docs-nav-create button, .docs-reader-actions > button, .docs-editor-bar button, .docs-empty-actions button, .docs-notes-actions button, .docs-ask-panel button, .docs-inline-actions button )",
     "job": "compact-control-label",
@@ -389,7 +371,7 @@
   {
     "rule": "small-type",
     "message": "font-size 13px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-search",
-    "css_block_sha256": "9e76da35092c17727cb541635fc66a305bb98a7cbab788095caf6c3c78510bdb",
+    "css_block_sha256": "619c76a81c8030a615d87bce76cbf738c0706369b171760624af1cdad0a75dbc",
     "path": "static/kokuen.css",
     "selector": "#wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-search",
     "job": "compact-control-label",
@@ -434,7 +416,7 @@
   {
     "rule": "small-type",
     "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item",
-    "css_block_sha256": "775ef7ae1b90e97807b698a8d04f8c60d6aa4ddfe0a817a4dd57a07239e9dcd2",
+    "css_block_sha256": "0c76862b230f0919196f6178ff7c9def9301d9cd36b8da71c7ea49de859e0d8e",
     "path": "static/kokuen.css",
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item",
     "job": "compact-control-label",
@@ -1170,15 +1152,6 @@
     "reason": "digest preview responsive region rule. responsive digest layout at active media query only"
   },
   {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view #files-search; check for nested bezels",
-    "css_block_sha256": "32ef526b00f3c85c3d08408d4af139350569b651a0bc3daccadcb2c17e5530aa",
-    "path": "static/kokuen.css",
-    "selector": "body[data-app=\"files\"] #files-view #files-search",
-    "job": "control-bezel",
-    "reason": "The earlier Files search declaration outlines the search field; the later declaration and shared field rules determine final pixels."
-  },
-  {
     "rule": "small-type",
     "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view .files-breadcrumb",
     "css_block_sha256": "7d3feb50d37b46d2dea3807a99cf2042dc55386fed4adb0f2f68a86788e5771c",
@@ -1332,18 +1305,9 @@
     "reason": "Text actions in Files toolbar, panel, dialog and transfer states. Icon actions in Files contexts."
   },
   {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view #files-search; check for nested bezels",
-    "css_block_sha256": "fe2973aecafb3a699e6bd95b5bf5dbbfbc14f1dfd1011104d18b2d8693516cf9",
-    "path": "static/kokuen.css",
-    "selector": "body[data-app=\"files\"] #files-view #files-search",
-    "job": "control-bezel",
-    "reason": "The later Files search declaration supplies the field bezel within the browser toolbar."
-  },
-  {
     "rule": "small-type",
     "message": "font-size 13px is below the 14px essential-text baseline in body[data-app=\"files\"] #files-view #files-search",
-    "css_block_sha256": "fe2973aecafb3a699e6bd95b5bf5dbbfbc14f1dfd1011104d18b2d8693516cf9",
+    "css_block_sha256": "48559fd425e8db36b10cdf7cd356f4871f7e8cf7d36316604653a245bcdb6dab",
     "path": "static/kokuen.css",
     "selector": "body[data-app=\"files\"] #files-view #files-search",
     "job": "compact-control-label",
@@ -1604,7 +1568,7 @@
   {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in .specialist-group-capture input; check for nested bezels",
-    "css_block_sha256": "2c9bf8d28ad87706ce033a38b7b37684e474e8b805c3c6f9675d4dceeca3e413",
+    "css_block_sha256": "6b900380bd87c65ef6178df33cf4a20259b989808138b1e881b18b7d927bb47c",
     "path": "static/kokuen.css",
     "selector": ".specialist-group-capture input",
     "job": "editable field boundary",
@@ -1622,7 +1586,7 @@
   {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button; check for nested bezels",
-    "css_block_sha256": "b976ade04037d6101de5f07ef19d255c2902c70a6d0bea5540332639cb2117d5",
+    "css_block_sha256": "217075c3a4c0e5177303344fe4da4f55c4ad1cc1318de9d5a9b282833afc19eb",
     "path": "static/kokuen.css",
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button",
     "job": "peer choice separator",
@@ -1672,5 +1636,167 @@
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .credits-list > .credits-detail",
     "job": "distinct-region",
     "reason": "On compact screens the selected credit detail sits inside the list. Its single bottom divider separates license text from the next dependency; the other borders and corner radius are removed, and the final detail has no trailing divider. Verified at phone, tablet, and native 200% zoom."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .plan-board-empty",
+    "css_block_sha256": "36fbccd5ff2ce64034d80dbf769984499cf5d1e6c7786debbcf228fd8416d974",
+    "path": "static/kokuen.css",
+    "selector": ".plan-board-empty",
+    "job": "secondary-metadata",
+    "reason": "Empty-column note under the completed heading; muted at 12px like other row metadata."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .specialist-group-empty, .specialist-group-note",
+    "css_block_sha256": "6c7f940b36853639d3099a5938417a1cee8ac88818389883a58a8ae3c391f684",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-group-empty, .specialist-group-note",
+    "job": "secondary-metadata",
+    "reason": "Overview notes and empty lines sit under their headings as supporting copy."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .specialist-group-capture :where(input, button)",
+    "css_block_sha256": "894fc290785ab0b20137064dfd15cc96fd3a376db1c01f6f01d3a55cc1bbd4a4",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-group-capture :where(input, button)",
+    "job": "compact-control-label",
+    "reason": "Capture field and its primary use the 13px action label from FOUNDATIONS."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .specialist-group-capture button; check for nested bezels",
+    "css_block_sha256": "b4a56071d4a1bba98da2453ce37624bbd2e8b16fcf479592a7a0cb3298cb7b9e",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-group-capture button",
+    "job": "control-bezel",
+    "reason": "The capture primary carries the single strong line of the shared primary action (decision 0031)."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button",
+    "css_block_sha256": "26f96242fe960577c24859630f9128c19eefc873367fa58b86d447c58e798b91",
+    "path": "static/kokuen.css",
+    "selector": ".server-workbench-actions button, .server-workbench-card > button, .server-workbench-choice-list button",
+    "job": "compact-control-label",
+    "reason": "Server card actions use the 13px action label from FOUNDATIONS."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .specialist-workbench :where(h2)",
+    "css_block_sha256": "fb9ce82ab80b19f42b715c5e2800e80aedfb561bab4b717614a6b465b1de21fb",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-workbench :where(h2)",
+    "job": "section-heading",
+    "reason": "Column headings in a dense overview; weight 650 carries the hierarchy."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .specialist-workbench-head > span",
+    "css_block_sha256": "2ad709714daeb60944d2ed8aeb82b7c2774a9c0ff6a634a2a0eca0adb062dc7c",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-workbench-head > span",
+    "job": "secondary-metadata",
+    "reason": "Counts beside a column heading are metadata."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .specialist-workbench-empty",
+    "css_block_sha256": "043bb062eddf6ef4c94fe1ff1f5c40450ee53c37b7465d059b0b47d7193f318b",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-workbench-empty",
+    "job": "secondary-metadata",
+    "reason": "Empty-column lines are supporting copy under the heading."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .specialist-inline-action",
+    "css_block_sha256": "23b97cb9e06da8d517808dd60eb90b0e98ec849fa11013ab714306f4eec4782d",
+    "path": "static/kokuen.css",
+    "selector": ".specialist-inline-action",
+    "job": "compact-control-label",
+    "reason": "Inline text actions use the 13px action label from FOUNDATIONS."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in html[data-kokuen-version=\"5\"] :is(.cal-quick, .act-search, .cal-side-search); check for nested bezels",
+    "css_block_sha256": "98a4e3ce2411f907ee0b266f8345c3669969213cfaad1a08fb125b9659921611",
+    "path": "static/kokuen.css",
+    "selector": "html[data-kokuen-version=\"5\"] :is(.cal-quick, .act-search, .cal-side-search)",
+    "job": "control-bezel",
+    "reason": "Compact entry draws one bottom rail and no box (decisions 0024 and 0026)."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in html[data-kokuen-version=\"5\"] :is(.cal-quick, .act-search, .cal-side-search)",
+    "css_block_sha256": "98a4e3ce2411f907ee0b266f8345c3669969213cfaad1a08fb125b9659921611",
+    "path": "static/kokuen.css",
+    "selector": "html[data-kokuen-version=\"5\"] :is(.cal-quick, .act-search, .cal-side-search)",
+    "job": "compact-control-label",
+    "reason": "Compact search and quick-add text uses the 13px action size."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in html[data-kokuen-version=\"5\"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn); check for nested bezels",
+    "css_block_sha256": "6b5e773961f9bdd012f0197ef42ad5dbfd85cc91228960ac7393f54a39995630",
+    "path": "static/kokuen.css",
+    "selector": "html[data-kokuen-version=\"5\"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn)",
+    "job": "control-bezel",
+    "reason": "A transparent 1px border keeps text actions and the primary the same size; only the primary or a selected chip paints it."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in html[data-kokuen-version=\"5\"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn)",
+    "css_block_sha256": "6b5e773961f9bdd012f0197ef42ad5dbfd85cc91228960ac7393f54a39995630",
+    "path": "static/kokuen.css",
+    "selector": "html[data-kokuen-version=\"5\"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn)",
+    "job": "compact-control-label",
+    "reason": "Shared text actions use the 13px action label from FOUNDATIONS."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-text-action",
+    "css_block_sha256": "26afe2d058bc0366cfa843d135182044f942b039c780a1829c4a36d7f37e0bee",
+    "path": "static/kokuen.css",
+    "selector": "#wiki-view[data-kokuen-surface=\"docs\"] .docs-nav-text-action",
+    "job": "compact-control-label",
+    "reason": "Docs sidebar text action at the shared 13px label size."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button",
+    "css_block_sha256": "217075c3a4c0e5177303344fe4da4f55c4ad1cc1318de9d5a9b282833afc19eb",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .home-settings-density button",
+    "job": "compact-control-label",
+    "reason": "Density choice labels use the 13px action label."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view #files-search; check for nested bezels",
+    "css_block_sha256": "cb5f2a38de4129f3deb9a98b75c84d51281a3cabff4f885d4f0cd14c1af32b26",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view #files-search",
+    "job": "control-bezel",
+    "reason": "Files search draws one bottom rail like every compact field (decision 0026)."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-primary-action; check for nested bezels",
+    "css_block_sha256": "ace07884e6706071b8756e5cc0a4b07a2c48f3e04b232ca0587f0272b7d1e712",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view .files-primary-action",
+    "job": "control-bezel",
+    "reason": "Upload carries the single strong line of the shared primary action (decision 0031)."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view #files-search; check for nested bezels",
+    "css_block_sha256": "48559fd425e8db36b10cdf7cd356f4871f7e8cf7d36316604653a245bcdb6dab",
+    "path": "static/kokuen.css",
+    "selector": "body[data-app=\"files\"] #files-view #files-search",
+    "job": "control-bezel",
+    "reason": "Files search draws one bottom rail like every compact field (decision 0026)."
   }
 ]

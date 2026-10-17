@@ -54,6 +54,7 @@ COMMANDS = {
     "aide-creations": ("tests/pw_aide_creations.py",),
     "aide-coding": ("tests/pw_aide_coding.py",),
     "aide-central": ("tests/pw_aide_central.py",),
+    "ui-audit": ("tests/pw_ui_audit.py",),
     "help-manual": ("tests/pw_help_manual.py",),
     "livevoice": ("tests/pw_livevoice.py",),
     "aide-coding-interactions": ("tests/pw_aide_coding_interactions.py",),
@@ -263,6 +264,10 @@ def isolated_environment(data: Path, run_id: str, port: int, artifacts: Path) ->
         "PLAYWRIGHT_BROWSERS_PATH",
         "SSL_CERT_FILE",
         "SSL_CERT_DIR",
+        # audit filters only, never secrets
+        "UI_AUDIT_ROUTES",
+        "UI_AUDIT_PROFILES",
+        "UI_AUDIT_NO_CLICK",
     }
     env = {key: value for key, value in os.environ.items() if key in allowed}
     env.update(

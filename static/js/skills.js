@@ -63,7 +63,7 @@ export function initSkills(fetcher = fetch) {
     body.innerHTML = `
       <div class="skills2">
         <div class="skl-head">
-          <input id="skl-search" class="settings-input skl-search" placeholder="search skills…">
+          <input id="skl-search" aria-label="search skills" class="settings-input skl-search" placeholder="search skills…">
           <button class="btn" id="skl-match">⌕ what aide picks</button>
           <button class="btn primary" id="skl-new">+ new</button>
         </div>
@@ -388,7 +388,7 @@ function _openPreview(s, opts, source) {
   host.innerHTML = `
     <div class="skl-drawer-backdrop open" id="skl-drawer-bd"></div>
     <aside class="skl-drawer open" id="skl-drawer" role="dialog" aria-labelledby="skl-d-heading">
-      <div class="skl-drawer-head"><span id="skl-d-heading">${esc(s.name)}</span><button class="skl-drawer-x" id="skl-d-close" aria-label="close">✕</button></div>
+      <div class="skl-drawer-head"><span id="skl-d-heading">${esc(s.name)}</span><button type="button" class="skl-drawer-x" id="skl-d-close" aria-label="close" data-kokuen-icon="close">✕</button></div>
       <div class="skl-drawer-body">
         ${s.when_to_use ? `<div class="skl-pv-when"><b>when:</b> ${esc(s.when_to_use)}</div>` : ''}
         ${s.description ? `<div class="skl-pv-desc">${esc(s.description)}</div>` : ''}
@@ -424,9 +424,9 @@ function _openMatch() {
   host.innerHTML = `
     <div class="skl-drawer-backdrop open" id="skl-drawer-bd"></div>
     <aside class="skl-drawer open" id="skl-drawer" role="dialog" aria-labelledby="skl-d-heading">
-      <div class="skl-drawer-head"><span id="skl-d-heading">what would aide load?</span><button class="skl-drawer-x" id="skl-d-close" aria-label="close">✕</button></div>
+      <div class="skl-drawer-head"><span id="skl-d-heading">what would aide load?</span><button type="button" class="skl-drawer-x" id="skl-d-close" aria-label="close" data-kokuen-icon="close">✕</button></div>
       <div class="skl-drawer-body">
-        <input id="skl-match-q" class="settings-input" placeholder="describe a task…">
+        <input id="skl-match-q" aria-label="describe a task" class="settings-input" placeholder="describe a task…">
         <div id="skl-match-results" class="skl-match-results"><div class="skl-match-hint">type a task to see which skills rank</div></div>
       </div>
     </aside>`;
@@ -509,7 +509,7 @@ function _drawerHtml() {
     <aside class="skl-drawer" id="skl-drawer" role="dialog" aria-labelledby="skl-d-heading" hidden inert>
       <div class="skl-drawer-head">
         <span id="skl-d-heading">new skill</span>
-        <button class="skl-drawer-x" id="skl-d-close" title="close">✕</button>
+        <button type="button" class="skl-drawer-x" id="skl-d-close" aria-label="close" data-kokuen-icon="close">✕</button>
       </div>
       <div class="skl-drawer-body">
         <div class="s-field"><label for="skl-d-name">name</label><input id="skl-d-name" class="settings-input" placeholder="e.g. PDF form filler"></div>

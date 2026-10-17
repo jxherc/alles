@@ -125,7 +125,7 @@ function renderLocalPresets(presets) {
       ${p.installed
         ? `<button class="btn" data-local-remove="${_escAttr(p.model)}">remove</button>`
         : `<button class="btn" data-local-download="${_escAttr(p.model)}">download</button>`}
-      <button class="btn primary" data-local-serve="${_escAttr(p.model)}" ${serveDisabled}>serve</button>
+      <button type="button" class="btn" data-local-serve="${_escAttr(p.model)}" ${serveDisabled}>serve</button>
     </div>`;
   }).join('');
 

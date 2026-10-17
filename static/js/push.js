@@ -44,7 +44,6 @@ export async function initPushButton() {
 
 function _setLabel(btn, on) {
   btn.textContent = on ? 'notifications on' : 'enable notifications';
-  btn.classList.toggle('primary', !on);
 }
 
 async function _enable() {

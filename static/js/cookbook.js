@@ -18,7 +18,7 @@ export function initCookbook() {
   if (!_built) {
     body.innerHTML = `
       <div class="cb-controls">
-        <input id="cb-search" class="cb-search" placeholder="search models…">
+        <input id="cb-search" aria-label="search models" class="cb-search" placeholder="search models…">
         <div id="cb-usecase" class="cb-sel custom-select"></div>
         <div id="cb-sort" class="cb-sel custom-select"></div>
         <button type="button" class="cb-fitonly s-switch s-switch-labeled" id="cb-fitonly" role="switch" aria-checked="true">fits only</button>

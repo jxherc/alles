@@ -32,7 +32,7 @@ async function showCardDav() {
   const ival = st.interval || 'off';
   const IV = [['off', 'manual'], ['hourly', 'hourly'], ['daily', 'daily']];
   list.innerHTML = `
-    <div class="contacts-bday-head">CardDAV sync <button class="btn ic-btn-lbl" id="cdav-back" style="font-size:0.75rem;margin-left:8px">${_si('chevron-left')} contacts</button></div>
+    <div class="contacts-bday-head">CardDAV sync <button class="btn ic-btn-lbl" id="cdav-back" style="margin-left:8px">${_si('chevron-left')} contacts</button></div>
     <div class="carddav-panel">
       <div class="carddav-status ${st.connected ? 'on' : ''}" id="cdav-status">${st.connected ? `${_si('check')} connected as ${_esc(st.username)}` : 'not connected'}</div>
       <p class="carddav-help">two-way sync with iCloud, Google, or any CardDAV address book. enter your server URL + an app-specific password to connect.</p>
@@ -165,7 +165,7 @@ async function openContact(id) {
         <button class="btn ic-btn-lbl" id="cd-back">${_si('chevron-left')} contacts</button>
         <label class="contact-av-up" title="set photo">${_avatarHtml(c, true)}<input type="file" id="cd-avatar" accept="image/*" hidden></label>
         <label class="contact-detail-name cd-field"><span>name</span><input class="settings-input" id="cd-name" value="${_esc(c.name)}"></label>
-        <button class="btn ic-btn-lbl${c.is_me ? ' primary' : ''}" id="cd-me">${c.is_me ? `${_si('check')} this is me` : 'set as me'}</button>
+        <button type="button" class="btn ic-btn-lbl" id="cd-me" aria-pressed="${!!c.is_me}">${c.is_me ? `${_si('check')} this is me` : 'set as me'}</button>
       </div>
       <div class="contact-scalars">
         ${SCALARS.map(([k, lbl]) => `<label class="cd-field"><span>${lbl}</span><input class="settings-input" data-k="${k}" value="${_esc(c[k] || '')}"></label>`).join('')}
@@ -345,7 +345,7 @@ async function showGroups() {
   const list = document.getElementById('contacts-list');
   const groups = await fetch('/api/contacts/groups').then(r => r.json()).catch(() => []);
   list.innerHTML = `
-    <div class="contacts-bday-head">groups <button class="btn" id="cg-add" style="font-size:0.75rem;margin-left:8px">+ group</button> <button class="btn ic-btn-lbl" id="cg-back" style="font-size:0.75rem">${_si('chevron-left')} contacts</button></div>
+    <div class="contacts-bday-head">groups <button class="btn" id="cg-add" style="margin-left:8px">+ group</button> <button class="btn ic-btn-lbl" id="cg-back">${_si('chevron-left')} contacts</button></div>
     <div id="cg-list">${groups.length ? '' : '<div class="page-empty">no groups</div>'}</div>`;
   document.getElementById('cg-back').addEventListener('click', () => loadContacts());
   document.getElementById('cg-add').addEventListener('click', addGroup);
@@ -380,7 +380,7 @@ async function addGroup() {
 async function showDuplicates() {
   const list = document.getElementById('contacts-list');
   const clusters = await fetch('/api/contacts/duplicates').then(r => r.json()).catch(() => []);
-  list.innerHTML = `<div class="contacts-bday-head">possible duplicates <button class="btn ic-btn-lbl" id="cdup-back" style="font-size:0.75rem;margin-left:8px">${_si('chevron-left')} contacts</button></div>`
+  list.innerHTML = `<div class="contacts-bday-head">possible duplicates <button class="btn ic-btn-lbl" id="cdup-back" style="margin-left:8px">${_si('chevron-left')} contacts</button></div>`
     + (clusters.length ? '' : '<div class="page-empty">no duplicates found</div>')
     + clusters.map((cl, i) => `
       <div class="dup-cluster" data-i="${i}">

@@ -113,7 +113,7 @@ def run():
                 response = api.get(base + picture.get_attribute("src"))
                 assert response.ok and response.body() == avatar
                 click(page.locator("#cd-me"))
-                expect(page.locator("#cd-me")).to_have_class("btn ic-btn-lbl primary")
+                expect(page.locator("#cd-me")).to_have_attribute("aria-pressed", "true")
                 click(page.locator("#cd-back"))
                 expect(
                     page.locator(f'.contact-item[data-id="{ada["id"]}"] .contact-me-badge')

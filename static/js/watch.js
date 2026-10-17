@@ -136,7 +136,7 @@ function _render() {
       <div class="watch-summary">${_loadError ? (_mons.length ? 'last loaded monitors' : 'monitor status unavailable') : sumBits.join(' · ') || 'no monitors'}</div>
       <div class="watch-bar-actions">
         ${_statusCfg.enabled ? `<a class="btn" href="/status" target="_blank" rel="noopener" title="public status page">status page ↗</a>` : ''}
-        <button class="btn${_statusCfg.enabled ? ' primary' : ''}" id="watch-status-toggle" title="toggle the public /status page"${_statusPending || !_statusLoaded ? ' disabled' : ''}${_statusPending ? ' aria-busy="true"' : ''}>status: ${_statusLoaded ? (_statusCfg.enabled ? 'public' : 'off') : 'unavailable'}</button>
+        <button type="button" class="btn" id="watch-status-toggle" aria-pressed="${!!_statusCfg.enabled}" title="toggle the public /status page"${_statusPending || !_statusLoaded ? ' disabled' : ''}${_statusPending ? ' aria-busy="true"' : ''}>status: ${_statusLoaded ? (_statusCfg.enabled ? 'public' : 'off') : 'unavailable'}</button>
         <button class="btn" id="watch-refresh-all">${_si('refresh')} refresh all</button>
         <button class="btn primary" id="watch-add-toggle">${_si('plus')} monitor</button>
       </div>
@@ -270,7 +270,7 @@ function _wire(body) {
       if (current) {
         current.disabled = !_statusLoaded; current.removeAttribute('aria-busy');
         current.textContent = `status: ${_statusLoaded ? (_statusCfg.enabled ? 'public' : 'off') : 'unavailable'}`;
-        current.classList.toggle('primary', _statusCfg.enabled);
+        current.setAttribute('aria-pressed', String(!!_statusCfg.enabled));
         if (document.activeElement === document.body) current.focus();
       }
     }
