@@ -34,6 +34,7 @@
   --k-line: var(--faint, var(--k-default-line));
   --k-line-strong: var(--line-strong, color-mix(in srgb, var(--faint, var(--k-default-line-strong)) 72%, var(--text, var(--k-default-text)) 28%));
   --k-focus: var(--focus, var(--k-soft));
+  --k-field-focus: var(--muted, var(--k-soft));
   --k-focus-offset: -2px;
   --k-accent: var(--accent, #9298ff);
   --k-permission: var(--signal, #d5a265);
@@ -2684,16 +2685,33 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
   outline-offset: var(--k-focus-offset, -2px);
 }
 
+/* Text entry and form dropdowns keep their boundary and gain one bottom edge.
+   This shared rule must win over legacy page-specific input outlines; actions,
+   choices, sliders, date pickers and color controls retain their normal rings.
+   Color swatches use readonly text inputs with role=button, not text entry. */
+html[data-kokuen-version="5"] :where(
+  input:not([type]),
+  input:is([type="text"], [type="search"], [type="email"], [type="url"], [type="tel"], [type="password"], [type="number"]),
+  textarea,
+  .custom-select[role="combobox"],
+  .locale-choice-trigger[aria-haspopup="listbox"]
+):not([role="button"]):focus-visible {
+  outline: none !important;
+  box-shadow: inset 0 -2px 0 var(--k-field-focus, var(--muted)) !important;
+}
+
 /* A bounded text entry has one focus owner. Its sibling actions keep their
    individual indicators; focusing an action must not light the whole field. */
 html[data-kokuen-version="5"] :is(
   .composer-box > .composer-ta,
   .search-command-head > .search-prompt-input,
-  .mc-chipfield > .mc-chip-input
+  .mc-chipfield > .mc-chip-input,
+  .today-capture > textarea,
+  .andromeda-search > input
 ):focus-visible,
 body.afterlife-aide-projects[data-space="aide"] .search-wrap > input:focus-visible {
-  outline: none;
-  box-shadow: none;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* These controls meet pane/viewport edges; keep the ring inside their targets. */
@@ -2763,6 +2781,7 @@ html[data-kokuen-version="5"] :is(
 
 html[data-kokuen-version="5"] [data-kokuen-state="invalid"],
 html[data-kokuen-version="5"] [data-kokuen-primitive][aria-invalid="true"] {
+  --k-field-focus: var(--k-danger, var(--error));
   outline-color: var(--k-danger);
 }
 
@@ -2793,9 +2812,29 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
     outline-color: Highlight;
   }
 
-  /* Forced colors suppresses inset shadows; retain the field owner's ring. */
+  /* Forced colors suppresses inset shadows. Independent entries need an
+     actual outline; wrapped entries still expose focus only on their owner. */
+  html[data-kokuen-version="5"] :where(
+    input:not([type]),
+    input:is([type="text"], [type="search"], [type="email"], [type="url"], [type="tel"], [type="password"], [type="number"]),
+    textarea,
+    .custom-select[role="combobox"],
+    .locale-choice-trigger[aria-haspopup="listbox"]
+  ):not([role="button"]):focus-visible:not(:where(
+    .composer-box > .composer-ta,
+    .search-command-head > .search-prompt-input,
+    .mc-chipfield > .mc-chip-input,
+    .today-capture > textarea,
+    .andromeda-search > input,
+    body.afterlife-aide-projects[data-space="aide"] .search-wrap > input
+  )) {
+    outline: 2px solid Highlight !important;
+    outline-offset: var(--k-focus-offset, -2px);
+  }
+
   #today-view[data-kokuen-surface="home"] .today-capture:has(textarea:focus-visible),
-  body.afterlife-aide-projects[data-space="aide"] .search-wrap:has(> input:focus-visible) {
+  body.afterlife-aide-projects[data-space="aide"] .search-wrap:has(> input:focus-visible),
+  #andromeda-view .andromeda-search[data-keyboard-focus] {
     outline: 2px solid Highlight;
     outline-offset: var(--k-focus-offset, -2px);
   }
