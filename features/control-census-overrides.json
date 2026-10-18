@@ -64,6 +64,7 @@
     "static/js/settings/home.js": "cross-feature.settings",
     "static/js/settings/language.js": "cross-feature.settings",
     "static/js/settings/pane.js": "cross-feature.settings",
+    "static/js/model_providers.js": "cross-feature.settings",
     "static/js/settings/providers.js": "cross-feature.settings",
     "static/js/settings/shared.js": "cross-feature.settings",
     "static/js/setupwizard.js": "setup-security.owner-setup",

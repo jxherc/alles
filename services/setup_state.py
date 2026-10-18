@@ -273,8 +273,9 @@ def _save_files(values: dict) -> None:
 
 
 def _save_ai_search(values: dict) -> None:
-    provider = _text(values, "search_provider", maximum=40).lower() or "duckduckgo"
+    provider = _text(values, "search_provider", maximum=40).lower() or "startpage"
     if provider not in {
+        "startpage",
         "duckduckgo",
         "searxng",
         "tavily",

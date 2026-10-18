@@ -1617,9 +1617,14 @@ def local_preset_cases(page, reopen, destination):
     def button(action, model=None):
         return page.locator(f'[data-local-{action}="{model or state["model"]}"]')
 
-    def ready():
+    def ready(present=True):
         expect(page.locator("#s-local-ollama")).to_contain_text("Ollama: running")
-        expect(page.locator("#s-local-presets")).to_contain_text(state["model"])
+        presets = page.locator("#s-local-presets")
+        if present:
+            expect(presets).to_contain_text(state["model"])
+        else:
+            # only models on this machine are listed; nothing is offered for download
+            expect(presets).not_to_contain_text(state["model"])
 
     def prepare(action, outcome):
         state.update(
@@ -1639,7 +1644,7 @@ def local_preset_cases(page, reopen, destination):
             {
                 "model": state["model"],
                 "label": "example preset",
-                "installed": action != "download",
+                "installed": True,
                 "fit": "fits_cpu",
                 "fit_reason": "example fit",
             },
@@ -1667,7 +1672,7 @@ def local_preset_cases(page, reopen, destination):
 
     def locked(action):
         row = page.locator(f'#s-local-presets [data-local-model="{state["model"]}"]')
-        expected = {"download": "queued", "serve": "serving...", "remove": "removing..."}[action]
+        expected = {"serve": "serving...", "remove": "removing..."}[action]
         expect(button(action)).to_be_disabled()
         expect(button(action)).to_have_text(expected)
         expect(row.locator("[data-local-state]")).to_have_text(expected)
@@ -1679,24 +1684,19 @@ def local_preset_cases(page, reopen, destination):
         assert page.locator("[data-dialog-confirm]").count() == 0
 
     def success(action, route):
-        if action == "download":
-            state["presets"][0]["installed"] = True
-            job_id = "example-preset-job"
-            state["jobs"][job_id] = {"id": job_id, "status": "done", "model": state["model"]}
-            route.fulfill(json={"id": job_id, "status": "queued", "model": state["model"]})
-        else:
-            if action == "remove":
-                state["presets"][0]["installed"] = False
-            route.fulfill(json={"ok": True, "model": state["model"]})
+        if action == "remove":
+            state["presets"][0]["installed"] = False
+        route.fulfill(json={"ok": True, "model": state["model"]})
         expect(page.locator("#toast-container .toast.success").last).to_be_visible()
-        expect(
-            button({"download": "remove", "remove": "download", "serve": "serve"}[action])
-        ).to_be_enabled()
-        ready()
+        if action == "remove":
+            ready(present=False)
+        else:
+            expect(button("serve")).to_be_enabled()
+            ready()
 
     try:
         # All model endpoints are intercepted; these prove client ownership, not real jobs.
-        for action in ("download", "serve", "remove"):
+        for action in ("serve", "remove"):
             for outcome in ("reopen-success", "reopen-503", "reopen-network", "active-success"):
                 prepare(action, outcome)
                 begin(action)
@@ -1754,72 +1754,6 @@ def local_preset_cases(page, reopen, destination):
                         "mock_model_dispatch_only": True,
                     }
                 )
-
-        # A queued/running job retains the claim until its mocked terminal response.
-        for terminal in ("done", "error", "network"):
-            prepare("download", "poll-" + terminal)
-            state["hold_job"] = True
-            begin("download")
-            job_id = "example-preset-progress"
-            state["jobs"][job_id] = {"id": job_id, "status": "running", "model": state["model"]}
-            state["held"][0].fulfill(
-                json={"id": job_id, "status": "queued", "model": state["model"]}
-            )
-            page.wait_for_function("window.__presetJobHeld === 1")
-            reopen("models")
-            ready()
-            locked("download")
-            state["held_jobs"][0].fulfill(json=state["jobs"][job_id])
-            expect(button("download")).to_have_text("pulling...")
-            page.wait_for_function("window.__presetJobHeld === 2")
-            reopen("models")
-            ready()
-            expect(button("download")).to_be_disabled()
-            expect(button("download")).to_have_text("pulling...")
-            button("download").dispatch_event("click")
-            assert len(state["held"]) == 1
-            state["hold_job"] = False
-            if terminal == "network":
-                state["held_jobs"][1].abort("failed")
-                failures["network"] += 1
-                expect(button("download")).to_be_enabled()
-            elif terminal == "error":
-                state["held_jobs"][1].fulfill(
-                    json={
-                        "id": job_id,
-                        "status": "error",
-                        "model": state["model"],
-                        "error": "synthetic example job rejected",
-                    }
-                )
-                expect(page.locator("#toast-container .toast.error").last).to_have_text(
-                    "synthetic example job rejected"
-                )
-                expect(button("download")).to_be_enabled()
-            else:
-                state["presets"][0]["installed"] = True
-                state["held_jobs"][1].fulfill(
-                    json={"id": job_id, "status": "done", "model": state["model"]}
-                )
-                expect(button("remove")).to_be_enabled()
-            if terminal != "done":
-                clear()
-                button("download").click()
-                page.wait_for_function("window.__presetHeld === 2")
-                success("download", state["held"][1])
-            page.wait_for_load_state("networkidle")
-            assert len(state["job_reads"]) == (2 if terminal == "done" else 3)
-            cases.append(
-                {
-                    "action": "download",
-                    "outcome": "poll-" + terminal,
-                    "queued_and_running_reopen_locked": True,
-                    "job_reads": len(state["job_reads"]),
-                    "overlapping_posts": 1,
-                    "terminal_release_and_retry": True,
-                    "mock_jobs_only": True,
-                }
-            )
 
         # Cancel restores the disabled origin after it is enabled; newer focus survives.
         for focus_case in ("origin", "other-field"):
@@ -2851,13 +2785,11 @@ def exercise(page, api, endpoint, destination):
         pane("models")
         if page.locator("#s-ep-add-details").get_attribute("open") is None:
             page.locator("#s-ep-add-details summary").click()
+        if page.locator("#s-ep-fields").is_hidden():
+            page.locator('#s-ep-provider-list [data-provider="custom"]').click()
         name = f"example partial {outcome}"
         page.locator("#s-ep-name").fill(name)
         page.locator("#s-ep-url").fill("http://127.0.0.1:1")
-        for id in ("s-ep-adapter", "s-ep-auth"):
-            page.locator(f"#{id}").focus()
-            page.keyboard.press("End")
-            page.keyboard.press("Enter")
         page.locator("#s-ep-manual").fill("example-submitted-model")
         page.locator("#s-ep-vision").fill("example-submitted-vision")
         button = page.locator("#s-ep-add-btn")
@@ -3431,10 +3363,10 @@ def exercise(page, api, endpoint, destination):
         pane("models")
         if page.locator("#s-ep-add-details").get_attribute("open") is None:
             page.locator("#s-ep-add-details summary").click()
+        if page.locator("#s-ep-fields").is_hidden():
+            page.locator('#s-ep-provider-list [data-provider="custom"]').click()
         page.locator("#s-ep-name").fill(f"example provider {outcome}")
         page.locator("#s-ep-url").fill("http://127.0.0.1:1")
-        choose_edge("s-ep-adapter")
-        choose_edge("s-ep-auth")
         page.locator("#s-ep-manual").fill("example-submitted-model")
         page.locator("#s-ep-vision").fill("example-submitted-vision")
         button = page.locator("#s-ep-add-btn")
@@ -3448,14 +3380,11 @@ def exercise(page, api, endpoint, destination):
             page.locator("#s-ep-url").fill("http://127.0.0.1:2")
             page.locator("#s-ep-manual").fill("example-newer-model")
             page.locator("#s-ep-vision").fill("example-newer-vision")
-            choose_edge("s-ep-auth", False)
             page.locator("#s-ep-key").fill("example")
-            choose_edge("s-ep-provider")
         draft = {id: page.locator(f"#{id}").input_value() for id in provider_fields}
-        dropdown_draft = {
-            id: page.locator(f"#{id}").get_attribute("data-value")
-            for id in ("s-ep-auth", "s-ep-adapter", "s-ep-provider")
-        }
+        picked = page.locator('#s-ep-provider-list [aria-selected="true"]').get_attribute(
+            "data-provider"
+        )
         close_and_reopen("models")
         expect(button).to_be_disabled()
         expect(button).to_have_text("probing…")
@@ -3474,13 +3403,17 @@ def exercise(page, api, endpoint, destination):
         expect(button).to_be_enabled()
         if outcome in {"newer", "failure"}:
             assert {id: page.locator(f"#{id}").input_value() for id in provider_fields} == draft
-            assert {
-                id: page.locator(f"#{id}").get_attribute("data-value") for id in dropdown_draft
-            } == dropdown_draft
+            assert (
+                page.locator('#s-ep-provider-list [aria-selected="true"]').get_attribute(
+                    "data-provider"
+                )
+                == picked
+            )
             assert page.locator("#s-ep-add-details").get_attribute("open") is not None
         else:
             assert all(page.locator(f"#{id}").input_value() == "" for id in provider_fields)
-            assert page.locator("#s-ep-add-details").get_attribute("open") is None
+            # success clears the form and leaves the panel open for the model pick
+            expect(page.locator("#s-ep-fields")).to_be_hidden()
         if outcome != "failure":
             saved = next(ep for ep in api.get("/api/models").json() if ep["id"] == created_id)
             assert saved["models"] == ["example-submitted-model"]
@@ -3489,11 +3422,12 @@ def exercise(page, api, endpoint, destination):
             assert api.delete(f"/api/models/endpoint/{created_id}").ok
         creation_evidence.append({"form": "provider", "outcome": outcome, "one_post": True})
     # A failed vision acknowledgment retains the form and reports the partial create.
-    page.locator("#s-ep-add-details summary").click()
+    if page.locator("#s-ep-add-details").get_attribute("open") is None:
+        page.locator("#s-ep-add-details summary").click()
+    if page.locator("#s-ep-fields").is_hidden():
+        page.locator('#s-ep-provider-list [data-provider="custom"]').click()
     page.locator("#s-ep-name").fill("example partial vision endpoint")
     page.locator("#s-ep-url").fill("http://127.0.0.1:1")
-    choose_edge("s-ep-adapter")
-    choose_edge("s-ep-auth")
     page.locator("#s-ep-manual").fill("example-submitted-model")
     page.locator("#s-ep-vision").fill("example-submitted-vision")
     vision_failures = []

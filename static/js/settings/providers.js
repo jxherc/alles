@@ -2,8 +2,10 @@ import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { loadModels, addEndpoint, renderModelList } from '../models.js?v=212';
-import { initCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=212';
+import { initCustomDropdowns, getDropdownValue, populateDropdown } from '../dropdown.js?v=212';
 import { _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
+import { API_TYPES, authFor, mountProviderPicker } from '../model_providers.js';
+import { wireChoiceGroup } from '../kokuen.js?v=1';
 
 let _providersActive = false;
 let _providersCurrent = () => false;
@@ -26,13 +28,10 @@ let _customPullPending = null;
 function _syncLocalPresetPending(model) {
   document.querySelectorAll(`#s-local-presets [data-local-model="${CSS.escape(model)}"]`).forEach(row => {
     const pending = _localPresetPending.get(model);
-    const installed = row.dataset.localInstalled === 'true';
-    row.querySelector('[data-local-state]').textContent = pending?.label || (installed ? 'installed' : 'download first');
-    row.querySelectorAll('[data-local-download], [data-local-serve], [data-local-remove]').forEach(button => {
-      const action = button.hasAttribute('data-local-download') ? 'download'
-        : button.hasAttribute('data-local-remove') ? 'remove' : 'serve';
-      button.disabled = !!pending || (action === 'serve' && !installed)
-        || (action === 'remove' && _localPresetConfirmations.has(model));
+    row.querySelector('[data-local-state]').textContent = pending?.label || 'installed';
+    row.querySelectorAll('[data-local-serve], [data-local-remove]').forEach(button => {
+      const action = button.hasAttribute('data-local-remove') ? 'remove' : 'serve';
+      button.disabled = !!pending || (action === 'remove' && _localPresetConfirmations.has(model));
       button.textContent = pending?.action === action ? pending.label : action;
     });
   });
@@ -105,33 +104,28 @@ async function loadLocalModels() {
   }
 }
 
+// only models already on this machine; nothing is suggested for download
 function renderLocalPresets(presets) {
   const listEl = document.getElementById('s-local-presets');
   if (!listEl) return;
+  presets = presets.filter(p => p.installed);
   if (!presets.length) {
-    listEl.innerHTML = '<div style="font-size:0.75rem;color:var(--muted)">no local presets available</div>';
+    listEl.innerHTML = '<div class="s-card-hint">no local models yet. pull one by name below.</div>';
     return;
   }
   listEl.innerHTML = presets.map(p => {
     const badge = p.fit === 'fits_gpu' ? 'gpu fit' : (p.fit === 'fits_cpu' ? 'cpu fit' : 'large');
-    const installed = p.installed ? 'installed' : 'download first';
-    const serveDisabled = p.installed ? '' : 'disabled title="download first"';
-    return `<div class="settings-list-row" data-local-model="${_escAttr(p.model)}" data-local-installed="${!!p.installed}" style="align-items:flex-start;gap:0.55rem">
-      <span class="status-dot" style="margin-top:0.35rem;background:${p.installed ? 'var(--green)' : 'var(--faint)'}"></span>
+    return `<div class="settings-list-row" data-local-model="${_escAttr(p.model)}" data-local-installed="true" style="align-items:flex-start;gap:0.55rem">
+      <span class="status-dot" style="margin-top:0.35rem;background:var(--green)"></span>
       <div style="min-width:0;flex:1">
         <div class="row-name">${_esc(p.label)} <span style="color:var(--muted);font-weight:400">${_esc(p.model)}</span></div>
-        <div class="row-meta">${badge} - <span data-local-state>${installed}</span> - ${_esc(p.fit_reason || '')}</div>
+        <div class="row-meta">${badge} - <span data-local-state>installed</span> - ${_esc(p.fit_reason || '')}</div>
       </div>
-      ${p.installed
-        ? `<button class="btn" data-local-remove="${_escAttr(p.model)}">remove</button>`
-        : `<button class="btn" data-local-download="${_escAttr(p.model)}">download</button>`}
-      <button type="button" class="btn" data-local-serve="${_escAttr(p.model)}" ${serveDisabled}>serve</button>
+      <button class="btn" data-local-remove="${_escAttr(p.model)}">remove</button>
+      <button type="button" class="btn" data-local-serve="${_escAttr(p.model)}">serve</button>
     </div>`;
   }).join('');
 
-  listEl.querySelectorAll('[data-local-download]').forEach(btn => {
-    btn.addEventListener('click', () => downloadLocalModel(btn.dataset.localDownload, btn));
-  });
   listEl.querySelectorAll('[data-local-serve]').forEach(btn => {
     btn.addEventListener('click', () => serveLocalModel(btn.dataset.localServe, btn));
   });
@@ -153,26 +147,6 @@ async function startLocalOllama() {
   }
   if (btn) { btn.disabled = false; btn.textContent = 'start Ollama'; }
   setTimeout(loadLocalModels, 700);
-}
-
-async function downloadLocalModel(model, btn) {
-  if (!model || _localPresetPending.has(model)) return;
-  const pending = _claimLocalPreset(model, 'download', 'queued');
-  btn.disabled = true;
-  btn.textContent = 'queued';
-  try {
-    const job = await _localJson('/api/local-models/download_model', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model }),
-    });
-    pollLocalJob(job.id, btn, model, pending);
-  } catch (e) {
-    _releaseLocalPreset(model, pending);
-    btn.disabled = false;
-    btn.textContent = 'download';
-    toast(e.message || 'download failed to start', 'error');
-  }
 }
 
 async function pollLocalJob(jobId, btn, model = null, pending = null, onFinish = null) {
@@ -330,30 +304,105 @@ const _MODEL_ROLE_COPY = {
 const _ADAPTER_OPTIONS = 'auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list';
 let _modelRoleSettings = {};
 
-function _adapterForPreset(name = '') {
-  if (name === 'Anthropic') return 'anthropic';
-  if (name === 'Ollama') return 'ollama';
-  return 'openai-compatible';
+// the provider picked in "add connection", and the api type a custom endpoint speaks
+let _pickedProvider = null;
+let _customApiType = 'openai-compatible';
+
+function _manualModels() {
+  return (document.getElementById('s-ep-manual')?.value || '')
+    .split(',').map(value => value.trim()).filter(Boolean);
 }
 
 function _showManualEndpointFields() {
-  const row = document.getElementById('s-ep-manual-row');
-  if (row) row.hidden = getDropdownValue(document.getElementById('s-ep-adapter')) !== 'manual';
   const btn = document.getElementById('s-ep-add-btn');
-  if (btn) {
-    btn.disabled = _endpointAddPending || !!(_endpointPartialCreate && _endpointPending.has(_endpointPartialCreate.id));
-    if (!_endpointAddPending) btn.textContent = row?.hidden ? 'add + probe models' : 'add manual endpoint';
-  }
+  if (!btn) return;
+  // hidden until a provider is picked, so only in-flight work disables it
+  btn.disabled = _endpointAddPending
+    || !!(_endpointPartialCreate && _endpointPending.has(_endpointPartialCreate.id));
+  if (!_endpointAddPending) btn.textContent = _manualModels().length ? 'add with these models' : 'add + read models';
 }
 
 function _showEndpointAuthFields() {
-  const authType = getDropdownValue(document.getElementById('s-ep-auth')) || 'api_key';
+  const p = _pickedProvider;
   const keyRow = document.getElementById('s-ep-key-row');
-  if (keyRow) keyRow.hidden = authType === 'none';
-  const key = document.getElementById('s-ep-key');
-  if (key) key.placeholder = authType === 'external_proxy'
-    ? 'proxy bearer token, if required'
-    : 'provider API key';
+  if (keyRow) keyRow.hidden = !p || !!p.keyless;
+  const note = document.getElementById('s-ep-key-note');
+  if (note) note.textContent = p?.custom ? 'optional for an address on this machine' : '';
+}
+
+function _applyProvider(p) {
+  _pickedProvider = p;
+  _endpointAddRevision += 1;
+  _endpointAddConfigRevision += 1;
+  _endpointPartialCreate = null;
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
+  show('s-ep-fields', true);
+  show('s-ep-pick', false);
+  show('s-ep-name-row', !!p.custom);
+  show('s-ep-url-row', !!p.custom);
+  show('s-ep-url-toggle', !p.custom);
+  show('s-ep-type-row', !!p.custom);
+  show('s-ep-manual-row', !!p.custom);
+  document.getElementById('s-ep-name').value = p.custom ? '' : p.label;
+  document.getElementById('s-ep-url').value = p.url;
+  _showEndpointAuthFields();
+  _showManualEndpointFields();
+  const next = p.custom ? 's-ep-name' : (p.keyless ? 's-ep-add-btn' : 's-ep-key');
+  document.getElementById(next)?.focus();
+}
+
+function _renderApiTypes() {
+  const group = document.getElementById('s-ep-type');
+  if (!group || group.childElementCount) return;
+  group.innerHTML = API_TYPES.map(([value, label], index) => `<button type="button" role="radio" data-value="${value}" aria-checked="${index === 0}" tabindex="${index === 0 ? 0 : -1}">${_esc(label)}</button>`).join('');
+  wireChoiceGroup(group);
+  group.addEventListener('click', event => {
+    const choice = event.target.closest('[role="radio"]');
+    if (choice) _customApiType = choice.dataset.value;
+  });
+}
+
+// after adding: one click makes a model Aide's chat default; other roles keep theirs
+async function _offerAideModel(endpointId) {
+  const box = document.getElementById('s-ep-pick');
+  const list = document.getElementById('s-ep-pick-list');
+  if (!box || !list) return;
+  const endpoints = await fetch('/api/models').then(r => r.ok ? r.json() : []).catch(() => []);
+  const models = endpoints.find(ep => ep.id === endpointId)?.models || [];
+  box.hidden = !models.length;
+  if (!models.length) return;
+  list.innerHTML = models.map((model, index) => `<button type="button" class="model-provider-option" role="option" aria-selected="false" tabindex="${index ? -1 : 0}" data-model="${_escAttr(model)}"><span class="model-provider-name">${_esc(model)}</span></button>`).join('');
+  list.onclick = async event => {
+    const option = event.target.closest('[role="option"]');
+    if (!option || list.getAttribute('aria-busy') === 'true') return;
+    list.setAttribute('aria-busy', 'true');
+    const roles = { ..._modelRoleSettings, aide_chat: { endpoint_id: endpointId, model: option.dataset.model, cost_class: '', fallbacks: [] } };
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model_roles: roles }),
+      });
+      if (!response.ok) throw new Error('the default could not be saved');
+      list.querySelectorAll('[role="option"]').forEach(o => o.setAttribute('aria-selected', String(o === option)));
+      await window._refreshAideModelDefault?.();
+      toast(`Aide chat now uses ${option.dataset.model}`, 'success');
+      await loadEpList();
+    } catch (error) {
+      toast(error.message, 'error');
+    } finally {
+      list.removeAttribute('aria-busy');
+    }
+  };
+  list.onkeydown = event => {
+    const items = [...list.querySelectorAll('[role="option"]')];
+    const at = items.indexOf(document.activeElement);
+    const step = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const next = items[Math.max(0, Math.min(items.length - 1, at + step))];
+    items.forEach(o => { o.tabIndex = -1; });
+    if (next) { next.tabIndex = 0; next.focus(); }
+  };
 }
 
 async function startGeminiOAuth() {
@@ -758,7 +807,7 @@ async function loadEpList() {
 
 
 function _wireProvidersPane() {
-  for (const id of ['s-ep-name', 's-ep-url', 's-ep-key', 's-ep-vision', 's-ep-manual', 's-ep-adapter', 's-ep-provider', 's-ep-auth']) {
+  for (const id of ['s-ep-name', 's-ep-url', 's-ep-key', 's-ep-vision', 's-ep-manual']) {
     for (const type of ['input', 'change']) {
       document.getElementById(id)?.addEventListener(type, () => {
         _endpointAddRevision += 1;
@@ -779,23 +828,19 @@ function _wireProvidersPane() {
   }
 
   // ── models pane ──
-  document.querySelectorAll('.s-preset-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _endpointAddRevision += 1;
-      _endpointAddConfigRevision += 1;
-      _endpointPartialCreate = null;
-      document.getElementById('s-ep-url').value = btn.dataset.url;
-      document.getElementById('s-ep-name').value = btn.dataset.name;
-      setDropdownValue(document.getElementById('s-ep-provider'), btn.dataset.provider || 'custom');
-      setDropdownValue(document.getElementById('s-ep-auth'), btn.dataset.provider === 'ollama' ? 'none' : 'api_key');
-      setDropdownValue(document.getElementById('s-ep-adapter'), _adapterForPreset(btn.dataset.name));
-      _showManualEndpointFields();
-      _showEndpointAuthFields();
-      document.getElementById('s-ep-key').focus();
-    });
+  mountProviderPicker(document.getElementById('s-ep-provider-list'), {
+    filter: document.getElementById('s-ep-provider-filter'),
+    onPick: _applyProvider,
   });
-  document.getElementById('s-ep-adapter')?.addEventListener('change', _showManualEndpointFields);
-  document.getElementById('s-ep-auth')?.addEventListener('change', _showEndpointAuthFields);
+  _renderApiTypes();
+  _showManualEndpointFields();
+  document.getElementById('s-ep-url-toggle')?.addEventListener('click', event => {
+    const row = document.getElementById('s-ep-url-row');
+    if (!row) return;
+    row.hidden = false;
+    event.currentTarget.hidden = true;
+    document.getElementById('s-ep-url')?.focus();
+  });
   document.getElementById('s-gemini-oauth-toggle')?.addEventListener('click', event => {
     const panel = document.getElementById('s-gemini-oauth-panel');
     if (!panel) return;
@@ -808,19 +853,17 @@ function _wireProvidersPane() {
   document.getElementById('s-ep-refresh-all')?.addEventListener('click', refreshAllModelEndpoints);
   document.getElementById('s-ep-add-btn')?.addEventListener('click', async () => {
     if (_endpointAddPending) return;
-    const name = document.getElementById('s-ep-name').value.trim();
+    const p = _pickedProvider;
+    if (!p) return;
+    const name = document.getElementById('s-ep-name').value.trim() || p.label;
     const url  = document.getElementById('s-ep-url').value.trim();
-    const key  = document.getElementById('s-ep-key').value.trim();
-    const adapter = getDropdownValue(document.getElementById('s-ep-adapter')) || 'auto';
-    let providerId = getDropdownValue(document.getElementById('s-ep-provider')) || 'custom';
-    const authType = getDropdownValue(document.getElementById('s-ep-auth')) || 'api_key';
-    if (authType === 'external_proxy') providerId = 'external_proxy';
-    const manualModels = (document.getElementById('s-ep-manual')?.value || '')
-      .split(',').map(value => value.trim()).filter(Boolean);
-    if (!name || !url) { toast('name and url required', 'error'); return; }
-    if (adapter === 'manual' && !manualModels.length) {
-      toast('add at least one manual model', 'error'); return;
-    }
+    const key  = p.keyless ? '' : document.getElementById('s-ep-key').value.trim();
+    const manualModels = p.custom ? _manualModels() : [];
+    // a listed model set skips reading the endpoint's catalog; otherwise it is read now
+    const adapter = manualModels.length ? 'manual' : (p.custom ? _customApiType : p.adapter);
+    const providerId = p.provider;
+    const authType = authFor(p, key);
+    if (!url) { toast('add the endpoint address', 'error'); document.getElementById('s-ep-url')?.focus(); return; }
     const btn = document.getElementById('s-ep-add-btn');
     const revision = _endpointAddRevision;
     const configRevision = _endpointAddConfigRevision;
@@ -850,17 +893,16 @@ function _wireProvidersPane() {
       if (revision === _endpointAddRevision) {
         _endpointPartialCreate = null;
         ['s-ep-name','s-ep-url','s-ep-key','s-ep-vision','s-ep-manual'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-        setDropdownValue(document.getElementById('s-ep-adapter'), 'auto');
-        setDropdownValue(document.getElementById('s-ep-provider'), 'custom');
-        setDropdownValue(document.getElementById('s-ep-auth'), 'api_key');
+        document.getElementById('s-ep-fields').hidden = true;
+        _pickedProvider = null;
+        document.querySelectorAll('#s-ep-provider-list [role="option"]').forEach(o => o.setAttribute('aria-selected', 'false'));
         _showManualEndpointFields();
-        _showEndpointAuthFields();
-        document.getElementById('s-ep-add-details').open = false;
       }
-      toast('endpoint added', 'success');
+      toast('connection added', 'success');
       loadEpList();
       loadModels();
       renderModelList();
+      if (ep?.id) await _offerAideModel(ep.id);
     } catch (e) { toast(`failed: ${e.message}`, 'error'); }
     finally {
       if (pendingId) _setEndpointPending(pendingId, false);

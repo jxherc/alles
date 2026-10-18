@@ -28,10 +28,10 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=522">
-  <link rel="stylesheet" href="/static/kokuen.css?v=55">
-<link rel="stylesheet" href="/static/aidecentral.css?v=2">
-<link rel="stylesheet" href="/static/aidecoding.css?v=3">
+<link rel="stylesheet" href="/static/style.css?v=529">
+  <link rel="stylesheet" href="/static/kokuen.css?v=60">
+<link rel="stylesheet" href="/static/aidecentral.css?v=3">
+<link rel="stylesheet" href="/static/aidecoding.css?v=5">
 <link rel="stylesheet" href="/static/aidecall.css?v=2">
 <link rel="stylesheet" href="/static/help.css?v=1">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
@@ -344,11 +344,11 @@
           <h3 id="andromeda-search-settings-title">search sources</h3>
           <div class="andromeda-setting-row">
             <span><strong>this search</strong><small>temporarily override the saved primary provider</small></span>
-            <div id="andromeda-provider" class="custom-select" data-value="" data-options="|automatic;brave|brave;serper|serper · google;tavily|tavily;searxng|searxng;duckduckgo|duckduckgo" aria-label="search engine for this search"></div>
+            <div id="andromeda-provider" class="custom-select" data-value="" data-options="|automatic;startpage|startpage;brave|brave;serper|serper · google;tavily|tavily;searxng|searxng;duckduckgo|duckduckgo" aria-label="search engine for this search"></div>
           </div>
           <div class="andromeda-setting-row">
             <span><strong>primary provider</strong><small>used first for normal searches</small></span>
-            <div id="andromeda-primary-provider" class="custom-select" data-value="duckduckgo" data-options="duckduckgo|duckduckgo;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper;disabled|disabled" aria-label="primary search provider"></div>
+            <div id="andromeda-primary-provider" class="custom-select" data-value="startpage" data-options="startpage|startpage;duckduckgo|duckduckgo;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper;disabled|disabled" aria-label="primary search provider"></div>
           </div>
           <div class="andromeda-setting-row">
             <span><strong>fallback provider</strong><small>used quietly when the primary provider fails</small></span>
@@ -632,7 +632,6 @@
       <div class="page-view-body aide-tool-content">
         <div id="reminder-list" style="margin-bottom:0.75rem"></div>
         <div id="reminder-undo-list" aria-label="reminder cancellation recovery" hidden></div>
-        <p id="reminder-status" role="status" aria-live="polite"></p>
         <p id="reminder-required" class="specialist-group-note">reminder text and a future date and time are required.</p>
         <div class="reminder-add-form">
           <input type="text" id="reminder-text" aria-label="reminder text" aria-required="true" aria-describedby="reminder-required" class="settings-input" placeholder="what to remind / message to send..." style="flex:1">
@@ -641,6 +640,7 @@
           <button type="button" class="btn primary" id="reminder-add-btn">set</button>
           <button type="button" class="btn" id="reminder-discard" hidden>discard retry</button>
         </div>
+        <p id="reminder-status" role="status" aria-live="polite"></p>
         <div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">
           <span id="reminder-zone"></span>. tip: use <code>/remind in 2h check deployment</code> or <code>/send at 3pm summarize my day</code> from chat
         </div>
@@ -1101,10 +1101,10 @@
           <input type="password" id="vault-pw-confirm" class="settings-input" autocomplete="new-password" aria-describedby="vault-unlock-error">
         </label>
         <p id="vault-lock-help" class="vault-lock-help">checking vault setup…</p>
-        <p id="vault-unlock-error" class="vault-unlock-error" role="alert" hidden></p>
         <button type="button" class="btn primary" id="vault-unlock-btn" disabled>unlock</button>
         <button type="button" class="btn" id="vault-setup-retry" hidden>retry</button>
         <button type="button" class="btn ic-btn-lbl" id="vault-bio-unlock-btn" style="display:none">unlock with biometric</button>
+        <p id="vault-unlock-error" class="vault-unlock-error" role="alert" hidden></p>
       </div>
       <div id="vault-unlocked" style="display:none;flex-direction:column;flex:1;overflow:hidden">
         <div class="page-view-body" id="vault-entry-list"></div>
@@ -1128,11 +1128,11 @@
       </div>
       <div class="page-view-body" id="contacts-list"></div>
       <div class="page-view-footer contacts-create">
+        <p class="contact-error" id="contact-add-error" role="alert" hidden></p>
         <input type="text" id="contact-name" aria-label="name" class="settings-input" placeholder="name">
         <input type="text" id="contact-email" aria-label="email" class="settings-input" placeholder="email">
         <input type="text" id="contact-phone" aria-label="phone" class="settings-input" placeholder="phone">
         <button type="button" class="btn primary" id="contact-add-btn">add</button>
-        <p class="contact-error" id="contact-add-error" role="alert" hidden></p>
       </div>
     </div>
 
@@ -1838,54 +1838,43 @@
               <details id="s-ep-add-details">
                 <summary class="s-add-summary">+ add connection</summary>
                 <div class="s-ep-form">
-                  <div class="s-ep-presets">
-                    <button type="button" class="s-preset-btn" data-url="https://api.openai.com" data-name="OpenAI" data-provider="openai">OpenAI</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.anthropic.com" data-name="Anthropic" data-provider="anthropic">Anthropic</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.deepseek.com" data-name="DeepSeek" data-provider="deepseek">DeepSeek</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.moonshot.ai/v1" data-name="Kimi" data-provider="kimi">Kimi</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.groq.com/openai" data-name="Groq" data-provider="custom">Groq</button>
-                    <button type="button" class="s-preset-btn" data-url="https://generativelanguage.googleapis.com/v1beta/openai" data-name="Gemini" data-provider="gemini">Gemini</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.x.ai" data-name="xAI (Grok)" data-provider="custom">xAI (Grok)</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.mistral.ai" data-name="Mistral" data-provider="custom">Mistral</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.perplexity.ai" data-name="Perplexity" data-provider="custom">Perplexity</button>
-                    <button type="button" class="s-preset-btn" data-url="https://openrouter.ai/api" data-name="OpenRouter" data-provider="custom">OpenRouter</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.together.xyz" data-name="Together" data-provider="custom">Together</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.fireworks.ai/inference" data-name="Fireworks" data-provider="custom">Fireworks</button>
-                    <button type="button" class="s-preset-btn" data-url="https://api.cohere.ai" data-name="Cohere" data-provider="custom">Cohere</button>
-                    <button type="button" class="s-preset-btn" data-url="http://localhost:11434" data-name="Ollama" data-provider="ollama">Ollama</button>
-                  </div>
                   <div class="s-field">
-                    <label for="s-ep-name">connection name</label>
-                    <input type="text" class="settings-input" id="s-ep-name" placeholder="e.g. DeepSeek">
+                    <label for="s-ep-provider-filter">provider</label>
+                    <input type="search" class="settings-input" id="s-ep-provider-filter" autocomplete="off" spellcheck="false" placeholder="filter…">
                   </div>
-                  <div class="s-field">
-                    <label for="s-ep-url">base url</label>
-                    <input type="text" class="settings-input" id="s-ep-url" placeholder="https://api.example.com">
-                  </div>
-                  <div class="s-ep-auth-grid">
-                    <div class="s-field">
-                      <label>provider</label>
-                      <div class="custom-select settings-input" id="s-ep-provider" data-value="custom" data-options="custom|custom provider;openai|OpenAI;anthropic|Claude;gemini|Gemini;kimi|Kimi;deepseek|DeepSeek;external_proxy|owner-managed proxy;ollama|Ollama" aria-label="model provider"></div>
+                  <div class="model-provider-list" id="s-ep-provider-list" aria-label="model providers"></div>
+                  <div class="s-ep-fields" id="s-ep-fields" hidden>
+                    <div class="s-field" id="s-ep-name-row">
+                      <label for="s-ep-name">connection name</label>
+                      <input type="text" class="settings-input" id="s-ep-name" autocomplete="off">
+                    </div>
+                    <div class="s-field" id="s-ep-url-row">
+                      <label for="s-ep-url">base url</label>
+                      <input type="url" class="settings-input" id="s-ep-url" autocomplete="off" spellcheck="false">
+                    </div>
+                    <button type="button" class="btn s-ep-url-toggle" id="s-ep-url-toggle" hidden>change address</button>
+                    <div class="s-field" id="s-ep-key-row">
+                      <label for="s-ep-key">api key <span class="s-field-note" id="s-ep-key-note"></span></label>
+                      <input type="password" class="settings-input" id="s-ep-key" autocomplete="off">
+                    </div>
+                    <div class="s-field" id="s-ep-type-row" hidden>
+                      <span class="s-field-label" id="s-ep-type-label">api type</span>
+                      <div class="s-ep-type" id="s-ep-type" role="radiogroup" aria-labelledby="s-ep-type-label"></div>
+                    </div>
+                    <div class="s-field" id="s-ep-manual-row" hidden>
+                      <label for="s-ep-manual">model ids <span class="s-field-note">optional, comma-separated; blank reads the endpoint's own list</span></label>
+                      <input type="text" class="settings-input" id="s-ep-manual" autocomplete="off" spellcheck="false">
                     </div>
                     <div class="s-field">
-                      <label>authentication</label>
-                      <div class="custom-select settings-input" id="s-ep-auth" data-value="api_key" data-options="api_key|API key;external_proxy|owner-managed proxy;none|no credential (loopback only)" aria-label="endpoint authentication"></div>
+                      <label for="s-ep-vision">vision-capable models <span class="s-field-note">optional, comma-separated</span></label>
+                      <input type="text" class="settings-input" id="s-ep-vision" autocomplete="off" spellcheck="false">
                     </div>
+                    <button type="button" class="btn primary" id="s-ep-add-btn">add + read models</button>
                   </div>
-                  <div class="s-field" id="s-ep-key-row">
-                    <label for="s-ep-key">api key</label>
-                    <input type="password" class="settings-input" id="s-ep-key" placeholder="leave blank for local / Ollama">
+                  <div class="s-ep-pick" id="s-ep-pick" hidden>
+                    <span class="s-field-label" id="s-ep-pick-label">use a model for Aide chat</span>
+                    <div class="model-provider-list" id="s-ep-pick-list" role="listbox" aria-labelledby="s-ep-pick-label"></div>
                   </div>
-                  <div class="s-field">
-                    <label>provider adapter</label>
-                    <div class="custom-select settings-input" id="s-ep-adapter" data-value="auto" data-options="auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list" aria-label="provider adapter"></div>
-                  </div>
-                  <div class="s-field" id="s-ep-manual-row" hidden>
-                    <label for="s-ep-manual">manual models <span class="s-field-note">comma-separated</span></label>
-                    <input type="text" class="settings-input" id="s-ep-manual" placeholder="model-a, model-b">
-                  </div>
-                  <button type="button" class="btn primary" id="s-ep-add-btn" style="width:100%;margin-top:0.2rem">add + probe models</button>
-                  <div class="s-field" style="margin-top:0.5rem"><label for="s-ep-vision">vision-capable models <span style="color:var(--muted);font-weight:400">(comma-separated, optional)</span></label><input type="text" class="settings-input" id="s-ep-vision" placeholder="e.g. gpt-4o, claude-3-5-sonnet-20241022" style="width:100%"></div>
                 </div>
               </details>
               <div class="s-oauth-connect">
@@ -1913,7 +1902,7 @@
               <div id="s-local-presets" class="settings-list"></div>
               <div class="s-field" style="margin-top:0.65rem"><label for="s-local-custom">pull any model</label>
                 <div style="display:flex;gap:0.4rem">
-                  <input type="text" class="settings-input" id="s-local-custom" placeholder="e.g. qwen2.5:14b" style="flex:1">
+                  <input type="text" class="settings-input" id="s-local-custom" aria-label="model to pull" spellcheck="false" style="flex:1">
                   <button type="button" class="btn" id="s-local-pull-btn">pull</button>
                 </div>
               </div>
@@ -2046,7 +2035,7 @@
               <div class="s-field">
                 <label>primary provider</label>
                 <div style="display:flex;gap:0.4rem;align-items:center">
-                  <div class="settings-input custom-select" id="s-search-provider" style="flex:1" data-value="duckduckgo" data-options="duckduckgo|DuckDuckGo (free);tavily|Tavily;brave|Brave Search;searxng|SearXNG (self-hosted);google_pse|Google PSE;serper|Serper;disabled|disabled"></div>
+                  <div class="settings-input custom-select" id="s-search-provider" style="flex:1" data-value="startpage" data-options="startpage|Startpage (opens in your browser);duckduckgo|DuckDuckGo (free);tavily|Tavily;brave|Brave Search;searxng|SearXNG (self-hosted);google_pse|Google PSE;serper|Serper;disabled|disabled"></div>
                   <button type="button" class="btn" id="s-search-test-btn" style="flex-shrink:0">test</button>
                 </div>
               </div>
@@ -2962,7 +2951,7 @@
 </div>
 
 <script type="module">
-const _v = '522';
+const _v = '529';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

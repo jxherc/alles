@@ -29,6 +29,7 @@ from core.database import (
 )
 from core.settings import load_settings
 from services import andromeda
+from services.research.search import LINK_ONLY_PROVIDERS, startpage_url
 
 router = APIRouter(prefix="/api/andromeda")
 
@@ -64,7 +65,15 @@ class SearchBody(BaseModel):
     max_results: int | None = Field(default=None, ge=1, le=600)
     category: Literal["all", "images", "news", "videos"] = "all"
     provider: Literal[
-        "", "duckduckgo", "tavily", "brave", "searxng", "google_pse", "serper", "disabled"
+        "",
+        "startpage",
+        "duckduckgo",
+        "tavily",
+        "brave",
+        "searxng",
+        "google_pse",
+        "serper",
+        "disabled",
     ] = ""
 
 
@@ -80,6 +89,7 @@ def providers():
         "searxng": bool(settings.get("searxng_url")),
         "google_pse": bool(settings.get("google_pse_api_key") and settings.get("google_pse_cx")),
         "duckduckgo": True,
+        "startpage": True,
     }
     labels = {
         "brave": "brave",
@@ -88,10 +98,11 @@ def providers():
         "searxng": "searxng",
         "google_pse": "google",
         "duckduckgo": "duckduckgo",
+        "startpage": "startpage",
     }
-    order = ("searxng", "brave", "serper", "google_pse", "tavily", "duckduckgo")
+    order = ("startpage", "searxng", "brave", "serper", "google_pse", "tavily", "duckduckgo")
     return {
-        "selected": settings.get("search_provider") or "duckduckgo",
+        "selected": settings.get("search_provider") or "startpage",
         "providers": [
             {"value": name, "label": labels[name], "available": configured[name]} for name in order
         ],
@@ -131,6 +142,11 @@ async def search(body: SearchBody):
     overview_seed = result.get("results", [])[:12] if parsed.overview else []
     if not normal_enabled:
         result = {**result, "status": "disabled", "results": []}
+    # a link-only engine shows its own results page; the overview still uses the seed
+    engine = body.provider or settings.get("search_provider") or "startpage"
+    results_link = None
+    if engine in LINK_ONLY_PROVIDERS:
+        results_link = {"engine": engine, "url": startpage_url(parsed.query, body.category)}
     return {
         "query": parsed.query,
         "used_no_ai": parsed.used_no_ai,
@@ -139,6 +155,7 @@ async def search(body: SearchBody):
         "overview_requested": parsed.overview,
         "overview_seed": overview_seed,
         **result,
+        "results_link": results_link,
     }
 
 

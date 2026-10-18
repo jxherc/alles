@@ -8,6 +8,8 @@ const source = readFileSync(new URL('../../static/js/setupwizard.js', import.met
   .replace(/^export /gm, '');
 const choicesSource = readFileSync(new URL('../../static/js/kokuen.js', import.meta.url), 'utf8')
   .match(/^export function wireChoiceGroup\([^]*?^}/m)[0].replace(/^export /, '');
+const providersSource = readFileSync(new URL('../../static/js/model_providers.js', import.meta.url), 'utf8')
+  .replace(/^export /gm, '');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() {
   let resolve, reject;
@@ -114,7 +116,7 @@ function harness(code = source) {
       return waiting.promise;
     },
   });
-  vm.runInContext(choicesSource + '\n' + code + `
+  vm.runInContext(choicesSource + '\n' + providersSource + '\n' + code + `
     _state = {
       username: 'saved owner', timezone: 'UTC', access_profile: 'device',
       public_url: '', base_domain: '', trusted_hosts: '', forwarded_allow_ips: '',
@@ -231,7 +233,7 @@ test('reselecting Public access preserves all unsaved policy fields', async () =
 
 test('reselecting a provider preserves URL and key drafts; choosing another provider updates fields', async () => {
   const h = harness(); h.render(3);
-  const providers = h.$('sw-models').querySelectorAll('button');
+  const providers = h.$('sw-models').querySelectorAll('[role="option"]');
   await providers[0].click();
   const url = h.$('sw-model-url'), key = h.$('sw-model-key');
   url.value = 'https://synthetic.invalid/v1'; key.value = 'synthetic-not-a-secret';
@@ -240,5 +242,6 @@ test('reselecting a provider preserves URL and key drafts; choosing another prov
   assert.equal(url.value, 'https://synthetic.invalid/v1'); assert.equal(key.value, 'synthetic-not-a-secret');
   await providers[1].click();
   assert.notEqual(h.$('sw-model-url'), url); assert.equal(h.$('sw-model-key').value, '');
-  assert.equal(providers[1].getAttribute('aria-pressed'), 'true');
+  assert.equal(providers[1].getAttribute('aria-selected'), 'true');
+  assert.equal(providers[0].getAttribute('aria-selected'), 'false');
 });

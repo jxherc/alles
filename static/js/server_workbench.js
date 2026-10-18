@@ -679,11 +679,11 @@ async function renderSearch(target, request) {
     }
   };
   const providerOptions = [
-    ['duckduckgo', 'duckduckgo'], ['searxng', 'searxng'], ['brave', 'brave'],
+    ['startpage', 'startpage'], ['duckduckgo', 'duckduckgo'], ['searxng', 'searxng'], ['brave', 'brave'],
     ['tavily', 'tavily'], ['google_pse', 'google pse'], ['serper', 'serper'], ['disabled', 'disabled'],
   ].map(([value, label]) => ({ value, label }));
   panel.append(
-    choice('primary search provider', providerOptions, settings.search_provider || 'duckduckgo', value => save({ search_provider: value })),
+    choice('primary search provider', providerOptions, settings.search_provider || 'startpage', value => save({ search_provider: value })),
     choice('results per search', [5, 8, 10, 12].map(value => ({ value: String(value), label: String(value) })), String(settings.search_result_count || 8), value => save({ search_result_count: Number(value) })),
     switchButton('background fact check', settings.andromeda_verification_enabled !== false, value => save({ andromeda_verification_enabled: value })),
     choice('fact-check schedule', [
@@ -873,7 +873,6 @@ async function renderPolicy(target, request) {
   const section = card('server access policy', 'choose which services Alles may control. owned-only limits control to Alles-managed services; allowlisted_host also permits the exact host services you list. validate the change before saving.');
   section.append(el('p', 'server-workbench-copy', 'the file accepts only a control mode and exact launchd or systemd service IDs. commands, arguments, paths, and globs are rejected.'));
   const message = statusLine();
-  section.append(message);
   let current;
   try { current = await json(request, '/api/system/policy'); }
   catch (error) {
@@ -926,7 +925,12 @@ async function renderPolicy(target, request) {
         });
         editor.value = saved.canonical;
         effectiveState.querySelector('strong').textContent = saved.policy.control_mode;
-        policyError?.remove();
+        // emptied, not removed: its line stays reserved so the actions do not jump
+        if (policyError) {
+          policyError.style.minHeight = `${policyError.offsetHeight}px`;
+          policyError.textContent = '';
+          policyError.classList.remove('is-error');
+        }
         message.classList.remove('is-error');
         message.textContent = 'saved and verified with owner-only permissions';
         confirmation.hidden = saved.policy.control_mode !== 'allowlisted_host';
@@ -935,6 +939,7 @@ async function renderPolicy(target, request) {
         message.classList.add('is-error');
       }
     }, 'is-primary'),
+    message,
   );
   section.append(actions, confirmation, diff);
   target.replaceChildren(section);

@@ -248,7 +248,7 @@ what it supports:
 - streaming chat (the reply types itself out live, word by word)
 - works with any provider: claude, openai/gpt, deepseek, gemini, groq, mistral, a local model, and ~15 others; switch any time, even mid-conversation
 - **one main conversation**: Aide returns to a persistent primary conversation. older and private conversations remain separate; the primary conversation cannot be archived or deleted. Aide chats, uses approved tools when useful, and keeps longer work in the same conversation.
-- **coding**: pair a local DeepSeek Harness bridge, select an offered workspace and start a task. saved runs show status, activity, assistant output and reported file changes; the output is limited to the latest 50 messages. answer questions, inspect tool arguments before approval, stop work, or send a follow-up in the same DSH session. durable request identities prevent duplicate starts after lost responses. refresh reconciles uncertain results without replacing a newer completion. the workspace has no file editor or interactive terminal.
+- **coding**: when DeepSeek Harness is not installed (checked in `/Applications` and `~/Applications`), the connection view links to its official download at deepseek.com/harness and the Homebrew cask instead of the pairing form. pair a local DeepSeek Harness bridge, select an offered workspace and start a task. saved runs show status, activity, assistant output and reported file changes; the output is limited to the latest 50 messages. answer questions, inspect tool arguments before approval, stop work, or send a follow-up in the same DSH session. durable request identities prevent duplicate starts after lost responses. refresh reconciles uncertain results without replacing a newer completion. the workspace has no file editor or interactive terminal.
 - **app actions from plain chat**: just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm"). reads can run directly; changes and sends follow the configured permission rules
 - **conclusion-first work**: successful answers lead with the result. exact steps, sources, diffs, and revert controls stay available under one accessible control after reload
 - **confirmed tool sources**: source history separates successful reads, search references and other
@@ -868,7 +868,11 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   and omitted sections before sending whole records. cancel sends nothing, and the full saved snapshot
   stays unchanged. replies and source links can continue through Aide's existing saved-note workflow.
 
-search can use duckduckgo, tavily, brave, google pse, serper, or an external https searxng instance.
+search can use startpage, duckduckgo, tavily, brave, google pse, serper, or an external https searxng instance.
+startpage is the default and is link-only: startpage blocks server requests and its terms forbid
+automated searching, so alles never fetches it. andromeda's overview and aide's web tool use the keyless
+chain behind it (duckduckgo, then wikipedia), and andromeda's result list becomes one link that opens the
+same query on startpage.com in the owner's browser.
 alles can also own an optional searxng lifecycle when a supported docker runtime is available. its
 reviewed definition is pinned to `2026.7.12-c19d86faa` /
 `sha256:f433294b46a93564993c4371005341e013d94aa8ea4662d8ee521cd2cccb08e8`, bound to
@@ -951,6 +955,8 @@ details that matter in practice:
 - **localhost stays direct:** aide's model client bypasses environment proxies for loopback endpoints; remote endpoints use the normal proxy configuration.
 - **model lists auto-refresh:** aide periodically re-pulls each provider's available models (and on demand), so new releases show up on their own.
 - **endpoint bootstrap:** put `DEEPSEEK_API_KEY` or `ANTHROPIC_API_KEY` in `.env` and the matching endpoint is created on first boot, or add an endpoint in the interface.
+- **adding a connection:** settings → models and first-run setup share one alphabetical provider list with nothing pre-selected or recommended. a listed provider asks only for its key (its address stays editable behind "change address"); "custom endpoint" takes a name, base url, optional key (blank only for an address on this machine), api type (openai-compatible, anthropic, gemini or ollama) and optional model ids. after a successful add, its models are offered once for aide chat. the local serving card lists only models already on the machine.
+- **aide base prompt:** a short code-owned prompt introduces alles as the owner's private system, lists its spaces, and sets tool, approval and untrusted-content rules. owner instructions follow it, and the current date in the owner's timezone comes last. the older one-line default saved by earlier installs still counts as "no owner instructions".
 
 aide also **exposes its own** openai-compatible api (`GET /v1/models`, `POST /v1/chat/completions`), so other tools can point at alles as if it were openai.
 
@@ -3679,7 +3685,7 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `tts_provider` | `"browser"` |
 | `tts_voice` | `"alloy"` |
 | `openai_api_key` | `""` |
-| `search_provider` | `"duckduckgo"` |
+| `search_provider` | `"startpage"` |
 | `search_result_count` | `8` |
 | `search_fallback_chain` | `["duckduckgo"]` |
 | `tavily_api_key` | `""` |

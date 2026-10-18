@@ -40,7 +40,7 @@ ROUTES = [
     "server-logs", "server-activity", "server-watch", "server-policy",
     "memory", "compare", "brain", "models", "cookbook", "usage", "skills", "scheduled",
     "aide-reminders", "gallery",
-    "settings",
+    "settings", "setup",
 ]  # fmt: skip
 
 PROFILES = {
@@ -271,7 +271,9 @@ PROBE = r"""
     const behind = effBg(el.parentElement || document.body);
     const bg = parse(cs.backgroundColor);
     const tile = bg && bg.a > 0.05 && ratio(over(bg, behind), behind) > 1.08;
-    const under = cs.textDecorationLine.includes('underline') || (px(cs.borderBottomWidth) >= 1 && (() => { const c = parse(cs.borderBottomColor); return c && c.a > 0.05 && ratio(over(c, behind), behind) > 1.25; })()) || /inset 0px -/.test(cs.boxShadow);
+    // a full strong border is a box (settings nav), not an underline
+    const sides = ['Top', 'Right', 'Bottom', 'Left'].filter(k => px(cs['border' + k + 'Width']) >= 1 && (() => { const c = parse(cs['border' + k + 'Color']); return c && c.a > 0.05 && ratio(over(c, behind), behind) > 1.25; })()).length;
+    const under = cs.textDecorationLine.includes('underline') || (sides < 4 && px(cs.borderBottomWidth) >= 1 && (() => { const c = parse(cs.borderBottomColor); return c && c.a > 0.05 && ratio(over(c, behind), behind) > 1.25; })()) || /inset 0px -/.test(cs.boxShadow);
     // rows may use the raised surface (data row contract); neither tabs nor rows add an underline
     if (el.matches('[role=tab]')) tally('kokuen', 'selected-tab-plain', !tile && !under, el, `${tile ? 'tile ' : ''}${under ? 'underline' : ''}`);
     else tally('kokuen', 'selected-row-no-underline', !under, el, 'underline');
@@ -458,6 +460,45 @@ BUTTONS = r"""
 }
 """
 
+# position in the page, scroll undone, so a scroll that follows a click is not a shift
+DOC_BOX = r"""el => { const r = el.getBoundingClientRect(); let x = r.x + scrollX, y = r.y + scrollY;
+  for (let p = el.parentElement; p; p = p.parentElement) { x += p.scrollLeft; y += p.scrollTop; }
+  return { x, y }; }"""
+
+VISIBLE_COUNT = r"""() => [...document.body.querySelectorAll('*')].filter(e => e.getClientRects().length).length"""
+
+BUSY_STATUS = r"""
+() => {
+  const probe = document.createElement('span'); probe.style.color = 'var(--error)'; document.body.append(probe);
+  const danger = getComputedStyle(probe).color; probe.remove();
+  return [...document.querySelectorAll('[role=status],[aria-live]')].filter(e => {
+    const t = (e.textContent || '').trim(); const r = e.getBoundingClientRect();
+    return r.width > 0 && /…$|\.\.\.$/.test(t);
+  }).map(e => ({ ok: getComputedStyle(e).color !== danger, detail: `"${e.textContent.trim().slice(0, 40)}" in ${getComputedStyle(e).color}` }));
+}
+"""
+
+TILE_INSET = r"""
+(i) => {
+  const e = document.querySelector('[data-audit-btn="' + i + '"]'); if (!e) return null;
+  const c = getComputedStyle(e);
+  const parse = s => { const m = (s || '').match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,/]+/).filter(Boolean).map(parseFloat); return p[3] == null ? 1 : p[3]; };
+  const shadowRing = /inset/.test(c.boxShadow) && c.boxShadow !== 'none';
+  if (!((parse(c.backgroundColor) || 0) > 0.05 || shadowRing)) return null;  // no tile showing
+  const r = e.getBoundingClientRect();
+  const kids = [];
+  const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT); let n;
+  while ((n = w.nextNode())) if (n.textContent.trim()) { const g = document.createRange(); g.selectNodeContents(n); for (const q of g.getClientRects()) if (q.width) kids.push(q); }
+  e.querySelectorAll('svg,img').forEach(s => { const q = s.getBoundingClientRect(); if (q.width) kids.push(q); });
+  if (!kids.length || r.width < 1) return null;
+  const left = Math.min(...kids.map(k => k.left)) - r.left, right = r.right - Math.max(...kids.map(k => k.right));
+  const top = Math.min(...kids.map(k => k.top)) - r.top, bottom = r.bottom - Math.max(...kids.map(k => k.bottom));
+  const icon = Math.abs(r.width - r.height) < 2;  // square icon targets center their mark
+  const ok = icon || (left >= 6 && right >= 6 && top >= 2 && bottom >= 2);
+  return { ok, detail: `inset l${left.toFixed(0)} r${right.toFixed(0)} t${top.toFixed(0)} b${bottom.toFixed(0)}` };
+}
+"""
+
 STYLE_SNAP = r"""
 (i) => {
   const e = document.querySelector('[data-audit-btn="' + i + '"]'); if (!e) return null;
@@ -499,7 +540,12 @@ class Audit:
 
 
 def goto(page, base, route) -> None:
-    if route == "settings":
+    if route == "setup":
+        page.goto(base + "/", wait_until="domcontentloaded")
+        page.wait_for_function("typeof window._openSetupWizard === 'function'")
+        page.evaluate("window._openSetupWizard()")
+        page.locator("#setup-wizard").wait_for(state="visible")
+    elif route == "settings":
         page.goto(base + "/", wait_until="domcontentloaded")
         page.locator("#today-settings").wait_for(state="visible")
         page.locator("#today-settings").click()
@@ -618,9 +664,38 @@ def click_pass(page, base, route, audit, where, shots: Path, tag: str) -> None:
                     audit.add(
                         "vercel", "hover-state", rest != hov, b["key"], "no hover change", where
                     )
+                # a tile that appears on hover needs room around its label (owner rule 2026-10-18)
+                inset = page.evaluate(TILE_INSET, match["i"])
+                if inset:
+                    audit.add(
+                        "kokuen", "hover-tile-inset", inset["ok"], b["key"], inset["detail"], where
+                    )
+            before_box = loc.evaluate(DOC_BOX)
+            before_count = page.evaluate(VISIBLE_COUNT)
             loc.click(timeout=2500)
             audit.clicked += 1
             page.wait_for_timeout(300)
+            # work in progress reads as progress, not as an error (owner rule 2026-10-18)
+            for state in page.evaluate(BUSY_STATUS) or []:
+                audit.add("kokuen", "busy-not-error", state["ok"], b["key"], state["detail"], where)
+            # the clicked control stays put while it works (busy, loading, status text)
+            if page.url == url0 and loc.count():
+                after_box = loc.evaluate(DOC_BOX) if loc.is_visible() else None
+                # a form, panel or list that opens moves things on purpose; a status line or a
+                # weight change that nudges the control does not
+                grew = abs(page.evaluate(VISIBLE_COUNT) - before_count) > 2
+                if before_box and after_box and not grew and not page.evaluate(OVERLAY):
+                    moved = max(
+                        abs(before_box["x"] - after_box["x"]), abs(before_box["y"] - after_box["y"])
+                    )
+                    audit.add(
+                        "kokuen",
+                        "click-no-shift",
+                        moved <= 1,
+                        b["key"],
+                        f"moved {moved:.0f}px",
+                        where,
+                    )
             new = [o for o in page.evaluate(OVERLAY) if o not in before_overlays]
             for oid in new:
                 for rubric, check, ok, detail in page.evaluate(OVERLAY_CHECK, oid) or []:

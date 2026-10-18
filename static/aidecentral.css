@@ -18,7 +18,7 @@ body.aide-central[data-space="aide"] .topbar-left { min-width: 0; gap: var(--k-s
 body.aide-central[data-space="aide"] .topbar-utilities { gap: 0; margin-left: auto; }
 body.aide-central[data-space="aide"] :is(#sidebar-toggle-btn, .app-crumb, .aide-current-context, #ai-top-controls, #session-token-count, #aide-work-panel-toggle, .topbar-right, #aide-message-rail) { display: none !important; }
 body.aide-central[data-space="aide"] .topbar-left > #app-drawer-btn {
-  margin: 0; padding: 0; width: auto; min-height: var(--k-control, 44px); flex: 0 0 auto;
+  margin: 0 0 0 calc(-1 * var(--k-space-3, 12px)); padding: 0 var(--k-space-3, 12px); width: auto; min-height: var(--k-control, 44px); flex: 0 0 auto;
   font-size: 15px; font-weight: 550; color: var(--text);
 }
 .aide-mode-nav { display: flex; align-items: center; gap: var(--k-space-1, 4px); min-width: 0; }
@@ -32,7 +32,7 @@ body.aide-central[data-space="aide"] .topbar-left > #app-drawer-btn {
   background: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer;
 }
 .aide-mode-nav button { padding: 0 var(--k-space-3, 12px); }
-.aide-mode-nav button[aria-pressed="true"] { color: var(--text); font-weight: 550; }
+.aide-mode-nav button[aria-pressed="true"] { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 body.aide-central[data-space="aide"] .aide-mode-nav button { background: none; }
 .aide-central-action {
   display: inline-flex; align-items: center; justify-content: center; min-width: var(--k-control, 44px);

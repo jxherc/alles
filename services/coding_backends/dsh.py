@@ -27,6 +27,12 @@ _ALLOWED_METHODS = frozenset(
 )
 
 
+def dsh_installed() -> bool:
+    """DeepSeek Harness app present for all users or only this one."""
+    app = "DeepSeek Harness.app"
+    return (Path("/Applications") / app).exists() or (Path.home() / "Applications" / app).exists()
+
+
 class DshConfigurationError(ValueError):
     pass
 
@@ -166,7 +172,7 @@ class DshBackend:
             raise DshConfigurationError("dsh_bridge_unconfigured")
 
     def capability(self) -> dict:
-        installed = Path("/Applications/DeepSeek Harness.app").exists()
+        installed = dsh_installed()
         try:
             self._validate()
             configured = True

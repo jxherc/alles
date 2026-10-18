@@ -575,9 +575,9 @@ function _updateSearchKeyRow() {
 function _updateSearchStatus(s) {
   const el = document.getElementById('s-search-status');
   if (!el) return;
-  const prov  = s.search_provider || 'duckduckgo';
+  const prov  = s.search_provider || 'startpage';
   const count = s.search_result_count || 8;
-  const labels = { duckduckgo:'DuckDuckGo', tavily:'Tavily', brave:'Brave', searxng:'SearXNG', google_pse:'Google PSE', serper:'Serper', disabled:'disabled' };
+  const labels = { startpage:'Startpage', duckduckgo:'DuckDuckGo', tavily:'Tavily', brave:'Brave', searxng:'SearXNG', google_pse:'Google PSE', serper:'Serper', disabled:'disabled' };
   const needsKey = { tavily:'tavily_api_key', brave:'brave_api_key', google_pse:'google_pse_api_key', serper:'serper_api_key' };
   const needsUrl = { searxng:'searxng_url' };
   const keyField = needsKey[prov]; const urlField = needsUrl[prov];

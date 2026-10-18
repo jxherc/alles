@@ -464,7 +464,7 @@ body:is(
 .specialist-group-tabs [role="tab"][aria-selected="true"] {
   color: var(--k-ink, var(--text));
   background: transparent;
-  font-weight: 600;
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 .specialist-group-tabs [role="tab"]:focus-visible,
@@ -694,7 +694,7 @@ body:is(
 .plan-board-stage-choice[aria-checked="true"] {
   color: var(--k-ink, var(--text));
   background: var(--k-panel-raised, var(--panel));
-  font-weight: 600;
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 .plan-board-status {
@@ -1173,6 +1173,18 @@ body:is(
 }
 
 .server-workbench-status:empty { display: none; }
+/* a status inside the action row reads beside the buttons and wraps below them */
+.server-workbench-actions > .server-workbench-status {
+  flex: 1 1 16rem;
+  align-self: center;
+  margin: 0;
+}
+
+/* a status above an action row keeps its line, so a message never pushes the buttons */
+.server-workbench-status:empty:has(~ :is(.server-workbench-actions, .server-workbench-service)) {
+  display: block;
+  min-height: 1lh;
+}
 .server-workbench-status.is-error { color: var(--k-danger, var(--error)); }
 
 #server-workbench-view .server-workbench-card:has(> .server-workbench-switch-row) > .server-workbench-status {
@@ -1502,7 +1514,7 @@ body:is(
 
 .specialist-choice-group button[aria-pressed="true"],
 .specialist-message-row[aria-current="true"] {
-  font-weight: 650;
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 .specialist-choice-group button:focus-visible,
@@ -1830,7 +1842,7 @@ body:is(
 :where(#finance-view) .finance-import-choice button[aria-selected="true"] {
   border-color: var(--k-ink-muted, var(--muted));
   background: var(--k-panel-raised, var(--panel2));
-  font-weight: 650;
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 :where(#finance-view) .finance-import-choice button:focus-visible,
@@ -2295,16 +2307,20 @@ html[data-theme="light"] :where(
   gap: var(--k-space-5);
 }
 
+/* the hover tile gets real side padding; the row is pulled back by the same
+   amount so the labels stay on the content edge */
 #today-view[data-kokuen-surface="home"] .today-shortcuts {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--k-space-4);
+  gap: var(--k-space-1);
+  margin-inline-start: calc(-1 * var(--k-space-3));
 }
 
 #today-view[data-kokuen-surface="home"] .today-shortcut {
   min-height: var(--k-control);
   border: 0;
-  padding: var(--k-space-2) 0;
+  border-radius: var(--k-radius-control);
+  padding: var(--k-space-2) var(--k-space-3);
   background: transparent;
 }
 
@@ -2870,7 +2886,7 @@ html[data-kokuen-version="5"] :is(.act-chip[aria-pressed="true"], .mem-cat-btn[a
   border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
-  font-weight: 560;
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 html[data-kokuen-version="5"] .act-chip.off {
@@ -2881,8 +2897,7 @@ html[data-kokuen-version="5"] .act-chip.off {
 /* every action answers the pointer with tone, never a lift */
 #today-view :is(.today-capture-send, .today-shortcut):hover,
 #wiki-view[data-kokuen-surface="docs"] :is(.docs-nav-label, .docs-nav-text-action):hover,
-body[data-app="files"] #files-view :is(button.crumb, .files-check):hover,
-.skl-card-name:hover,
+body[data-app="files"] #files-view .files-check:hover,
 #settings-modal .modal-close:hover {
   background: var(--k-hover);
   color: var(--k-text);
@@ -2890,6 +2905,13 @@ body[data-app="files"] #files-view :is(button.crumb, .files-check):hover,
 
 #today-view .today-summary-tasks:hover {
   text-decoration-thickness: 2px;
+}
+
+/* names and crumbs sit flush with their column, so they answer with text, not a tile */
+.skl-card-name:hover,
+body[data-app="files"] #files-view button.crumb:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* Local navigation rows share the data-row contract: bare at rest, hover tone,
@@ -2924,7 +2946,7 @@ html[data-kokuen-version="5"] [data-kokuen-state="loading"] {
 }
 
 /* tabs show selection with tone and weight only (COMPONENTS.md tabs) */
-html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, [role="tab"])) {
+html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch, [role="tab"])) {
   color: var(--k-text);
   background: var(--k-raised);
 }
@@ -3093,7 +3115,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
     color: HighlightText;
     text-decoration: underline;
     text-underline-offset: 3px;
-    font-weight: 600;
+    -webkit-text-stroke: 0.35px currentColor;
   }
 }
 
@@ -3624,9 +3646,10 @@ textarea[data-kokuen-entry="autogrow"] {
   min-height: var(--k-control);
   margin: 0;
   padding: 0 var(--k-space-3);
+  border: 1px solid transparent;
   border-radius: var(--k-radius-control);
-  color: var(--k-muted);
-  font-size: 13px;
+  color: var(--k-soft);
+  font-size: 14px;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-nav-item:is(:hover, .active) {
@@ -3636,15 +3659,16 @@ textarea[data-kokuen-entry="autogrow"] {
 
 /* selected row: raised surface plus weight, same as Files and Docs rows */
 #settings-modal[data-kokuen-surface="settings"] .s-nav-item.active {
+  border-color: var(--k-line-strong);
   background: var(--k-raised);
-  font-weight: 560;
+  font-weight: 600;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .theme-mode-btn.active {
   border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
-  font-weight: 600;
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-switch.on::before {
@@ -3656,13 +3680,20 @@ textarea[data-kokuen-entry="autogrow"] {
   background: var(--k-text);
 }
 
+/* group labels read as headings at a glance: small, muted and bold, with a seam
+   and room above; items are larger and brighter */
 #settings-modal[data-kokuen-surface="settings"] .s-nav-group {
-  padding: var(--k-space-4) var(--k-space-3) var(--k-space-1);
+  padding: var(--k-space-5) var(--k-space-3) var(--k-space-2);
   color: var(--k-muted);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 650;
   letter-spacing: 0;
   text-transform: lowercase;
+}
+
+#settings-modal[data-kokuen-surface="settings"] .s-nav-group:not(:first-child) {
+  margin-top: var(--k-space-2);
+  border-top: 1px solid var(--k-line);
 }
 
 #settings-modal[data-kokuen-surface="settings"] :is(.s-appearance-details, .te-disclosure) > summary {
@@ -4699,7 +4730,7 @@ html[dir="rtl"] :where(
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density button[aria-checked="true"] {
   background: transparent;
   color: var(--k-text);
-  font-weight: 600;
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-density span {
@@ -7181,4 +7212,121 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
 
 @media (min-width: 601px) {
   :where(#finance-view) .finance-import-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Every switch shares the neutral on state from Settings (decision 0019): a raised
+   track with a strong line and a text-colored knob. No accent, and no tile behind
+   the 44px target. */
+html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch, .andromeda-switch) {
+  background: transparent;
+}
+
+html[data-kokuen-version="5"] :is(.s-switch.on, .s-switch[aria-checked="true"], .home-settings-switch[aria-checked="true"], .news-switch[aria-checked="true"], .andromeda-switch[aria-checked="true"])::before {
+  border-color: var(--k-line-strong);
+  background: var(--k-raised);
+}
+
+html[data-kokuen-version="5"] :is(.s-switch.on, .s-switch[aria-checked="true"], .home-settings-switch[aria-checked="true"], .news-switch[aria-checked="true"])::after,
+html[data-kokuen-version="5"] .andromeda-switch[aria-checked="true"] > span {
+  background: var(--k-text);
+}
+
+/* Model provider picker (settings and setup): one quiet list, one row per provider,
+   nothing highlighted until picked. Picked = raised + strong line + weight. */
+.model-provider-list {
+  display: grid;
+  max-height: 296px;
+  margin: 0 0 var(--k-space-3);
+  padding: var(--k-space-1);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  border: 1px solid var(--k-line);
+  border-radius: var(--k-radius-surface);
+}
+
+.model-provider-option {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  min-height: var(--k-control);
+  padding: 0 var(--k-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-soft);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.model-provider-option:hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+.model-provider-option[aria-selected="true"] {
+  border-color: var(--k-line-strong);
+  background: var(--k-raised);
+  color: var(--k-text);
+  font-weight: 600;
+}
+
+.model-provider-option[hidden] {
+  display: none;
+}
+
+.model-provider-note {
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.s-ep-type {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-1);
+}
+
+.s-ep-type [role="radio"] {
+  min-height: var(--k-control);
+  padding: 0 var(--k-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-soft);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.s-ep-type [role="radio"]:hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+.s-ep-type [role="radio"][aria-checked="true"] {
+  border-color: var(--k-line-strong);
+  background: var(--k-raised);
+  color: var(--k-text);
+  -webkit-text-stroke: 0.35px currentColor;
+}
+
+/* "change address" is a text action that keeps its label on the field edge */
+.s-ep-url-toggle {
+  border-width: 0;
+  margin: 0 0 var(--k-space-2) calc(-1 * var(--k-space-3));
+}
+
+.s-field-label {
+  display: block;
+  margin-bottom: var(--k-space-1);
+  color: var(--k-muted);
+  font-size: 12px;
+}
+
+.s-ep-pick {
+  margin-top: var(--k-space-3);
 }

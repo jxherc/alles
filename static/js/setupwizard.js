@@ -4,15 +4,7 @@ import { requestWithRecentOwner } from './recent_owner.js';
 import { addEndpoint } from './models.js?v=212';
 import { resolvedTimeZone } from './i18n.js';
 import { wireChoiceGroup } from './kokuen.js?v=1';
-
-const MODEL_PRESETS = [
-  { name: 'DeepSeek', url: 'https://api.deepseek.com', key: 'sk-…' },
-  { name: 'Anthropic', url: 'https://api.anthropic.com', key: 'sk-ant-…' },
-  { name: 'OpenAI', url: 'https://api.openai.com', key: 'sk-…' },
-  { name: 'Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', key: 'AIza…' },
-  { name: 'Moonshot', url: 'https://api.moonshot.ai', key: 'sk-…' },
-  { name: 'Ollama (local)', url: 'http://localhost:11434', key: '' },
-];
+import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';
 const STEPS = ['basics', 'access', 'files', 'ai_search', 'protection'];
 const TITLES = { basics: 'basics', access: 'access', files: 'files', ai_search: 'AI + search', protection: 'protection' };
 let _state = null;
@@ -214,11 +206,13 @@ function _setStep(next) {
   _render();
 }
 
+// status sits in the button row, next to the action it reports on
 function _actions(back = true, label = 'save + continue') {
   return `<div class="setup-actions">
-    ${back ? '<button class="btn" type="button" id="sw-back">back</button>' : '<span></span>'}
+    ${back ? '<button class="btn" type="button" id="sw-back">back</button>' : ''}
+    <div class="setup-status" id="sw-status" role="status" aria-live="polite"></div>
     <button class="btn primary" type="button" id="sw-save">${esc(label)}</button>
-  </div><div class="setup-status" id="sw-status" role="status" aria-live="polite"></div>`;
+  </div>`;
 }
 
 function _bindActions(save) {
@@ -240,7 +234,10 @@ function _busy(button, on, message = '') {
     else button.removeAttribute('aria-busy');
   }
   const status = $('sw-status');
-  if (status) status.textContent = message;
+  if (!status) return;
+  status.textContent = message;
+  // working text stays quiet; only a message left after the work ends is an error
+  status.dataset.state = on ? 'busy' : message ? 'error' : '';
 }
 
 async function _saveStep(step, values, isCurrent = () => true) {
@@ -341,7 +338,7 @@ function _renderAccess(body) {
     const profile = $('sw-access').querySelector('[aria-checked="true"]')?.dataset.value || 'device';
     const password = $('sw-owner-password')?.value || '';
     if (profile !== 'device' && !_auth.enabled && password.length < 12) {
-      $('sw-status').textContent = 'network access needs an owner password of at least 12 characters'; return;
+      _busy(null, false, 'network access needs an owner password of at least 12 characters'); return;
     }
     const button = $('sw-save'); _busy(button, true, 'checking access policy…');
     try {
@@ -445,30 +442,34 @@ function _renderObsidianChoice() {
 
 function _renderAiSearch(body) {
   _pickedModel = null;
-  const selectedSearch = ['duckduckgo', 'searxng'].includes(_state.search_provider)
-    ? _state.search_provider : 'duckduckgo';
+  const selectedSearch = ['startpage', 'duckduckgo', 'searxng'].includes(_state.search_provider)
+    ? _state.search_provider : 'startpage';
   body.innerHTML = `
     <div class="setup-title" id="setup-title">connect the tools you want</div>
-    <div class="setup-sub">A model is optional. Search defaults to DuckDuckGo and needs no account.</div>
+    <div class="setup-sub">A model is optional. Search defaults to Startpage and needs no account.</div>
     <div class="setup-section-label">AI model, optional</div>
-    <div class="setup-provider-grid" id="sw-models">${MODEL_PRESETS.map((provider, index) => `<button type="button" class="setup-provider" data-index="${index}" aria-pressed="false">${esc(provider.name)}</button>`).join('')}</div>
+    <div class="model-provider-list" id="sw-models" aria-label="model providers"></div>
     <div id="sw-model-fields"></div>
     <div class="setup-section-label">web search</div>
     ${_choiceGroup('sw-search', [
+      { value: 'startpage', label: 'Startpage', note: 'results open in your browser' },
       { value: 'duckduckgo', label: 'DuckDuckGo', note: 'works without setup' },
       { value: 'searxng', label: 'SearXNG', note: 'connect an existing instance' },
     ], selectedSearch)}
     <div id="sw-search-fields"></div>
     ${_actions()}`;
-  $('sw-models').addEventListener('click', event => {
-    const button = event.target.closest('[data-index]'); if (!button) return;
-    if (_pickedModel === MODEL_PRESETS[Number(button.dataset.index)]) return;
-    _pickedModel = MODEL_PRESETS[Number(button.dataset.index)];
-    $('sw-models').querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
-    $('sw-model-fields').innerHTML = `
-      <label class="setup-field"><span>base URL</span><input class="settings-input setup-input" id="sw-model-url" value="${esc(_pickedModel.url)}"></label>
-      <label class="setup-field"><span>API key</span><input class="settings-input setup-input" id="sw-model-key" type="password" autocomplete="off" placeholder="${esc(_pickedModel.key || 'not required')}"></label>`;
-    $('sw-model-key').focus();
+  mountProviderPicker($('sw-models'), {
+    onPick: provider => {
+      if (_pickedModel === provider) return;
+      _pickedModel = provider;
+      $('sw-model-fields').innerHTML = `
+        ${provider.custom ? '<label class="setup-field"><span>connection name</span><input class="settings-input setup-input" id="sw-model-name" autocomplete="off"></label>' : ''}
+        <label class="setup-field"><span>base URL</span><input class="settings-input setup-input" id="sw-model-url" type="url" spellcheck="false" value="${esc(provider.url)}"></label>
+        ${provider.keyless ? '' : `<label class="setup-field"><span>API key${provider.custom ? ' (optional for this machine)' : ''}</span><input class="settings-input setup-input" id="sw-model-key" type="password" autocomplete="off"></label>`}
+        ${provider.custom ? `<div class="setup-field"><span id="sw-model-type-label">API type</span><div class="s-ep-type" id="sw-model-type" role="radiogroup" aria-labelledby="sw-model-type-label">${API_TYPES.map(([value, label], index) => `<button type="button" role="radio" data-value="${value}" aria-checked="${index === 0}" tabindex="${index ? -1 : 0}">${esc(label)}</button>`).join('')}</div></div>` : ''}`;
+      if (provider.custom) wireChoiceGroup($('sw-model-type'));
+      ($('sw-model-name') || $('sw-model-key') || $('sw-model-url')).focus();
+    },
   });
   const searchFields = value => {
     $('sw-search-fields').innerHTML = value === 'searxng' ? `
@@ -481,13 +482,19 @@ function _renderAiSearch(body) {
     const button = $('sw-save'); _busy(button, true, 'connecting…');
     try {
       if (_pickedModel) {
+        const provider = _pickedModel;
         const url = $('sw-model-url').value.trim();
         if (!url) throw new Error('the model base URL is required');
-        await addEndpoint(_pickedModel.name, url, $('sw-model-key').value.trim());
+        const key = $('sw-model-key')?.value.trim() || '';
+        const name = (provider.custom && $('sw-model-name')?.value.trim()) || provider.label;
+        const adapter = provider.custom
+          ? ($('sw-model-type')?.querySelector('[aria-checked="true"]')?.dataset.value || 'openai-compatible')
+          : provider.adapter;
+        await addEndpoint(name, url, key, adapter, [], { providerId: provider.provider, authType: authFor(provider, key) });
         if (!current()) return;
         _pickedModel = null;
       }
-      const provider = $('sw-search').querySelector('[aria-checked="true"]')?.dataset.value || 'duckduckgo';
+      const provider = $('sw-search').querySelector('[aria-checked="true"]')?.dataset.value || 'startpage';
       await _saveStep('ai_search', {
         search_provider: provider,
         searxng_url: $('sw-searxng-url')?.value.trim() || '',

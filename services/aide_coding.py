@@ -3,7 +3,6 @@
 import hashlib
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +20,7 @@ from services.coding_backends.dsh import (
     DshConfigurationError,
     DshProtocolError,
     DshTransportError,
+    dsh_installed,
 )
 
 CONNECTION_ID = "default"
@@ -43,7 +43,7 @@ def _hash_prompt(prompt: str) -> str:
 
 
 def _installed() -> bool:
-    return Path("/Applications/DeepSeek Harness.app").exists()
+    return dsh_installed()
 
 
 def connection_status(db: DbSession) -> dict:

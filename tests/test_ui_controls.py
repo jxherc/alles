@@ -57,10 +57,12 @@ class SegmentedControlTests(unittest.TestCase):
         self.assertIn("border-left: none", _block(".seg-opt:first-child"))
 
     def test_seg_active_state_exists(self):
-        # neutral selection (decision 0019): raised surface and weight, never the accent
+        # neutral selection (decision 0019): raised surface and emphasis, never the accent.
+        # emphasis is a stroke, not a weight change, so the row keeps its width (decision 0032)
         active = _block(".seg-opt.active")
         self.assertIn("var(--k-raised", active)
-        self.assertIn("font-weight", active)
+        self.assertIn("-webkit-text-stroke", active)
+        self.assertNotIn("font-weight", active)
         self.assertNotIn("var(--accent)", active)
 
     def test_seg_sm_variant_exists(self):

@@ -124,13 +124,14 @@ with sync_playwright() as pw:
                     page.keyboard.press("Tab")
                 expect(control).to_be_focused()
                 page.keyboard.press("Enter")
+                # pick from the provider list by keyboard: filter, arrow in, Enter
+                page.locator("#s-ep-provider-filter").fill("custom")
+                page.keyboard.press("ArrowDown")
+                page.keyboard.press("Enter")
                 expect(page.locator("#s-ep-name")).to_be_visible()
+                expect(page.locator("#s-ep-name")).to_be_focused()
                 page.get_by_label("connection name", exact=True).fill("owned setup connection")
                 page.get_by_label("base url", exact=True).fill(base)
-                for control_id in ("s-ep-adapter", "s-ep-auth"):
-                    page.locator("#" + control_id).focus()
-                    page.keyboard.press("End")
-                    page.keyboard.press("Enter")
                 page.locator("#s-ep-manual").fill("owned-synthetic-model")
                 # No provider call: reject only the first local configuration write.
                 attempts = []
@@ -154,7 +155,11 @@ with sync_playwright() as pw:
                 expect(page.locator("#s-ep-manual")).to_have_value("owned-synthetic-model")
                 page.locator("#s-ep-add-btn").click()
                 expect(page.locator("#s-model-defaults-card")).to_be_visible()
-                expect(page.locator("#s-ep-add-details")).not_to_have_attribute("open", "")
+                # the form clears and offers the new models for Aide chat
+                expect(page.locator("#s-ep-fields")).to_be_hidden()
+                expect(
+                    page.locator('#s-ep-pick-list [data-model="owned-synthetic-model"]')
+                ).to_be_visible()
                 endpoints = context.request.get(base + "/api/models").json()
                 assert len(endpoints) == 1 and endpoints[0]["models"] == [
                     "owned-synthetic-model"

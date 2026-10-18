@@ -67,19 +67,20 @@ def run() -> None:
 
             if label == "desktop":
                 page.locator("#s-ep-add-details > summary").click()
-                page.locator('.s-preset-btn[data-provider="kimi"]').click()
+                picker = page.locator("#s-ep-provider-list")
+                # nothing is suggested: no provider starts selected
+                assert picker.locator('[aria-selected="true"]').count() == 0
+                picker.locator('[data-provider="kimi"]').click()
                 expect(page.locator("#s-ep-url")).to_have_value("https://api.moonshot.ai/v1")
-                expect(page.locator("#s-ep-provider")).to_have_attribute("data-value", "kimi")
+                expect(page.locator("#s-ep-url-row")).to_be_hidden()
+                expect(page.locator("#s-ep-url-toggle")).to_be_visible()
 
-                page.locator('.s-preset-btn[data-provider="ollama"]').click()
-                expect(page.locator("#s-ep-auth")).to_have_attribute("data-value", "none")
+                picker.locator('[data-provider="ollama"]').click()
                 expect(page.locator("#s-ep-key-row")).to_be_hidden()
 
-                page.locator('.s-preset-btn[data-provider="deepseek"]').click()
+                picker.locator('[data-provider="deepseek"]').click()
+                expect(page.locator("#s-ep-key")).to_be_focused()
                 page.locator("#s-ep-key").fill("throwaway-deepseek-key")
-                page.locator("#s-ep-adapter").click()
-                page.locator(".custom-dropdown-option", has_text="manual list").last.click()
-                page.locator("#s-ep-manual").fill("deepseek-test-model")
                 page.locator("#s-ep-add-btn").click()
                 expect(page.locator(".s-ep-card", has_text="DeepSeek").first).to_be_visible()
                 card = page.locator(".s-ep-card", has_text="DeepSeek").first

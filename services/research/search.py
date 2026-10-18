@@ -24,8 +24,20 @@ _UA = (
     "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"
 )
 _KNOWN_PROVIDERS = frozenset(
-    {"brave", "duckduckgo", "google_pse", "searxng", "serper", "tavily", "wikipedia"}
+    {"brave", "duckduckgo", "google_pse", "searxng", "serper", "startpage", "tavily", "wikipedia"}
 )
+# Engines the owner opens in their own browser. Startpage blocks server requests and
+# its terms forbid automated searching, so Alles never fetches it; it only links to it.
+LINK_ONLY_PROVIDERS = frozenset({"startpage"})
+_STARTPAGE_CATEGORY = {"all": "web", "images": "images", "news": "news", "videos": "video"}
+
+
+def startpage_url(query: str, category: str = "all") -> str:
+    from urllib.parse import urlencode
+
+    return "https://www.startpage.com/sp/search?" + urlencode(
+        {"query": query, "cat": _STARTPAGE_CATEGORY.get(category, "web")}
+    )
 
 
 class SearchProviderFailure(RuntimeError):
@@ -465,7 +477,7 @@ def _provider_chain(primary: str, fallbacks) -> list:
     out = []
     for p in chain:
         p = str(p or "").strip()
-        if p and p != "disabled" and p not in out:
+        if p and p != "disabled" and p not in LINK_ONLY_PROVIDERS and p not in out:
             out.append(p)
     return out
 
@@ -531,10 +543,12 @@ async def search_chain_report(query, override=None, max_results=10, category="al
     if primary == "disabled":
         return SearchReport([], None, None, "disabled", ())
     # A person choosing one exact engine expects that engine, not a silent switch.
-    # Automatic searches keep the configured fallback chain.
+    # Automatic searches keep the configured fallback chain. A link-only engine has
+    # no server results, so its searches use the chain behind it.
+    exact = (override or "").strip()
     chain = (
         [primary]
-        if (override or "").strip()
+        if exact and exact not in LINK_ONLY_PROVIDERS
         else _provider_chain(primary, settings.get("search_fallback_chain"))
     )
     attempted = []

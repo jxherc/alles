@@ -77,7 +77,10 @@ function setError(text = '') {
 function setConnectionState(status) {
   connection = status;
   const configured = status?.configured === true;
-  $('aide-coding-pair').hidden = configured;
+  // pairing needs the app; without it, show how to install it instead
+  const missing = !configured && status?.installed === false;
+  $('aide-coding-install').hidden = !missing;
+  $('aide-coding-pair').hidden = configured || missing;
   $('aide-coding-ready').hidden = !configured;
   $('aide-coding-connection-label').textContent = configured ? 'DSH' : 'connect DSH';
   $('aide-coding-connection-toggle').dataset.connected = String(configured);
@@ -86,7 +89,7 @@ function setConnectionState(status) {
   $('aide-coding-prompt').disabled = !configured;
   $('aide-coding-project').disabled = !configured;
   $('aide-coding-draft-status').textContent = configured ? (workspaces.length ? '' : 'No DSH workspaces available.') : 'Connect DSH to work in a local project.';
-  if (!configured) { setStatus(status?.installed ? 'DSH is installed · not connected' : 'DSH is not connected'); return; }
+  if (!configured) { setStatus(status?.installed ? 'DSH is installed · not connected' : 'DSH is not installed'); return; }
   const version = status.host?.version || status.host_version || '';
   setStatus(status.available === true ? `DSH connected${version ? ` · ${version}` : ''}` : 'DSH connected · availability not checked', status.available === true ? 'ok' : '');
   $('aide-coding-connection-address').textContent = status.base_url || '';
@@ -417,6 +420,11 @@ function markup() {
         <section id="aide-coding-connection" class="acw-content acw-connection" data-coding-view="connection" hidden>
           <button type="button" id="aide-coding-connection-back" class="acw-action">${icon('back')}<span>back to work</span></button>
           <h2>DSH connection</h2><p id="aide-coding-status" role="status">checking connection…</p>
+          <div id="aide-coding-install" class="acw-install" hidden>
+            <p>DeepSeek Harness isn't installed on this Mac. Alles runs coding work through it.</p>
+            <ol class="acw-steps"><li>Get DeepSeek Harness from deepseek.com and open it once.</li><li>Or with Homebrew: <code>brew install --cask deepseek-harness</code></li><li>Come back here and check again.</li></ol>
+            <div class="acw-connection-actions"><a class="acw-action acw-primary" href="https://www.deepseek.com/harness/" target="_blank" rel="noopener noreferrer">get DeepSeek Harness</a><button type="button" id="aide-coding-recheck" class="acw-action">check again</button></div>
+          </div>
           <form id="aide-coding-pair" class="acw-pair" hidden>
             <div class="acw-field"><label for="aide-coding-url">DSH bridge on this Mac</label><input id="aide-coding-url" name="base_url" type="url" value="http://127.0.0.1:3081" autocomplete="url" spellcheck="false" required></div>
             <div class="acw-field"><label for="aide-coding-code">8-digit code shown by DSH</label><input id="aide-coding-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" required></div>
@@ -511,6 +519,7 @@ export function initAideCodingWorkspace() {
       event.preventDefault(); options[event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length].focus();
     }
   });
+  $('aide-coding-recheck').addEventListener('click', () => loadStatus());
   $('aide-coding-check').addEventListener('click', async event => {
     const button = event.currentTarget; button.disabled = true; setStatus('checking DSH…');
     $('aide-coding-connection-back').focus();

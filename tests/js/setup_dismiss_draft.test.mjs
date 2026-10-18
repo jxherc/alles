@@ -10,7 +10,7 @@ const source = readFileSync(new URL('../../static/js/setupwizard.js', import.met
 function harness({ loading = false } = {}) {
   const nodes = new Map();
   const document = { activeElement: null, getElementById: id => nodes.get(id) };
-  const node = id => ({ id, disabled: false, isConnected: true, attributes: {},
+  const node = id => ({ id, disabled: false, isConnected: true, attributes: {}, dataset: {},
     setAttribute(key, value) { this.attributes[key] = value; },
     getAttribute(key) { return this.attributes[key] ?? null; },
     removeAttribute(key) { delete this.attributes[key]; },

@@ -415,17 +415,8 @@
   },
   {
     "rule": "small-type",
-    "message": "font-size 13px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item",
-    "css_block_sha256": "0c76862b230f0919196f6178ff7c9def9301d9cd36b8da71c7ea49de859e0d8e",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item",
-    "job": "compact-control-label",
-    "reason": "settings pane navigation label. expanded settings navigation at every applicable viewport"
-  },
-  {
-    "rule": "small-type",
     "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .s-nav-group",
-    "css_block_sha256": "b5e3396dc89312060ccb52011a0d9484a0d6b503a2ae478d5d3e3073fc4875b4",
+    "css_block_sha256": "04a2cd0f5ca9c1b24d3662bc2a99b358f95e1c7300f1f9f75c91c46c8a558de6",
     "path": "static/kokuen.css",
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-nav-group",
     "job": "secondary-metadata",
@@ -1798,5 +1789,59 @@
     "selector": "body[data-app=\"files\"] #files-view #files-search",
     "job": "control-bezel",
     "reason": "Files search draws one bottom rail like every compact field (decision 0026)."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item; check for nested bezels",
+    "css_block_sha256": "46290e42c4ac765a1e6fdcf57ad71246cd73149a767e9a8829e8f822e738834f",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item",
+    "job": "control-bezel",
+    "reason": "A transparent border at rest becomes the selected row line, so selection never shifts layout."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .s-nav-group:not(:first-child); check for nested bezels",
+    "css_block_sha256": "79d84182c59a512441e13fd7f66789d92076f02a972e5434156c514389f7ad2b",
+    "path": "static/kokuen.css",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-nav-group:not(:first-child)",
+    "job": "distinct-region",
+    "reason": "One seam above each settings group so groups read apart at a glance (owner request 2026-10-18)."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .model-provider-note",
+    "css_block_sha256": "c6ca3eef580550b1a3a3a254312954e0241257afb4d819663ae577b78b89aee9",
+    "path": "static/kokuen.css",
+    "selector": ".model-provider-note",
+    "job": "secondary-metadata",
+    "reason": "Provider notes beside the provider name are metadata."
+  },
+  {
+    "rule": "nested-boundary",
+    "message": "descendant draws a boundary in .s-ep-type [role=\"radio\"]; check for nested bezels",
+    "css_block_sha256": "d249f1cb50eedb3c94e55bca24b79285327d48f0dbf4b18d9b80707733a39118",
+    "path": "static/kokuen.css",
+    "selector": ".s-ep-type [role=\"radio\"]",
+    "job": "control-bezel",
+    "reason": "API type choices keep a transparent border at rest; only the checked one paints it."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .s-ep-type [role=\"radio\"]",
+    "css_block_sha256": "d249f1cb50eedb3c94e55bca24b79285327d48f0dbf4b18d9b80707733a39118",
+    "path": "static/kokuen.css",
+    "selector": ".s-ep-type [role=\"radio\"]",
+    "job": "compact-control-label",
+    "reason": "API type choices use the 13px action label."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 12px is below the 14px essential-text baseline in .s-field-label",
+    "css_block_sha256": "c80a4ade9b0c5e515801da5951decea40d6a135fe1aa78eddf17d1eaf7434b11",
+    "path": "static/kokuen.css",
+    "selector": ".s-field-label",
+    "job": "control-associated-label",
+    "reason": "Field labels for choice groups match the 12px settings field labels."
   }
 ]
