@@ -869,11 +869,11 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   stays unchanged. replies and source links can continue through Aide's existing saved-note workflow.
 
 search can use startpage, duckduckgo, tavily, brave, google pse, serper, or an external https searxng instance.
-startpage is the default and is link-only: startpage blocks server requests and its terms forbid
-automated searching, so alles never fetches it. andromeda's overview and aide's web tool use the keyless
-chain behind it (duckduckgo, then wikipedia; the duckduckgo step is a metasearch with startpage left out),
-and andromeda's result list becomes one link that opens the
-same query on startpage.com in the owner's browser.
+duckduckgo is the default: a keyless metasearch that asks several engines at once and shows the results
+in andromeda. startpage is an optional link-only engine: it answers every server request, from home or cloud
+addresses, with a captcha page, so alles never fetches it. with startpage chosen, andromeda's overview and aide's web
+tool use the keyless chain (duckduckgo, then wikipedia; the metasearch leaves startpage out) and the result list
+becomes one link that opens the same query on startpage.com in the owner's browser.
 alles can also own an optional searxng lifecycle when a supported docker runtime is available. its
 reviewed definition is pinned to `2026.7.12-c19d86faa` /
 `sha256:f433294b46a93564993c4371005341e013d94aa8ea4662d8ee521cd2cccb08e8`, bound to
@@ -3686,7 +3686,7 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `tts_provider` | `"browser"` |
 | `tts_voice` | `"alloy"` |
 | `openai_api_key` | `""` |
-| `search_provider` | `"startpage"` |
+| `search_provider` | `"duckduckgo"` |
 | `search_result_count` | `8` |
 | `search_fallback_chain` | `["duckduckgo"]` |
 | `tavily_api_key` | `""` |

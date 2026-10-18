@@ -344,11 +344,11 @@
           <h3 id="andromeda-search-settings-title">search sources</h3>
           <div class="andromeda-setting-row">
             <span><strong>this search</strong><small>temporarily override the saved primary provider</small></span>
-            <div id="andromeda-provider" class="custom-select" data-value="" data-options="|automatic;startpage|startpage;brave|brave;serper|serper · google;tavily|tavily;searxng|searxng;duckduckgo|duckduckgo" aria-label="search engine for this search"></div>
+            <div id="andromeda-provider" class="custom-select" data-value="" data-options="|automatic;brave|brave;serper|serper · google;tavily|tavily;searxng|searxng;duckduckgo|duckduckgo;startpage|startpage (link only)" aria-label="search engine for this search"></div>
           </div>
           <div class="andromeda-setting-row">
             <span><strong>primary provider</strong><small>used first for normal searches</small></span>
-            <div id="andromeda-primary-provider" class="custom-select" data-value="startpage" data-options="startpage|startpage;duckduckgo|duckduckgo;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper;disabled|disabled" aria-label="primary search provider"></div>
+            <div id="andromeda-primary-provider" class="custom-select" data-value="duckduckgo" data-options="duckduckgo|duckduckgo;startpage|startpage (link only);tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper;disabled|disabled" aria-label="primary search provider"></div>
           </div>
           <div class="andromeda-setting-row">
             <span><strong>fallback provider</strong><small>used quietly when the primary provider fails</small></span>
@@ -2035,7 +2035,7 @@
               <div class="s-field">
                 <label>primary provider</label>
                 <div style="display:flex;gap:0.4rem;align-items:center">
-                  <div class="settings-input custom-select" id="s-search-provider" style="flex:1" data-value="startpage" data-options="startpage|Startpage (opens in your browser);duckduckgo|DuckDuckGo (free);tavily|Tavily;brave|Brave Search;searxng|SearXNG (self-hosted);google_pse|Google PSE;serper|Serper;disabled|disabled"></div>
+                  <div class="settings-input custom-select" id="s-search-provider" style="flex:1" data-value="duckduckgo" data-options="duckduckgo|DuckDuckGo (free);startpage|Startpage (link only);tavily|Tavily;brave|Brave Search;searxng|SearXNG (self-hosted);google_pse|Google PSE;serper|Serper;disabled|disabled"></div>
                   <button type="button" class="btn" id="s-search-test-btn" style="flex-shrink:0">test</button>
                 </div>
               </div>

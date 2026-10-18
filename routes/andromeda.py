@@ -100,9 +100,9 @@ def providers():
         "duckduckgo": "duckduckgo",
         "startpage": "startpage",
     }
-    order = ("startpage", "searxng", "brave", "serper", "google_pse", "tavily", "duckduckgo")
+    order = ("searxng", "brave", "serper", "google_pse", "tavily", "duckduckgo", "startpage")
     return {
-        "selected": settings.get("search_provider") or "startpage",
+        "selected": settings.get("search_provider") or "duckduckgo",
         "providers": [
             {"value": name, "label": labels[name], "available": configured[name]} for name in order
         ],
@@ -143,7 +143,7 @@ async def search(body: SearchBody):
     if not normal_enabled:
         result = {**result, "status": "disabled", "results": []}
     # a link-only engine shows its own results page; the overview still uses the seed
-    engine = body.provider or settings.get("search_provider") or "startpage"
+    engine = body.provider or settings.get("search_provider") or "duckduckgo"
     results_link = None
     if engine in LINK_ONLY_PROVIDERS:
         results_link = {"engine": engine, "url": startpage_url(parsed.query, body.category)}

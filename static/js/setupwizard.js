@@ -442,17 +442,16 @@ function _renderObsidianChoice() {
 
 function _renderAiSearch(body) {
   _pickedModel = null;
-  const selectedSearch = ['startpage', 'duckduckgo', 'searxng'].includes(_state.search_provider)
-    ? _state.search_provider : 'startpage';
+  const selectedSearch = ['duckduckgo', 'searxng'].includes(_state.search_provider)
+    ? _state.search_provider : 'duckduckgo';
   body.innerHTML = `
     <div class="setup-title" id="setup-title">connect the tools you want</div>
-    <div class="setup-sub">A model is optional. Search defaults to Startpage and needs no account.</div>
+    <div class="setup-sub">A model is optional. Search defaults to DuckDuckGo and needs no account.</div>
     <div class="setup-section-label">AI model, optional</div>
     <div class="model-provider-list" id="sw-models" aria-label="model providers"></div>
     <div id="sw-model-fields"></div>
     <div class="setup-section-label">web search</div>
     ${_choiceGroup('sw-search', [
-      { value: 'startpage', label: 'Startpage', note: 'results open in your browser' },
       { value: 'duckduckgo', label: 'DuckDuckGo', note: 'works without setup' },
       { value: 'searxng', label: 'SearXNG', note: 'connect an existing instance' },
     ], selectedSearch)}
@@ -494,7 +493,7 @@ function _renderAiSearch(body) {
         if (!current()) return;
         _pickedModel = null;
       }
-      const provider = $('sw-search').querySelector('[aria-checked="true"]')?.dataset.value || 'startpage';
+      const provider = $('sw-search').querySelector('[aria-checked="true"]')?.dataset.value || 'duckduckgo';
       await _saveStep('ai_search', {
         search_provider: provider,
         searxng_url: $('sw-searxng-url')?.value.trim() || '',

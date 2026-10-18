@@ -53,7 +53,7 @@ assert.match(
 );
 assert.match(wizard, /_filesSaved = Boolean\(_state\.files_companion_pending\)/);
 assert.match(wizard, /companion_reviewed: advance/);
-assert.match(wizard, /selectedSearch = \['startpage', 'duckduckgo', 'searxng'\]\.includes\(_state\.search_provider\)/);
+assert.match(wizard, /selectedSearch = \['duckduckgo', 'searxng'\]\.includes\(_state\.search_provider\)/);
 assert.match(wizard, /searchFields\(selectedSearch\)/);
 assert.match(wizard, /function _renderAiSearch\(body\) \{\s*_pickedModel = null/);
 assert.doesNotMatch(wizard, /id="sw-region"/);

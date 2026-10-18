@@ -679,11 +679,11 @@ async function renderSearch(target, request) {
     }
   };
   const providerOptions = [
-    ['startpage', 'startpage'], ['duckduckgo', 'duckduckgo'], ['searxng', 'searxng'], ['brave', 'brave'],
+    ['duckduckgo', 'duckduckgo'], ['startpage', 'startpage (link only)'], ['searxng', 'searxng'], ['brave', 'brave'],
     ['tavily', 'tavily'], ['google_pse', 'google pse'], ['serper', 'serper'], ['disabled', 'disabled'],
   ].map(([value, label]) => ({ value, label }));
   panel.append(
-    choice('primary search provider', providerOptions, settings.search_provider || 'startpage', value => save({ search_provider: value })),
+    choice('primary search provider', providerOptions, settings.search_provider || 'duckduckgo', value => save({ search_provider: value })),
     choice('results per search', [5, 8, 10, 12].map(value => ({ value: String(value), label: String(value) })), String(settings.search_result_count || 8), value => save({ search_result_count: Number(value) })),
     switchButton('background fact check', settings.andromeda_verification_enabled !== false, value => save({ andromeda_verification_enabled: value })),
     choice('fact-check schedule', [

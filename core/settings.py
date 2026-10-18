@@ -91,7 +91,7 @@ _defaults = {
     "tts_provider": "browser",  # openai | browser
     "tts_voice": "alloy",
     "openai_api_key": "",  # for TTS/STT
-    "search_provider": "startpage",  # link-only: overviews use the keyless chain behind it
+    "search_provider": "duckduckgo",
     "search_result_count": 8,
     "search_fallback_chain": ["duckduckgo"],
     "tavily_api_key": "",
