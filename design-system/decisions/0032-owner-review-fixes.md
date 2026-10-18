@@ -14,7 +14,8 @@ The owner's own pass found what the scored audit missed: a switch with a purple 
 - Selected chips, segments and tabs in a row keep their width. Emphasis is a thin text stroke, not a weight change, so a click does not nudge the neighbours.
 - Names and breadcrumbs that sit flush with their column answer hover with an underline, not a tile.
 - Model setup is one alphabetical provider list with nothing pre-selected, plus "custom endpoint". Fields appear only for the picked provider. No preset buttons, no example placeholders. Local models lists only what is on this machine; anything else is pulled by name.
-- Startpage is the default engine and is link-only: Alles never fetches it. Overviews use the keyless chain behind it, and the result list becomes one link to the same query on startpage.com.
+- Startpage is the default engine and is link-only: Alles never fetches it. Overviews use the keyless chain behind it, whose metasearch leaves Startpage out, and the result list becomes one link to the same query on startpage.com.
+- A consent prompt (send this query or request to a remote model) uses a neutral confirm. Red stays for actions that delete, disconnect or send something for real.
 - When DeepSeek Harness is missing, the coding connection view shows its official download and the Homebrew cask instead of a pairing form that cannot succeed.
 
 ## verification

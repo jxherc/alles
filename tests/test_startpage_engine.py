@@ -27,6 +27,12 @@ class StartpageEngineTest(ApiTest):
         self.assertEqual(report.provider, "duckduckgo")
         self.assertEqual(exact.provider, "duckduckgo")
 
+    def test_keyless_metasearch_leaves_startpage_out(self):
+        backends = search_service._text_backends()["backend"].split(",")
+        self.assertNotIn("startpage", backends)
+        self.assertIn("duckduckgo", backends)
+        self.assertEqual(backends[0], "wikipedia")
+
     def test_url_keeps_the_query_and_category(self):
         url = search_service.startpage_url("a & b?", "news")
         parts = urlsplit(url)

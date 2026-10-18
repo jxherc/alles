@@ -576,6 +576,10 @@ test('remote overviews require an exact per-search owner confirmation', () => {
   assert.match(source, /await confirmDialog\(tr\('andromeda\.remote_confirm'/);
   assert.match(source, /confirmation\.confirmed_endpoint_id = preview\.endpoint_id/);
   assert.match(source, /confirmation\.confirmed_model = preview\.model/);
+  // sending is a consent, not a delete: the confirm is neutral, never the danger red
+  assert.match(source, /remote_confirm'[^\n]*\{ danger: false, confirmLabel: 'send' \}\)/);
+  const dialog = readFileSync(new URL('../../static/js/dialog.js', import.meta.url), 'utf8');
+  assert.match(dialog, /options\.danger === false \? 'primary' : 'danger'/);
 });
 
 test('independent verification is separately confirmed, cancellable, and persisted', () => {

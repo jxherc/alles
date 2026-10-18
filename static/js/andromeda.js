@@ -1261,7 +1261,8 @@ async function startOverview(query, results, searchGeneration) {
     text('andromeda-model', `${preview.model} · ${preview.endpoint} · ${preview.privacy_class}`);
     const confirmation = {};
     if (preview.privacy_class === 'remote') {
-      const allowed = await confirmDialog(tr('andromeda.remote_confirm', { endpoint: preview.endpoint, model: preview.model }));
+      // a consent, not a destructive action, so the confirm stays neutral
+      const allowed = await confirmDialog(tr('andromeda.remote_confirm', { endpoint: preview.endpoint, model: preview.model }), { danger: false, confirmLabel: 'send' });
       if (!current()) return;
       if (!allowed) {
         text('andromeda-overview-state', tr('andromeda.cancelled_unsent'));

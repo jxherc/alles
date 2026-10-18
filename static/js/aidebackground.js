@@ -197,7 +197,7 @@ export async function startBackgroundWork({
       const allowed = await confirmDialog(tr('aide.remote_background_confirm', {
         endpoint: preview.endpoint,
         model: preview.model,
-      }));
+      }), { danger: false, confirmLabel: 'send' });
       if (!allowed) {
         card.closest('[data-background-work="true"]')?.remove();
         return null;

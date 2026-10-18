@@ -85,7 +85,7 @@ export function confirm(msg, options = {}) {
       <div class="dialog-msg" id="${labelId}">${_esc(msg)}</div>
       <div class="dialog-btns">
         <button class="btn" type="button" data-dialog-cancel>cancel</button>
-        <button class="btn danger" type="button" data-dialog-confirm>${_esc(options.confirmLabel || 'confirm')}</button>
+        <button class="btn ${options.danger === false ? 'primary' : 'danger'}" type="button" data-dialog-confirm>${_esc(options.confirmLabel || 'confirm')}</button>
       </div>
     </div>`;
     document.body.appendChild(ov);

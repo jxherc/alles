@@ -11,6 +11,7 @@ import html as _htmlmod
 import json
 import logging
 import os
+import random
 import re
 import urllib.parse
 from dataclasses import dataclass
@@ -335,6 +336,19 @@ def _parse_ddg_html(html: str) -> list:
     return out
 
 
+def _text_backends():
+    """ddgs fans text out to many engines; startpage is link-only, so keep it out."""
+    try:
+        from ddgs.engines import ENGINES
+    except ImportError:  # old duckduckgo_search: duckduckgo only, nothing to drop
+        return {}
+    keys = [k for k in ENGINES.get("text", {}) if k not in LINK_ONLY_PROVIDERS]
+    random.shuffle(keys)
+    # same order ddgs uses for "auto": encyclopedias first, the rest shuffled
+    keys.sort(key=lambda k: {"wikipedia": 0, "grokipedia": 1}.get(k, 2))
+    return {"backend": ",".join(keys)} if keys else {}
+
+
 async def _search_duckduckgo(query, max_results=6, category="all"):
     # prefer the maintained ddg lib if present; else scrape the html endpoints.
     # the lib got renamed duckduckgo_search -> ddgs, so try the new name first.
@@ -404,7 +418,7 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
                         "title": r.get("title", ""),
                         "snippet": r.get("body", ""),
                     }
-                    for r in d.text(query, max_results=max_results)
+                    for r in d.text(query, max_results=max_results, **_text_backends())
                     if r.get("href")
                 ]
 

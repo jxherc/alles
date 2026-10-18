@@ -871,7 +871,8 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 search can use startpage, duckduckgo, tavily, brave, google pse, serper, or an external https searxng instance.
 startpage is the default and is link-only: startpage blocks server requests and its terms forbid
 automated searching, so alles never fetches it. andromeda's overview and aide's web tool use the keyless
-chain behind it (duckduckgo, then wikipedia), and andromeda's result list becomes one link that opens the
+chain behind it (duckduckgo, then wikipedia; the duckduckgo step is a metasearch with startpage left out),
+and andromeda's result list becomes one link that opens the
 same query on startpage.com in the owner's browser.
 alles can also own an optional searxng lifecycle when a supported docker runtime is available. its
 reviewed definition is pinned to `2026.7.12-c19d86faa` /
