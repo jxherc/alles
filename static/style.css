@@ -9054,7 +9054,11 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-actions button,
 .andromeda-recovery button {
   padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 0.82rem; cursor: pointer;
+  /* short labels stay on the row edge inside their 44px target */
+  text-align: start;
 }
+/* these blocks set display, which beats the hidden attribute; the attribute wins here */
+#andromeda-view [hidden] { display: none !important; }
 .andromeda-text-action:hover,
 .andromeda-actions button:hover,
 .andromeda-recovery button:hover { color: var(--text); }
