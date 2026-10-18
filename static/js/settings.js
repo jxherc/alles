@@ -577,7 +577,7 @@ function _updateSearchStatus(s) {
   if (!el) return;
   const prov  = s.search_provider || 'duckduckgo';
   const count = s.search_result_count || 8;
-  const labels = { startpage:'Startpage', duckduckgo:'DuckDuckGo', tavily:'Tavily', brave:'Brave', searxng:'SearXNG', google_pse:'Google PSE', serper:'Serper', disabled:'disabled' };
+  const labels = { duckduckgo:'DuckDuckGo', tavily:'Tavily', brave:'Brave', searxng:'SearXNG', google_pse:'Google PSE', serper:'Serper', disabled:'disabled' };
   const needsKey = { tavily:'tavily_api_key', brave:'brave_api_key', google_pse:'google_pse_api_key', serper:'serper_api_key' };
   const needsUrl = { searxng:'searxng_url' };
   const keyField = needsKey[prov]; const urlField = needsUrl[prov];

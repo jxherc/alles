@@ -679,7 +679,7 @@ async function renderSearch(target, request) {
     }
   };
   const providerOptions = [
-    ['duckduckgo', 'duckduckgo'], ['startpage', 'startpage (link only)'], ['searxng', 'searxng'], ['brave', 'brave'],
+    ['duckduckgo', 'duckduckgo'], ['searxng', 'searxng'], ['brave', 'brave'],
     ['tavily', 'tavily'], ['google_pse', 'google pse'], ['serper', 'serper'], ['disabled', 'disabled'],
   ].map(([value, label]) => ({ value, label }));
   panel.append(

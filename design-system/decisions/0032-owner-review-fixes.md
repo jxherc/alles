@@ -2,7 +2,7 @@
 
 ## context
 
-The owner's own pass found what the scored audit missed: a switch with a purple knob sitting in a raised box, a Home shortcut whose hover tile hugged its text, a Settings sidebar where group labels and items read the same, and a setup status that turned red while it was only saving. They also asked for a model setup without suggestions, Startpage results, and an install path for DeepSeek Harness.
+The owner's own pass found what the scored audit missed: a switch with a purple knob sitting in a raised box, a Home shortcut whose hover tile hugged its text, a Settings sidebar where group labels and items read the same, and a setup status that turned red while it was only saving. They also asked for a model setup without suggestions, Startpage results inside Andromeda, and an install path for DeepSeek Harness.
 
 ## decision
 
@@ -14,7 +14,7 @@ The owner's own pass found what the scored audit missed: a switch with a purple 
 - Selected chips, segments and tabs in a row keep their width. Emphasis is a thin text stroke, not a weight change, so a click does not nudge the neighbours.
 - Names and breadcrumbs that sit flush with their column answer hover with an underline, not a tile.
 - Model setup is one alphabetical provider list with nothing pre-selected, plus "custom endpoint". Fields appear only for the picked provider. No preset buttons, no example placeholders. Local models lists only what is on this machine; anything else is pulled by name.
-- Andromeda shows its results inline from the keyless metasearch by default. Startpage is an optional link-only engine: it answers every server request with a captcha page, so Alles never fetches it. When chosen, overviews use the keyless chain, whose metasearch leaves Startpage out, and the result list becomes one link to the same query on startpage.com.
+- Andromeda shows its own result list, from the keyless metasearch by default. Startpage is not an engine: it answers every server request with a captcha page, from home and cloud addresses alike, so Alles cannot fetch it, and a link out is not what the owner wants.
 - A consent prompt (send this query or request to a remote model) uses a neutral confirm. Red stays for actions that delete, disconnect or send something for real.
 - When DeepSeek Harness is missing, the coding connection view shows its official download and the Homebrew cask instead of a pairing form that cannot succeed.
 

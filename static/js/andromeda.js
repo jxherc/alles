@@ -778,27 +778,6 @@ function emptyMessage(state, currentCategory) {
   return tr('andromeda.no_results', { category: categoryLabel });
 }
 
-// a link-only engine (Startpage) shows its own results page in the owner's browser
-function renderEngineLink(link, currentCategory = category()) {
-  const targets = {
-    all: el('andromeda-results'), images: el('andromeda-images'),
-    news: el('andromeda-news'), videos: el('andromeda-videos'),
-  };
-  const list = targets[currentCategory];
-  if (!list || !link?.url) return;
-  const row = document.createElement('div');
-  row.className = 'andromeda-engine-link';
-  const anchor = document.createElement('a');
-  anchor.href = link.url;
-  anchor.target = '_blank';
-  anchor.rel = 'noopener noreferrer';
-  anchor.textContent = `see results on ${link.engine === 'startpage' ? 'Startpage' : link.engine}`;
-  const note = document.createElement('small');
-  note.textContent = 'opens in your browser; Alles does not fetch this page';
-  row.append(anchor, note);
-  list.replaceChildren(row);
-}
-
 export function renderAndromedaResults(results, state = 'ready', currentCategory = category(), restoreLibrary = false) {
   resetResultInteractions();
   _state.resultStatus = state;
@@ -1396,13 +1375,8 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     _state.providerDisabled = result.status === 'disabled' && !!result.normal_results_enabled;
     if (input) input.value = _state.query;
     renderAndromedaResults(_state.results, result.status, currentCategory);
-    const engineLink = result.normal_results_enabled ? result.results_link : null;
-    if (engineLink) {
-      renderEngineLink(engineLink, currentCategory);
-      _state.hasMore = false;
-    }
     updateMoreResults();
-    text('andromeda-result-meta', _state.providerDisabled ? '' : engineLink ? '' : result.normal_results_enabled
+    text('andromeda-result-meta', _state.providerDisabled ? '' : result.normal_results_enabled
       ? [trp('andromeda.result_count', _state.results.length), result.provider || tr('andromeda.provider'), `${result.elapsed_ms} ms`].filter(Boolean).join(' · ')
       : tr('andromeda.normal_hidden'));
     if (result.status === 'partial') status(tr('andromeda.partial_sources'));
@@ -1927,7 +1901,7 @@ function bindRecovery() {
 function settingsOpen() { return !el('andromeda-settings-panel')?.hidden; }
 
 const SEARCH_PROVIDER_LABELS = Object.freeze({
-  startpage: 'startpage', duckduckgo: 'duckduckgo', tavily: 'tavily', brave: 'brave', searxng: 'searxng',
+  duckduckgo: 'duckduckgo', tavily: 'tavily', brave: 'brave', searxng: 'searxng',
   google_pse: 'google pse', serper: 'serper', disabled: 'disabled', none: 'stop',
 });
 

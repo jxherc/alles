@@ -10361,8 +10361,3 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
   }
 }
 
-/* link-only engine: one row that hands the query to Startpage in the owner's browser */
-.andromeda-engine-link { display: grid; gap: 4px; padding: 12px 0; }
-.andromeda-engine-link a { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; color: var(--text); font-size: 15px; text-decoration: underline; text-underline-offset: 3px; }
-.andromeda-engine-link a:hover { text-decoration-thickness: 2px; }
-.andromeda-engine-link small { color: var(--muted); font-size: 12px; }

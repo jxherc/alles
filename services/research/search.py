@@ -26,20 +26,11 @@ _UA = (
     "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"
 )
 _KNOWN_PROVIDERS = frozenset(
-    {"brave", "duckduckgo", "google_pse", "searxng", "serper", "startpage", "tavily", "wikipedia"}
+    {"brave", "duckduckgo", "google_pse", "searxng", "serper", "tavily", "wikipedia"}
 )
-# Engines the owner opens in their own browser. Startpage blocks server requests and
-# its terms forbid automated searching, so Alles never fetches it; it only links to it.
-LINK_ONLY_PROVIDERS = frozenset({"startpage"})
-_STARTPAGE_CATEGORY = {"all": "web", "images": "images", "news": "news", "videos": "video"}
-
-
-def startpage_url(query: str, category: str = "all") -> str:
-    from urllib.parse import urlencode
-
-    return "https://www.startpage.com/sp/search?" + urlencode(
-        {"query": query, "cat": _STARTPAGE_CATEGORY.get(category, "web")}
-    )
+# startpage answers every server request with a captcha page, so the keyless
+# metasearch skips it instead of wasting a request on it
+_BLOCKED_TEXT_ENGINES = frozenset({"startpage"})
 
 
 class SearchProviderFailure(RuntimeError):
@@ -344,12 +335,12 @@ def _parse_ddg_html(html: str) -> list:
 
 
 def _text_backends():
-    """ddgs fans text out to many engines; startpage is link-only, so keep it out."""
+    """ddgs fans text out to many engines; leave out the ones that only return captchas."""
     try:
         from ddgs.engines import ENGINES
     except ImportError:  # old duckduckgo_search: duckduckgo only, nothing to drop
         return {}
-    keys = [k for k in ENGINES.get("text", {}) if k not in LINK_ONLY_PROVIDERS]
+    keys = [k for k in ENGINES.get("text", {}) if k not in _BLOCKED_TEXT_ENGINES]
     random.shuffle(keys)
     # same order ddgs uses for "auto": encyclopedias first, the rest shuffled
     keys.sort(key=lambda k: {"wikipedia": 0, "grokipedia": 1}.get(k, 2))
@@ -498,7 +489,7 @@ def _provider_chain(primary: str, fallbacks) -> list:
     out = []
     for p in chain:
         p = str(p or "").strip()
-        if p and p != "disabled" and p not in LINK_ONLY_PROVIDERS and p not in out:
+        if p and p != "disabled" and p not in out:
             out.append(p)
     return out
 
@@ -564,12 +555,10 @@ async def search_chain_report(query, override=None, max_results=10, category="al
     if primary == "disabled":
         return SearchReport([], None, None, "disabled", ())
     # A person choosing one exact engine expects that engine, not a silent switch.
-    # Automatic searches keep the configured fallback chain. A link-only engine has
-    # no server results, so its searches use the chain behind it.
-    exact = (override or "").strip()
+    # Automatic searches keep the configured fallback chain.
     chain = (
         [primary]
-        if exact and exact not in LINK_ONLY_PROVIDERS
+        if (override or "").strip()
         else _provider_chain(primary, settings.get("search_fallback_chain"))
     )
     attempted = []

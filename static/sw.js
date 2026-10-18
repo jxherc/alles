@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v380';   // Provider picker, Startpage engine and DSH install share this shell revision.
+const VERSION = 'v381';   // Provider picker, Startpage engine and DSH install share this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '530';   // keep in sync with index.html ?v= / const _v
+const STAMP = '531';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
