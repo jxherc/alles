@@ -13,6 +13,7 @@ import logging
 import os
 import random
 import re
+import threading
 import urllib.parse
 from dataclasses import dataclass
 
@@ -107,6 +108,11 @@ def _html_to_text(html: str) -> str:
     return text.strip()
 
 
+# trafilatura/lxml crash the whole process ("double free or corruption") when pages are
+# parsed in parallel threads. fetching stays parallel; parsing takes turns.
+_PARSE_LOCK = threading.Lock()
+
+
 def fetch_webpage_content(url: str, timeout: int = 10) -> dict:
     """grab a page and pull the main article text out of it.
 
@@ -144,12 +150,13 @@ def fetch_webpage_content(url: str, timeout: int = 10) -> dict:
     try:
         import trafilatura
 
-        content = (
-            trafilatura.extract(
-                html, include_comments=False, include_tables=True, favor_recall=True
+        with _PARSE_LOCK:
+            content = (
+                trafilatura.extract(
+                    html, include_comments=False, include_tables=True, favor_recall=True
+                )
+                or ""
             )
-            or ""
-        )
     except Exception:
         content = ""
     if not content.strip():
