@@ -20,6 +20,9 @@ class DetectTest(ApiTest):
             {"text": "thank you", "to": "japanese"},
         ),
         "define serendipity": ("define", {"word": "serendipity"}),
+        "what is serendipity": ("define", {"word": "serendipity"}),
+        "what is fluorine?": ("element", {"number": 9}),
+        "what is 12% of 80": ("calc", {"expression": "12% of 80"}),
         "periodic table": ("periodic", {}),
         "atomic number of gold": ("element", {"number": 79}),
         "12% of 80": ("calc", {}),
@@ -42,6 +45,8 @@ class DetectTest(ApiTest):
             "flights to france",
             "tailscale serve",
             "what is love",
+            "what is it",
+            "what is happening",
             "best laptop 2026",
             "iphone 17 in canada",
         ):

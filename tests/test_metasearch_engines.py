@@ -168,6 +168,12 @@ class KeyedEnginesTest(unittest.TestCase):
             with self.subTest(engine=name), self.assertRaises(search_service.SearchProviderFailure):
                 asyncio.run(search_service._search_provider(name, "q", {}, 8))
 
+    def test_exa_snippets_lose_their_markdown(self):
+        plain = search_service._plain_snippet(
+            "## noun ser·en·dip·i·ty **luck** see [Wiktionary](https://w.example/x) - one"
+        )
+        self.assertEqual(plain, "noun ser·en·dip·i·ty luck see Wiktionary one")
+
 
 if __name__ == "__main__":
     unittest.main()

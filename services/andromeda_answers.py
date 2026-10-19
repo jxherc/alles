@@ -409,10 +409,40 @@ def detect(query: str) -> dict | None:
         phrase = text[len("translate ") :].strip(" \"'“”")
         if phrase:
             return {"kind": "translate", "text": phrase, "to": "english"}
-    value = calculate(low)
+    math_part = re.sub(r"^(?:what is|what's|whats|calculate)\s+", "", low.rstrip("? "))
+    value = calculate(math_part)
     if value is not None:
-        return {"kind": "calc", "expression": text}
+        return {"kind": "calc", "expression": math_part}
+    # "what is serendipity": one plain word gets the dictionary, an element gets its tile
+    ask = re.fullmatch(
+        r"(?:what is|what's|whats) (?:an? |the )?([a-z][a-z'-]{1,30})", low.rstrip("? ")
+    )
+    if ask and ask.group(1) not in _NOT_WORDS:
+        if ask.group(1) in BY_NAME:
+            return {"kind": "element", "number": BY_NAME[ask.group(1)]["number"]}
+        return {"kind": "define", "word": ask.group(1)}
     return None
+
+
+# a bare "what is it" is a question, not a dictionary lookup
+_NOT_WORDS = {
+    "it",
+    "this",
+    "that",
+    "up",
+    "new",
+    "happening",
+    "going",
+    "today",
+    "trending",
+    # big questions people ask, not words they need spelled out
+    "love",
+    "life",
+    "god",
+    "time",
+    "art",
+    "truth",
+}
 
 
 # ── resolving ──

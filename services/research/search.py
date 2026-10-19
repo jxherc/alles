@@ -302,6 +302,15 @@ async def _search_serper(query, api_key, max_results=5):
     ]
 
 
+def _plain_snippet(text: str) -> str:
+    """exa highlights are page markdown; a result row wants plain words."""
+    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", text)  # links and images keep their text
+    text = re.sub(r"(^|\s)#{1,6}\s+", r"\1", text)  # headings
+    text = re.sub(r"(\*\*|__|`)", "", text)
+    text = re.sub(r"(^|\s)[*-]\s+", r"\1", text)  # list bullets
+    return re.sub(r"\s+", " ", text).strip()
+
+
 async def _search_exa(query, api_key, max_results=5, category="all"):
     # exa is a web index, not an image or video engine; empty hands those to the next engine
     if category in ("images", "videos"):
@@ -327,7 +336,7 @@ async def _search_exa(query, api_key, max_results=5, category="all"):
         {
             "url": x["url"],
             "title": x.get("title") or "",
-            "snippet": " ".join(x.get("highlights") or [])[:500],
+            "snippet": _plain_snippet(" ".join(x.get("highlights") or []))[:500],
             "published": x.get("publishedDate") or "",
             "favicon_url": x.get("favicon") or "",
         }
