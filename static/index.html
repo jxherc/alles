@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=535">
+<link rel="stylesheet" href="/static/style.css?v=536">
   <link rel="stylesheet" href="/static/kokuen.css?v=63">
 <link rel="stylesheet" href="/static/aidecentral.css?v=3">
 <link rel="stylesheet" href="/static/aidecoding.css?v=5">
@@ -320,6 +320,22 @@
             </div>
           </section>
 
+          <section class="andromeda-watch" id="andromeda-watch" aria-labelledby="andromeda-watch-title" hidden>
+            <div class="andromeda-watch-head">
+              <h2 id="andromeda-watch-title">watch for new links</h2>
+              <div class="andromeda-watch-choices" id="andromeda-watch-choices" role="radiogroup" aria-labelledby="andromeda-watch-title">
+                <button type="button" role="radio" aria-checked="true" data-every="0">off</button>
+                <button type="button" role="radio" aria-checked="false" data-every="6">every 6 hours</button>
+                <button type="button" role="radio" aria-checked="false" data-every="24">daily</button>
+                <button type="button" role="radio" aria-checked="false" data-every="168">weekly</button>
+              </div>
+            </div>
+            <div class="andromeda-watch-state" id="andromeda-watch-state" role="status" aria-live="polite"></div>
+            <div class="andromeda-watch-new" id="andromeda-watch-new" hidden>
+              <h3 id="andromeda-watch-new-title">new since you last looked</h3>
+              <ul id="andromeda-watch-new-list" aria-labelledby="andromeda-watch-new-title"></ul>
+            </div>
+          </section>
           <div class="andromeda-blocked-notice" id="andromeda-blocked-notice" role="status" aria-live="polite" hidden><span id="andromeda-blocked-text"></span><button class="andromeda-text-action" id="andromeda-blocked-undo" type="button">undo</button></div>
           <section class="andromeda-result-view" id="andromeda-all-results" data-andromeda-view="all" aria-labelledby="andromeda-results-title" hidden>
             <div class="andromeda-view-head"><h2 id="andromeda-results-title" data-i18n="andromeda.web_results">web results</h2><span data-i18n="andromeda.normal_results">normal results</span></div>
@@ -3007,7 +3023,7 @@
 </div>
 
 <script type="module">
-const _v = '535';
+const _v = '536';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

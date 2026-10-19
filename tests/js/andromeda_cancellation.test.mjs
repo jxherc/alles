@@ -57,7 +57,7 @@ function harness() {
     },
     document: { getElementById: get, querySelectorAll: () => [], addEventListener() {}, createElement: () => element() },
     window: { addEventListener() {} },
-    initCustomDropdowns() {}, setControlState() {},
+    initCustomDropdowns() {}, setControlState() {}, wireChoiceGroup() {},
     confirmDialog: (...args) => confirm(...args),
     tr: key => translations[key] || key,
   });

@@ -233,6 +233,13 @@ class AndromedaSavedSearch(Base):
     verifier_model_json = Column(Text, default="{}")
     checked_at = Column(DateTime, default=_now)
     created_at = Column(DateTime, default=_now)
+    # watching: 0 is off; otherwise re-run every n hours and keep links not seen before
+    watch_every_hours = Column(Integer, nullable=False, default=0, server_default="0")
+    watch_next_at = Column(DateTime)
+    watch_checked_at = Column(DateTime)
+    watch_seen_json = Column(Text, nullable=False, default="[]", server_default="[]")
+    watch_new_json = Column(Text, nullable=False, default="[]", server_default="[]")
+    watch_error = Column(String, nullable=False, default="", server_default="")
 
 
 class AndromedaSaveReceipt(Base):

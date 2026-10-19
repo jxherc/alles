@@ -1,7 +1,7 @@
 import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
-import { createMenuController, setControlState } from './kokuen.js?v=1';
+import { createMenuController, setControlState, wireChoiceGroup } from './kokuen.js?v=1';
 import { replaceRouteUrl } from './route_history.js';
 
 let _bound = false;
@@ -36,6 +36,7 @@ let _resultSummaryAbort = null;
 let _sourceCardSeq = 0;
 let _openSourceCard = null;
 let _lastHidden = null;
+let _watching = null; // { id, every_hours } for the saved search on screen
 
 const SAVE_PREFIX = 'alles.andromeda.pending.v1:';
 
@@ -312,6 +313,79 @@ function askFollowUp(question) {
   const value = String(question || '').trim();
   if (!value || !_state.query) return;
   void runAndromedaSearch(value, { context: followUpContext(), followUpOf: _state.query });
+}
+
+// ── saved-search monitors ──
+const WATCH_LABELS = { 0: 'off', 6: 'every 6 hours', 24: 'daily', 168: 'weekly' };
+
+function shortDate(value) {
+  const date = value ? new Date(`${value}${/Z|[+-]\d\d:?\d\d$/.test(value) ? '' : 'Z'}`) : null;
+  return date && !Number.isNaN(date.getTime())
+    ? formatDateTime(date, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : '';
+}
+
+function watchStateText(watch = {}) {
+  if (!watch.every_hours) return 'not watching. alles checks without a model, so nothing leaves this machine except the search itself.';
+  const parts = [`checking ${WATCH_LABELS[watch.every_hours] || `every ${watch.every_hours} hours`}`];
+  if (watch.checked_at) parts.push(`last checked ${shortDate(watch.checked_at)}`);
+  if (watch.next_at) parts.push(`next ${shortDate(watch.next_at)}`);
+  if (watch.error) parts.push(`last check failed (${watch.error})`);
+  return parts.join(' · ');
+}
+
+function setWatchChoice(every) {
+  el('andromeda-watch-choices')?.querySelectorAll('[role="radio"]').forEach(choice => {
+    const on = Number(choice.dataset.every) === Number(every);
+    choice.setAttribute('aria-checked', String(on));
+    choice.tabIndex = on ? 0 : -1;
+  });
+}
+
+function renderWatch(saved, fresh = []) {
+  const panel = el('andromeda-watch');
+  if (!panel) return;
+  if (!saved?.id) { panel.hidden = true; _watching = null; return; }
+  const watch = saved.watch || {};
+  _watching = { id: saved.id, every_hours: watch.every_hours || 0 };
+  setWatchChoice(_watching.every_hours);
+  text('andromeda-watch-state', watchStateText(watch));
+  if (el('andromeda-watch-state')) el('andromeda-watch-state').dataset.state = '';
+  const list = el('andromeda-watch-new-list');
+  list?.replaceChildren(...(fresh || []).map(item => {
+    const row = document.createElement('li');
+    const link = document.createElement('a');
+    const url = safeUrl(item.url);
+    link.textContent = item.title || item.url;
+    if (url) { link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer'; }
+    const meta = document.createElement('small');
+    meta.textContent = [hostOf(item.url), shortDate(item.found_at) && `found ${shortDate(item.found_at)}`].filter(Boolean).join(' · ');
+    row.append(link, meta);
+    return row;
+  }));
+  const box = el('andromeda-watch-new');
+  if (box) box.hidden = !(fresh || []).length;
+  panel.hidden = false;
+}
+
+async function changeWatch(every) {
+  if (!_watching || Number(every) === _watching.every_hours) return;
+  const previous = _watching.every_hours;
+  setWatchChoice(every);
+  text('andromeda-watch-state', 'saving…');
+  try {
+    const saved = await jsonRequest(`/api/andromeda/saved/${encodeURIComponent(_watching.id)}/watch`, {
+      method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ every_hours: Number(every) }),
+    });
+    _watching.every_hours = saved.watch?.every_hours || 0;
+    text('andromeda-watch-state', watchStateText(saved.watch));
+    el('andromeda-watch-state').dataset.state = '';
+    void loadSaved();
+  } catch (error) {
+    setWatchChoice(previous);
+    const state = el('andromeda-watch-state');
+    if (state) { state.textContent = `${error.message || 'watch was not saved'}; try again`; state.dataset.state = 'error'; }
+  }
 }
 
 const sameSite = (url, host) => {
@@ -1537,6 +1611,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   _lastHidden = null;
   const hiddenNotice = el('andromeda-blocked-notice');
   if (hiddenNotice) hiddenNotice.hidden = true;
+  renderWatch(null);
   const wantsOverview = currentCategory === 'all'
     && pressed('andromeda-overview-toggle')
     && !/(^|\s)!ai(?=\s|$)/i.test(query);
@@ -1760,6 +1835,7 @@ async function sendPendingSave(checkOnly) {
       if (sessionStorage.getItem(key) !== null) throw new Error('search saved; browser recovery could not be cleared. check again.');
     }
     _savedResult = result; _savedPayload = JSON.stringify(pending.payload);
+    renderWatch(result, []);
     if (_pendingSave?.request_id === pending.request_id) _pendingSave = null;
     _saveMessage = 'search saved';
     readSaveRecovery(_saveScopes);
@@ -1835,9 +1911,15 @@ function reopen(saved) {
   if (Object.keys(_state.verification).length) renderVerification(_state.verification, { saved: true });
   else clearVerificationView();
   text('andromeda-model', [_state.model.model, _state.model.endpoint].filter(Boolean).join(' · '));
-  text('andromeda-result-meta', tr('andromeda.saved_checked', { date: saved.checked_at || '' }));
+  text('andromeda-result-meta', tr('andromeda.saved_checked', { date: shortDate(saved.checked_at) || saved.checked_at || '' }));
   status(tr('andromeda.saved_reopened'));
   _openedSaved = { id: saved.id, checked_at: saved.checked_at, payload: JSON.stringify(searchSnapshot()) };
+  renderWatch(saved, saved.watch_new || []);
+  if ((saved.watch_new || []).length) {
+    // seen once shown; the list stays on screen for this visit
+    void jsonRequest(`/api/andromeda/saved/${encodeURIComponent(saved.id)}/watch/seen`, { method: 'POST' })
+      .then(() => loadSaved()).catch(() => {});
+  }
   const savedUrl = savedSearchUrl(saved.id, location.href);
   if (savedUrl) replaceRouteUrl(savedUrl);
   closeSettings();
@@ -1891,8 +1973,17 @@ async function loadSaved() {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'andromeda-saved-row';
-      button.textContent = item.query;
-      button.title = tr('andromeda.checked_on', { date: item.checked_at });
+      const name = document.createElement('span');
+      name.textContent = item.query;
+      button.append(name);
+      const watch = item.watch || {};
+      const meta = [watch.new_count ? `${watch.new_count} new` : '', watch.every_hours ? WATCH_LABELS[watch.every_hours] : ''].filter(Boolean).join(' · ');
+      if (meta) {
+        const small = document.createElement('small');
+        small.textContent = meta;
+        button.append(small);
+      }
+      button.title = tr('andromeda.checked_on', { date: shortDate(item.checked_at) || item.checked_at });
       button.addEventListener('click', () => openSavedSearch(item.id));
       list.appendChild(button);
     }
@@ -2597,6 +2688,14 @@ function bindOnce() {
     askFollowUp(el('andromeda-follow-input')?.value);
   });
   el('andromeda-deeper')?.addEventListener('click', goDeeper);
+  const watchChoices = el('andromeda-watch-choices');
+  if (watchChoices) {
+    watchChoices.addEventListener('click', event => {
+      const choice = event.target.closest('[role="radio"]');
+      if (choice) void changeWatch(choice.dataset.every);
+    });
+    wireChoiceGroup(watchChoices);
+  }
   el('andromeda-blocked-undo')?.addEventListener('click', () => void undoHideSite());
   el('andromeda-form')?.addEventListener('submit', event => {
     event.preventDefault();

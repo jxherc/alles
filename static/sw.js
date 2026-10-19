@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v385';   // Search engine list, custom engines and the provider picker share this shell revision.
+const VERSION = 'v386';   // Search engine list, custom engines and the provider picker share this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '535';   // keep in sync with index.html ?v= / const _v
+const STAMP = '536';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

@@ -28,7 +28,7 @@ from core.database import (
     get_db,
 )
 from core.settings import load_settings
-from services import andromeda
+from services import andromeda, andromeda_watch
 from services.research import engines as search_engines
 
 router = APIRouter(prefix="/api/andromeda")
@@ -564,8 +564,10 @@ def _saved(row: AndromedaSavedSearch, *, detail: bool = False) -> dict:
         "query": row.query,
         "checked_at": row.checked_at.isoformat() if row.checked_at else "",
         "created_at": row.created_at.isoformat() if row.created_at else "",
+        "watch": andromeda_watch.summary(row),
     }
     if detail:
+        result["watch_new"] = andromeda_watch.new_links(row)
         for target, source, expected in (
             ("request", row.request_json, dict),
             ("results", row.results_json, list),
@@ -697,6 +699,35 @@ def get_saved(search_id: str, db: DbSession = Depends(get_db)):
     if not row:
         raise HTTPException(404, "saved search not found")
     return _saved(row, detail=True)
+
+
+class WatchBody(BaseModel):
+    every_hours: int = Field(ge=0, le=168)
+
+
+@router.put("/saved/{search_id}/watch")
+def watch_saved(search_id: str, body: WatchBody, db: DbSession = Depends(get_db)):
+    _require_flag()
+    row = db.get(AndromedaSavedSearch, search_id)
+    if not row:
+        raise HTTPException(404, "saved search not found")
+    try:
+        andromeda_watch.set_watch(row, body.every_hours)
+    except ValueError as exc:
+        raise ApiError(400, "invalid_watch", str(exc)) from exc
+    db.commit()
+    return _saved(row)
+
+
+@router.post("/saved/{search_id}/watch/seen")
+def watch_seen(search_id: str, db: DbSession = Depends(get_db)):
+    _require_flag()
+    row = db.get(AndromedaSavedSearch, search_id)
+    if not row:
+        raise HTTPException(404, "saved search not found")
+    andromeda_watch.mark_seen(row)
+    db.commit()
+    return _saved(row)
 
 
 @router.delete("/saved/{search_id}")

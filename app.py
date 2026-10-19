@@ -519,6 +519,11 @@ def _register_jobs():
 
         await run_checks()
 
+    async def _andromeda_watch():
+        from services.andromeda_watch import run_due
+
+        await run_due()
+
     async def _read_feeds():
         from services.read_feeds import refresh_feeds
 
@@ -680,6 +685,9 @@ def _register_jobs():
     jobs.register("ics_subscriptions", _ics_subs, 3600, run_at_start=False)  # 8a calendar feeds
     jobs.register("carddav_auto", _carddav_auto, 600, run_at_start=False)  # 7b contacts auto-sync
     jobs.register("watch", _watch, 60, run_at_start=False)  # uptime/cert/health probes
+    jobs.register(
+        "andromeda_watch", _andromeda_watch, 300, run_at_start=False
+    )  # saved-search monitors
     jobs.register("personal_reconcile", _reconcile, 120, run_at_start=False)
     jobs.register(
         "automatic_backup", _automatic_backup, 3600, run_at_start=False

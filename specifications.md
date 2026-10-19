@@ -867,6 +867,13 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   "they", "this") searches together with the earlier question. earlier turns are context, never evidence.
 - **go deeper.** after an overview, "go deeper" reads up to 10 pages instead of 6, allows up to five
   claims and a longer answer, with the same quote checks and remote-model consent.
+- **watched searches.** a saved search can be watched every 6 hours, daily or weekly. the
+  `andromeda_watch` job (every 5 minutes, at most three due searches per run) repeats the search with the
+  same engine and keeps only links it has not seen before, starting from the saved results. a watch never
+  asks a model, so nothing but the search itself leaves the machine. new links trigger a push to subscribed
+  browsers and the discord or telegram alert when configured. the saved list shows how many are new; opening
+  the search lists them under "new since you last looked" and marks them seen. a failed check waits for the
+  next slot and shows the failure type.
 - **hidden sites.** "hide <site>" in a result's menu adds the site to `andromeda_blocked_sites`; that
   site and its subdomains leave every later result list. the page shows an undo, and settings → search
   lists hidden sites with "show again".
@@ -1424,9 +1431,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 86 included fastapi router modules
-- 952 http method/path pairs
-- 935 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `2058f25b3e0a8476dc34ea2a1baf3a4c1b3555943706cf0221cda6ba84899957`
+- 954 http method/path pairs
+- 937 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `8c6e25b0c6ec2b599a992ed65c9fd3cfa87fb031e7ebf6ca51cc6e829c972c7c`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -1516,7 +1523,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/andromeda.py · 17 operations</summary>
+<summary>routes/andromeda.py · 19 operations</summary>
 
 [source](routes/andromeda.py)
 
@@ -1534,6 +1541,8 @@ the compatibility snapshot locks the registered http surface:
 | `POST` | `/api/andromeda/saved` | `save_search` |
 | `DELETE` | `/api/andromeda/saved/{search_id}` | `delete_saved` |
 | `GET` | `/api/andromeda/saved/{search_id}` | `get_saved` |
+| `PUT` | `/api/andromeda/saved/{search_id}/watch` | `watch_saved` |
+| `POST` | `/api/andromeda/saved/{search_id}/watch/seen` | `watch_seen` |
 | `POST` | `/api/andromeda/search` | `search` |
 | `POST` | `/api/andromeda/verification` | `start_verification` |
 | `POST` | `/api/andromeda/verification/preview` | `verification_preview` |
@@ -3323,7 +3332,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `aide_coding_run_events` | `id: VARCHAR pk`, `run_id: VARCHAR`, `sequence: INTEGER`, `kind: VARCHAR`, `summary: TEXT`, `data: TEXT ?`, `created_at: DATETIME ?` | `run_id → aide_coding_runs.id` |
 | `albums` | `id: VARCHAR pk`, `name: VARCHAR`, `cover_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `andromeda_save_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR`, `search_id: VARCHAR`, `created_at: DATETIME ?` | — |
-| `andromeda_saved_searches` | `id: VARCHAR pk`, `query: TEXT`, `request_json: TEXT ?`, `results_json: TEXT ?`, `overview_json: TEXT ?`, `evidence_json: TEXT ?`, `model_json: TEXT ?`, `verification_json: TEXT ?`, `verifier_model_json: TEXT ?`, `checked_at: DATETIME ?`, `created_at: DATETIME ?` | — |
+| `andromeda_saved_searches` | `id: VARCHAR pk`, `query: TEXT`, `request_json: TEXT ?`, `results_json: TEXT ?`, `overview_json: TEXT ?`, `evidence_json: TEXT ?`, `model_json: TEXT ?`, `verification_json: TEXT ?`, `verifier_model_json: TEXT ?`, `checked_at: DATETIME ?`, `created_at: DATETIME ?`, `watch_every_hours: INTEGER`, `watch_next_at: DATETIME ?`, `watch_checked_at: DATETIME ?`, `watch_seen_json: TEXT`, `watch_new_json: TEXT`, `watch_error: VARCHAR` | — |
 | `andromeda_verification_jobs` | `id: VARCHAR pk`, `query: TEXT`, `answer_json: TEXT`, `results_json: TEXT`, `evidence_json: TEXT`, `model_json: TEXT`, `result_json: TEXT`, `status: VARCHAR`, `error_code: VARCHAR`, `checked_at: DATETIME ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `api_tokens` | `id: VARCHAR pk`, `name: VARCHAR`, `token_hash: VARCHAR`, `prefix: VARCHAR`, `scopes: TEXT`, `created_at: DATETIME ?`, `last_used_at: DATETIME ?` | — |
 | `attachments` | `id: VARCHAR pk`, `resource_kind: VARCHAR ?`, `resource_id: VARCHAR ?`, `blob_id: VARCHAR`, `meta: TEXT ?`, `created_at: DATETIME ?` | — |
@@ -3536,6 +3545,7 @@ known versions run in ascending order.
 | 68 | `aide_primary_session` | [m0068_aide_primary_session.py](core/migrations/m0068_aide_primary_session.py) |
 | 69 | `aide_live_calls` | [m0069_aide_live_calls.py](core/migrations/m0069_aide_live_calls.py) |
 | 70 | `aide_coding_runs` | [m0070_aide_coding_runs.py](core/migrations/m0070_aide_coding_runs.py) |
+| 71 | `andromeda_search_watch` | [m0071_andromeda_search_watch.py](core/migrations/m0071_andromeda_search_watch.py) |
 
 </details>
 
@@ -3568,6 +3578,7 @@ registered intervals come from `app.py`. the current loop sleeps 30 seconds betw
 | `ics_subscriptions` | `3600` | no |
 | `carddav_auto` | `600` | no |
 | `watch` | `60` | no |
+| `andromeda_watch` | `300` | no |
 | `personal_reconcile` | `120` | no |
 | `automatic_backup` | `3600` | no |
 | `proactive` | `_interval_seconds()` | no |

@@ -317,6 +317,8 @@
       "aide_tools": [],
       "automated_tests": [
         "tests/test_andromeda_phase4.py",
+        "tests/test_andromeda_features.py",
+        "tests/test_andromeda_watch.py",
         "tests/js/andromeda_phase4.test.mjs",
         "tests/pw_afterlife_andromeda.py"
       ],
@@ -340,7 +342,9 @@
           "#search-modal"
         ],
         "cli_commands": [],
-        "jobs": [],
+        "jobs": [
+          "andromeda_watch"
+        ],
         "automation_actions": [],
         "integrations": [],
         "pwa_functions": [],

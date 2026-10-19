@@ -62,7 +62,7 @@ class AfterlifePhase0InventoryTest(unittest.TestCase):
         source = (ROOT / "app.py").read_text("utf-8")
         jobs = set(re.findall(r'jobs\.register\(\s*"([^"]+)"', source))
 
-        self.assertEqual(len(jobs), 26)
+        self.assertEqual(len(jobs), 27)
         for job in jobs:
             self.assertIn(f"`{job}`", document, f"missing registered job: {job}")
 
