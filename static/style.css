@@ -9075,11 +9075,49 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-claim { max-width: 68ch; margin: 0; color: var(--text); font-size: 14px; font-weight: 420; line-height: 1.58; }
 .andromeda-claim + .andromeda-claim { margin-top: 9px; }
 .andromeda-citations { display: inline-flex; gap: 3px; margin-inline-start: 5px; vertical-align: 0.12em; }
-.andromeda-citation {
-  min-width: 17px; height: 17px; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--andromeda-line); border-radius: 2px; color: var(--muted); font-size: 0.75rem; text-decoration: none;
+.andromeda-view .andromeda-citations { display: flex; flex-wrap: wrap; gap: 0 4px; margin: 0 0 0 -9px; vertical-align: baseline; }
+/* sources sit on their own row under the claim: each is a full 44px target (kokuen) */
+.andromeda-view .andromeda-citation {
+  width: auto; min-width: 0; height: auto; display: inline-flex; align-items: center; padding: 0 8px;
+  border: 1px solid transparent; border-radius: 2px; background: transparent;
+  color: var(--muted); font: inherit; font-size: 12px; font-weight: 400; line-height: 1.2; white-space: nowrap; cursor: pointer;
 }
-.andromeda-citation:hover { border-color: var(--andromeda-strong-line); color: var(--text); }
+.andromeda-view .andromeda-citation:hover { color: var(--text); background: var(--k-hover, var(--panel)); }
+.andromeda-view .andromeda-citation[aria-expanded="true"] { border-color: var(--andromeda-strong-line); color: var(--text); }
+.andromeda-view .andromeda-source-card {
+  display: grid; gap: 4px; max-width: 68ch; margin: 8px 0 12px; padding: 12px 16px;
+  border-inline-start: 2px solid var(--andromeda-strong-line); background: color-mix(in srgb, var(--panel) 86%, var(--bg));
+}
+.andromeda-view .andromeda-source-card blockquote { margin: 0 0 4px; color: var(--text); font-size: 14px; line-height: 1.55; }
+.andromeda-view .andromeda-source-card-title { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; color: var(--text); font-size: 14px; font-weight: 540; text-underline-offset: 0.2em; }
+.andromeda-view .andromeda-source-card-meta { color: var(--muted); font-size: 12px; }
+.andromeda-view .andromeda-thread { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; margin: 0 0 4px; color: var(--muted); font-size: 12px; }
+.andromeda-view .andromeda-thread-turn {
+  min-height: 44px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px;
+  text-decoration: underline; text-decoration-color: var(--andromeda-line); text-underline-offset: 0.2em; cursor: pointer;
+}
+.andromeda-view .andromeda-thread-turn:hover { color: var(--text); }
+.andromeda-view .andromeda-overview-actions { display: flex; flex-wrap: wrap; gap: 0 24px; margin-top: 16px; }
+.andromeda-view .andromeda-overview-actions .andromeda-evidence-toggle { margin-top: 0; }
+.andromeda-view .andromeda-overview-actions .andromeda-text-action { min-height: 44px; font-size: 13px; }
+.andromeda-view .andromeda-follow { display: grid; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--andromeda-line); }
+.andromeda-view .andromeda-follow-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.andromeda-view .andromeda-follow-chips[hidden] { display: none; }
+.andromeda-view .andromeda-follow-chip {
+  min-height: 44px; max-width: 100%; padding: 0 12px; border: 1px solid var(--andromeda-line); border-radius: 2px;
+  background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: start; cursor: pointer;
+}
+.andromeda-view .andromeda-follow-chip:hover { border-color: var(--andromeda-strong-line); background: var(--k-hover, var(--panel)); }
+.andromeda-view .andromeda-follow-form { display: flex; align-items: center; gap: 8px; max-width: 68ch; }
+.andromeda-view .andromeda-follow-form input {
+  flex: 1; min-width: 0; min-height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--andromeda-line);
+  background: transparent; color: var(--text); font: inherit; font-size: 14px;
+}
+.andromeda-view .andromeda-follow-form button {
+  min-height: 44px; padding: 0 12px; border: 1px solid var(--andromeda-strong-line); border-radius: 2px;
+  background: transparent; color: var(--text); font: inherit; font-size: 13px; cursor: pointer;
+}
+.andromeda-view .andromeda-blocked-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; margin-top: 16px; color: var(--muted); font-size: 13px; }
 .andromeda-evidence-toggle { margin-top: 16px; }
 .andromeda-evidence { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--andromeda-line); }
 .andromeda-evidence-source + .andromeda-evidence-source { margin-top: 14px; }

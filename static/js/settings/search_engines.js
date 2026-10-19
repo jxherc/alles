@@ -29,6 +29,31 @@ function _options(withNone) {
   return withNone ? [{ value: 'none', label: 'none' }, ...rows] : [...rows, { value: 'disabled', label: 'disabled' }];
 }
 
+// ── hidden sites ──
+function renderHiddenSites() {
+  const list = $('s-hidden-sites-list');
+  if (!list) return;
+  const sites = Array.isArray(_settings.andromeda_blocked_sites) ? _settings.andromeda_blocked_sites : [];
+  list.innerHTML = sites.length ? sites.map(site => `
+    <div class="settings-list-row">
+      <div class="row-name" style="flex:1;min-width:0">${_esc(site)}</div>
+      <button type="button" class="btn" data-hidden-site="${_esc(site)}" aria-label="show ${_esc(site)} again">show again</button>
+    </div>`).join('') : '<div class="s-card-hint">no hidden sites</div>';
+}
+
+async function saveHiddenSites(sites, message) {
+  const status = $('s-hidden-sites-status');
+  const saved = await _patchSettings({ andromeda_blocked_sites: sites });
+  if (!saved) {
+    if (status) { status.textContent = 'not saved; use a site name like example.com'; status.dataset.state = 'error'; }
+    return false;
+  }
+  _settings = { ..._settings, andromeda_blocked_sites: saved.andromeda_blocked_sites || [] };
+  renderHiddenSites();
+  if (status) { status.textContent = message; status.dataset.state = ''; }
+  return true;
+}
+
 export async function loadSearchEngines(settings) {
   _settings = settings || {};
   _engines = (await _json('/api/search/engines')).engines || [];
@@ -40,6 +65,7 @@ export async function loadSearchEngines(settings) {
   updateEngineFields();
   updateSearchStatus();
   renderCustomList();
+  renderHiddenSites();
 }
 
 export function updateEngineFields() {
@@ -243,6 +269,21 @@ export function wireSearchEngines() {
     });
     wireChoiceGroup(method);
   }
+  $('s-hidden-sites-form')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const input = $('s-hidden-site');
+    const site = input.value.trim();
+    if (!site) { input.focus(); return; }
+    const current = _settings.andromeda_blocked_sites || [];
+    if (await saveHiddenSites([...current, site], `${site} is hidden`)) input.value = '';
+  });
+  $('s-hidden-sites-list')?.addEventListener('click', async event => {
+    const button = event.target.closest('[data-hidden-site]');
+    if (!button) return;
+    const site = button.dataset.hiddenSite;
+    const sites = (_settings.andromeda_blocked_sites || []).filter(value => value !== site);
+    if (await saveHiddenSites(sites, `${site} shows in results again`)) $('s-hidden-site')?.focus();
+  });
   $('s-custom-search-list')?.addEventListener('click', event => {
     const edit = event.target.closest('[data-custom-edit]');
     const remove = event.target.closest('[data-custom-remove]');

@@ -7395,3 +7395,18 @@ html[data-kokuen-version="5"] .andromeda-switch[aria-checked="true"] > span {
   flex: 1;
   text-align: right;
 }
+
+.s-hidden-site-label {
+  margin-top: var(--k-space-4);
+}
+
+.s-hidden-sites-form {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+}
+
+.s-hidden-sites-form input {
+  flex: 1;
+  min-width: 0;
+}

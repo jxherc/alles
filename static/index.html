@@ -28,8 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=533">
-  <link rel="stylesheet" href="/static/kokuen.css?v=61">
+<link rel="stylesheet" href="/static/style.css?v=535">
+  <link rel="stylesheet" href="/static/kokuen.css?v=63">
 <link rel="stylesheet" href="/static/aidecentral.css?v=3">
 <link rel="stylesheet" href="/static/aidecoding.css?v=5">
 <link rel="stylesheet" href="/static/aidecall.css?v=2">
@@ -286,6 +286,7 @@
               <div id="andromeda-overview-state" class="andromeda-overview-state" role="status" aria-live="polite"></div>
               <button class="andromeda-text-action" id="andromeda-cancel-overview" type="button" data-i18n="common.stop" hidden>stop</button>
             </div>
+            <nav class="andromeda-thread" id="andromeda-thread" aria-label="earlier questions in this thread" hidden></nav>
             <div class="andromeda-key-answer" id="andromeda-key-answer" hidden>
               <span data-i18n="andromeda.key_answer">key answer</span>
               <strong id="andromeda-key-answer-text"></strong>
@@ -299,7 +300,10 @@
               </div>
               <div id="andromeda-verification-details" class="andromeda-verification-details" hidden></div>
             </div>
-            <button class="andromeda-text-action andromeda-evidence-toggle" id="andromeda-evidence-toggle" type="button" aria-expanded="false" aria-controls="andromeda-evidence" data-i18n="andromeda.show_sources" hidden>show sources</button>
+            <div class="andromeda-overview-actions">
+              <button class="andromeda-text-action andromeda-evidence-toggle" id="andromeda-evidence-toggle" type="button" aria-expanded="false" aria-controls="andromeda-evidence" data-i18n="andromeda.show_sources" hidden>show sources</button>
+              <button class="andromeda-text-action" id="andromeda-deeper" type="button" hidden>go deeper</button>
+            </div>
             <div id="andromeda-evidence" class="andromeda-evidence" hidden></div>
             <div id="andromeda-recovery" class="andromeda-recovery" hidden>
               <button type="button" data-andromeda-recovery="retry" data-i18n="common.retry">retry</button>
@@ -307,8 +311,16 @@
               <button type="button" data-andromeda-recovery="edit" data-i18n="andromeda.edit_query">edit query</button>
               <button type="button" data-andromeda-recovery="results" data-i18n="andromeda.normal_results">normal results</button>
             </div>
+            <div class="andromeda-follow" id="andromeda-follow" hidden>
+              <div class="andromeda-follow-chips" id="andromeda-follow-chips" role="group" aria-label="suggested follow-ups"></div>
+              <form class="andromeda-follow-form" id="andromeda-follow-form" role="search" aria-label="follow-up question">
+                <input id="andromeda-follow-input" type="text" maxlength="300" autocomplete="off" enterkeyhint="send" placeholder="ask a follow-up" aria-label="ask a follow-up">
+                <button type="submit" id="andromeda-follow-send">ask</button>
+              </form>
+            </div>
           </section>
 
+          <div class="andromeda-blocked-notice" id="andromeda-blocked-notice" role="status" aria-live="polite" hidden><span id="andromeda-blocked-text"></span><button class="andromeda-text-action" id="andromeda-blocked-undo" type="button">undo</button></div>
           <section class="andromeda-result-view" id="andromeda-all-results" data-andromeda-view="all" aria-labelledby="andromeda-results-title" hidden>
             <div class="andromeda-view-head"><h2 id="andromeda-results-title" data-i18n="andromeda.web_results">web results</h2><span data-i18n="andromeda.normal_results">normal results</span></div>
             <div id="andromeda-results" class="andromeda-results"></div>
@@ -2101,6 +2113,19 @@
               </form>
             </div>
           </div>
+          <div class="s-card" role="region" aria-labelledby="s-hidden-sites-head">
+            <div class="s-card-head" id="s-hidden-sites-head">hidden sites</div>
+            <div class="s-card-body">
+              <div class="s-card-hint">andromeda leaves these sites, and their subdomains, out of every result list.</div>
+              <div class="settings-list" id="s-hidden-sites-list"></div>
+              <label class="s-field-label s-hidden-site-label" for="s-hidden-site">site to hide</label>
+              <form class="s-hidden-sites-form" id="s-hidden-sites-form" novalidate>
+                <input type="text" class="settings-input" id="s-hidden-site" maxlength="253" autocomplete="off" spellcheck="false" aria-describedby="s-hidden-sites-status">
+                <button type="submit" class="btn" id="s-hidden-site-add">hide site</button>
+              </form>
+              <div class="s-search-status" id="s-hidden-sites-status" role="status" aria-live="polite"></div>
+            </div>
+          </div>
           <div class="s-card">
             <div class="s-card-head">andromeda</div>
             <div class="s-card-body">
@@ -2982,7 +3007,7 @@
 </div>
 
 <script type="module">
-const _v = '533';
+const _v = '535';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

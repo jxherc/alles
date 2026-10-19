@@ -33,6 +33,9 @@ let _explainBusy = false;
 let _selectedResultIndex = -1;
 let _openResultMenu = null;
 let _resultSummaryAbort = null;
+let _sourceCardSeq = 0;
+let _openSourceCard = null;
+let _lastHidden = null;
 
 const SAVE_PREFIX = 'alles.andromeda.pending.v1:';
 
@@ -47,6 +50,8 @@ function freshState() {
     overview: {}, evidence: [], model: {}, verification: {}, verifierModel: {},
     hasMore: false, usedNoAi: false,
     resultStatus: 'empty', providerDisabled: false, documentScope: null,
+    // earlier questions in this thread, sent with the overview so "it" means something
+    context: [], followUpOf: '', deep: false,
   };
 }
 
@@ -248,6 +253,120 @@ function clearOverview(message = '') {
   text('andromeda-key-answer-text', '');
   text('andromeda-overview-state', message);
   showRecovery(false);
+  closeSourceCard();
+  const follow = el('andromeda-follow');
+  if (follow) follow.hidden = true;
+  const deeper = el('andromeda-deeper');
+  if (deeper) deeper.hidden = true;
+  renderThread();
+}
+
+// ── follow-ups and "go deeper" ──
+function renderFollowUps(questions = []) {
+  const follow = el('andromeda-follow');
+  const chips = el('andromeda-follow-chips');
+  if (!follow || !chips) return;
+  chips.replaceChildren(...(questions || []).slice(0, 3).map(question => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'andromeda-follow-chip';
+    chip.textContent = question;
+    chip.addEventListener('click', () => askFollowUp(question));
+    return chip;
+  }));
+  chips.hidden = !chips.children.length;
+  const input = el('andromeda-follow-input');
+  if (input) input.value = '';
+  follow.hidden = false;
+}
+
+function renderThread() {
+  const nav = el('andromeda-thread');
+  if (!nav) return;
+  const turns = _state.context || [];
+  nav.replaceChildren();
+  nav.hidden = !turns.length;
+  if (!turns.length) return;
+  const label = document.createElement('span');
+  label.textContent = 'following up on';
+  nav.append(label);
+  turns.forEach((turn, index) => {
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'andromeda-thread-turn';
+    back.textContent = turn.question;
+    back.setAttribute('aria-label', `search again: ${turn.question}`);
+    back.addEventListener('click', () => void runAndromedaSearch(turn.question, {
+      context: turns.slice(0, index), followUpOf: turns[index - 1]?.question || '',
+    }));
+    nav.append(back);
+  });
+}
+
+export function followUpContext(state = _state) {
+  const answer = state.overview?.key_answer?.text || state.overview?.summary || '';
+  return [...(state.context || []), { question: state.query, answer: String(answer).slice(0, 600) }].slice(-3);
+}
+
+function askFollowUp(question) {
+  const value = String(question || '').trim();
+  if (!value || !_state.query) return;
+  void runAndromedaSearch(value, { context: followUpContext(), followUpOf: _state.query });
+}
+
+const sameSite = (url, host) => {
+  const name = hostOf(url);
+  return name === host || name.endsWith(`.${host}`);
+};
+
+async function patchHiddenSites(change) {
+  const current = await jsonRequest('/api/settings');
+  await jsonRequest('/api/settings', {
+    method: 'PATCH', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ andromeda_blocked_sites: change(current.andromeda_blocked_sites || []) }),
+  });
+}
+
+// "hide this site" keeps it out of every later search; undo puts it back
+async function hideSite(result) {
+  const host = hostOf(result.url);
+  if (!host) return;
+  try {
+    await patchHiddenSites(list => [...new Set([...list, host])]);
+  } catch (error) {
+    status(failureMessage(error.message || 'this site could not be hidden; try again', error));
+    return;
+  }
+  _lastHidden = { host, results: _state.results };
+  _state.results = _state.results.filter(row => !sameSite(row.url, host));
+  renderAndromedaResults(_state.results, _state.results.length ? 'ready' : 'empty', category());
+  text('andromeda-blocked-text', `${host} is hidden from results. hidden sites are listed in settings → search.`);
+  const notice = el('andromeda-blocked-notice');
+  if (notice) notice.hidden = false;
+  el('andromeda-blocked-undo')?.focus();
+}
+
+async function undoHideSite() {
+  const last = _lastHidden;
+  if (!last) return;
+  try {
+    await patchHiddenSites(list => list.filter(site => site !== last.host));
+  } catch (error) {
+    status(failureMessage(error.message || 'the site could not be shown again; try again', error));
+    return;
+  }
+  _lastHidden = null;
+  _state.results = last.results;
+  renderAndromedaResults(_state.results, _state.results.length ? 'ready' : 'empty', category());
+  const notice = el('andromeda-blocked-notice');
+  if (notice) notice.hidden = true;
+  el('andromeda-query')?.focus();
+}
+
+function goDeeper() {
+  if (!_state.query || !(_state.overviewSeed || []).length || _overviewAbort) return;
+  _state.deep = true;
+  void startOverview(_state.query, _state.overviewSeed, _searchGeneration, { deep: true });
 }
 
 function showRecovery(show, kind = '') {
@@ -592,6 +711,7 @@ function resultNode(result, savedItems = null, index = 0) {
   };
   addMenuItem('summarize page', () => void startResultSummary(result, summaryRefs), 'summarize');
   addMenuItem('copy link', () => void copyResultLink(result, receipt), 'copy');
+  if (hostOf(result.url)) addMenuItem(`hide ${hostOf(result.url)}`, () => void hideSite(result), 'hide-site');
   const library = libraryControl(result, false, savedItems, receipt);
   library.button.role = 'menuitem';
   library.button.className = '';
@@ -902,18 +1022,78 @@ function renderEvidence(sources) {
   if (toggle) toggle.hidden = !_state.evidence.length;
 }
 
-function citationNodes(claim) {
+function hostOf(value) {
+  const url = safeUrl(value);
+  return url ? url.hostname.replace(/^www\./, '') : '';
+}
+
+const SOURCE_KIND_LABELS = new Set(['official docs', 'release notes', 'source repository', 'package registry']);
+
+function closeSourceCard({ restoreFocus = false } = {}) {
+  if (!_openSourceCard) return;
+  const { card, chip } = _openSourceCard;
+  _openSourceCard = null;
+  card.remove();
+  chip.setAttribute('aria-expanded', 'false');
+  if (restoreFocus && chip.isConnected) chip.focus();
+}
+
+// the source behind a claim opens in place: the exact quote, the page, its date
+function toggleSourceCard(chip, citation, anchor) {
+  const same = _openSourceCard?.chip === chip;
+  closeSourceCard();
+  if (same) return;
+  const card = document.createElement('div');
+  card.className = 'andromeda-source-card';
+  card.id = `andromeda-source-card-${++_sourceCardSeq}`;
+  card.setAttribute('role', 'group');
+  card.setAttribute('aria-label', `source for this claim: ${citation.title || hostOf(citation.url)}`);
+  const quote = document.createElement('blockquote');
+  quote.textContent = citation.quote || '';
+  const url = safeUrl(citation.url);
+  const link = document.createElement('a');
+  link.className = 'andromeda-source-card-title';
+  link.textContent = citation.title || hostOf(citation.url) || 'source';
+  if (url) { link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer'; }
+  const evidence = (_state.evidence || []).find(item => item.id === citation.source_id);
+  const meta = document.createElement('div');
+  meta.className = 'andromeda-source-card-meta';
+  meta.textContent = [
+    hostOf(citation.url),
+    evidence?.dates?.[0] || '',
+    SOURCE_KIND_LABELS.has(citation.source_kind) ? citation.source_kind : '',
+  ].filter(Boolean).join(' · ');
+  card.append(quote, link, meta);
+  card.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); closeSourceCard({ restoreFocus: true }); }
+  });
+  anchor.after(card);
+  chip.setAttribute('aria-expanded', 'true');
+  chip.setAttribute('aria-controls', card.id);
+  _openSourceCard = { card, chip };
+}
+
+function citationNodes(claim, anchor = null) {
   const refs = document.createElement('span');
   refs.className = 'andromeda-citations';
+  const seen = new Map();
   (claim.citations || []).forEach((citation, index) => {
-    const link = document.createElement('a');
-    link.className = 'andromeda-citation';
-    link.href = safeUrl(citation.url)?.href || '#andromeda-evidence';
-    link.target = safeUrl(citation.url) ? '_blank' : '';
-    link.rel = safeUrl(citation.url) ? 'noopener noreferrer' : '';
-    link.textContent = String(index + 1);
-    link.setAttribute('aria-label', `source ${index + 1}: ${citation.title || 'citation'}`);
-    refs.appendChild(link);
+    const host = hostOf(citation.url) || `source ${index + 1}`;
+    const count = (seen.get(host) || 0) + 1;
+    seen.set(host, count);
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'andromeda-citation';
+    chip.textContent = count > 1 ? `${host} ${count}` : host;
+    chip.setAttribute('aria-expanded', 'false');
+    chip.setAttribute('aria-label', `show the quote from ${citation.title || host}`);
+    chip.addEventListener('click', () => toggleSourceCard(chip, citation, anchor || refs.parentElement || refs));
+    chip.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && chip.getAttribute('aria-expanded') === 'true') {
+        event.preventDefault(); closeSourceCard({ restoreFocus: true });
+      }
+    });
+    refs.appendChild(chip);
   });
   return refs;
 }
@@ -933,7 +1113,7 @@ function renderKeyAnswer(claim) {
   } else {
     value.append(document.createTextNode(claim.text || ''));
   }
-  value.append(citationNodes(claim));
+  value.append(citationNodes(claim, key));
 }
 
 export function answerFocusParts(text, focus) {
@@ -954,7 +1134,7 @@ function renderContextClaim(claim, index) {
   if (!list) return;
   const node = document.createElement('p');
   node.className = 'andromeda-claim';
-  node.append(document.createTextNode(claim.text || ''), citationNodes(claim));
+  node.append(document.createTextNode(claim.text || ''), citationNodes(claim, node));
   node.dataset.claim = String(index);
   list.appendChild(node);
 }
@@ -983,8 +1163,12 @@ function renderCompleteOverview(overview) {
   contextClaims.forEach((claim, index) => renderContextClaim(claim, index));
   const freshness = _state.overview.freshness || {};
   const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: freshness.checked_on })}` : '';
+  renderThread();
+  renderFollowUps(_state.overview.status === 'ready' ? _state.overview.follow_ups : []);
+  const deeper = el('andromeda-deeper');
+  if (deeper) deeper.hidden = _state.deep || !(_state.overviewSeed || []).length;
   if (_state.overview.status === 'ready') {
-    text('andromeda-overview-state', `${tr('andromeda.checked_sources')}${checked}`);
+    text('andromeda-overview-state', `${tr('andromeda.checked_sources')}${checked}${_state.deep ? ' · deeper read' : ''}`);
     showRecovery(false);
   } else {
     text('andromeda-overview-state', `${tr('andromeda.insufficient_evidence')}${checked}`);
@@ -1213,7 +1397,7 @@ function stopOverview() {
   if (stop) stop.hidden = true;
 }
 
-async function startOverview(query, results, searchGeneration) {
+async function startOverview(query, results, searchGeneration, options = {}) {
   if (searchGeneration !== _searchGeneration) return;
   _overviewAbort?.abort();
   const controller = new AbortController();
@@ -1259,6 +1443,7 @@ async function startOverview(query, results, searchGeneration) {
       body: JSON.stringify({
         query, results, band: providerValue('andromeda-band', 'standard'),
         endpoint_id: exact.endpoint_id || '', model: exact.model || '', ...confirmation,
+        context: _state.context || [], depth: options.deep ? 'deep' : 'standard',
       }),
     });
     if (!current()) {
@@ -1343,10 +1528,15 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     category: currentCategory,
     documentScope: options.documentScope || null,
     usedNoAi: /(^|\s)!ai(?=\s|$)/i.test(query),
+    context: Array.isArray(options.context) ? options.context.slice(-3) : [],
+    followUpOf: String(options.followUpOf || ''),
   };
   renderAndromedaResults([], 'loading', currentCategory);
   clearOverview();
   clearVerificationView();
+  _lastHidden = null;
+  const hiddenNotice = el('andromeda-blocked-notice');
+  if (hiddenNotice) hiddenNotice.hidden = true;
   const wantsOverview = currentCategory === 'all'
     && pressed('andromeda-overview-toggle')
     && !/(^|\s)!ai(?=\s|$)/i.test(query);
@@ -1359,6 +1549,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     normal_results: pressed('andromeda-results-toggle'),
     overview: wantsOverview,
     max_results: pageSize(currentCategory),
+    follow_up_of: _state.followUpOf,
   };
   _state.request = { ...request, band: providerValue('andromeda-band', 'standard') };
   try {
@@ -2401,6 +2592,12 @@ function bindOnce() {
   _bound = true;
   initCustomDropdowns(el('andromeda-view'));
   wireSearchFocusPresentation();
+  el('andromeda-follow-form')?.addEventListener('submit', event => {
+    event.preventDefault();
+    askFollowUp(el('andromeda-follow-input')?.value);
+  });
+  el('andromeda-deeper')?.addEventListener('click', goDeeper);
+  el('andromeda-blocked-undo')?.addEventListener('click', () => void undoHideSite());
   el('andromeda-form')?.addEventListener('submit', event => {
     event.preventDefault();
     runAndromedaSearch();

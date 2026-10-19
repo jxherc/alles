@@ -857,6 +857,19 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **compact answer, separate links.** search, the cited answer, and results share one readable axis. the
   shortest decisive evidence-backed substring is highlighted inside the key answer. ordinary web results
   begin in their own labeled region and use spacing instead of divider lines between rows.
+- **sources in place.** each claim lists its sources by site name on its own row under the claim.
+  choosing one opens a card in place with the exact supporting quote, the page title as a link, the
+  page date when the evidence has one, and the source type for docs, release notes, repositories and
+  registries. escape closes it and returns focus to the source.
+- **follow-ups.** a ready overview offers up to three model-written follow-up questions and a follow-up
+  field. a follow-up keeps up to three earlier questions and answers as context for the overview, shown
+  as a "following up on" trail; a vague follow-up (three words or fewer, or one that leans on "it",
+  "they", "this") searches together with the earlier question. earlier turns are context, never evidence.
+- **go deeper.** after an overview, "go deeper" reads up to 10 pages instead of 6, allows up to five
+  claims and a longer answer, with the same quote checks and remote-model consent.
+- **hidden sites.** "hide <site>" in a result's menu adds the site to `andromeda_blocked_sites`; that
+  site and its subdomains leave every later result list. the page shows an undo, and settings → search
+  lists hidden sites with "show again".
 - **recovery stays useful.** timeout, offline, missing provider, missing model, bad extraction, bad model
   output, and cancellation keep links when available and show the safe failure type, attempted
   providers, and retry/broaden/edit/return actions.
@@ -3718,6 +3731,7 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `serper_api_key` | `""` |
 | `exa_api_key` | `""` |
 | `custom_search_engines` | `[]` |
+| `andromeda_blocked_sites` | `[]` |
 | `search_fallback` | `"duckduckgo"` |
 | `andromeda_normal_results` | `true` |
 | `andromeda_overview` | `true` |

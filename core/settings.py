@@ -101,6 +101,8 @@ _defaults = {
     "google_pse_cx": "",
     "serper_api_key": "",
     "exa_api_key": "",
+    "custom_search_engines": [],
+    "andromeda_blocked_sites": [],
     "search_fallback": "duckduckgo",
     "andromeda_normal_results": True,
     "andromeda_overview": True,

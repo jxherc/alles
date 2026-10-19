@@ -356,6 +356,7 @@ class SettingsPatch(BaseModel):
     exa_api_key: str | None = None
     # engine id -> key; "" clears it. covers every engine in services/research/engines.py
     search_keys: dict[str, str] | None = None
+    andromeda_blocked_sites: list[str] | None = None
     search_fallback: str | None = None
     andromeda_normal_results: bool | None = None
     andromeda_overview: bool | None = None
@@ -624,6 +625,13 @@ def patch_settings(body: SettingsPatch, request: Request):
             patch["model_roles"] = normalize_model_roles(patch["model_roles"])
         except ValueError as exc:
             raise ApiError(400, "invalid_model_roles", str(exc)) from exc
+    if "andromeda_blocked_sites" in patch:
+        from services.andromeda import MAX_BLOCKED_SITES, blocked_site, blocked_sites
+
+        raw = patch["andromeda_blocked_sites"]
+        if len(raw) > MAX_BLOCKED_SITES or any(not blocked_site(value) for value in raw):
+            raise ApiError(400, "invalid_blocked_site", "use site names like example.com")
+        patch["andromeda_blocked_sites"] = blocked_sites(raw)
     if "search_keys" in patch:
         for engine_id, value in patch.pop("search_keys").items():
             engine = SEARCH_ENGINES.get(engine_id)

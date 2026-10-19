@@ -66,6 +66,8 @@ class SearchBody(BaseModel):
     category: Literal["all", "images", "news", "videos"] = "all"
     # any engine from services/research/engines.py, a custom one, or "disabled"
     provider: str = Field(default="", max_length=40)
+    # the question this one follows up; a vague follow-up searches with it as context
+    follow_up_of: str = Field(default="", max_length=2_000)
 
 
 @router.get("/providers")
@@ -107,8 +109,13 @@ async def search(body: SearchBody):
     }
     count = body.max_results or default_counts[body.category]
     search_needed = bool(normal_enabled or parsed.overview)
+    search_text = (
+        andromeda.follow_up_query(parsed.query, body.follow_up_of)
+        if body.follow_up_of
+        else parsed.query
+    )
     result = await andromeda.normal_search(
-        parsed.query,
+        search_text,
         enabled=search_needed,
         max_results=count,
         category=body.category,
@@ -176,6 +183,9 @@ class OverviewBody(BaseModel):
     model: str = Field(default="", max_length=300)
     confirmed_endpoint_id: str = Field(default="", max_length=100)
     confirmed_model: str = Field(default="", max_length=300)
+    # earlier questions in this thread, oldest first; only their text is sent to the model
+    context: list[dict] = Field(default_factory=list, max_length=6)
+    depth: Literal["standard", "deep"] = "standard"
 
 
 @router.post("/overview")
@@ -217,6 +227,7 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
             "confirm the shown model before the query and source evidence leave Alles",
         )
     rows = andromeda.normalize_results(body.results, "client", 0)
+    deep = body.depth == "deep"
     endpoint_url = selected.endpoint.base_url
     endpoint_key = selected.endpoint.api_key
     model = selected.model
@@ -225,7 +236,7 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
         started = asyncio.get_running_loop().time()
         yield _event({"type": "model", "model": public_model, "band": band})
         try:
-            evidence = await andromeda.build_evidence(parsed.query, rows)
+            evidence = await andromeda.build_evidence(parsed.query, rows, deep=deep)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -251,11 +262,17 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
 
         try:
             max_tokens = int(settings.get("andromeda_answer_max_tokens") or 450)
+            if deep:
+                max_tokens = int(max_tokens * 1.6)
             timeout_seconds = int(settings.get("andromeda_answer_timeout_seconds") or 50)
             raw = await asyncio.wait_for(
                 simple_complete(
                     andromeda.overview_prompt(
-                        parsed.query, evidence, andromeda.freshness_summary(parsed.query, evidence)
+                        parsed.query,
+                        evidence,
+                        andromeda.freshness_summary(parsed.query, evidence),
+                        context=body.context,
+                        deep=deep,
                     ),
                     endpoint_url,
                     endpoint_key,
