@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -200,14 +201,34 @@ try:
             # new chat, then delete it
             page.locator("[data-new-chat]").click()
             expect(page.locator("#aide-code-title")).to_have_text("new chat")
-            page.locator("#aide-code-input").fill("second job")
+            expect(page.locator("#aide-code-harness-label")).to_have_text("pi")
+            page.locator("#aide-code-input").fill("second job with ||abc123xyz9||")
             page.locator("#aide-code-input").press("Enter")
             wait_idle(page)
             expect(page.locator(".acw-chat-title")).to_have_count(2)
+            # the marked secret is never on screen or in what pi got
+            expect(page.locator(".acw-user").last).to_have_text(
+                "second job with {{secret:secret_1}}"
+            )
+            assert "abc123xyz9" not in page.content()
             page.locator("#aide-code-delete").click()
             page.locator(".dialog-overlay [data-dialog-confirm]").click()
             expect(page.locator(".acw-chat-title")).to_have_count(1)
             expect(page.locator("#aide-code-title")).to_have_text("new chat")
+            # the harness list: pi is the default, omp is one click away
+            page.locator("#aide-code-harness").click()
+            menu = page.locator("#aide-code-harness-menu")
+            expect(menu.get_by_role("menuitemradio", name=re.compile(r"^pi\b"))).to_have_attribute(
+                "aria-checked", "true"
+            )
+            menu.get_by_role("menuitem", name="more harnesses…").click()
+            rows = page.locator(".acw-harness-row")
+            expect(rows.first).to_contain_text("pi")
+            expect(rows.first).to_contain_text("default")
+            expect(page.locator(".acw-harness-row", has_text="oh-my-pi")).to_contain_text(
+                "open source"
+            )
+            page.screenshot(path=str(out / "aide-coding-harnesses-dark.png"))
             desktop.close()
 
             phone = context_for(browser, width=390, theme="light")

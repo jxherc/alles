@@ -34,7 +34,8 @@ class PiTest(ApiTest):
         self.data = root / "data"
         self.data.mkdir()
         # only pi's own folder moves; alles's data dir (and its secret key) stays put
-        self.env = mock.patch.dict(os.environ, {"ALLES_PI_BIN": str(fake_bin(root))})
+        fake = str(fake_bin(root))
+        self.env = mock.patch.dict(os.environ, {"ALLES_PI_BIN": fake, "ALLES_OMP_BIN": fake})
         self.env.start()
         self.home = mock.patch.object(pi_agent, "data_dir", lambda: self.data)
         self.home.start()
@@ -172,6 +173,266 @@ class ChatRuntimeTest(PiTest):
         self.assertEqual(question["title"], "trust?")
         saved = pi_agent.transcript("proj1", chat_id)
         self.assertEqual(saved["items"][-1]["text"], "done with ask first trusted=True")
+
+
+class OmpAndAcpTest(PiTest):
+    def project(self):
+        return SimpleNamespace(id="proj1", path=str(self.project_dir))
+
+    def test_omp_runs_through_the_same_driver(self):
+        self.add_endpoint()
+
+        async def flow():
+            with self.db() as session:
+                choice = pi_agent.resolve_choice(session)
+                chat = await pi_agent.open_chat(session, self.project(), None, choice, "omp")
+            seen = asyncio.Queue()
+            chat.listeners.add(seen)
+            await chat.send("tidy up")
+            while (await asyncio.wait_for(seen.get(), 10))["kind"] != "idle":
+                pass
+            await chat.close()
+            return chat.id
+
+        chat_id = asyncio.run(flow())
+        models = json.loads((pi_agent.agent_dir("omp") / "models.yml").read_text())
+        provider = next(iter(models["providers"].values()))
+        self.assertTrue(
+            provider["apiKey"].startswith("ALLES_PI_KEY_")
+        )  # an env var name, not a key
+        self.assertNotIn("sk-test-secret", (pi_agent.agent_dir("omp") / "models.yml").read_text())
+        self.assertEqual(pi_agent.find_chat("proj1", chat_id)[1], "omp")
+        saved = pi_agent.transcript("proj1", chat_id)
+        self.assertEqual(
+            (saved["harness"], saved["items"][-1]["text"]), ("omp", "done with tidy up")
+        )
+        self.assertEqual(pi_agent.list_chats("proj1")[0]["harness"], "omp")
+
+    def acp_entry(self):
+        return {"id": "fake-acp", "name": "Fake ACP"}, [
+            sys.executable,
+            "-I",
+            str(FAKE.parent / "fake_acp.py"),
+        ]
+
+    def test_an_acp_harness_streams_asks_and_switches_models(self):
+        from services import acp_agent
+
+        entry, command = self.acp_entry()
+
+        async def flow():
+            chat = acp_agent.AcpChat(self.project(), entry, command, {})
+            await chat.start()
+            seen = asyncio.Queue()
+            chat.listeners.add(seen)
+            await chat.send("ask then read")
+            events = []
+            while (event := await asyncio.wait_for(seen.get(), 10))["kind"] != "idle":
+                events.append(event)
+                if event["kind"] == "question":
+                    await chat.answer(event["id"], "Allow once")
+            models = [m["model"] for m in chat.models]
+            await chat.set_model({"model": "fake-large"})
+            await chat.send("again")
+            while (await asyncio.wait_for(seen.get(), 10))["kind"] != "idle":
+                pass
+            await chat.close()
+            return chat.id, events, models, chat.stats
+
+        chat_id, events, models, stats = asyncio.run(flow())
+        kinds = [e["kind"] for e in events]
+        self.assertIn("question", kinds)
+        self.assertEqual(
+            next(e for e in events if e["kind"] == "question")["options"], ["Allow once", "Reject"]
+        )
+        self.assertIn("tool", kinds)
+        self.assertEqual(
+            next(e for e in events if e["kind"] == "tool_done")["output"], "hello from notes"
+        )
+        self.assertEqual(models, ["fake-small", "fake-large"])
+        self.assertEqual(stats["context_percent"], 2.0)
+        saved = pi_agent.transcript("proj1", chat_id)
+        self.assertEqual(saved["harness"], "fake-acp")
+        texts = [i["text"] for i in saved["items"] if i["kind"] == "assistant"]
+        # text before a tool call is its own block, like the live view shows it
+        self.assertEqual(
+            texts[:2], ["looking. ", "done with ask then read allowed=yes on fake-small"]
+        )
+        self.assertTrue(texts[-1].endswith("on fake-large"))
+        listed = pi_agent.list_chats("proj1")
+        self.assertEqual((listed[0]["harness"], listed[0]["title"]), ("fake-acp", "ask then read"))
+
+    def test_acp_stop_and_resume(self):
+        from services import acp_agent
+
+        entry, command = self.acp_entry()
+
+        async def flow():
+            chat = acp_agent.AcpChat(self.project(), entry, command, {})
+            await chat.start()
+            await chat.send("slow job")
+            await asyncio.sleep(0.3)
+            busy = chat.busy
+            await chat.stop()
+            for _ in range(50):
+                if not chat.busy:
+                    break
+                await asyncio.sleep(0.05)
+            first_session = chat.acp_session
+            chat_id = chat.id
+            await chat.close()
+            again = acp_agent.AcpChat(self.project(), entry, command, {})
+            await again.start({"chat_id": chat_id, "acp_session": first_session})
+            same = (again.id, again.acp_session) == (chat_id, first_session)
+            await again.close()
+            return busy, same, chat_id
+
+        busy, same, chat_id = asyncio.run(flow())
+        self.assertTrue(busy)
+        self.assertTrue(same)
+        notes = [
+            i["text"] for i in pi_agent.transcript("proj1", chat_id)["items"] if i["kind"] == "note"
+        ]
+        self.assertIn("stopped", notes)
+
+
+class SecretsAndBridgeTest(PiTest):
+    def project(self):
+        return SimpleNamespace(id="proj1", path=str(self.project_dir))
+
+    def test_marked_and_known_secrets_never_reach_pi_or_the_saved_chat(self):
+        self.add_endpoint()
+
+        async def flow():
+            with self.db() as session:
+                choice = pi_agent.resolve_choice(session)
+                chat = await pi_agent.open_chat(session, self.project(), None, choice, "pi")
+            seen = asyncio.Queue()
+            chat.listeners.add(seen)
+            await chat.send("save ||hunter2-pass|| and sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz012345")
+            events = []
+            while (event := await asyncio.wait_for(seen.get(), 10))["kind"] != "idle":
+                events.append(event)
+            await chat.close()
+            return chat.id, events, chat.secrets
+
+        chat_id, events, secrets = asyncio.run(flow())
+        self.assertEqual(
+            set(secrets.values()), {"hunter2-pass", "sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz012345"}
+        )
+        shown = json.dumps(events)
+        self.assertNotIn("hunter2", shown)
+        self.assertIn("{{secret:secret_1}}", shown)
+        saved = pi_agent.find_chat("proj1", chat_id)[0].read_text()
+        self.assertNotIn("hunter2", saved)
+        sealed = pi_agent._secrets_file(chat_id).read_text()
+        self.assertNotIn("hunter2", sealed)
+        self.assertEqual(pi_agent.load_secrets(chat_id), secrets)
+        self.assertIn("{{secret:NAME}}", (pi_agent.agent_dir("pi") / "SYSTEM.md").read_text())
+
+    def test_the_bridge_needs_a_live_chat_token_from_this_machine(self):
+        chat = SimpleNamespace(last_active=0)
+        pi_agent._chats["c1"] = chat
+        pi_agent._bridge_tokens["tok"] = "c1"
+        remote = self.client.post(
+            "/pi-bridge/search", json={"query": "x"}, headers={"authorization": "Bearer tok"}
+        )
+        self.assertEqual(remote.status_code, 403)  # the test client isn't this machine
+        local = mock.patch("routes.aide._LOCAL_CLIENTS", {"testclient"})
+        local.start()
+        self.addCleanup(local.stop)
+        try:
+            bad = self.client.post(
+                "/pi-bridge/search", json={"query": "x"}, headers={"authorization": "Bearer nope"}
+            )
+            self.assertEqual(bad.status_code, 401)
+
+            async def found(query, max_results=6):
+                return {
+                    "results": [
+                        {"title": "t", "url": "https://e.test", "snippet": "s", "extra": 1}
+                    ],
+                    "provider": "fake",
+                }
+
+            with mock.patch("services.andromeda.normal_search", side_effect=found):
+                ok = self.client.post(
+                    "/pi-bridge/search",
+                    json={"query": "x", "count": 2},
+                    headers={"authorization": "Bearer tok"},
+                )
+            self.assertEqual(ok.status_code, 200, ok.text)
+            self.assertEqual(
+                ok.json()["results"], [{"title": "t", "url": "https://e.test", "snippet": "s"}]
+            )
+            private = self.client.post(
+                "/pi-bridge/fetch",
+                json={"url": "http://127.0.0.1:22/"},
+                headers={"authorization": "Bearer tok"},
+            )
+            self.assertEqual(private.status_code, 400)
+        finally:
+            pi_agent._chats.pop("c1", None)
+            pi_agent._bridge_tokens.pop("tok", None)
+
+
+class HarnessCatalogTest(PiTest):
+    def test_catalog_marks_open_source_and_installs_safely(self):
+        from services import harnesses
+
+        registry = [
+            {"id": "pi-acp", "license": "MIT", "distribution": {"npx": {"package": "pi-acp@1"}}},
+            {
+                "id": "qwen-code",
+                "name": "Qwen Code",
+                "license": "Apache-2.0",
+                "version": "0.25.3",
+                "distribution": {
+                    "npx": {"package": "@qwen-code/qwen-code@0.25.3", "args": ["--acp"]}
+                },
+            },
+            {"id": "closed", "license": "proprietary", "distribution": {}},
+        ]
+        rows = {e["id"]: harnesses.public(e) for e in harnesses.catalog(registry)}
+        self.assertNotIn("pi-acp", rows)  # pi runs natively instead
+        self.assertEqual(list(rows)[:2], ["pi", "omp"])
+        self.assertIn("deepseek-harness", rows)
+        self.assertTrue(rows["qwen-code"]["open_source"])
+        self.assertFalse(rows["closed"]["open_source"])
+        self.assertEqual(
+            (rows["qwen-code"]["state"], rows["closed"]["state"]), ("missing", "unavailable")
+        )
+        with mock.patch.dict(os.environ, {"XDG_CACHE_HOME": str(self.data)}):
+            entry = harnesses.find(registry, "qwen-code")
+            home = harnesses._home(entry)
+            (home / "node_modules/@qwen-code/qwen-code").mkdir(parents=True)
+            (home / "node_modules/@qwen-code/qwen-code/package.json").write_text(
+                json.dumps({"bin": {"qwen": "cli.js"}})
+            )
+            (home / "node_modules/.bin").mkdir()
+            (home / "node_modules/.bin/qwen").write_text("")
+            command, _env = harnesses.launch(entry)
+            self.assertEqual(command[1:], ["--acp"])
+            self.assertTrue(command[0].endswith("node_modules/.bin/qwen"))
+            escape = {
+                "id": "evil",
+                "version": "1",
+                "distribution": {"binary": {harnesses.platform_key(): {"cmd": "../../etc/x"}}},
+            }
+            self.assertIsNone(harnesses.launch(escape))
+
+    def test_default_harness_setting(self):
+        self.add_endpoint()
+        status = self.client.get("/api/aide/code/status").json()
+        self.assertEqual(status["settings"], {"harness": "pi", "approval": "auto", "guard": True})
+        self.assertEqual([n["harness"] for n in status["native"]], ["pi", "omp"])
+        changed = self.client.put(
+            "/api/aide/code/settings", json={"harness": "omp", "approval": "ask"}
+        )
+        self.assertEqual(changed.json(), {"harness": "omp", "approval": "ask", "guard": True})
+        unknown = self.client.put("/api/aide/code/settings", json={"harness": "nope"})
+        self.assertEqual(unknown.status_code, 404)
+        self.client.put("/api/aide/code/settings", json={"harness": "pi"})
 
 
 class PiRunToolTest(PiTest):

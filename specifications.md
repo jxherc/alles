@@ -249,7 +249,9 @@ what it supports:
 - works with any provider: claude, openai/gpt, deepseek, gemini, groq, mistral, a local model, and ~15 others; switch any time, even mid-conversation
 - **one main conversation**: Aide returns to a persistent primary conversation. older and private conversations remain separate; the primary conversation cannot be archived or deleted. Aide chats, uses approved tools when useful, and keeps longer work in the same conversation.
 - **standing goals**: scheduled → goals holds aims Aide keeps working on, like watching a price or keeping an inbox tidy. a goal is an Aide schedule marked `aide_goal_v1` with an interval of an hour, 6 hours, a day or a week, plus an `aide_goals` row for its notes, status, check count, optional end date and cap. the first check starts when the goal is made. before each check Aide gets the aim, the check number and what it noted last time; each reply ends with a small `goal` block (notes, notify, headline, done) that alerts strip before saving. the owner hears about a goal (web push, plus the discord or telegram note when set up) only when a check has news, reaches the goal, asks a question or waits for approval. "ask me first" runs checks in approve mode; "just do it" runs them in full auto. a goal past its end date or cap stops itself, and "done" stops it too. chat can create goals with the `goal_add` tool and list them with `goal_list`.
-- **code with pi**: Aide's code view runs [pi](https://github.com/earendil-works/pi), an open-source coding agent, on the machine that hosts alles. the first visit installs a pinned pi (`@earendil-works/pi-coding-agent` 1.3.0) into `~/.cache/alles/pi-1.3.0` (outside the data folder, so backups skip it) with `npm --ignore-scripts`; it needs node 22.19 or newer. projects are folders on that machine (never alles's own data folder) listed in a rail with their chats under each, like a desktop coding app. a chat is one of pi's own session files in `<data>/pi/sessions/<project>`; alles keeps one `pi --mode rpc` process per open chat, streams its steps to every open browser, lets the owner steer, stop, switch models or answer pi's questions, and stops processes idle for 15 minutes (`pi_idle`). pi's model list is written from alles's enabled api-key endpoints; keys reach pi only through environment variables, never on disk, and pi gets none of alles's own `ALLES_*` settings. the coding default model is the `coding` model role. the line under the message box shows tokens per second, the provider's cache hit rate and context use. pi does not ask before each command; starting work needs a recent owner sign-in. a normal Aide conversation can hand a task to pi with the `pi_run` tool and reports what pi did. the older DSH tables stay in the database but nothing uses them.
+- **code with pi**: Aide's code view runs [pi](https://github.com/earendil-works/pi), an open-source coding agent, on the machine that hosts alles. the first visit installs a pinned pi (`@earendil-works/pi-coding-agent` 1.3.0) into `~/.cache/alles/pi-1.3.0` (outside the data folder, so backups skip it) with `npm --ignore-scripts`; it needs node 22.19 or newer. projects are folders on that machine (never alles's own data folder) listed in a rail with their chats under each, like a desktop coding app. a chat is one of pi's own session files in `<data>/pi/sessions/<project>`; alles keeps one `pi --mode rpc` process per open chat, streams its steps to every open browser, lets the owner steer, stop, switch models or answer pi's questions, and stops processes idle for 15 minutes (`pi_idle`). pi's model list is written from alles's enabled api-key endpoints; keys reach pi only through environment variables, never on disk, and pi gets none of alles's own `ALLES_*` settings. the coding default model is the `coding` model role. the line under the message box shows tokens per second, the provider's cache hit rate and context use. starting work needs a recent owner sign-in. a normal Aide conversation can hand a task to pi with the `pi_run` tool and reports what pi did. the older DSH tables stay in the database but nothing uses them.
+- **what alles adds to pi**: pi starts with alles's own short system prompt (`<agent-dir>/SYSTEM.md`, a few hundred tokens instead of pi's default prompt) and `--no-skills`, so skills found elsewhere on the machine aren't sent with every request. a bundled extension (`services/pi_ext/alles.ts`) adds three things. secrets: anything the owner wraps in `||double bars||`, plus known key shapes (openai, anthropic, github, gitlab, aws, google, slack, stripe, hugging face, npm, jwts, private keys and random `api_key=…` values), is swapped for `{{secret:NAME}}` before pi sees the message; the extension puts the real value back only inside the tool call that uses it and hides it again in tool output, and the values are kept per chat, sealed with alles's key, in `<data>/pi/secrets`. a guard: risky shell commands (recursive deletes of broad paths, force pushes, hard resets, `sudo`, disk tools, piping downloads into a shell, dropping tables) wait for the owner's yes (`coding_guard`). web tools: `web_search` and `web_fetch` call back into alles at `/pi-bridge/*` with the chat's own random token, from this machine only, using the owner's search engines and the ssrf-safe fetcher.
+- **other harnesses**: pi is the default (`coding_harness`). oh-my-pi (omp, a pi fork with 60+ built-in providers and an ask-before-commands mode, `coding_approval`) runs through the same driver. under more harnesses, alles lists the public [ACP registry](https://agentclientprotocol.com/registry) plus popular ones it doesn't carry (DeepSeek Harness, Kimi Code, MiniMax Code, Codewhale, Kode, Neovate, Nanocoder, Strands, OpenHands, QwenPaw, Open Interpreter, gptme, Hermes), each marked open or closed source; installing one puts its pinned package or checksum-verified binary in `~/.cache/alles/harness`, and its chats connect over ACP with the harness's own sign-in, models and permission prompts. alles keeps a plain log of those chats to show them again.
 - **app actions from plain chat**: just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm"). reads can run directly; changes and sends follow the configured permission rules
 - **conclusion-first work**: successful answers lead with the result. exact steps, sources, diffs, and revert controls stay available under one accessible control after reload
 - **confirmed tool sources**: source history separates successful reads, search references and other
@@ -1446,10 +1448,10 @@ the registered http operations are grouped by handler source. use `/openapi.json
 
 the compatibility snapshot locks the registered http surface:
 
-- 86 included fastapi router modules
-- 960 http method/path pairs
-- 943 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `4b42662e25efc4a222fba20eb5e426688024c6e341470cf45314f34b550e43a7`
+- 87 included fastapi router modules
+- 965 http method/path pairs
+- 946 `/api/*`, 2 `/v1/*`, and 17 non-api shell/public pairs
+- sha-256: `305e4610dfb21cd3370b9f5b7a550e722fb3195d062f31189c601725de1d5b3c`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -1485,7 +1487,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/aide.py · 21 operations</summary>
+<summary>routes/aide.py · 26 operations</summary>
 
 [source](routes/aide.py)
 
@@ -1500,6 +1502,11 @@ the compatibility snapshot locks the registered http surface:
 | `DELETE` | `/api/aide/code/projects/{project_id}` | `code_forget_project` |
 | `DELETE` | `/api/aide/code/projects/{project_id}/chats/{chat_id}` | `code_delete_chat` |
 | `GET` | `/api/aide/code/folders` | `code_folders` |
+| `GET` | `/api/aide/code/harnesses` | `code_harnesses` |
+| `POST` | `/api/aide/code/harnesses/{harness_id}/install` | `code_install_harness` |
+| `PUT` | `/api/aide/code/settings` | `code_settings` |
+| `POST` | `/pi-bridge/fetch` | `bridge_fetch` |
+| `POST` | `/pi-bridge/search` | `bridge_search` |
 | `POST` | `/api/aide/code/install` | `code_install` |
 | `GET` | `/api/aide/code/projects` | `code_projects` |
 | `POST` | `/api/aide/code/projects` | `code_add_project` |
@@ -3770,6 +3777,9 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `exa_api_key` | `""` |
 | `custom_search_engines` | `[]` |
 | `andromeda_blocked_sites` | `[]` |
+| `coding_harness` | `"pi"` |
+| `coding_approval` | `"auto"` |
+| `coding_guard` | `true` |
 | `andromeda_confirm_remote` | `false` |
 | `andromeda_fast_overview` | `true` |
 | `search_fallback` | `"duckduckgo"` |

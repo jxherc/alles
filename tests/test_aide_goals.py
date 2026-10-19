@@ -217,7 +217,10 @@ class GoalToolTest(GoalTest):
         db = self.db()
         trigger = db.query(JarvisTrigger).filter_by(workflow_id=made["goal_id"]).one()
         self.assertEqual(json.loads(trigger.config)["every_seconds"], 3600)
-        self.assertLess(trigger.next_run_at, datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1, minutes=1))
+        self.assertLess(
+            trigger.next_run_at,
+            datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1, minutes=1),
+        )
         db.close()
 
     def test_names_stay_short_and_artifact_wrappers_drop(self):

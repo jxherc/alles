@@ -1063,9 +1063,10 @@ async def _pi_run(task: str, project: str = "", wait_seconds: int = 600) -> dict
     from core.database import CodingProject, SessionLocal
     from services import pi_agent
 
-    if pi_agent.ensure_installed()["state"] != "ready":
+    harness = pi_agent.settings()["harness"]
+    if harness in pi_agent.NATIVE and pi_agent.ensure_installed(harness)["state"] != "ready":
         return {
-            "output": "pi is not ready on this machine yet; open Aide code to see why",
+            "output": f"{harness} is not ready on this machine yet; open Aide code to see why",
             "error": True,
         }
     db = SessionLocal()
@@ -1870,7 +1871,9 @@ async def _browse(name, args) -> dict:
             val = await _b.type_text(args.get("selector", ""), args.get("text", ""))
             return {"output": f"typed into {args.get('selector', '')} (value now: {val})"}
         if name == "browse_screenshot":
-            return {"output": "screenshot captured", "image": await _b.screenshot()}
+            # the model only accepts a data url, not bare base64
+            shot = await _b.screenshot()
+            return {"output": "screenshot captured", "image": f"data:image/png;base64,{shot}"}
     except Exception as e:
         return {"output": f"browser error: {e}", "error": True}
     return {"output": "unknown browse op", "error": True}

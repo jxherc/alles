@@ -291,6 +291,7 @@ def isolated_environment(data: Path, run_id: str, port: int, artifacts: Path) ->
             "ALLES_CLEANUP_SHOTS": str(artifacts),
             # gates never npm-install the real pi; this stand-in speaks its protocol
             "ALLES_PI_BIN": str(_fake_pi(data)),
+            "ALLES_OMP_BIN": str(_fake_pi(data)),
         }
     )
     return env

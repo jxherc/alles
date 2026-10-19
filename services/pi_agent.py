@@ -24,36 +24,80 @@ from core.settings import data_dir
 
 PI_PACKAGE = "@earendil-works/pi-coding-agent"
 PI_VERSION = "1.3.0"
+OMP_VERSION = "18.12.3"
 MIN_NODE = (22, 19)
 IDLE_SECONDS = 15 * 60
 MAX_RUNNING = 4
 LOG_LIMIT = 4000
 OUTPUT_LIMIT = 4000
 
+# the harnesses alles drives through pi's rpc protocol. pi is the default: company-backed with
+# the smallest issue backlog. omp (oh-my-pi) is a one-person pi fork with 60+ built-in providers
+# and an ask-before-commands mode; it speaks the same protocol, so it's one click away.
+NATIVE = {
+    "pi": {"name": "pi", "version": PI_VERSION, "bin_env": "ALLES_PI_BIN"},
+    "omp": {"name": "oh-my-pi", "version": OMP_VERSION, "bin_env": "ALLES_OMP_BIN"},
+}
+DEFAULT_HARNESS = "pi"
+APPROVAL = {"auto": "yolo", "ask": "write"}
+
 
 def home() -> Path:
     return data_dir() / "pi"
 
 
-def _tool_dir() -> Path:
+def _tool_dir(harness: str = "pi") -> Path:
     # the install is reinstallable, so it lives in the user cache, not in data that backups copy
     cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return Path(cache) / "alles" / f"pi-{PI_VERSION}"
+    return Path(cache) / "alles" / f"{harness}-{NATIVE[harness]['version']}"
 
 
-def bin_path() -> Path:
-    # tests point this at a fake pi
-    custom = os.environ.get("ALLES_PI_BIN")
-    return Path(custom) if custom else _tool_dir() / "bin" / "pi"
+def bin_path(harness: str = "pi") -> Path:
+    # tests point these at a fake
+    custom = os.environ.get(NATIVE[harness]["bin_env"])
+    if custom:
+        return Path(custom)
+    return _tool_dir(harness) / ("bin/pi" if harness == "pi" else "omp")
 
 
-def sessions_dir(project_id: str) -> Path:
-    return home() / "sessions" / project_id
+def agent_dir(harness: str = "pi") -> Path:
+    return home() / ("agent" if harness == "pi" else f"{harness}-agent")
+
+
+def sessions_dir(project_id: str, harness: str = "pi") -> Path:
+    base = home() / "sessions" / project_id
+    return base if harness == "pi" else base / harness
+
+
+EXTENSION = Path(__file__).parent / "pi_ext" / "alles.ts"
+
+# replaces pi's default prompt. kept short on purpose: every token here is paid on every request
+SYSTEM_PROMPT = """You are pi, a coding agent on the owner's machine, working in the current folder through alles.
+Tools: read (view files), bash (run commands; prefer rg and fd), edit (exact-text replace; one call per file with several edits; keep oldText short and unique), write (new files or full rewrites only), web_search and web_fetch (docs, errors, releases, anything that may have changed).
+Work:
+- Read before changing. Make the smallest change that solves it and match the code around it.
+- After editing, run the relevant test, build or lint and say what you ran and what happened. Never claim something works without checking.
+- Ask one short question only when a real choice blocks you.
+- Secrets show as {{secret:NAME}}. Use that text as-is in commands and files; it becomes the real value only when a tool runs. Never print, log or commit secrets.
+- Deleting data, force-pushing, rewriting git history or touching files outside this folder needs the owner's yes.
+Replies: short and plain. Lead with the result. Give file paths as path:line. No filler."""
+
+
+def settings() -> dict:
+    from core.settings import load_settings
+
+    saved = load_settings()
+    harness = saved.get("coding_harness") or DEFAULT_HARNESS
+    return {
+        "harness": harness,
+        "approval": saved.get("coding_approval") or "auto",
+        "guard": saved.get("coding_guard", True) is not False,
+    }
 
 
 # ── install ──
 
-_install = {"task": None, "error": ""}
+_install = {name: {"task": None, "error": ""} for name in NATIVE}
 
 
 def node_version() -> tuple[int, int] | None:
@@ -68,9 +112,13 @@ def node_version() -> tuple[int, int] | None:
     return (int(found.group(1)), int(found.group(2))) if found else None
 
 
-def installed_version() -> str:
-    if os.environ.get("ALLES_PI_BIN"):
-        return PI_VERSION if bin_path().exists() else ""
+def installed_version(harness: str = "pi") -> str:
+    wanted = NATIVE[harness]["version"]
+    if os.environ.get(NATIVE[harness]["bin_env"]):
+        return wanted if bin_path(harness).exists() else ""
+    if harness == "omp":
+        marker = _tool_dir("omp") / "VERSION"
+        return marker.read_text().strip() if marker.exists() and bin_path("omp").exists() else ""
     package = _tool_dir() / "lib" / "node_modules" / PI_PACKAGE / "package.json"
     try:
         return json.loads(package.read_text()).get("version") or ""
@@ -78,34 +126,86 @@ def installed_version() -> str:
         return ""
 
 
-def status() -> dict:
-    version = installed_version()
-    node = node_version()
-    base = {"version": version, "wanted": PI_VERSION, "node": ".".join(map(str, node or ()))}
-    task = _install["task"]
+def status(harness: str = "pi") -> dict:
+    version = installed_version(harness)
+    wanted = NATIVE[harness]["version"]
+    base = {
+        "harness": harness,
+        "name": NATIVE[harness]["name"],
+        "version": version,
+        "wanted": wanted,
+    }
+    if harness == "pi":
+        node = node_version()
+        base["node"] = ".".join(map(str, node or ()))
+    task = _install[harness]["task"]
     if task is not None and not task.done():
         return {**base, "state": "installing"}
-    if version == PI_VERSION and bin_path().exists():
+    if version == wanted and bin_path(harness).exists():
         return {**base, "state": "ready"}
-    if node is None or node < MIN_NODE:
+    if harness == "pi" and (node is None or node < MIN_NODE):
         return {**base, "state": "needs_node", "error": "pi needs node 22.19 or newer"}
-    if _install["error"]:
-        return {**base, "state": "failed", "error": _install["error"]}
+    if _install[harness]["error"]:
+        return {**base, "state": "failed", "error": _install[harness]["error"]}
     return {**base, "state": "missing"}
 
 
-async def _run_install() -> None:
+async def _communicate(proc, what: str, stdin: bytes | None = None) -> str:
+    try:
+        _, err = await asyncio.wait_for(proc.communicate(stdin), timeout=600)
+    except TimeoutError:
+        proc.kill()
+        return f"installing {what} took longer than 10 minutes"
+    if proc.returncode != 0:
+        tail = (err or b"").decode(errors="replace").strip().splitlines()[-1:] or ["install failed"]
+        return tail[0][:300]
+    return ""
+
+
+async def _run_install(harness: str = "pi") -> None:
+    tool = _tool_dir(harness)
+    tool.mkdir(parents=True, exist_ok=True)
+    if harness == "omp":
+        # omp's own installer: a prebuilt binary for this machine, checked against its sha256
+        from services.net_guard import safe_get_public_async
+
+        try:
+            script = await safe_get_public_async(
+                "https://omp.sh/install", timeout=30, max_bytes=200_000
+            )
+            script.raise_for_status()
+        except Exception as exc:
+            _install[harness]["error"] = (
+                f"could not download the omp installer ({type(exc).__name__})"
+            )
+            return
+        proc = await asyncio.create_subprocess_exec(
+            "sh",
+            "-s",
+            "--",
+            "--binary",
+            "--ref",
+            f"v{OMP_VERSION}",
+            env={**os.environ, "PI_INSTALL_DIR": str(tool)},
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        error = await _communicate(proc, "omp", script.content)
+        if not error:
+            (tool / "VERSION").write_text(OMP_VERSION)
+        _install[harness]["error"] = error
+        return
     npm = shutil.which("npm")
     if not npm:
-        _install["error"] = "npm was not found next to node"
+        _install[harness]["error"] = "npm was not found next to node"
         return
-    _tool_dir().mkdir(parents=True, exist_ok=True)
     proc = await asyncio.create_subprocess_exec(
         npm,
         "install",
         "-g",
         "--prefix",
-        str(_tool_dir()),
+        str(tool),
         # pi's own docs install it this way; no package scripts run
         "--ignore-scripts",
         "--no-audit",
@@ -114,23 +214,15 @@ async def _run_install() -> None:
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.PIPE,
     )
-    try:
-        _, err = await asyncio.wait_for(proc.communicate(), timeout=600)
-    except TimeoutError:
-        proc.kill()
-        _install["error"] = "installing pi took longer than 10 minutes"
-        return
-    if proc.returncode != 0:
-        tail = (err or b"").decode(errors="replace").strip().splitlines()[-1:] or ["npm failed"]
-        _install["error"] = tail[0][:300]
+    _install[harness]["error"] = await _communicate(proc, "pi")
 
 
-def ensure_installed() -> dict:
-    """start the install in the background when pi is missing; safe to call often."""
-    current = status()
+def ensure_installed(harness: str = "pi") -> dict:
+    """start the install in the background when it's missing; safe to call often."""
+    current = status(harness)
     if current["state"] in ("missing", "failed"):
-        _install["error"] = ""
-        _install["task"] = asyncio.get_running_loop().create_task(_run_install())
+        _install[harness]["error"] = ""
+        _install[harness]["task"] = asyncio.get_running_loop().create_task(_run_install(harness))
         return {**current, "state": "installing", "error": ""}
     return current
 
@@ -271,11 +363,29 @@ def _entries(path: Path) -> list[dict]:
     return rows
 
 
-def _chat_file(project_id: str, chat_id: str) -> Path | None:
+def find_chat(project_id: str, chat_id: str) -> tuple[Path, str] | None:
+    """the session file behind a chat and the harness that wrote it."""
     if not re.fullmatch(r"[0-9a-fA-F-]{8,64}", chat_id or ""):
         return None
-    folder = sessions_dir(project_id)
-    return next(iter(sorted(folder.glob(f"*_{chat_id}.jsonl"))), None) if folder.is_dir() else None
+    for harness in NATIVE:
+        folder = sessions_dir(project_id, harness)
+        found = (
+            next(iter(sorted(folder.glob(f"*_{chat_id}.jsonl"))), None) if folder.is_dir() else None
+        )
+        if found:
+            return found, harness
+    from services import acp_agent
+
+    path = acp_agent.log_dir(project_id) / f"{chat_id}.jsonl"
+    if path.exists():
+        head = acp_agent.read_head(path) or {}
+        return path, head.get("harness") or "acp"
+    return None
+
+
+def _chat_file(project_id: str, chat_id: str) -> Path | None:
+    found = find_chat(project_id, chat_id)
+    return found[0] if found and found[1] in NATIVE else None
 
 
 def chat_summary(path: Path) -> dict | None:
@@ -283,7 +393,8 @@ def chat_summary(path: Path) -> dict | None:
         entries = _entries(path)
     except OSError:
         return None
-    head = entries[0] if entries and entries[0].get("type") == "session" else None
+    # omp writes a title line before the session header
+    head = next((e for e in entries[:3] if e.get("type") == "session"), None)
     if not head:
         return None
     name, first = "", ""
@@ -302,11 +413,16 @@ def chat_summary(path: Path) -> dict | None:
 
 
 def list_chats(project_id: str) -> list[dict]:
-    folder = sessions_dir(project_id)
-    if not folder.is_dir():
-        return []
-    rows = [chat_summary(path) for path in folder.glob("*.jsonl")]
-    rows = [row for row in rows if row]
+    from services import acp_agent
+
+    rows = []
+    for harness in NATIVE:
+        folder = sessions_dir(project_id, harness)
+        if folder.is_dir():
+            for path in folder.glob("*.jsonl"):
+                if row := chat_summary(path):
+                    rows.append({**row, "harness": harness})
+    rows += acp_agent.list_chats(project_id)
     for row in rows:
         row["running"] = bool((live := _chats.get(row["id"])) and live.busy)
     return sorted(rows, key=lambda row: row["updated_at"], reverse=True)
@@ -319,10 +435,15 @@ def _short(value, limit=OUTPUT_LIMIT) -> str:
 
 def transcript(project_id: str, chat_id: str) -> dict | None:
     """the active branch as simple items: user, assistant (text + tool calls), tool results."""
-    path = _chat_file(project_id, chat_id)
-    if path is None:
+    found = find_chat(project_id, chat_id)
+    if found is None:
         return None
-    entries = [e for e in _entries(path) if e.get("id")]
+    path, harness = found
+    if harness not in NATIVE:
+        from services import acp_agent
+
+        return acp_agent.transcript(project_id, chat_id)
+    entries = [e for e in _entries(path) if e.get("id") and e.get("type") != "session"]
     model = {}
     by_id = {e["id"]: e for e in entries}
     branch, node = [], entries[-1] if entries else None
@@ -332,7 +453,14 @@ def transcript(project_id: str, chat_id: str) -> dict | None:
     items = []
     for entry in reversed(branch):
         if entry.get("type") == "model_change":
-            model = {"provider": entry.get("provider"), "model": entry.get("modelId")}
+            named = entry.get("model")
+            if isinstance(named, str) and "/" in named:  # omp: "provider/model"
+                provider, _, model_id = named.partition("/")
+                model = {"provider": provider, "model": model_id}
+            elif isinstance(named, dict):
+                model = {"provider": named.get("provider"), "model": named.get("id")}
+            else:
+                model = {"provider": entry.get("provider"), "model": entry.get("modelId")}
         if entry.get("type") != "message":
             continue
         message = entry.get("message") or {}
@@ -350,7 +478,7 @@ def transcript(project_id: str, chat_id: str) -> dict | None:
                     "output": _short(_text_of(message.get("content"))),
                 }
             )
-    return {"items": items, "model": model}
+    return {"items": items, "model": model, "harness": harness}
 
 
 def _assistant_item(message: dict) -> dict:
@@ -375,19 +503,74 @@ def _assistant_item(message: dict) -> dict:
 _chats: dict[str, PiChat] = {}
 
 
-def _clean_env(keys: dict) -> dict:
-    # pi runs model-written commands; it gets the user's normal shell env, not alles's secrets
+def _clean_env(keys: dict, harness: str = "pi") -> dict:
+    # harnesses run model-written commands; they get the user's shell env, not alles's secrets
     env = {k: v for k, v in os.environ.items() if not k.startswith("ALLES_")}
-    return {
-        **env,
-        **keys,
-        "PI_CODING_AGENT_DIR": str(home() / "agent"),
-        "PI_OFFLINE": "1",
+    env = {**env, **keys, "PI_CODING_AGENT_DIR": str(agent_dir(harness))}
+    if harness == "pi":
+        env["PI_OFFLINE"] = "1"
+    else:
+        env["OMP_SKIP_SETUP"] = "1"
+    return env
+
+
+def _secrets_file(chat_id: str) -> Path:
+    return home() / "secrets" / f"{chat_id}.json"
+
+
+def load_secrets(chat_id: str) -> dict[str, str]:
+    from services.secretstore import unseal
+
+    try:
+        return json.loads(unseal(_secrets_file(chat_id).read_text(), f"pi.secrets.{chat_id}"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_secrets(chat_id: str, secrets: dict[str, str]) -> None:
+    """sealed with alles's key, like every other stored secret."""
+    from services.secretstore import seal
+
+    path = _secrets_file(chat_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(seal(json.dumps(secrets), f"pi.secrets.{chat_id}"))
+    path.chmod(0o600)
+
+
+def _b64(value: dict) -> str:
+    import base64
+
+    return base64.b64encode(json.dumps(value).encode()).decode()
+
+
+_bridge_tokens: dict[str, str] = {}
+
+
+def bridge_chat(token: str):
+    """the running chat a web-tool call from pi belongs to, if the token is real."""
+    chat_id = _bridge_tokens.get(token or "")
+    return _chats.get(chat_id) if chat_id else None
+
+
+def _write_models(harness: str, config: dict) -> None:
+    folder = agent_dir(harness)
+    folder.mkdir(parents=True, exist_ok=True)
+    if harness == "pi":
+        (folder / "models.json").write_text(json.dumps(config, indent=1))
+        (folder / "SYSTEM.md").write_text(SYSTEM_PROMPT)
+        return
+    # omp reads models.yml, names the key's env var without a "$", and json is valid yaml
+    providers = {
+        name: {**provider, "apiKey": str(provider.get("apiKey", "")).lstrip("$")}
+        for name, provider in config.get("providers", {}).items()
     }
+    (folder / "models.yml").write_text(json.dumps({"providers": providers}, indent=1))
 
 
 class PiChat:
-    def __init__(self, project, choice: dict):
+    def __init__(self, project, choice: dict, harness: str = "pi"):
+        self.harness = harness
+        self.harness_name = NATIVE[harness]["name"]
         self.project_id = project.id
         self.cwd = project.path
         self.choice = choice
@@ -402,6 +585,8 @@ class PiChat:
         self.last_active = time.monotonic()
         self.stats: dict = {}
         self.partial = ""
+        self.secrets: dict[str, str] = {}
+        self._bridge = ""
         self._first_delta = 0.0
         self._turn_start = 0.0
         self._speeds: list[float] = []
@@ -412,19 +597,37 @@ class PiChat:
 
     async def start(self, db, chat_file: Path | None) -> None:
         config, keys, _ = model_config(db)
-        agent = home() / "agent"
-        agent.mkdir(parents=True, exist_ok=True)
-        (agent / "models.json").write_text(json.dumps(config, indent=1))
-        folder = sessions_dir(self.project_id)
+        _write_models(self.harness, config)
+        folder = sessions_dir(self.project_id, self.harness)
         folder.mkdir(parents=True, exist_ok=True)
-        args = [str(bin_path()), "--mode", "rpc", "--provider", self.choice["provider"]]
-        args += ["--model", self.choice["model"], "--session-dir", str(folder)]
-        if chat_file is not None:
-            args += ["--session", str(chat_file)]
+        args = [str(bin_path(self.harness)), "--mode", "rpc", "--session-dir", str(folder)]
+        extra = {}
+        if self.harness == "pi":
+            args += ["--provider", self.choice["provider"], "--model", self.choice["model"]]
+            # no auto-discovered skills (they cost tens of thousands of tokens a request)
+            args += ["--no-skills", "--extension", str(EXTENSION)]
+            if chat_file is not None:
+                args += ["--session", str(chat_file)]
+                head = next((e for e in _entries(chat_file)[:3] if e.get("type") == "session"), {})
+                self.secrets = load_secrets(str(head.get("id") or ""))
+            from core.settings import get_port
+
+            self._bridge = uuid.uuid4().hex
+            extra = {
+                "PI_ALLES_SECRETS": _b64(self.secrets),
+                "PI_ALLES_BRIDGE_URL": f"http://127.0.0.1:{get_port()}/pi-bridge",
+                "PI_ALLES_BRIDGE_TOKEN": self._bridge,
+                "PI_ALLES_GUARD": "on" if settings().get("guard", True) else "off",
+            }
+        else:
+            args += ["--model", f"{self.choice['provider']}/{self.choice['model']}"]
+            args += ["--approval-mode", APPROVAL.get(settings()["approval"], "yolo")]
+            if chat_file is not None:
+                args += ["--resume", str(chat_file)]
         self.proc = await asyncio.create_subprocess_exec(
             *args,
             cwd=self.cwd,
-            env=_clean_env(keys),
+            env=_clean_env({**keys, **extra}, self.harness),
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
@@ -435,8 +638,10 @@ class PiChat:
         self.id = str(state.get("sessionId") or "")
         if not self.id:
             await self.close()
-            raise RuntimeError("pi started without a session")
+            raise RuntimeError(f"{self.harness_name} started without a session")
         _chats[self.id] = self
+        if self._bridge:
+            _bridge_tokens[self._bridge] = self.id
 
     async def close(self) -> None:
         proc = self.proc
@@ -450,6 +655,7 @@ class PiChat:
             proc.kill()
         if _chats.get(self.id) is self:
             _chats.pop(self.id, None)
+        _bridge_tokens.pop(self._bridge, None)
 
     @property
     def alive(self) -> bool:
@@ -475,6 +681,13 @@ class PiChat:
 
     def emit(self, event: dict) -> None:
         self.seq += 1
+        if self.secrets:
+            # last line of defense: nothing shown or kept holds a secret's real value
+            from services.secret_scan import hide
+
+            event = {
+                k: hide(v, self.secrets) if isinstance(v, str) else v for k, v in event.items()
+            }
         event = {**event, "seq": self.seq}
         self.log.append(event)
         if len(self.log) > LOG_LIMIT:
@@ -545,7 +758,7 @@ class PiChat:
                     "output": _short(_text_of(result.get("content"))),
                 }
             )
-        elif kind == "agent_settled":
+        elif kind in ("agent_settled", "session_settled"):  # pi, omp
             self.busy = False
             # the reader can't wait on its own reply, so stats come from a side task
             task = asyncio.get_running_loop().create_task(self._settle())
@@ -631,6 +844,16 @@ class PiChat:
     async def send(self, text: str) -> int:
         """returns the seq of the user event, so a browser can follow from there."""
         self.last_active = time.monotonic()
+        if self.harness == "pi":
+            from services.secret_scan import mask
+
+            text, found = mask(text, self.secrets)
+            fresh = {k: v for k, v in found.items() if k not in self.secrets}
+            if fresh:
+                # pi's extension learns them before the prompt that uses them; no model sees this
+                await self.command("prompt", message=f"/alles-secret {_b64(fresh)}")
+                self.secrets.update(fresh)
+                save_secrets(self.id, self.secrets)
         self.emit({"kind": "user", "text": text})
         seq = self.seq
         if self.busy:
@@ -654,19 +877,39 @@ def live_chat(chat_id: str) -> PiChat | None:
     return chat if chat is not None and chat.alive else None
 
 
-async def open_chat(db, project, chat_id: str | None, choice: dict) -> PiChat:
-    """the running pi for this chat, starting one (new or from its session file) if needed."""
+async def open_chat(db, project, chat_id: str | None, choice: dict, harness: str | None = None):
+    """the running harness for this chat, starting one (new or from its saved file) if needed."""
     if chat_id and (chat := live_chat(chat_id)):
         return chat
     chat_file = None
     if chat_id:
-        chat_file = _chat_file(project.id, chat_id)
-        if chat_file is None:
+        found = find_chat(project.id, chat_id)
+        if found is None:
             raise LookupError("chat not found")
+        chat_file, harness = found
+    harness = harness or settings()["harness"]
     if sum(1 for c in _chats.values() if c.alive) >= MAX_RUNNING:
         await _close_oldest_idle()
-    chat = PiChat(project, choice)
+    if harness not in NATIVE:
+        return await _open_acp(project, harness, chat_id, chat_file)
+    chat = PiChat(project, choice, harness)
     await chat.start(db, chat_file)
+    return chat
+
+
+async def _open_acp(project, harness: str, chat_id: str | None, chat_file: Path | None):
+    from services import acp_agent, harnesses
+
+    entry = harnesses.find(await harnesses.refresh_registry(), harness)
+    started = harnesses.launch(entry) if entry else None
+    if not started:
+        raise RuntimeError(f"{harness} isn't installed; install it under more harnesses first")
+    resume = None
+    if chat_file is not None:
+        head = acp_agent.read_head(chat_file) or {}
+        resume = {"chat_id": chat_id, "acp_session": head.get("acp_session")}
+    chat = acp_agent.AcpChat(project, entry, *started)
+    await chat.start(resume)
     return chat
 
 
@@ -693,12 +936,14 @@ async def close_all() -> None:
 
 
 async def delete_chat(project_id: str, chat_id: str) -> bool:
-    path = _chat_file(project_id, chat_id)
-    if path is None:
+    found = find_chat(project_id, chat_id)
+    if found is None:
         return False
+    path = found[0]
     if chat := _chats.get(chat_id):
         await chat.close()
     path.unlink()
+    _secrets_file(chat_id).unlink(missing_ok=True)
     return True
 
 

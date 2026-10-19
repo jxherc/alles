@@ -1,4 +1,5 @@
-"""a stand-in for `pi --mode rpc`: same jsonl records, real session files, no model.
+"""a stand-in for `pi --mode rpc` and `omp --mode rpc`: same jsonl records, real session
+files, no model. omp's flags (--model provider/model, --resume, --approval-mode) work too.
 
 a prompt reads back as one tool call (read) and one answer. "slow" in the prompt keeps the
 run open until abort; "ask" sends a confirm dialog first.
@@ -19,7 +20,10 @@ def flag(name):
 
 
 provider, model = flag("--provider"), flag("--model")
-session_file = flag("--session")
+if provider is None and model and "/" in model:  # omp: --model provider/model
+    provider, model = model.split("/", 1)
+session_file = flag("--session") or flag("--resume")
+settled = "session_settled" if "--approval-mode" in args else "agent_settled"
 if session_file:
     head = json.loads(open(session_file).readline())
     session_id = head["id"]
@@ -28,6 +32,8 @@ else:
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S-000Z")
     session_file = os.path.join(flag("--session-dir"), f"{stamp}_{session_id}.jsonl")
     with open(session_file, "w") as handle:
+        if settled == "session_settled":  # omp starts its files with a title line
+            handle.write(json.dumps({"type": "title", "v": 1, "title": ""}) + "\n")
         header = {"type": "session", "version": 3, "id": session_id, "cwd": os.getcwd()}
         handle.write(json.dumps({**header, "timestamp": datetime.now(UTC).isoformat()}) + "\n")
         handle.write(
@@ -91,15 +97,20 @@ def run(text):
     out({"type": "message_end", "message": answer})
     save(answer)
     out({"type": "agent_end"})
-    out({"type": "agent_settled"})
+    out({"type": settled})
 
 
 busy = False
+handled = []
 for raw in sys.stdin:
     request = json.loads(raw)
     kind = request["type"]
     if kind == "get_state":
         reply(request, {"sessionId": session_id, "sessionFile": session_file, "isStreaming": busy})
+    elif kind == "prompt" and request["message"].startswith("/"):
+        # extension commands (alles's /alles-secret) are handled without a model or a saved message
+        handled.append(request["message"])
+        reply(request, {"disposition": "handled"})
     elif kind == "prompt":
         text = request["message"]
         if busy and not request.get("streamingBehavior"):
@@ -122,7 +133,7 @@ for raw in sys.stdin:
         if busy:
             busy = False
             out({"type": "agent_end"})
-            out({"type": "agent_settled"})
+            out({"type": settled})
         reply(request)
     elif kind == "set_model":
         provider, model = request["provider"], request["modelId"]

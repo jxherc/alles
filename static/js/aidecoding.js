@@ -24,6 +24,11 @@ let models = [], model = null, pi = { state: 'missing' };
 let live = null, liveSeq = 0, busy = false, sending = false, installTimer = null;
 let streaming = null, toolRows = new Map(), version = 0;
 let menu = null, projectMenu = null, menuProject = '';
+// the harness new chats use (a setting), the one the open chat runs on, and its own models
+let harness = 'pi', approval = 'auto', native = [], catalogRows = [], chatHarness = '', harnessModels = null;
+let harnessMenu = null;
+const harnessName = id => native.find(h => h.harness === id)?.name || catalogRows.find(h => h.id === id)?.name || id;
+const isNative = id => native.some(h => h.harness === id);
 
 async function ownerFetch(input, init = {}) {
   const response = await fetch(input, init);
@@ -66,11 +71,12 @@ function project(id = current.projectId) { return projects.find(row => row.id ==
 
 function piLine() {
   const line = $('aide-code-pi');
+  const name = pi.name || 'pi';
   const copy = {
-    installing: 'installing pi on this machine…',
-    needs_node: pi.error || 'pi needs node 22.19 or newer on this machine',
-    failed: `pi could not install: ${pi.error || 'unknown error'}`,
-    missing: 'pi is not installed yet',
+    installing: `installing ${name} on this machine…`,
+    needs_node: pi.error || `${name} needs node 22.19 or newer on this machine`,
+    failed: `${name} could not install: ${pi.error || 'unknown error'}`,
+    missing: `${name} is not installed yet`,
   }[pi.state] || '';
   line.textContent = copy;
   line.hidden = !copy;
@@ -153,6 +159,7 @@ function showView(view) {
   $('aide-code-chat').hidden = view !== 'chat';
   $('aide-code-add-view').hidden = view !== 'add';
   $('aide-code-start').hidden = view !== 'start';
+  $('aide-code-harness-view').hidden = view !== 'harnesses';
 }
 
 function toolSummary(name, rawArgs) {
@@ -318,7 +325,9 @@ async function openChat(projectId, chatId, { keepScroll = false } = {}) {
     resetLog();
     for (const item of data.items) render(item);
     if (data.partial) render({ kind: 'delta', text: data.partial });
-    if (data.model?.model) pickModel(models.find(m => m.model === data.model.model && (!data.model.endpoint_id || m.endpoint_id === data.model.endpoint_id)) || model, { remote: false });
+    chatHarness = data.harness || harness;
+    harnessModels = data.harness_models ? data.harness_models.map(m => ({ ...m, selected: m.model === data.model?.model })) : null;
+    if (data.model?.model && isNative(chatHarness)) pickModel(models.find(m => m.model === data.model.model && (!data.model.endpoint_id || m.endpoint_id === data.model.endpoint_id)) || model, { remote: false });
     renderStats(data.stats);
     setBusy(data.busy);
     renderQuestion(data.questions?.[0] || null);
@@ -332,6 +341,7 @@ function startChat(projectId) {
   ++version;
   closeLive();
   current = { projectId, chatId: '' };
+  chatHarness = ''; harnessModels = null;
   expanded.add(projectId);
   renderRail();
   resetLog();
@@ -347,14 +357,23 @@ function startChat(projectId) {
 function updateComposer() {
   const row = project();
   const input = $('aide-code-input');
-  const ready = pi.state === 'ready' && !!model && !!row;
+  const using = current.chatId ? (chatHarness || harness) : harness;
+  const nativeUse = isNative(using);
+  const state = nativeUse ? native.find(h => h.harness === using)?.state : 'ready';
+  const ready = state === 'ready' && (!nativeUse || !!model) && !!row;
   input.disabled = !row;
-  input.placeholder = row ? `ask pi to work in ${row.name}` : 'pick a project first';
+  input.placeholder = row ? `ask ${harnessName(using)} to work in ${row.name} · ||wrap|| keys to hide them` : 'pick a project first';
   $('aide-code-send').disabled = !ready || sending || !input.value.trim();
-  $('aide-code-model-label').textContent = model ? model.model : 'no coding model';
-  $('aide-code-model').disabled = !models.length;
-  const hint = !models.length ? 'add a model with an api key in settings → models to code with pi'
-    : pi.state !== 'ready' ? 'pi will be ready once it finishes installing' : '';
+  // omp and pi use alles's models; an ACP harness brings its own list, if it shares one
+  const acpModels = !nativeUse ? harnessModels || [] : null;
+  $('aide-code-model-label').textContent = nativeUse ? (model ? model.model : 'no coding model')
+    : (acpModels.find(m => m.selected)?.name || (acpModels.length ? 'model' : 'its own model'));
+  $('aide-code-model').disabled = nativeUse ? !models.length : !acpModels.length;
+  $('aide-code-harness-label').textContent = harnessName(using);
+  $('aide-code-harness').title = current.chatId ? 'start a new chat to use another harness' : 'harness for new chats';
+  $('aide-code-harness').disabled = !!current.chatId;
+  const hint = nativeUse && !models.length ? `add a model with an api key in settings → models to code with ${harnessName(using)}`
+    : state !== 'ready' ? `${harnessName(using)} will be ready once it finishes installing` : '';
   $('aide-code-hint').textContent = hint;
   $('aide-code-hint').hidden = !hint;
 }
@@ -366,14 +385,16 @@ async function send(event) {
   if (!text || sending || $('aide-code-send').disabled) return;
   sending = true; updateComposer(); setError();
   const { projectId, chatId } = current;
-  const choice = model ? { endpoint_id: model.endpoint_id, model: model.model } : {};
+  const choice = model && isNative(chatId ? chatHarness : harness) ? { endpoint_id: model.endpoint_id, model: model.model } : {};
   try {
     if (!chatId) {
-      const made = await post(chatPath(projectId), { text, ...choice });
+      const made = await post(chatPath(projectId), { text, harness, ...choice });
+      chatHarness = harness;
       input.value = ''; autosizeTextarea(input);
       current = { projectId, chatId: made.chat_id };
       await refreshChats(projectId);
-      $('aide-code-title').textContent = text.slice(0, 80);
+      // the server's title is masked; what was typed may hold a secret
+      $('aide-code-title').textContent = (chats.get(projectId) || []).find(chat => chat.id === made.chat_id)?.title || 'chat';
       $('aide-code-delete').hidden = false;
       follow(projectId, made.chat_id, made.seq - 1);
     } else {
@@ -396,9 +417,27 @@ function pickModel(choice, { remote = true } = {}) {
     .catch(error => setError(error.message));
 }
 
+function pickHarnessModel(choice) {
+  harnessModels = (harnessModels || []).map(m => ({ ...m, selected: m.model === choice.model }));
+  updateComposer();
+  post(`${chatPath(current.projectId, current.chatId)}/model`, { model: choice.model }).catch(error => setError(error.message));
+}
+
 function renderModelMenu() {
   const list = $('aide-code-model-menu');
   list.replaceChildren();
+  if (current.chatId && !isNative(chatHarness)) {
+    for (const choice of harnessModels || []) {
+      const item = el('button', 'acw-menu-item');
+      item.type = 'button';
+      item.setAttribute('role', 'menuitemradio');
+      item.setAttribute('aria-checked', String(!!choice.selected));
+      item.append(el('span', '', choice.name || choice.model), el('small', '', harnessName(chatHarness)));
+      item.addEventListener('click', () => { menu.close(); pickHarnessModel(choice); });
+      list.append(item);
+    }
+    return;
+  }
   for (const choice of models) {
     const item = el('button', 'acw-menu-item');
     item.type = 'button';
@@ -408,6 +447,129 @@ function renderModelMenu() {
     item.addEventListener('click', () => { menu.close(); pickModel(choice); });
     list.append(item);
   }
+}
+
+// ── harnesses ──
+
+async function loadCatalog() {
+  try { catalogRows = (await api('/api/aide/code/harnesses')).items || []; } catch { catalogRows = catalogRows || []; }
+}
+
+async function useHarness(id, nextApproval = approval) {
+  const saved = await send_('PUT', '/api/aide/code/settings', { harness: id, approval: nextApproval });
+  harness = saved.harness; approval = saved.approval;
+  await loadStatus();
+}
+const send_ = (method, url, body) => api(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+function renderHarnessMenu() {
+  const list = $('aide-code-harness-menu');
+  list.replaceChildren();
+  const ready = catalogRows.filter(h => h.state === 'ready' || isNative(h.id));
+  for (const row of ready) {
+    const item = el('button', 'acw-menu-item');
+    item.type = 'button';
+    item.setAttribute('role', 'menuitemradio');
+    item.setAttribute('aria-checked', String(row.id === harness));
+    const state = isNative(row.id) ? native.find(h => h.harness === row.id)?.state : row.state;
+    item.append(el('span', '', row.name), el('small', '', state === 'ready' ? (row.open_source ? 'open source' : row.license) : state.replace('_', ' ')));
+    item.addEventListener('click', async () => {
+      harnessMenu.close();
+      try { await useHarness(row.id); } catch (error) { setError(error.message); }
+    });
+    list.append(item);
+  }
+  const more = el('button', 'acw-menu-item', 'more harnesses…');
+  more.type = 'button';
+  more.setAttribute('role', 'menuitem');
+  more.addEventListener('click', () => { harnessMenu.close({ restoreFocus: false }); void openHarnesses(); });
+  list.append(more);
+}
+
+async function openHarnesses() {
+  ++version; closeLive();
+  showView('harnesses'); setPane('main');
+  $('aide-code-title').textContent = 'harnesses';
+  showPath('');
+  $('aide-code-delete').hidden = true;
+  $('aide-code-harness-list').textContent = 'loading…';
+  await loadCatalog();
+  renderHarnessList();
+  $('aide-code-title').focus();
+}
+
+function renderHarnessList() {
+  const host = $('aide-code-harness-list');
+  host.replaceChildren();
+  for (const row of catalogRows) {
+    const item = el('article', 'acw-harness-row');
+    const main = el('div', 'acw-harness-main');
+    const nameLine = el('div', 'acw-harness-name');
+    nameLine.append(el('strong', '', row.name));
+    if (row.id === harness) nameLine.append(el('span', 'acw-harness-default', 'default'));
+    main.append(nameLine);
+    if (row.description) main.append(el('p', 'acw-muted', row.description));
+    const facts = [row.open_source ? `open source · ${row.license}` : `closed source · ${row.license}`];
+    if (row.version) facts.push(row.version);
+    const state = isNative(row.id) ? native.find(h => h.harness === row.id)?.state || row.state : row.state;
+    facts.push({ ready: 'installed', missing: 'not installed', installing: 'installing…', failed: 'install failed', manual: 'install it yourself', unavailable: 'not for this machine', needs_node: 'needs node 22.19+' }[state] || state);
+    main.append(el('p', 'acw-harness-facts', facts.join(' · ')));
+    if (row.error) main.append(el('p', 'acw-msg-error', row.error));
+    if (state === 'manual' && row.install_hint) main.append(el('code', 'acw-harness-hint', row.install_hint));
+    const actions = el('div', 'acw-harness-actions');
+    if (['missing', 'failed'].includes(state)) actions.append(harnessAction('install', row.id, 'install'));
+    if (state === 'ready' && row.id !== harness) actions.append(harnessAction('use as default', row.id, 'use'));
+    item.append(main, actions);
+    if (row.id === 'omp' && state === 'ready') {
+      // omp can ask before it runs a command; pi has no such switch
+      const group = el('div', 'acw-harness-approval');
+      group.setAttribute('role', 'radiogroup');
+      group.setAttribute('aria-label', 'when omp wants to run a command');
+      for (const [key, label] of [['auto', 'just do it'], ['ask', 'ask me first']]) {
+        const button = el('button', 'acw-action', label);
+        button.type = 'button';
+        button.setAttribute('role', 'radio');
+        button.setAttribute('aria-checked', String(approval === key));
+        button.addEventListener('click', async () => {
+          try { await useHarness(harness, key); renderHarnessList(); } catch (error) { setError(error.message); }
+        });
+        group.append(button);
+      }
+      main.append(group);
+    }
+    host.append(item);
+  }
+}
+
+function harnessAction(label, id, name) {
+  const button = el('button', 'acw-action', label);
+  button.type = 'button';
+  button.dataset.harnessAction = name;
+  button.dataset.harnessId = id;
+  return button;
+}
+
+async function onHarnessAction(event) {
+  const button = event.target.closest('[data-harness-action]');
+  if (!button) return;
+  button.disabled = true;
+  const id = button.dataset.harnessId;
+  try {
+    if (button.dataset.harnessAction === 'install') {
+      await post(`/api/aide/code/harnesses/${encodeURIComponent(id)}/install`);
+      // follow the install until it settles
+      for (let i = 0; i < 300; i++) {
+        await loadCatalog(); await loadStatus(); renderHarnessList();
+        const row = catalogRows.find(h => h.id === id);
+        const state = isNative(id) ? native.find(h => h.harness === id)?.state : row?.state;
+        if (state !== 'installing' || $('aide-code-harness-view').hidden) break;
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    } else {
+      await useHarness(id);
+      renderHarnessList();
+    }
+  } catch (error) { setError(error.message); button.disabled = false; }
 }
 
 // ── adding a project ──
@@ -495,7 +657,8 @@ function showFirst() {
 
 async function loadStatus() {
   const data = await api('/api/aide/code/status');
-  pi = data.pi; models = data.models || [];
+  pi = data.pi; models = data.models || []; native = data.native || [];
+  harness = data.settings?.harness || 'pi'; approval = data.settings?.approval || 'auto';
   if (!model || !models.some(m => m.endpoint_id === model.endpoint_id && m.model === model.model)) model = data.default || models[0] || null;
   piLine(); renderModelMenu(); updateComposer();
   clearTimeout(installTimer);
@@ -525,6 +688,10 @@ function markup() {
           <p>pi reads, edits and runs code in a folder on the machine that runs alles. it does not ask before each command, so give it a project folder you're happy for it to change.</p>
           <button type="button" id="aide-code-start-add" class="acw-action acw-primary">add a project folder</button>
         </section>
+        <section id="aide-code-harness-view" class="acw-content acw-harnesses" hidden>
+          <p class="acw-muted">pi is the default. omp and pi run natively; the rest connect through ACP and use their own sign-in and models. installs go into this machine's cache.</p>
+          <div id="aide-code-harness-list" class="acw-harness-list"></div>
+        </section>
         <section id="aide-code-add-view" class="acw-content acw-add" hidden>
           <form id="aide-code-folder-form" class="acw-folder-bar">
             <button type="button" id="aide-code-folder-up" class="acw-icon" aria-label="up one folder">${icon('back')}</button>
@@ -542,6 +709,10 @@ function markup() {
             <div class="acw-entry">
               <textarea id="aide-code-input" rows="1" maxlength="50000" data-kokuen-entry="autogrow" aria-label="message pi"></textarea>
               <div class="acw-entry-foot">
+                <div class="acw-model acw-harness">
+                  <button type="button" id="aide-code-harness" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-harness-menu"><span id="aide-code-harness-label">pi</span>${icon('chevron')}</button>
+                  <div id="aide-code-harness-menu" class="acw-menu acw-menu-up" role="menu" aria-label="harness for new chats" hidden></div>
+                </div>
                 <div class="acw-model">
                   <button type="button" id="aide-code-model" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-model-menu"><span id="aide-code-model-label">no coding model</span>${icon('chevron')}</button>
                   <div id="aide-code-model-menu" class="acw-menu acw-menu-up" role="menu" aria-label="coding model" hidden></div>
@@ -587,6 +758,16 @@ export function initAideCodingWorkspace() {
   $('aide-code-folder-up').addEventListener('click', event => browse(event.currentTarget.dataset.path));
   $('aide-code-folder-use').addEventListener('click', addProject);
 
+  harnessMenu = createMenuController($('aide-code-harness-menu'), { onClose: () => $('aide-code-harness').setAttribute('aria-expanded', 'false') });
+  $('aide-code-harness').addEventListener('click', async event => {
+    if (!$('aide-code-harness-menu').hidden) { harnessMenu.close(); return; }
+    const source = event.currentTarget;
+    if (!catalogRows.length) await loadCatalog();
+    renderHarnessMenu();
+    source.setAttribute('aria-expanded', 'true');
+    harnessMenu.open({ source });
+  });
+  $('aide-code-harness-list').addEventListener('click', onHarnessAction);
   menu = createMenuController($('aide-code-model-menu'), { onClose: () => $('aide-code-model').setAttribute('aria-expanded', 'false') });
   $('aide-code-model').addEventListener('click', event => {
     if (!$('aide-code-model-menu').hidden) { menu.close(); return; }

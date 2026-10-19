@@ -94,6 +94,20 @@ class BrowserToolTests(unittest.TestCase):
         shot = asyncio.run(go())
         self.assertTrue(shot.startswith("iVBOR"))  # PNG magic in base64
 
+    def test_screenshot_tool_hands_the_model_a_data_url(self):
+        from services import agent_tools
+
+        url = _page_url()
+
+        async def go():
+            try:
+                await bt._b.navigate(url)
+                return await agent_tools._browse("browse_screenshot", {})
+            finally:
+                await bt._b.close()
+
+        self.assertTrue(asyncio.run(go())["image"].startswith("data:image/png;base64,iVBOR"))
+
     def test_close_resets(self):
         url = _page_url()
 
