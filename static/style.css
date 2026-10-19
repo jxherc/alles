@@ -770,24 +770,24 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
 
 /* messages */
 .messages { flex: 1; padding: 2rem 0 0.5rem; display: flex; flex-direction: column; gap: 0; }
+.composer-outer { position: relative; }
+/* jump to latest: a quiet round arrow that floats just above the message box, so showing it
+   never moves the chat or the composer */
 .jump-latest {
-  position: absolute;
-  z-index: 30;
-  left: 50%;
-  bottom: 108px;
-  transform: translateX(-50%);
-  border: 1px solid var(--faint);
-  border-radius: 4px;
-  background: var(--panel);
-  color: var(--text);
-  box-shadow: 0 5px 20px color-mix(in srgb, var(--bg) 72%, transparent);
-  padding: 0.38rem 0.7rem;
-  font: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
+  position: absolute; z-index: 30; left: 50%; bottom: 100%; transform: translateX(-50%);
+  width: 44px; height: 44px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer;
 }
-.jump-latest:hover,
-.jump-latest:focus-visible { border-color: var(--focus); outline: none; }
+.jump-latest[hidden] { display: none; }
+.jump-latest-dot {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  border: 1px solid var(--faint); border-radius: 50%; background: var(--panel);
+}
+.jump-latest svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.jump-latest:hover { color: var(--text); }
+.jump-latest:hover .jump-latest-dot { border-color: var(--muted); }
+.jump-latest:focus-visible { outline: none; color: var(--text); }
+.jump-latest:focus-visible .jump-latest-dot { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
 .msg-row { max-width: none; width: 100%; margin: 0 auto; padding: 0 1.5rem; }
 
 .user-wrap { display: flex; flex-wrap: wrap; justify-content: flex-end; padding: 0.35rem 0; }
@@ -1531,7 +1531,7 @@ code {
   color: var(--text); font-family: inherit;
   font-size: 0.875rem; line-height: 1.6;
   padding: 0.85rem 1rem 0.35rem;
-  min-height: 52px; max-height: 160px; overflow-y: auto;
+  min-height: 52px; max-height: 160px; overflow-y: hidden;
 }
 .composer-ta::placeholder { color: var(--muted); }
 
@@ -2831,8 +2831,7 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
   cursor: pointer;
 }
 :where(#today-view) .today-settings:hover, :where(#today-view) .today-settings:focus-visible { color: var(--text); outline: 0; }
-:where(#today-view) .today-clock-colon { animation: today-clock-blink 1s steps(1, end) infinite; }
-@keyframes today-clock-blink { 50% { opacity: 0; } }
+/* the seconds already tick; the colons stay steady instead of blinking on top of them */
 :where(#today-view) .today-head {
   display: block;
   max-width: 650px;
@@ -2999,7 +2998,6 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
   .app-drawer-grid { grid-template-columns: 1fr; gap: 30px; margin-top: 38px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  :where(#today-view) .today-clock-colon { animation: none; }
 }
 
 /* ── Afterlife Aide: one compact assistant surface ───────────────────── */
@@ -3532,7 +3530,6 @@ body.afterlife-aide-projects[data-space="aide"] .composer-box.agent-mode { borde
 body.afterlife-aide-projects[data-space="aide"] .composer-box:focus-within { border-color: var(--muted); box-shadow: none; }
 body.afterlife-aide-projects[data-space="aide"] .composer-ta { min-height: 58px; padding: 13px 14px 5px; font-size: 1rem; }
 body:not([data-space="aide"]) .jump-latest { display: none; }
-body.afterlife-aide-projects[data-space="aide"] .jump-latest { position: static; align-self: center; flex-shrink: 0; transform: none; }
 body.afterlife-aide-projects[data-space="aide"] .composer-bar { min-height: 44px; padding: 4px 8px 7px; flex-wrap: wrap; }
 body.afterlife-aide-projects[data-space="aide"] .aide-direct-attach { display: none; }
 body.afterlife-aide-projects[data-space="aide"] .c-tools,
@@ -5445,7 +5442,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-card .home-settings-switch::after,
 .vault-form .home-settings-switch::after { content: ''; position: absolute; top: 14px; left: 5px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: left 0.14s ease, background 0.14s ease; }
 .setup-card .home-settings-switch[aria-checked="true"]::before,
-.vault-form .home-settings-switch[aria-checked="true"]::before { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--panel)); }
+.vault-form .home-settings-switch[aria-checked="true"]::before { border-color: var(--k-switch-on-line, var(--accent)); background: var(--k-switch-on-track, var(--panel)); }
 .setup-card .home-settings-switch[aria-checked="true"]::after,
 .vault-form .home-settings-switch[aria-checked="true"]::after { left: 23px; background: var(--accent); }
 .setup-card .home-settings-switch:disabled,
@@ -9029,15 +9026,17 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
   min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
   border: 0;
 }
-.andromeda-tabs { align-self: stretch; display: flex; align-items: stretch; gap: 18px; }
+/* every tab has the same side padding, so the words sit evenly apart; the row moves back
+   by that padding so "all" still starts on the content edge */
+.andromeda-tabs { align-self: stretch; display: flex; align-items: stretch; gap: 0; margin-inline-start: -12px; }
 .andromeda-tab {
-  position: relative; min-height: 44px; display: flex; align-items: center; padding: 0; border: 0; background: transparent;
+  position: relative; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 0 12px; border: 0; background: transparent;
   color: var(--muted); font-size: 12px; cursor: pointer;
 }
 .andromeda-tab:hover,
 .andromeda-tab.active { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 .andromeda-tab.active::after {
-  content: ""; position: absolute; right: 0; bottom: 3px; left: 0; height: 1px; background: var(--text);
+  content: ""; position: absolute; right: 12px; bottom: 3px; left: 12px; height: 1px; background: var(--text);
 }
 .andromeda-result-meta { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .andromeda-status { min-height: 0; padding-top: 4px; color: var(--muted); font-size: 12px; }
@@ -9117,6 +9116,55 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
   min-height: 44px; padding: 0 12px; border: 1px solid var(--andromeda-strong-line); border-radius: 2px;
   background: transparent; color: var(--text); font: inherit; font-size: 13px; cursor: pointer;
 }
+/* special answers: one quiet card above the overview */
+.andromeda-view .andromeda-answer { display: grid; gap: 12px; margin-top: 16px; padding: 16px 0 20px; border-bottom: 1px solid var(--andromeda-line); }
+.andromeda-view .andromeda-answer[hidden] { display: none; }
+.andromeda-view .andromeda-answer-main { display: grid; gap: 4px; }
+.andromeda-view .andromeda-answer-label { margin: 0; color: var(--muted); font-size: 13px; }
+.andromeda-view .andromeda-answer-value { margin: 0; color: var(--text); font-size: 32px; font-weight: 500; line-height: 1.15; letter-spacing: -0.01em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.andromeda-view .andromeda-answer-unit { color: var(--muted); font-size: 16px; font-weight: 400; letter-spacing: 0; }
+.andromeda-view .andromeda-answer-detail { margin: 0; color: var(--muted); font-size: 14px; }
+.andromeda-view .andromeda-answer-source { margin: 0; color: var(--muted); font-size: 12px; }
+.andromeda-view .andromeda-weather-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.andromeda-view .andromeda-weather-days li { display: grid; gap: 2px; padding: 8px 12px; border: 1px solid var(--andromeda-line); border-radius: 3px; }
+.andromeda-view .andromeda-weather-day { color: var(--text); font-size: 13px; font-weight: 540; }
+.andromeda-view .andromeda-weather-temps { color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
+.andromeda-view .andromeda-weather-sky { color: var(--muted); font-size: 12px; }
+.andromeda-view .andromeda-define-part { display: grid; gap: 4px; }
+.andromeda-view .andromeda-define-list { display: grid; gap: 6px; max-width: 68ch; margin: 0; padding-inline-start: 20px; color: var(--text); font-size: 14px; line-height: 1.55; }
+.andromeda-view .andromeda-define-example { display: block; color: var(--muted); font-style: italic; }
+.andromeda-view .andromeda-element { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.andromeda-view .andromeda-element-tile { width: 88px; height: 88px; display: grid; align-content: space-between; padding: 8px 12px; border: 1px solid var(--andromeda-strong-line); border-radius: 3px; }
+.andromeda-view .andromeda-element-number { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.andromeda-view .andromeda-element-symbol { color: var(--text); font-size: 32px; font-weight: 600; line-height: 1; }
+.andromeda-view .andromeda-element-facts { display: grid; gap: 4px; }
+.andromeda-view .andromeda-element-list { display: grid; grid-template-columns: auto auto; gap: 2px 16px; margin: 0; font-size: 13px; }
+.andromeda-view .andromeda-element-list dt { color: var(--muted); }
+.andromeda-view .andromeda-element-list dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+.andromeda-view .andromeda-ptable-scroll { overflow-x: auto; padding-bottom: 4px; }
+.andromeda-view .andromeda-ptable { display: grid; grid-template-columns: repeat(18, minmax(36px, 1fr)); grid-template-rows: repeat(7, auto) 12px repeat(2, auto); gap: 2px; min-width: 684px; }
+.andromeda-view .andromeda-ptable-cell {
+  min-width: 0; min-height: 44px; display: grid; align-content: space-between; justify-items: start; padding: 2px 4px;
+  border: 1px solid transparent; border-radius: 2px; color: var(--text); font: inherit; cursor: pointer;
+}
+.andromeda-view .andromeda-ptable-cell:hover { border-color: var(--andromeda-strong-line); }
+.andromeda-view .andromeda-ptable-cell[aria-current="true"] { border-color: var(--text); }
+.andromeda-view .andromeda-ptable-number { color: var(--muted); font-size: 12px; line-height: 1; }
+.andromeda-view .andromeda-ptable-symbol { font-size: 14px; font-weight: 560; line-height: 1.1; }
+.andromeda-view .andromeda-ptable-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); font-size: 12px; }
+.andromeda-view .andromeda-ptable-key { display: inline-flex; align-items: center; gap: 6px; }
+.andromeda-view .andromeda-ptable-key i { width: 10px; height: 10px; border-radius: 2px; }
+/* one soft tint per element family, mixed into the panel so it never shouts */
+.andromeda-view :is(.andromeda-ptable-cell.is-alkali-metal, .andromeda-element-tile.is-alkali-metal, .andromeda-ptable-key.is-alkali-metal i) { background: color-mix(in srgb, #e5484d 22%, var(--panel)); }
+.andromeda-view :is(.andromeda-ptable-cell.is-alkaline-earth, .andromeda-element-tile.is-alkaline-earth, .andromeda-ptable-key.is-alkaline-earth i) { background: color-mix(in srgb, #f76b15 22%, var(--panel)); }
+.andromeda-view :is(.andromeda-ptable-cell.is-transition, .andromeda-element-tile.is-transition, .andromeda-ptable-key.is-transition i) { background: color-mix(in srgb, #ffc53d 20%, var(--panel)); }
+.andromeda-view :is(.andromeda-ptable-cell.is-post-transition, .andromeda-element-tile.is-post-transition, .andromeda-ptable-key.is-post-transition i) { background: color-mix(in srgb, #8e8c99 24%, var(--panel)); }
+.andromeda-view :is(.andromeda-ptable-cell.is-metalloid, .andromeda-element-tile.is-metalloid, .andromeda-ptable-key.is-metalloid i) { background: color-mix(in srgb, #12a594 22%, var(--panel)); }
+.andromeda-view :is(.andromeda-ptable-cell.is-nonmetal, .andromeda-element-tile.is-nonmetal, .andromeda-ptable-key.is-nonmetal i) { background: color-mix(in srgb, #46a758 22%, var(--panel)); }
+.andromeda-view :is(.andromeda-ptable-cell.is-halogen, .andromeda-element-tile.is-halogen, .andromeda-ptable-key.is-halogen i) { background: color-mix(in srgb, #0090ff 22%, var(--panel)); }
+.andromeda-view :is(.andromeda-ptable-cell.is-noble-gas, .andromeda-element-tile.is-noble-gas, .andromeda-ptable-key.is-noble-gas i) { background: color-mix(in srgb, #8e4ec6 24%, var(--panel)); }
+.andromeda-view :is(.andromeda-ptable-cell.is-lanthanide, .andromeda-element-tile.is-lanthanide, .andromeda-ptable-key.is-lanthanide i) { background: color-mix(in srgb, #d6409f 20%, var(--panel)); }
+.andromeda-view :is(.andromeda-ptable-cell.is-actinide, .andromeda-element-tile.is-actinide, .andromeda-ptable-key.is-actinide i) { background: color-mix(in srgb, #ab4aba 20%, var(--panel)); }
 .andromeda-view .andromeda-watch { margin-top: 16px; padding: 12px 0; border-top: 1px solid var(--andromeda-line); border-bottom: 1px solid var(--andromeda-line); }
 .andromeda-view .andromeda-watch-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
 .andromeda-view .andromeda-watch-head h2 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 560; }
@@ -9178,16 +9226,18 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
   padding-inline-end: 44px;
 }
 .andromeda-source-mark {
-  width: 16px; height: 16px; display: grid; flex: 0 0 16px; place-items: center; overflow: hidden;
-  border: 0; border-radius: 2px; background: transparent; color: var(--muted);
-  font: 520 8px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: -0.02em;
+  width: 28px; height: 28px; display: grid; flex: 0 0 28px; place-items: center; overflow: hidden;
+  border: 1px solid var(--andromeda-line); border-radius: 50%; background: var(--panel); color: var(--muted);
+  font: 560 9px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: -0.02em;
 }
 .andromeda-source-mark img { width: 16px; height: 16px; display: block; object-fit: contain; }
 .andromeda-source-mark > span { display: block; }
 .andromeda-source-copy { min-width: 0; display: block; flex: 1 1 auto; }
-.andromeda-source-name { display: block; color: color-mix(in srgb, var(--text) 74%, var(--muted)); font-size: 0.8rem; }
-.andromeda-result-site { display: block; overflow: hidden; color: var(--muted); font-size: 12px; line-height: 24px; text-overflow: ellipsis; white-space: nowrap; }
-.andromeda-view .andromeda-result .andromeda-result-title { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; color: var(--text); font-size: 17px; font-weight: 560; line-height: 1.34; text-decoration: none; }
+.andromeda-source-name { display: block; overflow: hidden; color: var(--text); font-size: 14px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.andromeda-result-site { display: block; overflow: hidden; color: var(--muted); font-size: 12px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.andromeda-result-date { color: var(--muted); }
+/* titles carry a soft alles-purple link tone, the way search titles read as links */
+.andromeda-view .andromeda-result .andromeda-result-title { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; color: color-mix(in srgb, var(--accent) 58%, var(--text)); font-size: 19px; font-weight: 460; line-height: 1.3; text-decoration: none; }
 .andromeda-view .andromeda-result .andromeda-result-title:hover { text-decoration: underline; text-underline-offset: 3px; }
 .andromeda-result p { max-width: 68ch; margin: 1px 0 0; color: color-mix(in srgb, var(--text) 66%, var(--muted)); font-size: 14px; line-height: 1.5; }
 .andromeda-result-actions-trigger {
@@ -9368,7 +9418,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-switch { position: relative; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .andromeda-switch::before { content: ''; position: absolute; top: 10px; left: 1px; width: 42px; height: 24px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--raised); }
 .andromeda-switch span { position: absolute; top: 14px; left: 5px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform 140ms ease, background 140ms ease; }
-.andromeda-switch[aria-checked="true"]::before { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--raised)); }
+.andromeda-switch[aria-checked="true"]::before { border-color: var(--k-switch-on-line, var(--accent)); background: var(--k-switch-on-track, var(--raised)); }
 .andromeda-switch[aria-checked="true"] span { background: var(--accent); transform: translateX(18px); }
 @media (prefers-reduced-motion: reduce) {
   .s-switch::after, .andromeda-switch span { transition: none; }
@@ -9401,12 +9451,12 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
   .andromeda-search { grid-column: 1 / -1; grid-row: 2; }
   .andromeda-result-column { width: 100%; margin-inline-start: 0; }
   .andromeda-result-tools { min-height: 44px; }
-  .andromeda-tabs { gap: 18px; overflow-x: auto; }
+  .andromeda-tabs { gap: 0; overflow-x: auto; }
   .andromeda-result-meta { display: none; }
   .andromeda-overview { padding: 16px 0 18px; }
   .andromeda-section-head { align-items: flex-start; flex-wrap: wrap; }
   .andromeda-overview-state { width: 100%; margin-inline-start: 0; }
-  .andromeda-view .andromeda-result .andromeda-result-title { font-size: 16px; }
+  .andromeda-view .andromeda-result .andromeda-result-title { font-size: 17px; }
   .andromeda-result p { font-size: 14px; }
   .andromeda-image-card,
   .andromeda-image-card:nth-child(3n + 1),

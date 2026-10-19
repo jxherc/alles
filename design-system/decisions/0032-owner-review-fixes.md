@@ -6,7 +6,7 @@ The owner's own pass found what the scored audit missed: a switch with a purple 
 
 ## decision
 
-- Every switch shares the Settings switch: raised track, strong line, text-colored knob when on. The shared selected tile never paints behind a switch.
+- Every switch shares one on state: a soft alles-purple track and a text-colored knob, so on reads at a glance (the first neutral version was too dim to tell apart). The shared selected tile never paints behind a switch.
 - A hover tile has real padding on all sides. When that padding would push a label off its content edge, the row moves back by the same amount instead.
 - Settings groups read as headings: 12px bold muted labels with a seam and room above, items at 14px in the soft text color, the selected item boxed with the strong line.
 - Status text that reports work in progress uses the muted color and sits next to the action it describes. Only a message left after the work fails is red.

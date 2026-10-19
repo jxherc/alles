@@ -150,6 +150,7 @@ def normalize_results(
             "elapsed_ms": max(0, int(elapsed_ms or 0)),
         }
         for target, keys, char_limit in (
+            ("site_name", ("site_name",), 80),
             ("favicon_url", ("favicon_url", "favicon"), 4000),
             ("thumbnail_url", ("thumbnail_url", "thumbnail", "image"), 4000),
             ("image_url", ("image_url", "image", "thumbnail"), 4000),
@@ -170,6 +171,9 @@ def normalize_results(
                 continue
             if 0 < number <= 100_000:
                 normalized[target] = number
+        if not normalized.get("favicon_url") and parsed.hostname:
+            # every row gets an icon; the browser loads it through alles's media proxy
+            normalized["favicon_url"] = f"https://icons.duckduckgo.com/ip3/{parsed.hostname}.ico"
         out.append(normalized)
         if len(out) >= max(1, int(limit)):
             break
@@ -319,8 +323,48 @@ def _metadata(passages: list[str]) -> tuple[list[str], list[str]]:
     return dates, versions
 
 
-async def build_evidence(query: str, results: list[dict], *, deep: bool = False) -> list[dict]:
+def snippet_evidence(query: str, results: list[dict]) -> list[dict]:
+    """the fast overview: answer from the engine's own snippets, no page downloads.
+
+    good engines (exa highlights, brave, serper) return snippets rich enough for a short
+    cited answer, and the bundle stays small enough for a local model."""
+    ranked = sorted(
+        (row for row in results or [] if is_safe_url(row.get("url", ""))),
+        key=lambda row: source_kind(row["url"])[1],
+    )
+    evidence = []
+    for row in ranked[: MAX_EVIDENCE_SOURCES + 2]:
+        snippet = re.sub(r"\s+", " ", str(row.get("snippet") or "")).strip()
+        if len(snippet) < 60:
+            continue
+        dates, versions = _metadata([snippet])
+        kind, quality = source_kind(row["url"])
+        evidence.append(
+            {
+                "id": f"s{len(evidence) + 1}",
+                "title": str(row.get("title") or row["url"])[:500],
+                "url": row["url"],
+                "publisher": row.get("publisher") or (urlsplit(row["url"]).hostname or ""),
+                "source_kind": kind,
+                "source_quality": quality,
+                "dates": dates,
+                "versions": versions,
+                "passages": [snippet[:900]],
+            }
+        )
+    return evidence
+
+
+async def build_evidence(
+    query: str, results: list[dict], *, deep: bool = False, fast: bool = False
+) -> list[dict]:
     from services.research.search import fetch_webpage_content
+
+    if fast:
+        quick = snippet_evidence(query, results)
+        # thin snippets are not enough to cite; read the pages instead
+        if len(quick) >= 2:
+            return quick
 
     ranked_candidates = []
     for position, row in enumerate(results or []):

@@ -576,6 +576,8 @@ test('remote overviews require an exact per-search owner confirmation', () => {
   assert.match(source, /await confirmDialog\(tr\('andromeda\.remote_confirm'/);
   assert.match(source, /confirmation\.confirmed_endpoint_id = preview\.endpoint_id/);
   assert.match(source, /confirmation\.confirmed_model = preview\.model/);
+  // the owner's chosen remote model is used without a prompt unless they ask for one
+  assert.match(source, /preview\.privacy_class === 'remote' && !preview\.confirm_each_search\) \{\n\s+\/\/[^\n]*\n\s+confirmation\.confirmed_endpoint_id = preview\.endpoint_id;/);
   // sending is a consent, not a delete: the confirm is neutral, never the danger red
   assert.match(source, /remote_confirm'[^\n]*\{ danger: false, confirmLabel: 'send' \}\)/);
   const dialog = readFileSync(new URL('../../static/js/dialog.js', import.meta.url), 'utf8');

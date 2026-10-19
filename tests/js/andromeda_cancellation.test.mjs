@@ -12,7 +12,7 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 const json = body => ({ ok: true, json: async () => body });
-const preview = privacy => json({ endpoint_id: 'fixture', endpoint: 'fixture', model: 'fixture', privacy_class: privacy || 'local' });
+const preview = (privacy, confirm = true) => json({ endpoint_id: 'fixture', endpoint: 'fixture', model: 'fixture', privacy_class: privacy || 'local', confirm_each_search: confirm });
 
 function harness() {
   const elements = new Map();

@@ -329,6 +329,7 @@ async def _search_exa(query, api_key, max_results=5, category="all"):
             "title": x.get("title") or "",
             "snippet": " ".join(x.get("highlights") or [])[:500],
             "published": x.get("publishedDate") or "",
+            "favicon_url": x.get("favicon") or "",
         }
         for x in data.get("results", [])
         if x.get("url")
@@ -355,6 +356,10 @@ def _rows(items, url="url", title="title", snippet="snippet", date=None):
         row = {"url": x[url], "title": x.get(title) or "", "snippet": str(text or "")[:500]}
         if date and x.get(date):
             row["published"] = x[date]
+        if x.get("site_name"):
+            row["site_name"] = str(x["site_name"])[:80]
+        if x.get("site_icon"):
+            row["favicon_url"] = str(x["site_icon"])
         out.append(row)
     return out
 

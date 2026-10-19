@@ -155,3 +155,78 @@ class BlockedSitesTest(ApiTest):
             result = asyncio.run(andromeda.normal_search("q", max_results=5))
         save_settings({"andromeda_blocked_sites": []})
         self.assertEqual([r["url"] for r in result["results"]], ["https://good.dev/y"])
+
+
+class RemoteConsentTest(ApiTest):
+    def test_preview_says_whether_to_ask_each_search(self):
+        selected = mock.Mock()
+        selected.public.return_value = {"model": "m", "endpoint": "e", "privacy_class": "remote"}
+        flag = mock.patch.dict("os.environ", {"ALLES_AFTERLIFE_FEATURES": "afterlife_andromeda"})
+        with flag, mock.patch("services.andromeda.select_overview_model", return_value=selected):
+            save_settings({"andromeda_confirm_remote": False})
+            quiet = self.client.get("/api/andromeda/overview/preview").json()
+            save_settings({"andromeda_confirm_remote": True})
+            asked = self.client.get("/api/andromeda/overview/preview").json()
+        save_settings({"andromeda_confirm_remote": False})
+        self.assertFalse(quiet["confirm_each_search"])
+        self.assertTrue(asked["confirm_each_search"])
+
+    def test_fact_check_preview_follows_the_same_setting(self):
+        selected = mock.Mock()
+        selected.public.return_value = {"model": "m", "endpoint": "e", "privacy_class": "remote"}
+        flag = mock.patch.dict("os.environ", {"ALLES_AFTERLIFE_FEATURES": "afterlife_andromeda"})
+        with (
+            flag,
+            mock.patch("services.andromeda_verifier.should_verify", return_value=True),
+            mock.patch("services.model_resolver.resolve_model", return_value=selected),
+        ):
+            save_settings({"andromeda_confirm_remote": True})
+            asked = self.client.post("/api/andromeda/verification/preview", json={"query": "q"})
+        save_settings({"andromeda_confirm_remote": False})
+        self.assertEqual(asked.status_code, 200, asked.text)
+        self.assertTrue(asked.json()["confirm_each_search"])
+
+
+class FastOverviewTest(ApiTest):
+    ROWS = [
+        {
+            "url": "https://docs.example.dev/a",
+            "title": "A",
+            "snippet": "Tailscale serve shares a local service with devices in your tailnet over HTTPS.",
+        },
+        {
+            "url": "https://blog.example.dev/b",
+            "title": "B",
+            "snippet": "Funnel is like serve but it also exposes the service to the public internet.",
+        },
+        {"url": "https://short.example.dev/c", "title": "C", "snippet": "too short"},
+    ]
+
+    def test_snippets_become_citable_passages_without_fetching(self):
+        with (
+            mock.patch("services.andromeda.is_safe_url", return_value=True),
+            mock.patch("services.research.search.fetch_webpage_content") as fetch,
+        ):
+            evidence = asyncio.run(
+                andromeda.build_evidence("tailscale serve", self.ROWS, fast=True)
+            )
+        fetch.assert_not_called()
+        self.assertEqual(
+            [e["url"] for e in evidence],
+            ["https://docs.example.dev/a", "https://blog.example.dev/b"],
+        )
+        self.assertEqual(evidence[0]["passages"], [self.ROWS[0]["snippet"]])
+        self.assertEqual(evidence[0]["id"], "s1")
+
+    def test_thin_snippets_fall_back_to_reading_pages(self):
+        thin = [{"url": "https://x.dev/a", "title": "x", "snippet": "short"}]
+
+        def page(url, timeout):
+            return {"success": True, "content": "tailscale serve shares a service", "title": "x"}
+
+        with (
+            mock.patch("services.andromeda.is_safe_url", return_value=True),
+            mock.patch("services.research.search.fetch_webpage_content", side_effect=page) as fetch,
+        ):
+            asyncio.run(andromeda.build_evidence("tailscale serve", thin, fast=True))
+        fetch.assert_called_once()

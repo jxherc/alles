@@ -13,6 +13,7 @@
     "static/js/aidequestions.js": "aide.selectable-questions",
     "static/js/aideworkspace.js": "aide.conversation-and-execution",
     "static/js/andromeda.js": "andromeda.cited-search",
+    "static/js/andromeda_answers.js": "andromeda.cited-search",
     "static/js/app.js": "cross-feature.shared-shell",
     "static/js/appsettings.js": "cross-feature.settings",
     "static/js/books.js": "library.reading-and-news",

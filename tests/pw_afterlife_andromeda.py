@@ -150,6 +150,7 @@ def mock_api(route: Route, requests: list[dict], overview_requests: list[dict]) 
                     "endpoint": "remote fixture",
                     "model": "fixture-model",
                     "privacy_class": "remote",
+                    "confirm_each_search": True,
                 }
             ),
         )
@@ -219,7 +220,9 @@ def mock_api(route: Route, requests: list[dict], overview_requests: list[dict]) 
         route.fulfill(
             status=200,
             content_type="application/json",
-            body=json.dumps({"status": "ready", "model": verifier_model}),
+            body=json.dumps(
+                {"status": "ready", "model": verifier_model, "confirm_each_search": True}
+            ),
         )
         return
     if path == "/verification" and request.method == "POST":

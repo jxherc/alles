@@ -171,7 +171,7 @@ class SafeGetAsyncTest(unittest.TestCase):
 
         self.assertEqual(seen["url"], "https://93.184.216.34/image.png")
         self.assertEqual(seen["headers"]["host"], "example.com")
-        self.assertEqual(seen["extensions"]["sni_hostname"], b"example.com")
+        self.assertEqual(seen["extensions"]["sni_hostname"], "example.com")
 
     def test_public_fetch_retries_each_validated_address(self):
         attempted = []
@@ -297,7 +297,7 @@ class SafeGetAsyncTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(seen["url"], "https://93.184.216.34/x")
         self.assertEqual(seen["headers"]["host"], "xn--bcher-kva.example")
-        self.assertEqual(seen["extensions"]["sni_hostname"], b"xn--bcher-kva.example")
+        self.assertEqual(seen["extensions"]["sni_hostname"], "xn--bcher-kva.example")
 
     def test_public_redirect_to_another_hostname_uses_a_fresh_tls_pool(self):
         clients = []
@@ -338,4 +338,4 @@ class SafeGetAsyncTest(unittest.TestCase):
 
         self.assertEqual(response.content, b"ok")
         self.assertEqual(len(clients), 2)
-        self.assertEqual(seen_sni, [b"first.example", b"second.example"])
+        self.assertEqual(seen_sni, ["first.example", "second.example"])

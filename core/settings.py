@@ -103,6 +103,8 @@ _defaults = {
     "exa_api_key": "",
     "custom_search_engines": [],
     "andromeda_blocked_sites": [],
+    "andromeda_confirm_remote": False,
+    "andromeda_fast_overview": True,
     "search_fallback": "duckduckgo",
     "andromeda_normal_results": True,
     "andromeda_overview": True,

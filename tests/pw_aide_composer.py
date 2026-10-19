@@ -437,7 +437,7 @@ def run():
                                     page.locator("#chat").hover()
                                     page.mouse.wheel(0, -200)
                                     jump = page.get_by_role(
-                                        "button", name="jump to latest ↓", exact=True
+                                        "button", name="jump to latest", exact=True
                                     )
                                     expect(jump).to_be_visible()
                                     snapshot("03a-draft-jump")

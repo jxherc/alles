@@ -83,7 +83,7 @@ class WebDAVLocationTests(unittest.TestCase):
 
         self.assertEqual(observed["url"].host, "93.184.216.34")
         self.assertEqual(observed["host"], "dav.example.test")
-        self.assertEqual(observed["sni"], b"dav.example.test")
+        self.assertEqual(observed["sni"], "dav.example.test")
 
     def test_transport_retries_each_validated_address(self):
         observed = []

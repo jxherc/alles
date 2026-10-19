@@ -49,6 +49,7 @@ import {
 } from './modes.js?v=256';
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
+import { wireAutosizeTextarea } from './text_entry.js';
 import { initAideWorkspace } from './aideworkspace.js?v=278';
 import { initAideCentral } from './aidecentral.js?v=1';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=2';
@@ -374,6 +375,8 @@ async function _boot({ reachable = true } = {}) {
     else configureLocalization();
   }
   initScrollFollow();
+  // the message box grows with its text up to its cap; only past that does it scroll
+  wireAutosizeTextarea(document.getElementById('composer-ta'));
   _syncAppearance();   // pull theme/accent from the server so it matches across subdomains
   const aideSidebarMedia = window.matchMedia('(max-width: 700px)');
   let aideSidebarWasMobile = aideSidebarMedia.matches;

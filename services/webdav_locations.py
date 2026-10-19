@@ -151,7 +151,7 @@ def _send(client, method: str, url: str, **kwargs):
             method,
             net_guard._bound_url(parsed, address),
             headers=headers,
-            extensions={"sni_hostname": ascii_host.encode("ascii")},
+            extensions={"sni_hostname": ascii_host},
             **request_kwargs,
         )
         try:

@@ -188,6 +188,58 @@ class OverviewBody(BaseModel):
     depth: Literal["standard", "deep"] = "standard"
 
 
+class AnswerBody(BaseModel):
+    query: str = Field(min_length=1, max_length=300)
+
+
+@router.post("/answer")
+async def special_answer(body: AnswerBody, db: DbSession = Depends(get_db)):
+    """a calculator, converter, clock, weather, dictionary, translation or element card, if one fits."""
+    _require_flag()
+    from services import andromeda_answers
+
+    parsed = andromeda.parse_query(body.query, overview_default=False)
+    found = andromeda_answers.detect(parsed.query)
+    if not found:
+        return {"kind": None}
+    translate = None
+    if found["kind"] == "translate":
+        settings = load_settings()
+        try:
+            band = settings.get("andromeda_model_band") or "standard"
+            selected = andromeda.select_overview_model(db, settings, band=band)
+        except Exception:
+            selected = None
+        remote_needs_ok = (
+            selected is not None
+            and selected.privacy_class == "remote"
+            and settings.get("andromeda_confirm_remote")
+        )
+        if selected is not None and not remote_needs_ok:
+            from services.llm import simple_complete
+
+            endpoint = selected.endpoint
+
+            async def translate(messages):
+                return await asyncio.wait_for(
+                    simple_complete(
+                        messages,
+                        endpoint.base_url,
+                        endpoint.api_key,
+                        selected.model,
+                        max_tokens=200,
+                        thinking=False,
+                    ),
+                    timeout=20,
+                )
+
+    try:
+        answer = await andromeda_answers.resolve(found, translate=translate)
+    except Exception:
+        answer = None
+    return answer or {"kind": None}
+
+
 @router.post("/overview")
 async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
     _require_flag()
@@ -228,6 +280,8 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
         )
     rows = andromeda.normalize_results(body.results, "client", 0)
     deep = body.depth == "deep"
+    # fast first: answer from the result snippets; "go deeper" reads the pages
+    fast_first = settings.get("andromeda_fast_overview", True) is not False
     endpoint_url = selected.endpoint.base_url
     endpoint_key = selected.endpoint.api_key
     model = selected.model
@@ -236,7 +290,9 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
         started = asyncio.get_running_loop().time()
         yield _event({"type": "model", "model": public_model, "band": band})
         try:
-            evidence = await andromeda.build_evidence(parsed.query, rows, deep=deep)
+            evidence = await andromeda.build_evidence(
+                parsed.query, rows, deep=deep, fast=not deep and fast_first
+            )
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -354,7 +410,12 @@ def overview_preview(
         if isinstance(exc, ModelResolutionError):
             raise ApiError(409, exc.code, str(exc)) from exc
         raise
-    return selected.public()
+    # the owner chose this model, so by default it is used without a prompt each search;
+    # "ask before each remote search" brings the prompt back
+    return {
+        **selected.public(),
+        "confirm_each_search": bool(settings.get("andromeda_confirm_remote")),
+    }
 
 
 class QualifyModelBody(BaseModel):
@@ -462,7 +523,11 @@ def verification_preview(
         selected = resolve_model(db, "andromeda_verifier", settings=settings)
     except ModelResolutionError as exc:
         raise ApiError(409, exc.code, str(exc)) from exc
-    return {"status": "ready", "model": selected.public()}
+    return {
+        "status": "ready",
+        "model": selected.public(),
+        "confirm_each_search": bool(settings.get("andromeda_confirm_remote")),
+    }
 
 
 def _verification_job(row: AndromedaVerificationJob) -> dict:

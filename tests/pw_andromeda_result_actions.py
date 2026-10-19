@@ -178,6 +178,7 @@ class Transport:
                     "endpoint": "isolated fixture",
                     "model": "fixture-model",
                     "privacy_class": "remote" if self.remote else "local",
+                    "confirm_each_search": True,
                 }
             )
             return

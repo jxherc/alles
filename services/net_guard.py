@@ -240,7 +240,9 @@ async def safe_get_public_async(
                     "GET",
                     _bound_url(parsed, address),
                     headers=request_headers,
-                    extensions={"sni_hostname": ascii_host.encode("ascii")},
+                    extensions={
+                        "sni_hostname": ascii_host
+                    },  # httpcore wants text; bytes broke every proxied image
                 )
                 try:
                     response = await client.send(request, stream=max_bytes is not None)

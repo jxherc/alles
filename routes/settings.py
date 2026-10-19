@@ -357,6 +357,7 @@ class SettingsPatch(BaseModel):
     # engine id -> key; "" clears it. covers every engine in services/research/engines.py
     search_keys: dict[str, str] | None = None
     andromeda_blocked_sites: list[str] | None = None
+    andromeda_confirm_remote: bool | None = None
     search_fallback: str | None = None
     andromeda_normal_results: bool | None = None
     andromeda_overview: bool | None = None

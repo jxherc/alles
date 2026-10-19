@@ -1,6 +1,7 @@
 import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
+import { renderAnswer } from './andromeda_answers.js';
 import { createMenuController, setControlState, wireChoiceGroup } from './kokuen.js?v=1';
 import { replaceRouteUrl } from './route_history.js';
 
@@ -632,7 +633,11 @@ async function startResultSummary(result, refs) {
     }
     if (!current()) return;
     const confirmation = {};
-    if (preview.privacy_class === 'remote') {
+    if (preview.privacy_class === 'remote' && !preview.confirm_each_search) {
+      // same rule as the overview: the owner picked this model, so no prompt
+      confirmation.confirmed_endpoint_id = preview.endpoint_id;
+      confirmation.confirmed_model = preview.model;
+    } else if (preview.privacy_class === 'remote') {
       const host = safeUrl(result.url)?.hostname || 'this source';
       const allowed = await confirmDialog(
         `summarize page: send the current query and content from ${host} to ${preview.endpoint} · ${preview.model}?`,
@@ -718,6 +723,28 @@ async function copyResultLink(result, message) {
   }
 }
 
+// the site's own name when the page title ends with one ("… | Britannica"), else its host
+export function resultSiteName(result = {}) {
+  const host = (safeUrl(result.url)?.hostname || result.publisher || 'web').replace(/^www\./, '');
+  if (result.site_name) return String(result.site_name);
+  const parts = String(result.title || '').split(/\s+[|·–—-]\s+/).map(part => part.trim()).filter(Boolean);
+  const tail = parts.length > 1 ? parts.at(-1) : '';
+  return tail && tail.length <= 32 && !/\s{3}/.test(tail) ? tail : host;
+}
+
+// google-style address line: the host, then up to three readable path parts
+export function resultBreadcrumb(value) {
+  const url = safeUrl(value);
+  if (!url) return '';
+  const parts = url.pathname.split('/').filter(Boolean).slice(0, 3).map(part => {
+    let text = part;
+    try { text = decodeURIComponent(part); } catch {}
+    text = text.replace(/\.(html?|php|aspx?)$/i, '').replace(/[-_+]+/g, ' ').trim();
+    return text.length > 28 ? `${text.slice(0, 27)}…` : text;
+  }).filter(Boolean);
+  return [url.hostname.replace(/^www\./, ''), ...parts].join(' › ');
+}
+
 function resultNode(result, savedItems = null, index = 0) {
   const row = document.createElement('article');
   row.className = 'andromeda-result';
@@ -730,11 +757,11 @@ function resultNode(result, savedItems = null, index = 0) {
   sourceCopy.className = 'andromeda-source-copy';
   const sourceName = document.createElement('span');
   sourceName.className = 'andromeda-source-name';
-  sourceName.textContent = (result.publisher || safeUrl(result.url)?.hostname || 'web').replace(/^www\./, '');
+  sourceName.textContent = resultSiteName(result);
   const site = document.createElement('span');
   site.className = 'andromeda-result-site';
-  site.textContent = safeUrl(result.url)?.href.replace(/^https?:\/\//, '').replace(/\/$/, '') || '';
-  sourceCopy.append(site);
+  site.textContent = resultBreadcrumb(result.url);
+  sourceCopy.append(sourceName, site);
   source.append(mediaFrame(result, { favicon: true }), sourceCopy);
   const trigger = document.createElement('button');
   trigger.type = 'button';
@@ -815,6 +842,13 @@ function resultNode(result, savedItems = null, index = 0) {
   const link = makeExternalLink(result, 'andromeda-result-title');
   const snippet = document.createElement('p');
   renderResultSnippet(snippet, result.snippet, _state.query);
+  const published = result.published ? formatPublishedDate(String(result.published).slice(0, 10)) : '';
+  if (published) {
+    const date = document.createElement('span');
+    date.className = 'andromeda-result-date';
+    date.textContent = `${published} — `;
+    snippet.prepend(date);
+  }
   body.append(source, link, snippet, receipt, summary);
   row.append(body);
   row.addEventListener('pointerdown', () => selectResult(index));
@@ -1395,7 +1429,10 @@ async function startVerification(query, answer, results, searchGeneration, { man
   const model = preview.model || {};
   _state.verifierModel = model;
   const confirmation = {};
-  if (model.privacy_class === 'remote') {
+  if (model.privacy_class === 'remote' && !preview.confirm_each_search) {
+    confirmation.confirmed_endpoint_id = model.endpoint_id;
+    confirmation.confirmed_model = model.model;
+  } else if (model.privacy_class === 'remote') {
     const allowed = await confirmDialog(
       `independent fact-check: send this query, answer, and source evidence to ${model.endpoint} · ${model.model}?`,
     );
@@ -1497,7 +1534,11 @@ async function startOverview(query, results, searchGeneration, options = {}) {
     _state.model = preview;
     text('andromeda-model', `${preview.model} · ${preview.endpoint} · ${preview.privacy_class}`);
     const confirmation = {};
-    if (preview.privacy_class === 'remote') {
+    if (preview.privacy_class === 'remote' && !preview.confirm_each_search) {
+      // the owner picked this model; it is named in the overview line instead of a prompt
+      confirmation.confirmed_endpoint_id = preview.endpoint_id;
+      confirmation.confirmed_model = preview.model;
+    } else if (preview.privacy_class === 'remote') {
       // a consent, not a destructive action, so the confirm stays neutral
       const allowed = await confirmDialog(tr('andromeda.remote_confirm', { endpoint: preview.endpoint, model: preview.model }), { danger: false, confirmLabel: 'send' });
       if (!current()) return;
@@ -1574,6 +1615,15 @@ async function startOverview(query, results, searchGeneration, options = {}) {
   }
 }
 
+async function loadAnswer(query, searchGeneration) {
+  try {
+    const answer = await jsonRequest('/api/andromeda/answer', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query }),
+    });
+    if (searchGeneration === _searchGeneration) renderAnswer(el('andromeda-answer'), answer);
+  } catch {}
+}
+
 export async function runAndromedaSearch(queryValue = '', options = {}) {
   const input = el('andromeda-query');
   const query = String(queryValue || input?.value || '').trim();
@@ -1612,6 +1662,9 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   const hiddenNotice = el('andromeda-blocked-notice');
   if (hiddenNotice) hiddenNotice.hidden = true;
   renderWatch(null);
+  renderAnswer(el('andromeda-answer'), null);
+  // calculator, converter, weather, dictionary... runs beside the search, never in front of it
+  if (currentCategory === 'all') void loadAnswer(query, searchGeneration);
   const wantsOverview = currentCategory === 'all'
     && pressed('andromeda-overview-toggle')
     && !/(^|\s)!ai(?=\s|$)/i.test(query);
@@ -1915,6 +1968,7 @@ function reopen(saved) {
   status(tr('andromeda.saved_reopened'));
   _openedSaved = { id: saved.id, checked_at: saved.checked_at, payload: JSON.stringify(searchSnapshot()) };
   renderWatch(saved, saved.watch_new || []);
+  renderAnswer(el('andromeda-answer'), null);
   if ((saved.watch_new || []).length) {
     // seen once shown; the list stays on screen for this visit
     void jsonRequest(`/api/andromeda/saved/${encodeURIComponent(saved.id)}/watch/seen`, { method: 'POST' })

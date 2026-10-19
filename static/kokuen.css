@@ -39,6 +39,9 @@
   --k-field-focus: var(--muted, var(--k-soft));
   --k-focus-offset: -2px;
   --k-accent: var(--accent, #9298ff);
+  /* a switch that is on: a soft alles-purple track every surface shares */
+  --k-switch-on-line: color-mix(in srgb, var(--k-accent) 70%, var(--k-line-strong));
+  --k-switch-on-track: color-mix(in srgb, var(--k-accent) 34%, var(--k-raised));
   --k-permission: var(--signal, #d5a265);
   --k-danger: var(--error, #df7474);
   --k-success: var(--green, #7ea98b);
@@ -3672,8 +3675,8 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-switch.on::before {
-  border-color: var(--k-line-strong);
-  background: var(--k-raised);
+  border-color: var(--k-switch-on-line);
+  background: var(--k-switch-on-track);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-switch.on::after {
@@ -4644,8 +4647,8 @@ html[dir="rtl"] :where(
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::before,
 .server-workbench-switch-row .home-settings-switch[aria-checked="true"]::before {
-  border-color: var(--k-line-strong);
-  background: var(--k-raised);
+  border-color: var(--k-switch-on-line);
+  background: var(--k-switch-on-track);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::after,
@@ -5326,8 +5329,8 @@ body.afterlife-aide-projects[data-space="aide"] .news-switch::after {
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-switch[aria-checked="true"]::before {
-  border-color: var(--k-accent);
-  background: color-mix(in srgb, var(--k-accent) 9%, var(--k-panel));
+  border-color: var(--k-switch-on-line);
+  background: var(--k-switch-on-track);
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-switch[aria-checked="true"]::after {
@@ -7214,16 +7217,15 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
   :where(#finance-view) .finance-import-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Every switch shares the neutral on state from Settings (decision 0019): a raised
-   track with a strong line and a text-colored knob. No accent, and no tile behind
-   the 44px target. */
+/* Every switch shares one on state: a soft alles-purple track with a text-colored knob, so
+   on reads at a glance (owner 2026-10-19: neutral was too dim). No tile behind the 44px target. */
 html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch, .andromeda-switch) {
   background: transparent;
 }
 
 html[data-kokuen-version="5"] :is(.s-switch.on, .s-switch[aria-checked="true"], .home-settings-switch[aria-checked="true"], .news-switch[aria-checked="true"], .andromeda-switch[aria-checked="true"])::before {
-  border-color: var(--k-line-strong);
-  background: var(--k-raised);
+  border-color: var(--k-switch-on-line);
+  background: var(--k-switch-on-track);
 }
 
 html[data-kokuen-version="5"] :is(.s-switch.on, .s-switch[aria-checked="true"], .home-settings-switch[aria-checked="true"], .news-switch[aria-checked="true"])::after,

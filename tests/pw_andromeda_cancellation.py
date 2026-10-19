@@ -87,6 +87,8 @@ class Transport:
                     "endpoint": "isolated fixture",
                     "model": "fixture-model",
                     "privacy_class": "remote" if remote else "local",
+                    # the owner turned on "ask before each remote search" for this fixture
+                    "confirm_each_search": True,
                 }
             )
             if held:

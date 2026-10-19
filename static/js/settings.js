@@ -475,6 +475,9 @@ async function loadAndromedaSearchSettings(settings) {
     ['s-andromeda-overview', 'andromeda_overview'], ['s-andromeda-verification', 'andromeda_verification_enabled']]) {
     _bindSwitch(document.getElementById(id), () => settings[key] !== false, value => _patchSetting(key, value));
   }
+  // off unless the owner turns it on
+  _bindSwitch(document.getElementById('s-andromeda-confirm-remote'), () => settings.andromeda_confirm_remote === true,
+    value => _patchSetting('andromeda_confirm_remote', value));
   const verifierMode = document.getElementById('s-andromeda-verifier-mode');
   if (verifierMode) setDropdownValue(verifierMode, settings.andromeda_verifier_mode || 'freshness-sensitive');
   const band = document.getElementById('s-andromeda-band');

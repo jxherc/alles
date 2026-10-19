@@ -846,9 +846,14 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   checks reject unrelated quotes, mismatched numbers, versions, dates, and entities. claims about the
   latest software prefer the freshest primary source and fail closed on weak or conflicting evidence.
 - **owner-chosen models.** light, standard, strong, and auto bands each resolve to an exact configured
-  endpoint and model. auto prefers a qualified local model. a configured remote fallback is shown in
-  preview and requires an exact per-search owner confirmation before any query or evidence leaves the
-  device; declining keeps the links and skips the overview.
+  endpoint and model. auto prefers a qualified local model. when the chosen model is remote, the
+  overview runs on its own and names the model and its privacy class above the answer. turning on
+  "ask before each remote search" (`andromeda_confirm_remote`) brings back an exact per-search
+  confirmation before any query or evidence leaves the device; declining keeps the links and skips the
+  overview.
+- **fast first answer.** by default (`andromeda_fast_overview`) the first overview cites the engine's own
+  snippets, so nothing is downloaded and the bundle stays small enough for a local model. it reads pages
+  when fewer than two snippets are long enough to quote, and "go deeper" always reads pages.
 - **independent background verification.** the fast answer uses the `andromeda_answer` role. a separate
   `andromeda_verifier` role checks freshness-sensitive answers by default after the answer and links are
   already usable. it records the checked date and claim verdicts, requires exact supporting quotes, and
@@ -857,6 +862,16 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **compact answer, separate links.** search, the cited answer, and results share one readable axis. the
   shortest decisive evidence-backed substring is highlighted inside the key answer. ordinary web results
   begin in their own labeled region and use spacing instead of divider lines between rows.
+- **answer cards.** `POST /api/andromeda/answer` checks the query for a direct answer and draws one card
+  above the overview on the "all" tab: a calculator (a safe arithmetic parser, no `eval`), unit and
+  temperature conversion, the time in a city, the periodic table and single elements (a built-in table,
+  click any element for its details), currency (european central bank rates via frankfurter), weather
+  (open-meteo), english definitions (the free dictionary api) and translation ("what is bonjour in
+  english"). translation uses the answer model and follows the same remote-confirmation setting. every
+  lookup goes through the ssrf-safe fetcher with an 8 second limit; a failed lookup shows no card.
+- **result rows.** each row shows the site's icon, its name and a "host › path" trail above a larger
+  title, then the page date before the snippet when the engine gives one. a row without an icon from the
+  engine uses duckduckgo's icon service, and every icon and image loads through the media proxy.
 - **sources in place.** each claim lists its sources by site name on its own row under the claim.
   choosing one opens a card in place with the exact supporting quote, the page title as a link, the
   page date when the evidence has one, and the source type for docs, release notes, repositories and
@@ -1431,9 +1446,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 86 included fastapi router modules
-- 954 http method/path pairs
-- 937 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `8c6e25b0c6ec2b599a992ed65c9fd3cfa87fb031e7ebf6ca51cc6e829c972c7c`
+- 955 http method/path pairs
+- 938 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `0331a5aaede48c49531ed8b8c22548af85c56b021d710532f4bd57e4d22fa36d`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -1523,12 +1538,13 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/andromeda.py · 19 operations</summary>
+<summary>routes/andromeda.py · 20 operations</summary>
 
 [source](routes/andromeda.py)
 
 | method | path | handler |
 | --- | --- | --- |
+| `POST` | `/api/andromeda/answer` | `special_answer` |
 | `POST` | `/api/andromeda/deep-research` | `deep_research` |
 | `GET` | `/api/andromeda/deep-research/preview` | `deep_research_preview` |
 | `GET` | `/api/andromeda/media` | `media` |
@@ -3743,6 +3759,8 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `exa_api_key` | `""` |
 | `custom_search_engines` | `[]` |
 | `andromeda_blocked_sites` | `[]` |
+| `andromeda_confirm_remote` | `false` |
+| `andromeda_fast_overview` | `true` |
 | `search_fallback` | `"duckduckgo"` |
 | `andromeda_normal_results` | `true` |
 | `andromeda_overview` | `true` |
