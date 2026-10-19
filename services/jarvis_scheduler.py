@@ -243,6 +243,10 @@ async def scan_due(now: datetime | None = None) -> dict:
             workflow = db.get(JarvisWorkflow, trigger.workflow_id)
             if not workflow or not workflow.enabled:
                 continue
+            from services import aide_goals
+
+            if aide_goals.is_goal(workflow) and aide_goals.expired(db, workflow, now):
+                continue
             due = trigger.next_run_at
             if trigger.kind == "once":
                 grace = max(

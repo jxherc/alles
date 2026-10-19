@@ -28,7 +28,7 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=538">
+<link rel="stylesheet" href="/static/style.css?v=539">
   <link rel="stylesheet" href="/static/kokuen.css?v=64">
 <link rel="stylesheet" href="/static/aidecentral.css?v=3">
 <link rel="stylesheet" href="/static/aidecoding.css?v=6">
@@ -688,6 +688,7 @@
 
       <div class="aide-scheduled-tabs" role="tablist" aria-label="scheduled work sections">
         <button type="button" role="tab" aria-selected="true" aria-controls="aide-schedule-list" data-scheduled-tab="schedules">schedules</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="aide-goal-list" data-scheduled-tab="goals" tabindex="-1">goals</button>
         <button type="button" role="tab" aria-selected="false" aria-controls="aide-news-workbench" data-scheduled-tab="news" tabindex="-1">news</button>
         <button type="button" role="tab" aria-selected="false" aria-controls="aide-run-list" data-scheduled-tab="runs">recent runs</button>
       </div>
@@ -734,6 +735,7 @@
 
       <div class="aide-tool-content aide-scheduled-content">
         <div id="aide-schedule-list" role="tabpanel" aria-label="schedules"></div>
+        <div id="aide-goal-list" class="aide-goal-list" role="tabpanel" aria-label="goals" hidden></div>
         <div id="aide-news-workbench" class="aide-news-workbench" role="tabpanel" aria-label="news" hidden></div>
         <div id="aide-run-list" role="tabpanel" aria-label="recent runs" hidden></div>
       </div>
@@ -3028,7 +3030,7 @@
 </div>
 
 <script type="module">
-const _v = '538';
+const _v = '539';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

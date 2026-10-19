@@ -130,6 +130,8 @@ TOOL_PERMISSION = {
     "calendar_delete": "calendar_write",
     "task_list": "tasks_read",
     "task_add": "tasks_write",
+    "goal_add": "goals_write",
+    "goal_list": "goals_read",
     "task_done": "tasks_write",
     "search_code": "code_read",
     "browse_open": "browser_write",
@@ -1650,6 +1652,12 @@ async def execute(name: str, args: dict) -> dict:
         return await _browse(name, args)
     if name == "search_code":
         return await _search_code(args.get("query", ""), int(args.get("k") or 8))
+    if name == "goal_add":
+        return await _goal_add(
+            args.get("aim", ""), args.get("every", "day"), args.get("mode", "ask")
+        )
+    if name == "goal_list":
+        return await _goal_list()
     if name == "task_add":
         return await _task_add(args.get("title", ""))
     if name == "task_done":
@@ -1881,6 +1889,83 @@ async def _search_code(query, k=8):
             "error": False,
             "hits": hits,
         }
+    finally:
+        db.close()
+
+
+async def _goal_add(aim: str, every: str = "day", mode: str = "ask") -> dict:
+    """a standing goal from conversation; it starts its first check right away."""
+    from core.database import AideGoal, JarvisTrigger, JarvisWorkflow, SessionLocal
+    from services import aide_goals, jarvis_handoff
+    from services.jarvis_scheduler import next_for_trigger, utc_now
+    from services.jarvis_store import create_run
+
+    aim = (aim or "").strip()
+    if not aim:
+        return {"output": "say what the goal is", "error": True}
+    every = every if every in aide_goals.EVERY else "day"
+    mode = mode if mode in aide_goals.MODES else "ask"
+    db = SessionLocal()
+    try:
+        workflow = JarvisWorkflow(
+            name=aide_goals.short_name(aim),
+            purpose=aim,
+            prompt=aim,
+            deterministic_action=jarvis_handoff.HANDOFF_ACTION,
+            capability_ceiling="[]",
+            concurrency_mode="skip",
+            context_mode="fresh",
+            delivery_policy=json.dumps(
+                {
+                    "aide_schedule_owner": aide_goals.GOAL_OWNER,
+                    "goal_every": every,
+                    "goal_mode": mode,
+                }
+            ),
+            enabled=True,
+        )
+        db.add(workflow)
+        db.flush()
+        trigger = JarvisTrigger(
+            workflow_id=workflow.id,
+            kind="interval",
+            config=json.dumps({"every_seconds": aide_goals.EVERY[every]}),
+            timezone="UTC",
+            enabled=True,
+        )
+        db.add(trigger)
+        db.add(AideGoal(workflow_id=workflow.id))
+        db.flush()
+        trigger.next_run_at = next_for_trigger(trigger, utc_now())
+        create_run(db, workflow)
+        db.commit()
+        rhythm = every.replace("_", " ")
+        return {
+            "output": f"goal set: {workflow.name}. first check starts now, then every {rhythm}. "
+            "it shows under scheduled → goals and pings the owner only for news or decisions.",
+            "goal_id": workflow.id,
+        }
+    finally:
+        db.close()
+
+
+async def _goal_list() -> dict:
+    from core.database import JarvisTrigger, JarvisWorkflow, SessionLocal
+    from services import aide_goals
+
+    db = SessionLocal()
+    try:
+        lines = []
+        for workflow in db.query(JarvisWorkflow).all():
+            if not aide_goals.is_goal(workflow):
+                continue
+            trigger = db.query(JarvisTrigger).filter_by(workflow_id=workflow.id).first()
+            goal = aide_goals.public(db, workflow, trigger)
+            lines.append(
+                f"- {goal['name']} ({goal['status']}, {goal['checks']} checks): "
+                f"{goal['headline'] or 'no news yet'}"
+            )
+        return {"output": "\n".join(lines) or "no goals yet"}
     finally:
         db.close()
 
@@ -3535,6 +3620,28 @@ APP_TOOL_DEFS = [
         ["selector", "text"],
     ),
     _tool("browse_screenshot", "Screenshot the current browser page (returns a PNG).", {}),
+    _tool(
+        "goal_add",
+        "Set a standing goal Aide keeps working on in the background, waking on a rhythm and "
+        "remembering what it found (e.g. watch a price, keep an inbox tidy, follow a topic). "
+        "Use it when the owner asks to keep an eye on something or to keep doing something.",
+        {
+            "aim": {"type": "string", "description": "The goal in plain words, with any limits."},
+            "every": {
+                "type": "string",
+                "enum": ["hour", "six_hours", "day", "week"],
+                "default": "day",
+            },
+            "mode": {
+                "type": "string",
+                "enum": ["ask", "act"],
+                "default": "ask",
+                "description": "ask: changes need the owner's approval. act: it may make reversible changes on its own.",
+            },
+        },
+        ["aim"],
+    ),
+    _tool("goal_list", "List the owner's standing goals and their latest news.", {}),
     _tool("task_add", "Add a task / todo.", {"title": {"type": "string"}}, ["title"]),
     _tool(
         "task_done",
@@ -3890,6 +3997,7 @@ MUTATING_TOOLS = {
     "github_create_pr",
     "calendar_create",
     "calendar_delete",
+    "goal_add",
     "task_add",
     "task_done",
     "docs_write",

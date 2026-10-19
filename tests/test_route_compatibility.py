@@ -63,9 +63,19 @@ _PI_CODE_ADDITIONS = {
 }
 
 
+# standing goals, added after pi
+_GOAL_ADDITIONS = {
+    "DELETE /api/jarvis/aide-goals/{workflow_id}",
+    "GET /api/jarvis/aide-goals",
+    "PATCH /api/jarvis/aide-goals/{workflow_id}",
+    "PATCH /api/jarvis/aide-goals/{workflow_id}/state",
+    "POST /api/jarvis/aide-goals",
+}
+
+
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
-    return sorted((set(_current_rows()) - _PI_CODE_ADDITIONS) | _DSH_REMOVED)
+    return sorted((set(_current_rows()) - _PI_CODE_ADDITIONS - _GOAL_ADDITIONS) | _DSH_REMOVED)
 
 
 _ASSISTANT_AND_BANK_ADDITIONS = {
@@ -179,6 +189,11 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             "8c6e25b0c6ec2b599a992ed65c9fd3cfa87fb031e7ebf6ca51cc6e829c972c7c",
         )
 
+    def test_goal_routes_are_additive(self):
+        current = set(_current_rows())
+        self.assertTrue(_GOAL_ADDITIONS <= current)
+        self.assertEqual(len(current), 960)
+
     def test_pi_code_routes_replace_the_dsh_bridge(self):
         current = set(_current_rows())
         self.assertTrue(_PI_CODE_ADDITIONS <= current)
@@ -188,8 +203,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 955)
-        self.assertEqual(digest, "016fece5fab4a491fafc4ff0513d65fbca570845046e2dcd55698faeac5de555")
+        self.assertEqual(len(rows), 960)
+        self.assertEqual(digest, "4b42662e25efc4a222fba20eb5e426688024c6e341470cf45314f34b550e43a7")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -198,7 +213,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 938, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 943, "v1": 2, "public": 15})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

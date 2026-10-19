@@ -464,6 +464,9 @@ def _register_jobs():
         finally:
             db.close()
         resume_queued()
+        from services.aide_goals import alert_waiting
+
+        await alert_waiting()
 
     async def _jarvis_outbox():
         from services.jarvis_outbox import process_outbox

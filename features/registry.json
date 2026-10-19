@@ -1128,11 +1128,15 @@
         "linux",
         "web"
       ],
-      "aide_tools": [],
+      "aide_tools": [
+        "goal_add",
+        "goal_list"
+      ],
       "automated_tests": [
         "tests/test_automations.py",
         "tests/test_chains.py",
-        "tests/test_proactive.py"
+        "tests/test_proactive.py",
+        "tests/test_aide_goals.py"
       ],
       "computer_scenarios": [
         "create and pause a schedule",

@@ -514,15 +514,25 @@ async function selectTab(button) {
   const section = button.dataset.scheduledTab;
   const schedules = section === 'schedules';
   byId('aide-schedule-list').hidden = !schedules;
+  byId('aide-goal-list').hidden = section !== 'goals';
   byId('aide-news-workbench').hidden = section !== 'news';
   byId('aide-run-list').hidden = section !== 'runs';
-  byId('aide-scheduled-new').hidden = !schedules;
+  const create = byId('aide-scheduled-new');
+  create.hidden = !schedules && section !== 'goals';
+  create.textContent = section === 'goals' ? 'new goal' : 'new schedule';
   if (!schedules) closeForm();
+  const goalsModule = await import('./aidegoals.js');
+  if (section === 'goals') await goalsModule.initAideGoals();
+  else goalsModule.stopGoalPolling();
   if (section === 'news') await initAideNews();
 }
 
 function wireOnce() {
-  byId('aide-scheduled-new')?.addEventListener('click', () => openForm());
+  byId('aide-scheduled-new')?.addEventListener('click', async () => {
+    if (document.querySelector('[data-scheduled-tab="goals"]')?.getAttribute('aria-selected') === 'true') {
+      (await import('./aidegoals.js')).newGoal();
+    } else openForm();
+  });
   byId('aide-schedule-cancel')?.addEventListener('click', closeForm);
   byId('aide-schedule-form')?.addEventListener('submit', saveSchedule);
   document.querySelectorAll('[data-schedule-kind]').forEach(button =>
@@ -572,6 +582,9 @@ export async function initAideScheduled(fetcher = fetch) {
     renderTiming();
   }
   await loadScheduled(fetcher);
+  // a goal alert links here with ?tab=goals
+  const tab = new URLSearchParams(location.search).get('tab');
+  if (tab === 'goals') await activateAideScheduledTab('goals');
 }
 
 export async function activateAideScheduledTab(name = 'schedules') {

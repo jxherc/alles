@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v388';   // pi coding chats replace the DSH bridge in this shell revision.
+const VERSION = 'v389';   // standing goals join scheduled work in this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '538';   // keep in sync with index.html ?v= / const _v
+const STAMP = '539';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

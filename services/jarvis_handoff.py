@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
+from datetime import UTC, datetime
 
 from core.database import JarvisRun, JarvisRunEvent, JarvisWorkflow, Session, SessionLocal
 from core.settings import load_settings
@@ -410,11 +411,19 @@ def _record(run_id: str, kind: str, *, tool_name: str = "", summary: str = "") -
         db.close()
 
 
-def _finish(run_id: str, state: str, *, result: str = "", error: str = "") -> None:
+def _finish(run_id: str, state: str, *, result: str = "", error: str = "") -> dict | None:
+    """returns a goal's alert when the run has news for the owner."""
+    notice = None
     db = SessionLocal()
     try:
         run = db.get(JarvisRun, run_id)
         if run and run.state == "running":
+            from services import aide_goals
+
+            owner = db.get(JarvisWorkflow, run.workflow_id) if run.workflow_id else None
+            if aide_goals.is_goal(owner):
+                now = datetime.now(UTC).replace(tzinfo=None)
+                result, notice = aide_goals.finish(db, run, owner, state, result, now)
             transition_run(
                 db,
                 run,
@@ -431,6 +440,7 @@ def _finish(run_id: str, state: str, *, result: str = "", error: str = "") -> No
             db.commit()
     finally:
         db.close()
+    return notice
 
 
 def _fail_missing_context(db, run: JarvisRun, message: str) -> None:
@@ -472,6 +482,12 @@ async def _execute(run_id: str) -> None:
             _origin,
             session_context,
         ) = _handoff_input(db, run)
+        from services import aide_goals
+
+        if aide_goals.is_goal(workflow):
+            # a goal run carries its aim, its notes from last time, and its own permission choice
+            request = aide_goals.request_for(db, workflow, request)
+            permission_mode = aide_goals.permission(workflow)
         if not session:
             working_dir = ""
             if workflow.project_id:
@@ -626,7 +642,9 @@ async def _execute(run_id: str) -> None:
         if stop.is_set():
             _finish(run_id, "cancelled", result="".join(answer))
         else:
-            _finish(run_id, "succeeded", result="".join(answer))
+            notice = _finish(run_id, "succeeded", result="".join(answer))
+            if notice:
+                await aide_goals.alert(notice)
     except asyncio.CancelledError:
         raise
     except ModelResolutionError as exc:

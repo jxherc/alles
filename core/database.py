@@ -21,6 +21,7 @@ from core.schema import AideCall as AideCall
 from core.schema import AideCallEvent as AideCallEvent
 from core.schema import AideCodingRun as AideCodingRun
 from core.schema import AideCodingRunEvent as AideCodingRunEvent
+from core.schema import AideGoal as AideGoal
 from core.schema import Album as Album
 from core.schema import AndromedaSavedSearch as AndromedaSavedSearch
 from core.schema import AndromedaSaveReceipt as AndromedaSaveReceipt

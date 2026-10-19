@@ -248,6 +248,7 @@ what it supports:
 - streaming chat (the reply types itself out live, word by word)
 - works with any provider: claude, openai/gpt, deepseek, gemini, groq, mistral, a local model, and ~15 others; switch any time, even mid-conversation
 - **one main conversation**: Aide returns to a persistent primary conversation. older and private conversations remain separate; the primary conversation cannot be archived or deleted. Aide chats, uses approved tools when useful, and keeps longer work in the same conversation.
+- **standing goals**: scheduled → goals holds aims Aide keeps working on, like watching a price or keeping an inbox tidy. a goal is an Aide schedule marked `aide_goal_v1` with an interval of an hour, 6 hours, a day or a week, plus an `aide_goals` row for its notes, status, check count, optional end date and cap. the first check starts when the goal is made. before each check Aide gets the aim, the check number and what it noted last time; each reply ends with a small `goal` block (notes, notify, headline, done) that alerts strip before saving. the owner hears about a goal (web push, plus the discord or telegram note when set up) only when a check has news, reaches the goal, asks a question or waits for approval. "ask me first" runs checks in approve mode; "just do it" runs them in full auto. a goal past its end date or cap stops itself, and "done" stops it too. chat can create goals with the `goal_add` tool and list them with `goal_list`.
 - **code with pi**: Aide's code view runs [pi](https://github.com/earendil-works/pi), an open-source coding agent, on the machine that hosts alles. the first visit installs a pinned pi (`@earendil-works/pi-coding-agent` 1.3.0) into `~/.cache/alles/pi-1.3.0` (outside the data folder, so backups skip it) with `npm --ignore-scripts`; it needs node 22.19 or newer. projects are folders on that machine (never alles's own data folder) listed in a rail with their chats under each, like a desktop coding app. a chat is one of pi's own session files in `<data>/pi/sessions/<project>`; alles keeps one `pi --mode rpc` process per open chat, streams its steps to every open browser, lets the owner steer, stop, switch models or answer pi's questions, and stops processes idle for 15 minutes (`pi_idle`). pi's model list is written from alles's enabled api-key endpoints; keys reach pi only through environment variables, never on disk, and pi gets none of alles's own `ALLES_*` settings. the coding default model is the `coding` model role. the line under the message box shows tokens per second, the provider's cache hit rate and context use. pi does not ask before each command; starting work needs a recent owner sign-in. a normal Aide conversation can hand a task to pi with the `pi_run` tool and reports what pi did. the older DSH tables stay in the database but nothing uses them.
 - **app actions from plain chat**: just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm"). reads can run directly; changes and sends follow the configured permission rules
 - **conclusion-first work**: successful answers lead with the result. exact steps, sources, diffs, and revert controls stay available under one accessible control after reload
@@ -1446,9 +1447,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 86 included fastapi router modules
-- 955 http method/path pairs
-- 938 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `016fece5fab4a491fafc4ff0513d65fbca570845046e2dcd55698faeac5de555`
+- 960 http method/path pairs
+- 943 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `4b42662e25efc4a222fba20eb5e426688024c6e341470cf45314f34b550e43a7`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -2161,12 +2162,17 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/jarvis.py · 31 operations</summary>
+<summary>routes/jarvis.py · 36 operations</summary>
 
 [source](routes/jarvis.py)
 
 | method | path | handler |
 | --- | --- | --- |
+| `GET` | `/api/jarvis/aide-goals` | `list_aide_goals` |
+| `POST` | `/api/jarvis/aide-goals` | `add_aide_goal` |
+| `DELETE` | `/api/jarvis/aide-goals/{workflow_id}` | `delete_aide_goal` |
+| `PATCH` | `/api/jarvis/aide-goals/{workflow_id}` | `patch_aide_goal` |
+| `PATCH` | `/api/jarvis/aide-goals/{workflow_id}/state` | `patch_aide_goal_state` |
 | `POST` | `/api/jarvis/aide-schedules` | `add_aide_schedule` |
 | `PATCH` | `/api/jarvis/aide-schedules/{workflow_id}` | `patch_aide_schedule` |
 | `PATCH` | `/api/jarvis/aide-schedules/{workflow_id}/state` | `patch_aide_schedule_state` |
@@ -3331,7 +3337,7 @@ retrieve full article text from each entry's publisher.
 
 ## database table inventory
 
-this lists **138 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **139 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -3342,6 +3348,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | --- | --- | --- |
 | `actual_entity_links` | `id: VARCHAR pk`, `run_id: VARCHAR`, `entity_kind: VARCHAR`, `source_id: VARCHAR`, `actual_id: VARCHAR`, `metadata_json: TEXT ?`, `created_at: DATETIME ?` | — |
 | `actual_migration_runs` | `id: VARCHAR pk`, `status: VARCHAR`, `base_currency_code: VARCHAR`, `snapshot_sha256: VARCHAR`, `snapshot_path: TEXT`, `actual_budget_id: VARCHAR ?`, `actual_sync_id: VARCHAR ?`, `report_json: TEXT ?`, `error: TEXT ?`, `created_at: DATETIME ?`, `verified_at: DATETIME ?`, `cutover_at: DATETIME ?`, `rolled_back_at: DATETIME ?` | — |
+| `aide_goals` | `workflow_id: VARCHAR pk`, `notes: TEXT ?`, `status: VARCHAR`, `run_count: INTEGER`, `max_runs: INTEGER ?`, `until: DATETIME ?`, `last_run_id: VARCHAR ?`, `last_headline: TEXT ?`, `last_checked_at: DATETIME ?`, `alerted_json: TEXT ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | `workflow_id → jarvis_workflows.id` |
 | `aide_calls` | `id: VARCHAR pk`, `session_id: VARCHAR`, `provider: VARCHAR`, `model: VARCHAR`, `state: VARCHAR`, `provider_call_id: VARCHAR ?`, `created_at: DATETIME ?`, `connected_at: DATETIME ?`, `ended_at: DATETIME ?`, `updated_at: DATETIME ?` | `session_id → sessions.id` |
 | `aide_call_events` | `id: VARCHAR pk`, `call_id: VARCHAR`, `sequence: INTEGER`, `kind: VARCHAR`, `role: VARCHAR ?`, `text: TEXT ?`, `provider_event_id: VARCHAR ?`, `data: TEXT ?`, `created_at: DATETIME ?` | `call_id → aide_calls.id` |
 | `aide_coding_runs` | `id: VARCHAR pk`, `aide_session_id: VARCHAR ?`, `workspace_id: VARCHAR`, `workspace_path: TEXT ?`, `provider_session_id: VARCHAR`, `prompt: TEXT`, `prompt_hash: VARCHAR`, `state: VARCHAR`, `error_code: VARCHAR ?`, `safe_error: TEXT ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?`, `finished_at: DATETIME ?` | `aide_session_id → sessions.id` |
@@ -3564,6 +3571,7 @@ known versions run in ascending order.
 | 70 | `aide_coding_runs` | [m0070_aide_coding_runs.py](core/migrations/m0070_aide_coding_runs.py) |
 | 71 | `andromeda_search_watch` | [m0071_andromeda_search_watch.py](core/migrations/m0071_andromeda_search_watch.py) |
 | 72 | `coding_projects` | [m0072_coding_projects.py](core/migrations/m0072_coding_projects.py) |
+| 73 | `aide_goals` | [m0073_aide_goals.py](core/migrations/m0073_aide_goals.py) |
 
 </details>
 

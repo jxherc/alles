@@ -104,6 +104,7 @@ COMMANDS = {
     "aide-refused-draft": ("tests/pw_aide_refused_draft.py",),
     "aide-stream-completion": ("tests/pw_aide_stream_completion.py",),
     "aide-schedule-dates": ("tests/pw_aide_schedule_dates.py",),
+    "aide-goals": ("tests/pw_aide_goals.py",),
     "aide-tool-discovery": ("tests/pw_aide_tool_discovery.py",),
     "aide-app-context": ("tests/pw_aide_app_context.py",),
     "activity-records": ("tests/pw_activity_records.py",),

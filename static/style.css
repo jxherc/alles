@@ -5774,6 +5774,27 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .aide-scheduled-empty { padding: 50px 0; color: var(--muted); }
 .aide-scheduled-empty strong { color: var(--text); font-size: 0.86rem; font-weight: 540; }
 .aide-scheduled-empty p { margin: 7px 0 0; font-size: 0.76rem; }
+/* goals: the latest news reads first, what it remembers stays one tap away */
+#aide-goal-status { color: var(--muted); font-size: 0.75rem; }
+#aide-goal-status[data-error="true"] { color: var(--error); }
+.aide-goal-row { align-items: start; padding: 16px 0; }
+.aide-goal-row .aide-schedule-row-main strong:focus-visible { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
+.aide-goal-headline { margin: 4px 0 0; color: var(--soft); font-size: 0.82rem; line-height: 1.45; overflow-wrap: anywhere; }
+.aide-goal-headline[data-failed="true"] { color: var(--error); }
+.aide-goal-meta { margin: 4px 0 0; color: var(--muted); font-size: 0.75rem; line-height: 1.45; }
+.aide-goal-memory { margin-top: 4px; }
+.aide-goal-memory summary {
+  display: inline-flex; align-items: center; min-height: 44px; color: var(--muted);
+  font-size: 0.75rem; cursor: pointer; list-style: none;
+}
+.aide-goal-memory summary::-webkit-details-marker { display: none; }
+.aide-goal-memory summary::after { content: '⌄'; margin-left: 4px; }
+.aide-goal-memory[open] summary::after { content: '⌃'; }
+.aide-goal-memory summary:hover, .aide-goal-memory summary:focus-visible { color: var(--text); outline: 0; }
+.aide-goal-memory p { margin: 0 0 8px; color: var(--soft); font-size: 0.78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 68ch; }
+.aide-goal-memory .aide-goal-last-label { margin-top: 12px; color: var(--muted); font-size: 0.75rem; }
+.aide-goal-row .aide-schedule-state[data-waiting="true"] { color: var(--accent); }
+.aide-goal-row .aide-schedule-state, .aide-goal-row .aide-schedule-actions { padding-top: 2px; }
 
 @media (max-width: 700px) {
   body.afterlife-aide-projects[data-space="aide"] .aide-tool-view { padding: 0 18px 40px; }

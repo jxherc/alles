@@ -8,6 +8,7 @@ from core.schema.application import AideCall as AideCall
 from core.schema.application import AideCallEvent as AideCallEvent
 from core.schema.application import AideCodingRun as AideCodingRun
 from core.schema.application import AideCodingRunEvent as AideCodingRunEvent
+from core.schema.application import AideGoal as AideGoal
 from core.schema.application import Album as Album
 from core.schema.application import AndromedaSavedSearch as AndromedaSavedSearch
 from core.schema.application import AndromedaSaveReceipt as AndromedaSaveReceipt

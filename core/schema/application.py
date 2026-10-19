@@ -979,6 +979,26 @@ class JarvisWorkflow(Base):
     updated_at = Column(DateTime, default=_now, onupdate=_now)
 
 
+class AideGoal(Base):
+    """the memory and limits of a standing goal; the goal itself is an Aide workflow."""
+
+    __tablename__ = "aide_goals"
+    workflow_id = Column(
+        String, ForeignKey("jarvis_workflows.id", ondelete="CASCADE"), primary_key=True
+    )
+    notes = Column(Text, default="")
+    status = Column(String, nullable=False, default="active")
+    run_count = Column(Integer, nullable=False, default=0)
+    max_runs = Column(Integer, nullable=True)
+    until = Column(DateTime, nullable=True)
+    last_run_id = Column(String, nullable=True)
+    last_headline = Column(Text, default="")
+    last_checked_at = Column(DateTime, nullable=True)
+    alerted_json = Column(Text, default="[]")
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
 class JarvisTrigger(Base):
     __tablename__ = "jarvis_triggers"
     id = Column(String, primary_key=True, default=_uid)

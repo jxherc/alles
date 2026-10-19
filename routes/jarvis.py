@@ -1,6 +1,7 @@
 """Durable Jarvis workflow, run, prompt, delivery, and connector APIs."""
 
 import re
+from datetime import datetime
 from typing import Literal
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session as DbSession
 from core.api_errors import ApiError
 from core.auth import require_recent_owner
 from core.database import (
+    AideGoal,
     JarvisConnector,
     JarvisDeliveryAttempt,
     JarvisInboxEvent,
@@ -24,7 +26,7 @@ from core.database import (
     Session,
     get_db,
 )
-from services import jarvis_discord, jarvis_handoff
+from services import aide_goals, jarvis_discord, jarvis_handoff
 from services.jarvis_outbox import enqueue_delivery
 from services.jarvis_scheduler import next_for_trigger, utc_now, validate_trigger_config
 from services.jarvis_store import (
@@ -119,7 +121,7 @@ def _is_aide_schedule_workflow(row: JarvisWorkflow) -> bool:
 
 
 def _reject_generic_aide_schedule_change(row: JarvisWorkflow) -> None:
-    if _is_aide_schedule_workflow(row):
+    if _is_aide_schedule_workflow(row) or aide_goals.is_goal(row):
         raise ApiError(
             409,
             "aide_schedule_route_required",
@@ -623,6 +625,134 @@ def patch_aide_schedule_state(
     db.refresh(workflow)
     db.refresh(trigger)
     return {"workflow": _workflow(workflow), "trigger": _trigger(trigger)}
+
+
+class AideGoalBody(BaseModel):
+    aim: str = Field(min_length=1, max_length=4000)
+    name: str = Field(default="", max_length=120)
+    every: Literal["hour", "six_hours", "day", "week"] = "day"
+    mode: Literal["ask", "act"] = "ask"
+    until: str = Field(default="", max_length=10)
+    max_runs: int | None = Field(default=None, ge=1, le=1000)
+
+
+def _goal_until(raw: str):
+    if not raw:
+        return None
+    try:
+        day = datetime.strptime(raw, "%Y-%m-%d")
+    except ValueError:
+        _bad("invalid_goal_until", "use a date like 2026-12-31")
+    return day.replace(hour=23, minute=59)
+
+
+def _owned_goal(db: DbSession, workflow_id: str) -> tuple[JarvisWorkflow, JarvisTrigger]:
+    workflow = db.get(JarvisWorkflow, workflow_id)
+    if not workflow or not aide_goals.is_goal(workflow):
+        raise ApiError(404, "goal_not_found", "goal not found")
+    trigger = db.query(JarvisTrigger).filter_by(workflow_id=workflow.id).first()
+    if trigger is None:
+        raise ApiError(409, "invalid_goal", "this goal has no timing")
+    return workflow, trigger
+
+
+def _apply_goal(db: DbSession, workflow: JarvisWorkflow, trigger: JarvisTrigger, body):
+    aim = body.aim.strip()
+    if not aim:
+        _bad("goal_aim_required", "say what the goal is")
+    workflow.name = (body.name.strip() or aide_goals.short_name(aim))[:80]
+    workflow.purpose = aim
+    workflow.prompt = aim
+    workflow.delivery_policy = _json_text(
+        {
+            "aide_schedule_owner": aide_goals.GOAL_OWNER,
+            "goal_every": body.every,
+            "goal_mode": body.mode,
+        },
+        expected=dict,
+    )
+    trigger.kind = "interval"
+    trigger.config = _json_text({"every_seconds": aide_goals.EVERY[body.every]}, expected=dict)
+    trigger.timezone = "UTC"
+    goal = aide_goals.state_for(db, workflow)
+    goal.until = _goal_until(body.until)
+    goal.max_runs = body.max_runs
+
+
+@router.get("/aide-goals")
+def list_aide_goals(db: DbSession = Depends(get_db)):
+    rows = db.query(JarvisWorkflow).order_by(JarvisWorkflow.created_at.desc()).all()
+    items = []
+    for workflow in rows:
+        if aide_goals.is_goal(workflow):
+            trigger = db.query(JarvisTrigger).filter_by(workflow_id=workflow.id).first()
+            items.append(aide_goals.public(db, workflow, trigger))
+    db.commit()
+    return {"items": items}
+
+
+@router.post("/aide-goals", dependencies=[Depends(require_recent_owner)])
+def add_aide_goal(body: AideGoalBody, db: DbSession = Depends(get_db)):
+    workflow = JarvisWorkflow(
+        name="goal",
+        deterministic_action=jarvis_handoff.HANDOFF_ACTION,
+        capability_ceiling="[]",
+        concurrency_mode="skip",
+        context_mode="fresh",
+        enabled=True,
+    )
+    db.add(workflow)
+    db.flush()
+    trigger = JarvisTrigger(workflow_id=workflow.id, kind="interval", config="{}", enabled=True)
+    db.add(trigger)
+    _apply_goal(db, workflow, trigger, body)
+    db.flush()
+    trigger.next_run_at = next_for_trigger(trigger, utc_now())
+    # the first check starts now instead of a whole rhythm later
+    create_run(db, workflow)
+    db.commit()
+    return aide_goals.public(db, workflow, trigger)
+
+
+@router.patch("/aide-goals/{workflow_id}", dependencies=[Depends(require_recent_owner)])
+def patch_aide_goal(workflow_id: str, body: AideGoalBody, db: DbSession = Depends(get_db)):
+    workflow, trigger = _owned_goal(db, workflow_id)
+    _apply_goal(db, workflow, trigger, body)
+    trigger.next_run_at = next_for_trigger(trigger, utc_now()) if trigger.enabled else None
+    db.commit()
+    return aide_goals.public(db, workflow, trigger)
+
+
+@router.patch("/aide-goals/{workflow_id}/state", dependencies=[Depends(require_recent_owner)])
+def patch_aide_goal_state(
+    workflow_id: str, body: AideScheduleStateBody, db: DbSession = Depends(get_db)
+):
+    workflow, trigger = _owned_goal(db, workflow_id)
+    workflow.enabled = body.enabled
+    trigger.enabled = body.enabled
+    trigger.next_run_at = next_for_trigger(trigger, utc_now()) if body.enabled else None
+    goal = aide_goals.state_for(db, workflow)
+    if body.enabled:
+        goal.status = "active"
+        if goal.max_runs and goal.run_count >= goal.max_runs:
+            goal.max_runs = None  # resuming a finished goal starts it again without the old cap
+    else:
+        goal.status = "paused" if goal.status == "active" else goal.status
+    db.commit()
+    return aide_goals.public(db, workflow, trigger)
+
+
+@router.delete("/aide-goals/{workflow_id}", dependencies=[Depends(require_recent_owner)])
+def delete_aide_goal(workflow_id: str, db: DbSession = Depends(get_db)):
+    workflow, _trigger = _owned_goal(db, workflow_id)
+    if aide_goals.running_run(db, workflow):
+        raise ApiError(409, "goal_running", "stop the current check first")
+    db.query(AideGoal).filter_by(workflow_id=workflow.id).delete()
+    db.query(JarvisTrigger).filter_by(workflow_id=workflow.id).delete()
+    db.query(JarvisRun).filter_by(workflow_id=workflow.id).update({JarvisRun.workflow_id: None})
+    db.delete(workflow)
+    db.commit()
+    return {"deleted": True}
 
 
 @router.get("/workflows/{workflow_id}/triggers")
