@@ -29,6 +29,7 @@ from core.database import (
 )
 from core.settings import load_settings
 from services import andromeda
+from services.research import engines as search_engines
 
 router = APIRouter(prefix="/api/andromeda")
 
@@ -63,9 +64,8 @@ class SearchBody(BaseModel):
     overview: bool | None = None
     max_results: int | None = Field(default=None, ge=1, le=600)
     category: Literal["all", "images", "news", "videos"] = "all"
-    provider: Literal[
-        "", "duckduckgo", "tavily", "brave", "searxng", "google_pse", "serper", "disabled"
-    ] = ""
+    # any engine from services/research/engines.py, a custom one, or "disabled"
+    provider: str = Field(default="", max_length=40)
 
 
 @router.get("/providers")
@@ -73,27 +73,11 @@ def providers():
     """Return usable engines without exposing credentials."""
     _require_flag()
     settings = load_settings()
-    configured = {
-        "brave": bool(settings.get("brave_api_key")),
-        "serper": bool(settings.get("serper_api_key")),
-        "tavily": bool(settings.get("tavily_api_key")),
-        "searxng": bool(settings.get("searxng_url")),
-        "google_pse": bool(settings.get("google_pse_api_key") and settings.get("google_pse_cx")),
-        "duckduckgo": True,
-    }
-    labels = {
-        "brave": "brave",
-        "serper": "serper · google",
-        "tavily": "tavily",
-        "searxng": "searxng",
-        "google_pse": "google",
-        "duckduckgo": "duckduckgo",
-    }
-    order = ("searxng", "brave", "serper", "google_pse", "tavily", "duckduckgo")
     return {
         "selected": settings.get("search_provider") or "duckduckgo",
         "providers": [
-            {"value": name, "label": labels[name], "available": configured[name]} for name in order
+            {"value": row["id"], "label": row["label"], "available": row["configured"]}
+            for row in search_engines.listing(settings)
         ],
     }
 
@@ -102,6 +86,8 @@ def providers():
 async def search(body: SearchBody):
     _require_flag()
     settings = load_settings()
+    if body.provider not in ("", "disabled") and not search_engines.known(settings, body.provider):
+        raise ApiError(400, "unknown_search_engine", "that search engine is not set up")
     normal_enabled = (
         settings.get("andromeda_normal_results", True)
         if body.normal_results is None

@@ -1900,13 +1900,14 @@ function bindRecovery() {
 
 function settingsOpen() { return !el('andromeda-settings-panel')?.hidden; }
 
-const SEARCH_PROVIDER_LABELS = Object.freeze({
-  duckduckgo: 'duckduckgo', tavily: 'tavily', brave: 'brave', searxng: 'searxng',
-  google_pse: 'google pse', serper: 'serper', disabled: 'disabled', none: 'stop',
-});
+// filled from /api/search/engines; these are the names shown before it answers
+const SEARCH_PROVIDER_LABELS = {
+  duckduckgo: 'free search', tavily: 'tavily', brave: 'brave', searxng: 'searxng',
+  google_pse: 'google pse', serper: 'serper', exa: 'exa', disabled: 'disabled', none: 'stop',
+};
 
 const SEARCH_SECRET_SETTINGS = new Set([
-  'tavily_api_key', 'brave_api_key', 'google_pse_api_key', 'serper_api_key',
+  'tavily_api_key', 'brave_api_key', 'google_pse_api_key', 'serper_api_key', 'exa_api_key',
 ]);
 
 export function sanitizeSearchSettings(settings = {}) {
@@ -1972,10 +1973,70 @@ function setCredentialClearState(inputId, configured) {
   if (button) button.disabled = !configured;
 }
 
+let _searchEngines = [];
+
+function wireCredentialInput(input) {
+  input.addEventListener('blur', event => saveSearchCredential(event.currentTarget));
+}
+
+function wireCredentialClear(button) {
+  button.addEventListener('pointerdown', () => {
+    const input = el(button.dataset.andromedaClearSetting);
+    if (input) {
+      _credentialClearPending.add(input.id);
+      // A cancelled pointer gesture has no click to perform the clear.
+      setTimeout(() => {
+        if (!button.disabled) _credentialClearPending.delete(input.id);
+      }, 0);
+    }
+  });
+  button.addEventListener('click', () => clearSearchCredential(button));
+}
+
+// engines added after this panel was written get the same key field as the first ones
+function ensureEngineFields(engines) {
+  const container = el('andromeda-provider-fields');
+  if (!container) return;
+  for (const engine of engines) {
+    if (engine.custom || !engine.key_setting || engine.extra?.length) continue;
+    const inputId = `andromeda-${engine.id}-key`;
+    if (el(inputId)) continue;
+    const field = document.createElement('div');
+    field.className = 'andromeda-setting-field';
+    field.dataset.andromedaProviderField = engine.id;
+    const name = `${engine.label.toLowerCase()} api key`;
+    field.innerHTML = `<label for="${inputId}"></label><div class="andromeda-setting-input"><input id="${inputId}" type="password" autocomplete="new-password" placeholder="not configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="${inputId}">clear</button></div>`;
+    field.querySelector('label').textContent = name;
+    field.querySelector('button').setAttribute('aria-label', `clear ${name}`);
+    container.append(field);
+    SEARCH_CREDENTIAL_FIELDS[inputId] = engine.key_setting;
+    SEARCH_SECRET_SETTINGS.add(engine.key_setting);
+    wireCredentialInput(field.querySelector('input'));
+    wireCredentialClear(field.querySelector('button'));
+  }
+}
+
+async function loadSearchEngines() {
+  try {
+    _searchEngines = (await jsonRequest('/api/search/engines')).engines || [];
+  } catch {
+    return;
+  }
+  for (const engine of _searchEngines) SEARCH_PROVIDER_LABELS[engine.id] = engine.label.toLowerCase();
+  const rows = _searchEngines.map(engine => ({ value: engine.id, label: engine.label.toLowerCase() }));
+  populateDropdown(el('andromeda-primary-provider'), [...rows, { value: 'disabled', label: 'disabled' }],
+    providerValue('andromeda-primary-provider', 'duckduckgo'));
+  populateDropdown(el('andromeda-fallback-provider'), [{ value: 'none', label: 'none' }, ...rows],
+    providerValue('andromeda-fallback-provider', 'none'));
+  ensureEngineFields(_searchEngines);
+}
+
 async function loadSearchConfiguration() {
   const requestedGeneration = _searchConfigurationGeneration;
   try {
     await _searchConfigurationWrite.catch(() => {});
+    if (requestedGeneration !== _searchConfigurationGeneration) return null;
+    await loadSearchEngines();
     if (requestedGeneration !== _searchConfigurationGeneration) return null;
     const current = await jsonRequest('/api/settings');
     if (requestedGeneration !== _searchConfigurationGeneration) return null;
@@ -1992,10 +2053,17 @@ async function loadSearchConfiguration() {
     configuredPlaceholder('andromeda-brave-key', current.brave_api_key_configured);
     configuredPlaceholder('andromeda-google-key', current.google_pse_api_key_configured);
     configuredPlaceholder('andromeda-serper-key', current.serper_api_key_configured);
+    configuredPlaceholder('andromeda-exa-key', current.exa_api_key_configured);
     setCredentialClearState('andromeda-tavily-key', current.tavily_api_key_configured);
     setCredentialClearState('andromeda-brave-key', current.brave_api_key_configured);
     setCredentialClearState('andromeda-google-key', current.google_pse_api_key_configured);
     setCredentialClearState('andromeda-serper-key', current.serper_api_key_configured);
+    setCredentialClearState('andromeda-exa-key', current.exa_api_key_configured);
+    for (const [inputId, setting] of Object.entries(SEARCH_CREDENTIAL_FIELDS)) {
+      if (!inputId.endsWith('-key') || !(`${setting}_configured` in current)) continue;
+      configuredPlaceholder(inputId, current[`${setting}_configured`]);
+      setCredentialClearState(inputId, current[`${setting}_configured`]);
+    }
     const searxng = el('andromeda-searxng-url');
     if (searxng) searxng.placeholder = current.searxng_url || 'https://search.example.com';
     setCredentialClearState('andromeda-searxng-url', !!current.searxng_url);
@@ -2080,14 +2148,15 @@ async function saveSearchConfiguration() {
   });
 }
 
-const SEARCH_CREDENTIAL_FIELDS = Object.freeze({
+const SEARCH_CREDENTIAL_FIELDS = {
   'andromeda-tavily-key': 'tavily_api_key',
   'andromeda-brave-key': 'brave_api_key',
   'andromeda-searxng-url': 'searxng_url',
   'andromeda-google-key': 'google_pse_api_key',
   'andromeda-google-cx': 'google_pse_cx',
   'andromeda-serper-key': 'serper_api_key',
-});
+  'andromeda-exa-key': 'exa_api_key',
+};
 
 const _credentialWrites = new Map();
 const _credentialClearPending = new Set();
@@ -2372,21 +2441,10 @@ function bindOnce() {
     ).catch(() => {});
   });
   for (const id of Object.keys(SEARCH_CREDENTIAL_FIELDS)) {
-    el(id)?.addEventListener('blur', event => saveSearchCredential(event.currentTarget));
+    const input = el(id);
+    if (input) wireCredentialInput(input);
   }
-  document.querySelectorAll('[data-andromeda-clear-setting]').forEach(button => {
-    button.addEventListener('pointerdown', () => {
-      const input = el(button.dataset.andromedaClearSetting);
-      if (input) {
-        _credentialClearPending.add(input.id);
-        // A cancelled pointer gesture has no click to perform the clear.
-        setTimeout(() => {
-          if (!button.disabled) _credentialClearPending.delete(input.id);
-        }, 0);
-      }
-    });
-    button.addEventListener('click', () => clearSearchCredential(button));
-  });
+  document.querySelectorAll('[data-andromeda-clear-setting]').forEach(wireCredentialClear);
   el('andromeda-searxng-refresh')?.addEventListener('click', loadManagedSearxng);
   el('andromeda-searxng-actions')?.addEventListener('click', event => {
     const button = event.target.closest('[data-searxng-action]');

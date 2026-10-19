@@ -1843,5 +1843,23 @@
     "selector": ".s-field-label",
     "job": "control-associated-label",
     "reason": "Field labels for choice groups match the 12px settings field labels."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .s-engine-signup",
+    "css_block_sha256": "1c6e031df380ef1c8d59321ec84fd7d9ef27b8b281a6c6f421a29bda48b5e83e",
+    "path": "static/kokuen.css",
+    "selector": ".s-engine-signup",
+    "job": "compact-control-label",
+    "reason": "The get-a-key link under a key field uses the 13px action label."
+  },
+  {
+    "rule": "small-type",
+    "message": "font-size 13px is below the 14px essential-text baseline in .s-search-status, .s-cse-status",
+    "css_block_sha256": "cac32328a76fca054bbab18a66ebdf0daa261372f3cbc7a1169c12256e6deb52",
+    "path": "static/kokuen.css",
+    "selector": ".s-search-status, .s-cse-status",
+    "job": "secondary-metadata",
+    "reason": "Search and custom engine status lines are supporting text beside their actions."
   }
 ]

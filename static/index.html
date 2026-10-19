@@ -28,8 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=531">
-  <link rel="stylesheet" href="/static/kokuen.css?v=60">
+<link rel="stylesheet" href="/static/style.css?v=533">
+  <link rel="stylesheet" href="/static/kokuen.css?v=61">
 <link rel="stylesheet" href="/static/aidecentral.css?v=3">
 <link rel="stylesheet" href="/static/aidecoding.css?v=5">
 <link rel="stylesheet" href="/static/aidecall.css?v=2">
@@ -344,15 +344,15 @@
           <h3 id="andromeda-search-settings-title">search sources</h3>
           <div class="andromeda-setting-row">
             <span><strong>this search</strong><small>temporarily override the saved primary provider</small></span>
-            <div id="andromeda-provider" class="custom-select" data-value="" data-options="|automatic;brave|brave;serper|serper · google;tavily|tavily;searxng|searxng;duckduckgo|duckduckgo" aria-label="search engine for this search"></div>
+            <div id="andromeda-provider" class="custom-select" data-value="" data-options="|automatic;exa|exa;brave|brave;serper|serper · google;tavily|tavily;searxng|searxng;duckduckgo|duckduckgo" aria-label="search engine for this search"></div>
           </div>
           <div class="andromeda-setting-row">
             <span><strong>primary provider</strong><small>used first for normal searches</small></span>
-            <div id="andromeda-primary-provider" class="custom-select" data-value="duckduckgo" data-options="duckduckgo|duckduckgo;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper;disabled|disabled" aria-label="primary search provider"></div>
+            <div id="andromeda-primary-provider" class="custom-select" data-value="duckduckgo" data-options="duckduckgo|duckduckgo;exa|exa;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper;disabled|disabled" aria-label="primary search provider"></div>
           </div>
           <div class="andromeda-setting-row">
             <span><strong>fallback provider</strong><small>used quietly when the primary provider fails</small></span>
-            <div id="andromeda-fallback-provider" class="custom-select" data-value="duckduckgo" data-options="none|none;duckduckgo|duckduckgo;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper" aria-label="fallback search provider"></div>
+            <div id="andromeda-fallback-provider" class="custom-select" data-value="duckduckgo" data-options="none|none;duckduckgo|duckduckgo;exa|exa;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper" aria-label="fallback search provider"></div>
           </div>
           <div class="andromeda-setting-row andromeda-setting-summary">
             <span><strong>provider order</strong><small id="andromeda-provider-order">duckduckgo</small></span>
@@ -368,6 +368,7 @@
             <div class="andromeda-setting-field" data-andromeda-provider-field="google_pse"><label for="andromeda-google-key">google pse api key</label><div class="andromeda-setting-input"><input id="andromeda-google-key" type="password" autocomplete="new-password" placeholder="not configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-google-key" aria-label="clear google pse api key">clear</button></div></div>
             <div class="andromeda-setting-field" data-andromeda-provider-field="google_pse"><label for="andromeda-google-cx">google pse cx</label><div class="andromeda-setting-input"><input id="andromeda-google-cx" type="text" autocomplete="off" placeholder="search engine id"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-google-cx" aria-label="clear google pse cx">clear</button></div></div>
             <div class="andromeda-setting-field" data-andromeda-provider-field="serper"><label for="andromeda-serper-key">serper api key</label><div class="andromeda-setting-input"><input id="andromeda-serper-key" type="password" autocomplete="new-password" placeholder="not configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-serper-key" aria-label="clear serper api key">clear</button></div></div>
+            <div class="andromeda-setting-field" data-andromeda-provider-field="exa"><label for="andromeda-exa-key">exa api key</label><div class="andromeda-setting-input"><input id="andromeda-exa-key" type="password" autocomplete="new-password" placeholder="not configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-exa-key" aria-label="clear exa api key">clear</button></div></div>
           </div>
           <div class="andromeda-settings-status" id="andromeda-search-settings-status" role="status" aria-live="polite"></div>
         </section>
@@ -2033,41 +2034,71 @@
             </div>
             <div class="s-card-body">
               <div class="s-field">
-                <label>primary provider</label>
+                <label id="s-search-provider-label">search engine</label>
                 <div style="display:flex;gap:0.4rem;align-items:center">
-                  <div class="settings-input custom-select" id="s-search-provider" style="flex:1" data-value="duckduckgo" data-options="duckduckgo|DuckDuckGo (free);tavily|Tavily;brave|Brave Search;searxng|SearXNG (self-hosted);google_pse|Google PSE;serper|Serper;disabled|disabled"></div>
+                  <div class="settings-input custom-select" id="s-search-provider" style="flex:1" data-value="duckduckgo" data-options="duckduckgo|free search;disabled|disabled" aria-labelledby="s-search-provider-label"></div>
                   <button type="button" class="btn" id="s-search-test-btn" style="flex-shrink:0">test</button>
                 </div>
+                <div class="s-card-hint" id="s-search-engine-note"></div>
               </div>
-              <div class="s-field" id="s-tavily-row" style="display:none">
-                <label for="s-tavily-key">tavily api key</label>
-                <input type="password" class="settings-input" id="s-tavily-key" placeholder="tvly-..." style="width:100%">
+              <div class="s-field" id="s-engine-key-row" hidden>
+                <label for="s-engine-key" id="s-engine-key-label">api key</label>
+                <input type="password" class="settings-input" id="s-engine-key" autocomplete="new-password" style="width:100%">
+                <a class="s-engine-signup" id="s-engine-signup" href="#" target="_blank" rel="noopener noreferrer" hidden>get a key</a>
               </div>
-              <div class="s-field" id="s-brave-row" style="display:none">
-                <label for="s-brave-key">brave search api key</label>
-                <input type="password" class="settings-input" id="s-brave-key" placeholder="BSA..." style="width:100%">
-              </div>
-              <div class="s-field" id="s-searxng-row" style="display:none">
+              <div class="s-field" id="s-searxng-row" hidden>
                 <label for="s-searxng-url">searxng base url</label>
                 <input type="text" class="settings-input" id="s-searxng-url" placeholder="https://search.example.com" style="width:100%">
               </div>
-              <div id="s-google-pse-rows" style="display:none">
-                <div class="s-field"><label for="s-gpse-key">google pse api key</label><input type="password" class="settings-input" id="s-gpse-key" placeholder="AIza..." style="width:100%"></div>
-                <div class="s-field"><label for="s-gpse-cx">search engine cx id</label><input type="text" class="settings-input" id="s-gpse-cx" placeholder="cx:..." style="width:100%"></div>
-              </div>
-              <div class="s-field" id="s-serper-row" style="display:none">
-                <label for="s-serper-key">serper api key</label>
-                <input type="password" class="settings-input" id="s-serper-key" placeholder="..." style="width:100%">
+              <div id="s-google-pse-rows" hidden>
+                <div class="s-field"><label for="s-gpse-key">google pse api key</label><input type="password" class="settings-input" id="s-gpse-key" autocomplete="new-password" style="width:100%"></div>
+                <div class="s-field"><label for="s-gpse-cx">search engine cx id</label><input type="text" class="settings-input" id="s-gpse-cx" style="width:100%"></div>
               </div>
               <div class="s-field">
-                <label>fallback provider</label>
-                <div class="settings-input custom-select" id="s-search-fallback" style="width:100%" data-value="duckduckgo" data-options="none|none (fail hard);duckduckgo|DuckDuckGo;tavily|Tavily;brave|Brave;disabled|disabled"></div>
+                <label id="s-search-fallback-label">backup engine</label>
+                <div class="settings-input custom-select" id="s-search-fallback" style="width:100%" data-value="duckduckgo" data-options="none|none;duckduckgo|free search" aria-labelledby="s-search-fallback-label"></div>
               </div>
               <div class="s-field">
-                <label>results per query</label>
-                <div class="settings-input custom-select" id="s-search-count" style="width:100px" data-value="8" data-options="3|3;5|5;8|8;10|10;20|20"></div>
+                <label id="s-search-count-label">results per query</label>
+                <div class="settings-input custom-select" id="s-search-count" style="width:100px" data-value="8" data-options="3|3;5|5;8|8;10|10;20|20" aria-labelledby="s-search-count-label"></div>
               </div>
-              <div id="s-search-status" style="font-size:0.75rem;color:var(--muted);margin-top:0.3rem"></div>
+              <div id="s-search-status" class="s-search-status" role="status" aria-live="polite"></div>
+            </div>
+          </div>
+          <div class="s-card" role="region" aria-labelledby="s-custom-search-head">
+            <div class="s-card-head" id="s-custom-search-head">custom engines</div>
+            <div class="s-card-body">
+              <div class="s-card-hint">any search api that answers with JSON. put {query} where the search words go, and {count} for the number of results.</div>
+              <div class="settings-list" id="s-custom-search-list"></div>
+              <button type="button" class="btn" id="s-custom-search-add">add custom engine</button>
+              <form class="s-custom-search-form" id="s-custom-search-form" hidden novalidate>
+                <div class="s-field"><label for="s-cse-name">name</label><input type="text" class="settings-input" id="s-cse-name" maxlength="40" autocomplete="off"></div>
+                <div class="s-field"><label for="s-cse-url">address</label><input type="url" class="settings-input" id="s-cse-url" maxlength="500" autocomplete="off" spellcheck="false" aria-describedby="s-cse-url-hint"><div class="s-card-hint" id="s-cse-url-hint">https://, or http:// for this machine</div></div>
+                <div class="s-field">
+                  <span class="s-field-label" id="s-cse-method-label">method</span>
+                  <div class="s-ep-type" id="s-cse-method" role="radiogroup" aria-labelledby="s-cse-method-label">
+                    <button type="button" role="radio" aria-checked="true" data-value="GET">GET</button>
+                    <button type="button" role="radio" aria-checked="false" data-value="POST">POST</button>
+                  </div>
+                </div>
+                <div class="s-field" id="s-cse-body-row" hidden><label for="s-cse-body">JSON body</label><textarea class="settings-input" id="s-cse-body" rows="3" maxlength="2000" spellcheck="false"></textarea></div>
+                <div class="s-field"><label for="s-cse-key">api key, optional</label><input type="password" class="settings-input" id="s-cse-key" maxlength="500" autocomplete="new-password"></div>
+                <div class="s-cse-pair">
+                  <div class="s-field"><label for="s-cse-key-header">key header</label><input type="text" class="settings-input" id="s-cse-key-header" maxlength="64" autocomplete="off" spellcheck="false"></div>
+                  <div class="s-field"><label for="s-cse-key-prefix">key prefix</label><input type="text" class="settings-input" id="s-cse-key-prefix" maxlength="20" autocomplete="off" spellcheck="false"></div>
+                </div>
+                <div class="s-field"><label for="s-cse-results">result list path</label><input type="text" class="settings-input" id="s-cse-results" maxlength="120" autocomplete="off" spellcheck="false" aria-describedby="s-cse-results-hint"><div class="s-card-hint" id="s-cse-results-hint">where the list sits in the answer, like data.items; blank when the answer is the list</div></div>
+                <div class="s-cse-pair">
+                  <div class="s-field"><label for="s-cse-url-field">link field</label><input type="text" class="settings-input" id="s-cse-url-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
+                  <div class="s-field"><label for="s-cse-title-field">title field</label><input type="text" class="settings-input" id="s-cse-title-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
+                  <div class="s-field"><label for="s-cse-snippet-field">snippet field</label><input type="text" class="settings-input" id="s-cse-snippet-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
+                </div>
+                <div class="s-cse-actions">
+                  <button type="button" class="btn" id="s-cse-cancel">cancel</button>
+                  <span class="s-cse-status" id="s-cse-status" role="status" aria-live="polite"></span>
+                  <button type="submit" class="btn primary" id="s-cse-save">save engine</button>
+                </div>
+              </form>
             </div>
           </div>
           <div class="s-card">
@@ -2951,7 +2982,7 @@
 </div>
 
 <script type="module">
-const _v = '531';
+const _v = '533';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

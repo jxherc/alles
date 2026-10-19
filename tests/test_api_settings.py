@@ -60,6 +60,7 @@ class SettingsApiTest(ApiTest):
                 "brave_api_key": "br",
                 "google_pse_api_key": "gp",
                 "serper_api_key": "sp",
+                "exa_api_key": "ex",
                 "notify_discord_webhook": "https://discord.com/api/webhooks/123/abc",
                 "notify_telegram_token": "tg",
                 "notify_telegram_chat_id": "private-chat",
@@ -80,12 +81,14 @@ class SettingsApiTest(ApiTest):
             "brave_api_key",
             "google_pse_api_key",
             "serper_api_key",
+            "exa_api_key",
             "notify_discord_webhook",
             "notify_telegram_token",
             "notify_telegram_chat_id",
         ):
             self.assertNotIn(secret, s)
         self.assertTrue(s["openai_api_key_configured"])
+        self.assertTrue(s["exa_api_key_configured"])
         self.assertTrue(s["notify_discord_webhook_configured"])
         self.assertTrue(s["notify_telegram_chat_id_configured"])
         self.assertNotIn("pass", s["outbound_proxy"])

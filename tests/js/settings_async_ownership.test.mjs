@@ -55,6 +55,7 @@ function harness() {
       querySelector: () => null, addEventListener() {}, body: element('body'), documentElement: element('html') },
     window: { addEventListener() {} }, localStorage: { getItem: () => null }, navigator: { mediaDevices }, fetch,
     homePane: {}, languagePane: {}, creditsPane: {}, providersPane: {}, connectionsPane: {}, createBackupPane: () => ({}),
+    wireSearchEngines: () => {}, loadSearchEngines: async () => {},
     toast: (message, kind) => toasts.push({ message, kind }),
     _bindSwitch: (el, getter) => { if (el) { el.classList.toggle('on', getter()); el.setAttribute('aria-checked', String(getter())); } },
     _setSwitch: (el, value) => el?.classList.toggle('on', value),

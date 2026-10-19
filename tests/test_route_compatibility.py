@@ -67,20 +67,38 @@ _FINANCE_ADDITIONS = {
 }
 
 
+_SEARCH_ENGINE_ADDITIONS = {
+    "DELETE /api/search/custom/{engine_id}",
+    "GET /api/search/engines",
+    "POST /api/search/custom",
+    "POST /api/search/test",
+    "PUT /api/search/custom/{engine_id}",
+}
+
+
 def _before_finance_additions():
     return [
         row
         for row in _route_rows()
-        if row not in _FINANCE_ADDITIONS | _ASSISTANT_AND_BANK_ADDITIONS
+        if row not in _FINANCE_ADDITIONS | _ASSISTANT_AND_BANK_ADDITIONS | _SEARCH_ENGINE_ADDITIONS
     ]
 
 
 class RouteCompatibilityBaselineTest(unittest.TestCase):
+    def test_search_engine_routes_are_additive_to_previous_surface(self):
+        self.assertTrue(_SEARCH_ENGINE_ADDITIONS <= set(_route_rows()))
+        rows = [row for row in _route_rows() if row not in _SEARCH_ENGINE_ADDITIONS]
+        self.assertEqual(len(rows), 947)
+        self.assertEqual(
+            hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest(),
+            "522fe1fb902186f148959593e48b74a15c559784d3f52cfa890ac36d6aa0d8ff",
+        )
+
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _route_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 947)
-        self.assertEqual(digest, "522fe1fb902186f148959593e48b74a15c559784d3f52cfa890ac36d6aa0d8ff")
+        self.assertEqual(len(rows), 952)
+        self.assertEqual(digest, "2058f25b3e0a8476dc34ea2a1baf3a4c1b3555943706cf0221cda6ba84899957")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -89,13 +107,17 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 930, "v1": 2, "public": 15})
+        self.assertEqual(groups, {"api": 935, "v1": 2, "public": 15})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 
     def test_assistant_and_bank_routes_are_additive_to_previous_surface(self):
         self.assertTrue(_ASSISTANT_AND_BANK_ADDITIONS <= set(_route_rows()))
-        rows = [row for row in _route_rows() if row not in _ASSISTANT_AND_BANK_ADDITIONS]
+        rows = [
+            row
+            for row in _route_rows()
+            if row not in _ASSISTANT_AND_BANK_ADDITIONS | _SEARCH_ENGINE_ADDITIONS
+        ]
         self.assertEqual(len(rows), 917)
         self.assertEqual(
             hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest(),

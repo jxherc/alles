@@ -216,6 +216,7 @@
           "routes.local_models",
           "routes.memory",
           "routes.research",
+          "routes.search_engines",
           "routes.rag",
           "routes.textindex",
           "routes.images",

@@ -19,15 +19,16 @@ from dataclasses import dataclass
 
 import httpx
 
+from services.research import engines as _engines
+from services.research.engines import BY_ID, CUSTOM_PREFIX
+
 log = logging.getLogger("aide.research.search")
 
 _UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"
 )
-_KNOWN_PROVIDERS = frozenset(
-    {"brave", "duckduckgo", "google_pse", "searxng", "serper", "tavily", "wikipedia"}
-)
+_KNOWN_PROVIDERS = frozenset({*BY_ID, "wikipedia"})
 # startpage answers every server request with a captcha page, so the keyless
 # metasearch skips it instead of wasting a request on it
 _BLOCKED_TEXT_ENGINES = frozenset({"startpage"})
@@ -62,6 +63,8 @@ class SearchChainResult(tuple):
 
 def _safe_provider_name(value: str) -> str:
     name = str(value or "").strip()
+    if name.startswith(CUSTOM_PREFIX) and re.fullmatch(r"custom-[0-9a-f]{8}", name):
+        return name
     return name if name in _KNOWN_PROVIDERS else "unknown"
 
 
@@ -299,6 +302,170 @@ async def _search_serper(query, api_key, max_results=5):
     ]
 
 
+async def _search_exa(query, api_key, max_results=5, category="all"):
+    # exa is a web index, not an image or video engine; empty hands those to the next engine
+    if category in ("images", "videos"):
+        return []
+    # "instant" is exa's lowest-latency mode; highlights give the result list a snippet
+    body = {
+        "query": query,
+        "type": "instant",
+        "numResults": max_results,
+        "contents": {"highlights": {"maxCharacters": 320}},
+    }
+    if category == "news":
+        body["category"] = "news"
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.post(
+            "https://api.exa.ai/search",
+            json=body,
+            headers={"x-api-key": api_key, "user-agent": "aide-research/1.0"},
+        )
+        r.raise_for_status()
+        data = r.json()
+    return [
+        {
+            "url": x["url"],
+            "title": x.get("title") or "",
+            "snippet": " ".join(x.get("highlights") or [])[:500],
+            "published": x.get("publishedDate") or "",
+        }
+        for x in data.get("results", [])
+        if x.get("url")
+    ]
+
+
+async def _post_json(url, key, body, header="authorization", prefix="Bearer "):
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.post(
+            url, json=body, headers={header: prefix + key, "user-agent": "aide-research/1.0"}
+        )
+        r.raise_for_status()
+        return r.json()
+
+
+def _rows(items, url="url", title="title", snippet="snippet", date=None):
+    out = []
+    for x in items or []:
+        if not isinstance(x, dict) or not x.get(url):
+            continue
+        text = x.get(snippet)
+        if isinstance(text, list):
+            text = " ".join(str(part) for part in text)
+        row = {"url": x[url], "title": x.get(title) or "", "snippet": str(text or "")[:500]}
+        if date and x.get(date):
+            row["published"] = x[date]
+        out.append(row)
+    return out
+
+
+async def _search_deepseek(query, api_key, max_results=5, category="all"):
+    if category in ("images", "videos"):
+        return []
+    data = await _post_json(
+        "https://api.deepseek.com/v1/tools/search",
+        api_key,
+        {"query": query[:128], "count": max_results},
+    )
+    return _rows(data.get("results"), date="date")
+
+
+async def _search_firecrawl(query, api_key, max_results=5, category="all"):
+    if category in ("images", "videos"):
+        return []
+    body = {"query": query, "limit": max_results}
+    if category == "news":
+        body["sources"] = ["news"]
+    data = (await _post_json("https://api.firecrawl.dev/v2/search", api_key, body)).get("data")
+    data = data if isinstance(data, dict) else {}
+    if category == "news":
+        return _rows(data.get("news"), date="date")
+    return _rows(data.get("web"), snippet="description")
+
+
+async def _search_you(query, api_key, max_results=5, category="all"):
+    if category in ("images", "videos"):
+        return []
+    data = await _post_json(
+        "https://ydc-index.io/v1/search",
+        api_key,
+        {"query": query, "count": max_results},
+        header="x-api-key",
+        prefix="",
+    )
+    sections = data.get("results") if isinstance(data.get("results"), dict) else {}
+    items = sections.get("news" if category == "news" else "web")
+    rows = _rows(items, snippet="description", date="page_age")
+    return rows[:max_results]
+
+
+async def _search_linkup(query, api_key, max_results=5, category="all"):
+    if category in ("images", "videos"):
+        return []
+    data = await _post_json(
+        "https://api.linkup.so/v1/search",
+        api_key,
+        {"q": query, "depth": "fast", "outputType": "searchResults", "maxResults": max_results},
+    )
+    items = [
+        x for x in data.get("results") or [] if isinstance(x, dict) and x.get("type") != "image"
+    ]
+    return _rows(items, title="name", snippet="content")
+
+
+async def _search_perplexity(query, api_key, max_results=5, category="all"):
+    if category in ("images", "videos"):
+        return []
+    body = {"query": query, "max_results": min(max_results, 20), "search_type": "fast"}
+    if category == "news":
+        body["search_recency_filter"] = "week"
+    data = await _post_json("https://api.perplexity.ai/search", api_key, body)
+    return _rows(data.get("results"), date="date")
+
+
+async def _search_jina(query, api_key, max_results=5, category="all"):
+    if category in ("images", "videos"):
+        return []
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.get(
+            "https://s.jina.ai/",
+            params={"q": query, "count": min(max_results, 20)},
+            headers={
+                "authorization": f"Bearer {api_key}",
+                "accept": "application/json",
+                "x-respond-with": "no-content",
+                "user-agent": "aide-research/1.0",
+            },
+        )
+        r.raise_for_status()
+        data = r.json()
+    # the list comes back bare or under "data"
+    items = data.get("data") if isinstance(data, dict) else data
+    return _rows(items if isinstance(items, list) else [], snippet="description", date="date")
+
+
+_KEYED_SEARCH = {
+    "deepseek": _search_deepseek,
+    "firecrawl": _search_firecrawl,
+    "you": _search_you,
+    "linkup": _search_linkup,
+    "perplexity": _search_perplexity,
+    "jina": _search_jina,
+}
+
+
+async def _search_custom(row, key, query, max_results=5):
+    method, url, headers, body = _engines.custom_request(row, key, query, max_results)
+    # checked again here: settings can be edited by hand outside the form
+    if not _engines._allowed_address(url):
+        raise SearchProviderFailure("configuration")
+    async with httpx.AsyncClient(timeout=15, follow_redirects=False) as c:
+        r = await c.request(method, url, headers=headers, content=body or None)
+        r.raise_for_status()
+        data = r.json()
+    return _engines.custom_results(row, data, max_results)
+
+
 def _ddg_unwrap(href: str) -> str:
     if "uddg=" in href:
         q = urllib.parse.urlparse(href if href.startswith("http") else "https:" + href).query
@@ -533,6 +700,25 @@ async def _search_provider(name, query, settings, max_results, category="all"):
         if not key or not cx:
             raise SearchProviderFailure("configuration")
         return await _search_google_pse(provider_query, key, cx, max_results)
+    if name in _KEYED_SEARCH:
+        key = settings.get(BY_ID[name].key) or ""
+        if not key:
+            raise SearchProviderFailure("configuration")
+        return await _KEYED_SEARCH[name](query, key, max_results, category)
+    if name.startswith(CUSTOM_PREFIX):
+        row = _engines.custom_engine(settings, name)
+        if not row:
+            raise SearchProviderFailure("configuration")
+        if category in ("images", "videos"):
+            return []
+        keys = settings.get("custom_search_keys")
+        key = keys.get(name, "") if isinstance(keys, dict) else ""
+        return await _search_custom(row, key, query, max_results)
+    if name == "exa":
+        key = settings.get("exa_api_key") or os.getenv("EXA_API_KEY", "")
+        if not key:
+            raise SearchProviderFailure("configuration")
+        return await _search_exa(query, key, max_results, category)
     if name == "serper":
         key = settings.get("serper_api_key") or os.getenv("SERPER_API_KEY", "")
         if not key:

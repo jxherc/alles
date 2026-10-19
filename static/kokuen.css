@@ -7330,3 +7330,68 @@ html[data-kokuen-version="5"] .andromeda-switch[aria-checked="true"] > span {
 .s-ep-pick {
   margin-top: var(--k-space-3);
 }
+
+/* search engines: "get a key" is a plain text link under the key field */
+.s-engine-signup {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--k-control);
+  color: var(--k-soft);
+  font-size: 13px;
+  text-underline-offset: 0.2em;
+}
+
+.s-engine-signup:hover {
+  color: var(--k-text);
+}
+
+.s-search-status,
+.s-cse-status {
+  color: var(--k-muted);
+  font-size: 13px;
+}
+
+.s-search-status {
+  margin-top: var(--k-space-2);
+}
+
+.s-search-status[data-state="error"],
+.s-cse-status[data-state="error"] {
+  color: var(--k-danger);
+}
+
+/* a text action keeps its label on the content edge, like "change address" */
+#s-custom-search-add {
+  justify-self: start;
+  border-width: 0;
+  margin: var(--k-space-3) 0 0 calc(-1 * var(--k-space-3));
+}
+
+.s-custom-search-form {
+  display: grid;
+  gap: var(--k-space-3);
+  margin-top: var(--k-space-4);
+  padding-top: var(--k-space-4);
+  border-top: 1px solid var(--k-line);
+}
+
+.s-custom-search-form[hidden] {
+  display: none;
+}
+
+.s-cse-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--k-space-3);
+}
+
+.s-cse-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-3);
+}
+
+.s-cse-status {
+  flex: 1;
+  text-align: right;
+}

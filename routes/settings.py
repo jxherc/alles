@@ -17,6 +17,8 @@ from core.settings import (
     save_settings,
 )
 from services.redaction import redact_url
+from services.research.engines import BY_ID as SEARCH_ENGINES
+from services.research.engines import KEY_SETTINGS as SEARCH_KEY_SETTINGS
 
 router = APIRouter(prefix="/api")
 
@@ -34,6 +36,7 @@ _SECRET_KEYS = {
     "brave_api_key",
     "google_pse_api_key",
     "serper_api_key",
+    "exa_api_key",
     "notify_discord_webhook",
     "notify_telegram_token",
     "notify_telegram_chat_id",
@@ -45,10 +48,16 @@ _CONFIG_FLAGS = {
     "brave_api_key",
     "google_pse_api_key",
     "serper_api_key",
+    "exa_api_key",
     "notify_discord_webhook",
     "notify_telegram_token",
     "notify_telegram_chat_id",
 }
+
+
+# every search engine key is a secret; the browser only learns whether it is set
+_SECRET_KEYS |= {*SEARCH_KEY_SETTINGS, "custom_search_keys"}
+_CONFIG_FLAGS |= set(SEARCH_KEY_SETTINGS)
 
 
 def _public_settings(s: dict) -> dict:
@@ -344,6 +353,9 @@ class SettingsPatch(BaseModel):
     google_pse_api_key: str | None = None
     google_pse_cx: str | None = None
     serper_api_key: str | None = None
+    exa_api_key: str | None = None
+    # engine id -> key; "" clears it. covers every engine in services/research/engines.py
+    search_keys: dict[str, str] | None = None
     search_fallback: str | None = None
     andromeda_normal_results: bool | None = None
     andromeda_overview: bool | None = None
@@ -612,6 +624,12 @@ def patch_settings(body: SettingsPatch, request: Request):
             patch["model_roles"] = normalize_model_roles(patch["model_roles"])
         except ValueError as exc:
             raise ApiError(400, "invalid_model_roles", str(exc)) from exc
+    if "search_keys" in patch:
+        for engine_id, value in patch.pop("search_keys").items():
+            engine = SEARCH_ENGINES.get(engine_id)
+            if not engine or not engine.key or not isinstance(value, str) or len(value) > 500:
+                raise ApiError(400, "invalid_search_key", "that search engine does not take a key")
+            patch[engine.key] = value.strip()
     old_photos = load_settings().get("photos_dir") if "photos_dir" in patch else None
     out = save_settings(patch)
     if "photos_dir" in patch:

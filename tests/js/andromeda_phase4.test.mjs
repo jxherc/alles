@@ -345,8 +345,8 @@ test('stored search credentials have an explicit accessible clear action', () =>
   const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
-  assert.equal((html.match(/data-andromeda-clear-setting=/g) || []).length, 6);
-  assert.equal((html.match(/aria-label="clear [^"]+"/g) || []).length, 6);
+  assert.equal((html.match(/data-andromeda-clear-setting=/g) || []).length, 7);
+  assert.equal((html.match(/aria-label="clear [^"]+"/g) || []).length, 7);
   assert.match(source, /queueSearchCredentialWrite/);
   assert.match(source, /_credentialClearPending\.has\(input\.id\)/);
   assert.match(source, /addEventListener\('pointerdown'/);

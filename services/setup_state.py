@@ -281,6 +281,7 @@ def _save_ai_search(values: dict) -> None:
         "brave",
         "google_pse",
         "serper",
+        "exa",
         "disabled",
     }:
         raise SetupStateError("search provider is not supported")

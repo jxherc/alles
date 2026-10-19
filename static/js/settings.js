@@ -4,6 +4,7 @@ import { languagePane } from './settings/language.js';
 import { creditsPane } from './settings/credits.js';
 import { createBackupPane } from './settings/backups.js';
 import { providersPane, _endpointJson } from './settings/providers.js';
+import { loadSearchEngines, wireSearchEngines } from './settings/search_engines.js';
 import { connectionsPane } from './settings/connections.js';
 export { _mergeHomeShortcutOrder } from './settings/home.js';
 export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFromResponse, normalizeS3BackupConfig, s3BackupConfigPayload, s3BackupsFromResponse } from './settings/backups.js';
@@ -274,15 +275,7 @@ function _initSettings() {
   });
 
   // ── search pane ──
-  document.getElementById('s-search-provider')?.addEventListener('change', () => {
-    _updateSearchKeyRow();
-    saveSearchSettings();
-  });
-  document.getElementById('s-search-fallback')?.addEventListener('change', saveSearchSettings);
-  ['s-tavily-key','s-brave-key','s-searxng-url','s-gpse-key','s-gpse-cx','s-serper-key'].forEach(id =>
-    document.getElementById(id)?.addEventListener('blur', saveSearchSettings));
-  document.getElementById('s-search-count')?.addEventListener('change', saveSearchSettings);
-  document.getElementById('s-search-test-btn')?.addEventListener('click', testSearch);
+  wireSearchEngines();
   document.getElementById('s-andromeda-verifier-mode')?.addEventListener('change', event => {
     _patchSetting('andromeda_verifier_mode', getDropdownValue(event.currentTarget));
   });
@@ -462,31 +455,14 @@ async function saveOwnerInstructions() {
 }
 
 // ── search pane ───────────────────────────────────────────────────────────────
-const _SEARCH_KEY_FIELDS = {
-  tavily:     ['s-tavily-row'],
-  brave:      ['s-brave-row'],
-  searxng:    ['s-searxng-row'],
-  google_pse: ['s-google-pse-rows'],
-  serper:     ['s-serper-row'],
-};
-
 async function loadSearchPane() {
   try {
     const s = await _loadPaneSettings('search');
     if (!s) return;
-    const prov = s.search_provider || 'duckduckgo';
-    setDropdownValue(document.getElementById('s-search-provider'), prov);
-    setDropdownValue(document.getElementById('s-search-fallback'), s.search_fallback || 'duckduckgo');
-    if (s.tavily_api_key)  document.getElementById('s-tavily-key').value  = s.tavily_api_key;
-    if (s.brave_api_key)   document.getElementById('s-brave-key').value   = s.brave_api_key;
-    if (s.searxng_url)     document.getElementById('s-searxng-url').value  = s.searxng_url;
-    if (s.google_pse_api_key) document.getElementById('s-gpse-key').value = s.google_pse_api_key;
-    if (s.google_pse_cx)   document.getElementById('s-gpse-cx').value     = s.google_pse_cx;
-    if (s.serper_api_key)  document.getElementById('s-serper-key').value  = s.serper_api_key;
-    const sel = document.getElementById('s-search-count');
-    if (sel) setDropdownValue(sel, String(s.search_result_count || 8));
-    _updateSearchKeyRow();
-    _updateSearchStatus(s);
+    if (s.searxng_url)     document.getElementById('s-searxng-url').placeholder = s.searxng_url;
+    if (s.google_pse_cx)   document.getElementById('s-gpse-cx').value = s.google_pse_cx;
+    if (s.google_pse_api_key_configured) document.getElementById('s-gpse-key').placeholder = 'configured: enter a replacement';
+    await loadSearchEngines(s);
     await loadAndromedaSearchSettings(s);
   } catch { toast('could not load search settings; reopen this section to retry', 'error'); }
 }
@@ -555,77 +531,6 @@ async function qualifyAndromedaAutoModel() {
       : `not qualified · ${result.supported_claims}/${result.required_claims} supported claims`;
   } catch (error) { if (status) status.textContent = error.message || 'fixture failed'; }
   if (button) button.disabled = false;
-}
-
-function _updateSearchKeyRow() {
-  const prov = getDropdownValue(document.getElementById('s-search-provider'));
-  // hide all key rows, then show the right one
-  const allRows = ['s-tavily-row','s-brave-row','s-searxng-row','s-google-pse-rows','s-serper-row'];
-  allRows.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
-  const rows = _SEARCH_KEY_FIELDS[prov] || [];
-  rows.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'flex';
-  });
-}
-
-function _updateSearchStatus(s) {
-  const el = document.getElementById('s-search-status');
-  if (!el) return;
-  const prov  = s.search_provider || 'duckduckgo';
-  const count = s.search_result_count || 8;
-  const labels = { duckduckgo:'DuckDuckGo', tavily:'Tavily', brave:'Brave', searxng:'SearXNG', google_pse:'Google PSE', serper:'Serper', disabled:'disabled' };
-  const needsKey = { tavily:'tavily_api_key', brave:'brave_api_key', google_pse:'google_pse_api_key', serper:'serper_api_key' };
-  const needsUrl = { searxng:'searxng_url' };
-  const keyField = needsKey[prov]; const urlField = needsUrl[prov];
-  const hasKey = keyField ? (s[keyField] || s[`${keyField}_configured`]) : true;
-  const missing  = (keyField && !hasKey) || (urlField && !s[urlField]);
-  el.textContent = `active: ${labels[prov]||prov} · ${count} results${missing?' · missing credentials':''}`;
-  el.style.color  = missing ? 'var(--error)' : 'var(--muted)';
-}
-
-async function saveSearchSettings() {
-  const prov  = getDropdownValue(document.getElementById('s-search-provider'));
-  const count = parseInt(getDropdownValue(document.getElementById('s-search-count'))) || 8;
-  const fall  = getDropdownValue(document.getElementById('s-search-fallback')) || 'duckduckgo';
-  const patch = {
-    search_provider: prov,
-    search_result_count: count,
-    search_fallback: fall,
-    search_fallback_chain: fall === 'none' ? [] : [fall],
-  };
-  const fields = {
-    s_tavily_key: 'tavily_api_key', s_brave_key: 'brave_api_key',
-    s_searxng_url: 'searxng_url', s_gpse_key: 'google_pse_api_key',
-    s_gpse_cx: 'google_pse_cx', s_serper_key: 'serper_api_key',
-  };
-  for (const [htmlId, settingKey] of Object.entries(fields)) {
-    const val = document.getElementById(htmlId.replace(/_/g, '-'))?.value.trim();
-    if (val) patch[settingKey] = val;
-  }
-  if (await _patchSettings(patch)) _updateSearchStatus({ search_provider: prov, search_result_count: count, ...patch });
-}
-
-async function testSearch() {
-  const btn = document.getElementById('s-search-test-btn');
-  const status = document.getElementById('s-search-status');
-  btn.textContent = 'testing...'; btn.disabled = true;
-  try {
-    const prov = getDropdownValue(document.getElementById('s-search-provider'));
-    if (prov === 'disabled') { status.textContent = 'search is disabled'; btn.textContent = 'test'; btn.disabled = false; return; }
-    const r = await fetch('/api/research', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ query: 'test', session_id: 'settings-test', max_rounds: 1 }),
-    });
-    status.textContent = r.ok ? 'connection ok' : `error: ${r.status}`;
-    status.style.color = r.ok ? 'var(--green)' : 'var(--error)';
-  } catch (e) {
-    status.textContent = `error: ${e.message}`; status.style.color = 'var(--error)';
-  }
-  btn.textContent = 'test'; btn.disabled = false;
 }
 
 // ── appearance pane ───────────────────────────────────────────────────────────

@@ -23,6 +23,14 @@ DATABASE_CREDENTIAL_FIELDS = (
 
 SETTING_CREDENTIAL_KEYS = (
     "brave_api_key",
+    "custom_search_keys",
+    "deepseek_search_api_key",
+    "exa_api_key",
+    "firecrawl_api_key",
+    "jina_api_key",
+    "linkup_api_key",
+    "perplexity_api_key",
+    "you_api_key",
     "google_pse_api_key",
     "mail_oauth_client_secret",
     "notify_discord_webhook",

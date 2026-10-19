@@ -868,7 +868,16 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   and omitted sections before sending whole records. cancel sends nothing, and the full saved snapshot
   stays unchanged. replies and source links can continue through Aide's existing saved-note workflow.
 
-search can use duckduckgo, tavily, brave, google pse, serper, or an external https searxng instance.
+search engines live in one list ([services/research/engines.py](services/research/engines.py)): the free
+metasearch (default, no key), exa, brave, serper (google results), deepseek, firecrawl, you.com, perplexity,
+linkup, jina, tavily, an external https searxng, and google pse (google ends that api on 2027-01-01). every picker,
+key field and test reads `GET /api/search/engines`, which reports whether each engine is ready and never returns a
+key. keys are saved with `PATCH /api/settings` `search_keys` and sealed like every other secret. engines that only
+index web pages hand image and video searches to the next engine. exa uses its "instant" mode with short highlights.
+the owner can add up to 12 custom engines in settings → search: any https json api (plain http only on this
+machine), with {query} and {count} in the address or a json body, an optional key header, and dotted paths for the
+result list and its link, title and snippet. custom keys are sealed per engine; removing an engine also resets
+anything that pointed at it. `POST /api/search/test` runs one engine and reports results and time.
 duckduckgo is the default: a keyless metasearch that asks several engines at once and shows the results
 in andromeda. it skips startpage, which answers every server request with a captcha page.
 alles can also own an optional searxng lifecycle when a supported docker runtime is available. its
@@ -1401,10 +1410,10 @@ the registered http operations are grouped by handler source. use `/openapi.json
 
 the compatibility snapshot locks the registered http surface:
 
-- 85 included fastapi router modules
-- 947 http method/path pairs
-- 930 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `522fe1fb902186f148959593e48b74a15c559784d3f52cfa890ac36d6aa0d8ff`
+- 86 included fastapi router modules
+- 952 http method/path pairs
+- 935 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
+- sha-256: `2058f25b3e0a8476dc34ea2a1baf3a4c1b3555943706cf0221cda6ba84899957`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -2806,6 +2815,21 @@ retrieve full article text from each entry's publisher.
 </details>
 
 <details>
+<summary>routes/search_engines.py · 5 operations</summary>
+
+[source](routes/search_engines.py)
+
+| method | path | handler |
+| --- | --- | --- |
+| `GET` | `/api/search/engines` | `list_engines` |
+| `POST` | `/api/search/custom` | `add_custom` |
+| `PUT` | `/api/search/custom/{engine_id}` | `edit_custom` |
+| `DELETE` | `/api/search/custom/{engine_id}` | `remove_custom` |
+| `POST` | `/api/search/test` | `test_engine` |
+
+</details>
+
+<details>
 <summary>routes/sessions.py · 13 operations</summary>
 
 [source](routes/sessions.py)
@@ -3692,6 +3716,8 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `google_pse_api_key` | `""` |
 | `google_pse_cx` | `""` |
 | `serper_api_key` | `""` |
+| `exa_api_key` | `""` |
+| `custom_search_engines` | `[]` |
 | `search_fallback` | `"duckduckgo"` |
 | `andromeda_normal_results` | `true` |
 | `andromeda_overview` | `true` |

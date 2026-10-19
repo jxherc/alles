@@ -191,6 +191,9 @@ from routes import (
     research as research_routes,
 )
 from routes import (
+    search_engines as search_engine_routes,
+)
+from routes import (
     search as search_routes,
 )
 from routes import (
@@ -1159,6 +1162,7 @@ app.include_router(setup_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(memory_routes.router)
 app.include_router(research_routes.router)
+app.include_router(search_engine_routes.router)
 app.include_router(journal_routes.router)
 app.include_router(journal_migration_routes.router)
 app.include_router(usage_routes.router)

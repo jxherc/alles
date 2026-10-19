@@ -655,11 +655,13 @@ function modelOptions(endpoints) {
 }
 
 async function renderSearch(target, request) {
-  const [settingsResult, endpointsResult, rolesResult] = await Promise.allSettled([
+  const [settingsResult, endpointsResult, rolesResult, enginesResult] = await Promise.allSettled([
     json(request, '/api/settings'),
     json(request, '/api/models'),
     json(request, '/api/models/roles'),
+    json(request, '/api/search/engines'),
   ]);
+  const engines = enginesResult.status === 'fulfilled' ? enginesResult.value.engines || [] : [];
   if (settingsResult.status === 'rejected') throw settingsResult.reason;
   let settings = settingsResult.value;
   const panel = card('andromeda search and models', 'Compact cited answers use the answer model. Freshness checking is a separate, optional background model with its own cost limits.');
@@ -679,8 +681,8 @@ async function renderSearch(target, request) {
     }
   };
   const providerOptions = [
-    ['duckduckgo', 'duckduckgo'], ['searxng', 'searxng'], ['brave', 'brave'],
-    ['tavily', 'tavily'], ['google_pse', 'google pse'], ['serper', 'serper'], ['disabled', 'disabled'],
+    ...(engines.length ? engines.map(engine => [engine.id, engine.label.toLowerCase()]) : [['duckduckgo', 'free search']]),
+    ['disabled', 'disabled'],
   ].map(([value, label]) => ({ value, label }));
   panel.append(
     choice('primary search provider', providerOptions, settings.search_provider || 'duckduckgo', value => save({ search_provider: value })),
@@ -716,12 +718,12 @@ async function renderSearch(target, request) {
   panel.append(limits);
 
   const credentials = card('search credentials', 'Secrets are never read back. A configured field only shows its status; entering a value replaces it.');
+  // one key field per keyed engine, from the shared engine list; google pse also needs its cx
   const credentialSpecs = [
-    ['tavily api key', 'tavily_api_key', 'tavily_api_key_configured', 'password'],
-    ['brave api key', 'brave_api_key', 'brave_api_key_configured', 'password'],
-    ['google pse api key', 'google_pse_api_key', 'google_pse_api_key_configured', 'password'],
+    ...engines.filter(engine => engine.key_setting && !engine.custom).map(engine => [
+      `${engine.label.toLowerCase()} api key`, engine.key_setting, `${engine.key_setting}_configured`, 'password',
+    ]),
     ['google pse cx', 'google_pse_cx', '', 'text'],
-    ['serper api key', 'serper_api_key', 'serper_api_key_configured', 'password'],
     ['external searxng https url', 'searxng_url', '', 'url'],
   ];
   for (const [label, key, configuredKey, type] of credentialSpecs) {

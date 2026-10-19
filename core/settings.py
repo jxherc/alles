@@ -100,6 +100,7 @@ _defaults = {
     "google_pse_api_key": "",
     "google_pse_cx": "",
     "serper_api_key": "",
+    "exa_api_key": "",
     "search_fallback": "duckduckgo",
     "andromeda_normal_results": True,
     "andromeda_overview": True,
@@ -235,6 +236,14 @@ def _decrypt_setting_secrets(values: dict) -> dict:
         value = result.get(key)
         if isinstance(value, str) and value:
             result[key] = unseal(value, f"settings.{key}")
+        elif isinstance(value, dict):
+            # a map of secrets (custom search engine keys): each value sealed on its own
+            result[key] = {
+                name: unseal(item, f"settings.{key}.{name}")
+                if isinstance(item, str) and item
+                else item
+                for name, item in value.items()
+            }
     return result
 
 
@@ -246,6 +255,13 @@ def _encrypt_setting_secrets(values: dict) -> dict:
         value = result.get(key)
         if isinstance(value, str) and value:
             result[key] = seal(value, f"settings.{key}")
+        elif isinstance(value, dict):
+            result[key] = {
+                name: seal(item, f"settings.{key}.{name}")
+                if isinstance(item, str) and item
+                else item
+                for name, item in value.items()
+            }
     return result
 
 
@@ -439,10 +455,18 @@ def migrate_setting_secrets() -> int:
         return 0
     from services.secretstore import needs_reseal
 
+    def sealed_values(value):
+        if isinstance(value, str) and value:
+            return [value]
+        if isinstance(value, dict):
+            return [item for item in value.values() if isinstance(item, str) and item]
+        return []
+
     changed = sum(
         1
         for key in _ENCRYPTED_SETTING_KEYS
-        if isinstance(stored.get(key), str) and stored[key] and needs_reseal(stored[key])
+        for value in sealed_values(stored.get(key))
+        if needs_reseal(value)
     )
     if changed:
         _clear_settings_cache()

@@ -1374,7 +1374,13 @@ def _validate_database_dependencies(
             settings = _credential_config(data_dir / "settings.json", require_sealed=require_sealed)
             for key in SETTING_CREDENTIAL_KEYS:
                 value = settings.get(key)
-                if value not in (None, ""):
+                if isinstance(value, dict):
+                    credentials.extend(
+                        (item, f"settings.{key}.{name}")
+                        for name, item in value.items()
+                        if item not in (None, "")
+                    )
+                elif value not in (None, ""):
                     credentials.append((value, f"settings.{key}"))
             for config_name, key, purpose in CONFIG_CREDENTIAL_FIELDS:
                 config = _credential_config(data_dir / config_name, require_sealed=require_sealed)
