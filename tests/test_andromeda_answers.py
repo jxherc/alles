@@ -113,6 +113,34 @@ class ResolveTest(ApiTest):
         self.assertEqual(word["meanings"][0]["definitions"][0]["text"], "luck")
         self.assertTrue(all(url.startswith("https://") for url in seen))
 
+    def test_definition_falls_back_to_wiktionary_when_blocked(self):
+        wiki = {
+            "en": [
+                {
+                    "partOfSpeech": "Noun",
+                    "definitions": [
+                        {
+                            "definition": 'a <a href="/wiki/fortunate">fortunate</a> find &amp; more',
+                            "examples": ["<i>pure</i> serendipity"],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        async def fake(url):
+            if "dictionaryapi.dev" in url:
+                raise RuntimeError("403 challenge page")
+            return wiki
+
+        with mock.patch.object(answers, "_get_json", side_effect=fake):
+            word = run(answers.detect("define serendipity"))
+        first = word["meanings"][0]
+        self.assertEqual(first["part"], "noun")
+        self.assertEqual(first["definitions"][0]["text"], "a fortunate find & more")
+        self.assertEqual(first["definitions"][0]["example"], "pure serendipity")
+        self.assertEqual(word["source"], "Wiktionary")
+
     def test_translation_asks_the_model_and_reads_its_json(self):
         async def model(messages):
             assert json.loads(messages[1]["content"]) == {"text": "bonjour", "to": "english"}

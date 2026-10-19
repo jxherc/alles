@@ -866,7 +866,7 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   above the overview on the "all" tab: a calculator (a safe arithmetic parser, no `eval`), unit and
   temperature conversion, the time in a city, the periodic table and single elements (a built-in table,
   click any element for its details), currency (european central bank rates via frankfurter), weather
-  (open-meteo), english definitions (the free dictionary api) and translation ("what is bonjour in
+  (open-meteo), english definitions (the free dictionary api, or wiktionary when that api refuses the server) and translation ("what is bonjour in
   english"). translation uses the answer model and follows the same remote-confirmation setting. every
   lookup goes through the ssrf-safe fetcher with an 8 second limit; a failed lookup shows no card.
 - **result rows.** each row shows the site's icon, its name and a "host › path" trail above a larger

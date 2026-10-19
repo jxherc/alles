@@ -9,6 +9,7 @@ translation, the owner's answer model.
 from __future__ import annotations
 
 import ast
+import html
 import json
 import math
 import operator
@@ -448,11 +449,47 @@ _WEATHER_CODES = {
 async def _get_json(url: str):
     from services.net_guard import safe_get_public_async
 
+    # wikimedia asks api clients to say who they are
+    headers = {"accept": "application/json", "user-agent": "alles/1.0 (self-hosted search)"}
     response = await safe_get_public_async(
-        url, timeout=8, headers={"accept": "application/json"}, max_redirects=2, max_bytes=400_000
+        url, timeout=8, headers=headers, max_redirects=2, max_bytes=400_000
     )
     response.raise_for_status()
     return response.json()
+
+
+def _plain(markup: str) -> str:
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", markup or ""))).strip()
+
+
+async def _wiktionary(word: str) -> dict | None:
+    data = await _get_json(
+        "https://en.wiktionary.org/api/rest_v1/page/definition/" + urllib.parse.quote(word)
+    )
+    meanings = []
+    for meaning in (data or {}).get("en") or []:
+        definitions = []
+        for d in meaning.get("definitions") or []:
+            text = _plain(d.get("definition", ""))
+            if not text:
+                continue
+            examples = [_plain(x.get("example", "")) for x in d.get("parsedExamples") or []]
+            examples += [_plain(x) for x in d.get("examples") or []]
+            definitions.append({"text": text, "example": next((x for x in examples if x), "")})
+            if len(definitions) == 3:
+                break
+        if definitions:
+            part = str(meaning.get("partOfSpeech") or "").lower()
+            meanings.append({"part": part, "definitions": definitions})
+    if not meanings:
+        return None
+    return {
+        "kind": "define",
+        "word": word,
+        "phonetic": "",
+        "meanings": meanings[:3],
+        "source": "Wiktionary",
+    }
 
 
 def _element(row: dict) -> dict:
@@ -564,11 +601,16 @@ async def resolve(found: dict, *, translate=None) -> dict | None:
             "source": "Open-Meteo",
         }
     if kind == "define":
-        data = await _get_json(
-            "https://api.dictionaryapi.dev/api/v2/entries/en/" + urllib.parse.quote(found["word"])
-        )
+        try:
+            data = await _get_json(
+                "https://api.dictionaryapi.dev/api/v2/entries/en/"
+                + urllib.parse.quote(found["word"])
+            )
+        except Exception:
+            data = None
         if not isinstance(data, list) or not data:
-            return None
+            # that api sits behind a challenge page for cloud servers; wiktionary answers them
+            return await _wiktionary(found["word"])
         entry = data[0]
         meanings = []
         for meaning in entry.get("meanings") or []:
