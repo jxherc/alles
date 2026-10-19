@@ -172,7 +172,7 @@ http audit metadata in [services/audit.py](services/audit.py) is separate from d
 
 ### model and action decisions
 
-[services/model_resolver.py](services/model_resolver.py) resolves exact endpoints/models with privacy/cost constraints. internal roles are `aide_chat`, `andromeda_answer`, `andromeda_verifier`, and `jarvis`. the interface presents aide plus independent andromeda roles; workflows can override background choices.
+[services/model_resolver.py](services/model_resolver.py) resolves exact endpoints/models with privacy/cost constraints. internal roles are `aide_chat`, `andromeda_answer`, `andromeda_verifier`, `jarvis`, and `coding` (the default model for pi chats). the interface presents aide plus independent andromeda roles; workflows can override background choices.
 
 provider detection formats requests; catalog adapters fetch model ids. memory keeps reviewed facts and local embeddings with keyword fallback. personal indexes remain derived state owned by their source records.
 
@@ -248,7 +248,7 @@ what it supports:
 - streaming chat (the reply types itself out live, word by word)
 - works with any provider: claude, openai/gpt, deepseek, gemini, groq, mistral, a local model, and ~15 others; switch any time, even mid-conversation
 - **one main conversation**: Aide returns to a persistent primary conversation. older and private conversations remain separate; the primary conversation cannot be archived or deleted. Aide chats, uses approved tools when useful, and keeps longer work in the same conversation.
-- **coding**: when DeepSeek Harness is not installed (checked in `/Applications` and `~/Applications`), the connection view links to its official download at deepseek.com/harness and the Homebrew cask instead of the pairing form. pair a local DeepSeek Harness bridge, select an offered workspace and start a task. saved runs show status, activity, assistant output and reported file changes; the output is limited to the latest 50 messages. answer questions, inspect tool arguments before approval, stop work, or send a follow-up in the same DSH session. durable request identities prevent duplicate starts after lost responses. refresh reconciles uncertain results without replacing a newer completion. the workspace has no file editor or interactive terminal.
+- **code with pi**: Aide's code view runs [pi](https://github.com/earendil-works/pi), an open-source coding agent, on the machine that hosts alles. the first visit installs a pinned pi (`@earendil-works/pi-coding-agent` 1.3.0) into `~/.cache/alles/pi-1.3.0` (outside the data folder, so backups skip it) with `npm --ignore-scripts`; it needs node 22.19 or newer. projects are folders on that machine (never alles's own data folder) listed in a rail with their chats under each, like a desktop coding app. a chat is one of pi's own session files in `<data>/pi/sessions/<project>`; alles keeps one `pi --mode rpc` process per open chat, streams its steps to every open browser, lets the owner steer, stop, switch models or answer pi's questions, and stops processes idle for 15 minutes (`pi_idle`). pi's model list is written from alles's enabled api-key endpoints; keys reach pi only through environment variables, never on disk, and pi gets none of alles's own `ALLES_*` settings. the coding default model is the `coding` model role. the line under the message box shows tokens per second, the provider's cache hit rate and context use. pi does not ask before each command; starting work needs a recent owner sign-in. a normal Aide conversation can hand a task to pi with the `pi_run` tool and reports what pi did. the older DSH tables stay in the database but nothing uses them.
 - **app actions from plain chat**: just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm"). reads can run directly; changes and sends follow the configured permission rules
 - **conclusion-first work**: successful answers lead with the result. exact steps, sources, diffs, and revert controls stay available under one accessible control after reload
 - **confirmed tool sources**: source history separates successful reads, search references and other
@@ -1448,7 +1448,7 @@ the compatibility snapshot locks the registered http surface:
 - 86 included fastapi router modules
 - 955 http method/path pairs
 - 938 `/api/*`, 2 `/v1/*`, and 15 non-api shell/public pairs
-- sha-256: `0331a5aaede48c49531ed8b8c22548af85c56b021d710532f4bd57e4d22fa36d`
+- sha-256: `016fece5fab4a491fafc4ff0513d65fbca570845046e2dcd55698faeac5de555`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -1496,21 +1496,21 @@ the compatibility snapshot locks the registered http surface:
 | `POST` | `/api/aide/calls/{call_id}/offer` | `negotiate_call` |
 | `POST` | `/api/aide/calls/{call_id}/transcripts` | `save_transcript` |
 | `GET` | `/api/aide/capabilities` | `capabilities` |
-| `DELETE` | `/api/aide/coding/connection` | `coding_disconnect` |
-| `POST` | `/api/aide/coding/health` | `coding_health` |
-| `POST` | `/api/aide/coding/pair` | `coding_pair` |
-| `GET` | `/api/aide/coding/runs` | `coding_runs` |
-| `POST` | `/api/aide/coding/runs` | `coding_start` |
-| `GET` | `/api/aide/coding/runs/{run_id}` | `coding_run` |
-| `POST` | `/api/aide/coding/runs/{run_id}/cancel` | `coding_cancel` |
-| `POST` | `/api/aide/coding/runs/{run_id}/continue` | `coding_continue` |
-| `GET` | `/api/aide/coding/runs/{run_id}/events` | `coding_events` |
-| `GET` | `/api/aide/coding/runs/{run_id}/live` | `coding_live` |
-| `POST` | `/api/aide/coding/runs/{run_id}/refresh` | `coding_refresh` |
-| `POST` | `/api/aide/coding/runs/{run_id}/respond` | `coding_respond` |
-| `POST` | `/api/aide/coding/runs/{run_id}/resume` | `coding_resume` |
-| `GET` | `/api/aide/coding/status` | `coding_status` |
-| `GET` | `/api/aide/coding/workspaces` | `coding_workspaces` |
+| `DELETE` | `/api/aide/code/projects/{project_id}` | `code_forget_project` |
+| `DELETE` | `/api/aide/code/projects/{project_id}/chats/{chat_id}` | `code_delete_chat` |
+| `GET` | `/api/aide/code/folders` | `code_folders` |
+| `POST` | `/api/aide/code/install` | `code_install` |
+| `GET` | `/api/aide/code/projects` | `code_projects` |
+| `POST` | `/api/aide/code/projects` | `code_add_project` |
+| `GET` | `/api/aide/code/projects/{project_id}/chats` | `code_chats` |
+| `POST` | `/api/aide/code/projects/{project_id}/chats` | `code_new_chat` |
+| `GET` | `/api/aide/code/projects/{project_id}/chats/{chat_id}` | `code_chat` |
+| `POST` | `/api/aide/code/projects/{project_id}/chats/{chat_id}/answer` | `code_answer` |
+| `GET` | `/api/aide/code/projects/{project_id}/chats/{chat_id}/live` | `code_live` |
+| `POST` | `/api/aide/code/projects/{project_id}/chats/{chat_id}/messages` | `code_message` |
+| `POST` | `/api/aide/code/projects/{project_id}/chats/{chat_id}/model` | `code_model` |
+| `POST` | `/api/aide/code/projects/{project_id}/chats/{chat_id}/stop` | `code_stop` |
+| `GET` | `/api/aide/code/status` | `code_status` |
 
 </details>
 
@@ -3331,7 +3331,7 @@ retrieve full article text from each entry's publisher.
 
 ## database table inventory
 
-this lists **137 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **138 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -3373,6 +3373,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `contact_links` | `id: VARCHAR pk`, `from_id: VARCHAR`, `to_id: VARCHAR`, `kind: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `commitment_create_receipts` | `id: VARCHAR pk`, `kind: VARCHAR`, `payload_hash: VARCHAR`, `resource_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `contacts` | `id: VARCHAR pk`, `name: VARCHAR`, `email: VARCHAR ?`, `phone: VARCHAR ?`, `notes: TEXT ?`, `tags: TEXT ?`, `company: VARCHAR ?`, `title: VARCHAR ?`, `address: TEXT ?`, `birthday: VARCHAR ?`, `website: VARCHAR ?`, `favorite: BOOLEAN ?`, `avatar: VARCHAR ?`, `is_me: BOOLEAN ?`, `carddav_uid: VARCHAR ?`, `carddav_href: VARCHAR ?`, `carddav_etag: VARCHAR ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
+| `coding_projects` | `id: VARCHAR pk`, `path: TEXT`, `name: VARCHAR`, `created_at: DATETIME ?`, `last_used_at: DATETIME ?` | — |
 | `cookbook` | `id: VARCHAR pk`, `name: VARCHAR`, `description: VARCHAR ?`, `prompt: TEXT`, `created_at: DATETIME ?` | — |
 | `dsh_connections` | `id: VARCHAR pk`, `base_url: VARCHAR`, `token: TEXT sealed`, `host_version: VARCHAR ?`, `connected_at: DATETIME ?`, `checked_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `day_events` | `id: VARCHAR pk`, `name: VARCHAR`, `date: VARCHAR`, `repeat: VARCHAR ?`, `category: VARCHAR ?`, `notes: TEXT ?`, `pinned: BOOLEAN ?`, `notify_days: INTEGER ?`, `last_notified: VARCHAR ?`, `created_at: DATETIME ?` | — |
@@ -3562,6 +3563,7 @@ known versions run in ascending order.
 | 69 | `aide_live_calls` | [m0069_aide_live_calls.py](core/migrations/m0069_aide_live_calls.py) |
 | 70 | `aide_coding_runs` | [m0070_aide_coding_runs.py](core/migrations/m0070_aide_coding_runs.py) |
 | 71 | `andromeda_search_watch` | [m0071_andromeda_search_watch.py](core/migrations/m0071_andromeda_search_watch.py) |
+| 72 | `coding_projects` | [m0072_coding_projects.py](core/migrations/m0072_coding_projects.py) |
 
 </details>
 
@@ -3595,6 +3597,7 @@ registered intervals come from `app.py`. the current loop sleeps 30 seconds betw
 | `carddav_auto` | `600` | no |
 | `watch` | `60` | no |
 | `andromeda_watch` | `300` | no |
+| `pi_idle` | `120` | no |
 | `personal_reconcile` | `120` | no |
 | `automatic_backup` | `3600` | no |
 | `proactive` | `_interval_seconds()` | no |
@@ -3722,7 +3725,7 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | --- | --- |
 | `default_model` | `""` |
 | `default_endpoint_id` | `""` |
-| `model_roles` | `{"aide_chat": {}, "andromeda_answer": {}, "andromeda_verifier": {}, "jarvis": {}}` |
+| `model_roles` | `{"aide_chat": {}, "andromeda_answer": {}, "andromeda_verifier": {}, "jarvis": {}, "coding": {}}` |
 | `system_prompt` | `BASE_AIDE_SYSTEM_PROMPT` |
 | `owner_instructions` | `""` |
 | `default_chat_behavior` | `"automatic_tools"` |

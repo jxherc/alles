@@ -864,11 +864,6 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
 .agent-steps[open] .steps-closed-label { display: none; }
 .agent-steps[open] .steps-open-label { display: inline; }
 .think-timer { color: var(--muted); font-variant-numeric: tabular-nums; }
-.msg-stats {
-  margin-top: 0.4rem;
-  font-size: 0.75rem; color: var(--muted);
-  letter-spacing: 0.03em; font-variant-numeric: tabular-nums;
-}
 .aide-background-card {
   max-width: 680px;
   margin: 2px 0 8px;

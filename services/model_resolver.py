@@ -7,7 +7,7 @@ from core.settings import load_settings
 from services.model_catalog import is_chat_model
 from services.routing import is_local_endpoint
 
-MODEL_ROLES = ("aide_chat", "andromeda_answer", "andromeda_verifier", "jarvis")
+MODEL_ROLES = ("aide_chat", "andromeda_answer", "andromeda_verifier", "jarvis", "coding")
 LEGACY_MODEL_ROLE_ALIASES = {"andromeda": "andromeda_answer"}
 
 

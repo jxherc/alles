@@ -176,6 +176,17 @@ class AideCallEvent(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class CodingProject(Base):
+    """a folder on this machine that pi coding chats run in."""
+
+    __tablename__ = "coding_projects"
+    id = Column(String, primary_key=True, default=_uid)
+    path = Column(Text, nullable=False, unique=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=_now)
+    last_used_at = Column(DateTime, default=_now)
+
+
 class DshConnection(Base):
     __tablename__ = "dsh_connections"
     id = Column(String, primary_key=True, default="default")

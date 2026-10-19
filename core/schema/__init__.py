@@ -28,6 +28,7 @@ from core.schema.application import CalendarEvent as CalendarEvent
 from core.schema.application import CalendarSubscription as CalendarSubscription
 from core.schema.application import CapabilityGrant as CapabilityGrant
 from core.schema.application import CapabilityGrantEvent as CapabilityGrantEvent
+from core.schema.application import CodingProject as CodingProject
 from core.schema.application import CommitmentCreateReceipt as CommitmentCreateReceipt
 from core.schema.application import Connection as Connection
 from core.schema.application import Contact as Contact

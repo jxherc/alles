@@ -6,7 +6,6 @@ from uuid import uuid4
 
 from core.database import AideCall, AideCallEvent, JarvisRun, Message, ModelEndpoint, Session
 from services import jarvis_handoff
-from services.coding_backends.dsh import DshBackend, DshConfigurationError
 from tests._client import ApiTest
 
 
@@ -396,93 +395,8 @@ class AideLiveCallTest(ApiTest):
         asyncio.run(run())
 
 
-class DshBackendBoundaryTest(ApiTest):
-    def test_unconfigured_capability_is_honest_and_contains_no_secret(self):
-        with mock.patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("ALLES_DSH_BRIDGE_URL", None)
-            os.environ.pop("ALLES_DSH_BRIDGE_TOKEN", None)
-            status = DshBackend().capability()
-        self.assertFalse(status["available"])
-        self.assertFalse(status["configured"])
-        self.assertNotIn("token", status)
-        self.assertNotIn("url", status)
-
-    def test_bridge_requires_authenticated_loopback_and_allowlisted_methods(self):
-        with self.assertRaises(DshConfigurationError):
-            DshBackend(base_url="https://example.com", token="secret")._validate()
-        backend = DshBackend(base_url="http://127.0.0.1:4317", token="secret")
-        backend._validate()
-        with self.assertRaisesRegex(ValueError, "not_allowed"):
-            asyncio.run(backend._call("settings.write", {}))
-
-    def test_bridge_uses_documented_rpc_envelope_and_separate_prompt(self):
-        calls = []
-
-        class Response:
-            status_code = 200
-
-            def __init__(self, body):
-                self._body = body
-
-            def json(self):
-                request = self._body["json"]
-                method = request["method"]
-                value = (
-                    {"sessionId": "dsh-session", "agentPreset": "default"}
-                    if method == "session.create"
-                    else {"accepted": True}
-                )
-                return {
-                    "type": "server-response",
-                    "rpcId": request["rpcId"],
-                    "result": {"ok": True, "value": value},
-                }
-
-        class Client:
-            def __init__(self, **_kwargs):
-                pass
-
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *_args):
-                return None
-
-            async def post(self, url, **kwargs):
-                record = {"url": url, **kwargs}
-                calls.append(record)
-                return Response(record)
-
-        backend = DshBackend(base_url="http://127.0.0.1:4317", token="secret")
-        with mock.patch("services.coding_backends.dsh.httpx.AsyncClient", Client):
-            result = asyncio.run(
-                backend.create_session(workspace_id="workspace-1", session_id="dsh-session")
-            )
-            asyncio.run(backend.prompt_session(session_id="dsh-session", prompt="Fix the test"))
-
-        self.assertEqual(result["sessionId"], "dsh-session")
-        self.assertEqual(
-            [call["json"]["method"] for call in calls], ["session.create", "session.prompt"]
-        )
-        self.assertTrue(calls[0]["url"].endswith("/mobile/api/proxy/session.create"))
-        self.assertEqual(
-            calls[0]["json"]["payload"],
-            {"workspaceId": "workspace-1", "sessionId": "dsh-session"},
-        )
-        self.assertEqual(
-            calls[1]["json"]["payload"],
-            {
-                "sessionId": "dsh-session",
-                "mode": "queue",
-                "content": [{"type": "text", "text": "Fix the test"}],
-            },
-        )
-        for call in calls:
-            self.assertEqual(call["headers"], {"Authorization": "Bearer secret"})
-            self.assertEqual(call["json"]["type"], "client-request")
-            self.assertTrue(call["json"]["rpcId"])
-
-    def test_capabilities_keep_coding_disabled_until_health_check(self):
+class AideCapabilitiesTest(ApiTest):
+    def test_capabilities_name_pi_as_the_coding_harness(self):
         db = self.db()
         db.add(
             ModelEndpoint(
@@ -501,5 +415,8 @@ class DshBackendBoundaryTest(ApiTest):
         body = response.json()
         self.assertTrue(body["conversation"]["permanent"])
         self.assertTrue(body["voice"]["available"])
-        self.assertFalse(body["coding"]["available"])
+        self.assertEqual(body["coding"]["harness"], "pi")
+        self.assertIn(
+            body["coding"]["state"], {"ready", "missing", "needs_node", "failed", "installing"}
+        )
         self.assertTrue(body["durable_tasks"]["available"])

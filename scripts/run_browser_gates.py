@@ -57,8 +57,6 @@ COMMANDS = {
     "ui-audit": ("tests/pw_ui_audit.py",),
     "help-manual": ("tests/pw_help_manual.py",),
     "livevoice": ("tests/pw_livevoice.py",),
-    "aide-coding-interactions": ("tests/pw_aide_coding_interactions.py",),
-    "aide-coding-navigation": ("tests/pw_aide_coding_navigation.py",),
     "draft-ownership": ("tests/pw_draft_ownership.py",),
     "notes-metadata": ("tests/pw_notes_metadata.py",),
     "aide-utilities": ("tests/pw_aide_utilities.py",),
@@ -290,9 +288,20 @@ def isolated_environment(data: Path, run_id: str, port: int, artifacts: Path) ->
             "TZ": "UTC",
             "ALLES_BROWSER_ARTIFACTS": str(artifacts),
             "ALLES_CLEANUP_SHOTS": str(artifacts),
+            # gates never npm-install the real pi; this stand-in speaks its protocol
+            "ALLES_PI_BIN": str(_fake_pi(data)),
         }
     )
     return env
+
+
+def _fake_pi(data: Path) -> Path:
+    wrapper = data / ".pi-fake" / "pi"
+    wrapper.parent.mkdir(parents=True, exist_ok=True)
+    script = ROOT / "tests" / "fixtures" / "fake_pi.py"
+    wrapper.write_text(f'#!/bin/sh\nexec "{sys.executable}" -I "{script}" "$@"\n')
+    wrapper.chmod(0o755)
+    return wrapper
 
 
 @contextmanager

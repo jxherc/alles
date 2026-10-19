@@ -300,6 +300,7 @@ const _MODEL_ROLE_COPY = {
   andromeda_answer: ['Andromeda answer', 'fast compact cited answers'],
   andromeda_verifier: ['Andromeda verifier', 'independent current-fact checks'],
   jarvis: ['Jarvis', 'deep research and delegated work'],
+  coding: ['Coding', 'pi chats in Aide code'],
 };
 const _ADAPTER_OPTIONS = 'auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list';
 let _modelRoleSettings = {};

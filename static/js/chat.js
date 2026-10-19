@@ -393,9 +393,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   let thinkStart = 0;
   let thinkTimer = 0;
   let thinkDone = false;
-  let genStart = 0;     // first answer token time, for tok/s
-  let statsEl = null;
-  let outTok = 0;       // real output tokens from usage (if provided)
+  let genStart = 0;     // first answer token time
   let providerError = false;
   let sourceUserId = request.retry_message_id || '';
   let receivedDone = false;
@@ -412,20 +410,6 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     if (progressEl.isConnected) progressEl.textContent = text;
   };
   const clearProgress = () => progressEl.remove();
-
-  const updateStats = (final = false) => {
-    if (!genStart) return;
-    if (!statsEl) {
-      statsEl = document.createElement('div');
-      statsEl.className = 'msg-stats';
-      body.appendChild(statsEl);
-    }
-    const secs = (Date.now() - genStart) / 1000;
-    const toks = outTok || Math.max(1, Math.round(accText.length / 4));  // real if known, else ~chars/4
-    const approx = outTok ? '' : '~';
-    const rate = secs > 0.3 ? ` · ${Math.round(toks / secs)} tok/s` : '';
-    statsEl.textContent = `${approx}${formatNumber(toks)} tok${rate}`;
-  };
 
   // freeze the thinking block: stop the live timer, show "thought for Xs", collapse
   const finishThinking = () => {
@@ -466,7 +450,6 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     applyResponsePrivacy(contentEl);
     cursor?.remove();
     addCursor(contentEl);
-    updateStats();
     if (stick) scrollDown();
   };
   const scheduleRender = () => {
@@ -552,7 +535,6 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
           // openai uses prompt/completion_tokens; anthropic uses input/output_tokens
           const inp = u.prompt_tokens || u.input_tokens || 0;
           const out = u.completion_tokens || u.output_tokens || 0;
-          if (out) outTok = out;
           const total = inp + out;
           if (total) {
             const el = document.getElementById('session-token-count');
@@ -807,7 +789,6 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
     finishThinking();   // freeze timer even if the reply was thinking-only
     clearProgress();
-    updateStats(true);  // final token count + tok/s (real if usage was sent)
     cursor?.remove();
     body.classList.add('done');
     if (ctrl.signal.aborted) appendInterruptionNotice(body);

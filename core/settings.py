@@ -62,6 +62,7 @@ _defaults = {
         "andromeda_answer": {},
         "andromeda_verifier": {},
         "jarvis": {},
+        "coding": {},
     },
     # `system_prompt` remains as a compatibility mirror for older clients. New code keeps the
     # code-owned base prompt separate from the owner's editable instructions.

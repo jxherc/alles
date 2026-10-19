@@ -96,6 +96,7 @@ TOOL_PERMISSION = {
     "mcp_list_tools": "mcp_read",
     "mcp_call_tool": "mcp_call",
     "opencode_run": "delegate",
+    "pi_run": "delegate",
     "git_status": "read",
     "git_diff": "read",
     "git_branch": "git_write",
@@ -1053,6 +1054,73 @@ async def _opencode_run(prompt: str, cwd: str = ".", model: str = "", agent: str
     return await _run_shell(" ".join(parts), cwd=cwd)
 
 
+async def _pi_run(task: str, project: str = "", wait_seconds: int = 600) -> dict:
+    """hand a coding task to pi in one of the owner's Aide code projects and wait for it."""
+    import asyncio
+
+    from core.database import CodingProject, SessionLocal
+    from services import pi_agent
+
+    if pi_agent.ensure_installed()["state"] != "ready":
+        return {
+            "output": "pi is not ready on this machine yet; open Aide code to see why",
+            "error": True,
+        }
+    db = SessionLocal()
+    try:
+        rows = db.query(CodingProject).order_by(CodingProject.last_used_at.desc()).all()
+        wanted = (project or "").strip().lower()
+        row = next(
+            (r for r in rows if wanted in (r.id.lower(), r.name.lower(), r.path.lower())),
+            None if wanted else (rows[0] if rows else None),
+        )
+        if row is None:
+            names = ", ".join(r.name for r in rows) or "none yet"
+            return {"output": f"no Aide code project matches; projects: {names}", "error": True}
+        choice = pi_agent.resolve_choice(db)
+        if choice is None:
+            return {"output": "no model with an api key is set up for coding", "error": True}
+        chat = await pi_agent.open_chat(db, row, None, choice)
+    finally:
+        db.close()
+    queue: asyncio.Queue = asyncio.Queue()
+    chat.listeners.add(queue)
+    answer, tools, changed = "", [], []
+    try:
+        await chat.send(task)
+        deadline = asyncio.get_running_loop().time() + max(30, min(int(wait_seconds or 600), 1800))
+        while True:
+            left = deadline - asyncio.get_running_loop().time()
+            if left <= 0:
+                break
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=left)
+            except TimeoutError:
+                break
+            if event["kind"] == "assistant":
+                answer = event.get("text") or answer
+                for tool in event.get("tools") or []:
+                    tools.append(tool.get("name"))
+                    if tool.get("name") in ("edit", "write"):
+                        try:
+                            changed.append(json.loads(tool.get("args") or "{}").get("path"))
+                        except ValueError:
+                            pass
+            elif event["kind"] == "idle":
+                break
+    finally:
+        chat.listeners.discard(queue)
+    where = {"project_id": row.id, "project": row.name, "chat_id": chat.id}
+    if chat.busy:
+        return {"output": f"pi is still working in {row.name}; follow it in Aide code.", **where}
+    files = ", ".join(sorted({f for f in changed if f})) or "none"
+    used = ", ".join(sorted(set(filter(None, tools)))) or "none"
+    return {
+        "output": f"{answer or 'pi finished without a reply.'}\n\nfiles changed: {files}\ntools used: {used}",
+        **where,
+    }
+
+
 # ── computer use (pyautogui) ────────────────────────────────────────────────
 def _shots_dir() -> Path:
     d = data_dir() / "agent_shots"
@@ -1545,6 +1613,10 @@ async def execute(name: str, args: dict) -> dict:
     if name == "mcp_call_tool":
         return await _mcp_call_tool(
             args.get("server_id", ""), args.get("tool_name", ""), args.get("arguments", {})
+        )
+    if name == "pi_run":
+        return await _pi_run(
+            args.get("task", ""), args.get("project", ""), args.get("wait_seconds", 600)
         )
     if name == "opencode_run":
         return await _opencode_run(
@@ -3044,6 +3116,28 @@ TOOL_DEFS = [
         ["server_id", "tool_name"],
     ),
     _tool(
+        "pi_run",
+        "Hand a coding task to pi, the coding agent on the machine running Alles. It works in one "
+        "of the owner's Aide code projects (folders), can read, edit and run code there, and the "
+        "owner can follow the chat in Aide code. Use it for real code changes in those projects.",
+        {
+            "task": {
+                "type": "string",
+                "description": "What pi should do, with enough detail to work alone.",
+            },
+            "project": {
+                "type": "string",
+                "description": "Project name or folder; empty means the most recent one.",
+            },
+            "wait_seconds": {
+                "type": "integer",
+                "default": 600,
+                "description": "How long to wait before reporting back.",
+            },
+        },
+        ["task"],
+    ),
+    _tool(
         "opencode_run",
         "Delegate a coding subtask to OpenCode CLI via `opencode run` when OpenCode is installed and authenticated.",
         {
@@ -3789,6 +3883,7 @@ MUTATING_TOOLS = {
     "browse_type",
     "mcp_call_tool",
     "opencode_run",
+    "pi_run",
     "spawn_agent",
     "spawn_agents",
     "github_create_issue",
@@ -3915,6 +4010,7 @@ def decide_permission(name, args, mode, rules):
             "spawn_agent",
             "spawn_agents",
             "opencode_run",
+            "pi_run",
         }
         if mode == "plan":
             base = "deny"

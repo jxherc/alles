@@ -101,6 +101,12 @@ class GateTests(unittest.TestCase):
                 "approve": "ask",
                 "plan": "deny",
             },
+            "pi_run": {
+                "full_access": "allow",
+                "full_auto": "ask",
+                "approve": "ask",
+                "plan": "deny",
+            },
         }
         for tool, modes in cases.items():
             for mode, expected in modes.items():

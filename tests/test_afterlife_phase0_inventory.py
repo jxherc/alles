@@ -5,7 +5,7 @@ from pathlib import Path
 
 from core.database import Base
 from services import backup_recovery
-from tests.test_route_compatibility import _route_rows
+from tests.test_route_compatibility import _current_rows
 
 ROOT = Path(__file__).parents[1]
 SPECIFICATIONS = ROOT / "specifications.md"
@@ -38,7 +38,7 @@ class AfterlifePhase0InventoryTest(unittest.TestCase):
     def test_trust_map_matches_route_snapshot(self):
         document = SPECIFICATIONS.read_text("utf-8")
         source = (ROOT / "app.py").read_text("utf-8")
-        rows = _route_rows()
+        rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
         router_count = len(re.findall(r"^app\.include_router\(", source, re.MULTILINE))
 
@@ -62,7 +62,7 @@ class AfterlifePhase0InventoryTest(unittest.TestCase):
         source = (ROOT / "app.py").read_text("utf-8")
         jobs = set(re.findall(r'jobs\.register\(\s*"([^"]+)"', source))
 
-        self.assertEqual(len(jobs), 27)
+        self.assertEqual(len(jobs), 28)
         for job in jobs:
             self.assertIn(f"`{job}`", document, f"missing registered job: {job}")
 

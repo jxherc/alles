@@ -498,6 +498,7 @@ def agent_system_note(settings: dict) -> str:
         "- When the user asks to save research or Markdown to Docs, use docs_write. Docs points to the configured Markdown vault and never needs a Project or working directory.\n"
         "- For a multi-step task, call skill_match(query) first to find a reusable procedure the user already wrote, then skill_load the best one; fall back to skill_list/cookbook workflows.\n"
         "- Use mcp_list_tools/mcp_call_tool for external tool surfaces.\n"
+        "- Use pi_run to hand real code changes in the owner's Aide code projects to pi; tell the owner they can follow it in Aide code.\n"
         "- Use opencode_run for coding subtasks when OpenCode is installed and a delegated coding pass is useful.\n"
         "- Stream concise progress before and after major tool use. Avoid dumping huge output unless it is the deliverable.\n"
         "- Bias to action: prefer doing over asking. After a tool succeeds, continue straight to the next step — no filler narration, no asking permission to proceed on a task you were already given.\n"

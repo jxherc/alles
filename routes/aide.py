@@ -1,28 +1,22 @@
-"""Canonical Aide conversation, live-call, and optional coding capabilities."""
+"""Canonical Aide conversation, live calls, and pi coding chats."""
 
+import asyncio
 import json
-from contextlib import aclosing
-from typing import Literal
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse, StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
 from core.api_errors import ApiError
 from core.auth import require_recent_owner, verify_session
-from core.database import AideCall, AideCodingRun, Session, get_db
+from core.database import AideCall, CodingProject, Session, get_db
 from core.rate_limit import enforce_rate_limit
 from core.settings import auth_enabled
-from services import aide_calls, aide_coding, realtime
+from services import aide_calls, pi_agent, realtime
 from services.aide_conversation import get_or_create_primary
-from services.coding_backends.dsh import (
-    DshBusinessError,
-    DshConfigurationError,
-    DshProtocolError,
-    DshTransportError,
-)
 
 router = APIRouter(prefix="/api/aide")
 
@@ -56,7 +50,7 @@ def capabilities(db: DbSession = Depends(get_db)):
     return {
         "conversation": {"session_id": conversation.id, "permanent": True},
         "voice": realtime.status(db),
-        "coding": aide_coding.connection_status(db),
+        "coding": {"harness": "pi", **pi_agent.status()},
         "durable_tasks": {
             "available": True,
             "transport": "jarvis_run_events",
@@ -189,245 +183,272 @@ def hangup(call_id: str, db: DbSession = Depends(get_db)):
     return {**aide_calls.public_call(row), "tasks_cancelled": False}
 
 
-def _coding_bridge_error(exc: Exception) -> ApiError:
-    if isinstance(exc, DshConfigurationError):
-        return ApiError(409, str(exc), str(exc).replace("_", " "))
-    if isinstance(exc, DshBusinessError):
-        return ApiError(409, str(exc), "DSH rejected the request")
-    if isinstance(exc, (DshTransportError, DshProtocolError)):
-        return ApiError(502, "dsh_bridge_unavailable", str(exc))
-    return ApiError(500, "dsh_coding_error", "the coding request could not be completed")
+class CodeProjectBody(BaseModel):
+    path: str = Field(min_length=1, max_length=4000)
 
 
-class PairCodingBody(BaseModel):
-    base_url: str = Field(min_length=1, max_length=300)
-    code: str = Field(pattern=r"^\d{8}$")
+class CodeModelBody(BaseModel):
+    endpoint_id: str = Field(default="", max_length=100)
+    model: str = Field(default="", max_length=300)
 
 
-class StartCodingBody(BaseModel):
-    request_id: str = Field(min_length=36, max_length=36)
-    aide_session_id: str | None = Field(default=None, max_length=100)
-    workspace_id: str = Field(min_length=1, max_length=300)
-    workspace_path: str = Field(default="", max_length=4000)
-    prompt: str = Field(min_length=1, max_length=50_000)
+class CodeMessageBody(CodeModelBody):
+    text: str = Field(min_length=1, max_length=50_000)
 
 
-class ContinueCodingBody(BaseModel):
-    request_id: str = Field(min_length=36, max_length=36)
-    prompt: str = Field(min_length=1, max_length=50_000)
+class CodeAnswerBody(BaseModel):
+    question_id: str = Field(min_length=1, max_length=200)
+    value: str | bool | None = None
 
 
-@router.get("/coding/status", dependencies=[Depends(require_recent_owner)])
-def coding_status(db: DbSession = Depends(get_db)):
-    return aide_coding.connection_status(db)
+def _public_choice(choice: dict | None) -> dict | None:
+    if not choice:
+        return None
+    return {k: choice[k] for k in ("endpoint_id", "endpoint", "model")}
 
 
-@router.post("/coding/pair", dependencies=[Depends(require_recent_owner)])
-async def coding_pair(body: PairCodingBody, db: DbSession = Depends(get_db)):
-    try:
-        return await aide_coding.pair(db, base_url=body.base_url, code=body.code)
-    except (DshConfigurationError, DshBusinessError, DshTransportError, DshProtocolError) as exc:
-        raise _coding_bridge_error(exc) from exc
-
-
-@router.delete("/coding/connection", dependencies=[Depends(require_recent_owner)])
-def coding_disconnect(db: DbSession = Depends(get_db)):
-    return {"disconnected": aide_coding.disconnect(db)}
-
-
-@router.post("/coding/health", dependencies=[Depends(require_recent_owner)])
-async def coding_health(db: DbSession = Depends(get_db)):
-    try:
-        return await aide_coding.check_health(db)
-    except (DshConfigurationError, DshBusinessError, DshTransportError, DshProtocolError) as exc:
-        raise _coding_bridge_error(exc) from exc
-
-
-@router.get("/coding/workspaces", dependencies=[Depends(require_recent_owner)])
-async def coding_workspaces(db: DbSession = Depends(get_db)):
-    try:
-        result = await aide_coding.backend_for(db).list_workspaces()
-    except (DshConfigurationError, DshBusinessError, DshTransportError, DshProtocolError) as exc:
-        raise _coding_bridge_error(exc) from exc
-    items = result.get("items") if isinstance(result.get("items"), list) else []
-    return {
-        "items": [
-            {
-                "workspace_id": str(item.get("workspaceId") or ""),
-                "path": str(item.get("path") or ""),
-                "title": str(item.get("title") or item.get("path") or "workspace"),
-            }
-            for item in items
-            if isinstance(item, dict) and item.get("workspaceId")
-        ]
-    }
-
-
-@router.get("/coding/runs", dependencies=[Depends(require_recent_owner)])
-def coding_runs(limit: int = 20, db: DbSession = Depends(get_db)):
-    return {"items": aide_coding.list_runs(db, limit=limit)}
-
-
-@router.post("/coding/runs", dependencies=[Depends(require_recent_owner)])
-async def coding_start(body: StartCodingBody, db: DbSession = Depends(get_db)):
-    identity = _request_id(body.request_id, "invalid_coding_run_identity")
-    if body.aide_session_id and db.get(Session, body.aide_session_id) is None:
-        raise ApiError(404, "aide_session_not_found", "Aide session not found")
-    try:
-        run, created = await aide_coding.start_run(
-            db,
-            run_id=identity,
-            aide_session_id=body.aide_session_id,
-            workspace_id=body.workspace_id.strip(),
-            workspace_path=body.workspace_path.strip(),
-            prompt=body.prompt.strip(),
-        )
-    except ValueError as exc:
-        raise ApiError(409, str(exc), str(exc).replace("_", " ")) from exc
-    except DshConfigurationError as exc:
-        raise _coding_bridge_error(exc) from exc
-    return {**aide_coding.public_run(run), "created": created}
-
-
-def _coding_run(db: DbSession, run_id: str) -> AideCodingRun:
-    row = db.get(AideCodingRun, run_id)
+def _code_project(db: DbSession, project_id: str) -> CodingProject:
+    row = db.get(CodingProject, project_id)
     if row is None:
-        raise ApiError(404, "coding_run_not_found", "coding run not found")
+        raise ApiError(404, "coding_project_not_found", "project not found")
     return row
 
 
-@router.get("/coding/runs/{run_id}", dependencies=[Depends(require_recent_owner)])
-def coding_run(run_id: str, db: DbSession = Depends(get_db)):
-    return aide_coding.public_run(_coding_run(db, run_id))
+def _code_choice(db: DbSession, body: CodeModelBody) -> dict:
+    choice = pi_agent.resolve_choice(db, body.endpoint_id, body.model)
+    if choice is None:
+        raise ApiError(
+            409,
+            "coding_model_missing",
+            "add a model with an api key in settings → models to code with pi",
+        )
+    return choice
 
 
-@router.get("/coding/runs/{run_id}/events", dependencies=[Depends(require_recent_owner)])
-def coding_events(run_id: str, db: DbSession = Depends(get_db)):
-    _coding_run(db, run_id)
+def _code_ready() -> None:
+    current = pi_agent.status()
+    if current["state"] != "ready":
+        raise ApiError(409, "pi_not_ready", current.get("error") or "pi is still installing")
+
+
+@router.get("/code/status")
+async def code_status(db: DbSession = Depends(get_db)):
+    """pi's install state (starting the install when it is missing) and the models it can use."""
+    _, _, choices = pi_agent.model_config(db)
     return {
-        "items": aide_coding.local_events(db, run_id),
-        "remote_events": aide_coding.saved_remote_events(db, run_id),
+        "pi": pi_agent.ensure_installed(),
+        "models": [_public_choice(c) for c in choices],
+        "default": _public_choice(pi_agent.resolve_choice(db)),
     }
 
 
-@router.post("/coding/runs/{run_id}/refresh", dependencies=[Depends(require_recent_owner)])
-async def coding_refresh(run_id: str, db: DbSession = Depends(get_db)):
-    row = _coding_run(db, run_id)
-    try:
-        row, remote_events = await aide_coding.refresh_run(db, row)
-    except DshConfigurationError as exc:
-        raise _coding_bridge_error(exc) from exc
-    return {**aide_coding.public_run(row), "remote_events": remote_events}
+@router.post("/code/install", dependencies=[Depends(require_recent_owner)])
+async def code_install():
+    return {"pi": pi_agent.ensure_installed()}
 
 
-@router.post("/coding/runs/{run_id}/resume", dependencies=[Depends(require_recent_owner)])
-async def coding_resume(run_id: str, db: DbSession = Depends(get_db)):
-    row = _coding_run(db, run_id)
+@router.get("/code/folders")
+def code_folders(path: str = ""):
     try:
-        row = await aide_coding.resume_prompt(db, row)
+        return pi_agent.browse(path)
     except ValueError as exc:
-        raise ApiError(409, str(exc), str(exc).replace("_", " ")) from exc
-    except DshConfigurationError as exc:
-        raise _coding_bridge_error(exc) from exc
-    return aide_coding.public_run(row)
+        raise ApiError(400, "folder_unreadable", str(exc)) from exc
 
 
-@router.post("/coding/runs/{run_id}/continue", dependencies=[Depends(require_recent_owner)])
-async def coding_continue(run_id: str, body: ContinueCodingBody, db: DbSession = Depends(get_db)):
-    row = _coding_run(db, run_id)
+@router.get("/code/projects")
+def code_projects(db: DbSession = Depends(get_db)):
+    rows = db.query(CodingProject).order_by(CodingProject.last_used_at.desc()).all()
+    return {"items": [pi_agent.public_project(row) for row in rows]}
+
+
+@router.post("/code/projects", dependencies=[Depends(require_recent_owner)])
+def code_add_project(body: CodeProjectBody, db: DbSession = Depends(get_db)):
     try:
-        row = await aide_coding.continue_run(
-            db,
-            row,
-            request_id=_request_id(body.request_id, "invalid_coding_run_identity"),
-            prompt=body.prompt,
-        )
+        path = pi_agent.check_folder(body.path)
     except ValueError as exc:
-        raise ApiError(409, str(exc), str(exc).replace("_", " ")) from exc
-    except DshConfigurationError as exc:
-        raise _coding_bridge_error(exc) from exc
-    return aide_coding.public_run(row)
-
-
-@router.post("/coding/runs/{run_id}/cancel", dependencies=[Depends(require_recent_owner)])
-async def coding_cancel(run_id: str, db: DbSession = Depends(get_db)):
-    row = _coding_run(db, run_id)
-    try:
-        row = await aide_coding.cancel_run(db, row)
-    except DshConfigurationError as exc:
-        raise _coding_bridge_error(exc) from exc
-    return aide_coding.public_run(row)
-
-
-@router.get("/coding/runs/{run_id}/live", dependencies=[Depends(require_recent_owner)])
-async def coding_live(run_id: str, db: DbSession = Depends(get_db)):
-    row = _coding_run(db, run_id)
-    session_id = row.provider_session_id
-    backend = aide_coding.backend_for(db)
-    try:
-        backend._validate()
-    except DshConfigurationError as exc:
-        raise _coding_bridge_error(exc) from exc
+        raise ApiError(400, "folder_not_allowed", str(exc)) from exc
+    row = db.query(CodingProject).filter(CodingProject.path == str(path)).first()
+    if row is None:
+        row = CodingProject(path=str(path), name=path.name)
+        db.add(row)
+    row.last_used_at = datetime.now(UTC).replace(tzinfo=None)
     db.commit()
+    return pi_agent.public_project(row)
+
+
+@router.delete("/code/projects/{project_id}", dependencies=[Depends(require_recent_owner)])
+async def code_forget_project(project_id: str, db: DbSession = Depends(get_db)):
+    row = _code_project(db, project_id)
+    await pi_agent.forget_project(row.id)
+    db.delete(row)
+    db.commit()
+    return {"forgotten": True}
+
+
+@router.get("/code/projects/{project_id}/chats")
+def code_chats(project_id: str, db: DbSession = Depends(get_db)):
+    row = _code_project(db, project_id)
+    return {"items": pi_agent.list_chats(row.id)}
+
+
+@router.post("/code/projects/{project_id}/chats", dependencies=[Depends(require_recent_owner)])
+async def code_new_chat(project_id: str, body: CodeMessageBody, db: DbSession = Depends(get_db)):
+    row = _code_project(db, project_id)
+    _code_ready()
+    choice = _code_choice(db, body)
+    try:
+        chat = await pi_agent.open_chat(db, row, None, choice)
+        seq = await chat.send(body.text)
+    except RuntimeError as exc:
+        raise ApiError(502, "pi_failed", str(exc)) from exc
+    row.last_used_at = datetime.now(UTC).replace(tzinfo=None)
+    db.commit()
+    return {"chat_id": chat.id, "seq": seq}
+
+
+@router.get("/code/projects/{project_id}/chats/{chat_id}")
+def code_chat(project_id: str, chat_id: str, db: DbSession = Depends(get_db)):
+    row = _code_project(db, project_id)
+    saved = pi_agent.transcript(row.id, chat_id)
+    live = pi_agent.live_chat(chat_id)
+    if saved is None and live is None:
+        raise ApiError(404, "coding_chat_not_found", "chat not found")
+    saved = saved or {"items": [], "model": {}}
+    model = live.choice if live else saved["model"]
+    return {
+        "id": chat_id,
+        "items": saved["items"],
+        "model": {"model": model.get("model"), "endpoint_id": model.get("endpoint_id")},
+        "live": live is not None,
+        "busy": bool(live and live.busy),
+        "partial": live.partial if live else "",
+        "questions": list(live.questions.values()) if live else [],
+        "stats": live.stats if live else {},
+        "seq": live.seq if live else 0,
+    }
+
+
+async def _code_live_chat(db: DbSession, project_id: str, chat_id: str, body: CodeModelBody):
+    row = _code_project(db, project_id)
+    if chat := pi_agent.live_chat(chat_id):
+        return chat
+    _code_ready()
+    try:
+        return await pi_agent.open_chat(db, row, chat_id, _code_choice(db, body))
+    except LookupError as exc:
+        raise ApiError(404, "coding_chat_not_found", "chat not found") from exc
+    except RuntimeError as exc:
+        raise ApiError(502, "pi_failed", str(exc)) from exc
+
+
+@router.post(
+    "/code/projects/{project_id}/chats/{chat_id}/messages",
+    dependencies=[Depends(require_recent_owner)],
+)
+async def code_message(
+    project_id: str, chat_id: str, body: CodeMessageBody, db: DbSession = Depends(get_db)
+):
+    chat = await _code_live_chat(db, project_id, chat_id, body)
+    try:
+        seq = await chat.send(body.text)
+    except RuntimeError as exc:
+        raise ApiError(502, "pi_failed", str(exc)) from exc
+    return {"seq": seq}
+
+
+@router.post(
+    "/code/projects/{project_id}/chats/{chat_id}/stop",
+    dependencies=[Depends(require_recent_owner)],
+)
+async def code_stop(project_id: str, chat_id: str, db: DbSession = Depends(get_db)):
+    _code_project(db, project_id)
+    chat = pi_agent.live_chat(chat_id)
+    if chat is not None:
+        try:
+            await chat.stop()
+        except RuntimeError as exc:
+            raise ApiError(502, "pi_failed", str(exc)) from exc
+    return {"stopped": True}
+
+
+@router.post(
+    "/code/projects/{project_id}/chats/{chat_id}/model",
+    dependencies=[Depends(require_recent_owner)],
+)
+async def code_model(
+    project_id: str, chat_id: str, body: CodeModelBody, db: DbSession = Depends(get_db)
+):
+    choice = _code_choice(db, body)
+    chat = await _code_live_chat(db, project_id, chat_id, body)
+    try:
+        await chat.set_model(choice)
+    except RuntimeError as exc:
+        raise ApiError(502, "pi_failed", str(exc)) from exc
+    return {"model": _public_choice(choice)}
+
+
+@router.post(
+    "/code/projects/{project_id}/chats/{chat_id}/answer",
+    dependencies=[Depends(require_recent_owner)],
+)
+async def code_answer(
+    project_id: str, chat_id: str, body: CodeAnswerBody, db: DbSession = Depends(get_db)
+):
+    _code_project(db, project_id)
+    chat = pi_agent.live_chat(chat_id)
+    try:
+        if chat is None:
+            raise KeyError(body.question_id)
+        await chat.answer(body.question_id, body.value)
+    except KeyError as exc:
+        raise ApiError(409, "question_gone", "pi is no longer waiting for that answer") from exc
+    except ValueError as exc:
+        raise ApiError(400, "bad_answer", str(exc)) from exc
+    return {"answered": True}
+
+
+@router.delete(
+    "/code/projects/{project_id}/chats/{chat_id}",
+    dependencies=[Depends(require_recent_owner)],
+)
+async def code_delete_chat(project_id: str, chat_id: str, db: DbSession = Depends(get_db)):
+    row = _code_project(db, project_id)
+    if not await pi_agent.delete_chat(row.id, chat_id):
+        raise ApiError(404, "coding_chat_not_found", "chat not found")
+    return {"deleted": True}
+
+
+@router.get("/code/projects/{project_id}/chats/{chat_id}/live")
+async def code_live(project_id: str, chat_id: str, after: int = 0, db: DbSession = Depends(get_db)):
+    _code_project(db, project_id)
+    db.commit()
+    chat = pi_agent.live_chat(chat_id)
+    if chat is None:
+        raise ApiError(409, "coding_chat_idle", "pi is not running for this chat")
+    queue: asyncio.Queue = asyncio.Queue()
+    backlog = [event for event in chat.log if event["seq"] > after]
+    chat.listeners.add(queue)
 
     async def frames():
         try:
-            async with aclosing(backend.live_events(session_id)) as events:
-                async for frame in events:
-                    yield "data: " + json.dumps(frame, separators=(",", ":")) + "\n\n"
-        except (DshTransportError, DshProtocolError) as exc:
-            yield (
-                "event: bridge-error\ndata: "
-                + json.dumps(
-                    {
-                        "code": str(exc),
-                        "message": "coding connection lost; reconnect and refresh the run",
-                    }
-                )
-                + "\n\n"
-            )
+            for event in backlog:
+                yield "data: " + json.dumps(event, separators=(",", ":")) + "\n\n"
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=20)
+                except TimeoutError:
+                    if not chat.alive:
+                        yield "event: closed\ndata: {}\n\n"
+                        return
+                    yield ": still here\n\n"
+                    continue
+                if event["seq"] > after:
+                    yield "data: " + json.dumps(event, separators=(",", ":")) + "\n\n"
+        finally:
+            chat.listeners.discard(queue)
 
     return StreamingResponse(
         frames(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )
-
-
-class CodingQuestionAnswer(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    id: str = Field(min_length=1, max_length=300)
-    selected: list[str] = Field(default_factory=list, max_length=100)
-    custom: str | None = Field(default=None, max_length=12_000)
-
-
-class CodingResponseBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    rpc_id: str = Field(min_length=1, max_length=300)
-    outcome: Literal["allowed-once", "rejected"] | None = None
-    answers: list[CodingQuestionAnswer] | None = Field(default=None, max_length=100)
-    cancelled: StrictBool = False
-
-
-@router.post("/coding/runs/{run_id}/respond", dependencies=[Depends(require_recent_owner)])
-async def coding_respond(run_id: str, body: CodingResponseBody, db: DbSession = Depends(get_db)):
-    row = _coding_run(db, run_id)
-    session_id = row.provider_session_id
-    backend = aide_coding.backend_for(db)
-    db.commit()
-    try:
-        return await backend.respond(
-            session_id,
-            body.rpc_id,
-            outcome=body.outcome,
-            answers=[answer.model_dump(exclude_none=True) for answer in body.answers]
-            if body.answers is not None
-            else None,
-            cancelled=body.cancelled,
-        )
-    except (DshConfigurationError, DshBusinessError, DshTransportError, DshProtocolError) as exc:
-        raise _coding_bridge_error(exc) from exc
-    except ValueError as exc:
-        raise ApiError(
-            409, str(exc), "choose a valid response to the current coding request"
-        ) from exc

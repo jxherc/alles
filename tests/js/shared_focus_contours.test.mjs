@@ -96,14 +96,9 @@ test('the narrow header wraps groups in DOM order instead of shrinking text into
   assert.doesNotMatch(narrow, /\border\s*:/);
 });
 
-test('Coding uses its detail-pane width while connection setup retains a form measure', () => {
-  const content = rule(coding, '#aide-coding-workspace .acw-content');
-  const error = rule(coding, '#aide-coding-workspace .acw-error');
-  for (const declarations of [content, error]) {
-    assert.match(declarations, /width:\s*100%/);
-    assert.match(declarations, /max-width:\s*none/);
-    assert.match(declarations, /var\(--aide-gutter,\s*var\(--k-space-5\)\)/);
+test('Code keeps its header, chat, composer and errors on one 760px column', () => {
+  for (const selector of ['.acw-head', '.acw-log', '.acw-composer', '#aide-coding-workspace .acw-content', '#aide-coding-workspace .acw-error']) {
+    assert.match(rule(coding, selector), /max-width:\s*760px/, selector);
   }
-  assert.match(rule(coding, '#aide-coding-workspace .acw-connection'), /max-width:\s*620px/);
   assert.match(rule(call, '#aide-call-workspace .aide-call-body'), /width:\s*min\(100%,\s*680px\)/);
 });

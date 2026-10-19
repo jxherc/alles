@@ -17,13 +17,55 @@ def _walk_routes(routes):
             yield from _walk_routes(route.original_router.routes)
 
 
-def _route_rows():
+def _current_rows():
     rows = []
     for route in _walk_routes(app.routes):
         for method in sorted(route.methods or ()):
             if method not in {"HEAD", "OPTIONS"}:
                 rows.append(f"{method} {route.path}")
     return sorted(rows)
+
+
+# pi replaced the DSH bridge: these went away together and these came in
+_DSH_REMOVED = {
+    "DELETE /api/aide/coding/connection",
+    "GET /api/aide/coding/runs",
+    "GET /api/aide/coding/runs/{run_id}",
+    "GET /api/aide/coding/runs/{run_id}/events",
+    "GET /api/aide/coding/runs/{run_id}/live",
+    "GET /api/aide/coding/status",
+    "GET /api/aide/coding/workspaces",
+    "POST /api/aide/coding/health",
+    "POST /api/aide/coding/pair",
+    "POST /api/aide/coding/runs",
+    "POST /api/aide/coding/runs/{run_id}/cancel",
+    "POST /api/aide/coding/runs/{run_id}/continue",
+    "POST /api/aide/coding/runs/{run_id}/refresh",
+    "POST /api/aide/coding/runs/{run_id}/respond",
+    "POST /api/aide/coding/runs/{run_id}/resume",
+}
+_PI_CODE_ADDITIONS = {
+    "DELETE /api/aide/code/projects/{project_id}",
+    "DELETE /api/aide/code/projects/{project_id}/chats/{chat_id}",
+    "GET /api/aide/code/folders",
+    "GET /api/aide/code/projects",
+    "GET /api/aide/code/projects/{project_id}/chats",
+    "GET /api/aide/code/projects/{project_id}/chats/{chat_id}",
+    "GET /api/aide/code/projects/{project_id}/chats/{chat_id}/live",
+    "GET /api/aide/code/status",
+    "POST /api/aide/code/install",
+    "POST /api/aide/code/projects",
+    "POST /api/aide/code/projects/{project_id}/chats",
+    "POST /api/aide/code/projects/{project_id}/chats/{chat_id}/answer",
+    "POST /api/aide/code/projects/{project_id}/chats/{chat_id}/messages",
+    "POST /api/aide/code/projects/{project_id}/chats/{chat_id}/model",
+    "POST /api/aide/code/projects/{project_id}/chats/{chat_id}/stop",
+}
+
+
+def _route_rows():
+    """the surface before pi, which the older additive checks below are pinned to."""
+    return sorted((set(_current_rows()) - _PI_CODE_ADDITIONS) | _DSH_REMOVED)
 
 
 _ASSISTANT_AND_BANK_ADDITIONS = {
@@ -137,11 +179,17 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             "8c6e25b0c6ec2b599a992ed65c9fd3cfa87fb031e7ebf6ca51cc6e829c972c7c",
         )
 
+    def test_pi_code_routes_replace_the_dsh_bridge(self):
+        current = set(_current_rows())
+        self.assertTrue(_PI_CODE_ADDITIONS <= current)
+        self.assertFalse(_DSH_REMOVED & current)
+        self.assertEqual(len(_route_rows()), 955)
+
     def test_full_method_path_surface_matches_current_snapshot(self):
-        rows = _route_rows()
+        rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
         self.assertEqual(len(rows), 955)
-        self.assertEqual(digest, "0331a5aaede48c49531ed8b8c22548af85c56b021d710532f4bd57e4d22fa36d")
+        self.assertEqual(digest, "016fece5fab4a491fafc4ff0513d65fbca570845046e2dcd55698faeac5de555")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")

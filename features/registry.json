@@ -175,6 +175,7 @@
         "memory_add",
         "memory_search",
         "opencode_run",
+        "pi_run",
         "read_file",
         "recall",
         "revert_file",
@@ -246,7 +247,8 @@
           "user_model",
           "insights",
           "model_refresh",
-          "personal_reconcile"
+          "personal_reconcile",
+          "pi_idle"
         ],
         "automation_actions": [],
         "integrations": [],

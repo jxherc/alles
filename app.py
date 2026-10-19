@@ -524,6 +524,11 @@ def _register_jobs():
 
         await run_due()
 
+    async def _pi_idle():
+        from services.pi_agent import close_idle
+
+        await close_idle()
+
     async def _read_feeds():
         from services.read_feeds import refresh_feeds
 
@@ -688,6 +693,7 @@ def _register_jobs():
     jobs.register(
         "andromeda_watch", _andromeda_watch, 300, run_at_start=False
     )  # saved-search monitors
+    jobs.register("pi_idle", _pi_idle, 120, run_at_start=False)  # stop unused pi processes
     jobs.register("personal_reconcile", _reconcile, 120, run_at_start=False)
     jobs.register(
         "automatic_backup", _automatic_backup, 3600, run_at_start=False
@@ -908,16 +914,6 @@ async def lifespan(app: FastAPI):
                 interrupted_jarvis["uncertain"],
             )
 
-        from services.aide_coding import reconcile_interrupted_runs as reconcile_coding_runs
-
-        interrupted_coding = reconcile_coding_runs()
-        if interrupted_coding["interrupted"] or interrupted_coding["uncertain"]:
-            log.warning(
-                "reconciled Aide coding runs after restart: %s interrupted, %s uncertain",
-                interrupted_coding["interrupted"],
-                interrupted_coding["uncertain"],
-            )
-
         from services.andromeda_verifier import recover_interrupted as recover_andromeda_checks
 
         interrupted_andromeda_checks = recover_andromeda_checks()
@@ -1012,6 +1008,9 @@ async def lifespan(app: FastAPI):
         log.info("alles ready")
         yield
     finally:
+        from services.pi_agent import close_all as close_pi_chats
+
+        await close_pi_chats()
         if discord_task is not None:
             discord_task.cancel()
             try:
