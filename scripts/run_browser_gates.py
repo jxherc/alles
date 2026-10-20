@@ -34,6 +34,9 @@ from stabilization_report import (  # noqa: E402
 
 # Explicitly maintained, inspected entries; the reporter shares this exact contract.
 SUITES = BROWSER_SUITES
+# gates that outgrew the default budget: settings-panes walks 80 settings scenarios and takes
+# about 340s, so 180s killed it mid-run every time
+GATE_TIMEOUTS = {"settings-panes": 600}
 COMMANDS = {
     "style-ownership": ("tests/pw_style_ownership.py",),
     "smoke-desktop": ("tests/pw_stability_smoke.py", "desktop"),
@@ -424,7 +427,7 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
                     stderr=subprocess.STDOUT,
                     start_new_session=True,
                 )
-                code = gate.wait(timeout=gate_timeout)
+                code = gate.wait(timeout=max(gate_timeout, GATE_TIMEOUTS.get(name, 0)))
                 result["exit_code"] = code
                 result["status"] = "passed" if code == 0 else "failed"
                 if code:

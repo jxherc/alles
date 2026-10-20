@@ -238,7 +238,9 @@ def run() -> None:
                 if "on" not in (switch.get_attribute("class") or "").split():
                     switch.click()
                 expect(switch).to_have_attribute("aria-checked", "true")
-                assert _colors(switch, "::before")["background"] == raised
+                # every on switch shares a soft purple track and a text-colored knob (decision 0032)
+                track = _token(page, "--k-switch-on-track")
+                assert _colors(switch, "::before")["background"] == track
                 assert _colors(switch, "::after")["background"] == text
                 box = switch.bounding_box()
                 assert box and box["width"] >= 44 and box["height"] >= 44
@@ -246,7 +248,7 @@ def run() -> None:
                 choose_settings_section(page, "home")
                 home = page.locator('[data-home-section="today"] .home-settings-switch')
                 expect(home).to_have_attribute("aria-checked", "true")
-                assert _colors(home, "::before")["background"] == raised
+                assert _colors(home, "::before")["background"] == track
                 assert _colors(home, "::after")["background"] == text
                 home.scroll_into_view_if_needed()
                 page.screenshot(path=str(output / f"settings-home-{width}-{theme}.png"))
