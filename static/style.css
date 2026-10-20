@@ -6269,7 +6269,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   padding: 0.6rem 0.2rem 0.25rem; border-bottom: 1px solid var(--faint); margin-bottom: 0.1rem;
 }
 .activity-row {
-  display: flex; align-items: baseline; gap: 0.6rem; cursor: pointer;
+  display: flex; align-items: baseline; gap: 8px; cursor: pointer;
   width: 100%; min-height: 44px; font: inherit; text-align: left; color: inherit;
   /* 12px sides so the time and glyph clear the focus ring; pulled back 8px so the text barely moves */
   width: calc(100% + 16px); margin-inline: -8px; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--faint);

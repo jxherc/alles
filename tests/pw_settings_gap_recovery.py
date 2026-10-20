@@ -73,6 +73,7 @@ async def main():
                         "/api/auth/config",
                         "/api/auth/change-password",
                         "/api/research",
+                        "/api/search/test",
                         "/api/proactive/run",
                         "/api/insights/run",
                         "/api/memory/distill/run",
@@ -377,9 +378,10 @@ async def main():
                     await run_button(
                         pane,
                         "#s-search-test-btn",
-                        "/api/research",
+                        # the engine check moved from research to its own endpoint
+                        "/api/search/test",
                         "#s-search-status",
-                        {"results": []},
+                        {"ok": True, "count": 5, "ms": 12},
                     )
 
             await fresh("security")
