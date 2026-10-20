@@ -772,9 +772,10 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
 .messages { flex: 1; padding: 2rem 0 0.5rem; display: flex; flex-direction: column; gap: 0; }
 .composer-outer { position: relative; }
 /* jump to latest: a quiet round arrow that floats just above the message box, so showing it
-   never moves the chat or the composer */
+   never moves the chat or the composer. centered with `translate`, not `transform`: the kokuen
+   runtime clears transform on hover/press, which made it hop 22px right */
 .jump-latest {
-  position: absolute; z-index: 30; left: 50%; bottom: 100%; transform: translateX(-50%);
+  position: absolute; z-index: 30; left: 50%; bottom: 100%; translate: -50% 0;
   width: 44px; height: 44px; display: grid; place-items: center; padding: 0;
   border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer;
 }

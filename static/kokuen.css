@@ -2783,6 +2783,8 @@ html[data-kokuen-version="5"] :where(
   min-width: var(--ui-control-height, 44px) !important;
 }
 
+/* no hover lift or press squash. this clears `transform`, so a control that needs a transform
+   to sit in place (centering, offsets) must use the `translate` property instead */
 html[data-kokuen-version="5"] [data-kokuen-primitive]:is(:hover, :active) {
   transform: none;
 }
