@@ -97,10 +97,30 @@ _WAKE_AND_CONNECTOR_ADDITIONS = {
 }
 
 
+# the owner signing in to sites in Aide's errand browser, added after the connectors
+_BROWSER_SIGNIN_ADDITIONS = {
+    "DELETE /api/aide/browser/sites",
+    "DELETE /api/aide/browser/sites/{site}",
+    "GET /api/aide/browser/signin",
+    "GET /api/aide/browser/signin/frame",
+    "GET /api/aide/browser/sites",
+    "POST /api/aide/browser/signin",
+    "POST /api/aide/browser/signin/back",
+    "POST /api/aide/browser/signin/click",
+    "POST /api/aide/browser/signin/done",
+    "POST /api/aide/browser/signin/scroll",
+    "POST /api/aide/browser/signin/type",
+}
+
+
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
     later = (
-        _PI_CODE_ADDITIONS | _GOAL_ADDITIONS | _HARNESS_ADDITIONS | _WAKE_AND_CONNECTOR_ADDITIONS
+        _PI_CODE_ADDITIONS
+        | _GOAL_ADDITIONS
+        | _HARNESS_ADDITIONS
+        | _WAKE_AND_CONNECTOR_ADDITIONS
+        | _BROWSER_SIGNIN_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -219,7 +239,15 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_goal_routes_are_additive(self):
         current = set(_current_rows())
         self.assertTrue(_GOAL_ADDITIONS <= current)
-        self.assertEqual(len(current - _HARNESS_ADDITIONS - _WAKE_AND_CONNECTOR_ADDITIONS), 960)
+        self.assertEqual(
+            len(
+                current
+                - _HARNESS_ADDITIONS
+                - _WAKE_AND_CONNECTOR_ADDITIONS
+                - _BROWSER_SIGNIN_ADDITIONS
+            ),
+            960,
+        )
 
     def test_harness_routes_are_additive(self):
         self.assertTrue(_HARNESS_ADDITIONS <= set(_current_rows()))
@@ -233,6 +261,10 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
         }
         self.assertEqual(public, {"POST /hooks/goal/{workflow_id}", "GET /oauth/mcp-client.json"})
 
+    def test_browser_signin_routes_are_additive_and_private(self):
+        self.assertTrue(_BROWSER_SIGNIN_ADDITIONS <= set(_current_rows()))
+        self.assertTrue(all(" /api/aide/browser/" in r for r in _BROWSER_SIGNIN_ADDITIONS))
+
     def test_pi_code_routes_replace_the_dsh_bridge(self):
         current = set(_current_rows())
         self.assertTrue(_PI_CODE_ADDITIONS <= current)
@@ -242,8 +274,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 974)
-        self.assertEqual(digest, "fa6043949dd5557d86c71fd1740313a9ef337ccde5bf45cad9bf63e805f0efb4")
+        self.assertEqual(len(rows), 985)
+        self.assertEqual(digest, "e13a6577b932a3b65df012b84fd016507556647222097d988ef29b57eb45e3a2")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -252,7 +284,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 953, "v1": 2, "public": 19})
+        self.assertEqual(groups, {"api": 964, "v1": 2, "public": 19})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
@@ -221,6 +221,27 @@ class PhotonBody(BaseModel):
     owner_handles: list[str] = Field(default_factory=list, max_length=10)
 
 
+class SignInOpenBody(BaseModel):
+    url: str = Field(min_length=1, max_length=2000)
+    width: int = Field(default=1280, ge=200, le=4000)
+    height: int = Field(default=900, ge=200, le=4000)
+
+
+class SignInClickBody(BaseModel):
+    x: float = Field(ge=0, le=4000)
+    y: float = Field(ge=0, le=4000)
+
+
+class SignInTypeBody(BaseModel):
+    # what the owner types for the page; never logged, echoed or kept
+    text: str = Field(default="", max_length=500, repr=False)
+    key: str = Field(default="", max_length=20)
+
+
+class SignInScrollBody(BaseModel):
+    dy: float = Field(ge=-4000, le=4000)
+
+
 class BridgeSearchBody(BaseModel):
     query: str = Field(min_length=1, max_length=400)
     count: int = Field(default=6, ge=1, le=10)
@@ -366,6 +387,135 @@ async def photon_settings(body: PhotonBody):
     save_settings(patch)
     await photon_channel.restart()
     return photon_channel.public()
+
+
+# ── signing in to sites in Aide's errand browser ──
+# the owner drives the same headless page through screenshots; tokens can't reach any of this
+
+
+def _owner_session(request: Request):
+    if request.headers.get("authorization", "").lower().startswith("bearer "):
+        raise ApiError(403, "owner_session_required", "sign in to alles in the browser to do this")
+
+
+async def _signin_call(fn, *args):
+    try:
+        return await fn(*args)
+    except ImportError as exc:
+        raise ApiError(
+            503, "browser_missing", "Aide's browser isn't installed on this server"
+        ) from exc
+    except LookupError as exc:
+        raise ApiError(409, "signin_closed", str(exc)) from exc
+    except ValueError as exc:
+        raise ApiError(400, "signin_refused", str(exc)) from exc
+
+
+@router.get("/browser/sites", dependencies=[Depends(_owner_session)])
+def browser_sites():
+    from services import browser_tool
+
+    return {"sites": browser_tool.signed_in_sites(), "open": browser_tool._b.owner_active()}
+
+
+@router.post(
+    "/browser/signin",
+    dependencies=[Depends(_owner_session), Depends(require_recent_owner)],
+)
+async def browser_signin_open(body: SignInOpenBody):
+    """open a site in the errand browser for the owner to sign in; Aide waits meanwhile."""
+    from services.browser_tool import _b
+
+    try:
+        return await _signin_call(_b.owner_open, body.url, body.width, body.height)
+    except ApiError:
+        raise
+    except Exception as exc:
+        raise ApiError(
+            502, "signin_load_failed", "that page didn't load; check the address"
+        ) from exc
+
+
+@router.get("/browser/signin/frame", dependencies=[Depends(_owner_session)])
+async def browser_signin_frame():
+    from services.browser_tool import _b
+
+    image = await _signin_call(_b.owner_frame)
+    return Response(image, media_type="image/jpeg", headers={"cache-control": "no-store"})
+
+
+@router.get("/browser/signin", dependencies=[Depends(_owner_session)])
+async def browser_signin_state():
+    from services.browser_tool import _b
+
+    if not _b.owner_active():
+        return {"open": False}
+    return await _b.owner_state()
+
+
+@router.post("/browser/signin/click", dependencies=[Depends(_owner_session)])
+async def browser_signin_click(body: SignInClickBody):
+    from services.browser_tool import _b
+
+    await _signin_call(_b.owner_click, body.x, body.y)
+    return {"ok": True}
+
+
+@router.post("/browser/signin/type", dependencies=[Depends(_owner_session)])
+async def browser_signin_type(body: SignInTypeBody):
+    from services.browser_tool import _b
+
+    if body.key:
+        await _signin_call(_b.owner_key, body.key)
+    elif body.text:
+        await _signin_call(_b.owner_type, body.text)
+    return {"ok": True}
+
+
+@router.post("/browser/signin/scroll", dependencies=[Depends(_owner_session)])
+async def browser_signin_scroll(body: SignInScrollBody):
+    from services.browser_tool import _b
+
+    await _signin_call(_b.owner_scroll, body.dy)
+    return {"ok": True}
+
+
+@router.post("/browser/signin/back", dependencies=[Depends(_owner_session)])
+async def browser_signin_back():
+    from services.browser_tool import _b
+
+    await _signin_call(_b.owner_back)
+    return {"ok": True}
+
+
+@router.post("/browser/signin/done", dependencies=[Depends(_owner_session)])
+async def browser_signin_done():
+    from services.browser_tool import _b
+
+    return {"sites": await _signin_call(_b.owner_close), "open": False}
+
+
+@router.delete(
+    "/browser/sites/{site}",
+    dependencies=[Depends(_owner_session), Depends(require_recent_owner)],
+)
+async def browser_sign_out(site: str):
+    from services.browser_tool import _b, signed_in_sites
+
+    if site not in {row["site"] for row in signed_in_sites()}:
+        raise ApiError(404, "signin_unknown", "no saved sign-in for that site")
+    return {"sites": await _signin_call(_b.sign_out, site), "open": _b.owner_active()}
+
+
+@router.delete(
+    "/browser/sites",
+    dependencies=[Depends(_owner_session), Depends(require_recent_owner)],
+)
+async def browser_forget_everything():
+    from services.browser_tool import _b
+
+    await _signin_call(_b.forget_everything)
+    return {"sites": [], "open": False}
 
 
 def _bridge_chat(request: Request):

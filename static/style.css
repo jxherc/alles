@@ -1959,6 +1959,43 @@ body.is-aide.is-incognito .incognito-bar {
   gap: 1rem;
 }
 :where(#s-pane-tools) .jarvis-discord-status { margin-bottom: 0.75rem; }
+
+/* signing in to sites in Aide's errand browser */
+#browser-signin-card .browser-signin-note { margin: 0 0 var(--k-space-3, 12px); color: var(--muted); font-size: 0.8125rem; line-height: 1.45; }
+#browser-signin-card .browser-sites { margin-bottom: var(--k-space-3, 12px); }
+#browser-signin-card .browser-site-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3, 12px);
+  min-height: 44px; border-top: 1px solid var(--faint);
+}
+#browser-signin-card .browser-site-row:last-child { border-bottom: 1px solid var(--faint); }
+#browser-signin-card .browser-site-copy { display: grid; gap: 2px; min-width: 0; padding: var(--k-space-2, 8px) 0; }
+#browser-signin-card .browser-site-name { color: var(--text); font-size: 0.875rem; font-weight: 520; overflow-wrap: anywhere; }
+#browser-signin-card .browser-site-meta { color: var(--muted); font-size: 0.75rem; overflow-wrap: anywhere; }
+#browser-signin-card .browser-signin-open,
+#browser-signin-card .browser-signin-type {
+  display: flex; gap: var(--k-space-2, 8px); align-items: stretch;
+}
+#browser-signin-card .browser-signin-open .settings-input,
+#browser-signin-card .browser-signin-type .settings-input { flex: 1 1 auto; min-width: 0; }
+#browser-signin-card .browser-signin-open .btn,
+#browser-signin-card .browser-signin-type .btn { flex: 0 0 auto; }
+#browser-signin-card .browser-signin-open[hidden] { display: none; }
+#browser-signin-card .browser-signin-live { display: grid; gap: var(--k-space-2, 8px); }
+#browser-signin-card .browser-signin-live[hidden] { display: none; }
+#browser-signin-card .browser-signin-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3, 12px); }
+#browser-signin-card .browser-signin-url { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.8125rem; }
+#browser-signin-card .browser-signin-frame {
+  position: relative; width: 100%; background: var(--panel); border: 1px solid var(--faint); border-radius: 3px; overflow: hidden;
+}
+#browser-signin-card .browser-signin-frame[hidden] { display: none; }
+#browser-signin-card .browser-signin-frame img { display: block; width: 100%; height: auto; cursor: pointer; user-select: none; }
+#browser-signin-card .browser-signin-loading {
+  position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 0.8125rem;
+}
+#browser-signin-card .browser-signin-loading[hidden] { display: none; }
+#browser-signin-card .browser-signin-keys { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
+#browser-signin-card #browser-signin-forget { width: 100%; margin-top: var(--k-space-4, 16px); }
+#browser-signin-card #browser-signin-forget[hidden] { display: none; }
 :where(#settings-modal) .jarvis-pairing {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
