@@ -540,7 +540,7 @@ async function loadPlace(cc, city) {
   _paintGroups((d.moments || []).map(m => ({ label: m.label, items: m.items })), 'no photos here');
   const back = document.createElement('div');
   back.className = 'photos-place-back';
-  back.innerHTML = `<a href="#" style="color:var(--accent)">${_si('chevron-left')} places</a> · ${esc(city)}`;
+  back.innerHTML = `<a href="#" style="color:var(--text)">${_si('chevron-left')} places</a> · ${esc(city)}`;
   back.querySelector('a').addEventListener('click', e => { e.preventDefault(); loadPlaces(); });
   $('photos-grid').prepend(back);
 }
@@ -574,7 +574,7 @@ async function loadPerson(pid) {
   const per = d.person || { id: pid, name: '' };
   const bar = document.createElement('div');
   bar.className = 'photos-person-bar';
-  bar.innerHTML = `<a href="#" class="photos-person-back" style="color:var(--accent)">${_si('chevron-left')} people</a>`
+  bar.innerHTML = `<a href="#" class="photos-person-back" style="color:var(--text)">${_si('chevron-left')} people</a>`
     + `<span class="photos-person-title">${esc(per.name || 'unnamed')}</span>`
     + `<span class="photos-person-actions">`
     + `<button class="btn" data-act="name">${_si('edit')} ${per.name ? 'rename' : 'add name'}</button>`
@@ -687,9 +687,11 @@ async function loadMap() {
   const pts = _photos.filter(p => p.lat != null && p.lon != null);
   if (!pts.length) { map.setView([20, 0], 2); setTimeout(() => map.invalidateSize(), 60); return; }
   const bounds = [];
+  // leaflet writes svg attributes, which can't read css variables, so resolve the hue once
+  const pin = getComputedStyle(document.documentElement).getPropertyValue('--cat-blue').trim() || '#6fa3f2';
   for (const p of pts) {
     const m = L.circleMarker([p.lat, p.lon],
-      { radius: 7, color: '#818cf8', fillColor: '#818cf8', fillOpacity: 0.8, weight: 2 });
+      { radius: 7, color: pin, fillColor: pin, fillOpacity: 0.8, weight: 2 });
     m.on('click', () => openLightbox(p.id));
     m.addTo(map);
     bounds.push([p.lat, p.lon]);
@@ -1315,7 +1317,7 @@ async function openPhotoTrash() {
   const grid = $('photos-grid');
   _photos = [];
   let html = '<div class="photos-moment"><div class="photos-moment-label">'
-    + `<a href="#" id="photos-trash-back" class="photos-trash-back" style="color:var(--accent)">${_si('chevron-left')} gallery</a> · recently deleted</div>`
+    + `<a href="#" id="photos-trash-back" class="photos-trash-back" style="color:var(--text)">${_si('chevron-left')} gallery</a> · recently deleted</div>`
     + '<div class="photos-moment-grid">';
   if (!items.length) html += '<div class="photos-empty" style="grid-column:1/-1">trash is empty</div>';
   for (const p of items) {

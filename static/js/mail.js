@@ -6,6 +6,7 @@ import { confirm as dlgConfirm, prompt as dlgPrompt, fields as dlgFields } from 
 import { populateDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker as _dpInit } from './datepick.js';
 import { formatDate, formatTime, resolvedTimeZone } from './i18n.js';
+import { categoryHue } from './color.js';
 import { reminderTimeFromWall } from './reminders.js';
 
 // monochrome ui icons (same global as files/etc) — keeps the row controls matching the app
@@ -1264,7 +1265,7 @@ const _msgRow = (m, indent = false) => {
         <span class="mail-from">${esc(fromName(m.from))}</span>
         <span class="mail-date">${esc(shortDate(m.date))}</span>
       </div>
-      <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || '(no subject)')}</button>${(m.labels || []).map(l => `<button type="button" class="mail-label-chip" data-labelfilter="${esc(l)}">${esc(l)}</button>`).join('')}</div>
+      <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || '(no subject)')}</button>${(m.labels || []).map(l => `<button type="button" class="mail-label-chip" data-labelfilter="${esc(l)}" style="--cat:var(--cat-${categoryHue(l)})">${esc(l)}</button>`).join('')}</div>
       <span class="mail-row-acts">
         ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" title="unsubscribe">${_si('x-circle')}</button>` : ''}
         <button class="mail-act" data-label title="add a label">${_si('tag')}</button>

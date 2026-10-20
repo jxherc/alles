@@ -164,7 +164,7 @@
 .acw-harness-main { min-width: 0; display: grid; gap: var(--k-space-1); }
 .acw-harness-name { display: flex; align-items: baseline; gap: var(--k-space-2); }
 .acw-harness-name strong { color: var(--k-text); font-size: 14px; font-weight: 560; }
-.acw-harness-default { color: var(--k-accent); font-size: 12px; }
+.acw-harness-default { color: var(--k-muted); font-size: 12px; }
 .acw-harness-facts { color: var(--k-muted); font-size: 12px; }
 .acw-harness-hint { display: block; padding: var(--k-space-2); background: var(--k-panel); border-radius: var(--k-radius-control); font: 400 12px/1.5 var(--k-mono); overflow-wrap: anywhere; }
 .acw-harness-actions { display: flex; align-items: flex-start; gap: var(--k-space-2); }

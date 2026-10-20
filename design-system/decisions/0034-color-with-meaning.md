@@ -57,16 +57,43 @@ is a text color on a link and the other is a mark or a tint behind words.
   in transactions and caps. An over-cap bar still turns danger red.
 - **Toasts**: `info` toasts use `--info`.
 
+## the rest of the purple
+
+The first pass left about 300 older rules still drawing the accent. Each was sorted by what it
+means, and a census of every route in both themes (fake data, computed colors) then checked that
+nothing purple was left on screen except ai.
+
+- **ai**: live run and step dots, the streaming cursor, agent mode, auto permission mode, brain
+  and memory confidence, agent activity, compare's model label, the journal reflection rail, the
+  mail ai summary, and Home's brief.
+- **links**: wiki links, footnotes, backlinks, embeds, base and search hits, hover previews,
+  canvas links, contact relations and skill sources.
+- **info blue**: today in every calendar view, the journal heatmap and countdowns, tasks due
+  today, drop targets, the drag ghost, crop frames, callouts and diff hunk headers.
+- **warning amber**: due soon, high priority, waiting for input and bill alerts. The agent's
+  approval card uses the permission color.
+- **amber marks**: stars, flags, favorites, streaks, highlights and comment anchors, like a
+  highlighter or Gmail's star.
+- **data**: money's expense bars and net worth line, subscription, countdown, goal, skill-match,
+  health and watch charts in blue; the journal heatmap in green; birthdays in pink. Mail labels,
+  memory categories, projects and habits without a picked color each get a steady hue from their
+  name. The default "accent" calendar, the default for new calendars, now draws in the first data
+  hue, blue like Google Calendar's default. The stored value doesn't change.
+- **neutral (0019)**: every remaining selected, on, hover and active state; decorative rails and
+  kickers; bordered colored badges and buttons; inline code; the 34px bar over each Home section.
+
 ## not changed
 
 - 0019's neutral selection, KOKUEN's neutral focus, and every switch track.
-- The calendar's twelve event colors are stored per event by name, so they stay as they are.
-  Habit colors are stored as hex per habit. The server monitor keeps its own ramps (0010).
-- Model provider logos keep their brand colors.
+- Event colors the owner picks from the calendar palette, habit colors the owner picks, a doc's
+  own text color, and model provider logos.
+- The server monitor (glyph art, meters, neofetch keys) under decision 0010.
 - No gradients, glows, colored boxes or purple-filled chips were added.
 
 ## verification
 
-Before and after screenshots of Andromeda (all results, weather, f1, periodic table) on desktop
-and phone in both themes, on an isolated server with mocked search. Contrast is measured per token
-against page, panel and raised in each theme.
+Before and after screenshots of Andromeda (all results, weather, f1, periodic table) and of Home,
+calendar, tasks, subscriptions, journal, memory, habits, money, the plan board and countdowns, on
+desktop and phone in both themes, on an isolated server with fake data and mocked search. The
+route census found purple only on ai marks and the server monitor afterwards. Contrast is measured
+per token against page, panel and raised in each theme.

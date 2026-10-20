@@ -1385,7 +1385,7 @@ export async function loadCookbook() {
   if (!entries.length) { el.innerHTML = '<div class="settings-row-empty">no commands: type / in chat to use</div>'; return; }
   el.innerHTML = entries.map(e => `
     <div class="settings-list-row">
-      <span class="row-name" style="color:var(--accent)">/${_esc(e.name)}</span>
+      <span class="row-name">/${_esc(e.name)}</span>
       <span class="row-meta">${_esc(e.description || e.prompt.slice(0,40))}</span>
       <button class="act-btn" data-id="${e.id}" data-cookbook-remove ${_cookbookDeletes.has(e.id) ? 'disabled' : ''} onclick="window._rmCookbook(this)">remove</button>
     </div>`).join('');

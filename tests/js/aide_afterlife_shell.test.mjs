@@ -93,8 +93,9 @@ test('aide uses one safe permission control and a focused add menu', () => {
   assert.match(app, /function _setAfterlifeSpace\(space\) \{\s*document\.body\.dataset\.space = space \|\| ''/);
 });
 
-test('full access is orange while auto mode keeps the Alles purple', () => {
-  assert.match(css, /\.perm-btn\.perm-auto\s*\{\s*color:\s*var\(--accent\)/);
+test('full access is orange while auto mode keeps the ai purple', () => {
+  // auto means aide decides for itself, so it wears the ai accent (decision 0034)
+  assert.match(css, /\.perm-btn\.perm-auto\s*\{\s*color:\s*var\(--ai\)/);
   assert.match(css, /\.perm-btn\.perm-full\s*\{\s*color:\s*var\(--signal\)/);
   assert.match(css, /\.perm-menu-item\.warn \.perm-menu-label\s*\{\s*color:\s*var\(--signal\)/);
   assert.match(css, /body\.afterlife-aide-projects\[data-space="aide"\] \.perm-btn\.perm-full\s*\{\s*color:\s*var\(--signal\)/);

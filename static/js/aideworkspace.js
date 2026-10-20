@@ -488,7 +488,7 @@ function terminalTheme() {
     foreground: value('--text') || '#ededed',
     cursor: value('--text') || '#ededed',
     cursorAccent: value('--bg') || '#0a0a0a',
-    selectionBackground: value('--accent') || '#7c83ff',
+    selectionBackground: value('--link') || '#8ab4f8',
     black: value('--bg') || '#0a0a0a',
     brightBlack: value('--muted') || '#777777',
   };

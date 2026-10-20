@@ -6,6 +6,7 @@ import { getProjects, loadProjects } from './projects.js';
 import { projectFolderMessage } from './projectenv.js';
 import { selectSession, loadSessions } from './sessions.js';
 import { t } from './i18n.js';
+import { categoryHue } from './color.js';
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -42,7 +43,7 @@ export async function renderProject(pid) {
   const g = await fetch('/api/sessions').then(r => r.json()).catch(() => ({}));
   const all = [...(g.today || []), ...(g.yesterday || []), ...(g.earlier || [])];
   const mine = all.filter(s => s.project_id === pid);
-  const dot = proj.color ? ` style="background:${esc(proj.color)}"` : '';
+  const dot = ` style="background:${proj.color ? esc(proj.color) : `var(--cat-${categoryHue(proj.name)})`}"`;
 
   view.innerHTML = `
     <div class="page-view-head">

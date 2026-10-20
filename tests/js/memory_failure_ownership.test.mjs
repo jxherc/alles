@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
+import { categoryHue } from '../../static/js/color.js';
+
 // Synthetic DOM and fetch only: this suite never starts Alles or reads owner data.
 const source = readFileSync(new URL('../../static/js/memory.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -97,7 +99,7 @@ function harness() {
     fetch: fetcher, toast: (message, kind) => toasts.push({ message, kind }),
     promptDialog: (_title, initial, options) => openDialog('prompt', initial, options),
     fieldsDialog: (_title, defs, options) => openDialog('fields', defs[0].value, options),
-    confirmDialog: async () => true,
+    confirmDialog: async () => true, categoryHue,
     setTimeout(fn, delay) { timers.set(++nextTimer, { fn, delay }); return nextTimer; }, clearTimeout: id => timers.delete(id),
   });
   vm.runInContext(source + '\nglobalThis.subject = { initMemoryPanel, loadMemories };', context);

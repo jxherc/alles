@@ -307,9 +307,10 @@ export function resolveCalendarWeekStart(settings = {}) {
   return SUNDAY_FIRST_REGIONS.has(region) ? 0 : 1;
 }
 
-// google-ish categorical palette (event colours are categorisation here, not status)
+// google-ish categorical palette (event colours are categorisation here, not status). the default
+// "accent" calendar draws in the first data hue, blue like google's default; purple means ai now
 const PALETTE = {
-  accent: 'var(--accent)', tomato: '#f87171', flamingo: '#fb9a8f', tangerine: '#fb923c',
+  accent: 'var(--cat-blue)', tomato: '#f87171', flamingo: '#fb9a8f', tangerine: '#fb923c',
   banana: '#fbbf24', sage: '#5ec88a', basil: '#2dba6e', peacock: '#39b3e5',
   blueberry: '#5b8def', lavender: '#8b9cf8', grape: '#c08cf8', graphite: '#94a3b8',
   // back-compat with the old class names

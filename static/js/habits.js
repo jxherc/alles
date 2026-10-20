@@ -5,6 +5,7 @@ import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm } from './dialog.js';
 import { calendarDateKey, formatCalendarDate } from './i18n.js';
+import { categoryHue } from './color.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -205,7 +206,8 @@ function _weekStrip(h) {
 }
 
 function _card(h) {
-  const accent = h.color || 'var(--accent)';
+  // a habit without a picked color still gets its own steady hue
+  const accent = h.color || `var(--cat-${categoryHue(h.name)})`;
   const slip = !h.archived && h.risk && h.risk.slipping
     ? `<span class="habit-slip" title="${esc(h.risk.reason)}">slipping</span>` : '';
   return `

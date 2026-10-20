@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v395';   // color with meaning: link blue, ai spark, categorical hues.
+const VERSION = 'v396';   // the rest of the purple sorted by meaning.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '548';   // keep in sync with index.html ?v= / const _v
+const STAMP = '549';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

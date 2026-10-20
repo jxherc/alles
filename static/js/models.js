@@ -339,7 +339,7 @@ export function renderModelList(filter = '') {
     html += `<div class="provider-label" style="color:${color}">${ep.name}</div>`;
     if (!models.length && !imgs.length) {
       html += `<div style="padding:0.3rem 1rem;font-size:0.75rem;color:var(--muted)">
-        no models: <button style="background:none;border:none;cursor:pointer;color:var(--accent);font:inherit;font-size:0.75rem" onclick="probeEndpoint('${ep.id}')">probe</button>
+        no models: <button style="background:none;border:none;cursor:pointer;color:var(--text);font:inherit;font-size:0.75rem" onclick="probeEndpoint('${ep.id}')">probe</button>
       </div>`;
       continue;
     }
@@ -512,7 +512,7 @@ export function renderEndpointList() {
       </div>
       <div class="mm-ep-info">
         <span style="font-size:0.75rem;color:var(--muted)">${escHtml(ep.base_url || '')}</span>
-        <button class="mm-edit-toggle" type="button" data-id="${ep.id}" aria-expanded="false" aria-controls="mm-ep-edit-${ep.id}" style="font-size:0.75rem;color:var(--accent);background:none;border:none;cursor:pointer;padding:0 0.25rem">edit</button>
+        <button class="mm-edit-toggle" type="button" data-id="${ep.id}" aria-expanded="false" aria-controls="mm-ep-edit-${ep.id}" style="font-size:0.75rem;color:var(--muted);background:none;border:none;cursor:pointer;padding:0 0.25rem">edit</button>
       </div>
     </div>`;
   }).join('');

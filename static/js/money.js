@@ -1006,7 +1006,7 @@ function networthCard() {
   const W = 280, H = 110, step = W / h.length;
   const pts = h.map((x, i) => `${((i + 0.5) * step).toFixed(1)},${(H - ((x.net_worth - min) / span) * (H - 16) - 8).toFixed(1)}`);
   const labels = h.map((x, i) => `<span style="width:${100 / h.length}%">${x.month.slice(5)}</span>`).join('');
-  return `<svg class="nw-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2"></polyline></svg>
+  return `<svg class="nw-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts.join(' ')}" fill="none" stroke="var(--cat-blue)" stroke-width="2"></polyline></svg>
     <div class="trend-labels">${labels}</div>
     <div class="nw-now">now: ${fmt(vals[vals.length - 1])}</div>
     <div class="nw-base">${moneyField('base currency', `<input type="text" id="nw-base-cur" class="settings-input" placeholder="base (USD/EUR…)" style="width:120px">`)}<button class="btn" id="nw-base-go">in base ↺</button><span id="nw-base-out" class="nw-base-out"></span></div>`;

@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { confirm as confirmDialog, fields as fieldsDialog } from './dialog.js';
+import { categoryHue } from './color.js';
 
 let _memories = [];
 let _searchTimeout = null;
@@ -191,7 +192,7 @@ function renderMemories(mems) {
     <div class="mem-item${m.pinned ? ' pinned' : ''}${m.status === 'suggested' ? ' suggested' : ''}" data-id="${m.id}">
       <div class="mem-text">${escHtml(m.text)}</div>
       <div class="mem-meta">
-        <span class="mem-cat">${m.category}</span>
+        <span class="mem-cat" style="--cat:var(--cat-${categoryHue(m.category)})">${m.category}</span>
         ${m.pinned ? '<span class="mem-pin">pinned</span>' : ''}
         ${m.status === 'suggested' ? '<span class="mem-review">review</span>' : ''}
         <span class="mem-source">${escHtml(_provenanceLabel(m))} · ${escHtml(m.trust || 'owner')}</span>
