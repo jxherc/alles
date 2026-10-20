@@ -111,8 +111,8 @@ export async function rememberUserMessage(button) {
       .catch(() => null);
     if (undone?.ok) status.textContent = 'memory undone';
   });
-  row.querySelector('.user-wrap')?.appendChild(status);
-  button.remove();
+  // the receipt takes the button's place, right under the message
+  button.replaceWith(status);
 }
 
 if (typeof window !== 'undefined') {

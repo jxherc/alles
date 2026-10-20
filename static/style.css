@@ -814,21 +814,30 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
 .jump-latest:focus-visible .jump-latest-dot { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
 .msg-row { max-width: none; width: 100%; margin: 0 auto; padding: 0 1.5rem; }
 
-.user-wrap { display: flex; flex-wrap: wrap; justify-content: flex-end; padding: 0.35rem 0; }
-.msg-memory-btn {
-  align-self: center;
-  margin-right: 0.35rem;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
-  opacity: 0;
+.user-wrap { display: flex; flex-direction: column; align-items: flex-end; padding: 0.35rem 0; }
+/* a message's own actions sit right under it, on its right edge: the labels start 4px below the
+   bubble and the 44px targets hang down into the gap before the reply */
+.user-actions { display: flex; align-items: flex-start; justify-content: flex-end; margin: 0 -8px -12px 0; }
+.user-actions > button,
+.user-actions > .memory-confirm {
+  min-height: 44px; display: inline-flex; align-items: flex-start; padding: 4px 8px 0;
+  border: 0; border-radius: 3px; background: none; color: var(--muted); font: inherit; font-size: 13px; line-height: 18px;
 }
+.msg-memory-btn { cursor: pointer; opacity: 0; }
 .user-wrap:hover .msg-memory-btn,
-.msg-memory-btn:focus-visible { opacity: 1; color: var(--muted); outline: none; }
-.memory-confirm { align-self: center; margin-left: 0.4rem; color: var(--muted); font-size: 0.75rem; }
+.user-actions:focus-within .msg-memory-btn { opacity: 1; }
+.msg-memory-btn:hover { color: var(--text); }
+.memory-confirm { gap: 4px; }
+/* the targets stay 44px tall, so the ring is drawn round the label line only (4px each side) and
+   never sits on the words or hangs into the gap */
+.user-actions > button { position: relative; }
+.user-actions > button:focus-visible,
+html[data-kokuen-version="5"] .user-actions > button[data-kokuen-primitive]:focus-visible { outline: none; }
+.user-actions > button:focus-visible::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 26px; border: 1px solid var(--focus); border-radius: 3px; pointer-events: none;
+}
+/* undo keeps a full 44px target but its label sits on the receipt's line */
+.user-actions > .memory-confirm button { min-height: 44px; display: inline-flex; align-items: flex-start; margin-top: -4px; padding: 4px 0 0; line-height: 18px; }
 .memory-confirm button { border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; padding: 0; }
 .context-provenance { margin: 0.65rem 0; color: var(--muted); font-size: 0.75rem; }
 .context-provenance > summary { cursor: pointer; }
@@ -6974,12 +6983,13 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   opacity: 0; transition: opacity 0.15s, color 0.15s;
   border-radius: 3px;
 }
-.msg-edit-btn svg { width: 13px; height: 13px; display: block; }
+.msg-edit-btn svg { width: 14px; height: 14px; display: block; margin-top: 2px; }
 .user-wrap:hover .msg-edit-btn,
+.user-actions:focus-within .msg-edit-btn,
 .msg-edit-btn:focus-visible,
 .ai-wrap:hover .msg-regen-btn,
 .msg-regen-btn:focus-visible { opacity: 1; }
-.msg-edit-btn:hover, .msg-regen-btn:hover { color: var(--muted); }
+.msg-edit-btn:hover, .msg-regen-btn:hover { color: var(--text); }
 /* no hover on touch, so don't leave invisible buttons to tap by accident */
 @media (hover: none), (pointer: coarse) {
   .msg-actions, .msg-memory-btn, .msg-edit-btn, .msg-regen-btn { opacity: 1; }

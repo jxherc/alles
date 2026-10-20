@@ -67,6 +67,9 @@ body.aide-central[data-space="aide"] .messages {
 }
 body.aide-central[data-space="aide"] .msg-row { padding: 0; width: 100%; max-width: none; margin: 0; }
 body.aide-central[data-space="aide"] .user-wrap { padding: var(--k-space-4, 16px) 0; }
+/* the action row under a message takes the place of its bottom padding; its targets hang 12px into
+   the reply's top padding, so nothing sits on the reply's text */
+body.aide-central[data-space="aide"] .user-wrap:has(> .user-actions) { padding-bottom: 0; }
 body.aide-central[data-space="aide"] .user-bubble {
   max-width: min(88%, 68ch); border: 0; border-radius: var(--k-radius-surface, 4px);
   padding: var(--k-space-3, 12px) var(--k-space-4, 16px); background: var(--panel);
