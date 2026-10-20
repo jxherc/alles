@@ -389,13 +389,15 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
         shown = 0
         try:
             async with asyncio.timeout(timeout_seconds):
-                async for chunk in llm.stream_chat(
-                    messages,
-                    endpoint_url,
-                    endpoint_key,
-                    model,
-                    max_tokens=max_tokens,
-                    thinking=False,
+                async for chunk in andromeda.hedged_stream(
+                    lambda: llm.stream_chat(
+                        messages,
+                        endpoint_url,
+                        endpoint_key,
+                        model,
+                        max_tokens=max_tokens,
+                        thinking=False,
+                    )
                 ):
                     if chunk.get("error"):
                         raise RuntimeError(str(chunk["error"]))

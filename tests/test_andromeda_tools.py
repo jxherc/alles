@@ -748,3 +748,59 @@ class StreamedOverviewTest(ApiTest):
         self.assertIsNone(andromeda.visible_prose("SK"))
         self.assertIsNone(andromeda.visible_prose("<think>planning"))
         self.assertEqual(andromeda.visible_prose("<think>x</think>Blue light."), "Blue light.")
+
+
+class HedgedStreamTest(ApiTest):
+    """a stalled model request no longer sets the wait: a second one starts and the first to write wins."""
+
+    def collect(self, make, delay):
+        async def go():
+            return [chunk async for chunk in andromeda.hedged_stream(make, delay)]
+
+        return asyncio.run(go())
+
+    def test_a_stalled_first_try_loses_to_the_second(self):
+        starts = []
+
+        def make():
+            attempt = len(starts)
+            starts.append(attempt)
+
+            async def stream():
+                if attempt == 0:
+                    await asyncio.sleep(5)
+                    yield {"delta": "slow"}
+                else:
+                    yield {"delta": "fast "}
+                    yield {"delta": "answer"}
+
+            return stream()
+
+        chunks = self.collect(make, 0.05)
+        self.assertEqual([c["delta"] for c in chunks], ["fast ", "answer"])
+        self.assertEqual(starts, [0, 1])
+
+    def test_a_quick_first_try_never_starts_a_second(self):
+        starts = []
+
+        def make():
+            starts.append(1)
+
+            async def stream():
+                yield {"delta": "one"}
+
+            return stream()
+
+        self.assertEqual([c["delta"] for c in self.collect(make, 1)], ["one"])
+        self.assertEqual(len(starts), 1)
+
+    def test_an_error_retries_at_once_and_two_errors_are_reported(self):
+        def make():
+            async def stream():
+                raise RuntimeError("proxy said no")
+                yield {}  # noqa: B901
+
+            return stream()
+
+        chunks = self.collect(make, 10)
+        self.assertEqual(chunks, [{"error": "proxy said no"}])

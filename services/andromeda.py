@@ -665,6 +665,70 @@ def prose_prompt(
 _CITE = re.compile(r"\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\]")
 
 
+async def hedged_stream(make, delay: float = 3.5):
+    """chunks from make(), the way a hedged request works: when no text has arrived after `delay`
+    seconds, a second identical request starts and whichever writes first is kept. a model proxy
+    that stalls now and then (20 seconds on one request, one second on the next) stops setting the
+    wait."""
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def pump(index: int):
+        try:
+            async for chunk in make():
+                await queue.put((index, chunk))
+        except asyncio.CancelledError:
+            raise
+        except TimeoutError:
+            await queue.put((index, {"error": "model stream timed out", "timeout": True}))
+        except Exception as exc:
+            await queue.put((index, {"error": str(exc) or "model stream failed"}))
+        await queue.put((index, None))
+
+    tasks = [asyncio.create_task(pump(0))]
+    winner = None
+    finished: set[int] = set()
+    errors: list[dict] = []
+    hedge_at = loop.time() + delay
+    try:
+        while True:
+            wait = None
+            if winner is None and len(tasks) == 1:
+                wait = max(0.0, hedge_at - loop.time())
+            try:
+                index, chunk = await asyncio.wait_for(queue.get(), wait)
+            except TimeoutError:
+                tasks.append(asyncio.create_task(pump(1)))
+                continue
+            if chunk is None:
+                finished.add(index)
+                if index == winner or len(finished) == len(tasks) and winner is None:
+                    if winner is None and errors:
+                        if all(error.get("timeout") for error in errors):
+                            raise TimeoutError(errors[-1]["error"])
+                        yield {"error": errors[-1]["error"]}
+                    return
+                continue
+            if winner is None:
+                if chunk.get("error"):
+                    errors.append(chunk)
+                    if len(tasks) == 1:
+                        # the first try failed outright: the second one starts now, not later
+                        tasks.append(asyncio.create_task(pump(1)))
+                    continue
+                if not chunk.get("delta"):
+                    continue
+                winner = index
+                for other, task in enumerate(tasks):
+                    if other != index:
+                        task.cancel()
+            if index == winner:
+                yield chunk
+    finally:
+        for task in tasks:
+            task.cancel()
+
+
 def visible_prose(raw: str) -> str | None:
     """the part of a streaming answer that can be shown: nothing while it could still turn out to
     be SKIP, and never a <think> block."""
