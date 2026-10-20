@@ -568,26 +568,17 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented; check for nested bezels",
-    "css_block_sha256": "c35f3f27939417f43f535a6e1a905f2268cd2842e2fb44cb3bd4a4d3674776e7",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented",
-    "job": "distinct-region",
-    "reason": "The locale segmented group encloses mutually exclusive format choices."
-  },
-  {
-    "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button; check for nested bezels",
-    "css_block_sha256": "b63981215ec6b13eed50082c3f55de2b5e322ab4305b50696636a91cdaf68003",
+    "css_block_sha256": "eb2f0173bd998e5597bf528af1f6c4dc0fa526c2a0e85de609d9b69ecb034074",
     "path": "static/kokuen.css",
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button",
-    "job": "control-row-seam",
-    "reason": "The segment button's right edge separates peer choices inside the segmented group; it is not another full enclosure."
+    "job": "control-bezel",
+    "reason": "The format choice's line is transparent at rest; only the picked choice shows the strong line (decision 0031)."
   },
   {
     "rule": "small-type",
     "message": "font-size 12px is below the 14px essential-text baseline in #settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button",
-    "css_block_sha256": "b63981215ec6b13eed50082c3f55de2b5e322ab4305b50696636a91cdaf68003",
+    "css_block_sha256": "eb2f0173bd998e5597bf528af1f6c4dc0fa526c2a0e85de609d9b69ecb034074",
     "path": "static/kokuen.css",
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button",
     "job": "compact-control-label",

@@ -47,14 +47,14 @@ class ToggleSwitchTests(unittest.TestCase):
 
 
 class SegmentedControlTests(unittest.TestCase):
-    def test_seg_is_one_bordered_container(self):
-        body = _block(".seg")
-        self.assertIn("border:", body)
-        self.assertIn("overflow: hidden", body)
-
-    def test_seg_opts_are_divided(self):
-        self.assertIn("border-left:", _block(".seg-opt"))
-        self.assertIn("border-left: none", _block(".seg-opt:first-child"))
+    def test_seg_is_bare_until_picked(self):
+        # decision 0031: no outer line or dividers; only the picked option draws a line
+        self.assertNotIn("solid", _block(".seg"))
+        self.assertIn("border: 1px solid transparent", _block(".seg-opt"))
+        self.assertNotIn(".seg-opt:first-child", CSS)
+        self.assertIn("min-height: 44px", _block(".seg-opt"))
+        self.assertIn("var(--k-hover", _block(".seg-opt:hover"))
+        self.assertIn("var(--k-line-strong", _block(".seg-opt.active"))
 
     def test_seg_active_state_exists(self):
         # neutral selection (decision 0019): raised surface and emphasis, never the accent.

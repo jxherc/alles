@@ -32,5 +32,14 @@ full text; off is muted and struck through, so it doesn't rest on color alone. `
 out of the shared `selected` tile for the same reason. Read's "feeds" toggle sits 12px apart from
 the four filters, since it isn't one of them.
 
-Other segmented controls (`.seg` in Calendar and elsewhere) still draw an outer line. They need
-their own pass.
+The segmented controls followed: the shared `.seg` (Calendar's views, persona mode, the per-app
+settings popovers, CardDAV sync and Vault's template fields), the theme editor's `.te-seg` (font,
+density, background, harmony, a book's shelf), the clock choice in language settings, appearance's
+mode row, the theme presets and Memory's policy. No outer line or dividers; words pack from the left
+with 12px each side and every option is 44px tall. Where a group stacks under its label it moves back
+by the padding; where it ends a row (the clock choice, Memory's policy on desktop, Calendar's views on
+desktop) the box keeps its place, as the balance pass did for right-aligned rows.
+
+Read's filters re-render on every pick, which dropped keyboard focus to the page. The pressed chip
+gets focus back after the re-render. On a phone Activity's search takes its own line from the column
+edge instead of floating right.

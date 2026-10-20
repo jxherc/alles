@@ -4102,22 +4102,22 @@ textarea[data-kokuen-entry="autogrow"] {
   color: var(--k-text);
 }
 
+/* bare until picked (decision 0031). it ends on the row's right edge like the pickers above it;
+   stacked on a phone it starts on the column instead */
 #settings-modal[data-kokuen-surface="settings"] .locale-segmented {
   min-width: 0;
   display: flex;
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-control);
-  overflow: hidden;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-segmented button {
   min-width: 0;
-  min-height: var(--k-control-dense);
-  flex: 1 1 auto;
-  padding: 0 var(--k-space-2);
-  border: 0;
-  border-right: 1px solid var(--k-line);
-  border-radius: 0;
+  min-height: var(--k-control);
+  flex: 0 1 auto;
+  padding: 0 var(--k-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--k-radius-control);
   background: transparent;
   color: var(--k-muted);
   font-size: 12px;
@@ -4127,13 +4127,16 @@ textarea[data-kokuen-entry="autogrow"] {
   cursor: pointer;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .locale-segmented button:last-child {
-  border-right: 0;
+#settings-modal[data-kokuen-surface="settings"] .locale-segmented button:hover {
+  background: var(--k-hover);
+  color: var(--k-text);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-segmented button[aria-checked="true"] {
+  border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-settings-save {
@@ -4520,6 +4523,11 @@ html[dir="rtl"] :where(
     grid-template-columns: minmax(0, 1fr);
     gap: var(--k-space-3);
     padding: var(--k-space-3);
+  }
+
+  #settings-modal[data-kokuen-surface="settings"] .locale-segmented {
+    justify-content: flex-start;
+    margin-inline-start: calc(-1 * var(--k-space-3));
   }
 
   #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger,

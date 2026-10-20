@@ -2045,13 +2045,14 @@ body.is-aide.is-incognito .incognito-bar {
 }
 
 /* theme mode + accent color picker (appearance pane) */
-.theme-mode-row { display: flex; gap: 0.35rem; }
+/* bare until picked (decision 0031); the row moves back by the padding so "dark" starts on the column */
+.theme-mode-row { display: flex; flex-wrap: wrap; margin-inline-start: -12px; }
 .theme-mode-btn {
-  flex: 1; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px;
-  color: var(--muted); font: inherit; font-size: 0.78rem; padding: 0.4rem 0; cursor: pointer;
-  transition: all 0.15s ease;
+  flex: 0 0 auto; min-height: 44px; background: none; border: 1px solid transparent; border-radius: 3px;
+  color: var(--muted); font: inherit; font-size: 13px; padding: 0 12px; cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
-.theme-mode-btn:hover { color: var(--text); }
+.theme-mode-btn:hover { color: var(--text); background: var(--k-hover, var(--panel)); }
 .theme-mode-btn.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .accent-swatches { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 .accent-swatch {
@@ -5938,12 +5939,13 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
   padding-bottom: 0.7rem; margin-bottom: 0.55rem; border-bottom: 1px solid var(--faint);
 }
-.mem-policy-options { display: flex; gap: 0.25rem; }
+/* bare until picked (decision 0031). right-aligned on desktop, so the box keeps its place there */
+.mem-policy-options { display: flex; flex-wrap: wrap; }
 .mem-policy-btn {
-  min-width: 3.1rem; background: none; border: 1px solid var(--faint); border-radius: 3px;
-  color: var(--muted); font: inherit; font-size: 0.75rem; padding: 0.28rem 0.5rem; cursor: pointer;
+  min-height: 44px; background: none; border: 1px solid transparent; border-radius: 3px;
+  color: var(--muted); font: inherit; font-size: 0.75rem; padding: 0 12px; cursor: pointer;
 }
-.mem-policy-btn:hover, .mem-policy-btn:focus-visible { color: var(--text); border-color: var(--muted); }
+.mem-policy-btn:hover, .mem-policy-btn:focus-visible { color: var(--text); background: var(--k-hover, var(--panel)); }
 .mem-policy-btn.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
 .mem-foot-actions { display: flex; justify-content: flex-end; gap: 0.35rem; margin-top: 0.65rem; }
 .mem-undo {
@@ -5954,8 +5956,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 
 @media (max-width: 620px) {
   .mem-policy { align-items: flex-start; flex-direction: column; }
-  .mem-policy-options { width: 100%; }
-  .mem-policy-btn { flex: 1; min-height: 36px; }
+  /* stacked under the label, so the words start on its edge */
+  .mem-policy-options { margin-inline-start: -12px; }
   .mem-actions { opacity: 1; }
 }
 
@@ -6073,18 +6075,18 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .persona-temp-foot .cold { color: var(--accent); }
 .persona-temp-foot .hot  { color: var(--error); }
 
-/* segmented control — custom, no native select */
-.seg { display: flex; border: 1px solid var(--faint); border-radius: 3px; overflow: hidden; }
+/* segmented control — custom, no native select. bare until picked (decision 0031): no outer line or
+   dividers, words packed from the left with 12px each side */
+.seg { display: flex; flex-wrap: wrap; border-radius: 3px; }
 .seg-opt {
-  flex: 1; background: none; border: none; cursor: pointer;
+  flex: 0 0 auto; min-height: 44px; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer;
   padding: 0 12px; font: inherit; font-size: 13px;
   color: var(--muted); letter-spacing: 0; text-transform: lowercase;
-  border-left: 1px solid var(--faint); transition: color 0.12s, background 0.12s;
+  transition: color 0.12s, background 0.12s;
 }
-.seg-opt:first-child { border-left: none; }
-.seg-opt:hover { color: var(--text); }
-/* neutral selection (decision 0019): tone, raised surface and weight */
-.seg-opt.active { color: var(--text); background: var(--k-raised, var(--panel)); -webkit-text-stroke: 0.35px currentColor; }
+.seg-opt:hover { color: var(--text); background: var(--k-hover, var(--panel)); }
+/* neutral selection (decision 0019): tone, raised surface, strong line and weight */
+.seg-opt.active { color: var(--text); background: var(--k-raised, var(--panel)); border-color: var(--k-line-strong, var(--muted)); -webkit-text-stroke: 0.35px currentColor; }
 /* compact inline variant — for in-toolbar view/range switchers (activity, calendar) */
 .seg.seg-sm { display: inline-flex; }
 .seg.seg-sm .seg-opt { flex: 0 0 auto; padding: 0 12px; font-size: 13px; letter-spacing: 0; }
@@ -6105,6 +6107,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 .aps-field { display: flex; flex-direction: column; gap: 0.3rem; }
 .aps-field > label { font-size: 0.75rem; color: var(--text); }
+/* bare choices under a label start on its edge (decision 0031) */
+.aps-field > .seg,
+#persona-mode { margin-inline-start: -12px; }
 .aps-field .settings-textarea { min-height: 2.6rem; }
 /* action buttons in a settings popover (e.g. mail accounts / rules) — 4e */
 .aps-action { width: 100%; text-align: left; background: var(--bg); border: 1px solid var(--faint); border-radius: 4px; color: var(--text); font: inherit; font-size: 0.76rem; padding: 0.42rem 0.6rem; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
@@ -6206,12 +6211,13 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .act-chip:hover { border-color: var(--muted); }
 .act-chip.off { opacity: 0.4; color: var(--muted); }
 .act-seg { margin-left: var(--k-space-3); }
-.seg.act-seg { border-color: transparent; }
-.act-seg .seg-opt { border: 1px solid transparent; border-radius: 3px; }
-.act-seg .seg-opt:hover { background: var(--k-hover, var(--panel)); }
-.act-seg .seg-opt.active { border-color: var(--k-line-strong, var(--muted)); background: var(--k-raised, var(--panel)); }
 .act-search { font-family: inherit; font-size: 0.75rem; margin-left: auto; padding: 0.2rem 0.5rem; background: var(--bg); border: 1px solid var(--faint); border-radius: 3px; color: var(--text); width: 160px; }
 .act-search:focus { outline: none; }
+/* on a phone the search wraps onto its own line; it takes the line from the column edge instead of
+   floating right (the row is pulled back 12px, so this puts it back on the column) */
+@media (max-width: 720px) {
+  #activity-filters .act-search { flex: 1 1 100%; width: auto; margin-left: 12px; }
+}
 /* match the head/body horizontal padding so the summary's left edge lines up with the title */
 .activity-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem clamp(0.9rem, 3vw, 2rem); font-size: 0.75rem; color: var(--muted); }
 .activity-summary:empty { display: none; }
@@ -6433,8 +6439,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   #calendar-view .page-view-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2, 8px); }
   .cal-date-controls { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); min-width: 0; }
   .cal-date-controls .cal-month-title { min-width: 0; white-space: normal; text-align: end; }
-  #cal-view { width: 100%; margin-left: 0 !important; flex-wrap: wrap; }
-  #cal-view .seg-opt { flex: 1 1 auto; }
+  /* bare views start on the column: the row moves back by the option padding */
+  #cal-view { width: calc(100% + 12px); margin-left: -12px !important; flex-wrap: wrap; }
   .cal-primary-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
   #cal-tools-toggle { display: inline-flex; align-items: center; min-height: var(--k-control, 44px); }
   #cal-tools { display: none; }
@@ -8639,8 +8645,8 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-sec { margin-bottom: 1.1rem; }
 .te-sec-h { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
 .te-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 0.5rem; }
-.te-preset { background: none; border: 1px solid var(--faint); border-radius: 4px; min-height: 44px; padding: 0.4rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; color: var(--muted); }
-.te-preset:hover { border-color: var(--muted); color: var(--text); }
+.te-preset { background: none; border: 1px solid transparent; border-radius: 4px; min-height: 44px; padding: 0.4rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; color: var(--muted); }
+.te-preset:hover { background: var(--k-hover, var(--panel)); color: var(--text); }
 .te-preset.active { background: var(--raised); border-color: var(--line-strong); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 .te-preset-quad { display: grid; grid-template-columns: 1fr 1fr; width: 38px; height: 38px; border-radius: 3px; overflow: hidden; border: 1px solid var(--faint); }
 .te-preset-quad i { display: block; }
@@ -8650,17 +8656,16 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-color.te-inline { gap: 0.4rem; }
 .te-harmony { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .te-row2 { display: flex; gap: 1.5rem; flex-wrap: wrap; }
-.te-seg { display: inline-flex; border: 1px solid var(--faint); border-radius: 4px; overflow: hidden; }
-.te-seg-opt { background: none; border: none; color: var(--muted); padding: 0.25rem 0.55rem; font-size: 0.75rem; cursor: pointer; border-right: 1px solid var(--faint); }
-.te-seg-opt:last-child { border-right: none; }
-.te-seg-opt:hover { color: var(--text); }
+/* bare until picked (decision 0031), like .seg */
+.te-seg { display: inline-flex; flex-wrap: wrap; }
+.te-seg-opt { min-height: 44px; background: none; border: 1px solid transparent; border-radius: 3px; color: var(--muted); padding: 0 12px; font-size: 0.75rem; cursor: pointer; }
+.te-seg-opt:hover { color: var(--text); background: var(--k-hover, var(--panel)); }
 .te-body .te-seg-opt { min-height: 44px; }
 .te-body .te-seg-opt.active { background: var(--raised); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 /* the background-pattern picker has many options now — let it wrap into a grid of chips */
-.te-seg[data-seg="bgPattern"] { display: flex; flex-wrap: wrap; gap: 4px; border: none; border-radius: 0; }
-.te-seg[data-seg="bgPattern"] .te-seg-opt { border: 1px solid var(--faint); border-radius: 4px; }
-.te-seg[data-seg="bgPattern"] .te-seg-opt.active { border-color: var(--k-line-strong, var(--line-strong)); }
-.te-body .te-seg[data-seg="bgPattern"] .te-seg-opt.active { border-color: var(--line-strong); }
+.te-seg[data-seg="bgPattern"] { display: flex; flex-wrap: wrap; }
+/* stacked under a section heading, the first word starts on the heading's edge */
+.te-sec > .te-seg { margin-inline-start: -12px; }
 .te-bg-extra { display: flex; gap: 1.2rem; align-items: center; margin-top: 0.6rem; flex-wrap: wrap; }
 .te-slider { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted); }
 .te-slider input[type=range] { -webkit-appearance: none; appearance: none; width: 110px; height: 4px; border-radius: 3px; background: var(--faint); outline: none; }
@@ -8866,6 +8871,8 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-del:hover { color: var(--error); }
 .book-add { border: 1px solid var(--faint); border-left: 2px solid var(--accent); border-radius: 4px; background: var(--panel); padding: 0.8rem; margin-bottom: 1.2rem; max-width: 560px; display: flex; flex-direction: column; gap: 0.5rem; }
 .book-add-row { display: flex; gap: 0.4rem; align-items: center; }
+/* the shelf choice starts its row bare (decision 0031), so it moves back by its padding */
+#book-status { margin-inline-start: -12px; }
 .book-add-row .settings-input { flex: 1; min-width: 0; }
 .book-add-row .book-field { flex: 1; }
 .book-lookup { display: flex; flex-direction: column; gap: 0.2rem; max-height: 240px; overflow-y: auto; border: 1px solid var(--faint); border-radius: 3px; padding: 0.3rem; }
