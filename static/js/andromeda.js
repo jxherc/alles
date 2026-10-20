@@ -1280,8 +1280,11 @@ export function contextClaimsForOverview(overview = {}) {
 const CITE_MARK = /\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\]/g;
 
 function proseInline(parent, text) {
-  // **bold** and [n] marks; everything else is plain text, never markup
-  const parts = String(text).split(/(\*\*[^*]+\*\*|\[\d{1,2}(?:\s*,\s*\d{1,2})*\])/g);
+  // **bold** and [n] marks; everything else is plain text, never markup. while the answer streams,
+  // an opened ** that hasn't closed yet stays hidden instead of showing the stars
+  const value = String(text);
+  const open = (value.match(/\*\*/g) || []).length % 2 === 1;
+  const parts = (open ? value.slice(0, value.lastIndexOf('**')) + value.slice(value.lastIndexOf('**') + 2) : value).split(/(\*\*[^*]+\*\*|\[\d{1,2}(?:\s*,\s*\d{1,2})*\])/g);
   for (const part of parts) {
     if (!part) continue;
     if (/^\*\*[^*]+\*\*$/.test(part)) {

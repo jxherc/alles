@@ -804,3 +804,23 @@ class HedgedStreamTest(ApiTest):
 
         chunks = self.collect(make, 10)
         self.assertEqual(chunks, [{"error": "proxy said no"}])
+
+
+class BoldAnswerTest(ApiTest):
+    def test_the_main_answer_is_bold_on_screen_and_plain_in_saved_claims(self):
+        evidence = andromeda.prose_evidence(
+            [
+                {
+                    "url": "https://en.wikipedia.org/wiki/Mount_Logan",
+                    "title": "Mount Logan",
+                    "snippet": "Mount Logan is the highest mountain in Canada.",
+                }
+            ]
+        )
+        prompt = andromeda.prose_prompt("tallest mountain in canada", evidence)[0]["content"]
+        self.assertIn("**double asterisks**", prompt)
+        answer = andromeda.prose_answer(
+            "The tallest is **Mount Logan**. [1]", "tallest mountain in canada", evidence
+        )
+        self.assertEqual(answer["text"], "The tallest is **Mount Logan**. [1]")
+        self.assertEqual(answer["claims"][0]["text"], "The tallest is Mount Logan.")

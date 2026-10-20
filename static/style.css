@@ -9222,7 +9222,9 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-prose { display: grid; gap: 8px; max-width: 68ch; color: var(--text); font-size: 15px; line-height: 1.6; }
 .andromeda-view .andromeda-prose :is(p, ul, ol) { margin: 0; }
 .andromeda-view .andromeda-prose :is(ul, ol) { display: grid; gap: 4px; padding-inline-start: 20px; }
-.andromeda-view .andromeda-prose strong { font-weight: 600; }
+.andromeda-view .andromeda-prose strong { color: var(--text); font-weight: 650; }
+/* the main answer reads first: the opening paragraph is a touch larger */
+.andromeda-view .andromeda-prose > p:first-child { font-size: 16px; }
 .andromeda-view .andromeda-prose-cite { margin-inline-start: 2px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .andromeda-view .andromeda-prose-sources { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .andromeda-view .andromeda-prose-source {
