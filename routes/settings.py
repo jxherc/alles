@@ -40,6 +40,7 @@ _SECRET_KEYS = {
     "notify_discord_webhook",
     "notify_telegram_token",
     "notify_telegram_chat_id",
+    "photon_project_secret",
 }
 _CONFIG_FLAGS = {
     "mail_oauth_client_secret",

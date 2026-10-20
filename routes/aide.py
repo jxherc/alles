@@ -214,6 +214,13 @@ class CodeSettingsBody(BaseModel):
     guard: bool = True
 
 
+class PhotonBody(BaseModel):
+    enabled: bool = False
+    project_id: str = Field(default="", max_length=200)
+    project_secret: str = Field(default="", max_length=500)  # blank keeps the saved one
+    owner_handles: list[str] = Field(default_factory=list, max_length=10)
+
+
 class BridgeSearchBody(BaseModel):
     query: str = Field(min_length=1, max_length=400)
     count: int = Field(default=6, ge=1, le=10)
@@ -331,6 +338,34 @@ async def code_settings(body: CodeSettingsBody):
 
 
 _LOCAL_CLIENTS = {"127.0.0.1", "::1", "localhost"}
+
+
+@router.get("/channels/photon")
+def photon_status():
+    from services import photon_channel
+
+    return photon_channel.public()
+
+
+@router.put("/channels/photon", dependencies=[Depends(require_recent_owner)])
+async def photon_settings(body: PhotonBody):
+    """turn texting Aide over iMessage on or off; only the listed handles get answers."""
+    from core.settings import save_settings
+    from services import photon_channel
+
+    handles = [h.strip()[:120] for h in body.owner_handles if h.strip()]
+    if body.enabled and not handles:
+        raise ApiError(400, "photon_owner_required", "add the phone number or email you text from")
+    patch = {
+        "photon_enabled": body.enabled,
+        "photon_project_id": body.project_id.strip(),
+        "photon_owner_handles": handles,
+    }
+    if body.project_secret.strip():
+        patch["photon_project_secret"] = body.project_secret.strip()
+    save_settings(patch)
+    await photon_channel.restart()
+    return photon_channel.public()
 
 
 def _bridge_chat(request: Request):

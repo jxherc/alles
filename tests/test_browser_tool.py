@@ -1,7 +1,10 @@
 import asyncio
+import os
 import tempfile
+import threading
 import unittest
-from pathlib import Path
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest import mock
 
 from services import browser_tool as bt
 
@@ -13,159 +16,149 @@ try:
 except Exception:
     _HAVE_PW = False
 
-_HTML = """<!doctype html><html><body>
+_PAGE = b"""<!doctype html><html><head><title>shop</title></head><body>
 <h1 id="t">hello browser</h1>
 <button id="b" onclick="document.getElementById('t').innerText='clicked now'">go</button>
-<input id="inp">
+<input id="inp" placeholder="your name">
+<input type="password" placeholder="password">
+<select id="size"><option>small</option><option>large</option></select>
+<form method="post" action="/checkout"><button>Place order</button></form>
 </body></html>"""
 
 
-def _page_url():
-    d = tempfile.mkdtemp(prefix="browtool-")
-    p = Path(d) / "page.html"
-    p.write_text(_HTML, "utf-8")
-    return p.as_uri()
+class _Site(BaseHTTPRequestHandler):
+    posts: list[str] = []
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("content-type", "text/html")
+        self.end_headers()
+        self.wfile.write(_PAGE)
+
+    def do_POST(self):
+        _Site.posts.append(self.path)
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ordered")
+
+    def log_message(self, *args):
+        pass
 
 
 @unittest.skipUnless(_HAVE_PW, "playwright not installed")
 class BrowserToolTests(unittest.TestCase):
-    def test_navigate_and_read(self):
-        url = _page_url()
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), _Site)
+        cls.url = f"http://127.0.0.1:{cls.server.server_port}/"
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
 
-        async def go():
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+
+    def setUp(self):
+        self.data = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"ALLES_DATA": self.data.name})
+        self.env.start()
+        # this test site is on loopback, which the real guard refuses
+        self.local = mock.patch.object(
+            bt, "_host_safe", lambda url: url.startswith("http://127.0.0.1")
+        )
+        self.local.start()
+        _Site.posts.clear()
+
+    def tearDown(self):
+        self.local.stop()
+        self.env.stop()
+        self.data.cleanup()
+
+    def run_async(self, coro):
+        # playwright objects belong to the loop that made them, so close in the same one
+        async def wrapped():
             try:
-                landed = await bt._b.navigate(url)
-                txt = await bt._b.read_text()
-                return landed, txt
+                return await coro
             finally:
                 await bt._b.close()
 
-        landed, txt = asyncio.run(go())
-        self.assertIn("hello browser", txt)
-        self.assertTrue(landed.startswith("file:"))
+        return asyncio.run(wrapped())
 
-    def test_current_url(self):
-        url = _page_url()
-
+    def test_pages_read_as_numbered_elements_and_clicks_work(self):
         async def go():
-            try:
-                await bt._b.navigate(url)
-                return await bt._b.current_url()
-            finally:
-                await bt._b.close()
+            await bt._b.navigate(self.url)
+            page = await bt._b.snapshot()
+            go_ref = next(r for r, item in bt._b.items.items() if item["label"] == "go")
+            await bt._b.click(str(go_ref))
+            return page, await bt._b.read_text()
 
-        self.assertTrue(asyncio.run(go()).startswith("file:"))
+        page, after = self.run_async(go())
+        self.assertIn("shop", page)
+        self.assertIn("] button go", page)
+        self.assertIn("(secret field: the owner fills this)", page)
+        self.assertIn("clicked now", after)
 
-    def test_click_changes_dom(self):
-        url = _page_url()
-
+    def test_typing_select_and_secret_fields(self):
         async def go():
-            try:
-                await bt._b.navigate(url)
-                await bt._b.click("#b")
-                return await bt._b.read_text()
-            finally:
-                await bt._b.close()
+            await bt._b.navigate(self.url)
+            await bt._b.snapshot()
+            refs = {item["label"]: ref for ref, item in bt._b.items.items()}
+            await bt._b.type_text(str(refs["your name"]), "eric")
+            name = await bt._b._page.input_value("#inp")
+            await bt._b.select(
+                str(next(r for r, i in bt._b.items.items() if i["tag"] == "select")), "large"
+            )
+            size = await bt._b._page.input_value("#size")
+            with self.assertRaises(ValueError):
+                await bt._b.type_text(str(refs["password"]), "hunter2")
+            return name, size
 
-        self.assertIn("clicked now", asyncio.run(go()))
+        self.assertEqual(self.run_async(go()), ("eric", "large"))
 
-    def test_type_into_input(self):
-        url = _page_url()
-
+    def test_submit_like_clicks_are_flagged_and_payments_are_blocked(self):
         async def go():
-            try:
-                await bt._b.navigate(url)
-                return await bt._b.type_text("#inp", "abc123")
-            finally:
-                await bt._b.close()
+            await bt._b.navigate(self.url)
+            await bt._b.snapshot()
+            order = next(r for r, i in bt._b.items.items() if i["label"] == "Place order")
+            go_ref = next(r for r, i in bt._b.items.items() if i["label"] == "go")
+            flags = (bt._b.is_commit(order), bt._b.is_commit(go_ref))
+            await bt._b.click(str(order))
+            await asyncio.sleep(0.3)
+            return flags, await bt._b.snapshot()
 
-        self.assertEqual(asyncio.run(go()), "abc123")
+        flags, page = self.run_async(go())
+        self.assertEqual(flags, (True, False))
+        self.assertEqual(_Site.posts, [])  # the checkout POST never left the browser
+        self.assertIn("blocked by alles: payment step", page)
 
-    def test_screenshot_returns_png_b64(self):
-        url = _page_url()
+    def test_private_and_payment_addresses_are_refused_by_default(self):
+        self.local.stop()
+        try:
+            for url in ("http://127.0.0.1:6769/", "http://192.168.1.1/", "file:///etc/passwd"):
+                with self.subTest(url=url), self.assertRaises(ValueError):
+                    self.run_async(bt._b.navigate(url))
+            with self.assertRaises(ValueError):
+                self.run_async(bt._b.navigate("https://checkout.stripe.com/pay/cs_test"))
+        finally:
+            self.local.start()
 
-        async def go():
-            try:
-                await bt._b.navigate(url)
-                return await bt._b.screenshot()
-            finally:
-                await bt._b.close()
-
-        shot = asyncio.run(go())
-        self.assertTrue(shot.startswith("iVBOR"))  # PNG magic in base64
-
-    def test_screenshot_tool_hands_the_model_a_data_url(self):
+    def test_tools_return_pages_and_the_gate_asks_before_submitting(self):
         from services import agent_tools
 
-        url = _page_url()
-
         async def go():
-            try:
-                await bt._b.navigate(url)
-                return await agent_tools._browse("browse_screenshot", {})
-            finally:
-                await bt._b.close()
+            opened = await agent_tools._browse("browse_open", {"url": self.url})
+            order = next(r for r, i in bt._b.items.items() if i["label"] == "Place order")
+            asks = agent_tools.decide_permission(
+                "browse_click", {"ref": str(order)}, "full_auto", []
+            )
+            plain = agent_tools.decide_permission("browse_click", {"ref": "1"}, "full_auto", [])
+            shot = await agent_tools._browse("browse_screenshot", {})
+            return opened, asks, plain, shot
 
-        self.assertTrue(asyncio.run(go())["image"].startswith("data:image/png;base64,iVBOR"))
-
-    def test_close_resets(self):
-        url = _page_url()
-
-        async def go():
-            await bt._b.navigate(url)
-            await bt._b.close()
-            return bt._b._page
-
-        self.assertIsNone(asyncio.run(go()))
-
-
-@unittest.skipUnless(_HAVE_PW, "playwright not installed")
-class BrowserToolAgentTests(unittest.TestCase):
-    def test_tool_browse_open_and_read(self):
-        import services.agent_tools as at
-
-        url = _page_url()
-
-        async def go():
-            try:
-                o = await at.execute("browse_open", {"url": url})
-                r = await at.execute("browse_read", {})
-                return o, r
-            finally:
-                await bt._b.close()
-
-        o, r = asyncio.run(go())
-        self.assertFalse(o.get("error"))
-        self.assertIn("hello browser", r.get("output", ""))
-
-    def test_tool_browse_click(self):
-        import services.agent_tools as at
-
-        url = _page_url()
-
-        async def go():
-            try:
-                await at.execute("browse_open", {"url": url})
-                await at.execute("browse_click", {"selector": "#b"})
-                return await at.execute("browse_read", {})
-            finally:
-                await bt._b.close()
-
-        self.assertIn("clicked now", asyncio.run(go()).get("output", ""))
-
-    def test_tool_browse_type(self):
-        import services.agent_tools as at
-
-        url = _page_url()
-
-        async def go():
-            try:
-                await at.execute("browse_open", {"url": url})
-                return await at.execute("browse_type", {"selector": "#inp", "text": "hello"})
-            finally:
-                await bt._b.close()
-
-        self.assertFalse(asyncio.run(go()).get("error"))
+        opened, asks, plain, shot = self.run_async(go())
+        self.assertIn("[1]", opened["output"])
+        self.assertEqual((asks, plain), ("ask", "allow"))
+        self.assertTrue(shot["image"].startswith("data:image/png;base64,iVBOR"))
+        self.assertIn("browse_open", agent_tools.UNTRUSTED_TOOLS)
 
 
 if __name__ == "__main__":

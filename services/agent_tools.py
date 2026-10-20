@@ -139,6 +139,9 @@ TOOL_PERMISSION = {
     "browse_click": "browser_write",
     "browse_type": "browser_write",
     "browse_screenshot": "browser_read",
+    "browse_select": "browser_write",
+    "browse_scroll": "browser_read",
+    "browse_back": "browser_read",
     "note_list": "docs_read",
     "docs_read": "docs_read",
     "docs_write": "docs_write",
@@ -1649,7 +1652,7 @@ async def execute(name: str, args: dict) -> dict:
         return await _calendar_delete(args.get("id", ""))
     if name == "task_list":
         return await _task_list(bool(args.get("include_done")))
-    if name in ("browse_open", "browse_read", "browse_click", "browse_type", "browse_screenshot"):
+    if name in BROWSE_TOOLS:
         return await _browse(name, args)
     if name == "search_code":
         return await _search_code(args.get("query", ""), int(args.get("k") or 8))
@@ -1850,26 +1853,49 @@ async def _task_list(include_done):
         db.close()
 
 
+BROWSE_TOOLS = (
+    "browse_open",
+    "browse_read",
+    "browse_click",
+    "browse_type",
+    "browse_select",
+    "browse_scroll",
+    "browse_back",
+    "browse_screenshot",
+)
+
+
 async def _browse(name, args) -> dict:
-    """DOM-level browser automation (10e) — distinct from pixel computer-use."""
+    """web errands in alles's headless browser; pages come back as numbered elements."""
     from services.browser_tool import _b
 
+    target = str(args.get("ref") or args.get("selector") or "").strip()
     try:
         if name == "browse_open":
             url = (args.get("url") or "").strip()
             if not url:
                 return {"output": "url required", "error": True}
-            landed = await _b.navigate(url)
-            return {"output": f"opened {landed}"}
+            await _b.navigate(url)
+            return {"output": await _b.snapshot()}
         if name == "browse_read":
-            return {"output": await _b.read_text()}
+            return {"output": await _b.snapshot()}
         if name == "browse_click":
-            return {
-                "output": f"clicked {args.get('selector', '')} → {await _b.click(args.get('selector', ''))}"
-            }
+            if not target:
+                return {"output": "ref required (a number from browse_read)", "error": True}
+            await _b.click(target)
+            return {"output": await _b.snapshot()}
         if name == "browse_type":
-            val = await _b.type_text(args.get("selector", ""), args.get("text", ""))
-            return {"output": f"typed into {args.get('selector', '')} (value now: {val})"}
+            await _b.type_text(target, str(args.get("text", "")), bool(args.get("submit")))
+            return {"output": await _b.snapshot()}
+        if name == "browse_select":
+            await _b.select(target, str(args.get("value", "")))
+            return {"output": await _b.snapshot()}
+        if name == "browse_scroll":
+            await _b.scroll(str(args.get("direction") or "down"))
+            return {"output": await _b.snapshot()}
+        if name == "browse_back":
+            await _b.back()
+            return {"output": await _b.snapshot()}
         if name == "browse_screenshot":
             # the model only accepts a data url, not bare base64
             shot = await _b.screenshot()
@@ -3604,24 +3630,42 @@ APP_TOOL_DEFS = [
     ),
     _tool(
         "browse_open",
-        "Open a URL in a real headless browser (DOM-level, distinct from computer-use). "
-        "Persists across turns so you can browse statefully.",
+        "Open a public web page in Aide's browser for an errand (look things up, compare, fill "
+        "forms, book). Returns the page text and its clickable elements as [number] lines. "
+        "Sign-ins persist. Aide never pays: checkout steps are blocked and the owner finishes them.",
         {"url": {"type": "string"}},
         ["url"],
     ),
-    _tool("browse_read", "Read the visible text of the current browser page.", {}),
+    _tool("browse_read", "Read the current page again as text plus numbered elements.", {}),
     _tool(
         "browse_click",
-        "Click an element on the current page by CSS selector.",
-        {"selector": {"type": "string"}},
-        ["selector"],
+        "Click an element by its number from the last page read. Submitting, booking, sending "
+        "or buying asks the owner first.",
+        {"ref": {"type": "string", "description": "the element number"}},
+        ["ref"],
     ),
     _tool(
         "browse_type",
-        "Type text into an input/textarea on the current page by CSS selector.",
-        {"selector": {"type": "string"}, "text": {"type": "string"}},
-        ["selector", "text"],
+        "Type into a field by its number. Never for passwords or card details; ask the owner.",
+        {
+            "ref": {"type": "string"},
+            "text": {"type": "string"},
+            "submit": {"type": "boolean", "default": False, "description": "press Enter after"},
+        },
+        ["ref", "text"],
     ),
+    _tool(
+        "browse_select",
+        "Pick an option in a dropdown by its number and the option's visible text.",
+        {"ref": {"type": "string"}, "value": {"type": "string"}},
+        ["ref", "value"],
+    ),
+    _tool(
+        "browse_scroll",
+        "Scroll the page and read it again.",
+        {"direction": {"type": "string", "enum": ["down", "up"], "default": "down"}},
+    ),
+    _tool("browse_back", "Go back one page.", {}),
     _tool("browse_screenshot", "Screenshot the current browser page (returns a PNG).", {}),
     _tool(
         "goal_add",
@@ -3991,6 +4035,7 @@ MUTATING_TOOLS = {
     "browse_open",
     "browse_click",
     "browse_type",
+    "browse_select",
     "mcp_call_tool",
     "opencode_run",
     "pi_run",
@@ -4091,6 +4136,17 @@ def delegated_action_details(name: str, args: dict, settings: dict | None = None
     }
 
 
+def _browser_commit(name, args) -> bool:
+    """a click (or Enter) that submits, books, sends or buys is the owner's call."""
+    if name == "browse_type":
+        return bool((args or {}).get("submit"))
+    if name != "browse_click":
+        return False
+    from services.browser_tool import _b
+
+    return _b.is_commit((args or {}).get("ref") or "")
+
+
 def decide_permission(name, args, mode, rules):
     """Return allow, ask, or deny for one tool call.
 
@@ -4130,7 +4186,7 @@ def decide_permission(name, args, mode, rules):
         elif mode == "full_access":
             base = "allow"
         elif mode == "full_auto":
-            base = "ask" if name in risky_auto else "allow"
+            base = "ask" if name in risky_auto or _browser_commit(name, args) else "allow"
         else:
             base = "ask"
     decision = base
@@ -4156,6 +4212,14 @@ UNTRUSTED_TOOLS = {
     "recall",
     "web_fetch",
     "web_search",
+    # pages read during web errands are someone else's text
+    "browse_open",
+    "browse_read",
+    "browse_click",
+    "browse_type",
+    "browse_select",
+    "browse_scroll",
+    "browse_back",
     "read_file",
     "grep_files",
     "mail_read",

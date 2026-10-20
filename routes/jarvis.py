@@ -41,6 +41,9 @@ from services.jarvis_store import (
 )
 
 router = APIRouter(prefix="/api/jarvis")
+# a goal's webhook sits outside /api: the caller is another service, not the signed-in owner,
+# and the goal's own secret token is the only key
+hooks = APIRouter(prefix="/hooks")
 
 TRIGGER_KINDS = {"manual", "once", "schedule", "interval", "heartbeat", "event", "webhook"}
 SUPPORTED_AIDE_SCHEDULE_KINDS = {"once", "schedule", "interval", "heartbeat"}
@@ -634,6 +637,8 @@ class AideGoalBody(BaseModel):
     mode: Literal["ask", "act"] = "ask"
     until: str = Field(default="", max_length=10)
     max_runs: int | None = Field(default=None, ge=1, le=1000)
+    wake: Literal["rhythm", "mail", "webhook"] = "rhythm"
+    mail_filter: str = Field(default="", max_length=200)
 
 
 def _goal_until(raw: str):
@@ -663,17 +668,23 @@ def _apply_goal(db: DbSession, workflow: JarvisWorkflow, trigger: JarvisTrigger,
     workflow.name = (body.name.strip() or aide_goals.short_name(aim))[:80]
     workflow.purpose = aim
     workflow.prompt = aim
-    workflow.delivery_policy = _json_text(
-        {
-            "aide_schedule_owner": aide_goals.GOAL_OWNER,
-            "goal_every": body.every,
-            "goal_mode": body.mode,
-        },
-        expected=dict,
-    )
+    old = json_value(workflow.delivery_policy, dict)
+    policy = {
+        "aide_schedule_owner": aide_goals.GOAL_OWNER,
+        "goal_every": body.every,
+        "goal_mode": body.mode,
+        "goal_wake": body.wake,
+        "goal_mail_filter": body.mail_filter.strip(),
+    }
+    for kept in ("goal_hook_hash", "goal_mail_seen"):
+        if kept in old:
+            policy[kept] = old[kept]
+    workflow.delivery_policy = _json_text(policy, expected=dict)
     trigger.kind = "interval"
     trigger.config = _json_text({"every_seconds": aide_goals.EVERY[body.every]}, expected=dict)
     trigger.timezone = "UTC"
+    # mail and webhook goals wake on their event, not on a clock
+    trigger.enabled = body.wake == "rhythm" and bool(workflow.enabled)
     goal = aide_goals.state_for(db, workflow)
     goal.until = _goal_until(body.until)
     goal.max_runs = body.max_runs
@@ -707,11 +718,14 @@ def add_aide_goal(body: AideGoalBody, db: DbSession = Depends(get_db)):
     db.add(trigger)
     _apply_goal(db, workflow, trigger, body)
     db.flush()
-    trigger.next_run_at = next_for_trigger(trigger, utc_now())
+    trigger.next_run_at = next_for_trigger(trigger, utc_now()) if trigger.enabled else None
     # the first check starts now instead of a whole rhythm later
     create_run(db, workflow)
+    token = aide_goals.hook_token(workflow) if body.wake == "webhook" else ""
     db.commit()
-    return aide_goals.public(db, workflow, trigger)
+    shown = aide_goals.public(db, workflow, trigger)
+    # the webhook secret is shown once, here; only its hash is kept
+    return {**shown, "hook_token": token} if token else shown
 
 
 @router.patch("/aide-goals/{workflow_id}", dependencies=[Depends(require_recent_owner)])
@@ -723,14 +737,43 @@ def patch_aide_goal(workflow_id: str, body: AideGoalBody, db: DbSession = Depend
     return aide_goals.public(db, workflow, trigger)
 
 
+@router.post("/aide-goals/{workflow_id}/hook", dependencies=[Depends(require_recent_owner)])
+def new_aide_goal_hook(workflow_id: str, db: DbSession = Depends(get_db)):
+    """a new webhook secret for this goal; the old one stops working. shown only now."""
+    workflow, _trigger = _owned_goal(db, workflow_id)
+    token = aide_goals.hook_token(workflow)
+    db.commit()
+    return {"path": f"/hooks/goal/{workflow.id}", "token": token}
+
+
+@hooks.post("/goal/{workflow_id}")
+async def call_aide_goal_hook(workflow_id: str, request: Request, db: DbSession = Depends(get_db)):
+    """wake a webhook goal now; the body goes into its next check as outside data."""
+    workflow = db.get(JarvisWorkflow, workflow_id)
+    bearer = request.headers.get("authorization", "")
+    token = bearer[7:].strip() if bearer[:7].lower() == "bearer " else ""
+    token = token or request.query_params.get("token", "")
+    if (
+        not workflow
+        or not aide_goals.is_goal(workflow)
+        or aide_goals.wake(workflow) != "webhook"
+        or not aide_goals.hook_matches(workflow, token)
+    ):
+        raise ApiError(404, "hook_not_found", "no webhook here")
+    raw = (await request.body())[:20_000].decode("utf-8", errors="replace").strip()
+    run = aide_goals.wake_with(db, workflow, raw or "(the webhook was called with no body)")
+    db.commit()
+    return {"woken": run is not None}
+
+
 @router.patch("/aide-goals/{workflow_id}/state", dependencies=[Depends(require_recent_owner)])
 def patch_aide_goal_state(
     workflow_id: str, body: AideScheduleStateBody, db: DbSession = Depends(get_db)
 ):
     workflow, trigger = _owned_goal(db, workflow_id)
     workflow.enabled = body.enabled
-    trigger.enabled = body.enabled
-    trigger.next_run_at = next_for_trigger(trigger, utc_now()) if body.enabled else None
+    trigger.enabled = body.enabled and aide_goals.wake(workflow) == "rhythm"
+    trigger.next_run_at = next_for_trigger(trigger, utc_now()) if trigger.enabled else None
     goal = aide_goals.state_for(db, workflow)
     if body.enabled:
         goal.status = "active"

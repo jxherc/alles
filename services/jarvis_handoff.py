@@ -486,7 +486,7 @@ async def _execute(run_id: str) -> None:
 
         if aide_goals.is_goal(workflow):
             # a goal run carries its aim, its notes from last time, and its own permission choice
-            request = aide_goals.request_for(db, workflow, request)
+            request = aide_goals.request_for(db, workflow, request, run)
             permission_mode = aide_goals.permission(workflow)
         if not session:
             working_dir = ""

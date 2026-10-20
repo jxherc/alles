@@ -6,8 +6,9 @@ import { formatDateTime } from './i18n.js';
 const $ = id => document.getElementById(id);
 const EVERY = [['hour', 'hour'], ['six_hours', '6 hours'], ['day', 'day'], ['week', 'week']];
 const MODES = [['ask', 'ask me first'], ['act', 'just do it']];
+const WAKES = [['rhythm', 'on a rhythm'], ['mail', 'new mail'], ['webhook', 'a webhook']];
 const STATUS = { done: 'done', finished: 'finished', paused: 'paused' };
-let wired = false, goals = [], editing = '', every = 'day', mode = 'ask', poll = 0, loadTicket = 0;
+let wired = false, goals = [], editing = '', every = 'day', mode = 'ask', wake = 'rhythm', poll = 0, loadTicket = 0;
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -91,6 +92,7 @@ function openForm(goal = null) {
   editing = goal?.id || '';
   every = goal?.every || 'day';
   mode = goal?.mode || 'ask';
+  wake = goal?.wake || 'rhythm';
   const form = el('form', 'aide-schedule-form aide-goal-form');
   form.id = 'aide-goal-form';
   const head = el('div', 'aide-schedule-form-head');
@@ -118,6 +120,29 @@ function openForm(goal = null) {
   until.autocomplete = 'off';
   until.value = goal?.until ? goal.until.slice(0, 10) : '';
   untilLabel.append(until);
+  const rhythm = choiceGroup('check every', EVERY, every, key => { every = key; });
+  const filterLabel = el('label');
+  filterLabel.append(el('span', '', 'only mail with (optional)'));
+  const filter = el('input');
+  filter.id = 'aide-goal-mail-filter';
+  filter.type = 'text';
+  filter.maxLength = 200;
+  filter.autocomplete = 'off';
+  filter.placeholder = 'a sender or a word in the subject';
+  filter.value = goal?.mail_filter || '';
+  filterLabel.append(filter);
+  // sits in the field grid so it lines up with the inputs
+  const hookNote = el('div', 'aide-schedule-field');
+  hookNote.append(el('span'), el('p', 'aide-goal-note', goal?.has_hook
+    ? 'this goal keeps its webhook link; use "new link" on the goal to replace it.'
+    : 'you get a private link after saving. anything that calls it wakes this goal.'));
+  const showWake = () => {
+    rhythm.hidden = wake !== 'rhythm';
+    filterLabel.hidden = wake !== 'mail';
+    hookNote.hidden = wake !== 'webhook';
+  };
+  const wakeGroup = choiceGroup('wake it on', WAKES, wake, key => { wake = key; showWake(); });
+  showWake();
   const actions = el('div', 'aide-schedule-form-actions');
   const status = el('span', '', 'Aide only pings you for news, a question or an approval');
   status.id = 'aide-goal-status';
@@ -128,7 +153,10 @@ function openForm(goal = null) {
   form.append(
     head,
     aimLabel,
-    choiceGroup('check every', EVERY, every, key => { every = key; }),
+    wakeGroup,
+    rhythm,
+    filterLabel,
+    hookNote,
     choiceGroup('when it wants to change something', MODES, mode, key => { mode = key; }),
     untilLabel,
     actions,
@@ -138,12 +166,18 @@ function openForm(goal = null) {
     if (!aim.value.trim()) { status.textContent = 'say what the goal is'; aim.focus(); return; }
     save.disabled = true;
     try {
-      const body = { aim: aim.value.trim(), every, mode, until: until.value.trim() };
-      if (editing) await send('PATCH', `/api/jarvis/aide-goals/${editing}`, body);
-      else await send('POST', '/api/jarvis/aide-goals', body);
+      const body = { aim: aim.value.trim(), every, mode, wake, mail_filter: filter.value.trim(), until: until.value.trim() };
+      let saved;
+      if (editing) saved = await send('PATCH', `/api/jarvis/aide-goals/${editing}`, body);
+      else saved = await send('POST', '/api/jarvis/aide-goals', body);
+      if (!saved.hook_token && wake === 'webhook' && !saved.has_hook) {
+        saved = { ...saved, ...await send('POST', `/api/jarvis/aide-goals/${saved.id}/hook`) };
+        saved.hook_token = saved.token;
+      }
       closeForm();
       await loadGoals();
-      $('aide-goal-list').querySelector('.aide-goal-row strong')?.focus();
+      if (saved.hook_token) showHook(saved.id, saved.hook_token);
+      else $('aide-goal-list').querySelector('.aide-goal-row strong')?.focus();
     } catch (error) {
       status.textContent = error.message;
       status.dataset.error = 'true';
@@ -152,6 +186,41 @@ function openForm(goal = null) {
   });
   $('aide-goal-list').prepend(form);
   aim.focus();
+}
+
+// the webhook link is shown once, right after it's made; alles keeps only a hash of it
+function showHook(goalId, token) {
+  $('aide-goal-hook')?.remove();
+  const box = el('section', 'aide-goal-hook');
+  box.id = 'aide-goal-hook';
+  box.setAttribute('aria-labelledby', 'aide-goal-hook-title');
+  const title = el('strong', '', 'webhook link');
+  title.id = 'aide-goal-hook-title';
+  title.tabIndex = -1;
+  const link = el('input');
+  link.id = 'aide-goal-hook-url';
+  link.readOnly = true;
+  link.value = `${location.origin}/hooks/goal/${goalId}?token=${token}`;
+  link.setAttribute('aria-label', 'webhook link');
+  link.addEventListener('focus', () => link.select());
+  const copy = el('button', '', 'copy');
+  copy.type = 'button';
+  copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(link.value); copy.textContent = 'copied'; }
+    catch { link.select(); copy.textContent = 'press ⌘C'; }
+  });
+  const close = el('button', '', 'done');
+  close.type = 'button';
+  close.addEventListener('click', () => { box.remove(); $('aide-goal-list').querySelector(`[data-goal-id="${goalId}"] strong`)?.focus(); });
+  const row = el('div', 'aide-goal-hook-row');
+  row.append(link, copy, close);
+  box.append(
+    title,
+    el('p', '', 'POST to this link to wake the goal; the body becomes what woke it. it is shown only now, and anyone with it can wake this goal.'),
+    row,
+  );
+  $('aide-goal-list').prepend(box);
+  title.focus();
 }
 
 function action(label, name, goal, disabled = false) {
@@ -176,7 +245,9 @@ function row(goal) {
   if (failed) line.dataset.failed = 'true';
   main.append(name, line);
   const rhythm = EVERY.find(([key]) => key === goal.every)?.[1] || goal.every;
-  const facts = [`every ${rhythm}`, `${goal.checks} ${goal.checks === 1 ? 'check' : 'checks'}`];
+  const woken = goal.wake === 'mail' ? `wakes on new mail${goal.mail_filter ? ` with "${goal.mail_filter}"` : ''}`
+    : goal.wake === 'webhook' ? 'wakes on its webhook' : `every ${rhythm}`;
+  const facts = [woken, `${goal.checks} ${goal.checks === 1 ? 'check' : 'checks'}`];
   if (goal.enabled && goal.next_check_at) facts.push(`next ${when(goal.next_check_at)}`);
   if (goal.mode === 'act') facts.push('acts on its own');
   // one line of text, so a wrap never starts with a lone dot
@@ -200,6 +271,7 @@ function row(goal) {
     action('check now', 'run', goal, !goal.enabled || goal.running),
     action(goal.enabled ? 'pause' : 'resume', 'toggle', goal),
     action('edit', 'edit', goal),
+    ...(goal.wake === 'webhook' ? [action('new link', 'hook', goal)] : []),
     action('delete', 'delete', goal, goal.running),
   );
   item.append(main, badge, actions);
@@ -208,8 +280,8 @@ function row(goal) {
 
 function render() {
   const host = $('aide-goal-list');
-  const form = $('aide-goal-form');
-  host.replaceChildren(...(form ? [form] : []));
+  const kept = [$('aide-goal-hook'), $('aide-goal-form')].filter(Boolean);
+  host.replaceChildren(...kept);
   if (!goals.length) {
     const empty = el('div', 'aide-scheduled-empty');
     empty.append(
@@ -243,6 +315,15 @@ async function onAction(event) {
   if (name === 'answer') {
     // questions and approvals live with the run, in recent runs
     document.querySelector('[data-scheduled-tab="runs"]')?.click();
+    return;
+  }
+  if (name === 'hook') {
+    if (goal.has_hook && !await dlgConfirm('make a new webhook link? the old one stops working.', { confirmLabel: 'new link', danger: false })) return;
+    try {
+      const made = await send('POST', `/api/jarvis/aide-goals/${goal.id}/hook`);
+      await loadGoals();
+      showHook(goal.id, made.token);
+    } catch (error) { toast(error.message, 'error'); }
     return;
   }
   if (name === 'delete' && !await dlgConfirm(`delete the goal "${goal.name}"? its past checks stay in recent runs.`, { confirmLabel: 'delete' })) return;

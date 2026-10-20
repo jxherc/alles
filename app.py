@@ -464,9 +464,10 @@ def _register_jobs():
         finally:
             db.close()
         resume_queued()
-        from services.aide_goals import alert_waiting
+        from services.aide_goals import alert_waiting, check_mail
 
         await alert_waiting()
+        await check_mail()  # wakes "new mail" goals; polls at most once a minute
 
     async def _jarvis_outbox():
         from services.jarvis_outbox import process_outbox
@@ -847,6 +848,7 @@ async def lifespan(app: FastAPI):
     photo_backfill_task = None
     connectivity_task = None
     discord_task = None
+    photon_task = None
     try:
         init_db()
         if preflight:
@@ -1005,6 +1007,10 @@ async def lifespan(app: FastAPI):
         from services.jarvis_discord import run_forever as run_jarvis_discord
 
         discord_task = asyncio.create_task(run_jarvis_discord(), name="jarvis-discord")
+        from services.photon_channel import run_forever as run_photon
+
+        # imessage through photon; idles until it's turned on in settings
+        photon_task = asyncio.create_task(run_photon(), name="photon")
         connectivity_task = asyncio.create_task(
             _connectivity_selftest()
         )  # fire-and-forget, logs a warning if outbound is dead
@@ -1014,6 +1020,11 @@ async def lifespan(app: FastAPI):
         from services.pi_agent import close_all as close_pi_chats
 
         await close_pi_chats()
+        if photon_task is not None:
+            from services.photon_channel import restart as drop_photon
+
+            photon_task.cancel()
+            await drop_photon()
         if discord_task is not None:
             discord_task.cancel()
             try:
@@ -1167,6 +1178,7 @@ app.include_router(chat.router)
 app.include_router(sessions.router)
 app.include_router(aide_routes.router)
 app.include_router(aide_routes.bridge)
+app.include_router(jarvis_routes.hooks)
 app.include_router(aide_voice_routes.router)
 app.include_router(models.router)
 app.include_router(setup_routes.router)
@@ -1188,6 +1200,7 @@ from routes import timeline as timeline_routes  # noqa: E402
 app.include_router(notify_routes.router)
 app.include_router(shell_routes.router)
 app.include_router(mcp_routes.router)
+app.include_router(mcp_routes.public)
 app.include_router(notes_routes.router)
 app.include_router(tasks_routes.router)
 app.include_router(calendar_routes.router)

@@ -243,3 +243,84 @@ class GoalToolTest(GoalTest):
         self.assertEqual((clean, data["notes"]), ("hi", "n"))
         broken = "hi\n```goal\n{not json}\n```"
         self.assertEqual(aide_goals.read_tail(broken), (broken, {}))
+
+
+class GoalWakeTest(GoalTest):
+    def finish_first(self, goal_id):
+        # the first check runs on create; finish it so a wake can start a new one
+        self.run_goal(goal_id, reply("ok"))
+
+    def test_webhook_goals_wake_with_their_body_as_outside_data(self):
+        goal = self.add_goal(wake="webhook")
+        token = goal["hook_token"]
+        self.assertTrue(goal["has_hook"])
+        self.assertIsNone(goal["next_check_at"])  # no clock; only the hook wakes it
+        self.finish_first(goal["id"])
+        self.assertNotIn("hook_token", self.client.get("/api/jarvis/aide-goals").text)
+
+        path = f"/hooks/goal/{goal['id']}"
+        self.assertEqual(self.client.post(path, content="x").status_code, 404)
+        bad = self.client.post(path, content="x", headers={"authorization": "Bearer nope"})
+        self.assertEqual(bad.status_code, 404)
+        woke = self.client.post(
+            path, content="order 41 shipped", headers={"authorization": f"Bearer {token}"}
+        )
+        self.assertEqual(woke.json(), {"woken": True})
+        # a second call while that check is queued doesn't stack another
+        again = self.client.post(f"{path}?token={token}", content="dup")
+        self.assertEqual(again.json(), {"woken": False})
+
+        seen = []
+        self.run_goal(goal["id"], reply("noted"), seen=seen)
+        self.assertIn("what woke you", seen[0])
+        self.assertIn("order 41 shipped", seen[0])
+
+        fresh = self.client.post(f"/api/jarvis/aide-goals/{goal['id']}/hook").json()
+        self.assertNotEqual(fresh["token"], token)
+        stale = self.client.post(path, content="x", headers={"authorization": f"Bearer {token}"})
+        self.assertEqual(stale.status_code, 404)
+
+    def test_rhythm_goals_have_no_webhook(self):
+        goal = self.add_goal()
+        self.assertNotIn("hook_token", goal)
+        response = self.client.post(f"/hooks/goal/{goal['id']}?token=anything", content="x")
+        self.assertEqual(response.status_code, 404)
+
+    def test_mail_goals_wake_only_for_new_matching_mail(self):
+        from core.database import MailAccount
+
+        db = self.db()
+        db.add(MailAccount(id="acct1", email="me@example.test", imap_host="imap.example.test"))
+        db.commit()
+        db.close()
+        goal = self.add_goal(wake="mail", mail_filter="airline")
+        self.assertIsNone(goal["next_check_at"])
+        self.finish_first(goal["id"])
+
+        inbox = [{"uid": 5, "from": "old@example.test", "subject": "old"}]
+
+        def poll():
+            aide_goals._last_mail_poll = 0.0
+            with mock.patch("services.mail.fetch_inbox", side_effect=lambda *a: list(inbox)):
+                return asyncio.run(aide_goals.check_mail())
+
+        self.assertEqual(poll(), 0)  # the first look only marks where new starts
+        inbox.insert(0, {"uid": 6, "from": "shop@example.test", "subject": "sale"})
+        self.assertEqual(poll(), 0)  # new, but doesn't match the filter
+        inbox.insert(0, {"uid": 7, "from": "TAP Airline", "subject": "your fare dropped"})
+        self.assertEqual(poll(), 1)
+        self.assertEqual(poll(), 0)  # nothing newer
+
+        seen = []
+        self.run_goal(goal["id"], reply("noted"), seen=seen)
+        self.assertIn("new mail from TAP Airline: your fare dropped", seen[0])
+        self.assertNotIn("sale", seen[0])
+
+    def test_switching_back_to_rhythm_restores_the_clock(self):
+        goal = self.add_goal(wake="mail")
+        patched = self.client.patch(
+            f"/api/jarvis/aide-goals/{goal['id']}",
+            json={"aim": goal["aim"], "wake": "rhythm"},
+        ).json()
+        self.assertEqual(patched["wake"], "rhythm")
+        self.assertIsNotNone(patched["next_check_at"])

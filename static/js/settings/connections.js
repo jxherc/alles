@@ -168,16 +168,119 @@ export async function loadMcpServers(isCurrent = () => true) {
     const servers = await response.json();
     if (!current() || _mcpRemoving.size || _mcpAdding || _mcpPresetAdding.size) return;
     if (!servers.length) { el.innerHTML = '<div class="settings-row-empty">no servers</div>'; return; }
-    el.innerHTML = servers.map(s => `
+    el.innerHTML = servers.map(s => {
+      const meta = s.state === 'needs_sign_in' ? 'needs sign-in'
+        : s.state === 'error' ? (s.error || 'not connected')
+        : s.connected ? `${s.tools.length} tools` : 'not connected';
+      const signIn = s.state === 'needs_sign_in'
+        ? `<button class="act-btn" data-id="${s.id}" data-mcp-sign-in>sign in</button>` : '';
+      const signOut = s.signed_in ? `<button class="act-btn" data-id="${s.id}" data-mcp-sign-out>sign out</button>` : '';
+      return `
       <div class="settings-list-row">
         <span class="status-dot" style="background:${s.connected ? 'var(--green)' : 'var(--faint)'}"></span>
         <span class="row-name">${_esc(s.name)}</span>
-        <span class="row-meta">${s.tools.length} tools</span>
+        <span class="row-meta"${s.state === 'error' ? ' data-error="true"' : ''}>${_esc(meta)}</span>
+        ${signIn}${signOut}
         <button class="act-btn" data-id="${s.id}" onclick="window._rmMcp(this)">remove</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+    el.querySelectorAll('[data-mcp-sign-in]').forEach(b => b.onclick = () => _mcpSignIn(b));
+    el.querySelectorAll('[data-mcp-sign-out]').forEach(b => b.onclick = () => _mcpSignOut(b));
   } catch {
     if (current() && !_mcpRemoving.size && !_mcpAdding && !_mcpPresetAdding.size) el.innerHTML = '<div class="settings-row-empty">failed to load</div>';
   }
+}
+
+// sign-in for remote servers: the provider's page opens in a new tab and comes back to alles
+let _mcpSignInWatch = 0;
+async function _mcpSignIn(button) {
+  const tab = window.open('', '_blank');  // opened now so the popup blocker allows it
+  button.disabled = true;
+  try {
+    const response = await _fetchWithRecentOwner(`/api/mcp/servers/${button.dataset.id}/sign-in`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'could not start sign-in');
+    if (!data.url) { tab?.close(); toast(data.detail || 'already connected', 'success'); loadMcpServers(); return; }
+    if (tab) { tab.opener = null; tab.location = data.url; } else window.location.assign(data.url);
+    toast('finish signing in in the new tab', 'success');
+    clearInterval(_mcpSignInWatch);
+    let tries = 0;
+    _mcpSignInWatch = setInterval(async () => {
+      tries += 1;
+      const servers = await fetch('/api/mcp/servers').then(r => r.json()).catch(() => []);
+      const server = servers.find(s => s.id === button.dataset.id);
+      if (server?.connected || tries > 60) { clearInterval(_mcpSignInWatch); loadMcpServers(); }
+    }, 3000);
+  } catch (error) {
+    tab?.close();
+    toast(error.message, 'error');
+    button.disabled = false;
+  }
+}
+
+async function _mcpSignOut(button) {
+  button.disabled = true;
+  try {
+    const response = await _fetchWithRecentOwner(`/api/mcp/servers/${button.dataset.id}/sign-out`, { method: 'POST' });
+    if (!response.ok) throw new Error();
+  } catch { toast('could not sign out', 'error'); }
+  loadMcpServers();
+}
+
+// the official MCP registry: pick a server and its settings fill the form below
+let _mcpRegistryItems = [];
+async function _searchMcpRegistry() {
+  const input = document.getElementById('mcp-registry-q');
+  const box = document.getElementById('mcp-registry-results');
+  const button = document.getElementById('mcp-registry-go');
+  if (!input || !box) return;
+  button.disabled = true;
+  box.innerHTML = '<div class="settings-row-empty">searching the registry… it can take a few seconds</div>';
+  try {
+    const response = await fetch(`/api/mcp/registry?q=${encodeURIComponent(input.value.trim())}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'search failed');
+    _mcpRegistryItems = data.items || [];
+    if (!_mcpRegistryItems.length) { box.innerHTML = '<div class="settings-row-empty">nothing found</div>'; return; }
+    box.innerHTML = _mcpRegistryItems.map((item, i) => `
+      <div class="settings-list-row mcp-registry-row">
+        <span class="row-name">${_esc(item.name)}<span class="mcp-registry-desc">${_esc(item.description)}</span></span>
+        <span class="row-meta">${item.remotes.length ? 'remote' : 'local'}</span>
+        <button class="act-btn" data-mcp-use="${i}">use</button>
+      </div>`).join('');
+    box.querySelectorAll('[data-mcp-use]').forEach(b => b.onclick = () => _useMcpRegistry(_mcpRegistryItems[Number(b.dataset.mcpUse)]));
+  } catch (error) {
+    box.innerHTML = `<div class="settings-row-empty">${_esc(error.message || 'search failed')}</div>`;
+  } finally { button.disabled = false; }
+}
+
+function _useMcpRegistry(item) {
+  if (!item) return;
+  const set = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
+  set('mcp-name', item.name);
+  const remote = item.remotes[0], pkg = item.packages[0];
+  const advanced = document.querySelector('.mcp-advanced');
+  if (remote) {
+    set('mcp-transport', 'http');
+    set('mcp-url', remote.url);
+    set('mcp-command', '');
+    set('mcp-headers', remote.headers.map(h => `${h}=`).join('\n'));
+    set('mcp-env', '');
+    if (advanced) advanced.open = true;
+  } else if (pkg) {
+    set('mcp-transport', 'stdio');
+    set('mcp-url', '');
+    set('mcp-command', [pkg.command, ...pkg.args].join(' '));
+    set('mcp-env', pkg.env.map(e => `${e}=`).join('\n'));
+    set('mcp-headers', '');
+    if (advanced && pkg.env.length) advanced.open = true;
+  }
+  _mcpDraftRevision += 1;
+  const needs = remote ? remote.headers.length : pkg?.env.length;
+  toast(needs ? 'fill in the private values, then add server' : 'ready: press add server', 'success');
+  document.getElementById(needs ? (remote ? 'mcp-headers' : 'mcp-env') : 'mcp-add-btn')?.focus();
 }
 
 // 11a — macOS native integration status (available only on the Mac mini)
@@ -637,7 +740,11 @@ async function addMcpServer() {
       method: 'POST', headers: {'content-type':'application/json'},
       body: JSON.stringify({ name, transport, command: cmd, args, url, env, headers }),
     });
-    if (!response.ok) { toast('could not add mcp server', 'error'); return; }
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      toast(error.detail || 'could not add mcp server', 'error');
+      return;
+    }
     if (revision === _mcpDraftRevision) {
       document.getElementById('mcp-name').value = '';
       document.getElementById('mcp-command').value = '';
@@ -687,6 +794,8 @@ function _wireConnectionsPane() {
     _agentRootsRevision += 1;
   });
   document.getElementById('mcp-add-btn')?.addEventListener('click', addMcpServer);
+  document.getElementById('mcp-registry-go')?.addEventListener('click', _searchMcpRegistry);
+  document.getElementById('mcp-registry-q')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); _searchMcpRegistry(); } });
   document.getElementById('conn-rotate-key')?.addEventListener('click', rotateCredentialKey);
   document.getElementById('agent-status-refresh-btn')?.addEventListener('click', () => loadAgentStatus());
   document.getElementById('perm-rule-add-btn')?.addEventListener('click', _addPermRule);
@@ -771,11 +880,73 @@ async function _delPermRule(rule) {
 }
 
 
+// ── texting Aide over iMessage (photon) ──
+
+let _photonBound = false;
+let _photonEnabled = false;
+
+function _renderPhoton(data) {
+  _photonEnabled = !!data.enabled;
+  _setSwitch(document.getElementById('photon-enabled'), _photonEnabled);
+  const head = { ready: 'connected', connecting: 'connecting', installing: 'installing', error: 'problem', off: 'off' }[data.state] || data.state;
+  document.getElementById('photon-head-state').textContent = head;
+  const detail = document.getElementById('photon-detail');
+  if (data.state === 'error' && data.error) detail.textContent = data.error;
+  else if (data.state === 'ready') detail.textContent = `connected. ${data.handled || 0} handled${data.ignored ? `, ${data.ignored} from other senders ignored` : ''}.`;
+  const id = document.getElementById('photon-project-id');
+  if (document.activeElement !== id) id.value = data.project_id || '';
+  document.getElementById('photon-secret-note').textContent = data.has_secret ? 'saved; paste a new one to replace it' : 'encrypted and never shown again';
+  const owner = document.getElementById('photon-owner');
+  if (document.activeElement !== owner) owner.value = (data.owner_handles || []).join('\n');
+}
+
+async function _savePhoton(enabled) {
+  const button = document.getElementById('photon-save');
+  button.disabled = true;
+  try {
+    const response = await _fetchWithRecentOwner('/api/aide/channels/photon', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        enabled,
+        project_id: document.getElementById('photon-project-id').value.trim(),
+        project_secret: document.getElementById('photon-project-secret').value,
+        owner_handles: document.getElementById('photon-owner').value.split('\n').map(v => v.trim()).filter(Boolean),
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || data.detail || 'could not save');
+    document.getElementById('photon-project-secret').value = '';
+    _renderPhoton(data);
+    toast(enabled ? 'iMessage turned on' : 'saved');
+  } catch (error) {
+    _setSwitch(document.getElementById('photon-enabled'), _photonEnabled);
+    toast(error.message, 'error');
+  } finally { button.disabled = false; }
+}
+
+export async function loadPhoton(isCurrent = () => true) {
+  if (!document.getElementById('photon-card')) return;
+  if (!_photonBound) {
+    _photonBound = true;
+    document.getElementById('photon-save').addEventListener('click', () => _savePhoton(_photonEnabled));
+    document.getElementById('photon-enabled').addEventListener('click', () => _savePhoton(!_photonEnabled));
+  }
+  try {
+    const data = await fetch('/api/aide/channels/photon').then(r => (r.ok ? r.json() : Promise.reject()));
+    if (isCurrent()) _renderPhoton(data);
+  } catch {
+    if (isCurrent()) document.getElementById('photon-head-state').textContent = 'unavailable';
+  }
+}
+
+
 export const connectionsPane = createSettingsPane({
   init: _wireConnectionsPane,
   load: isCurrent => Promise.all([
     loadAgentStatus(isCurrent), loadMcpServers(isCurrent), loadConnections(isCurrent),
     loadDiscordConnection(isCurrent), loadPermRules(isCurrent), loadMacosStatus(isCurrent),
+    loadPhoton(isCurrent),
   ]),
   dispose() {
     for (const [name, generation] of _connectionLoads) _connectionLoads.set(name, generation + 1);

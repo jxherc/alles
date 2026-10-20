@@ -83,9 +83,25 @@ _HARNESS_ADDITIONS = {
 }
 
 
+# the imessage line, goal wake-ups and mcp sign-in plus registry search, added after harnesses
+_WAKE_AND_CONNECTOR_ADDITIONS = {
+    "GET /api/aide/channels/photon",
+    "PUT /api/aide/channels/photon",
+    "POST /api/jarvis/aide-goals/{workflow_id}/hook",
+    "POST /hooks/goal/{workflow_id}",
+    "GET /api/mcp/oauth/callback",
+    "GET /api/mcp/registry",
+    "POST /api/mcp/servers/{sid}/sign-in",
+    "POST /api/mcp/servers/{sid}/sign-out",
+    "GET /oauth/mcp-client.json",
+}
+
+
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
-    later = _PI_CODE_ADDITIONS | _GOAL_ADDITIONS | _HARNESS_ADDITIONS
+    later = (
+        _PI_CODE_ADDITIONS | _GOAL_ADDITIONS | _HARNESS_ADDITIONS | _WAKE_AND_CONNECTOR_ADDITIONS
+    )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
 
@@ -203,10 +219,19 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_goal_routes_are_additive(self):
         current = set(_current_rows())
         self.assertTrue(_GOAL_ADDITIONS <= current)
-        self.assertEqual(len(current - _HARNESS_ADDITIONS), 960)
+        self.assertEqual(len(current - _HARNESS_ADDITIONS - _WAKE_AND_CONNECTOR_ADDITIONS), 960)
 
     def test_harness_routes_are_additive(self):
         self.assertTrue(_HARNESS_ADDITIONS <= set(_current_rows()))
+
+    def test_wake_and_connector_routes_are_additive(self):
+        current = set(_current_rows())
+        self.assertTrue(_WAKE_AND_CONNECTOR_ADDITIONS <= current)
+        # the only two new routes outside /api: a goal's own webhook and the oauth client document
+        public = {
+            r for r in _WAKE_AND_CONNECTOR_ADDITIONS if not r.split(" ", 1)[1].startswith("/api/")
+        }
+        self.assertEqual(public, {"POST /hooks/goal/{workflow_id}", "GET /oauth/mcp-client.json"})
 
     def test_pi_code_routes_replace_the_dsh_bridge(self):
         current = set(_current_rows())
@@ -217,8 +242,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 965)
-        self.assertEqual(digest, "305e4610dfb21cd3370b9f5b7a550e722fb3195d062f31189c601725de1d5b3c")
+        self.assertEqual(len(rows), 974)
+        self.assertEqual(digest, "fa6043949dd5557d86c71fd1740313a9ef337ccde5bf45cad9bf63e805f0efb4")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -227,7 +252,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 946, "v1": 2, "public": 17})
+        self.assertEqual(groups, {"api": 953, "v1": 2, "public": 19})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

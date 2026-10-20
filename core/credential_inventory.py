@@ -34,6 +34,7 @@ SETTING_CREDENTIAL_KEYS = (
     "google_pse_api_key",
     "mail_oauth_client_secret",
     "notify_discord_webhook",
+    "photon_project_secret",
     "notify_telegram_chat_id",
     "notify_telegram_token",
     "openai_api_key",

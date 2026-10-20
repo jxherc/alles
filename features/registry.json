@@ -141,10 +141,13 @@
       "aide_tools": [
         "apply_patch",
         "bash",
+        "browse_back",
         "browse_click",
         "browse_open",
         "browse_read",
         "browse_screenshot",
+        "browse_scroll",
+        "browse_select",
         "browse_type",
         "code_symbols",
         "computer_click",

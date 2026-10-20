@@ -5790,6 +5790,25 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .aide-goal-memory summary::-webkit-details-marker { display: none; }
 .aide-goal-memory summary::after { content: '⌄'; margin-left: 4px; }
 .aide-goal-memory[open] summary::after { content: '⌃'; }
+.aide-goal-note { margin: 0; color: var(--muted); font-size: 0.75rem; line-height: 1.45; align-self: center; }
+.aide-goal-form [hidden] { display: none; }
+.aide-goal-hook {
+  box-sizing: border-box; margin-top: 24px; padding: 20px; border: 1px solid var(--faint);
+  border-radius: 4px; background: color-mix(in srgb, var(--panel) 48%, transparent);
+}
+.aide-goal-hook strong { color: var(--text); font-size: 0.9rem; font-weight: 600; outline: 0; }
+.aide-goal-hook p { margin: 6px 0 14px; color: var(--muted); font-size: 0.78rem; line-height: 1.45; max-width: 68ch; }
+.aide-goal-hook-row { display: flex; gap: 8px; align-items: center; }
+.aide-goal-hook-row input {
+  flex: 1; min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--faint);
+  border-radius: 3px; background: transparent; color: var(--text); font-size: 0.75rem;
+}
+.aide-goal-hook-row button {
+  appearance: none; min-height: 44px; padding: 0 12px; border: 1px solid var(--muted); border-radius: 3px;
+  background: transparent; color: var(--text); font: inherit; font-size: 0.76rem; cursor: pointer;
+}
+.aide-goal-hook-row button:hover { background: var(--k-raised, var(--panel)); }
+.aide-goal-hook-row button:focus-visible, .aide-goal-hook-row input:focus-visible { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
 .aide-goal-memory summary:hover, .aide-goal-memory summary:focus-visible { color: var(--text); outline: 0; }
 .aide-goal-memory p { margin: 0 0 8px; color: var(--soft); font-size: 0.78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 68ch; }
 .aide-goal-memory .aide-goal-last-label { margin-top: 12px; color: var(--muted); font-size: 0.75rem; }
@@ -7884,6 +7903,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .persona-docs { display: flex; flex-direction: column; gap: 0.3rem; }
 .persona-doc-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; padding: 0.2rem 0; }
 .mcp-presets { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.mcp-registry-search { display: flex; gap: 0.4rem; }
+.mcp-registry-search input { flex: 1; min-width: 0; }
+.mcp-registry-results { margin-top: 0.45rem; max-height: 320px; overflow-y: auto; }
+.mcp-registry-row .row-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mcp-registry-desc { color: var(--muted); font-size: 0.75rem; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+#mcp-server-list .row-meta[data-error="true"] { color: var(--error); white-space: normal; }
 .mcp-preset { font-size: 0.75rem; }
 .mcp-advanced { margin: 0.55rem 0; color: var(--muted); font-size: 0.75rem; }
 .mcp-advanced > summary { cursor: pointer; margin-bottom: 0.55rem; }
