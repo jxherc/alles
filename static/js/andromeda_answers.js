@@ -273,6 +273,39 @@ function currencyTool(data, ctx) {
 // ── weather ──
 const toF = celsius => celsius * 9 / 5 + 32;
 
+// one small mark per kind of sky, in the color people already read it by: amber sun, blue rain,
+// grey cloud. the words stay next to it, so color is never the only clue
+const SKY_MARKS = {
+  sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M5.3 18.7 7 17M17 7l1.7-1.7"/>',
+  cloud: '<path d="M7 18h10.2a4 4 0 0 0 .5-8A5.6 5.6 0 0 0 6.9 9.4 4.3 4.3 0 0 0 7 18z"/>',
+  rain: '<path d="M7 14h10.2a3.6 3.6 0 0 0 .5-7.2A5.2 5.2 0 0 0 7.6 6.3 3.9 3.9 0 0 0 7 14z"/><path d="M8.5 17.5 7.5 20M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/>',
+  snow: '<path d="M7 14h10.2a3.6 3.6 0 0 0 .5-7.2A5.2 5.2 0 0 0 7.6 6.3 3.9 3.9 0 0 0 7 14z"/><path d="M8 18.5h.01M12 20h.01M16 18.5h.01"/>',
+  storm: '<path d="M7 14h10.2a3.6 3.6 0 0 0 .5-7.2A5.2 5.2 0 0 0 7.6 6.3 3.9 3.9 0 0 0 7 14z"/><path d="m12.5 14-2 3.5h3l-2 3.5"/>',
+  fog: '<path d="M4 9h16M6 13h12M4 17h16"/>',
+};
+export function skyKind(sky = '') {
+  const text = String(sky).toLowerCase();
+  if (/thunder/.test(text)) return 'storm';
+  if (/snow/.test(text)) return 'snow';
+  if (/rain|drizzle|shower/.test(text)) return 'rain';
+  if (/fog/.test(text)) return 'fog';
+  if (/partly|mostly clear/.test(text)) return 'partly';
+  if (/clear/.test(text)) return 'sun';
+  return text ? 'cloud' : '';
+}
+function skyMark(sky) {
+  const kind = skyKind(sky);
+  if (!kind) return null;
+  const mark = make('span', 'andromeda-sky-mark');
+  mark.dataset.sky = kind;
+  mark.setAttribute('aria-hidden', 'true');
+  const parts = kind === 'partly'
+    ? `<g class="is-sun" transform="translate(-1 -2) scale(.72)">${SKY_MARKS.sun}</g><g class="is-cloud">${SKY_MARKS.cloud}</g>`
+    : SKY_MARKS[kind];
+  mark.innerHTML = `<svg viewBox="0 0 24 24">${parts}</svg>`;
+  return mark;
+}
+
 function weatherTool(data, ctx) {
   const look = place => ctx.swap(() => ctx.ask(`weather ${place}`, 'weather'));
   const again = lookup('place for the weather', 'show weather', look, { placeholder: data.status === 'ok' ? 'another place' : 'a city or town' });
@@ -291,6 +324,8 @@ function weatherTool(data, ctx) {
     const degrees = value => (value == null ? '–' : `${Math.round(unit === 'f' ? toF(value) : value)}°`);
     const main = bigLine(data.place, `${degrees(data.temperature)}${unit.toUpperCase()}`, data.sky);
     const head = make('div', 'andromeda-weather-head');
+    const now = skyMark(data.sky);
+    if (now) { now.classList.add('is-now'); main.querySelector('.andromeda-answer-value')?.prepend(now); }
     head.append(main, units);
     const detail = make('p', 'andromeda-answer-detail', [
       data.feels_like != null ? `feels like ${degrees(data.feels_like)}` : '',
@@ -300,11 +335,14 @@ function weatherTool(data, ctx) {
     const days = make('ol', 'andromeda-weather-days');
     for (const day of data.days || []) {
       const item = make('li');
-      item.append(
-        make('span', 'andromeda-weather-day', formatCalendarDate(day.date, { weekday: 'short' })),
-        make('span', 'andromeda-weather-temps', `${degrees(day.high)} / ${degrees(day.low)}`),
-        make('span', 'andromeda-weather-sky', [day.sky, day.rain != null && day.rain >= 20 ? `${day.rain}% rain` : ''].filter(Boolean).join(' · ')),
-      );
+      const name = make('span', 'andromeda-weather-day', formatCalendarDate(day.date, { weekday: 'short' }));
+      const mark = skyMark(day.sky);
+      if (mark) name.append(mark);
+      const sky = make('span', 'andromeda-weather-sky', day.sky || '');
+      if (day.rain != null && day.rain >= 20) {
+        sky.append(day.sky ? ' · ' : '', make('span', 'andromeda-weather-rain', `${day.rain}% rain`));
+      }
+      item.append(name, make('span', 'andromeda-weather-temps', `${degrees(day.high)} / ${degrees(day.low)}`), sky);
       days.append(item);
     }
     host.replaceChildren(head, detail, days);
@@ -484,6 +522,12 @@ function countdownText(ms) {
 
 const raceTime = iso => `${formatDate(iso, { weekday: 'short', month: 'short', day: 'numeric' })}, ${formatTime(iso, { hour: 'numeric', minute: '2-digit' })}`;
 
+// broadcast team colors by jolpica constructor id. a team missing here just gets no bar
+const TEAM_COLORS = {
+  mclaren: '#ff8000', ferrari: '#e8002d', red_bull: '#3671c6', mercedes: '#27f4d2', aston_martin: '#229971',
+  alpine: '#ff87bc', williams: '#64c4ff', rb: '#6692ff', haas: '#b6babd', sauber: '#52e252',
+};
+
 function table(caption, columns, rows) {
   const node = make('table', 'andromeda-f1-table');
   node.append(make('caption', 'sr-only', caption));
@@ -501,6 +545,14 @@ function table(caption, columns, rows) {
     columns.forEach((column, index) => {
       const cell = make(index === 1 ? 'th' : 'td', column.className || '', String(row[column.key] ?? ''));
       if (index === 1) cell.scope = 'row';
+      // the team's own color as a thin bar before its name, the way f1 graphics show it
+      // (an unknown team keeps the space, so the names still line up)
+      if (column.team) {
+        const mark = make('i', 'andromeda-f1-team-mark');
+        mark.setAttribute('aria-hidden', 'true');
+        if (TEAM_COLORS[row.team_id]) mark.style.setProperty('--team', TEAM_COLORS[row.team_id]);
+        cell.prepend(mark);
+      }
       tr.append(cell);
     });
     body.append(tr);
@@ -540,18 +592,18 @@ function f1Tool(data, ctx) {
       ];
     },
     drivers: () => (data.drivers ? [table(`driver standings after round ${data.after_round}`, [
-      { key: 'position', label: 'pos', className: 'is-num' }, { key: 'name', label: 'driver' }, { key: 'team', label: 'team', className: 'is-team' },
+      { key: 'position', label: 'pos', className: 'is-num' }, { key: 'name', label: 'driver' }, { key: 'team', label: 'team', className: 'is-team', team: true },
       { key: 'wins', label: 'wins', className: 'is-num' }, { key: 'points', label: 'pts', className: 'is-num' },
     ], data.drivers)] : [missing('driver standings')]),
     teams: () => (data.teams ? [table('constructor standings', [
-      { key: 'position', label: 'pos', className: 'is-num' }, { key: 'name', label: 'team' },
+      { key: 'position', label: 'pos', className: 'is-num' }, { key: 'name', label: 'team', team: true },
       { key: 'wins', label: 'wins', className: 'is-num' }, { key: 'points', label: 'pts', className: 'is-num' },
     ], data.teams)] : [missing('constructor standings')]),
     results: () => (data.last?.results ? [
       make('p', 'andromeda-answer-label', `round ${data.last.round} · ${formatDate(data.last.start, { month: 'long', day: 'numeric' })}`),
       make('p', 'andromeda-f1-race', data.last.name),
       table(`${data.last.name} results`, [
-        { key: 'position', label: 'pos', className: 'is-num' }, { key: 'name', label: 'driver' }, { key: 'team', label: 'team', className: 'is-team' },
+        { key: 'position', label: 'pos', className: 'is-num' }, { key: 'name', label: 'driver' }, { key: 'team', label: 'team', className: 'is-team', team: true },
         { key: 'time', label: 'time' }, { key: 'points', label: 'pts', className: 'is-num' },
       ], data.last.results),
     ] : [missing('the last results')]),

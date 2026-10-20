@@ -8,6 +8,23 @@ import { calendarDateKey, formatCalendarDate, formatDate, formatNumber } from '.
 import { createFocusBoundary } from './kokuen.js?v=1';
 import { bankRequest as _ownerFetch, openPlaidLink } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
+import { assignHues, categoryHue } from './color.js';
+
+// one hue per category for everything on screen: the chart's categories pick first so its bars
+// never share a color, then caps and transactions
+let _hueFrom = [], _hues = new Map();
+function hueOf(name) {
+  const from = [_sum, _budgets, _txns, _searchResults];
+  if (from.some((part, at) => part !== _hueFrom[at])) {
+    _hueFrom = from;
+    _hues = assignHues(
+      (_sum?.by_category || []).slice(0, 8).map(row => row[0]),
+      [..._budgets.map(b => b.category), ..._txns.map(t => t.category), ...(_searchResults || []).map(t => t.category)],
+    );
+  }
+  return _hues.get(String(name || '').trim().toLowerCase()) || categoryHue(name);
+}
+const catDot = name => `<i class="cat-dot" style="--cat:var(--cat-${hueOf(name)})" aria-hidden="true"></i>`;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1098,7 +1115,7 @@ function catChart() {
   return `<div class="cat-chart">` + cats.map(([name, amt]) => `
     <div class="cat-row">
       <span class="cat-name">${esc(name)}</span>
-      <div class="cat-bar-wrap"><div class="cat-bar" style="width:${Math.max(3, amt / max * 100)}%"></div></div>
+      <div class="cat-bar-wrap"><div class="cat-bar" style="width:${Math.max(3, amt / max * 100)}%;--cat:var(--cat-${hueOf(name)})"></div></div>
       <span class="cat-amt">${fmt(amt)}</span>
     </div>`).join('') + `</div>`;
 }
@@ -1181,10 +1198,10 @@ function budgetsList() {
     const pct = b.limit_amt > 0 ? Math.min(100, spent / b.limit_amt * 100) : 0;
     const over = b.limit_amt > 0 && spent > b.limit_amt;
     return `<div class="budget-row" data-id="${b.id}">
-      <div class="bg-head"><span class="bg-cat">${esc(b.category)}</span>
+      <div class="bg-head"><span class="bg-cat">${catDot(b.category)}${esc(b.category)}</span>
         <span class="bg-nums ${over ? 'over' : ''}">${fmt(spent)} / ${fmt(b.limit_amt)}</span>
         <button class="bg-del" data-del-budget="${b.id}" aria-label="remove spending cap for ${esc(b.category)}" title="remove">×</button></div>
-      <div class="bg-bar-wrap"><div class="bg-bar ${over ? 'over' : ''}" style="width:${pct}%"></div></div>
+      <div class="bg-bar-wrap"><div class="bg-bar ${over ? 'over' : ''}" style="width:${pct}%;--cat:var(--cat-${hueOf(b.category)})"></div></div>
     </div>`;
   }).join('') + `</div>`;
 }
@@ -1389,7 +1406,7 @@ function _renderTxnMain(t, an) {
     <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${t.id}">
       <span class="tx-date">${(t.date || '').slice(5)}</span>
       <span class="tx-payee">${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
-      <span class="tx-cat">${xf ? '⇄ transfer' : (t.category ? esc(t.category) : '')}</span>
+      <span class="tx-cat">${xf ? '⇄ transfer' : (t.category ? `${catDot(t.category)}${esc(t.category)}` : '')}</span>
       ${xf ? '' : `<span class="tx-tags">${tags}</span>`}
       <span class="tx-acct">${esc(an[t.account_id] || '')}</span>
       <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount, currency)}</span>

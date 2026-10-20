@@ -1073,7 +1073,7 @@
   {
     "rule": "small-type",
     "message": "font-size 12px is below the 14px essential-text baseline in body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-links a",
-    "css_block_sha256": "8757f44a2cd97941061adcf673da727921676d9c343ca30a5ccebcd272064741",
+    "css_block_sha256": "24c4cd8f9e0278a51c6ab5d5eab7f485df089bb77ab503da90301bd5b2dafe84",
     "path": "static/kokuen.css",
     "selector": "body.afterlife-aide-projects[data-space=\"aide\"] .news-digest-links a",
     "job": "compact-control-label",

@@ -45,6 +45,11 @@
   --k-permission: var(--signal, #d5a265);
   --k-danger: var(--error, #df7474);
   --k-success: var(--green, #7ea98b);
+  --k-warning: var(--signal, #d5a265);
+  --k-info: var(--info, #8ab4f8);
+  --k-link: var(--link, #8ab4f8);
+  --k-link-visited: var(--link-visited, #c58af9);
+  --k-ai: var(--ai, var(--k-accent));
 
   --k-space-0: 0;
   --k-space-1: 4px;
@@ -5560,12 +5565,12 @@ body.afterlife-aide-projects[data-space="aide"] .news-digest-links a {
   display: inline-flex;
   align-items: center;
   min-height: var(--k-control);
-  color: var(--k-soft);
+  color: var(--k-link);
   font-size: 12px;
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-digest-links a:hover {
-  color: var(--k-text);
+  text-decoration: underline;
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-digest-warning,

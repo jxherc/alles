@@ -21,10 +21,19 @@ Machine-readable values live in `tokens/`. This document explains how to use the
 | permission | `#d5a265` | `#906323` | full-access or authority state |
 | danger | `#df7474` | `#a64242` | failure or destructive action |
 | success | `#7ea98b` | `#437650` | confirmed success only |
+| link | `#8ab4f8` | `#1a0dab` | anything that opens a page: result titles, links in written content |
+| visited link | `#c58af9` | `#681da8` | a link already opened |
+| ai | active | active | the ai spark, the highlighted answer, ai at work |
+| info | link | link | neutral notices |
+| categorical | blue `#6fa3f2`, teal `#45b8ac`, amber `#d6a440`, pink `#e07aae`, violet `#a98bf0`, green `#86b86a` | `#2b5bb5`, `#0d6e65`, `#865700`, `#a6386f`, `#6e4cc2`, `#3a6b22` | telling data apart: money categories, chart series, weather marks |
 
 The server system monitor holds a scoped palette exception for its meter and glyph colors; see `decisions/0010-server-monitor-aesthetic.md`.
 
 At runtime the focus ring renders brighter than the strong-line value above (a faint/text mix): at the documented values the ring falls under the 3:1 non-text contrast that WCAG 2.4.11 asks of focus indicators, so visibility wins over token purity.
+
+Color says what a thing is or does, never decorates. Grey stays the base; see
+`decisions/0034-color-with-meaning.md`. Runtime names: `--link`, `--link-visited`, `--ai`,
+`--info`, `--success`, `--warning`, `--danger`, `--cat-blue` … `--cat-green` (and `--k-*` twins).
 
 Never rely on color alone. Text, position, icon shape, or state wording must carry the same meaning.
 

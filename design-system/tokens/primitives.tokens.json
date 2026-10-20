@@ -33,7 +33,23 @@
       "dangerDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.87451, 0.454902, 0.454902], "alpha": 1 } },
       "dangerLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.65098, 0.258824, 0.258824], "alpha": 1 } },
       "successDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.494118, 0.662745, 0.545098], "alpha": 1 } },
-      "successLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.262745, 0.462745, 0.313725], "alpha": 1 } }
+      "successLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.262745, 0.462745, 0.313725], "alpha": 1 } },
+      "linkDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.541176, 0.705882, 0.972549], "alpha": 1 } },
+      "linkLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.101961, 0.05098, 0.670588], "alpha": 1 } },
+      "linkVisitedDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.772549, 0.541176, 0.976471], "alpha": 1 } },
+      "linkVisitedLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.407843, 0.113725, 0.658824], "alpha": 1 } },
+      "catBlueDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.435294, 0.639216, 0.94902], "alpha": 1 } },
+      "catTealDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.270588, 0.721569, 0.67451], "alpha": 1 } },
+      "catAmberDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.839216, 0.643137, 0.25098], "alpha": 1 } },
+      "catPinkDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.878431, 0.478431, 0.682353], "alpha": 1 } },
+      "catVioletDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.662745, 0.545098, 0.941176], "alpha": 1 } },
+      "catGreenDark": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.52549, 0.721569, 0.415686], "alpha": 1 } },
+      "catBlueLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.168627, 0.356863, 0.709804], "alpha": 1 } },
+      "catTealLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.05098, 0.431373, 0.396078], "alpha": 1 } },
+      "catAmberLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.52549, 0.341176, 0], "alpha": 1 } },
+      "catPinkLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.65098, 0.219608, 0.435294], "alpha": 1 } },
+      "catVioletLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.431373, 0.298039, 0.760784], "alpha": 1 } },
+      "catGreenLight": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0.227451, 0.419608, 0.133333], "alpha": 1 } }
     }
   },
   "space": {

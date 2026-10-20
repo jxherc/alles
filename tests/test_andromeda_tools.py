@@ -318,7 +318,9 @@ def _f1_reply(url):
                                         "familyName": "Antonelli",
                                         "code": "ANT",
                                     },
-                                    "Constructors": [{"name": "Mercedes"}],
+                                    "Constructors": [
+                                        {"name": "Mercedes", "constructorId": "mercedes"}
+                                    ],
                                 }
                             ],
                         }
@@ -366,6 +368,8 @@ class F1Test(ApiTest):
             (card["status"], card["season"], card["after_round"]), ("ok", "2026", "17")
         )
         self.assertEqual(card["drivers"][0]["name"], "Andrea Kimi Antonelli")
+        # the card colors each team by this id
+        self.assertEqual(card["drivers"][0]["team_id"], "mercedes")
         self.assertIn("teams", card["missing"])
         race = card["schedule"][0]
         self.assertEqual((race["start"], race["place"]), ("2026-10-25T20:00:00Z", "Austin, USA"))

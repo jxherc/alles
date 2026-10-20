@@ -36,6 +36,21 @@
   --green:  #7ea98b;
   --signal: #d5a265;
   --warn:   var(--signal);
+  /* color with meaning, google style: blue is a link, the accent marks ai, status keeps its own
+     hue, and six categorical hues tell data apart. everything else stays grey */
+  --link:   #8ab4f8;
+  --link-visited: #c58af9;
+  --ai:     var(--accent);
+  --info:   var(--link);
+  --success: var(--green);
+  --warning: var(--signal);
+  --danger: var(--error);
+  --cat-blue:   #6fa3f2;
+  --cat-teal:   #45b8ac;
+  --cat-amber:  #d6a440;
+  --cat-pink:   #e07aae;
+  --cat-violet: #a98bf0;
+  --cat-green:  #86b86a;
 }
 [data-theme="light"] {
   color-scheme: light;
@@ -53,6 +68,14 @@
   --signal: #906323;
   --error: #a64242;
   --green: #437650;
+  --link: #1a0dab;
+  --link-visited: #681da8;
+  --cat-blue:   #2b5bb5;
+  --cat-teal:   #0d6e65;
+  --cat-amber:  #865700;
+  --cat-pink:   #a6386f;
+  --cat-violet: #6e4cc2;
+  --cat-green:  #3a6b22;
   /* more ink than the dark mix so the ring clears WCAG 2.4.11 (3:1) on --bg */
   --focus:  color-mix(in srgb, var(--faint) 45%, var(--text) 55%);
 }
@@ -891,7 +914,7 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
 .aide-background-actions button:focus-visible { color: var(--text); outline: 0; }
 .aide-background-actions button:disabled { opacity: 0.45; cursor: default; }
 /* shimmer the label while actively reasoning */
-.thinking-block.thinking-live { border-left-color: var(--accent); }
+.thinking-block.thinking-live { border-left-color: var(--ai); }
 .thinking-block.thinking-live .think-label {
   background: linear-gradient(90deg, var(--muted) 30%, var(--text) 50%, var(--muted) 70%);
   background-size: 200% 100%;
@@ -963,7 +986,7 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 .run-row-head { display: flex; align-items: center; gap: 0.45rem; font-size: 0.75rem; }
 .run-status { font-size: 0.78rem; }
 .run-status.run-done { color: var(--green); }
-.run-status.run-running { color: var(--accent); }
+.run-status.run-running { color: var(--ai); }
 .run-status.run-error, .run-status.run-turn_limit { color: var(--error); }
 .run-status.run-interrupted, .run-status.run-stopped { color: var(--muted); }
 .run-model { color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2464,6 +2487,9 @@ body.is-aide.is-incognito .incognito-bar {
 }
 .toast.success { border-color: var(--green); color: var(--green); }
 .toast.error { border-color: var(--error); color: var(--error); }
+.toast.info { border-color: var(--info); color: var(--info); }
+/* the sparkle on an ai action is the one colored part of the button: it says ai does this */
+:is(#mc-suggest, #jrnl-reflect, #photos-smart-btn) svg.ic { color: var(--ai); }
 .context-handoff-error {
   display: flex; align-items: center; gap: 0.75rem; cursor: default;
 }
@@ -3835,7 +3861,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-terminal .xterm-viewport {
 .file-row { position: relative; }
 
 .c-red { color: var(--error); } .c-orange { color: var(--signal); } .c-green { color: var(--green); }
-.c-blue { color: color-mix(in srgb, var(--accent) 55%, var(--text)); } .c-purple { color: var(--accent); } .c-gray { color: var(--muted); }
+.c-blue { color: var(--cat-blue); } .c-purple { color: var(--cat-violet); } .c-gray { color: var(--muted); }
 
 body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .files-preview-card { width: min(720px, 92vw); max-height: 86vh; display: flex; flex-direction: column; }
@@ -4093,7 +4119,7 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 /* 7b places map — fill the body, on-theme tiles + controls */
 .photos-mapview { width: 100%; height: 72vh; min-height: 360px; border: 1px solid var(--faint); border-radius: 3px; background: var(--panel); }
 .photos-mapview .leaflet-control-attribution { background: rgba(10,10,10,0.7); color: var(--muted); }
-.photos-mapview .leaflet-control-attribution a { color: var(--accent); }
+.photos-mapview .leaflet-control-attribution a { color: var(--link); }
 .photos-mapview .leaflet-bar a { background: var(--panel); color: var(--text); border-color: var(--faint); }
 .photos-mapview .leaflet-bar a:hover { background: var(--faint); }
 /* 7c video cells — poster frame + play badge */
@@ -4913,7 +4939,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .skl-empty { font-size: 0.75rem; color: var(--muted); padding: 0.6rem 0.2rem; }
 .skl-status { font-size: 0.75rem; color: var(--green); }
 .skl-source { margin-top: 0.5rem; font-size: 0.75rem; color: var(--muted); word-break: break-all; }
-.skl-source a { color: var(--accent); text-decoration: none; }
+.skl-source a { color: var(--link); text-decoration: none; }
 .skl-source a:hover { text-decoration: underline; }
 /* rank surface */
 .skl-rankhint { grid-column: 1 / -1; font-size: 0.75rem; color: var(--muted); padding: 0 0 0.15rem; }
@@ -4963,7 +4989,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .cb-head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--muted); }
 .cb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cb-name a { color: var(--text); text-decoration: none; }
-.cb-name a:hover { color: var(--accent); }
+.cb-name a:hover { color: var(--link); }
 .cb-mono { font-family: var(--mono, monospace); font-size: 0.75rem; color: var(--muted); }
 .cb-tag { font-size: 0.75rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0 0.25rem; }
 .cb-tag.cb-inst { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
@@ -5030,7 +5056,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .cat-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; }
 :where(#money-view) .cat-name { width: 80px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :where(#money-view) .cat-bar-wrap { flex: 1; height: 8px; background: var(--bg); border-radius: 3px; overflow: hidden; }
-:where(#money-view) .cat-bar { height: 100%; background: var(--accent); border-radius: 3px; }
+:where(#money-view) .cat-bar { height: 100%; background: var(--cat, var(--muted)); border-radius: 3px; }
 :where(#money-view) .cat-amt { width: 72px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 :where(#money-view) .trend-svg { width: 100%; height: 110px; display: block; }
@@ -5044,12 +5070,14 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .budgets { display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 0.6rem; }
 :where(#money-view) .budget-row .bg-head { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; margin-bottom: 0.25rem; }
 :where(#money-view) .bg-cat { flex: 1; color: var(--text); }
+/* one stable hue per category, the same in the chart, the caps and the transactions */
+:where(#money-view) .cat-dot { display: inline-block; width: 8px; height: 8px; margin-inline-end: 6px; border-radius: 50%; background: var(--cat); vertical-align: 0.02em; }
 :where(#money-view) .bg-nums { color: var(--muted); font-variant-numeric: tabular-nums; }
 :where(#money-view) .bg-nums.over { color: var(--error); }
 :where(#money-view) .bg-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; }
 :where(#money-view) .bg-del:hover { color: var(--error); }
 :where(#money-view) .bg-bar-wrap { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
-:where(#money-view) .bg-bar { height: 100%; background: var(--accent); border-radius: 3px; }
+:where(#money-view) .bg-bar { height: 100%; background: var(--cat, var(--muted)); border-radius: 3px; }
 :where(#money-view) .bg-bar.over { background: var(--error); }
 :where(#money-view) .budget-form, :where(#money-view) .acct-form { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
 :where(#money-view) .acct-form { margin-bottom: 0.4rem; }
@@ -6022,7 +6050,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cd-field { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.75rem; color: var(--muted); }
 .cd-field span { font-size: 0.75rem; }
 .cd-field:last-child { grid-column: 1 / -1; }
-.contact-map { display: inline-block; margin-top: 0.5rem; color: var(--accent); text-decoration: none; font-size: 0.78rem; }
+.contact-map { display: inline-block; margin-top: 0.5rem; color: var(--link); text-decoration: none; font-size: 0.78rem; }
 .cd-section-title { font-size: 0.75rem; color: var(--muted); margin: 1rem 0 0.4rem; }
 .cd-field-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.25rem 0; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
 .cd-field-kind { color: var(--muted); font-size: 0.75rem; width: 130px; flex-shrink: 0; }
@@ -6927,7 +6955,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .aide-run { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); font-size: 0.75rem; padding: 0.3rem 1.1rem; min-width: 0; }
 .aide-run > span:nth-child(2) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aide-run small { color: var(--muted); font-size: 0.75rem; }
-.aide-run[data-state="running"] .session-dot { background: var(--accent); animation: live-pulse 2s ease-in-out infinite; }
+.aide-run[data-state="running"] .session-dot { background: var(--ai); animation: live-pulse 2s ease-in-out infinite; }
 .project-folder.drag-over { background: color-mix(in srgb, var(--accent) 16%, transparent); outline: 1px dashed var(--accent); outline-offset: -1px; border-radius: 3px; }
 .aide-session-section.drag-over { background: color-mix(in srgb, var(--accent) 12%, transparent); outline: 1px dashed var(--accent); outline-offset: -1px; }
 /* project workspace page */
@@ -7440,8 +7468,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 /* break long unbreakable tokens/urls so they wrap instead of overflowing the
    message off the right edge (bad on mobile — caused horizontal scroll) */
 .wiki-preview, .ai-content, .md-embed-body { overflow-wrap: anywhere; }
-.wiki-preview a, .ai-content a, .md-embed-body a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
-.wiki-preview a:hover, .ai-content a:hover, .md-embed-body a:hover { border-bottom-color: var(--accent); }
+/* links inside written content are link blue everywhere, visited purple, like the web */
+:is(.wiki-preview, .ai-content, .md-embed-body, .acw-msg, .artifact-content, .compare-body, .jrnl-reflection, .read-empty) a[href] {
+  color: var(--link); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--link) 40%, transparent);
+}
+:is(.wiki-preview, .ai-content, .md-embed-body, .acw-msg, .artifact-content, .compare-body, .jrnl-reflection, .read-empty) a[href]:visited { color: var(--link-visited); border-bottom-color: color-mix(in srgb, var(--link-visited) 40%, transparent); }
+:is(.wiki-preview, .ai-content, .md-embed-body, .acw-msg, .artifact-content, .compare-body, .jrnl-reflection, .read-empty) a[href]:hover { border-bottom-color: currentColor; }
 .wiki-preview mark, .ai-content mark, .md-embed-body mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: var(--text); padding: 0 0.15em; border-radius: 3px; }
 .wiki-preview del, .ai-content del, .md-embed-body del { color: var(--muted); }
 .wiki-preview blockquote, .ai-content blockquote, .md-embed-body blockquote { border-left: 2px solid var(--accent); padding: 0.15rem 0 0.15rem 0.85rem; margin: 0.7rem 0; color: var(--muted); }
@@ -9178,7 +9210,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-key-answer strong { display: block; max-width: 68ch; font-size: 18px; font-weight: 570; letter-spacing: -0.015em; line-height: 1.42; }
 .andromeda-marker {
   margin: 0 0.03em; padding: 0.02em 0.16em; border-radius: 2px; color: inherit;
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--ai) 30%, transparent);
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 .andromeda-claim { max-width: 68ch; margin: 0; color: var(--text); font-size: 14px; font-weight: 420; line-height: 1.58; }
@@ -9198,7 +9230,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
   border-inline-start: 2px solid var(--andromeda-strong-line); background: color-mix(in srgb, var(--panel) 86%, var(--bg));
 }
 .andromeda-view .andromeda-source-card blockquote { margin: 0 0 4px; color: var(--text); font-size: 14px; line-height: 1.55; }
-.andromeda-view .andromeda-source-card-title { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; color: var(--text); font-size: 14px; font-weight: 540; text-underline-offset: 0.2em; }
+.andromeda-view .andromeda-source-card-title { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; color: var(--link); font-size: 14px; font-weight: 540; text-underline-offset: 0.2em; }
 .andromeda-view .andromeda-source-card-meta { color: var(--muted); font-size: 12px; }
 .andromeda-view .andromeda-thread { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; margin: 0 0 4px; color: var(--muted); font-size: 12px; }
 .andromeda-view .andromeda-thread-turn {
@@ -9242,6 +9274,19 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-weather-day { color: var(--text); font-size: 13px; font-weight: 540; }
 .andromeda-view .andromeda-weather-temps { color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
 .andromeda-view .andromeda-weather-sky { color: var(--muted); font-size: 12px; }
+.andromeda-view .andromeda-weather-day { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.andromeda-view .andromeda-weather-rain { color: var(--info); }
+/* sky marks: amber sun, blue rain, pale blue snow, grey cloud and fog; the words carry the same news */
+.andromeda-view .andromeda-sky-mark { display: inline-grid; flex: 0 0 auto; color: var(--muted); }
+.andromeda-view .andromeda-sky-mark svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.andromeda-view .andromeda-sky-mark.is-now { margin-inline-end: 8px; vertical-align: -0.04em; }
+.andromeda-view .andromeda-sky-mark.is-now svg { width: 28px; height: 28px; }
+.andromeda-view .andromeda-sky-mark:is([data-sky="sun"], [data-sky="storm"]),
+.andromeda-view .andromeda-sky-mark .is-sun { color: var(--cat-amber); }
+.andromeda-view .andromeda-sky-mark[data-sky="partly"] .is-sun { stroke: var(--cat-amber); }
+.andromeda-view .andromeda-sky-mark[data-sky="partly"] .is-cloud { stroke: var(--muted); fill: var(--bg); }
+.andromeda-view .andromeda-sky-mark[data-sky="rain"] { color: var(--cat-blue); }
+.andromeda-view .andromeda-sky-mark[data-sky="snow"] { color: color-mix(in srgb, var(--cat-blue) 60%, var(--text)); }
 .andromeda-view .andromeda-define-part { display: grid; gap: 4px; }
 .andromeda-view .andromeda-define-list { display: grid; gap: 6px; max-width: 68ch; margin: 0; padding-inline-start: 20px; color: var(--text); font-size: 14px; line-height: 1.55; }
 .andromeda-view .andromeda-define-example { display: block; color: var(--muted); font-style: italic; }
@@ -9297,6 +9342,17 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-prose strong { color: var(--text); font-weight: 650; }
 /* the main answer reads first: the opening paragraph is a touch larger */
 .andromeda-view .andromeda-prose > p:first-child { font-size: 16px; }
+/* the decisive words of the answer carry the ai highlight, google style; the text stays full tone */
+.andromeda-view .andromeda-prose > p:first-child strong {
+  padding: 0.02em 0.16em; margin-inline: -0.16em; border-radius: 2px;
+  background: color-mix(in srgb, var(--ai) 30%, transparent);
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+html[data-theme="light"] .andromeda-view .andromeda-prose > p:first-child strong,
+html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(--ai) 20%, transparent); }
+/* the spark marks what ai wrote */
+.andromeda-view .andromeda-ai-title { display: inline-flex; align-items: center; gap: 8px; }
+.andromeda-view .andromeda-ai-spark { width: 14px; height: 14px; flex: 0 0 14px; color: var(--ai); fill: currentColor; }
 .andromeda-view .andromeda-prose-claim {
   text-decoration: underline dotted; text-decoration-color: var(--muted); text-decoration-thickness: 1px;
   text-underline-offset: 0.28em; border-radius: 2px; cursor: pointer;
@@ -9313,7 +9369,8 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-prose-card-link { min-height: 44px; display: grid; align-content: center; gap: 2px; color: var(--text); text-decoration: none; }
 .andromeda-view .andromeda-prose-card-link:hover .andromeda-prose-card-title { text-decoration: underline; text-underline-offset: 0.2em; }
 .andromeda-view .andromeda-prose-card-host { color: var(--muted); font-size: 12px; }
-.andromeda-view .andromeda-prose-card-title { font-size: 14px; font-weight: 540; }
+.andromeda-view .andromeda-prose-card-title { color: var(--link); font-size: 14px; font-weight: 540; }
+.andromeda-view .andromeda-prose-card-link:visited .andromeda-prose-card-title { color: var(--link-visited); }
 .andromeda-view .andromeda-prose-card blockquote { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .andromeda-view .andromeda-overview[data-loading="true"] .andromeda-claims:empty {
   --bar: color-mix(in srgb, var(--text) 9%, transparent);
@@ -9331,7 +9388,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 #andromeda-all-results .andromeda-view-head span { display: none; }
 .andromeda-view .andromeda-spelling { min-height: 44px; display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--muted); font-size: 15px; }
 .andromeda-view .andromeda-spelling-fix {
-  min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--text);
+  min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--link);
   font: inherit; font-weight: 560; font-style: italic; text-decoration: underline;
   text-decoration-color: var(--andromeda-line); text-underline-offset: 0.2em; cursor: pointer;
 }
@@ -9508,6 +9565,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-f1-table :is(th, td) { height: 36px; padding: 0 12px 0 0; border-bottom: 1px solid var(--andromeda-line); text-align: start; white-space: nowrap; }
 .andromeda-view .andromeda-f1-table thead th { position: sticky; top: 0; background: var(--bg); color: var(--muted); font-size: 12px; font-weight: 560; }
 .andromeda-view .andromeda-f1-table tbody th { color: var(--text); font-weight: 540; }
+.andromeda-view .andromeda-f1-team-mark { display: inline-block; width: 3px; height: 14px; margin-inline-end: 8px; border-radius: 1px; background: var(--team, transparent); vertical-align: -2px; }
 .andromeda-view .andromeda-f1-table td { color: var(--soft, var(--text)); }
 .andromeda-view .andromeda-f1-table .is-num { width: 1%; text-align: end; }
 .andromeda-view .andromeda-f1-table :is(th, td).is-num:first-child { text-align: start; }
@@ -9573,7 +9631,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-watch-new h3 { margin: 0 0 4px; color: var(--text); font-size: 13px; font-weight: 560; }
 .andromeda-view .andromeda-watch-new ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .andromeda-view .andromeda-watch-new li { display: grid; }
-.andromeda-view .andromeda-watch-new a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); font-size: 14px; text-underline-offset: 0.2em; }
+.andromeda-view .andromeda-watch-new a { display: inline-flex; align-items: center; min-height: 44px; color: var(--link); font-size: 14px; text-underline-offset: 0.2em; }
 .andromeda-view .andromeda-watch-new small { color: var(--muted); font-size: 12px; }
 .andromeda-view .andromeda-saved-row { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; }
 .andromeda-view .andromeda-saved-row > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -9622,14 +9680,21 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
   border: 1px solid var(--andromeda-line); border-radius: 50%; background: var(--panel); color: var(--muted);
   font: 560 9px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: -0.02em;
 }
-.andromeda-source-mark img { width: 16px; height: 16px; display: block; object-fit: contain; }
+.andromeda-source-mark img { width: 18px; height: 18px; display: block; object-fit: contain; }
+/* the site's own mark in its real colors. a light disc behind it, like google's, so a black or
+   dark mark still shows on the dark theme */
+.andromeda-source-mark:has(img.loaded) { border-color: transparent; background: #f1f0ec; }
+html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: var(--andromeda-line); background: #fff; }
 .andromeda-source-mark > span { display: block; }
 .andromeda-source-copy { min-width: 0; display: block; flex: 1 1 auto; }
 .andromeda-source-name { display: block; overflow: hidden; color: var(--text); font-size: 14px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .andromeda-result-site { display: block; overflow: hidden; color: var(--muted); font-size: 12px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
 .andromeda-result-date { color: var(--muted); }
-/* titles carry a soft alles-purple link tone, the way search titles read as links */
-.andromeda-view .andromeda-result .andromeda-result-title { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; color: color-mix(in srgb, var(--accent) 58%, var(--text)); font-size: 19px; font-weight: 460; line-height: 1.3; text-decoration: none; }
+/* titles are links, so they're link blue; a page already opened turns visited purple */
+.andromeda-view .andromeda-result .andromeda-result-title { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; color: var(--link); font-size: 19px; font-weight: 460; line-height: 1.3; text-decoration: none; }
+.andromeda-view .andromeda-result .andromeda-result-title:visited { color: var(--link-visited); }
+/* room inside the target so the focus ring never sits on the words; pulled back so the title stays on the column */
+.andromeda-view .andromeda-result .andromeda-result-title { max-width: calc(100% + 16px); margin-inline: -8px; padding-inline: 8px; }
 .andromeda-view .andromeda-result .andromeda-result-title:hover { text-decoration: underline; text-underline-offset: 3px; }
 .andromeda-result p { max-width: 68ch; margin: 1px 0 0; color: color-mix(in srgb, var(--text) 66%, var(--muted)); font-size: 14px; line-height: 1.5; }
 .andromeda-result-actions-trigger {
@@ -9671,8 +9736,8 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-result .andromeda-result-summary-claim {
   margin: 0; color: color-mix(in srgb, var(--text) 88%, var(--muted)); font-size: 15px; line-height: 1.55;
 }
-.andromeda-result-summary-citation { color: var(--muted); font-size: 12px; text-decoration: none; }
-.andromeda-result-summary-citation:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.andromeda-result-summary-citation { color: var(--link); font-size: 12px; text-decoration: none; }
+.andromeda-result-summary-citation:hover { text-decoration: underline; text-underline-offset: 3px; }
 .andromeda-source-chip { margin-inline-start: 8px; color: var(--muted); font-size: 0.75rem; }
 .andromeda-empty { padding: 12px 0; border: 0; color: var(--muted); font-size: 14px; }
 
@@ -9703,7 +9768,8 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-news-card:first-child { padding-top: 0; border-top: 0; }
 .andromeda-news-card.no-media { grid-template-columns: minmax(0, 1fr); }
 .andromeda-news-source { display: block; color: var(--muted); font-size: 0.78rem; }
-.andromeda-news-title { display: block; margin-top: 6px; color: var(--text); font-size: 18px; font-weight: 550; line-height: 1.4; text-decoration: none; }
+.andromeda-news-title { display: block; margin-top: 6px; color: var(--link); font-size: 18px; font-weight: 550; line-height: 1.4; text-decoration: none; }
+.andromeda-news-title:visited { color: var(--link-visited); }
 .andromeda-news-title:hover { text-decoration: underline; text-underline-offset: 3px; }
 .andromeda-news-card p { margin: 7px 0 0; color: color-mix(in srgb, var(--text) 62%, var(--muted)); font-size: 0.92rem; line-height: 1.58; }
 .andromeda-news-date { display: block; margin-top: 7px; color: var(--muted); font-size: 0.75rem; }

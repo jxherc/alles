@@ -77,6 +77,7 @@ def _driver(row: dict) -> dict:
         "name": f"{person.get('givenName', '')} {person.get('familyName', '')}".strip(),
         "code": person.get("code") or "",
         "team": team.get("name") or "",
+        "team_id": team.get("constructorId") or "",
     }
 
 
@@ -94,7 +95,9 @@ def _standings(data: dict, key: str) -> tuple[list, str]:
         if key == "DriverStandings":
             entry.update(_driver(row))
         else:
-            entry["name"] = (row.get("Constructor") or {}).get("name") or ""
+            team = row.get("Constructor") or {}
+            entry["name"] = team.get("name") or ""
+            entry["team_id"] = team.get("constructorId") or ""
         rows.append(entry)
     return rows, str(lists[0].get("round") or "")
 

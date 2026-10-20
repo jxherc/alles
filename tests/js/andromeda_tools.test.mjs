@@ -2,7 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const tools = await import('../../static/js/andromeda_tools.js');
-const { answerCovers } = await import('../../static/js/andromeda_answers.js');
+const { answerCovers, skyKind } = await import('../../static/js/andromeda_answers.js');
+
+test('each sky gets the mark people read it by', () => {
+  assert.equal(skyKind('clear'), 'sun');
+  assert.equal(skyKind('partly cloudy'), 'partly');
+  assert.equal(skyKind('light drizzle'), 'rain');
+  assert.equal(skyKind('snow showers'), 'snow');
+  assert.equal(skyKind('thunderstorm with hail'), 'storm');
+  assert.equal(skyKind('freezing fog'), 'fog');
+  assert.equal(skyKind('cloudy'), 'cloud');
+  assert.equal(skyKind(''), '');
+});
 
 test('timer lengths read the way people type them', () => {
   assert.equal(tools.parseDuration('5'), 300000);

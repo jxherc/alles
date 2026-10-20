@@ -16,7 +16,11 @@
           "quiet": { "$type": "color", "$value": "{color.dark.quiet}" },
           "danger": { "$type": "color", "$value": "{color.shared.dangerDark}" },
           "success": { "$type": "color", "$value": "{color.shared.successDark}" },
-          "permission": { "$type": "color", "$value": "{color.shared.permissionDark}" }
+          "permission": { "$type": "color", "$value": "{color.shared.permissionDark}" },
+          "warning": { "$type": "color", "$value": "{color.shared.permissionDark}" },
+          "info": { "$type": "color", "$value": "{color.shared.linkDark}" },
+          "link": { "$type": "color", "$value": "{color.shared.linkDark}" },
+          "linkVisited": { "$type": "color", "$value": "{color.shared.linkVisitedDark}" }
         },
         "border": {
           "structural": { "$type": "color", "$value": "{color.dark.line}" },
@@ -27,7 +31,18 @@
           "active": { "$type": "color", "$value": "{color.shared.accentDark}" },
           "permission": { "$type": "color", "$value": "{color.shared.permissionDark}" },
           "danger": { "$type": "color", "$value": "{color.shared.dangerDark}" },
-          "success": { "$type": "color", "$value": "{color.shared.successDark}" }
+          "success": { "$type": "color", "$value": "{color.shared.successDark}" },
+          "ai": { "$type": "color", "$value": "{color.shared.accentDark}" }
+        },
+        "data": {
+          "category": {
+            "blue": { "$type": "color", "$value": "{color.shared.catBlueDark}" },
+            "teal": { "$type": "color", "$value": "{color.shared.catTealDark}" },
+            "amber": { "$type": "color", "$value": "{color.shared.catAmberDark}" },
+            "pink": { "$type": "color", "$value": "{color.shared.catPinkDark}" },
+            "violet": { "$type": "color", "$value": "{color.shared.catVioletDark}" },
+            "green": { "$type": "color", "$value": "{color.shared.catGreenDark}" }
+          }
         }
       }
     },
@@ -46,7 +61,11 @@
           "quiet": { "$type": "color", "$value": "{color.light.quiet}" },
           "danger": { "$type": "color", "$value": "{color.shared.dangerLight}" },
           "success": { "$type": "color", "$value": "{color.shared.successLight}" },
-          "permission": { "$type": "color", "$value": "{color.shared.permissionLight}" }
+          "permission": { "$type": "color", "$value": "{color.shared.permissionLight}" },
+          "warning": { "$type": "color", "$value": "{color.shared.permissionLight}" },
+          "info": { "$type": "color", "$value": "{color.shared.linkLight}" },
+          "link": { "$type": "color", "$value": "{color.shared.linkLight}" },
+          "linkVisited": { "$type": "color", "$value": "{color.shared.linkVisitedLight}" }
         },
         "border": {
           "structural": { "$type": "color", "$value": "{color.light.line}" },
@@ -57,7 +76,18 @@
           "active": { "$type": "color", "$value": "{color.shared.accentLight}" },
           "permission": { "$type": "color", "$value": "{color.shared.permissionLight}" },
           "danger": { "$type": "color", "$value": "{color.shared.dangerLight}" },
-          "success": { "$type": "color", "$value": "{color.shared.successLight}" }
+          "success": { "$type": "color", "$value": "{color.shared.successLight}" },
+          "ai": { "$type": "color", "$value": "{color.shared.accentLight}" }
+        },
+        "data": {
+          "category": {
+            "blue": { "$type": "color", "$value": "{color.shared.catBlueLight}" },
+            "teal": { "$type": "color", "$value": "{color.shared.catTealLight}" },
+            "amber": { "$type": "color", "$value": "{color.shared.catAmberLight}" },
+            "pink": { "$type": "color", "$value": "{color.shared.catPinkLight}" },
+            "violet": { "$type": "color", "$value": "{color.shared.catVioletLight}" },
+            "green": { "$type": "color", "$value": "{color.shared.catGreenLight}" }
+          }
         }
       }
     }
