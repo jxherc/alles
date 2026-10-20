@@ -1808,6 +1808,12 @@ body:is(
   max-width: 72rem;
 }
 
+/* the grid gap already spaces the panel; a note's own 24px margin doubled it (40px) and pushed
+   the file button off a 200% zoomed screen. 8px more keeps notes on the 24px step */
+:where(#finance-view) .finance-import-panel > .specialist-group-note {
+  margin-bottom: var(--k-space-2);
+}
+
 :where(#finance-view) .finance-import-choices {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2801,9 +2807,9 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
 
 /* Text entry and form dropdowns keep their boundary and gain one bottom edge.
    This shared rule must win over legacy page-specific input outlines; actions,
-   choices, sliders, boxed date pickers and color controls retain their normal rings. An
-   underline date picker in a form footer has no padding, so a ring sat on the date; it takes the
-   bottom line like the fields beside it.
+   choices, sliders and color controls retain their normal rings. Date pickers are underline
+   fields with no padding, so a ring sat on the date; they take the bottom line like the fields
+   beside them.
    Color swatches use readonly text inputs with role=button, not text entry. */
 html[data-kokuen-version="5"] :where(
   input:not([type]),
@@ -2812,7 +2818,7 @@ html[data-kokuen-version="5"] :where(
   .custom-select[role="combobox"],
   .locale-choice-trigger[aria-haspopup="listbox"]
 ):not([role="button"]):focus-visible,
-html[data-kokuen-version="5"] .page-view-footer .date-input:focus-visible {
+html[data-kokuen-version="5"] .date-input:focus-visible {
   outline: none !important;
   box-shadow: inset 0 -2px 0 var(--k-field-focus, var(--muted)) !important;
 }
@@ -3084,7 +3090,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
     outline-offset: var(--k-focus-offset, -2px);
   }
 
-  html[data-kokuen-version="5"] .page-view-footer .date-input:focus-visible {
+  html[data-kokuen-version="5"] .date-input:focus-visible {
     outline: 2px solid Highlight !important;
     outline-offset: var(--k-focus-offset, -2px);
   }
@@ -3465,6 +3471,16 @@ textarea[data-kokuen-entry="autogrow"] {
 #wiki-view[data-kokuen-surface="docs"] .docs-empty-actions {
   flex-wrap: wrap;
   gap: var(--k-space-2);
+}
+
+/* the row moves back by a text action's padding and the first action steps in again, so an
+   action that wraps to start a line puts its label on the column edge, like a row start (0031) */
+#wiki-view[data-kokuen-surface="docs"] .docs-empty-actions {
+  margin-inline-start: calc(-1 * var(--k-space-3));
+}
+
+#wiki-view[data-kokuen-surface="docs"] .docs-empty-actions > :first-child {
+  margin-inline-start: var(--k-space-3);
 }
 
 #wiki-view[data-kokuen-surface="docs"] .docs-empty-actions button {
@@ -4936,8 +4952,8 @@ html[dir="rtl"] :where(
     flex-direction: column;
   }
 
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-save > div:last-child,
-  #settings-modal[data-kokuen-surface="settings"] .home-settings-save .btn {
+  /* buttons keep their own width; reset's label starts on the column edge */
+  #settings-modal[data-kokuen-surface="settings"] .home-settings-save > div:last-child {
     flex: 1;
   }
 }

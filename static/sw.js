@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v397';   // a message's remember and edit sit right under it.
+const VERSION = 'v398';   // balance leftovers: wrapped rows, anchored actions, underline date fields.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '550';   // keep in sync with index.html ?v= / const _v
+const STAMP = '551';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

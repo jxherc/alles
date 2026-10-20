@@ -2192,14 +2192,15 @@ body.is-aide.is-incognito .incognito-bar {
 }
 .custom-select.open .custom-select-chevron { transform: rotate(180deg); }
 /* date / datetime picker */
+/* an underline field like .settings-input and the custom select, so a form keeps one field style */
 .date-input {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  background: var(--panel); border: 1px solid var(--faint); border-radius: 3px;
+  background: none; border: none; border-bottom: 1px solid var(--faint); border-radius: 0;
   color: var(--text); font: inherit; font-size: 13px;
-  padding: 0 8px; cursor: pointer; user-select: none;
+  padding: 0; cursor: pointer; user-select: none;
   transition: border-color 0.2s ease;
 }
-.date-input:hover, .date-input.open { border-color: var(--muted); }
+.date-input:hover, .date-input.open { border-bottom-color: var(--muted); }
 .date-input svg { width: 13px; height: 13px; color: var(--muted); flex-shrink: 0; }
 .date-input-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .date-input-label.ph { color: var(--muted); }
@@ -4283,6 +4284,13 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
     padding-left: var(--photos-rail-content-x);
   }
 }
+/* phone: search takes the first line, the actions start the next one. filter starts that row,
+   so its label moves back onto the column edge instead of "more" wrapping alone */
+@media (max-width: 700px) {
+  #photos-view .photos-head { justify-content: flex-start; column-gap: var(--k-space-2, 8px); }
+  #photos-view .photos-head .photos-search { flex: 1 1 100%; max-width: none; margin-left: 0; }
+  #photos-view .photos-head #photos-filter-btn { margin-inline-start: calc(-1 * var(--k-space-3, 12px)); }
+}
 
 .sidebar-model-list {
   border: 1px solid var(--faint);
@@ -4895,7 +4903,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-recent-mood { width: 1.1em; text-align: center; flex-shrink: 0; }
 .jrnl-recent-date { color: var(--muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .jrnl-recent-snip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jrnl-empty { font-size: 0.75rem; color: var(--muted); padding: 0.3rem 0.5rem; }
+/* text starts on its heading's edge (usage, journal sections) */
+.jrnl-empty { font-size: 0.75rem; color: var(--muted); padding: 0.3rem 0; }
 
 /* ── cookbook ── */
 /* skills view — header + category rail + card grid, editor in a right drawer */
@@ -5092,12 +5101,11 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .acct-form { margin-bottom: 0.4rem; }
 
 :where(#money-view) .txn-add { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.7rem; align-items: center; }
-/* unify every control in the money forms: same boxed look + same height, so the
-   text inputs match the custom dropdowns / date picker instead of being underlines */
+/* every control in the money forms has the same height and the shared underline field style,
+   like the custom dropdowns and date picker beside them */
 :where(#money-view) .txn-add > *, :where(#money-view) .acct-form > *, :where(#money-view) .budget-form > * { height: 32px; box-sizing: border-box; }
 :where(#money-view) .txn-add input.settings-input, :where(#money-view) .money-entry-details input.settings-input, :where(#money-view) .acct-form input.settings-input, :where(#money-view) .budget-form input.settings-input {
-  background: var(--panel); border: 1px solid var(--faint); border-radius: 3px;
-  padding: 0 0.55rem; font-size: 0.75rem;
+  font-size: 0.75rem;
 }
 :where(#money-view) .txn-add .btn, :where(#money-view) .acct-form .btn, :where(#money-view) .budget-form .btn { display: inline-flex; align-items: center; }
 :where(#money-view) .txns { display: flex; flex-direction: column; }
@@ -5234,7 +5242,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .txn.is-transfer .tx-cat { color: var(--muted); }
 :where(#money-view) .txn-transfer { display: none; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; padding: 0.5rem 0.55rem; border: 1px dashed var(--faint); border-radius: 3px; }
 :where(#money-view) .txn-transfer > * { height: 32px; box-sizing: border-box; }
-:where(#money-view) .txn-transfer input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
 :where(#money-view) .tr-lbl { color: var(--muted); font-size: 0.78rem; }
 :where(#money-view) .tr-arrow { color: var(--muted); font-size: 0.9rem; }
 :where(#money-view) .recurs { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.5rem; }
@@ -5269,7 +5276,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 }
 :where(#money-view) .recur-form { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
 :where(#money-view) .recur-form > * { height: 32px; box-sizing: border-box; }
-:where(#money-view) .recur-form input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
 :where(#money-view) .recur-form-canonical { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 135px), 1fr)); gap: var(--k-space-2, 8px); align-items: end; }
 :where(#money-view) .recur-form-canonical > * { height: auto; min-width: 0; }
 :where(#money-view) .recur-form-canonical .recur-field { display: grid; gap: var(--k-space-1, 4px); color: var(--muted); font-size: 0.75rem; }
@@ -5295,7 +5301,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .rl-arrow { color: var(--muted); font-size: 0.8rem; }
 :where(#money-view) .rule-form { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
 :where(#money-view) .rule-form > * { height: 32px; box-sizing: border-box; }
-:where(#money-view) .rule-form input.settings-input { background: var(--bg); border: 1px solid var(--faint); }
 :where(#money-view) .rules-apply { font-size: 0.75rem; padding: 0.08rem 0.45rem; margin-left: 0.4rem; vertical-align: middle; }
 :where(#money-view) .money-txns h2 { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 :where(#money-view) .txn-search-wrap { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; margin-left: auto; align-items: center; max-width: 100%; }
@@ -5395,6 +5400,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   gap: 0.65rem;
   padding: 0.2rem 0;
 }
+/* empty and error text run across the grid, not inside the first card column */
+.days-grid > :is(.days-empty, .page-empty) { grid-column: 1 / -1; }
 .day-card {
   position: relative;
   border: 1px solid var(--faint); border-radius: 3px;
@@ -8454,10 +8461,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   .mail-head-actions {
     width: 100%;
     margin-left: 0;
+    gap: var(--k-space-2, 8px);
   }
-  .mail-head-actions .btn {
-    flex: 1;
-  }
+  /* actions keep their own width: refresh starts the row with its label on the column edge,
+     settings ends it */
+  .mail-head-actions #mail-refresh-btn { margin-inline-start: calc(-1 * var(--k-space-3, 12px)); }
+  .mail-head-actions .app-cog { margin-inline-start: auto; }
   .mail-layout {
     flex-direction: column;
     overflow-y: auto;
@@ -10954,6 +10963,13 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
   margin-inline: 0;
   padding-inline: 24px;
 }
+/* Plan hides the title, so "enable notifications" starts the header row: label on the column
+   edge and the plain page-head rhythm, not Aide's tall title band */
+#plan-view #reminders-view .aide-tool-head {
+  justify-content: flex-start;
+  padding-block: 24px 12px;
+}
+#plan-view #reminders-view .aide-tool-head > .btn { margin-left: -12px !important; }
 @media (max-width: 760px) {
   :is(#read-body, #habits-body, #watch-body, #health-body, #books-body),
   :is(#subs-view, #days-view, #calendar-view) :is(.page-view-head, .page-view-body, .page-view-footer),
@@ -11074,6 +11090,8 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 /* settings: a text action at the start of its line (alone in a card, or first in an action row) */
 #settings-modal :is(.s-card-body, .s-oauth-connect, div:not([class])) > .btn:not(.primary):first-child,
 #settings-modal .s-card-body > :not(.btn) + .btn:not(.primary) { margin-inline-start: -12px; }
+/* a hint never sits on the field label or box under it */
+#settings-modal .s-card-hint + :is(.s-field, .settings-textarea) { margin-top: var(--k-space-3, 12px); }
 /* rules quick start: the label sits above, so a wrapped choice lines up under the first one.
    the choices are bare until picked (decision 0031), so the row moves back by their padding */
 .rule-presets { margin-inline-start: -12px; row-gap: 4px; }

@@ -178,7 +178,7 @@ function _render() {
   }
 
   if (!derived.length) {
-    grid.innerHTML = failure || '<div style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">nothing counted yet: a trip, a birthday, a streak. add one below.</div>';
+    grid.innerHTML = failure || '<div class="days-empty" style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">nothing counted yet: a trip, a birthday, a streak. add one below.</div>';
     _wire(grid);
     return;
   }
