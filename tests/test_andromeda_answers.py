@@ -71,7 +71,9 @@ class ResolveTest(ApiTest):
 
     def test_currency_weather_and_dictionary_use_their_service(self):
         replies = {
-            "api.frankfurter.app": {"date": "2026-10-19", "rates": {"CAD": 140.74}},
+            "api.frankfurter.dev": {"date": "2026-10-19", "rates": {"CAD": 1.4074}},
+            "api.datamuse.com": [{"word": "chance", "tags": ["f:40.0"]}],
+            "en.wiktionary.org": {"query": {"pages": [{}]}},
             "geocoding-api.open-meteo.com": {
                 "results": [
                     {
@@ -116,6 +118,8 @@ class ResolveTest(ApiTest):
             ("Toronto, Ontario, Canada", "clear", "partly cloudy"),
         )
         self.assertEqual(word["meanings"][0]["definitions"][0]["text"], "luck")
+        self.assertEqual(word["synonyms"], ["chance"])
+        self.assertAlmostEqual(money["rate"], 1.4074)
         self.assertTrue(all(url.startswith("https://") for url in seen))
 
     def test_definition_falls_back_to_wiktionary_when_blocked(self):
@@ -152,8 +156,13 @@ class ResolveTest(ApiTest):
             return '{"from": "French", "translation": "hello", "romanization": ""}'
 
         found = answers.detect("what is bonjour in english")
-        self.assertEqual(run(found, translate=model)["translation"], "hello")
+        done = run(found, translate=model)
+        self.assertEqual(
+            (done["translation"], done["from"], done["status"]), ("hello", "french", "ok")
+        )
+        self.assertTrue(done["from_detected"])
         self.assertEqual(run(found)["status"], "needs_model")
+        self.assertEqual(run(found, translate_blocked="needs_confirm")["status"], "needs_confirm")
 
 
 class AnswerRouteTest(ApiTest):

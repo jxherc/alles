@@ -158,6 +158,7 @@ http audit metadata in [services/audit.py](services/audit.py) is separate from d
 | --- | --- | --- |
 | models/catalogs | [services/llm.py](services/llm.py), [services/model_providers.py](services/model_providers.py) | protocol formatting and live model ids |
 | search/pages | [services/andromeda.py](services/andromeda.py), [services/net_guard.py](services/net_guard.py) | bounded evidence, quotes, guarded urls/redirects |
+| answer tools | [services/andromeda_answers.py](services/andromeda_answers.py), [services/andromeda_f1.py](services/andromeda_f1.py), [services/andromeda_dates.py](services/andromeda_dates.py) | fixed public data hosts through the guarded fetcher; translation through the answer model |
 | mail | [services/mail.py](services/mail.py), [services/mail_compose.py](services/mail_compose.py) | imap/smtp, local cache, compose, sending |
 | calendars/contacts | [services/caldav_sync.py](services/caldav_sync.py), [services/carddav_sync.py](services/carddav_sync.py) | configured synchronization |
 | remote storage | [services/webdav_locations.py](services/webdav_locations.py), [services/s3_locations.py](services/s3_locations.py) | selected locations and conditional operations |
@@ -867,13 +868,42 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **compact answer, separate links.** search, the cited answer, and results share one readable axis. the
   shortest decisive evidence-backed substring is highlighted inside the key answer. ordinary web results
   begin in their own labeled region and use spacing instead of divider lines between rows.
-- **answer cards.** `POST /api/andromeda/answer` checks the query for a direct answer and draws one card
-  above the overview on the "all" tab: a calculator (a safe arithmetic parser, no `eval`), unit and
-  temperature conversion, the time in a city, the periodic table and single elements (a built-in table,
-  click any element for its details), currency (european central bank rates via frankfurter), weather
-  (open-meteo), english definitions for "define x" or "what is x" (the free dictionary api, or wiktionary when that api refuses the server) and translation ("what is bonjour in
-  english"). translation uses the answer model and follows the same remote-confirmation setting. every
-  lookup goes through the ssrf-safe fetcher with an 8 second limit; a failed lookup shows no card.
+- **answer tools.** `POST /api/andromeda/answer` checks the query (plain pattern matching, nothing leaves
+  the machine for that) and draws one tool above the overview on the "all" tab. one rule runs through
+  it: asking for a tool opens the tool, empty; asking with the input answers right away, inside the same
+  tool, editable. "english to french" opens the translator set to english → french with an empty box
+  and never translates the language names; "hello in french" fills it in and translates. "periodic
+  table" opens the table to explore; "carbon atomic mass" leads with 12.011 u, shows carbon's card and
+  can open the full table. the tools:
+  - **translate**: custom language pickers (detect, swap), a growing text box, listen and copy. text goes
+    to the answer model only through `POST /api/andromeda/translate`, with the same "ask before each
+    remote search" confirmation; a query's own text waits for the owner when that confirmation is on.
+  - **dictionary** ("define x", "x meaning", "synonyms for x", "how to pronounce x"): ipa, a listen
+    button (the browser's own speech, nothing fetched), parts of speech with examples, similar and
+    opposite words that look up in place. the free dictionary api first, wiktionary when it refuses the
+    server, datamuse for related words. **spelling** ("how to spell x") uses wiktionary's misspelling
+    marks and datamuse word frequencies.
+  - **periodic table and elements**: the built-in table, arrow keys between elements, a family
+    highlight; an element card leads with the asked fact (mass, number, symbol, group, period).
+  - **formula 1**: next race with a live countdown and session times in local time, driver and team
+    standings, the last race's results and the calendar, as tabs. data from jolpica-f1 (the free ergast
+    successor), kept ten minutes; a part that fails says so and the rest stays.
+  - **calculator** (keys, the same safe parser, no `eval`), **unit converter** (two editable sides,
+    every unit family, its formula), **currency converter** (european central bank rates via
+    frankfurter, two editable sides), **time in a city**, time differences and a **world clock** whose
+    cities stay in this browser, **weather** (open-meteo, seven days, °c/°f), **dates** (days until or
+    since a day or holiday, n days from today, weekdays, live countdowns), **timer and stopwatch**,
+    **coin, dice and random numbers** (the browser's crypto source) and a **color picker** (hex, rgb,
+    hsl, the readable text color).
+  every lookup goes through the ssrf-safe fetcher with an 8 second limit. a source that is down says so in
+  the card with a retry; a typed place or word that doesn't exist says so; a search that only looks like
+  a tool ("climate change weather") stays a search.
+- **the overview fits the query.** `POST /api/andromeda/search` reports `overview_mode`: when a tool
+  answers the query fully, the overview shrinks to one line with "write one" and runs only when asked; a
+  lookup that came up short brings the full overview back. an element card or the f1 card gets a brief
+  overview (two claims, only what the card can't show). the overview's shape follows the query: a short
+  answer, numbered steps ("how to …"), a comparison with aspect labels ("x vs y") or a list with item
+  labels ("best …"). labels only count when the claim's own words carry them.
 - **result rows.** each row shows the site's icon, its name and a "host › path" trail above a larger
   title, then the page date before the snippet when the engine gives one. a row without an icon from the
   engine uses duckduckgo's icon service, and every icon and image loads through the media proxy.
@@ -1328,7 +1358,11 @@ recovery can explain what the archive contains.
 alles is one fastapi owner process with a browser client. sqlite owns structured state; the markdown
 vault owns human-authored knowledge; configured files and photos roots own managed bytes. models,
 search, mail, calendars, contacts, mcp peers, notification providers, public links, native helpers, and
-external folders are separate trust zones. their input is data, not trusted instruction.
+external folders are separate trust zones. their input is data, not trusted instruction. andromeda's
+answer tools ask a fixed list of public data hosts from the server (frankfurter, open-meteo, the free
+dictionary api, wiktionary, datamuse, jolpica-f1): only the word, place, currency pair or nothing at all
+leaves, never the owner's browser address, and text to translate goes only to the owner's answer model
+under the same remote-model consent as the overview.
 
 see [runtime and backend](#runtime-and-backend) for request handling and
 [security](#security--read-before-exposing-it) for access boundaries. the endpoint and job inventories
@@ -1452,9 +1486,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 974 http method/path pairs
-- 953 `/api/*`, 2 `/v1/*`, and 19 non-api shell/public pairs
-- sha-256: `fa6043949dd5557d86c71fd1740313a9ef337ccde5bf45cad9bf63e805f0efb4`
+- 975 http method/path pairs
+- 954 `/api/*`, 2 `/v1/*`, and 19 non-api shell/public pairs
+- sha-256: `373d5c321987d0b0def54914100737db607b927b916db527d9db4236399191c8`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -1551,7 +1585,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/andromeda.py · 20 operations</summary>
+<summary>routes/andromeda.py · 21 operations</summary>
 
 [source](routes/andromeda.py)
 
@@ -1573,6 +1607,7 @@ the compatibility snapshot locks the registered http surface:
 | `PUT` | `/api/andromeda/saved/{search_id}/watch` | `watch_saved` |
 | `POST` | `/api/andromeda/saved/{search_id}/watch/seen` | `watch_seen` |
 | `POST` | `/api/andromeda/search` | `search` |
+| `POST` | `/api/andromeda/translate` | `translate` |
 | `POST` | `/api/andromeda/verification` | `start_verification` |
 | `POST` | `/api/andromeda/verification/preview` | `verification_preview` |
 | `GET` | `/api/andromeda/verification/{job_id}` | `get_verification` |

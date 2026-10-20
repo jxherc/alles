@@ -1,7 +1,7 @@
 import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
-import { renderAnswer } from './andromeda_answers.js';
+import { answerCovers, renderAnswer } from './andromeda_answers.js';
 import { createMenuController, setControlState, wireChoiceGroup } from './kokuen.js?v=1';
 import { replaceRouteUrl } from './route_history.js';
 
@@ -238,9 +238,14 @@ function showOverview(show = true) {
 }
 
 function clearOverview(message = '') {
+  const ask = el('andromeda-overview-ask');
+  if (ask) ask.hidden = true;
+  if (el('andromeda-overview')?.dataset) delete el('andromeda-overview').dataset.offered;
   _state.overview = {};
   _state.evidence = [];
   el('andromeda-claims')?.replaceChildren();
+  const claims = el('andromeda-claims');
+  if (claims?.dataset) { claims.dataset.shape = 'answer'; claims.removeAttribute?.('role'); }
   el('andromeda-evidence')?.replaceChildren();
   const evidence = el('andromeda-evidence');
   const toggle = el('andromeda-evidence-toggle');
@@ -1237,11 +1242,23 @@ export function answerFocusParts(text, focus) {
   };
 }
 
-function renderContextClaim(claim, index) {
+function renderContextClaim(claim, index, shape = 'answer') {
   const list = el('andromeda-claims');
   if (!list) return;
   const node = document.createElement('p');
   node.className = 'andromeda-claim';
+  if (shape !== 'answer') node.setAttribute('role', 'listitem');
+  if (shape === 'steps') {
+    const step = document.createElement('span');
+    step.className = 'andromeda-claim-step';
+    step.textContent = String(index + 1);
+    node.append(step);
+  } else if (claim.label) {
+    const label = document.createElement('strong');
+    label.className = 'andromeda-claim-label';
+    label.textContent = claim.label;
+    node.append(label, document.createTextNode(' '));
+  }
   node.append(document.createTextNode(claim.text || ''), citationNodes(claim, node));
   node.dataset.claim = String(index);
   list.appendChild(node);
@@ -1268,7 +1285,15 @@ function renderCompleteOverview(overview) {
   const keyAnswer = _state.overview.key_answer?.text ? _state.overview.key_answer : null;
   if (keyAnswer) renderKeyAnswer(keyAnswer);
   const contextClaims = keyAnswer ? contextClaimsForOverview(_state.overview) : claims;
-  contextClaims.forEach((claim, index) => renderContextClaim(claim, index));
+  // steps read as numbered steps, lists and comparisons as labelled rows; a plain answer stays prose
+  const shape = keyAnswer ? _state.overview.shape || 'answer' : 'answer';
+  const holder = el('andromeda-claims');
+  if (holder?.dataset) {
+    holder.dataset.shape = shape;
+    if (shape === 'answer') holder.removeAttribute?.('role');
+    else holder.setAttribute?.('role', 'list');
+  }
+  contextClaims.forEach((claim, index) => renderContextClaim(claim, index, shape));
   const freshness = _state.overview.freshness || {};
   const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: freshness.checked_on })}` : '';
   renderThread();
@@ -1615,13 +1640,54 @@ async function startOverview(query, results, searchGeneration, options = {}) {
   }
 }
 
+function askAnswer(query, kind = '') {
+  return jsonRequest('/api/andromeda/answer', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query, kind }),
+  });
+}
+
+// the translator's own text goes through the answer model with the same consent as the overview
+async function translateWithModel({ text, from, to }) {
+  let preview = null;
+  try { preview = await jsonRequest('/api/andromeda/overview/preview'); } catch {}
+  const confirmation = {};
+  if (preview?.privacy_class === 'remote' && preview.confirm_each_search) {
+    const allowed = await confirmDialog(`send this text to ${preview.endpoint} · ${preview.model} to translate it?`, { danger: false, confirmLabel: 'send' });
+    if (!allowed) throw Object.assign(new Error('not sent'), { cancelled: true });
+    confirmation.confirmed_endpoint_id = preview.endpoint_id;
+    confirmation.confirmed_model = preview.model;
+  }
+  return jsonRequest('/api/andromeda/translate', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text, from, to, ...confirmation }),
+  });
+}
+
+const ANSWER_TOOLS = { ask: askAnswer, translate: translateWithModel };
+
 async function loadAnswer(query, searchGeneration) {
   try {
-    const answer = await jsonRequest('/api/andromeda/answer', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query }),
-    });
-    if (searchGeneration === _searchGeneration) renderAnswer(el('andromeda-answer'), answer);
-  } catch {}
+    const answer = await askAnswer(query);
+    if (searchGeneration === _searchGeneration) renderAnswer(el('andromeda-answer'), answer, ANSWER_TOOLS);
+    return answer;
+  } catch {
+    return null;
+  }
+}
+
+// a tool card answers the query: the overview stays one line until the owner asks for it
+function offerOverview(query, results, searchGeneration) {
+  showOverview(true);
+  clearOverview('');
+  const ask = el('andromeda-overview-ask');
+  if (!ask) return;
+  ask.hidden = false;
+  el('andromeda-overview').dataset.offered = 'true';
+  ask.onclick = () => {
+    ask.hidden = true;
+    delete el('andromeda-overview').dataset.offered;
+    void startOverview(query, results, searchGeneration);
+  };
 }
 
 export async function runAndromedaSearch(queryValue = '', options = {}) {
@@ -1664,7 +1730,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   renderWatch(null);
   renderAnswer(el('andromeda-answer'), null);
   // calculator, converter, weather, dictionary... runs beside the search, never in front of it
-  if (currentCategory === 'all') void loadAnswer(query, searchGeneration);
+  const answerReady = currentCategory === 'all' ? loadAnswer(query, searchGeneration) : Promise.resolve(null);
   const wantsOverview = currentCategory === 'all'
     && pressed('andromeda-overview-toggle')
     && !/(^|\s)!ai(?=\s|$)/i.test(query);
@@ -1702,7 +1768,11 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     else if (result.status === 'error') status(failureMessage(tr('andromeda.search_failed'), result));
     else status('');
     if (currentCategory === 'all' && result.overview_requested && _state.overviewSeed.length) {
-      await startOverview(result.query, _state.overviewSeed, searchGeneration);
+      // a tool that answers the query fully comes first; a lookup that came up short doesn't count
+      const covered = result.overview_mode === 'skip' && answerCovers(await answerReady);
+      if (searchGeneration !== _searchGeneration) return;
+      if (covered) offerOverview(result.query, _state.overviewSeed, searchGeneration);
+      else await startOverview(result.query, _state.overviewSeed, searchGeneration);
     } else if (currentCategory === 'all' && result.status === 'error' && result.overview_requested) {
       showOverview(true);
       text('andromeda-overview-state', failureMessage(tr('andromeda.no_overview_sources'), result));

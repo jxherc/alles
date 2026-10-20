@@ -97,10 +97,18 @@ _WAKE_AND_CONNECTOR_ADDITIONS = {
 }
 
 
+# the translator tool's own text box
+_ANDROMEDA_TOOLS_ADDITIONS = {"POST /api/andromeda/translate"}
+
+
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
     later = (
-        _PI_CODE_ADDITIONS | _GOAL_ADDITIONS | _HARNESS_ADDITIONS | _WAKE_AND_CONNECTOR_ADDITIONS
+        _PI_CODE_ADDITIONS
+        | _GOAL_ADDITIONS
+        | _HARNESS_ADDITIONS
+        | _WAKE_AND_CONNECTOR_ADDITIONS
+        | _ANDROMEDA_TOOLS_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -219,7 +227,15 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_goal_routes_are_additive(self):
         current = set(_current_rows())
         self.assertTrue(_GOAL_ADDITIONS <= current)
-        self.assertEqual(len(current - _HARNESS_ADDITIONS - _WAKE_AND_CONNECTOR_ADDITIONS), 960)
+        self.assertEqual(
+            len(
+                current
+                - _HARNESS_ADDITIONS
+                - _WAKE_AND_CONNECTOR_ADDITIONS
+                - _ANDROMEDA_TOOLS_ADDITIONS
+            ),
+            960,
+        )
 
     def test_harness_routes_are_additive(self):
         self.assertTrue(_HARNESS_ADDITIONS <= set(_current_rows()))
@@ -239,11 +255,16 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
         self.assertFalse(_DSH_REMOVED & current)
         self.assertEqual(len(_route_rows()), 955)
 
+    def test_andromeda_tool_routes_are_additive(self):
+        current = set(_current_rows())
+        self.assertTrue(_ANDROMEDA_TOOLS_ADDITIONS <= current)
+        self.assertEqual(len(current - _ANDROMEDA_TOOLS_ADDITIONS), 974)
+
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 974)
-        self.assertEqual(digest, "fa6043949dd5557d86c71fd1740313a9ef337ccde5bf45cad9bf63e805f0efb4")
+        self.assertEqual(len(rows), 975)
+        self.assertEqual(digest, "373d5c321987d0b0def54914100737db607b927b916db527d9db4236399191c8")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -252,7 +273,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 953, "v1": 2, "public": 19})
+        self.assertEqual(groups, {"api": 954, "v1": 2, "public": 19})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

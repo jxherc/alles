@@ -122,6 +122,9 @@ async def search(body: SearchBody):
         provider=body.provider,
     )
     overview_seed = result.get("results", [])[:12] if parsed.overview else []
+    from services import andromeda_answers
+
+    found = andromeda_answers.detect(parsed.query) if body.category == "all" else None
     if not normal_enabled:
         result = {**result, "status": "disabled", "results": []}
     return {
@@ -131,6 +134,9 @@ async def search(body: SearchBody):
         "normal_results_enabled": bool(normal_enabled),
         "overview_requested": parsed.overview,
         "overview_seed": overview_seed,
+        # skip: a tool answers this, the overview waits to be asked; brief: a short one beside it
+        "answer_kind": found["kind"] if found else None,
+        "overview_mode": andromeda_answers.overview_mode(found),
         **result,
     }
 
@@ -190,54 +196,120 @@ class OverviewBody(BaseModel):
 
 class AnswerBody(BaseModel):
     query: str = Field(min_length=1, max_length=300)
+    # set by a tool's own field: only that kind may answer, and "not found" is said out loud
+    kind: str = Field(default="", max_length=20)
+
+
+def _answer_model(db, settings):
+    """the overview model for answer tools, and whether the owner must confirm it first."""
+    try:
+        band = settings.get("andromeda_model_band") or "standard"
+        selected = andromeda.select_overview_model(db, settings, band=band)
+    except Exception:
+        return None, False
+    return selected, selected.privacy_class == "remote" and bool(
+        settings.get("andromeda_confirm_remote")
+    )
+
+
+def _model_call(selected, max_tokens: int):
+    from services.llm import simple_complete
+
+    endpoint = selected.endpoint
+
+    async def call(messages):
+        return await asyncio.wait_for(
+            simple_complete(
+                messages,
+                endpoint.base_url,
+                endpoint.api_key,
+                selected.model,
+                max_tokens=max_tokens,
+                thinking=False,
+            ),
+            timeout=20,
+        )
+
+    return call
 
 
 @router.post("/answer")
 async def special_answer(body: AnswerBody, db: DbSession = Depends(get_db)):
-    """a calculator, converter, clock, weather, dictionary, translation or element card, if one fits."""
+    """a tool or answer card for the query, if one fits: calculator, converters, clock, weather,
+    dictionary, spelling, translation, periodic table, f1, dates, timers, random picks, colors."""
     _require_flag()
     from services import andromeda_answers
 
     parsed = andromeda.parse_query(body.query, overview_default=False)
-    found = andromeda_answers.detect(parsed.query)
-    if not found:
+    if body.kind == "calc":
+        # the calculator's own keys: any arithmetic counts, even a bare number
+        found = {"kind": "calc", "expression": parsed.query.strip()}
+    else:
+        found = andromeda_answers.detect(parsed.query)
+    if not found or (body.kind and found["kind"] != body.kind):
         return {"kind": None}
     translate = None
-    if found["kind"] == "translate":
-        settings = load_settings()
-        try:
-            band = settings.get("andromeda_model_band") or "standard"
-            selected = andromeda.select_overview_model(db, settings, band=band)
-        except Exception:
-            selected = None
-        remote_needs_ok = (
-            selected is not None
-            and selected.privacy_class == "remote"
-            and settings.get("andromeda_confirm_remote")
-        )
-        if selected is not None and not remote_needs_ok:
-            from services.llm import simple_complete
-
-            endpoint = selected.endpoint
-
-            async def translate(messages):
-                return await asyncio.wait_for(
-                    simple_complete(
-                        messages,
-                        endpoint.base_url,
-                        endpoint.api_key,
-                        selected.model,
-                        max_tokens=200,
-                        thinking=False,
-                    ),
-                    timeout=20,
-                )
-
+    blocked = "needs_model"
+    if found["kind"] == "translate" and found.get("text"):
+        selected, needs_ok = _answer_model(db, load_settings())
+        if selected is not None and needs_ok:
+            # the tool shows the text and asks before it leaves the machine
+            blocked = "needs_confirm"
+        elif selected is not None:
+            translate = _model_call(selected, 400)
     try:
-        answer = await andromeda_answers.resolve(found, translate=translate)
+        answer = await andromeda_answers.resolve(
+            found, translate=translate, translate_blocked=blocked, strict=bool(body.kind)
+        )
     except Exception:
         answer = None
     return answer or {"kind": None}
+
+
+class TranslateBody(BaseModel):
+    text: str = Field(min_length=1, max_length=2_000)
+    # empty means "detect it"
+    source: str = Field(default="", max_length=30, alias="from")
+    to: str = Field(min_length=1, max_length=30)
+    confirmed_endpoint_id: str = Field(default="", max_length=100)
+    confirmed_model: str = Field(default="", max_length=300)
+
+
+@router.post("/translate")
+async def translate(body: TranslateBody, db: DbSession = Depends(get_db)):
+    """the translator tool's own text, through the answer model and its consent rules."""
+    _require_flag()
+    from services import andromeda_answers
+
+    languages = set(andromeda_answers.LANGUAGES)
+    target = body.to.strip().lower()
+    source = body.source.strip().lower()
+    if target not in languages or (source and source not in languages):
+        raise ApiError(400, "unknown_language", "pick a language from the list")
+    selected, needs_ok = _answer_model(db, load_settings())
+    if selected is None:
+        raise ApiError(
+            409, "translate_model_missing", "add a model in settings → models to translate"
+        )
+    if needs_ok and (
+        body.confirmed_endpoint_id != selected.endpoint.id or body.confirmed_model != selected.model
+    ):
+        raise ApiError(
+            409,
+            "remote_model_confirmation_required",
+            "confirm the shown model before the text leaves Alles",
+        )
+    try:
+        done = await andromeda_answers.translate_text(
+            body.text.strip(), source, target, _model_call(selected, 800)
+        )
+    except TimeoutError as exc:
+        raise ApiError(504, "translate_timeout", "the model took too long to translate") from exc
+    except Exception as exc:
+        raise ApiError(502, "translate_failed", "the model could not translate this") from exc
+    if not done:
+        raise ApiError(502, "translate_failed", "the model could not translate this")
+    return {**done, "model": selected.public()}
 
 
 @router.post("/overview")
@@ -280,6 +352,13 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
         )
     rows = andromeda.normalize_results(body.results, "client", 0)
     deep = body.depth == "deep"
+    from services import andromeda_answers
+
+    shape = andromeda_answers.overview_shape(parsed.query)
+    brief = (
+        not deep
+        and andromeda_answers.overview_mode(andromeda_answers.detect(parsed.query)) == "brief"
+    )
     # fast first: answer from the result snippets; "go deeper" reads the pages
     fast_first = settings.get("andromeda_fast_overview", True) is not False
     endpoint_url = selected.endpoint.base_url
@@ -329,6 +408,8 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
                         andromeda.freshness_summary(parsed.query, evidence),
                         context=body.context,
                         deep=deep,
+                        shape=shape,
+                        brief=brief,
                     ),
                     endpoint_url,
                     endpoint_key,
@@ -338,7 +419,7 @@ async def overview(body: OverviewBody, db: DbSession = Depends(get_db)):
                 ),
                 timeout=timeout_seconds,
             )
-            checked = andromeda.verify_overview(raw, parsed.query, evidence)
+            checked = andromeda.verify_overview(raw, parsed.query, evidence, shape=shape)
         except asyncio.CancelledError:
             raise
         except TimeoutError:
