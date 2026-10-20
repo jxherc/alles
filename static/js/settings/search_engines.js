@@ -146,7 +146,8 @@ async function testSearch() {
       ? `${labelOf(engine)} works · ${result.count} results in ${result.ms} ms`
       : `${labelOf(engine)} gave no results (${result.failure || 'empty'}) after ${result.ms} ms`, !result.ok);
   } catch (error) {
-    updateSearchStatus(error.message || 'test failed', true);
+    // say it failed, then why; the bare server detail read like a status, not an error
+    updateSearchStatus(error.message ? `test failed: ${error.message}` : 'test failed', true);
   } finally {
     button.disabled = false;
   }
