@@ -25,6 +25,11 @@ _PAGE = b"""<!doctype html><html><head><title>shop</title></head><body>
 <form method="post" action="/checkout"><button>Place order</button></form>
 </body></html>"""
 
+_LOGIN = b"""<!doctype html><html><head><title>sign in</title></head><body>
+<input id="pw" type="password" style="position:absolute;left:20px;top:20px;width:200px;height:30px">
+<input id="who" style="position:absolute;left:20px;top:80px;width:200px;height:30px">
+</body></html>"""
+
 
 class _Site(BaseHTTPRequestHandler):
     posts: list[str] = []
@@ -32,8 +37,10 @@ class _Site(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("content-type", "text/html")
+        if self.path.startswith("/login"):
+            self.send_header("set-cookie", "sid=owner-session; Path=/; Max-Age=3600")
         self.end_headers()
-        self.wfile.write(_PAGE)
+        self.wfile.write(_LOGIN if self.path.startswith("/login") else _PAGE)
 
     def do_POST(self):
         _Site.posts.append(self.path)
@@ -159,6 +166,200 @@ class BrowserToolTests(unittest.TestCase):
         self.assertEqual((asks, plain), ("ask", "allow"))
         self.assertTrue(shot["image"].startswith("data:image/png;base64,iVBOR"))
         self.assertIn("browse_open", agent_tools.UNTRUSTED_TOOLS)
+
+    def test_owner_signs_in_through_the_live_view_and_aide_waits(self):
+        from services import agent_tools
+
+        async def go():
+            await bt._b.owner_open(self.url + "login", 480, 640)
+            frame = await bt._b.owner_frame()
+            await bt._b.owner_click(30, 30)  # the password field
+            await bt._b.owner_type("hunter2")
+            typed = await bt._b._page.input_value("#pw")
+            # Aide is locked out while the owner is in there
+            locked = await agent_tools._browse("browse_read", {})
+            # even if a snapshot ran now, the typed password never becomes a label
+            page = await bt._b.snapshot()
+            sites = await bt._b.owner_close()
+            after = await agent_tools._browse("browse_read", {})
+            cookies = await bt._b._context.cookies()
+            size = bt._b._page.viewport_size
+            return frame, typed, locked, page, sites, after, cookies, size
+
+        frame, typed, locked, page, sites, after, cookies, size = self.run_async(go())
+        self.assertTrue(frame.startswith(b"\xff\xd8"))  # jpeg
+        self.assertEqual(typed, "hunter2")
+        self.assertTrue(locked["error"])
+        self.assertIn("signing in", locked["output"])
+        self.assertNotIn("hunter2", page)
+        self.assertIn("secret field", page)
+        self.assertIn("sign in to a site", page)
+        self.assertEqual([row["site"] for row in sites], ["127.0.0.1"])
+        self.assertNotIn("error", after)  # Aide can browse again, on a blank page
+        self.assertIn("about:blank", after["output"])
+        self.assertTrue(any(c["name"] == "sid" for c in cookies))
+        self.assertEqual(size, {"width": 1280, "height": 900})
+
+    def test_fast_owner_actions_land_in_order(self):
+        # tap, type, tap, type sent back to back must not mix keystrokes across the fields
+        async def go():
+            await bt._b.owner_open(self.url + "login")
+            await asyncio.gather(
+                bt._b.owner_click(30, 95),
+                bt._b.owner_type("owner@example.test"),
+                bt._b.owner_click(30, 35),
+                bt._b.owner_type("hunter2-hunter2"),
+            )
+            return (
+                await bt._b._page.input_value("#who"),
+                await bt._b._page.input_value("#pw"),
+            )
+
+        self.assertEqual(self.run_async(go()), ("owner@example.test", "hunter2-hunter2"))
+
+    def test_sign_out_clears_the_site_and_forget_wipes_the_profile(self):
+        async def go():
+            await bt._b.owner_open(self.url + "login")
+            await bt._b.owner_close()
+            listed = [row["site"] for row in bt.signed_in_sites()]
+            left = await bt._b.sign_out("127.0.0.1")
+            cookies = await bt._b._context.cookies()
+            await bt._b.owner_open(self.url + "login")
+            await bt._b.owner_close()
+            await bt._b.forget_everything()
+            return listed, left, cookies
+
+        listed, left, cookies = self.run_async(go())
+        self.assertEqual(listed, ["127.0.0.1"])
+        self.assertEqual((left, cookies), ([], []))
+        self.assertEqual(bt.signed_in_sites(), [])
+        self.assertFalse(os.path.exists(os.path.join(self.data.name, "browser", "profile")))
+
+    def test_an_abandoned_live_view_lets_aide_back_in(self):
+        from services import agent_tools
+
+        async def go():
+            await bt._b.owner_open(self.url)
+            bt._b.owner_at -= 3600  # tab closed an hour ago
+            with self.assertRaises(LookupError):
+                await bt._b.owner_frame()
+            return await agent_tools._browse("browse_read", {})
+
+        self.assertNotIn("error", self.run_async(go()))
+
+    def test_owner_keys_are_a_short_list(self):
+        async def go():
+            await bt._b.owner_open(self.url)
+            await bt._b.owner_key("Tab")
+            with self.assertRaises(ValueError):
+                await bt._b.owner_key("Meta+Q")
+
+        self.run_async(go())
+
+    def test_live_view_refuses_private_addresses(self):
+        self.local.stop()
+        try:
+            with self.assertRaises(ValueError):
+                self.run_async(bt._b.owner_open("http://100.100.1.1/"))
+            self.assertFalse(bt._b.owner_active())
+        finally:
+            self.local.start()
+
+
+class SiteGroupingTests(unittest.TestCase):
+    def test_site_of(self):
+        self.assertEqual(bt.site_of("login.example.com"), "example.com")
+        self.assertEqual(bt.site_of("www.bbc.co.uk"), "bbc.co.uk")
+        self.assertEqual(bt.site_of(".accounts.google.com"), "google.com")
+        self.assertEqual(bt.site_of("127.0.0.1"), "127.0.0.1")
+
+
+@unittest.skipUnless(_HAVE_PW, "playwright not installed")
+class SignInRouteTests(unittest.TestCase):
+    """the http side: owner sessions only, and what the owner types never reaches a log."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), _Site)
+        cls.url = f"http://127.0.0.1:{cls.server.server_port}/"
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+
+    def setUp(self):
+        self.data = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(
+            os.environ, {"ALLES_DATA": self.data.name, "AUTH_ENABLED": "false"}
+        )
+        self.env.start()
+        self.local = mock.patch.object(
+            bt, "_host_safe", lambda url: url.startswith("http://127.0.0.1")
+        )
+        self.local.start()
+
+    def tearDown(self):
+        self.local.stop()
+        self.env.stop()
+        self.data.cleanup()
+
+    def test_the_whole_flow_over_http(self):
+        import logging
+
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from core.api_errors import ApiError, api_error_handler
+        from routes import aide
+
+        app = FastAPI()
+        app.add_exception_handler(ApiError, api_error_handler)
+        app.include_router(aide.router)
+
+        records = []
+        handler = logging.Handler(logging.DEBUG)
+        handler.emit = lambda record: records.append(record.getMessage() + repr(record.__dict__))
+        root = logging.getLogger()
+        old_level = root.level
+        root.addHandler(handler)
+        root.setLevel(logging.DEBUG)
+        try:
+            with TestClient(app) as client:
+                denied = client.get(
+                    "/api/aide/browser/sites", headers={"authorization": "Bearer alles_x"}
+                )
+                opened = client.post(
+                    "/api/aide/browser/signin",
+                    json={"url": self.url + "login", "width": 480, "height": 640},
+                )
+                frame = client.get("/api/aide/browser/signin/frame")
+                client.post("/api/aide/browser/signin/click", json={"x": 30, "y": 30})
+                typed = client.post("/api/aide/browser/signin/type", json={"text": "hunter2"})
+                bad_key = client.post("/api/aide/browser/signin/type", json={"key": "Meta+Q"})
+                done = client.post("/api/aide/browser/signin/done")
+                closed = client.get("/api/aide/browser/signin/frame")
+                listed = client.get("/api/aide/browser/sites")
+                unknown = client.delete("/api/aide/browser/sites/nope.example")
+                out = client.delete("/api/aide/browser/sites/127.0.0.1")
+                client.portal.call(bt._b.close)
+        finally:
+            root.removeHandler(handler)
+            root.setLevel(old_level)
+
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(opened.status_code, 200, opened.text)
+        self.assertEqual(opened.json()["width"], 480)
+        self.assertEqual(frame.headers["content-type"], "image/jpeg")
+        self.assertEqual(frame.headers["cache-control"], "no-store")
+        self.assertEqual(typed.status_code, 200)
+        self.assertEqual(bad_key.status_code, 400)
+        self.assertEqual([row["site"] for row in done.json()["sites"]], ["127.0.0.1"])
+        self.assertEqual(closed.status_code, 409)
+        self.assertEqual(listed.json()["sites"][0]["site"], "127.0.0.1")
+        self.assertEqual(unknown.status_code, 404)
+        self.assertEqual(out.json()["sites"], [])
+        self.assertFalse(any("hunter2" in line for line in records))
 
 
 if __name__ == "__main__":

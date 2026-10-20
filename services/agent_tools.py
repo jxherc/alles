@@ -1871,6 +1871,12 @@ async def _browse(name, args) -> dict:
 
     target = str(args.get("ref") or args.get("selector") or "").strip()
     try:
+        if await _b.settle_owner():
+            return {
+                "output": "the owner is signing in to a site in the browser right now; "
+                "wait for them to finish, then try again",
+                "error": True,
+            }
         if name == "browse_open":
             url = (args.get("url") or "").strip()
             if not url:

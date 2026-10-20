@@ -348,6 +348,11 @@ export function initAideCentral() {
     else if (value === 'private') $('incognito-btn')?.click();
     else if (value === 'share') window._openAideSessionActions?.($('aide-more-btn'));
     else if (value === 'settings') window._openSettings?.();
+    else if (value === 'signin') {
+      window._openSettings?.('tools');
+      // after settings moves focus to its own picker
+      setTimeout(() => window._focusBrowserSignin?.(), 60);
+    }
   });
   window.addEventListener('aide:call-surface', event => {
     if (event.detail?.open) {

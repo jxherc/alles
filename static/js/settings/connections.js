@@ -941,14 +941,334 @@ export async function loadPhoton(isCurrent = () => true) {
 }
 
 
+// ── signing in to sites in Aide's errand browser ──
+// the owner drives the headless page through screenshots. typed text goes straight to the page.
+
+let _signinBound = false;
+let _signinOpen = false;
+let _signinTimer = 0;
+let _signinFrameAt = 0;
+let _signinFrameBusy = false;
+let _signinImage = '';
+let _signinPending = false;
+let _signinWheel = 0;
+let _signinWheelTimer = 0;
+let _signinLeft = false;  // the pane was closed
+
+const _signinEl = id => document.getElementById(id);
+
+function _signinDate(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }).toLowerCase();
+}
+
+function _renderSignedIn(sites) {
+  const list = _signinEl('browser-sites');
+  if (!list) return;
+  _signinEl('browser-signin-head-state').textContent = sites.length ? `${sites.length} signed in` : '';
+  _signinEl('browser-signin-forget').hidden = !sites.length;
+  if (!sites.length) {
+    list.innerHTML = '<div class="settings-row-empty">no sign-ins yet</div>';
+    return;
+  }
+  list.innerHTML = sites.map(site => {
+    const also = (site.also || []).length ? ` · also ${site.also.map(_esc).join(', ')}` : '';
+    return `<div class="browser-site-row">
+      <div class="browser-site-copy"><span class="browser-site-name">${_esc(site.site)}</span><span class="browser-site-meta">signed in ${_esc(_signinDate(site.at))}${also}</span></div>
+      <button class="btn" type="button" data-signout="${_escAttr(site.site)}" aria-label="sign out of ${_escAttr(site.site)}">sign out</button>
+    </div>`;
+  }).join('');
+}
+
+let _signinQueue = Promise.resolve();
+
+function _signinPost(path, body) {
+  // one action at a time, in the order the owner did them
+  const next = _signinQueue.then(() => _signinSend(path, body));
+  _signinQueue = next.catch(() => null);
+  return next;
+}
+
+async function _signinSend(path, body) {
+  if (!_signinOpen) return null;
+  const response = await fetch(`/api/aide/browser/signin${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body || {}),
+  });
+  if (response.status === 409) { _endSignin('the sign-in view closed after a while; open the site again'); return null; }
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    toast(typeof data.detail === 'string' ? data.detail : 'that did not reach the page', 'error');
+    return null;
+  }
+  _signinKick();
+  return response;
+}
+
+function _signinSetBusy(busy) {
+  _signinPending = busy;
+  for (const id of ['browser-signin-go', 'browser-signin-url']) _signinEl(id).disabled = busy || _signinOpen;
+  _signinEl('browser-signin-go').textContent = busy ? 'opening…' : 'open';
+}
+
+async function _openSignin(event) {
+  event.preventDefault();
+  if (_signinPending || _signinOpen) return;
+  const url = _signinEl('browser-signin-url').value.trim();
+  if (!url) { toast('type the site address first', 'error'); _signinEl('browser-signin-url').focus(); return; }
+  const live = _signinEl('browser-signin-live');
+  // render the page at the size it'll be shown (1:1, readable), short enough that the page and
+  // its controls fit the settings scroll area together
+  const body = _signinEl('browser-signin-card').querySelector('.s-card-body');
+  const frame = _signinEl('browser-signin-frame');
+  const room = _signinScroller()?.clientHeight || window.innerHeight;
+  frame.hidden = true;
+  live.hidden = false;
+  const controls = live.offsetHeight + 24;  // the bar, type row and keys (they wrap on phones)
+  live.hidden = true;
+  frame.hidden = false;
+  const width = Math.round(body.clientWidth - 2);
+  const height = Math.round(Math.min(Math.max(room - controls, 300), 860));
+  _signinSetBusy(true);
+  try {
+    const response = await _fetchWithRecentOwner('/api/aide/browser/signin', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url, width, height }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'could not open that site');
+    _signinOpen = true;
+    if (_signinLeft) { void _finishSignin({ quiet: true }); return; }  // settings closed meanwhile
+    live.hidden = false;
+    _signinEl('browser-signin-form').hidden = true;
+    _signinEl('browser-signin-frame').style.aspectRatio = `${data.width} / ${data.height}`;
+    _signinEl('browser-signin-loading').hidden = false;
+    _signinWhere(data);
+    _signinFrameAt = 0;
+    _signinPoll();
+    const scroller = _signinScroller();
+    if (scroller) scroller.scrollTop += live.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 8;
+    _signinEl('browser-signin-text').focus({ preventScroll: true });
+  } catch (error) {
+    toast(error.message, 'error');
+  } finally { _signinSetBusy(false); }
+}
+
+function _signinScroller() {
+  for (let node = _signinEl('browser-signin-card')?.parentElement; node; node = node.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight) return node;
+  }
+  return null;
+}
+
+function _signinWhere(state) {
+  const where = _signinEl('browser-signin-where');
+  let host = state.url || '';
+  try { host = new URL(state.url).host + new URL(state.url).pathname.replace(/\/$/, ''); } catch {}
+  if (state.url === 'about:blank') host = 'blank page';
+  where.textContent = host;
+  where.title = state.url || '';
+  _signinEl('browser-signin-img').alt = state.title ? `the page: ${state.title}` : 'the page in Aide\'s browser';
+}
+
+async function _signinFrame() {
+  if (!_signinOpen || _signinFrameBusy) return;
+  _signinFrameBusy = true;
+  try {
+    const response = await fetch('/api/aide/browser/signin/frame', { cache: 'no-store' });
+    if (response.status === 409) { _endSignin('the sign-in view closed after a while; open the site again'); return; }
+    if (!response.ok) return;
+    const blob = await response.blob();
+    if (!_signinOpen) return;
+    const next = URL.createObjectURL(blob);
+    const img = _signinEl('browser-signin-img');
+    img.src = next;
+    if (_signinImage) URL.revokeObjectURL(_signinImage);
+    _signinImage = next;
+    _signinEl('browser-signin-loading').hidden = true;
+    if (Date.now() - _signinFrameAt > 2500) {
+      _signinFrameAt = Date.now();
+      const state = await fetch('/api/aide/browser/signin').then(r => r.json()).catch(() => null);
+      if (state?.open) _signinWhere(state);
+    }
+  } catch { /* the next tick tries again */ } finally { _signinFrameBusy = false; }
+}
+
+function _signinPoll() {
+  clearTimeout(_signinTimer);
+  if (!_signinOpen) return;
+  const next = document.hidden ? 2000 : 800;
+  _signinFrame().finally(() => { if (_signinOpen) _signinTimer = setTimeout(_signinPoll, next); });
+}
+
+function _signinKick() {
+  // actions settle a moment later (navigation, focus rings); show that sooner than the next tick
+  _signinFrameAt = 0;
+  setTimeout(() => _signinFrame(), 250);
+}
+
+function _endSignin(message) {
+  _signinOpen = false;
+  clearTimeout(_signinTimer);
+  _signinEl('browser-signin-live').hidden = true;
+  _signinEl('browser-signin-form').hidden = false;
+  _signinEl('browser-signin-text').value = '';
+  if (_signinImage) { URL.revokeObjectURL(_signinImage); _signinImage = ''; }
+  _signinEl('browser-signin-img').removeAttribute('src');
+  _signinSetBusy(false);
+  if (message) toast(message, 'error');
+}
+
+async function _finishSignin({ quiet = false } = {}) {
+  if (!_signinOpen) return;
+  const button = _signinEl('browser-signin-done');
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/aide/browser/signin/done', { method: 'POST' });
+    const data = await response.json().catch(() => ({}));
+    _endSignin();
+    if (response.ok) {
+      _renderSignedIn(data.sites || []);
+      _signinEl('browser-signin-url').value = '';
+      if (!quiet) toast('saved; Aide can use the browser again');
+    }
+    _signinEl('browser-signin-url').focus();
+  } finally { button.disabled = false; }
+}
+
+async function _signOutSite(button) {
+  const site = button.dataset.signout;
+  if (!await _dlgConfirm(`sign Aide's browser out of ${site}? its cookies and saved data for that site are deleted.`, { confirmLabel: 'sign out' })) return;
+  button.disabled = true;
+  button.textContent = 'signing out…';
+  try {
+    const response = await _fetchWithRecentOwner(`/api/aide/browser/sites/${encodeURIComponent(site)}`, { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'could not sign out');
+    _renderSignedIn(data.sites || []);
+    toast(`signed out of ${site}`);
+    _signinEl('browser-signin-url').focus();
+  } catch (error) {
+    toast(error.message, 'error');
+    button.disabled = false;
+    button.textContent = 'sign out';
+  }
+}
+
+async function _forgetBrowser() {
+  if (!await _dlgConfirm('forget everything in Aide\'s browser? every sign-in, cookie and cached page is deleted.', { confirmLabel: 'forget all' })) return;
+  if (_signinOpen) _endSignin();
+  const button = _signinEl('browser-signin-forget');
+  button.disabled = true;
+  try {
+    const response = await _fetchWithRecentOwner('/api/aide/browser/sites', { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'could not clear the browser');
+    _renderSignedIn([]);
+    toast('browser data deleted');
+    _signinEl('browser-signin-url').focus();
+  } catch (error) {
+    toast(error.message, 'error');
+  } finally { button.disabled = false; }
+}
+
+function _bindSignin() {
+  _signinBound = true;
+  _signinEl('browser-signin-form').addEventListener('submit', _openSignin);
+  _signinEl('browser-signin-done').addEventListener('click', () => _finishSignin());
+  _signinEl('browser-signin-forget').addEventListener('click', _forgetBrowser);
+  _signinEl('browser-sites').addEventListener('click', event => {
+    const button = event.target.closest('[data-signout]');
+    if (button) void _signOutSite(button);
+  });
+  const img = _signinEl('browser-signin-img');
+  img.addEventListener('click', event => {
+    if (!img.naturalWidth) return;
+    const box = img.getBoundingClientRect();
+    const scale = img.naturalWidth / box.width;
+    void _signinPost('/click', { x: (event.clientX - box.left) * scale, y: (event.clientY - box.top) * scale });
+    _signinEl('browser-signin-text').focus({ preventScroll: true });
+  });
+  _signinEl('browser-signin-frame').addEventListener('wheel', event => {
+    if (!_signinOpen) return;
+    event.preventDefault();
+    _signinWheel += event.deltaY;
+    clearTimeout(_signinWheelTimer);
+    _signinWheelTimer = setTimeout(() => {
+      const dy = Math.max(-2000, Math.min(2000, _signinWheel));
+      _signinWheel = 0;
+      void _signinPost('/scroll', { dy });
+    }, 120);
+  }, { passive: false });
+  _signinEl('browser-signin-type-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const field = _signinEl('browser-signin-text');
+    if (!field.value) return;
+    const text = field.value;
+    field.value = '';
+    void _signinPost('/type', { text });
+  });
+  const show = _signinEl('browser-signin-show');
+  show.addEventListener('click', () => {
+    const field = _signinEl('browser-signin-text');
+    const shown = field.type === 'password';
+    field.type = shown ? 'text' : 'password';
+    show.setAttribute('aria-pressed', String(shown));
+    show.textContent = shown ? 'hide' : 'show';
+  });
+  document.querySelector('#browser-signin-card .browser-signin-keys').addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    if (button.dataset.signinKey) void _signinPost('/type', { key: button.dataset.signinKey });
+    else if (button.dataset.signinScroll) void _signinPost('/scroll', { dy: Number(button.dataset.signinScroll) });
+    else if (button.id === 'browser-signin-back') void _signinPost('/back');
+  });
+}
+
+export async function loadBrowserSignin(isCurrent = () => true) {
+  if (!_signinEl('browser-signin-card')) return;
+  if (!_signinBound) _bindSignin();
+  _signinLeft = false;
+  try {
+    const data = await fetch('/api/aide/browser/sites').then(r => (r.ok ? r.json() : Promise.reject()));
+    if (isCurrent()) _renderSignedIn(data.sites || []);
+  } catch {
+    if (isCurrent()) _signinEl('browser-sites').innerHTML = '<div class="settings-row-empty">couldn\'t load sign-ins</div>';
+  }
+}
+
+let _connectionsLoaded = Promise.resolve();
+
+export async function focusBrowserSignin() {
+  const card = _signinEl('browser-signin-card');
+  if (!card) return;
+  const pin = () => card.scrollIntoView({ block: 'start' });
+  pin();
+  (_signinOpen ? _signinEl('browser-signin-text') : _signinEl('browser-signin-url')).focus({ preventScroll: true });
+  // the cards above finish loading a moment later and push this one down
+  await _connectionsLoaded.catch(() => {});
+  requestAnimationFrame(() => {
+    // not if the owner already moved on (opened a site, or left the card)
+    if (!_signinOpen && card.contains(document.activeElement)) pin();
+  });
+}
+window._focusBrowserSignin = focusBrowserSignin;
+
+
 export const connectionsPane = createSettingsPane({
   init: _wireConnectionsPane,
-  load: isCurrent => Promise.all([
+  load: isCurrent => (_connectionsLoaded = Promise.all([
     loadAgentStatus(isCurrent), loadMcpServers(isCurrent), loadConnections(isCurrent),
     loadDiscordConnection(isCurrent), loadPermRules(isCurrent), loadMacosStatus(isCurrent),
-    loadPhoton(isCurrent),
-  ]),
+    loadPhoton(isCurrent), loadBrowserSignin(isCurrent),
+  ])),
   dispose() {
+    // leaving the pane ends the live view, so Aide isn't kept waiting on a page nobody watches
+    _signinLeft = true;
+    void _finishSignin({ quiet: true });
     for (const [name, generation] of _connectionLoads) _connectionLoads.set(name, generation + 1);
     _discordGeneration += 1;
   },

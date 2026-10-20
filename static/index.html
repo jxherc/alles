@@ -161,6 +161,7 @@
             <button type="button" role="menuitem" data-aide-central-action="scheduled">scheduled work</button>
             <button type="button" role="menuitem" data-aide-central-action="skills">skills</button>
             <button type="button" role="menuitem" data-aide-central-action="tools">tools</button>
+            <button type="button" role="menuitem" data-aide-central-action="signin">sign in to a site</button>
             <button type="button" role="menuitem" data-aide-central-action="private">private conversation</button>
             <button type="button" role="menuitem" data-aide-central-action="share">export conversation</button>
             <button type="button" role="menuitem" data-aide-central-action="settings">settings</button>
@@ -2492,6 +2493,47 @@
               <div class="s-field"><label for="photon-project-secret">Photon project secret <span class="s-field-note" id="photon-secret-note">encrypted and never shown again</span></label><input type="password" class="settings-input" id="photon-project-secret" autocomplete="off" placeholder="paste the project secret" style="width:100%"></div>
               <div class="s-field"><label for="photon-owner">your phone number or email <span class="s-field-note">only these get answers; one per line</span></label><textarea class="settings-textarea" id="photon-owner" rows="2" placeholder="+1 555 010 0199"></textarea></div>
               <button class="btn primary" type="button" id="photon-save" style="width:100%">save</button>
+            </div>
+          </div>
+          <div class="s-card" id="browser-signin-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+              sign in to a site
+              <span class="jarvis-discord-head-state" id="browser-signin-head-state"></span>
+            </div>
+            <div class="s-card-body">
+              <p class="browser-signin-note">sign in to the accounts Aide runs errands on. you type into the page here; Aide never sees what you type, and it waits until you're done.</p>
+              <div id="browser-sites" class="browser-sites" aria-live="polite"></div>
+              <form class="browser-signin-open" id="browser-signin-form" novalidate>
+                <label class="sr-only" for="browser-signin-url">site address</label>
+                <input type="text" class="settings-input" id="browser-signin-url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="example.com/login">
+                <button class="btn primary" type="submit" id="browser-signin-go">open</button>
+              </form>
+              <div class="browser-signin-live" id="browser-signin-live" hidden>
+                <div class="browser-signin-bar">
+                  <span class="browser-signin-url" id="browser-signin-where" title=""></span>
+                  <button class="btn primary" type="button" id="browser-signin-done">done</button>
+                </div>
+                <div class="browser-signin-frame" id="browser-signin-frame" tabindex="0" role="img" aria-label="the page in Aide's browser. click a field, then type below">
+                  <img id="browser-signin-img" alt="" draggable="false">
+                  <span class="browser-signin-loading" id="browser-signin-loading">loading the page…</span>
+                </div>
+                <form class="browser-signin-type" id="browser-signin-type-form" autocomplete="off">
+                  <label class="sr-only" for="browser-signin-text">type into the page</label>
+                  <input type="password" class="settings-input" id="browser-signin-text" maxlength="500" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tap a field, then type here">
+                  <button class="btn" type="button" id="browser-signin-show" aria-pressed="false">show</button>
+                  <button class="btn" type="submit">type</button>
+                </form>
+                <div class="browser-signin-keys" role="group" aria-label="keys and page controls">
+                  <button class="btn" type="button" data-signin-key="Tab">tab</button>
+                  <button class="btn" type="button" data-signin-key="Enter">enter</button>
+                  <button class="btn" type="button" data-signin-key="Backspace">delete</button>
+                  <button class="btn" type="button" data-signin-scroll="-600">scroll up</button>
+                  <button class="btn" type="button" data-signin-scroll="600">scroll down</button>
+                  <button class="btn" type="button" id="browser-signin-back">back</button>
+                </div>
+              </div>
+              <button class="btn danger" type="button" id="browser-signin-forget">forget all browser data</button>
             </div>
           </div>
           <div class="s-card">

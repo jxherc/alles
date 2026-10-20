@@ -101,6 +101,22 @@ _WAKE_AND_CONNECTOR_ADDITIONS = {
 _ANDROMEDA_TOOLS_ADDITIONS = {"POST /api/andromeda/translate"}
 
 
+# the owner signing in to sites in Aide's errand browser, added after the connectors
+_BROWSER_SIGNIN_ADDITIONS = {
+    "DELETE /api/aide/browser/sites",
+    "DELETE /api/aide/browser/sites/{site}",
+    "GET /api/aide/browser/signin",
+    "GET /api/aide/browser/signin/frame",
+    "GET /api/aide/browser/sites",
+    "POST /api/aide/browser/signin",
+    "POST /api/aide/browser/signin/back",
+    "POST /api/aide/browser/signin/click",
+    "POST /api/aide/browser/signin/done",
+    "POST /api/aide/browser/signin/scroll",
+    "POST /api/aide/browser/signin/type",
+}
+
+
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
     later = (
@@ -109,6 +125,7 @@ def _route_rows():
         | _HARNESS_ADDITIONS
         | _WAKE_AND_CONNECTOR_ADDITIONS
         | _ANDROMEDA_TOOLS_ADDITIONS
+        | _BROWSER_SIGNIN_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -233,6 +250,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _HARNESS_ADDITIONS
                 - _WAKE_AND_CONNECTOR_ADDITIONS
                 - _ANDROMEDA_TOOLS_ADDITIONS
+                - _BROWSER_SIGNIN_ADDITIONS
             ),
             960,
         )
@@ -249,6 +267,10 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
         }
         self.assertEqual(public, {"POST /hooks/goal/{workflow_id}", "GET /oauth/mcp-client.json"})
 
+    def test_browser_signin_routes_are_additive_and_private(self):
+        self.assertTrue(_BROWSER_SIGNIN_ADDITIONS <= set(_current_rows()))
+        self.assertTrue(all(" /api/aide/browser/" in r for r in _BROWSER_SIGNIN_ADDITIONS))
+
     def test_pi_code_routes_replace_the_dsh_bridge(self):
         current = set(_current_rows())
         self.assertTrue(_PI_CODE_ADDITIONS <= current)
@@ -258,13 +280,13 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_andromeda_tool_routes_are_additive(self):
         current = set(_current_rows())
         self.assertTrue(_ANDROMEDA_TOOLS_ADDITIONS <= current)
-        self.assertEqual(len(current - _ANDROMEDA_TOOLS_ADDITIONS), 974)
+        self.assertEqual(len(current - _ANDROMEDA_TOOLS_ADDITIONS - _BROWSER_SIGNIN_ADDITIONS), 974)
 
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 975)
-        self.assertEqual(digest, "373d5c321987d0b0def54914100737db607b927b916db527d9db4236399191c8")
+        self.assertEqual(len(rows), 986)
+        self.assertEqual(digest, "41dcc23d7df055876d22fc2afd05725f3e5d29f74cf20ec4a6246298bc2f47c5")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -273,7 +295,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 954, "v1": 2, "public": 19})
+        self.assertEqual(groups, {"api": 965, "v1": 2, "public": 19})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 
