@@ -376,7 +376,9 @@ FOCUS_ONE = r"""
 (i) => {
   const el = window.__auditFocus[i];
   if (!el || !el.isConnected) return null;
-  const snap = e => { const c = getComputedStyle(e); return { o: c.outlineStyle !== 'none' && parseFloat(c.outlineWidth) > 0 ? c.outlineStyle + ' ' + c.outlineWidth + ' ' + c.outlineColor : '', s: c.boxShadow, b: [c.borderTopColor, c.borderRightColor, c.borderBottomColor, c.borderLeftColor].join('|'), bw: c.borderBottomWidth, bg: c.backgroundColor, col: c.color, td: c.textDecorationLine }; };
+  // a switch rings its track (::before), not its 44px target, so the pseudo element counts too
+  const ol = c => c.outlineStyle !== 'none' && parseFloat(c.outlineWidth) > 0 ? c.outlineStyle + ' ' + c.outlineWidth + ' ' + c.outlineColor : '';
+  const snap = e => { const c = getComputedStyle(e); return { o: ol(c), po: ol(getComputedStyle(e, '::before')), s: c.boxShadow, b: [c.borderTopColor, c.borderRightColor, c.borderBottomColor, c.borderLeftColor].join('|'), bw: c.borderBottomWidth, bg: c.backgroundColor, col: c.color, td: c.textDecorationLine }; };
   const chain = []; let p = el; for (let k = 0; k < 5 && p; k++) { chain.push(p); p = p.parentElement; }
   // overlays focus their first control on open; measure rest from an unfocused state
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
@@ -396,7 +398,7 @@ FOCUS_ONE = r"""
   const c = getComputedStyle(el);
   const sh = c.boxShadow === 'none' ? [] : c.boxShadow.split(/,(?![^(]*\))/).map(s => s.trim());
   const ring = sh.some(s => { const n = (s.match(/-?[\d.]+px/g) || []).map(parseFloat); if (!/inset/.test(s)) return true; return n.length >= 4 ? (n[0] === 0 && n[1] === 0 && n[3] > 0) : false; });
-  const outline = after[0].o;
+  const outline = after[0].o || after[0].po;
   const borderBox = before[0].b !== after[0].b && new Set(after[0].b.split('|')).size === 1 && parseFloat(c.borderTopWidth) > 0 && parseFloat(c.borderLeftWidth) > 0;
   // outline contrast against what sits behind it
   let oc = null;
@@ -405,7 +407,7 @@ FOCUS_ONE = r"""
     const lum = q => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(q.r) + 0.7152 * f(q.g) + 0.0722 * f(q.b); };
     let n = el.parentElement, bg = null; while (n) { const x = parse(getComputedStyle(n).backgroundColor); if (x && x.a > 0.9) { bg = x; break; } n = n.parentElement; }
     bg = bg || parse(getComputedStyle(document.body).backgroundColor);
-    const fg = parse(c.outlineColor);
+    const fg = parse(after[0].o ? c.outlineColor : getComputedStyle(el, '::before').outlineColor);
     if (fg && bg) { const a = lum(fg), b = lum(bg); oc = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); }
   }
   const s = (e => { let t = e.tagName.toLowerCase(); if (e.id) return t + '#' + e.id; const cl = [...e.classList].slice(0, 2).join('.'); if (cl) t += '.' + cl; let p = e.parentElement, h = 0; while (p && !p.id && h < 6) { p = p.parentElement; h++; } return (p && p.id ? '#' + p.id + ' ' : '') + t; })(el);
