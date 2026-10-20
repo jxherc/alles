@@ -106,7 +106,7 @@ def public_connection(row: JarvisConnector | None) -> dict:
     return {
         "configured": True,
         "id": row.id,
-        "bot_name": str(config.get("bot_name") or row.name or "Jarvis"),
+        "bot_name": str(config.get("bot_name") or row.name or "Aide"),
         "bot_id": str(config.get("bot_id") or ""),
         "enabled": bool(row.enabled),
         "paired": bool(config.get("owner_user_id")),
@@ -126,7 +126,7 @@ def public_connection(row: JarvisConnector | None) -> dict:
 def news_delivery_status(row: JarvisConnector | None) -> dict:
     """Return only the safe readiness state needed by the News settings UI."""
     if row is None:
-        return {"available": False, "paired": False, "reason": "Jarvis is not connected"}
+        return {"available": False, "paired": False, "reason": "Discord is not connected"}
     config = _config(row)
     channel_id = _news_delivery_channel(row)
     paired = bool(config.get("owner_user_id"))
@@ -135,11 +135,11 @@ def news_delivery_status(row: JarvisConnector | None) -> dict:
         ""
         if available
         else (
-            "Jarvis is paused"
+            "Aide on Discord is paused"
             if not row.enabled
-            else "pair Jarvis first"
+            else "pair Discord first"
             if not paired
-            else "message Jarvis once before enabling delivery"
+            else "message the bot once before turning on delivery"
         )
     )
     return {"available": available, "paired": paired, "reason": reason}
@@ -190,14 +190,14 @@ async def validate_token(token: str) -> dict:
 def configure(db, token: str, identity: dict) -> tuple[JarvisConnector, str]:
     row = get_connection(db)
     if row is None:
-        row = JarvisConnector(name="Jarvis", kind="discord", external=True)
+        row = JarvisConnector(name="Aide", kind="discord", external=True)
         db.add(row)
         db.flush()
     config = _config(row)
     config.update(
         {
             "bot_id": str(identity.get("id") or ""),
-            "bot_name": str(identity.get("global_name") or identity.get("username") or "Jarvis")[
+            "bot_name": str(identity.get("global_name") or identity.get("username") or "Aide")[
                 :100
             ],
             "connection_state": "connecting",
@@ -205,7 +205,7 @@ def configure(db, token: str, identity: dict) -> tuple[JarvisConnector, str]:
     )
     # Replacing the token is explicit owner action. Keep an existing owner pairing,
     # but create a code when this is a new or currently unpaired connection.
-    row.name = "Jarvis"
+    row.name = "Aide"
     row.secret = str(token).strip()
     row.enabled = True
     _save_config(row, config)
@@ -622,7 +622,7 @@ async def process_message(connector_id: str, payload: dict) -> list[tuple[str, s
             _save_config(row, config)
             inbox.state = "dispatched"
             db.commit()
-            return [(channel_id, "Paired. I’m Jarvis here; Aide does the work inside Alles.")]
+            return [(channel_id, "Paired. This is Aide; message me here like you would in alles.")]
 
         inbox = _remember_event(db, message_id)
         if inbox is None:

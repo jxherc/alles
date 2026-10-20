@@ -2948,8 +2948,9 @@ html[data-kokuen-version="5"] [data-kokuen-state="loading"] {
   cursor: progress;
 }
 
-/* tabs show selection with tone and weight only (COMPONENTS.md tabs) */
-html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch, [role="tab"])) {
+/* tabs show selection with tone and weight only (COMPONENTS.md tabs). anything with its own mark
+   (a radio dot, a tick) lets the mark show the state; a box behind it as well is just noise */
+html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch, [role="tab"], .news-choice, .cal-chk-row, .ie-chk, .token-scope, :has(> .radio-mark, > .chk, > .token-scope-mark))) {
   color: var(--k-text);
   background: var(--k-raised);
 }
@@ -5335,7 +5336,7 @@ body.afterlife-aide-projects[data-space="aide"] .news-switch[aria-checked="true"
 
 body.afterlife-aide-projects[data-space="aide"] .news-switch[aria-checked="true"]::after {
   left: 23px;
-  background: var(--k-accent);
+  background: var(--k-text);
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-settings-grid {
@@ -5386,8 +5387,8 @@ body.afterlife-aide-projects[data-space="aide"] .news-choice:is(:hover, [aria-ch
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-choice[aria-checked="true"]::before {
-  border-color: var(--k-accent);
-  background: var(--k-accent);
+  border-color: var(--k-text);
+  background: var(--k-text);
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-custom-time,
@@ -6432,13 +6433,13 @@ body[data-app="files"] #files-view .files-check::before {
 }
 
 body[data-app="files"] #files-view .files-check[aria-checked="true"]::before {
-  border-color: var(--k-accent);
-  background: var(--k-accent);
+  border-color: var(--k-text);
+  background: var(--k-text);
 }
 
 body[data-app="files"] #files-view .files-check[aria-checked="mixed"]::before {
-  border-color: var(--k-accent);
-  background: color-mix(in srgb, var(--k-accent) 50%, var(--k-page));
+  border-color: var(--k-text);
+  background: color-mix(in srgb, var(--k-text) 50%, var(--k-page));
 }
 
 body[data-app="files"] #files-view .files-list {

@@ -2435,7 +2435,7 @@
           <div class="s-card" id="jarvis-discord-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9h8M7 15h.01M17 15h.01"/><path d="M5 5h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3l-2 2h-4l-2-2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>
-              Jarvis on Discord
+              Aide on Discord
               <span class="jarvis-discord-head-state" id="jarvis-discord-head-state">not connected</span>
             </div>
             <div class="s-card-body">
@@ -2444,16 +2444,16 @@
               </div>
               <div id="jarvis-discord-setup" hidden>
                 <div class="s-field"><label for="jarvis-discord-token">Discord bot token <span class="s-field-note">encrypted and never shown again</span></label><input type="password" class="settings-input" id="jarvis-discord-token" autocomplete="off" placeholder="paste the bot token" style="width:100%"></div>
-                <button class="btn primary" type="button" id="jarvis-discord-connect" style="width:100%">connect Jarvis</button>
-                <div class="s-card-hint">create a private Discord bot, enable message content, then paste its token here. Jarvis is only the Discord connection; Aide does the work.</div>
+                <button class="btn primary" type="button" id="jarvis-discord-connect" style="width:100%">connect Discord</button>
+                <div class="s-card-hint">create a private Discord bot, enable message content, then paste its token here. you talk to Aide there, same as in alles.</div>
               </div>
               <div id="jarvis-discord-manage" hidden>
                 <div class="jarvis-discord-status">
-                  <div><div class="s-toggle-label" id="jarvis-discord-name">Jarvis</div><div class="s-toggle-desc" id="jarvis-discord-detail">not paired</div></div>
-                  <button class="s-switch" type="button" id="jarvis-discord-enabled" role="switch" aria-checked="false" aria-label="enable Jarvis Discord connection"></button>
+                  <div><div class="s-toggle-label" id="jarvis-discord-name">Aide on Discord</div><div class="s-toggle-desc" id="jarvis-discord-detail">not paired</div></div>
+                  <button class="s-switch" type="button" id="jarvis-discord-enabled" role="switch" aria-checked="false" aria-label="enable Aide on Discord"></button>
                 </div>
                 <div class="jarvis-pairing" id="jarvis-pairing">
-                  <div class="jarvis-pairing-copy"><strong>pair one owner</strong><span>send <code>pair CODE</code> in a DM to Jarvis. the code expires after 10 minutes.</span></div>
+                  <div class="jarvis-pairing-copy"><strong>pair one owner</strong><span>send <code>pair CODE</code> in a DM to the bot. the code expires after 10 minutes.</span></div>
                   <div class="jarvis-pairing-code" id="jarvis-pairing-code" hidden></div>
                   <button class="btn" type="button" id="jarvis-discord-pair">new pairing code</button>
                 </div>
@@ -2472,7 +2472,7 @@
                   <label>time zone<input class="settings-input" id="jarvis-discord-timezone" placeholder="Asia/Taipei"></label>
                   <button class="btn" type="button" id="jarvis-discord-save-quiet">save</button>
                 </div>
-                <button class="btn danger" type="button" id="jarvis-discord-disconnect">disconnect Jarvis</button>
+                <button class="btn danger" type="button" id="jarvis-discord-disconnect">disconnect Discord</button>
               </div>
             </div>
           </div>
@@ -2598,17 +2598,16 @@
                 <input type="text" class="settings-input" id="token-name" aria-label="token name" placeholder="token name" style="flex:1">
                 <button type="button" class="btn primary" id="token-add-btn">generate</button>
               </div>
-              <div class="vault-schema-pick" id="token-scopes" style="margin-top:0.55rem" aria-label="token permissions">
-                <span class="vsp-label">access</span>
-                <button type="button" class="vsp-chip active" data-token-scope="read">read</button>
-                <button type="button" class="vsp-chip" data-token-scope="write">write</button>
-                <button type="button" class="vsp-chip" data-token-scope="models">models</button>
-                <button type="button" class="vsp-chip" data-token-scope="agent">agent</button>
-                <button type="button" class="vsp-chip" data-token-scope="secrets">secrets</button>
-                <button type="button" class="vsp-chip" data-token-scope="connections">connections</button>
-                <button type="button" class="vsp-chip" data-token-scope="admin">admin</button>
+              <div class="token-scopes" id="token-scopes" role="group" aria-labelledby="token-scopes-label">
+                <div class="token-scopes-label" id="token-scopes-label">what it can do</div>
+                <button type="button" class="token-scope active" data-token-scope="read" aria-pressed="true"><span class="token-scope-mark" aria-hidden="true"></span><span class="token-scope-name">read</span><span class="token-scope-desc">look at your data</span></button>
+                <button type="button" class="token-scope" data-token-scope="write" aria-pressed="false"><span class="token-scope-mark" aria-hidden="true"></span><span class="token-scope-name">write</span><span class="token-scope-desc">change your data</span></button>
+                <button type="button" class="token-scope" data-token-scope="models" aria-pressed="false"><span class="token-scope-mark" aria-hidden="true"></span><span class="token-scope-name">models</span><span class="token-scope-desc">chat, research, images and voice through your models</span></button>
+                <button type="button" class="token-scope" data-token-scope="agent" aria-pressed="false"><span class="token-scope-mark" aria-hidden="true"></span><span class="token-scope-name">agent</span><span class="token-scope-desc">run Aide's agent and its tools</span></button>
+                <button type="button" class="token-scope" data-token-scope="secrets" aria-pressed="false"><span class="token-scope-mark" aria-hidden="true"></span><span class="token-scope-name">secrets</span><span class="token-scope-desc">the secrets vault</span></button>
+                <button type="button" class="token-scope" data-token-scope="connections" aria-pressed="false"><span class="token-scope-mark" aria-hidden="true"></span><span class="token-scope-name">connections</span><span class="token-scope-desc">connected services, mcp servers, calendar and contact sync</span></button>
+                <button type="button" class="token-scope" data-token-scope="admin" aria-pressed="false"><span class="token-scope-mark" aria-hidden="true"></span><span class="token-scope-name">admin</span><span class="token-scope-desc">tokens, settings, backups and the server. includes everything above</span></button>
               </div>
-              <div class="s-card-hint">choose only what this token needs. admin includes every permission.</div>
               <button type="button" id="token-reveal" aria-label="copy token" data-kokuen-primitive="action" style="display:none;width:100%;margin-top:0.5rem;padding:0.5rem;border:1px solid var(--faint);border-radius:3px;background:none;text-align:left;text-transform:none;user-select:all;font-family:monospace;font-size:0.75rem;word-break:break-all;color:var(--accent);cursor:pointer"></button>
             </div>
           </div>

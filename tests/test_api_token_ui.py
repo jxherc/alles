@@ -16,9 +16,15 @@ class ApiTokenUiTest(unittest.TestCase):
             self.assertIn(f'data-token-scope="{scope}"', self.html)
 
     def test_read_is_the_only_default_scope(self):
-        self.assertIn('class="vsp-chip active" data-token-scope="read"', self.html)
+        self.assertIn(
+            'class="token-scope active" data-token-scope="read" aria-pressed="true"', self.html
+        )
         for scope in ("write", "models", "agent", "secrets", "connections", "admin"):
-            self.assertIn(f'class="vsp-chip" data-token-scope="{scope}"', self.html)
+            self.assertIn(
+                f'class="token-scope" data-token-scope="{scope}" aria-pressed="false"', self.html
+            )
+        # the on/off state is announced, not only drawn
+        self.assertIn("btn.setAttribute('aria-pressed', String(on));", self.js)
 
     def test_selected_scopes_are_sent_and_errors_are_shown(self):
         self.assertIn("JSON.stringify({ name, scopes })", self.js)

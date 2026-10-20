@@ -109,7 +109,7 @@ def patch_configuration(body: ConfigurationPatch, db: DbSession = Depends(get_db
     if values.get("deliver_jarvis"):
         readiness = news.public_configuration(db, config)["jarvis"]
         if not readiness["available"]:
-            raise HTTPException(409, readiness["reason"] or "Jarvis is unavailable")
+            raise HTTPException(409, readiness["reason"] or "Aide is unavailable")
     for key, value in values.items():
         setattr(config, key, value)
     if config.enabled:
@@ -234,7 +234,7 @@ async def retry_jarvis(brief_id: str, db: DbSession = Depends(get_db)):
         raise HTTPException(404, "brief not found")
     readiness = news.public_configuration(db)["jarvis"]
     if not readiness["available"]:
-        raise HTTPException(409, readiness["reason"] or "Jarvis is unavailable")
+        raise HTTPException(409, readiness["reason"] or "Aide is unavailable")
     brief.jarvis_delivery_state = "retry"
     brief.jarvis_next_attempt_at = None
     db.commit()

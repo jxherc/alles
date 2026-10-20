@@ -579,7 +579,7 @@ function _bindDiscordConnection() {
       if (quietRevision === _discordDraftRevisions.quiet) _discordDrafts.quiet = false;
       if (tokenRevision === _discordTokenRevision) document.getElementById('jarvis-discord-token').value = '';
       _renderDiscordConnection(data);
-      toast('Jarvis connected', 'success');
+      toast('Discord connected', 'success');
     } catch (error) { toast(error.message, 'error'); }
     finally { _setDiscordActionPending('connect', false); }
   });
@@ -680,14 +680,14 @@ function _bindDiscordConnection() {
     } catch (error) { toast(error.message, 'error'); }
   });
   document.getElementById('jarvis-discord-disconnect')?.addEventListener('click', async () => {
-    if (!await _dlgConfirm('Disconnect Jarvis from Discord?')) return;
+    if (!await _dlgConfirm('Disconnect Aide from Discord?')) return;
     try {
       await _discordJson('/api/jarvis/discord', { method: 'DELETE' });
       _discordPairingCode = '';
       _discordDrafts.channels = false;
       _discordDrafts.quiet = false;
       _renderDiscordConnection({ configured: false });
-      toast('Jarvis disconnected', 'success');
+      toast('Discord disconnected', 'success');
     } catch (error) { toast(error.message, 'error'); }
   });
 }

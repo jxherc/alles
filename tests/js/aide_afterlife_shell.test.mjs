@@ -403,10 +403,10 @@ test('scheduled work uses custom controls rather than native choice controls', (
   assert.match(view, /role="radiogroup"/);
 });
 
-test('Jarvis exists only as the custom owner-scoped Discord connection', () => {
+test('Discord is only an owner-scoped way to reach Aide', () => {
   const card = html.match(/<div class="s-card" id="jarvis-discord-card">[\s\S]*?<\/div>\s*<div class="s-card">/)?.[0] || '';
   assert.ok(card);
-  assert.match(card, /Jarvis on Discord/);
+  assert.match(card, /Aide on Discord/);
   assert.match(card, /pair one owner/);
   assert.doesNotMatch(card, /<select\b/i);
   assert.doesNotMatch(card, /type="(?:checkbox|radio)"/i);

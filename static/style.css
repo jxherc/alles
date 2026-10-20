@@ -4556,13 +4556,8 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .vault-type-seg { display: inline-flex; border: 1px solid var(--faint); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
 .vault-type-seg .vts-btn { background: none; border: none; color: var(--muted); font-size: 0.75rem; padding: 0.25rem 0.5rem; cursor: pointer; border-right: 1px solid var(--faint); }
 .vault-type-seg .vts-btn:last-child { border-right: none; }
-.vault-type-seg .vts-btn.active { background: var(--accent); color: var(--bg); }
 /* new-category field picker — custom toggle chips (no native checkboxes) */
 .vault-schema-pick { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
-.vsp-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.vsp-chip { background: none; border: 1px solid var(--faint); border-radius: 3px; color: var(--muted); font-family: inherit; font-size: 0.75rem; padding: 0.18rem 0.45rem; cursor: pointer; }
-.vsp-chip:hover { color: var(--text); border-color: var(--muted); }
-.vsp-chip.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 .vault-strength-bar { flex: 0 0 120px; height: 5px; background: var(--faint); border-radius: 3px; overflow: hidden; }
 .vault-strength-fill { display: block; height: 100%; width: 0; transition: width .2s, background .2s; }
 
@@ -5790,6 +5785,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .aide-goal-memory summary::-webkit-details-marker { display: none; }
 .aide-goal-memory summary::after { content: '⌄'; margin-left: 4px; }
 .aide-goal-memory[open] summary::after { content: '⌃'; }
+.aide-goal-memory summary:hover, .aide-goal-memory summary:focus-visible { color: var(--text); outline: 0; }
+.aide-goal-memory p { margin: 0 0 8px; color: var(--soft); font-size: 0.78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 68ch; }
+.aide-goal-memory .aide-goal-last-label { margin-top: 12px; color: var(--muted); font-size: 0.75rem; }
+.aide-goal-row .aide-schedule-state[data-waiting="true"] { color: var(--accent); }
+.aide-goal-row .aide-schedule-state, .aide-goal-row .aide-schedule-actions { padding-top: 2px; }
 .aide-goal-note { margin: 0; color: var(--muted); font-size: 0.75rem; line-height: 1.45; align-self: center; }
 .aide-goal-form [hidden] { display: none; }
 .aide-goal-hook {
@@ -5809,11 +5809,6 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 .aide-goal-hook-row button:hover { background: var(--k-raised, var(--panel)); }
 .aide-goal-hook-row button:focus-visible, .aide-goal-hook-row input:focus-visible { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
-.aide-goal-memory summary:hover, .aide-goal-memory summary:focus-visible { color: var(--text); outline: 0; }
-.aide-goal-memory p { margin: 0 0 8px; color: var(--soft); font-size: 0.78rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 68ch; }
-.aide-goal-memory .aide-goal-last-label { margin-top: 12px; color: var(--muted); font-size: 0.75rem; }
-.aide-goal-row .aide-schedule-state[data-waiting="true"] { color: var(--accent); }
-.aide-goal-row .aide-schedule-state, .aide-goal-row .aide-schedule-actions { padding-top: 2px; }
 
 @media (max-width: 700px) {
   body.afterlife-aide-projects[data-space="aide"] .aide-tool-view { padding: 0 18px 40px; }
@@ -6618,16 +6613,21 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-int { width: 56px; text-align: center; }
 .cal-dow { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.5rem; }
 .cal-dow-b { width: 44px; height: 44px; background: transparent; border-radius: 50%; border: 1px solid var(--faint); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--muted); cursor: pointer; }
-.cal-dow-b.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-.cal-ends { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-top: 0.6rem; }
+/* label, then the choices; a wrapped choice lines up under the first one, not under the label */
+.cal-ends { display: flex; align-items: flex-start; gap: 6px; margin-top: 0.6rem; }
+.cal-ends > .cal-flabel { min-height: 44px; display: inline-flex; align-items: center; margin: 0; padding: 0; }
+.cal-ends-choices { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
 .cal-radio { display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: var(--text); cursor: pointer; }
-.cal-radio-choice { display: flex; align-items: center; gap: 0.32rem; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+/* dot + label, padded evenly so hover and focus never sit on the dot's edge */
+.cal-radio-choice { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px 0 10px; border: 0; border-radius: 3px; background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
+.cal-radio-choice:hover { background: color-mix(in srgb, var(--k-raised, var(--raised)) 70%, transparent); color: var(--text); }
+.cal-radio-choice[aria-checked="true"] { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
+.cal-radio-choice[aria-checked="true"] .radio-mark { border-color: var(--k-ink, var(--text)); }
 .radio-mark { width: 14px; height: 14px; display: inline-grid; place-items: center; border: 1px solid var(--muted); border-radius: 50%; }
 .cal-radio-choice[aria-checked="true"] .radio-mark::after { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); content: ''; }
-.cal-ends-date { display: inline-block; }
+.cal-ends-date { display: inline-flex; min-height: 44px; box-sizing: border-box; }
 .cal-reminders, .cal-swatches { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.2rem; }
-.cal-rem { background: transparent; font-size: 0.75rem; padding: 0.18rem 0.5rem; border: 1px solid var(--faint); border-radius: 3px; color: var(--muted); cursor: pointer; }
-.cal-rem.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.cal-rem { background: transparent; font-size: 0.75rem; min-height: 44px; min-width: 44px; padding: 0 0.6rem; border: 0; border-radius: 3px; color: var(--muted); cursor: pointer; }
 .cal-ed-actions { display: flex; gap: 0.4rem; justify-content: flex-end; margin-top: 0.9rem; }
 .cal-tev-loc { display: block; opacity: 0.85; font-size: 0.92em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cal-tev { cursor: grab; }
@@ -8636,13 +8636,12 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-seg-opt { background: none; border: none; color: var(--muted); padding: 0.25rem 0.55rem; font-size: 0.75rem; cursor: pointer; border-right: 1px solid var(--faint); }
 .te-seg-opt:last-child { border-right: none; }
 .te-seg-opt:hover { color: var(--text); }
-.te-seg-opt.active { background: var(--accent); color: var(--bg); }
 .te-body .te-seg-opt { min-height: 44px; }
 .te-body .te-seg-opt.active { background: var(--raised); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 /* the background-pattern picker has many options now — let it wrap into a grid of chips */
 .te-seg[data-seg="bgPattern"] { display: flex; flex-wrap: wrap; gap: 4px; border: none; border-radius: 0; }
 .te-seg[data-seg="bgPattern"] .te-seg-opt { border: 1px solid var(--faint); border-radius: 4px; }
-.te-seg[data-seg="bgPattern"] .te-seg-opt.active { border-color: var(--accent); }
+.te-seg[data-seg="bgPattern"] .te-seg-opt.active { border-color: var(--k-line-strong, var(--line-strong)); }
 .te-body .te-seg[data-seg="bgPattern"] .te-seg-opt.active { border-color: var(--line-strong); }
 .te-bg-extra { display: flex; gap: 1.2rem; align-items: center; margin-top: 0.6rem; flex-wrap: wrap; }
 .te-slider { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted); }
@@ -10511,3 +10510,89 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
   }
 }
 
+
+/* ordinary choices everywhere (decision 0019, finished): no purple fill for a plain "on".
+   on = raised surface, strong edge, full text tone and a little weight; off = quiet text */
+.vault-type-seg .vts-btn.active,
+.cal-dow-b.on,
+.cal-rem.on,
+.te-seg-opt.active {
+  background: var(--k-raised, var(--raised)); color: var(--k-ink, var(--text));
+  box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--line-strong)); -webkit-text-stroke: 0.35px currentColor;
+}
+.cal-dow-b.on { border-color: transparent; }
+.cal-rem:hover, .cal-dow-b:hover { color: var(--text); }
+
+/* api token permissions: a list you tick, not a row of tabs */
+.token-scopes { display: grid; gap: 2px; margin-top: 0.55rem; }
+.token-scopes-label { margin-bottom: 4px; color: var(--muted); font-size: 0.75rem; }
+.token-scope {
+  appearance: none; display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 12px; align-items: center;
+  min-height: 44px; padding: 6px 10px; border: 0; border-radius: 3px; background: transparent;
+  color: var(--muted); font: inherit; text-align: left; cursor: pointer;
+}
+.token-scope:hover { background: color-mix(in srgb, var(--k-raised, var(--raised)) 60%, transparent); color: var(--text); }
+.token-scope:focus-visible { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
+.token-scope-mark { grid-row: span 2; position: relative; width: 16px; height: 16px; border: 1px solid var(--k-line-strong, var(--line-strong)); border-radius: 3px; }
+.token-scope-name { color: var(--text); font-size: 13px; line-height: 1.3; }
+.token-scope-desc { font-size: 0.75rem; line-height: 1.35; overflow-wrap: anywhere; }
+.token-scope[aria-pressed="true"] .token-scope-name { -webkit-text-stroke: 0.35px currentColor; }
+.token-scope[aria-pressed="true"] .token-scope-mark { background: var(--k-ink, var(--text)); border-color: var(--k-ink, var(--text)); }
+.token-scope[aria-pressed="true"] .token-scope-mark::after {
+  content: ''; position: absolute; left: 4.5px; top: 1.5px; width: 4px; height: 8px;
+  border: solid var(--bg); border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+@media (forced-colors: active) {
+  .token-scope[aria-pressed="true"] .token-scope-mark { background: CanvasText; }
+}
+
+/* the rest of the ordinary "on" states, same neutral recipe. purple stays for real meaning only
+   (status dots, links, data colors, the switch track tint). menus and lists highlight with raised */
+:where(#settings-modal) .s-behavior-options button.active,
+.theme-mode-btn.active,
+.wiki-tab.active,
+.split-picker .sp-tab.on,
+.tasks-tab.active,
+.ie-tool.active,
+.rule-preset.sel,
+.setup-provider[aria-pressed="true"],
+.mem-policy-btn.active,
+.docs-sec-btn.active,
+.wiki-docs-settings-pop .wds-model.on,
+#wiki-outline-btn.active, #wiki-props-btn.active, #wiki-query-btn.active, #wiki-base-btn.active,
+#wiki-history-btn.active, #wiki-comments-btn.active, #wiki-ask-btn.active, #wiki-taskroll-btn.active,
+#wiki-todos-btn.active {
+  background: var(--k-raised, var(--raised)); color: var(--k-ink, var(--text));
+  border-color: var(--k-line-strong, var(--line-strong)); -webkit-text-stroke: 0.35px currentColor;
+}
+.perm-menu-item.active,
+.mention-item.active,
+.mc-ac-item.active, .mc-ac-item:hover,
+.wiki-qs-item.active, .wiki-qs-item:hover,
+.mail-nav-item.active {
+  background: var(--k-raised, var(--raised)); color: var(--k-ink, var(--text));
+}
+.mail-row.sel { background: var(--k-raised, var(--raised)); border-left-color: var(--k-line-strong, var(--line-strong)); }
+.cal-mini-day.sel {
+  background: var(--k-raised, var(--raised)); color: var(--k-ink, var(--text));
+  box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--line-strong)); font-weight: 600;
+}
+/* check marks: filled with the text tone, the tick cut out in the page tone */
+.chk[aria-checked="true"],
+.ie-chk[aria-checked="true"] .chk,
+.cal-chk-row[aria-checked="true"] .chk,
+.wiki-live .cm-task-checkbox[aria-checked="true"]::before {
+  background: var(--k-ink, var(--text)); border-color: var(--k-ink, var(--text));
+}
+.chk[aria-checked="true"]::after { border-color: var(--bg); }
+.wiki-live .cm-task-checkbox:hover::before { border-color: var(--k-line-strong, var(--line-strong)); }
+.photos-cell.sel .photos-check { background: #fff; border-color: #fff; color: #111; }
+.cal-radio-choice[aria-checked="true"] .radio-mark::after { background: var(--k-ink, var(--text)); }
+/* switch knobs: on = text tone, like settings */
+.s-switch:is(.on, [aria-checked="true"])::after,
+.setup-card .home-settings-switch[aria-checked="true"]::after,
+.vault-form .home-settings-switch[aria-checked="true"]::after,
+.andromeda-switch[aria-checked="true"] span { background: var(--k-ink, var(--text)); }
+@media (forced-colors: active) {
+  .chk[aria-checked="true"], .ie-chk[aria-checked="true"] .chk, .cal-chk-row[aria-checked="true"] .chk { background: CanvasText; }
+}

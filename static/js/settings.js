@@ -334,7 +334,10 @@ function _initSettings() {
   // ── developer ──
   document.getElementById('token-add-btn')?.addEventListener('click', generateToken);
   document.querySelectorAll('[data-token-scope]').forEach(btn => {
-    btn.addEventListener('click', () => btn.classList.toggle('active'));
+    btn.addEventListener('click', () => {
+      const on = btn.classList.toggle('active');
+      btn.setAttribute('aria-pressed', String(on));
+    });
   });
   document.getElementById('wh-add-btn')?.addEventListener('click', addWebhook);
 

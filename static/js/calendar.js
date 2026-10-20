@@ -1386,9 +1386,11 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
       <div class="cal-dow" id="cal-dow" style="display:${rec === 'weekly' ? 'flex' : 'none'}">${DOW.map((d, i) => `<button type="button" class="cal-dow-b ${byday.has(i) ? 'on' : ''}" data-i="${i}" aria-label="${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]}" aria-pressed="${byday.has(i)}">${d}</button>`).join('')}</div>
       <div class="cal-ends" role="radiogroup" aria-label="recurrence ends">
         <span class="cal-flabel">ends</span>
+        <div class="cal-ends-choices">
         <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="never" aria-checked="${endsMode === 'never'}" tabindex="${endsMode === 'never' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>never</button></div>
         <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="on" aria-checked="${endsMode === 'on'}" tabindex="${endsMode === 'on' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>on</button><div class="date-input cal-ends-date" id="cal-until" aria-label="repeat until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="date" style="width:130px"></div></div>
         <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="after" aria-checked="${endsMode === 'after'}" tabindex="${endsMode === 'after' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>after</button><input class="settings-input cal-int" id="cal-count" aria-label="number of occurrences" type="text" inputmode="numeric" value="${event?.recur_count || 10}"> times</div>
+        </div>
       </div>
     </div>
 

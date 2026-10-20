@@ -299,7 +299,7 @@ const _MODEL_ROLE_COPY = {
   aide_chat: ['Aide Chat', 'normal chats and agent work'],
   andromeda_answer: ['Andromeda answer', 'fast compact cited answers'],
   andromeda_verifier: ['Andromeda verifier', 'independent current-fact checks'],
-  jarvis: ['Jarvis', 'deep research and delegated work'],
+  jarvis: ['Aide background', 'deep research and background work'],
   coding: ['Coding', 'pi chats in Aide code'],
 };
 const _ADAPTER_OPTIONS = 'auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list';

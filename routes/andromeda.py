@@ -836,7 +836,7 @@ def deep_research(body: DeepResearchBody, db: DbSession = Depends(get_db)):
         raise ApiError(
             409,
             "remote_model_confirmation_required",
-            "confirm the shown Jarvis model before Project context leaves Alles",
+            "confirm the shown Aide model before Project context leaves Alles",
         )
     run = jarvis_handoff.create_handoff(
         db, session, f"Deep research this question and return a cited report: {body.query.strip()}"

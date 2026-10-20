@@ -232,7 +232,7 @@ async def test_rule(rid: str, db: DbSession = Depends(get_db)):
     if not r:
         raise HTTPException(404)
     if r.migrated_workflow_id:
-        raise HTTPException(409, "migrated automation must be reviewed in Jarvis")
+        raise HTTPException(409, "migrated automation must be reviewed in Aide scheduled")
     from services.automations import _fire
 
     sample = {

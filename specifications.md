@@ -388,7 +388,7 @@ related apps now open together without merging their records.
 - **server** combines the original neofetch/btop monitor with alles-owned services, search/model
   configuration, backups/storage, updates, logs, activity, watch, and the bounded access-policy editor
 - **aide scheduled → news** manages tested rss/atom sources, source health, a daily brief schedule,
-  home delivery, and optional jarvis delivery. saving an article to library is always explicit
+  home delivery, and optional discord delivery. saving an article to library is always explicit
 - old app names, hosts, and deep links still open the matching subsection instead of dropping the
   requested context
 
@@ -820,7 +820,7 @@ aide looks like a normal chat box. the differences are under it:
 - **it hands research to the right place.** normal web search and its grounded overview live in andromeda. when deeper research would help, aide asks first and continues it in the same task with the same query and selected project.
 - **it schedules a private news brief.** scheduled → news tests owner-chosen rss/atom feeds before
   saving them, polls healthy sources independently, keeps useful links when a source or summary fails,
-  and delivers the resulting brief to home plus an optional paired jarvis destination.
+  and delivers the resulting brief to home plus an optional paired discord destination.
 - **it sees.** drop an image and capable providers receive it as vision input.
 - **it compares.** a conversation action runs the same prompt across several models at once and lets you vote on the winner.
 - **personas & projects.** personas are saved system prompts; none adds no persona instructions. loose tasks and folder-backed projects organize chats and give background aide the same prioritized working environment.
@@ -1080,7 +1080,7 @@ graph TD
     check -->|no| search
     check -->|yes| write[synthesize cited report]
 ```
- the jarvis run plans the question into sub-topics, fires several search queries per round in parallel,
+ the background run plans the question into sub-topics, fires several search queries per round in parallel,
 reads the top pages with [trafilatura](https://github.com/adbar/trafilatura), extracts findings, and rolls
 them into an evolving cited report. this deeper loop is not the normal andromeda request and does not
 run from a hidden aide research toggle.
@@ -1089,7 +1089,7 @@ run from a hidden aide research toggle.
   etag/last-modified conditional requests. failures back off per source instead of blocking the whole
   run. canonical links, feed guids, and same-source content hashes prevent repeats; recent entries are
   clustered and ranked before an optional bounded model summary. a model failure leaves a link digest
-  in `summary_pending`, home delivery is durable, jarvis retries are bounded, and library receives only
+  in `summary_pending`, home delivery is durable, discord retries are bounded, and library receives only
   items the owner explicitly saves.
 - **gallery / photos**: you import photos; pillow makes thumbnails and reads exif; they're grouped into date "moments." stored as plain files under `data/`.
 - **secrets**: entries sealed with aes-256-gcm under a pbkdf2-hmac-sha-256 (260k iterations) key derived from your master password, which lives in memory only.

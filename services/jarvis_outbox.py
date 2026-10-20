@@ -154,7 +154,7 @@ def _payload(db: DbSession, delivery: JarvisDeliveryAttempt) -> dict:
     workflow = db.get(JarvisWorkflow, run.workflow_id) if run.workflow_id else None
     payload = {"run_id": run.id, "state": run.state}
     if delivery.privacy_level in {"title_status", "summary"}:
-        payload["title"] = (workflow.name if workflow else "Jarvis")[:200]
+        payload["title"] = (workflow.name if workflow else "Aide")[:200]
     if delivery.privacy_level == "summary":
         event = db.get(JarvisRunEvent, delivery.event_id) if delivery.event_id else None
         payload["summary"] = ((event.summary if event else run.result_summary) or "")[:2000]

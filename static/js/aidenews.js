@@ -13,7 +13,7 @@ const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
 }[character]));
 
 function safeMessage(value) {
-  return String(value || 'News is unavailable').replace(/jarvis/gi, 'Jarvis');
+  return String(value || 'News is unavailable').replace(/jarvis/gi, 'Aide');
 }
 
 export function safeNewsUrl(value) {
@@ -145,7 +145,7 @@ function render() {
       <section class="news-real-section" aria-labelledby="news-sources-title"><header><h3 id="news-sources-title">sources</h3><p>${sources.length} saved · each failure retries independently</p><button type="button" data-news-action="add-source">add source</button></header><ul class="news-source-list">${sources.map(sourceRow).join('') || '<li class="news-preview-empty">no sources yet</li>'}</ul></section>
       <section class="news-real-section" aria-labelledby="news-delivery-title"><header><h3 id="news-delivery-title">cadence and delivery</h3><p>automatic timezone · ${esc(localZone())}</p><button type="button" data-news-action="run-now"${config.enabled ? '' : ' disabled'}>run brief now</button></header>
         <div class="news-settings-grid"><div><h4>digest schedule</h4><div class="news-choice-group" role="radiogroup" aria-label="digest schedule">${radio('morning', config.cadence, 'every morning · 08:00', 'cadence')}${radio('evening', config.cadence, 'every evening · 18:00', 'cadence')}${radio('custom', config.cadence, 'custom time', 'cadence')}</div>${config.cadence === 'custom' ? `<label class="news-custom-time"><span>time in ${esc(localZone())}</span><input id="news-custom-time" type="text" inputmode="numeric" value="${esc(config.time_of_day)}" placeholder="07:30" aria-label="custom digest time"></label>` : ''}</div>
-        <div><h4>delivery</h4><div class="news-delivery-row"><div><strong>home brief</strong><span>default destination</span></div>${switchButton({ checked: config.deliver_home, label: 'deliver News to Home', action: 'toggle-home' })}</div><div class="news-delivery-row"><div><strong>Jarvis direct message</strong><span>${esc(jarvis.available ? 'paired and ready' : jarvis.reason || 'pair Discord before enabling')}</span></div>${switchButton({ checked: config.deliver_jarvis, label: jarvis.available ? 'deliver News to Jarvis' : 'Jarvis delivery unavailable', action: 'toggle-jarvis', disabled: !jarvis.available })}</div></div></div>
+        <div><h4>delivery</h4><div class="news-delivery-row"><div><strong>home brief</strong><span>default destination</span></div>${switchButton({ checked: config.deliver_home, label: 'deliver News to Home', action: 'toggle-home' })}</div><div class="news-delivery-row"><div><strong>Discord direct message</strong><span>${esc(jarvis.available ? 'paired and ready' : jarvis.reason || 'pair Discord before enabling')}</span></div>${switchButton({ checked: config.deliver_jarvis, label: jarvis.available ? 'deliver News to Discord' : 'Discord delivery unavailable', action: 'toggle-jarvis', disabled: !jarvis.available })}</div></div></div>
       </section>
     </section>
     <aside class="news-real-preview" aria-label="latest News brief">${briefMarkup(state.latest_brief)}</aside>

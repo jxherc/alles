@@ -100,7 +100,7 @@ def _fixture() -> dict:
             "last_run_at": "",
             "last_success_at": "",
             "last_safe_error": "",
-            "jarvis": {"available": False, "paired": False, "reason": "pair Jarvis first"},
+            "jarvis": {"available": False, "paired": False, "reason": "pair Discord first"},
         },
         "sources": [
             {
@@ -279,7 +279,7 @@ def run() -> None:
             ).count()
             == 0
         )
-        assert page.locator('.news-switch[aria-label="Jarvis delivery unavailable"]').is_disabled()
+        assert page.locator('.news-switch[aria-label="Discord delivery unavailable"]').is_disabled()
         assert _no_overflow(page)
 
         page.get_by_role("button", name="enable news").click()
