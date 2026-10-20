@@ -1180,7 +1180,13 @@ body:is(
 .server-workbench-actions > .server-workbench-status {
   flex: 1 1 16rem;
   align-self: center;
-  margin: 0;
+  margin: 0 0 0 var(--k-space-3);
+}
+
+/* the row holds only text actions, so it moves back by their padding and every wrapped line
+   starts on the column edge; the status above moves forward again */
+.server-workbench-actions {
+  margin-inline-start: calc(-1 * var(--k-space-3));
 }
 
 /* a status above an action row keeps its line, so a message never pushes the buttons */
@@ -2259,19 +2265,21 @@ html[data-theme="light"] :where(
 }
 
 #today-view[data-kokuen-surface="home"] .today-settings {
-  padding-inline: var(--k-space-1);
+  padding-inline: var(--k-space-2);
+  margin-inline-end: calc(-1 * var(--k-space-2));
 }
 
 #today-view[data-kokuen-surface="home"] .today-section-edit {
   min-width: var(--k-control-dense);
   min-height: var(--k-control-dense);
-  padding: 0;
+  padding: 0 var(--k-space-2);
+  margin-inline-end: calc(-1 * var(--k-space-2));
   border: 0;
   background: transparent;
   color: var(--k-soft);
   font: inherit;
   font-size: 12px;
-  text-align: right;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -2779,7 +2787,9 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
 
 /* Text entry and form dropdowns keep their boundary and gain one bottom edge.
    This shared rule must win over legacy page-specific input outlines; actions,
-   choices, sliders, date pickers and color controls retain their normal rings.
+   choices, sliders, boxed date pickers and color controls retain their normal rings. An
+   underline date picker in a form footer has no padding, so a ring sat on the date; it takes the
+   bottom line like the fields beside it.
    Color swatches use readonly text inputs with role=button, not text entry. */
 html[data-kokuen-version="5"] :where(
   input:not([type]),
@@ -2787,7 +2797,8 @@ html[data-kokuen-version="5"] :where(
   textarea,
   .custom-select[role="combobox"],
   .locale-choice-trigger[aria-haspopup="listbox"]
-):not([role="button"]):focus-visible {
+):not([role="button"]):focus-visible,
+html[data-kokuen-version="5"] .page-view-footer .date-input:focus-visible {
   outline: none !important;
   box-shadow: inset 0 -2px 0 var(--k-field-focus, var(--muted)) !important;
 }
@@ -2865,6 +2876,12 @@ html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn) {
   transition: color var(--k-motion-fast) var(--k-ease), background-color var(--k-motion-fast) var(--k-ease);
 }
 
+/* the display above beat the hidden attribute: reminders and vault showed retry buttons with
+   nothing to retry */
+html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn)[hidden] {
+  display: none;
+}
+
 html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn):hover {
   border-color: transparent;
   background: var(--k-hover);
@@ -2915,6 +2932,16 @@ body[data-app="files"] #files-view .files-check:hover,
 body[data-app="files"] #files-view button.crumb:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* ...but they still get room inside, pulled back by the same amount, so the label stays on
+   the column edge and the inset focus ring never touches the words */
+#today-view :is(.today-ask, .today-summary-tasks),
+.skl-card-name,
+.aide-context-panel .aide-context-footer button,
+#andromeda-view :is(.andromeda-text-action, .andromeda-actions button, .andromeda-recovery button, .andromeda-searxng-actions button) {
+  padding-inline: var(--k-space-2);
+  margin-inline: calc(-1 * var(--k-space-2));
 }
 
 /* Local navigation rows share the data-row contract: bare at rest, hover tone,
@@ -3031,6 +3058,11 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
     .andromeda-search > input,
     body.afterlife-aide-projects[data-space="aide"] .search-wrap > input
   )) {
+    outline: 2px solid Highlight !important;
+    outline-offset: var(--k-focus-offset, -2px);
+  }
+
+  html[data-kokuen-version="5"] .page-view-footer .date-input:focus-visible {
     outline: 2px solid Highlight !important;
     outline-offset: var(--k-focus-offset, -2px);
   }
@@ -3156,8 +3188,8 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .shell-navigation-toggle {
-  margin-inline-start: 0;
-  padding-inline: var(--k-space-1);
+  margin-inline-start: calc(-1 * var(--k-space-2));
+  padding-inline: var(--k-space-2);
   color: var(--k-muted);
   background: transparent;
   font-size: 14px;
@@ -3904,7 +3936,7 @@ textarea[data-kokuen-entry="autogrow"] {
   border-bottom: 0;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice:is(:hover, [aria-checked="true"]) {
+#settings-modal[data-kokuen-surface="settings"] .locale-language-choice:hover {
   background: var(--k-hover);
 }
 
@@ -5381,9 +5413,15 @@ body.afterlife-aide-projects[data-space="aide"] .news-choice::before {
   border-radius: 50%;
 }
 
-body.afterlife-aide-projects[data-space="aide"] .news-choice:is(:hover, [aria-checked="true"]) {
+/* the dot shows the pick; only hover gets a tone behind it */
+body.afterlife-aide-projects[data-space="aide"] .news-choice:hover {
   color: var(--k-text);
   background: var(--k-hover);
+}
+
+body.afterlife-aide-projects[data-space="aide"] .news-choice[aria-checked="true"] {
+  color: var(--k-text);
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-choice[aria-checked="true"]::before {
@@ -6300,8 +6338,18 @@ body[data-app="files"] #files-view .crumb:last-child {
 }
 
 body[data-app="files"] #files-view .crumb-sep {
-  padding: 0 var(--k-space-2);
+  padding: 0;
   color: var(--k-quiet);
+}
+
+/* the crumb carries the 8px the separator used to, so its focus ring has room; the strip moves
+   back the same 8px so the first name still starts on the column edge */
+body[data-app="files"] #files-view .crumb {
+  padding-inline: var(--k-space-2);
+}
+
+body[data-app="files"] #files-view .files-breadcrumb {
+  margin-inline-start: calc(-1 * var(--k-space-2));
 }
 
 body[data-app="files"] #files-view :where(.files-text-button, .files-bare-icon) {
@@ -7232,6 +7280,23 @@ html[data-kokuen-version="5"] :is(.s-switch.on, .s-switch[aria-checked="true"], 
 html[data-kokuen-version="5"] :is(.s-switch.on, .s-switch[aria-checked="true"], .home-settings-switch[aria-checked="true"], .news-switch[aria-checked="true"])::after,
 html[data-kokuen-version="5"] .andromeda-switch[aria-checked="true"] > span {
   background: var(--k-text);
+}
+
+/* focus rings the track itself. the square ring on the 44px target cut across the rounded
+   track's ends, 1px either way (balance pass 2026-10-19) */
+html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch, .andromeda-switch):focus-visible {
+  outline: none !important;
+}
+
+html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch, .andromeda-switch):focus-visible::before {
+  outline: 2px solid var(--k-focus, var(--focus));
+  outline-offset: 0;
+}
+
+@media (forced-colors: active) {
+  html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch, .andromeda-switch):focus-visible::before {
+    outline-color: Highlight;
+  }
 }
 
 /* Model provider picker (settings and setup): one quiet list, one row per provider,

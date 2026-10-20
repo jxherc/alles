@@ -4730,7 +4730,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 @media (max-width: 480px) {
   .jrnl-toolbar { align-items: stretch; flex-wrap: wrap; }
   .jrnl-toolbar .jrnl-search { flex: 1 0 100%; }
-  .jrnl-toolbar .btn { flex: 1 1 0; }
+  /* natural width, from the column edge: two half-width boxes left both labels floating mid-row */
+  .jrnl-toolbar .btn { flex: 0 0 auto; }
+  #jrnl-export { margin-inline-start: -12px; }
 }
 .jrnl-results { display: flex; flex-direction: column; gap: 0.2rem; }
 .jrnl-results:empty { display: none; }
@@ -4858,7 +4860,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .skl-badge { font-size: 0.75rem; color: var(--muted); border: 1px solid var(--faint); border-radius: 3px; padding: 0 0.25rem; flex-shrink: 0; }
 .skl-badge.git { color: var(--accent); border-color: var(--accent); }
 .skl-card-acts { display: flex; justify-content: flex-end; gap: 0.15rem; margin-top: 0.25rem; }
-.skl-pin, .skl-del-q { background: none; border: 0; cursor: pointer; font-size: 0.75rem; line-height: 1; color: var(--muted); padding: 0.1rem; }
+.skl-pin, .skl-del-q { background: none; border: 0; cursor: pointer; font-size: 0.75rem; line-height: 1; color: var(--muted); padding: 0 8px; } /* 1.6px left the word touching its focus ring */
 .skl-pin:hover, .skl-del-q:hover { color: var(--text); }
 .skl-pin.on { color: var(--accent); opacity: 1; }
 .skl-del-q:hover { color: var(--error, var(--error)); }
@@ -5269,7 +5271,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-task { margin-bottom: 0; }
 #money-view .txn .tx-del { align-self: start; }
 #money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .nw-base, .split-row) { align-items: end; }
-#money-view .money-field { display: grid; gap: var(--k-space-1, 4px); height: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
+#money-view .money-field { display: grid; gap: var(--k-space-1, 4px); height: auto; min-width: 0; max-width: 100%; box-sizing: border-box; text-align: start; } /* the empty state centers its text; a label still starts where its field does */
 #money-view .money-field-label { color: var(--k-ink-muted, var(--muted)); font-size: 0.75rem; font-weight: 400; letter-spacing: normal; line-height: 1.4; }
 #money-view .money-field > :is(.settings-input, .date-input) { width: 100%; min-width: 0; min-height: 44px; height: 44px; box-sizing: border-box; }
 #money-view .money-entry-card { margin-bottom: var(--k-space-4, 16px); }
@@ -5569,15 +5571,17 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .aide-scheduled-new:hover { background: var(--k-raised, var(--panel)); }
 .aide-scheduled-tabs {
   display: flex;
-  gap: 24px;
+  gap: 0;
   border-bottom: 1px solid var(--faint);
 }
+/* 12px each side keeps the old 24px between labels, and the focus ring off the words */
 .aide-scheduled-tabs button {
   position: relative;
-  padding: 0;
+  padding: 0 12px;
   border-radius: 0;
   font-size: 13px;
 }
+.aide-scheduled-tabs button:first-child { margin-inline-start: -12px; }
 .aide-scheduled-tabs button:hover { color: var(--text); }
 /* selected tab: tone and weight, no underline (COMPONENTS.md tabs) */
 .aide-scheduled-tabs button[aria-selected="true"] { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
@@ -5598,6 +5602,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   gap: 16px;
 }
 .aide-schedule-form-head { margin-bottom: 18px; }
+/* room around the word, pulled back so it still ends on the form's right edge */
+#aide-schedule-cancel { padding: 0 12px; margin-inline-end: -12px; }
 .aide-schedule-form-head strong { font-size: 0.9rem; font-weight: 600; }
 .aide-schedule-form-head button { padding: 4px 0; font-size: 0.75rem; }
 .aide-schedule-form label,
@@ -5829,6 +5835,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   .aide-tool-head { align-items: flex-start; flex-direction: column; gap: 16px; }
   .aide-tool-head > .btn,
   .aide-tool-head > span:not(.page-view-title) { margin-left: 0 !important; }
+  /* stacked under the title, a text action's label lines up with it */
+  .aide-tool-head > .btn:not(.primary) { margin-left: -12px !important; }
   .aide-scheduled-head { align-items: flex-start; flex-direction: column; gap: 16px; }
   .aide-schedule-interval { grid-template-columns: 1fr; }
 }
@@ -6163,7 +6171,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-cell-num { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
 .cal-cell.today .cal-cell-num {
   color: var(--bg); background: var(--accent);
-  width: 18px; height: 18px; border-radius: 50%;
+  /* two digits got 1-2px of room in an 18px dot; 22px gives them 4px a side */
+  min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box; border-radius: 11px;
   display: inline-flex; align-items: center; justify-content: center; font-weight: 600;
 }
 .cal-cell-events { display: flex; flex-direction: column; gap: 2px; }
@@ -6211,7 +6220,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .activity-row {
   display: flex; align-items: baseline; gap: 0.6rem; cursor: pointer;
   width: 100%; min-height: 44px; font: inherit; text-align: left; color: inherit;
-  padding: 0.4rem 0.3rem; border: 0; border-bottom: 1px solid var(--faint);
+  /* 12px sides so the time and glyph clear the focus ring; pulled back 8px so the text barely moves */
+  width: calc(100% + 16px); margin-inline: -8px; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--faint);
   background: transparent; transition: background 0.1s;
 }
 .activity-row:hover { background: var(--panel); }
@@ -9679,6 +9689,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding-block: 0; /* the label's bottom gap pushed the text up inside its 44px row */
   border: 0;
   background: transparent;
   font: inherit;
@@ -10596,3 +10607,34 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 @media (forced-colors: active) {
   .chk[aria-checked="true"], .ie-chk[aria-checked="true"] .chk, .cal-chk-row[aria-checked="true"] .chk { background: CanvasText; }
 }
+
+/* balance pass (owner 2026-10-19: nothing on the edge, fix it everywhere). a tick or dot choice pads
+   like the calendar's ends choices: 10px before the mark, 8px between, 12px after the label */
+.cal-chk-row,
+.ie-chk {
+  min-height: 44px; gap: 8px; padding: 0 12px 0 10px; border-radius: 3px;
+}
+.cal-chk-row:hover,
+.ie-chk:hover { background: color-mix(in srgb, var(--k-raised, var(--raised)) 70%, transparent); color: var(--text); }
+.ie-chk[aria-checked="true"] { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
+/* at a column edge the row moves back by its padding so the mark, not the hover box, lines up */
+#cal-allday-row > .cal-chk-row { margin-inline-start: -10px; }
+.cal-editor .cal-sched-btn { margin-inline-start: -12px; }
+
+/* a text action that starts a row moves back by its padding so its label, not its hover tile, sits
+   on the column edge (decision 0031). a right-aligned row doesn't move: the box keeps its place */
+#mail-accounts-close,
+.watch-bar-actions > .btn:first-child,
+.server-workbench-card > button { margin-inline-start: -12px; }
+/* rows made only of text actions move back as a whole, so every wrapped line starts on the edge */
+#contacts-view .page-view-head.contacts-head { margin-inline-start: -12px; }
+#contacts-view .contacts-head > :is(.page-view-title, .contacts-search) { margin-inline-start: 12px; }
+/* settings: a text action at the start of its line (alone in a card, or first in an action row) */
+#settings-modal :is(.s-card-body, .s-oauth-connect, div:not([class])) > .btn:not(.primary):first-child,
+#settings-modal .s-card-body > :not(.btn) + .btn:not(.primary) { margin-inline-start: -12px; }
+/* rules quick start: the label sits above, so a wrapped choice lines up under the first one.
+   the choices are bare until picked (decision 0031), so the row moves back by their padding */
+.rule-presets { margin-inline-start: -12px; row-gap: 4px; }
+.rule-presets-label { flex: 0 0 100%; margin: 0 0 0 12px; }
+.rule-preset { min-height: 44px; padding: 0 12px; border-color: transparent; }
+.rule-preset:hover { border-color: transparent; background: var(--k-hover, var(--panel)); }

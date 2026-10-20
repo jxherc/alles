@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
 const VERSION = 'v391';   // imessage line, web errands, goal wake-ups, mcp sign-in and neutral choices in this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '542';   // keep in sync with index.html ?v= / const _v
+const STAMP = '543';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
