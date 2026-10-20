@@ -263,12 +263,10 @@ function clearOverview(message = '') {
   closeSourceCard();
   const follow = el('andromeda-follow');
   if (follow) follow.hidden = true;
-  const deeper = el('andromeda-deeper');
-  if (deeper) deeper.hidden = true;
   renderThread();
 }
 
-// ── follow-ups and "go deeper" ──
+// ── follow-ups ──
 function renderFollowUps(questions = []) {
   const follow = el('andromeda-follow');
   const chips = el('andromeda-follow-chips');
@@ -441,12 +439,6 @@ async function undoHideSite() {
   const notice = el('andromeda-blocked-notice');
   if (notice) notice.hidden = true;
   el('andromeda-query')?.focus();
-}
-
-function goDeeper() {
-  if (!_state.query || !(_state.overviewSeed || []).length || _overviewAbort) return;
-  _state.deep = true;
-  void startOverview(_state.query, _state.overviewSeed, _searchGeneration, { deep: true });
 }
 
 function showRecovery(show, kind = '') {
@@ -1276,30 +1268,39 @@ export function contextClaimsForOverview(overview = {}) {
   return claims.filter((_claim, index) => index !== sourceIndex);
 }
 
-// ── the instant answer: short prose streamed in, [n] marks to its sources ──
-const CITE_MARK = /\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\]/g;
+// ── the instant answer: short prose streamed in; what a source backs gets a dotted underline ──
+const CITE_GROUP = /((?:\s*\[\d{1,2}(?:\s*,\s*\d{1,2})*\])+)/g;
 
-function proseInline(parent, text) {
-  // **bold** and [n] marks; everything else is plain text, never markup. while the answer streams,
-  // an opened ** that hasn't closed yet stays hidden instead of showing the stars
+function boldInline(parent, text) {
+  // **bold** only; everything else is plain text, never markup. while the answer streams, an
+  // opened ** that hasn't closed yet stays hidden instead of showing the stars
   const value = String(text);
   const open = (value.match(/\*\*/g) || []).length % 2 === 1;
-  const parts = (open ? value.slice(0, value.lastIndexOf('**')) + value.slice(value.lastIndexOf('**') + 2) : value).split(/(\*\*[^*]+\*\*|\[\d{1,2}(?:\s*,\s*\d{1,2})*\])/g);
-  for (const part of parts) {
+  const cut = open ? value.slice(0, value.lastIndexOf('**')) + value.slice(value.lastIndexOf('**') + 2) : value;
+  for (const part of cut.split(/(\*\*[^*]+\*\*)/g)) {
     if (!part) continue;
     if (/^\*\*[^*]+\*\*$/.test(part)) {
       const strong = document.createElement('strong');
       strong.textContent = part.slice(2, -2);
       parent.append(strong);
-    } else if (/^\[\d/.test(part)) {
-      const mark = document.createElement('sup');
-      mark.className = 'andromeda-prose-cite';
-      mark.textContent = part.slice(1, -1).replace(/\s+/g, '');
-      parent.append(mark);
-    } else {
-      parent.append(document.createTextNode(part));
-    }
+    } else parent.append(document.createTextNode(part));
   }
+}
+
+// a line split into runs: the words before each [n] group belong to those sources
+export function proseRuns(text) {
+  const value = String(text || '');
+  const runs = [];
+  let last = 0;
+  for (const match of value.matchAll(CITE_GROUP)) {
+    const numbers = [...new Set([...match[1].matchAll(/\d{1,2}/g)].map(found => Number(found[0])))];
+    runs.push({ text: value.slice(last, match.index), sources: numbers });
+    last = match.index + match[0].length;
+  }
+  // an unfinished "[1" at the very end of a stream is not shown
+  const tail = value.slice(last).replace(/\s*\[\d{0,2}(?:\s*,\s*\d{0,2})*$/, '');
+  if (tail) runs.push({ text: tail, sources: [] });
+  return runs;
 }
 
 export function proseBlocks(text) {
@@ -1318,9 +1319,94 @@ export function proseBlocks(text) {
   return blocks;
 }
 
+let _proseCard = null;
+
+function closeProseCard({ restore = false } = {}) {
+  if (!_proseCard) return;
+  const { card, trigger } = _proseCard;
+  _proseCard = null;
+  card.remove();
+  trigger.setAttribute('aria-expanded', 'false');
+  if (restore) trigger.focus();
+}
+
+// the sources behind one underlined part open in place, under its line; nothing beside it moves
+function openProseCard(trigger, numbers, block, sources) {
+  const same = _proseCard?.trigger === trigger;
+  closeProseCard();
+  if (same) return;
+  const card = document.createElement('div');
+  card.className = 'andromeda-prose-card';
+  card.id = `andromeda-prose-card-${++_sourceCardSeq}`;
+  card.setAttribute('role', 'group');
+  card.setAttribute('aria-label', 'sources for this part');
+  for (const number of numbers) {
+    const source = sources[number - 1];
+    if (!source) continue;
+    const item = document.createElement('div');
+    item.className = 'andromeda-prose-card-source';
+    const link = document.createElement('a');
+    link.className = 'andromeda-prose-card-link';
+    const url = safeUrl(source.url);
+    if (url) link.href = url.href;
+    link.rel = 'noopener noreferrer';
+    const host = document.createElement('span');
+    host.className = 'andromeda-prose-card-host';
+    host.textContent = hostOf(source.url) || 'source';
+    const title = document.createElement('span');
+    title.className = 'andromeda-prose-card-title';
+    title.textContent = source.title || source.url;
+    link.append(host, title);
+    item.append(link);
+    const passage = (source.passages || [])[0];
+    if (passage) {
+      const quote = document.createElement('blockquote');
+      quote.textContent = passage;
+      item.append(quote);
+    }
+    card.append(item);
+  }
+  card.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); closeProseCard({ restore: true }); }
+  });
+  // inside a list item the card stays in the item; after a paragraph it follows it
+  if (block.tagName === 'LI') block.append(card); else block.after(card);
+  trigger.setAttribute('aria-expanded', 'true');
+  trigger.setAttribute('aria-controls', card.id);
+  _proseCard = { card, trigger };
+}
+
+function proseLine(parent, line, block, sources, done) {
+  for (const run of proseRuns(line)) {
+    const known = run.sources.filter(number => sources[number - 1]);
+    if (!known.length || !done) { boldInline(parent, run.text); continue; }
+    // the space or stop left over from the previous sentence stays outside the underline
+    const lead = /^[\s.,;:!?)]*/.exec(run.text)[0];
+    const words = run.text.slice(lead.length).replace(/\s+$/, '');
+    const after = run.text.slice(lead.length + words.length);
+    if (lead) parent.append(document.createTextNode(lead));
+    const span = document.createElement('span');
+    span.className = 'andromeda-prose-claim';
+    span.tabIndex = 0;
+    span.setAttribute('role', 'button');
+    span.setAttribute('aria-expanded', 'false');
+    span.setAttribute('aria-label', `${words.replace(/\*\*/g, '')} (sources: ${known.map(n => hostOf(sources[n - 1].url)).join(', ')})`);
+    boldInline(span, words);
+    const open = () => openProseCard(span, known, block, sources);
+    span.addEventListener('click', open);
+    span.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); }
+      if (event.key === 'Escape' && span.getAttribute('aria-expanded') === 'true') { event.preventDefault(); closeProseCard({ restore: true }); }
+    });
+    parent.append(span);
+    if (after) parent.append(document.createTextNode(after));
+  }
+}
+
 function renderProse(text, sources = _state.evidence || [], { done = false } = {}) {
   const holder = el('andromeda-claims');
   if (!holder) return;
+  closeProseCard();
   holder.dataset.shape = 'prose';
   holder.removeAttribute?.('role');
   holder.replaceChildren();
@@ -1329,44 +1415,19 @@ function renderProse(text, sources = _state.evidence || [], { done = false } = {
   for (const block of proseBlocks(text)) {
     if (block.kind === 'p') {
       const p = document.createElement('p');
-      proseInline(p, block.items[0]);
       body.append(p);
+      proseLine(p, block.items[0], p, sources, done);
     } else {
       const list = document.createElement(block.kind);
+      body.append(list);
       for (const item of block.items) {
         const li = document.createElement('li');
-        proseInline(li, item);
         list.append(li);
+        proseLine(li, item, li, sources, done);
       }
-      body.append(list);
     }
   }
   holder.append(body);
-  if (!done) return;
-  // the cited sources, numbered like the marks, each a full target on its own row
-  const cited = [...new Set([...String(text).matchAll(CITE_MARK)].flatMap(match => match[1].split(/\s*,\s*/).map(Number)))]
-    .filter(number => sources[number - 1]);
-  if (!cited.length) return;
-  const row = document.createElement('div');
-  row.className = 'andromeda-prose-sources';
-  row.setAttribute('role', 'list');
-  row.setAttribute('aria-label', 'sources');
-  for (const number of cited) {
-    const source = sources[number - 1];
-    const link = document.createElement('a');
-    link.className = 'andromeda-prose-source';
-    link.setAttribute('role', 'listitem');
-    const url = safeUrl(source.url);
-    if (url) link.href = url.href;
-    link.rel = 'noopener noreferrer';
-    link.title = source.title || '';
-    const n = document.createElement('span');
-    n.className = 'andromeda-prose-source-number';
-    n.textContent = String(number);
-    link.append(n, document.createTextNode(hostOf(source.url) || source.title || 'source'));
-    row.append(link);
-  }
-  holder.append(row);
 }
 
 function renderCompleteOverview(overview) {
@@ -1395,8 +1456,6 @@ function renderCompleteOverview(overview) {
   const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: freshness.checked_on })}` : '';
   renderThread();
   renderFollowUps(_state.overview.status === 'ready' ? _state.overview.follow_ups : []);
-  const deeper = el('andromeda-deeper');
-  if (deeper) deeper.hidden = _state.deep || !(_state.overviewSeed || []).length;
   if (_state.overview.status === 'ready') {
     text('andromeda-overview-state', `${tr('andromeda.checked_sources')}${checked}${_state.deep ? ' · deeper read' : ''}`);
     showRecovery(false);
@@ -1416,15 +1475,12 @@ function renderProseOverview(overview) {
   renderFollowUps([]);
   const freshness = _state.overview.freshness || {};
   const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: freshness.checked_on })}` : '';
-  const deeper = el('andromeda-deeper');
   if (_state.overview.status === 'ready') {
     renderProse(_state.overview.text, _state.evidence, { done: true });
-    if (deeper) deeper.hidden = _state.deep || !(_state.overviewSeed || []).length;
     text('andromeda-overview-state', `${_state.model?.model || ''}${_state.deep ? ' · deeper read' : ''}${checked}`);
     showRecovery(false);
   } else {
     el('andromeda-claims')?.replaceChildren();
-    if (deeper) deeper.hidden = true;
     text('andromeda-overview-state', tr('andromeda.insufficient_evidence'));
     showRecovery(true, 'insufficient_evidence');
   }
@@ -3000,7 +3056,6 @@ function bindOnce() {
     event.preventDefault();
     askFollowUp(el('andromeda-follow-input')?.value);
   });
-  el('andromeda-deeper')?.addEventListener('click', goDeeper);
   const watchChoices = el('andromeda-watch-choices');
   if (watchChoices) {
     watchChoices.addEventListener('click', event => {

@@ -851,8 +851,9 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **an instant answer, blackout-style.** the overview reads the top 8 results' snippets (320 characters
   each, no pages downloaded) and streams a short answer: the answer in the first sentence, 1 to 4
   sentences or up to 6 bullets, under 130 words, a [n] mark after each sentence for the result it came
-  from, in the language of the search. the cited results sit on their own row under it as numbered
-  links. when the results don't answer an automatic search, or it is only a site name, the model answers
+  from, in the language of the search. each part a source backs has a dotted underline;
+  tapping it opens that source (site, title, the snippet it came from) in place under the line, and escape
+  closes it. when the results don't answer an automatic search, or it is only a site name, the model answers
   `SKIP` and no box appears: one "write one" button stays to ask anyway, and an answer asked for never
   skips. the box stays out of sight for the first 0.7 seconds so a skipped answer never flashes, and
   `<think>` blocks are never shown. the same question over the same results is kept for 30 minutes.
@@ -865,8 +866,7 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **when it answers on its own.** questions (what, how, why, is, can…, a trailing ?), comparisons and
   searches of five words or more answer automatically. site names, links, `site:` style operators and
   errands (login, download, near me, lyrics) get no overview. anything else offers "write one". this
-  follows blackout for startpage's rules. "go deeper" reads up to 10 pages instead and allows a longer
-  answer.
+  follows blackout for startpage's rules. to dig further, ask a follow-up under the answer.
 - **independent background verification** applies to saved older overviews made of checked claims;
   the instant answer is not re-verified, its sources are one tap away instead.
 - **compact answer, separate links.** search, the cited answer, and results share one readable axis. the
@@ -913,6 +913,8 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   overview (two claims, only what the card can't show). the overview's shape follows the query: a short
   answer, numbered steps ("how to …"), a comparison with aspect labels ("x vs y") or a list with item
   labels ("best …"). labels only count when the claim's own words carry them.
+- **page width.** the side space is 7% of the screen width on each side (never less than the app name
+  needs) and the column takes the rest, up to 1160px; long text keeps its readable line length inside it.
 - **three regions.** the tool card is plain, the ai overview sits on its own tinted surface, and the
   web results start under a small "web results" label, so each part reads apart at a glance. "/"
   outside a text field jumps to the search box. opening andromeda asks its settings, engines, models
@@ -928,8 +930,6 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   field. a follow-up keeps up to three earlier questions and answers as context for the overview, shown
   as a "following up on" trail; a vague follow-up (three words or fewer, or one that leans on "it",
   "they", "this") searches together with the earlier question. earlier turns are context, never evidence.
-- **go deeper.** after an overview, "go deeper" reads up to 10 pages instead of 6, allows up to five
-  claims and a longer answer, with the same quote checks and remote-model consent.
 - **watched searches.** a saved search can be watched every 6 hours, daily or weekly. the
   `andromeda_watch` job (every 5 minutes, at most three due searches per run) repeats the search with the
   same engine and keeps only links it has not seen before, starting from the saved results. a watch never
