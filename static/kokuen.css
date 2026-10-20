@@ -1180,7 +1180,13 @@ body:is(
 .server-workbench-actions > .server-workbench-status {
   flex: 1 1 16rem;
   align-self: center;
-  margin: 0;
+  margin: 0 0 0 var(--k-space-3);
+}
+
+/* the row holds only text actions, so it moves back by their padding and every wrapped line
+   starts on the column edge; the status above moves forward again */
+.server-workbench-actions {
+  margin-inline-start: calc(-1 * var(--k-space-3));
 }
 
 /* a status above an action row keeps its line, so a message never pushes the buttons */
@@ -1247,14 +1253,14 @@ body:is(
 /* card and row actions are text actions; a list of cards has no boxed primary
    per card, the stronger one only gains tone and weight */
 .server-workbench-actions button,
-.server-workbench-card > button {
+.server-workbench-card > button,
+.server-workbench-choice-list button {
   border-color: transparent;
 }
 
 .server-workbench-actions button:hover,
 .server-workbench-card > button:hover,
-.server-workbench-choice-list button:hover,
-.server-workbench-choice-list button[aria-checked="true"] {
+.server-workbench-choice-list button:hover {
   color: var(--k-text, var(--text));
   background: var(--k-hover, var(--panel));
 }
@@ -1277,8 +1283,15 @@ body:is(
   font-size: 12px;
 }
 
-.server-workbench-choice-list { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
-.server-workbench-choice-list button[aria-checked="true"] { color: var(--k-text, var(--text)); border-color: var(--k-line-strong, var(--faint)); }
+.server-workbench-choice-list { display: flex; flex-wrap: wrap; gap: var(--k-space-1, 4px) 0; }
+/* bare until picked (decision 0031); the row moves back by the padding so the first label sits under the legend */
+.server-workbench-choice-list { margin-inline-start: -12px; }
+.server-workbench-choice-list button[aria-checked="true"] {
+  color: var(--k-text, var(--text));
+  border-color: var(--k-line-strong, var(--faint));
+  background: var(--k-raised, var(--panel));
+  -webkit-text-stroke: 0.35px currentColor;
+}
 
 .server-workbench-switch-row {
   display: flex;
@@ -2259,19 +2272,21 @@ html[data-theme="light"] :where(
 }
 
 #today-view[data-kokuen-surface="home"] .today-settings {
-  padding-inline: var(--k-space-1);
+  padding-inline: var(--k-space-2);
+  margin-inline-end: calc(-1 * var(--k-space-2));
 }
 
 #today-view[data-kokuen-surface="home"] .today-section-edit {
   min-width: var(--k-control-dense);
   min-height: var(--k-control-dense);
-  padding: 0;
+  padding: 0 var(--k-space-2);
+  margin-inline-end: calc(-1 * var(--k-space-2));
   border: 0;
   background: transparent;
   color: var(--k-soft);
   font: inherit;
   font-size: 12px;
-  text-align: right;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -2779,7 +2794,9 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
 
 /* Text entry and form dropdowns keep their boundary and gain one bottom edge.
    This shared rule must win over legacy page-specific input outlines; actions,
-   choices, sliders, date pickers and color controls retain their normal rings.
+   choices, sliders, boxed date pickers and color controls retain their normal rings. An
+   underline date picker in a form footer has no padding, so a ring sat on the date; it takes the
+   bottom line like the fields beside it.
    Color swatches use readonly text inputs with role=button, not text entry. */
 html[data-kokuen-version="5"] :where(
   input:not([type]),
@@ -2787,7 +2804,8 @@ html[data-kokuen-version="5"] :where(
   textarea,
   .custom-select[role="combobox"],
   .locale-choice-trigger[aria-haspopup="listbox"]
-):not([role="button"]):focus-visible {
+):not([role="button"]):focus-visible,
+html[data-kokuen-version="5"] .page-view-footer .date-input:focus-visible {
   outline: none !important;
   box-shadow: inset 0 -2px 0 var(--k-field-focus, var(--muted)) !important;
 }
@@ -2865,6 +2883,12 @@ html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn) {
   transition: color var(--k-motion-fast) var(--k-ease), background-color var(--k-motion-fast) var(--k-ease);
 }
 
+/* the display above beat the hidden attribute: reminders and vault showed retry buttons with
+   nothing to retry */
+html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn)[hidden] {
+  display: none;
+}
+
 html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn):hover {
   border-color: transparent;
   background: var(--k-hover);
@@ -2885,16 +2909,23 @@ html[data-kokuen-version="5"] :is(.btn.danger, .btn.danger:hover) {
   color: var(--k-danger);
 }
 
-html[data-kokuen-version="5"] :is(.act-chip[aria-pressed="true"], .mem-cat-btn[aria-pressed="true"], .btn.active) {
+html[data-kokuen-version="5"] :is(.mem-cat-btn[aria-pressed="true"], .btn.active) {
   border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
   -webkit-text-stroke: 0.35px currentColor;
 }
 
+/* activity sources start all on, so a raised "on" boxed the whole row. on is full text,
+   off is muted and struck through so it doesn't rest on color alone */
+html[data-kokuen-version="5"] .act-chip[aria-pressed="true"] {
+  color: var(--k-text);
+}
+
 html[data-kokuen-version="5"] .act-chip.off {
   opacity: 1;
   color: var(--k-muted);
+  text-decoration: line-through;
 }
 
 /* every action answers the pointer with tone, never a lift */
@@ -2915,6 +2946,16 @@ body[data-app="files"] #files-view .files-check:hover,
 body[data-app="files"] #files-view button.crumb:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* ...but they still get room inside, pulled back by the same amount, so the label stays on
+   the column edge and the inset focus ring never touches the words */
+#today-view :is(.today-ask, .today-summary-tasks),
+.skl-card-name,
+.aide-context-panel .aide-context-footer button,
+#andromeda-view :is(.andromeda-text-action, .andromeda-actions button, .andromeda-recovery button, .andromeda-searxng-actions button) {
+  padding-inline: var(--k-space-2);
+  margin-inline: calc(-1 * var(--k-space-2));
 }
 
 /* Local navigation rows share the data-row contract: bare at rest, hover tone,
@@ -2949,8 +2990,9 @@ html[data-kokuen-version="5"] [data-kokuen-state="loading"] {
 }
 
 /* tabs show selection with tone and weight only (COMPONENTS.md tabs). anything with its own mark
-   (a radio dot, a tick) lets the mark show the state; a box behind it as well is just noise */
-html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch, [role="tab"], .news-choice, .cal-chk-row, .ie-chk, .token-scope, :has(> .radio-mark, > .chk, > .token-scope-mark))) {
+   (a radio dot, a tick) lets the mark show the state; a box behind it as well is just noise.
+   activity sources start all on, so "on" is tone and "off" is struck through instead */
+html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch, [role="tab"], .news-choice, .cal-chk-row, .ie-chk, .token-scope, .act-chip, :has(> .radio-mark, > .chk, > .token-scope-mark))) {
   color: var(--k-text);
   background: var(--k-raised);
 }
@@ -3031,6 +3073,11 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
     .andromeda-search > input,
     body.afterlife-aide-projects[data-space="aide"] .search-wrap > input
   )) {
+    outline: 2px solid Highlight !important;
+    outline-offset: var(--k-focus-offset, -2px);
+  }
+
+  html[data-kokuen-version="5"] .page-view-footer .date-input:focus-visible {
     outline: 2px solid Highlight !important;
     outline-offset: var(--k-focus-offset, -2px);
   }
@@ -3156,8 +3203,8 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .shell-navigation-toggle {
-  margin-inline-start: 0;
-  padding-inline: var(--k-space-1);
+  margin-inline-start: calc(-1 * var(--k-space-2));
+  padding-inline: var(--k-space-2);
   color: var(--k-muted);
   background: transparent;
   font-size: 14px;
@@ -3904,7 +3951,7 @@ textarea[data-kokuen-entry="autogrow"] {
   border-bottom: 0;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice:is(:hover, [aria-checked="true"]) {
+#settings-modal[data-kokuen-surface="settings"] .locale-language-choice:hover {
   background: var(--k-hover);
 }
 
@@ -4055,22 +4102,22 @@ textarea[data-kokuen-entry="autogrow"] {
   color: var(--k-text);
 }
 
+/* bare until picked (decision 0031). it ends on the row's right edge like the pickers above it;
+   stacked on a phone it starts on the column instead */
 #settings-modal[data-kokuen-surface="settings"] .locale-segmented {
   min-width: 0;
   display: flex;
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-control);
-  overflow: hidden;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-segmented button {
   min-width: 0;
-  min-height: var(--k-control-dense);
-  flex: 1 1 auto;
-  padding: 0 var(--k-space-2);
-  border: 0;
-  border-right: 1px solid var(--k-line);
-  border-radius: 0;
+  min-height: var(--k-control);
+  flex: 0 1 auto;
+  padding: 0 var(--k-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--k-radius-control);
   background: transparent;
   color: var(--k-muted);
   font-size: 12px;
@@ -4080,13 +4127,16 @@ textarea[data-kokuen-entry="autogrow"] {
   cursor: pointer;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .locale-segmented button:last-child {
-  border-right: 0;
+#settings-modal[data-kokuen-surface="settings"] .locale-segmented button:hover {
+  background: var(--k-hover);
+  color: var(--k-text);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-segmented button[aria-checked="true"] {
+  border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-settings-save {
@@ -4473,6 +4523,11 @@ html[dir="rtl"] :where(
     grid-template-columns: minmax(0, 1fr);
     gap: var(--k-space-3);
     padding: var(--k-space-3);
+  }
+
+  #settings-modal[data-kokuen-surface="settings"] .locale-segmented {
+    justify-content: flex-start;
+    margin-inline-start: calc(-1 * var(--k-space-3));
   }
 
   #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger,
@@ -5381,9 +5436,15 @@ body.afterlife-aide-projects[data-space="aide"] .news-choice::before {
   border-radius: 50%;
 }
 
-body.afterlife-aide-projects[data-space="aide"] .news-choice:is(:hover, [aria-checked="true"]) {
+/* the dot shows the pick; only hover gets a tone behind it */
+body.afterlife-aide-projects[data-space="aide"] .news-choice:hover {
   color: var(--k-text);
   background: var(--k-hover);
+}
+
+body.afterlife-aide-projects[data-space="aide"] .news-choice[aria-checked="true"] {
+  color: var(--k-text);
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-choice[aria-checked="true"]::before {
@@ -6300,8 +6361,18 @@ body[data-app="files"] #files-view .crumb:last-child {
 }
 
 body[data-app="files"] #files-view .crumb-sep {
-  padding: 0 var(--k-space-2);
+  padding: 0;
   color: var(--k-quiet);
+}
+
+/* the crumb carries the 8px the separator used to, so its focus ring has room; the strip moves
+   back the same 8px so the first name still starts on the column edge */
+body[data-app="files"] #files-view .crumb {
+  padding-inline: var(--k-space-2);
+}
+
+body[data-app="files"] #files-view .files-breadcrumb {
+  margin-inline-start: calc(-1 * var(--k-space-2));
 }
 
 body[data-app="files"] #files-view :where(.files-text-button, .files-bare-icon) {
@@ -7232,6 +7303,23 @@ html[data-kokuen-version="5"] :is(.s-switch.on, .s-switch[aria-checked="true"], 
 html[data-kokuen-version="5"] :is(.s-switch.on, .s-switch[aria-checked="true"], .home-settings-switch[aria-checked="true"], .news-switch[aria-checked="true"])::after,
 html[data-kokuen-version="5"] .andromeda-switch[aria-checked="true"] > span {
   background: var(--k-text);
+}
+
+/* focus rings the track itself. the square ring on the 44px target cut across the rounded
+   track's ends, 1px either way (balance pass 2026-10-19) */
+html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch, .andromeda-switch):focus-visible {
+  outline: none !important;
+}
+
+html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch, .andromeda-switch):focus-visible::before {
+  outline: 2px solid var(--k-focus, var(--focus));
+  outline-offset: 0;
+}
+
+@media (forced-colors: active) {
+  html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch, .andromeda-switch):focus-visible::before {
+    outline-color: Highlight;
+  }
 }
 
 /* Model provider picker (settings and setup): one quiet list, one row per provider,

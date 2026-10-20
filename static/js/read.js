@@ -275,6 +275,9 @@ function _render() {
   const editing = !_saving && body.contains(active) && ['read-url', 'read-q', 'feed-url'].includes(active.id)
     ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
   if (editing?.id === 'read-url' && !active.disabled) _urlDraft = active.value;
+  // a filter or feeds pick re-renders the toolbar; keep the keyboard on the chip that was pressed
+  const chip = body.contains(active) && active.classList.contains('read-chip')
+    ? (active.id ? `#${active.id}` : `.read-chip[data-filter="${active.dataset.filter}"]`) : null;
   body.innerHTML = `
     <div class="read-add">
       <input type="text" id="read-url" class="settings-input" aria-label="URL to save for later" aria-describedby="read-save-error" placeholder="paste a URL to save for later…" spellcheck="false" value="${esc(_pendingSave?.url ?? _urlDraft)}" ${_saving || _pendingSave ? 'disabled' : ''}>
@@ -295,6 +298,7 @@ function _render() {
     ${_items.length ? `<div class="read-list">${_items.map(_card).join('')}</div>`
       : (_itemsCurrent ? `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet: paste a link above and alles will keep the article text here, searchable, forever.'}</div>` : '')}`;
   _wire(body);
+  if (chip) body.querySelector(chip)?.focus();
   if (editing) {
     if (editing.id === 'read-url' && _pendingSave) { $('read-save-check')?.focus(); return; }
     const field = $(editing.id);

@@ -55,7 +55,7 @@ def run():
     require_server_ownership(base, run_id)
     out = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     fields = registry()
-    assert len(fields) == 89
+    assert len(fields) == 93
     profiles = [(w, t, False) for w in (1440, 768, 390) for t in ("light", "dark")]
     profiles += [(1440, t, True) for t in ("light", "dark")]
     rows = []

@@ -69,7 +69,9 @@ def run():
                         editor = card.locator("textarea")
                         expect(editor).to_be_visible()
                         original = editor.input_value()
-                        message = card.locator(".server-workbench-status").first
+                        # the validation result sits with the actions; a missing or broken file
+                        # keeps its own warning above the editor
+                        message = card.locator(".server-workbench-actions .server-workbench-status")
                         validate = card.get_by_role(
                             "button", name="validate and show diff", exact=True
                         )

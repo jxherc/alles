@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v392';   // andromeda answer tools, faster overview and no boot flash in this shell revision.
+const VERSION = 'v393';   // andromeda tools, errand sign-in and the balance pass together in this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '543';   // keep in sync with index.html ?v= / const _v
+const STAMP = '546';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

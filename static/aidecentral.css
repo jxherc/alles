@@ -139,7 +139,8 @@ body.aide-central[data-space="aide"] .session-item .star { display: none; }
 .aide-context-panel h2 { font-size: 16px; font-weight: 550; }
 .aide-context-content { overflow: auto; padding: var(--k-space-4, 16px) var(--k-space-5, 24px); }
 .aide-context-empty { margin: var(--k-space-5, 24px) 0; font-size: 14px; color: var(--muted); }
-.aide-context-panel .aide-job-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--k-space-4, 16px); width: 100%; padding: var(--k-space-4, 16px) 0; text-align: left; }
+/* rows keep their text on the panel's column; 12px of room each side, pulled back, keeps the focus ring off it */
+.aide-context-panel .aide-job-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--k-space-4, 16px); width: calc(100% + 2 * var(--k-space-3, 12px)); margin-inline: calc(-1 * var(--k-space-3, 12px)); padding: var(--k-space-4, 16px) var(--k-space-3, 12px); text-align: left; }
 .aide-job-copy { min-width: 0; display: flex; flex-direction: column; gap: var(--k-space-1, 4px); }
 .aide-job-title { font-size: 14px; color: var(--text); overflow-wrap: anywhere; }
 .aide-job-summary { color: var(--muted); font-size: 13px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -167,7 +168,7 @@ body.aide-central[data-space="aide"] .aide-background-details { font-size: 12px;
   body.aide-central[data-space="aide"] .c-right { flex: 1; justify-content: flex-end; }
   body.aide-central[data-space="aide"] .aide-model-choice { max-width: 108px; }
   body.aide-central[data-space="aide"] #effort-btn { display: none; }
-  body.aide-central[data-space="aide"] #perm-mode-btn { max-width: 96px; padding-inline: var(--k-space-1, 4px); }
+  body.aide-central[data-space="aide"] #perm-mode-btn { max-width: 96px; padding-inline: var(--k-space-2, 8px); } /* 4px left the focus ring 2px off the words; the row has room */
   .aide-history-context { padding-inline: var(--k-space-4, 16px); }
   .aide-context-panel { border-left: 0; }
 }
